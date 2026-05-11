@@ -95,6 +95,8 @@ Important:
 - yfinance-backed data should be treated as unofficial / research-grade
 - the core screener still runs on the local CSV-first pipeline
 - all new market/fundamental calls stay behind provider interfaces
+- valuation is scaffold-level only in this phase
+- local earnings and analyst-estimate coverage is intentionally limited unless a richer data source is added
 
 ### Stock Report Beta in the dashboard
 
@@ -112,7 +114,7 @@ This section is additive and does not replace the existing CSV-first screener pa
 You can generate a structured JSON stock report from the command line:
 
 ```bash
-python -m src.stock_report --ticker AAPL --provider local
+python -m src.stock_report --ticker NVDA --provider local
 ```
 
 For a demo/smoke workflow:
@@ -124,8 +126,10 @@ python -m src.stock_report --ticker AAPL --provider mock
 To write JSON to a file:
 
 ```bash
-python -m src.stock_report --ticker AAPL --provider local --output outputs/aapl_stock_report.json
+python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
+
+For the local provider, use a ticker that actually exists in the bundled `data/prices.csv`. The sample project data currently supports names such as `NVDA`, `TSLA`, `SPY`, and `QQQ`.
 
 ## Optional daily price-data update
 

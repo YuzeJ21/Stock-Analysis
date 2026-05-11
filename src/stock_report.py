@@ -273,8 +273,11 @@ def main() -> None:
     parser.add_argument("--output", help="Optional JSON output path")
     args = parser.parse_args()
 
-    report = build_stock_report(args.ticker, build_provider(args.provider))
-    payload = export_stock_report_json(report, Path(args.output) if args.output else None)
+    try:
+        report = build_stock_report(args.ticker, build_provider(args.provider))
+        payload = export_stock_report_json(report, Path(args.output) if args.output else None)
+    except (FileNotFoundError, LookupError, RuntimeError, ValueError) as exc:
+        raise SystemExit(f"Stock report generation failed: {exc}") from exc
     print(payload)
 
 

@@ -1,8 +1,11 @@
 import json
+import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.providers.market_data import (
     AnalystEstimateSummary,
@@ -13,7 +16,7 @@ from src.providers.market_data import (
 )
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.mock_market_data import MockMarketDataProvider
-from src.stock_report import build_stock_report, create_stock_report_payload, export_stock_report_json
+from src.stock_report import build_stock_report, create_stock_report_payload, export_stock_report_json, main
 
 
 def test_build_stock_report_assembles_expected_sections():
@@ -192,3 +195,22 @@ def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available
     assert payload["price_snapshot"]["price"] == 130.0
     assert payload["financial_summary"]["profit_margin"] == 0.30
     assert payload["data_freshness"][0]["provider"] == "local:prices.csv"
+
+
+def test_stock_report_cli_fails_gracefully_for_missing_local_ticker(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,SPY,100,1000\n",
+        encoding="utf-8",
+    )
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--ticker", "AAPL", "--provider", "local"]
+    try:
+        with pytest.raises(SystemExit, match="Stock report generation failed: No local price rows were found for AAPL"):
+            main()
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
