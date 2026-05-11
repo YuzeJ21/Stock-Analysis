@@ -175,6 +175,13 @@ class MarketDataProvider(ABC):
     def getOptionsChain(self, ticker: str, expiry: str) -> OptionsChainSummary:
         return self.get_options_chain(ticker, expiry)
 
+    # Optional local-data helpers used by the stock-report beta workflow.
+    def get_local_data_validation(self) -> list[dict[str, Any]]:
+        return []
+
+    def get_peer_valuation_inputs(self, ticker: str) -> list[dict[str, Any]]:
+        return []
+
 
 def make_source_metadata(
     provider: str,

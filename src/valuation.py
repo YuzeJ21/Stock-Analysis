@@ -27,6 +27,7 @@ class ValuationInput:
     trailing_pe: float | None = None
     forward_pe: float | None = None
     price_to_book: float | None = None
+    peer_inputs: list[dict[str, Any]] = field(default_factory=list)
     source_metadata: list[dict[str, Any]] = field(default_factory=list)
     screener_context: dict[str, Any] = field(default_factory=dict)
 
@@ -81,6 +82,9 @@ class RelativeValuationResult:
     status: str
     method_name: str
     available_multiples: dict[str, float | None]
+    peer_median_multiples: dict[str, float | None]
+    peer_tickers: list[str]
+    peer_count: int
     missing_fields: list[str]
     warnings: list[str]
     notes: list[str]
@@ -356,6 +360,13 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         "Relative valuation is limited to standalone multiples unless peer data is available locally.",
         "Standalone multiples are context, not a recommendation.",
     ]
+    peer_median_multiples: dict[str, float | None] = {
+        "pe": None,
+        "ps": None,
+        "p_fcf": None,
+        "ev_ebitda": None,
+    }
+    peer_tickers = [str(item.get("ticker")).upper() for item in valuation_input.peer_inputs if item.get("ticker")]
 
     if valuation_input.current_price is not None and valuation_input.eps not in (None, 0):
         available_multiples["pe"] = valuation_input.current_price / valuation_input.eps
@@ -400,10 +411,39 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         available_multiples[key] is not None
         for key in ("pe", "ps", "p_fcf", "ev_ebitda", "trailing_pe_reported", "forward_pe_reported", "price_to_book_reported")
     )
-    status = "peer_data_unavailable" if computed_any else "insufficient_data"
-    if status == "peer_data_unavailable":
+    peer_series: dict[str, list[float]] = {"pe": [], "ps": [], "p_fcf": [], "ev_ebitda": []}
+    for peer in valuation_input.peer_inputs:
+        price = peer.get("current_price")
+        shares = peer.get("shares_outstanding")
+        market_cap = peer.get("market_cap") or (price * shares if price is not None and shares is not None else None)
+        eps = peer.get("eps")
+        revenue = peer.get("revenue")
+        free_cash_flow = peer.get("free_cash_flow")
+        ebitda = peer.get("ebitda")
+        cash = peer.get("cash")
+        debt = peer.get("debt")
+        if price is not None and eps not in (None, 0):
+            peer_series["pe"].append(price / eps)
+        elif peer.get("trailing_pe") is not None:
+            peer_series["pe"].append(float(peer["trailing_pe"]))
+        if market_cap is not None and revenue not in (None, 0):
+            peer_series["ps"].append(market_cap / revenue)
+        if market_cap is not None and free_cash_flow not in (None, 0):
+            peer_series["p_fcf"].append(market_cap / free_cash_flow)
+        if market_cap is not None and ebitda not in (None, 0) and cash is not None and debt is not None:
+            peer_series["ev_ebitda"].append((market_cap + debt - cash) / ebitda)
+    for key, values in peer_series.items():
+        if values:
+            peer_median_multiples[key] = float(sorted(values)[len(values) // 2]) if len(values) % 2 == 1 else float((sorted(values)[len(values)//2 - 1] + sorted(values)[len(values)//2]) / 2)
+
+    if any(value is not None for value in peer_median_multiples.values()):
+        status = "calculated"
+        notes.append("Peer median multiples were calculated from the local peers dataset.")
+    elif computed_any:
+        status = "peer_data_unavailable"
         warnings.append("Peer data is unavailable, so only standalone multiples are shown.")
     else:
+        status = "insufficient_data"
         notes.append("Standalone valuation multiples could not be calculated from the available data.")
 
     if valuation_input.screener_context.get("undervalued_candidates"):
@@ -413,6 +453,9 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         status=status,
         method_name="relative_valuation",
         available_multiples=available_multiples,
+        peer_median_multiples=peer_median_multiples,
+        peer_tickers=peer_tickers,
+        peer_count=len(peer_tickers),
         missing_fields=_sorted_unique(missing_fields),
         warnings=_sorted_unique(warnings),
         notes=notes,

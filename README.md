@@ -107,15 +107,42 @@ The stock-report beta uses local files first.
 - optional for richer local stock reports: `data/fundamentals.csv`
 - optional if you add them later: `data/earnings.csv`, `data/earnings_calendar.csv`, `data/earnings_history.csv`
 - optional if you add them later: `data/analyst_estimates.csv` or `data/estimates.csv`
+- optional if you add them later: `data/peers.csv`
 - existing screener outputs under `outputs/*.csv` can also be surfaced as local context when they exist for a ticker
 
-Expected optional schema examples:
+The local CSV path is now schema-driven and validated before the Stock Report Beta uses it. Missing files or sparse columns do not crash the workflow. The report continues with explicit missing-data warnings, schema validation notes, and source/freshness metadata.
 
-- fundamentals: `ticker` plus fields such as `revenue`, `revenue_growth`, `eps`, `free_cash_flow`, `fcf_margin`, `profit_margin`, `operating_margin`, `ebitda`, `cash`, `debt`, `shares_outstanding`, `pe_ratio`, `market_cap`
-- earnings: `ticker` plus fields such as `next_earnings_date`, `last_earnings_date`, `eps_estimate`, `eps_actual`, `revenue_estimate`, `revenue_actual`, `surprise_pct`
-- analyst estimates: `ticker` plus fields such as `current_quarter_eps`, `next_quarter_eps`, `current_year_eps`, `next_year_eps`, `target_mean_price`, `recommendation`
+### Phase 2B local schema definitions
 
-Missing files or sparse columns do not crash the workflow. The report continues with explicit missing-data warnings and source/freshness notes.
+The local schema validator lives in `src/providers/local_schemas.py`. It defines a small expected contract for optional enrichment files without requiring them to exist.
+
+| Dataset | Required fields | Common optional valuation/report fields |
+| --- | --- | --- |
+| `data/fundamentals.csv` | `ticker` | `theme`, `sector`, `revenue`, `revenue_growth`, `eps`, `free_cash_flow`, `fcf_margin`, `profit_margin`, `operating_margin`, `ebitda`, `cash`, `debt`, `shares_outstanding`, `market_cap`, `pe_ratio`, `source`, `as_of_date` |
+| `data/earnings.csv` / `data/earnings_history.csv` | `ticker` | `next_earnings_date`, `last_earnings_date`, `fiscal_period`, `eps_estimate`, `eps_actual`, `revenue_estimate`, `revenue_actual`, `surprise_pct`, `source`, `as_of_date` |
+| `data/analyst_estimates.csv` / `data/estimates.csv` | `ticker` | `current_quarter_eps`, `next_quarter_eps`, `current_year_eps`, `next_year_eps`, `target_mean_price`, `target_high_price`, `target_low_price`, `recommendation`, `revision_trend`, `source`, `as_of_date` |
+| `data/peers.csv` | `ticker`, `peer_ticker` | `peer_group`, `sector`, `industry`, `source`, `as_of_date` |
+
+Validation behavior:
+
+- missing required columns are reported as `invalid`
+- optional missing files are reported as `missing_file`
+- unknown extra columns are surfaced as warnings, not hard failures
+- numeric/date parse failures are surfaced as warnings, not crashes
+- ticker keys are normalized to uppercase
+- `source` / `as_of_date` are preserved when present, otherwise freshness falls back to file-level metadata
+
+The bundled `data/fundamentals.csv` remains intentionally sparse today. As of this repo state, its columns are:
+
+- `ticker`
+- `theme`
+- `sector`
+- `pe_ratio`
+- `revenue_growth`
+- `profit_margin`
+- `debt_to_equity`
+
+That means the bundled local path can usually provide partial relative-valuation context, but not a full DCF.
 
 ### Phase 2A valuation methodology
 
@@ -146,7 +173,14 @@ Relative valuation:
 - standalone P/S is calculated when price, revenue, and shares exist
 - standalone P/FCF is calculated when price, FCF, and shares exist
 - EV/EBITDA is calculated only when EBITDA, cash, debt, and market-cap context are available
-- peer multiples are not fabricated; if peers are unavailable, the result is labeled accordingly
+- peer multiples are not fabricated; if `data/peers.csv` or peer fundamentals are unavailable, the result is labeled accordingly
+
+Missing-data behavior for valuation:
+
+- if local fundamentals only contain sparse fields, DCF returns `insufficient_data`
+- if standalone multiples can be calculated but peer medians cannot, relative valuation returns `peer_data_unavailable`
+- if local earnings or analyst-estimate files are missing, those sections stay explicit about local unavailability
+- the stock report never fabricates prices, fundamentals, earnings, analyst estimates, or peer values
 
 ### Stock Report Beta in the dashboard
 
@@ -157,6 +191,7 @@ The Streamlit dashboard now includes a `Stock Report (Beta)` section.
 - yfinance results are labeled unofficial / research-grade
 - the Beta section can export the structured report as JSON
 - the Beta section can show local dataset coverage for the selected ticker
+- the Beta section can show local dataset validation status and schema warnings
 - the Beta section surfaces missing-data warnings instead of guessing unavailable values
 - the Beta section shows valuation status, bull/base/bear scenarios, relative multiples, and sensitivity when available
 
@@ -174,6 +209,18 @@ To discover locally available tickers first:
 
 ```bash
 python -m src.stock_report --list-local-tickers
+```
+
+To validate your local CSV datasets and see schema/freshness warnings:
+
+```bash
+python -m src.stock_report --validate-local-data
+```
+
+For JSON-friendly validation output:
+
+```bash
+python -m src.stock_report --validate-local-data --json
 ```
 
 For a demo/smoke workflow:
@@ -201,6 +248,8 @@ The exported JSON includes:
 - key risks
 - missing-data warnings
 - source / freshness metadata
+- local dataset coverage
+- local schema validation metadata
 
 ## Optional daily price-data update
 
@@ -234,6 +283,36 @@ The dashboard includes:
 It reads from `outputs/*.csv`, shows friendly messages when files are missing, and surfaces explanation columns such as `Reason`, `MissingDataFields`, and `ConflictReasons` when available.
 
 The dashboard and CLI are research-only surfaces. They do not execute trades, route orders, or connect to brokers.
+
+## Enriching local CSV data
+
+If you want richer deterministic valuation coverage without relying on yfinance:
+
+1. Keep `data/prices.csv` populated for the tickers you care about.
+2. Expand `data/fundamentals.csv` with real local fields such as:
+   - `revenue`
+   - `eps`
+   - `free_cash_flow`
+   - `fcf_margin`
+   - `ebitda`
+   - `cash`
+   - `debt`
+   - `shares_outstanding`
+   - `market_cap`
+   - `source`
+   - `as_of_date`
+3. Optionally add:
+   - `data/earnings.csv`
+   - `data/analyst_estimates.csv`
+   - `data/peers.csv`
+4. Re-run:
+
+```bash
+python -m src.stock_report --validate-local-data
+python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
+```
+
+This workflow remains CSV-first. yfinance is optional, unofficial / research-grade, and should only be used when you explicitly opt in.
 
 ## Run tests
 

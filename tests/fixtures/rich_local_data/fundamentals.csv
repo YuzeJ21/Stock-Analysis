@@ -1,0 +1,4 @@
+ticker,revenue,revenue_growth,eps,free_cash_flow,fcf_margin,profit_margin,operating_margin,ebitda,cash,debt,shares_outstanding,pe_ratio,market_cap,debt_to_equity,source,as_of_date
+ALFA,1000,0.12,6.0,120,0.12,0.22,0.20,180,200,50,10,25,1500,0.30,fixture_fundamentals,2026-05-01
+BETA,800,0.08,4.0,90,0.11,0.18,0.17,140,100,40,12,21,1020,0.35,fixture_fundamentals,2026-05-01
+GAMMA,650,0.06,3.5,70,0.108,0.16,0.15,110,80,30,11,18,726,0.25,fixture_fundamentals,2026-05-01

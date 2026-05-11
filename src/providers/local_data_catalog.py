@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from src.providers.market_data import make_source_metadata
+from src.providers.local_schemas import LocalSchemaValidationResult, validate_local_dataset
 
 
 DATASET_CANDIDATES: dict[str, tuple[str, ...]] = {
@@ -14,6 +14,7 @@ DATASET_CANDIDATES: dict[str, tuple[str, ...]] = {
     "fundamentals": ("data/fundamentals.csv",),
     "earnings": ("data/earnings.csv", "data/earnings_calendar.csv", "data/earnings_history.csv"),
     "analyst_estimates": ("data/analyst_estimates.csv", "data/estimates.csv"),
+    "peers": ("data/peers.csv",),
     "holdings": ("data/holdings.csv",),
     "universe": ("data/universe.csv",),
     "theme_map": ("data/theme_map.csv",),
@@ -70,6 +71,11 @@ class LocalDatasetMetadata:
     date_column: str | None
     ticker_column: str | None
     latest_data_timestamp: str | None
+    validation_status: str
+    missing_required_columns: list[str]
+    available_optional_columns: list[str]
+    unknown_columns: list[str]
+    validation_warnings: list[str]
     source: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
@@ -80,10 +86,14 @@ class LocalDatasetMetadata:
 class LocalTickerDatasetCoverage:
     dataset_name: str
     file_path: str | None
+    validation_status: str
     ticker_present: bool
     row_count_for_ticker: int
     latest_data_timestamp: str | None
     notes: list[str]
+    available_columns: list[str] = field(default_factory=list)
+    missing_required_columns: list[str] = field(default_factory=list)
+    validation_warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -94,6 +104,7 @@ class LocalDataCatalog:
         self.base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
         self._path_cache: dict[str, Path | None] = {}
         self._frame_cache: dict[str, pd.DataFrame | None] = {}
+        self._validation_cache: dict[str, LocalSchemaValidationResult] = {}
 
     def dataset_names(self) -> list[str]:
         return list(DATASET_CANDIDATES.keys())
@@ -114,66 +125,51 @@ class LocalDataCatalog:
             return self._frame_cache[dataset_name]
 
         path = self.resolve_path(dataset_name)
-        if path is None:
-            self._frame_cache[dataset_name] = None
-            return None
-
-        frame = pd.read_csv(path)
-        frame.columns = normalize_columns(list(frame.columns))
-
-        date_column = _detect_date_column(list(frame.columns))
-        if date_column is not None:
-            frame[date_column] = pd.to_datetime(frame[date_column], errors="coerce", format="mixed")
-
-        ticker_column = _detect_ticker_column(list(frame.columns))
-        if ticker_column is not None:
-            frame[ticker_column] = frame[ticker_column].astype("string").str.upper().str.strip()
-
+        validation, frame = validate_local_dataset(dataset_name, path)
+        self._validation_cache[dataset_name] = validation
         self._frame_cache[dataset_name] = frame
         return frame
 
-    def dataset_metadata(self, dataset_name: str) -> LocalDatasetMetadata | None:
+    def validation_result(self, dataset_name: str) -> LocalSchemaValidationResult:
+        if dataset_name not in self._validation_cache:
+            self.load_dataframe(dataset_name)
+        if dataset_name not in self._validation_cache:
+            path = self.resolve_path(dataset_name)
+            validation, _ = validate_local_dataset(dataset_name, path)
+            self._validation_cache[dataset_name] = validation
+        return self._validation_cache[dataset_name]
+
+    def dataset_metadata(self, dataset_name: str) -> LocalDatasetMetadata:
         path = self.resolve_path(dataset_name)
-        if path is None:
-            return None
-
-        frame = self.load_dataframe(dataset_name)
-        if frame is None:
-            return None
-
-        columns = list(frame.columns)
+        validation = self.validation_result(dataset_name)
+        frame = self._frame_cache.get(dataset_name)
+        columns = validation.available_columns
         date_column = _detect_date_column(columns)
-        latest_timestamp = None
-        if date_column is not None and date_column in frame.columns and frame[date_column].notna().any():
-            latest_value = frame[date_column].dropna().max()
-            latest_timestamp = latest_value.isoformat() if hasattr(latest_value, "isoformat") else str(latest_value)
-
-        freshness = f"local CSV through {latest_timestamp}" if latest_timestamp else "local CSV file"
-        notes = ["Generated screener output CSV."] if "outputs" in path.parts else ["Local CSV-backed research data."]
+        ticker_column = _detect_ticker_column(columns)
+        path_text = str(path) if path is not None else validation.file_path
+        row_count = len(frame) if frame is not None else validation.row_count
 
         return LocalDatasetMetadata(
             name=dataset_name,
-            file_path=str(path),
-            row_count=len(frame),
+            file_path=path_text,
+            row_count=row_count,
             available_columns=columns,
             date_column=date_column,
-            ticker_column=_detect_ticker_column(columns),
-            latest_data_timestamp=latest_timestamp,
-            source=make_source_metadata(
-                provider=f"local:{path.name}",
-                freshness=freshness,
-                official=False,
-                notes=notes,
-                retrieved_at=pd.Timestamp(path.stat().st_mtime, unit="s", tz="UTC").isoformat(),
-            ).to_dict(),
+            ticker_column=ticker_column,
+            latest_data_timestamp=validation.latest_data_timestamp,
+            validation_status=validation.status,
+            missing_required_columns=validation.missing_required_columns,
+            available_optional_columns=validation.available_optional_columns,
+            unknown_columns=validation.unknown_columns,
+            validation_warnings=validation.warnings,
+            source=validation.source,
         )
 
     def discover(self) -> list[LocalDatasetMetadata]:
         datasets: list[LocalDatasetMetadata] = []
         for dataset_name in self.dataset_names():
             metadata = self.dataset_metadata(dataset_name)
-            if metadata is not None:
-                datasets.append(metadata)
+            datasets.append(metadata)
         return datasets
 
     def list_tickers(self, dataset_names: list[str] | None = None) -> list[str]:
@@ -193,30 +189,53 @@ class LocalDataCatalog:
         coverage_rows: list[LocalTickerDatasetCoverage] = []
         for dataset_name in dataset_names or self.dataset_names():
             metadata = self.dataset_metadata(dataset_name)
-            if metadata is None:
+            if metadata.validation_status == "missing_file":
                 coverage_rows.append(
                     LocalTickerDatasetCoverage(
                         dataset_name=dataset_name,
                         file_path=None,
+                        validation_status=metadata.validation_status,
                         ticker_present=False,
                         row_count_for_ticker=0,
                         latest_data_timestamp=None,
                         notes=["Local CSV dataset is not present."],
+                        available_columns=[],
+                        missing_required_columns=metadata.missing_required_columns,
+                        validation_warnings=metadata.validation_warnings,
                     )
                 )
                 continue
 
             frame = self.load_dataframe(dataset_name)
-            assert frame is not None
+            if frame is None:
+                coverage_rows.append(
+                    LocalTickerDatasetCoverage(
+                        dataset_name=dataset_name,
+                        file_path=metadata.file_path,
+                        validation_status=metadata.validation_status,
+                        ticker_present=False,
+                        row_count_for_ticker=0,
+                        latest_data_timestamp=metadata.latest_data_timestamp,
+                        notes=["Dataset could not be loaded from local CSVs."],
+                        available_columns=metadata.available_columns,
+                        missing_required_columns=metadata.missing_required_columns,
+                        validation_warnings=metadata.validation_warnings,
+                    )
+                )
+                continue
             if metadata.ticker_column is None:
                 coverage_rows.append(
                     LocalTickerDatasetCoverage(
                         dataset_name=dataset_name,
                         file_path=metadata.file_path,
+                        validation_status=metadata.validation_status,
                         ticker_present=False,
                         row_count_for_ticker=0,
                         latest_data_timestamp=metadata.latest_data_timestamp,
                         notes=["Dataset does not contain a ticker/symbol column."],
+                        available_columns=metadata.available_columns,
+                        missing_required_columns=metadata.missing_required_columns,
+                        validation_warnings=metadata.validation_warnings,
                     )
                 )
                 continue
@@ -231,10 +250,14 @@ class LocalDataCatalog:
                 LocalTickerDatasetCoverage(
                     dataset_name=dataset_name,
                     file_path=metadata.file_path,
+                    validation_status=metadata.validation_status,
                     ticker_present=not matches.empty,
                     row_count_for_ticker=len(matches),
                     latest_data_timestamp=latest_timestamp or metadata.latest_data_timestamp,
                     notes=notes,
+                    available_columns=metadata.available_columns,
+                    missing_required_columns=metadata.missing_required_columns,
+                    validation_warnings=metadata.validation_warnings,
                 )
             )
         return coverage_rows

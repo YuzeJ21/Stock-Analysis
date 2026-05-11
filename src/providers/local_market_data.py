@@ -52,6 +52,27 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             notes=notes,
         )
 
+    def _row_source(
+        self,
+        dataset_name: str,
+        row: pd.Series,
+        default_notes: list[str],
+    ):
+        metadata = self.catalog.dataset_metadata(dataset_name)
+        notes = list(default_notes)
+        if "source" in row and pd.notna(row["source"]):
+            notes.append(f"Dataset row source: {row['source']}")
+        freshness = metadata.source["freshness"]
+        if "as_of_date" in row and pd.notna(row["as_of_date"]):
+            freshness = f"dataset row as of {pd.Timestamp(row['as_of_date']).date().isoformat()}"
+        return make_source_metadata(
+            provider=metadata.source["provider"],
+            freshness=freshness,
+            official=False,
+            notes=notes,
+            retrieved_at=metadata.source["retrieved_at"],
+        )
+
     def _load_prices(self) -> pd.DataFrame:
         prices = self.catalog.load_dataframe("prices")
         if prices is None:
@@ -95,13 +116,19 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
     def _string_value(self, row: pd.Series, *columns: str) -> str | None:
         for column in columns:
             if column in row and pd.notna(row[column]):
-                return str(row[column])
+                value = row[column]
+                if isinstance(value, pd.Timestamp):
+                    return value.date().isoformat() if value.time().isoformat() == "00:00:00" else value.isoformat()
+                return str(value)
         return None
 
     def list_local_tickers(self) -> list[str]:
         return self.catalog.list_tickers(
-            ["prices", "fundamentals", "earnings", "analyst_estimates", "universe", "holdings"]
+            ["prices", "fundamentals", "earnings", "analyst_estimates", "peers", "universe", "holdings"]
         )
+
+    def get_local_data_validation(self) -> list[dict[str, Any]]:
+        return [entry.to_dict() for entry in self.catalog.discover()]
 
     def get_ticker_dataset_coverage(self, ticker: str) -> list[dict[str, Any]]:
         coverage = self.catalog.describe_ticker(
@@ -111,6 +138,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
                 "fundamentals",
                 "earnings",
                 "analyst_estimates",
+                "peers",
                 "purpose_classification",
                 "momentum_leaders",
                 "portfolio_review",
@@ -119,6 +147,48 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             ],
         )
         return [row.to_dict() for row in coverage]
+
+    def get_peer_tickers(self, ticker: str) -> list[str]:
+        peers = self._load_optional_dataset("peers")
+        if peers.empty or "ticker" not in peers.columns or "peer_ticker" not in peers.columns:
+            return []
+        ticker = ticker.upper()
+        return sorted(
+            peers.loc[peers["ticker"] == ticker, "peer_ticker"]
+            .dropna()
+            .astype(str)
+            .str.upper()
+            .str.strip()
+            .unique()
+            .tolist()
+        )
+
+    def get_peer_valuation_inputs(self, ticker: str) -> list[dict[str, Any]]:
+        peer_inputs: list[dict[str, Any]] = []
+        for peer_ticker in self.get_peer_tickers(ticker):
+            financials = self.get_financials(peer_ticker)
+            try:
+                quote = self.get_quote(peer_ticker)
+            except LookupError:
+                quote = None
+            peer_inputs.append(
+                {
+                    "ticker": peer_ticker,
+                    "current_price": quote.price if quote is not None else None,
+                    "revenue": financials.revenue,
+                    "eps": financials.eps,
+                    "free_cash_flow": financials.free_cash_flow,
+                    "ebitda": financials.ebitda,
+                    "shares_outstanding": financials.shares_outstanding,
+                    "cash": financials.cash,
+                    "debt": financials.debt,
+                    "market_cap": financials.market_cap,
+                    "trailing_pe": financials.trailing_pe,
+                    "forward_pe": financials.forward_pe,
+                    "price_to_book": financials.price_to_book,
+                }
+            )
+        return peer_inputs
 
     def get_screener_context(self, ticker: str) -> dict[str, dict[str, Any]]:
         ticker = ticker.upper()
@@ -196,13 +266,16 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         fundamentals = self._load_fundamentals()
         row = self._select_ticker_row(fundamentals, ticker)
         metadata = self.catalog.dataset_metadata("fundamentals")
-        source = (
-            metadata.source
-            if metadata is not None
+        source = self._row_source("fundamentals", row, ["Local fundamentals data."]) if not row.empty else (
+            self._unavailable_source(
+                "local:fundamentals.csv",
+                ["No local fundamentals row was found for this ticker."],
+            )
+            if metadata.validation_status != "missing_file"
             else self._unavailable_source(
                 "local:fundamentals.csv",
                 ["Fundamentals file is unavailable in the local CSV-first pipeline."],
-            ).to_dict()
+            )
         )
         return FinancialSnapshot(
             ticker=ticker,
@@ -227,7 +300,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             debt_to_equity=self._float_value(row, "debt_to_equity"),
             currency=None,
             as_of_date=self._string_value(row, "as_of_date", "date"),
-            source=make_source_metadata(**source),
+            source=source,
         )
 
     def get_earnings(self, ticker: str) -> EarningsSummary:
@@ -235,7 +308,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         earnings = self._load_optional_dataset("earnings")
         row = self._select_ticker_row(earnings, ticker)
         metadata = self.catalog.dataset_metadata("earnings")
-        if metadata is None:
+        if metadata.validation_status == "missing_file":
             return EarningsSummary(
                 ticker=ticker,
                 notes=["No local earnings dataset is configured in the CSV-first pipeline."],
@@ -254,7 +327,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             revenue_actual=self._float_value(row, "revenue_actual"),
             surprise_pct=self._float_value(row, "surprise_pct"),
             notes=[] if not row.empty else [f"No local earnings row was found for {ticker}."],
-            source=make_source_metadata(**metadata.source),
+            source=self._row_source("earnings", row, ["Local earnings data."]) if not row.empty else make_source_metadata(**metadata.source),
         )
 
     def get_analyst_estimates(self, ticker: str) -> AnalystEstimateSummary:
@@ -262,7 +335,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         estimates = self._load_optional_dataset("analyst_estimates")
         row = self._select_ticker_row(estimates, ticker)
         metadata = self.catalog.dataset_metadata("analyst_estimates")
-        if metadata is None:
+        if metadata.validation_status == "missing_file":
             return AnalystEstimateSummary(
                 ticker=ticker,
                 notes=["No local analyst-estimate dataset is configured in the CSV-first pipeline."],
@@ -284,7 +357,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             recommendation=self._string_value(row, "recommendation"),
             target_mean_price=self._float_value(row, "target_mean_price"),
             notes=[] if not row.empty else [f"No local analyst-estimate row was found for {ticker}."],
-            source=make_source_metadata(**metadata.source),
+            source=self._row_source("analyst_estimates", row, ["Local analyst estimate data."]) if not row.empty else make_source_metadata(**metadata.source),
         )
 
     def get_options_chain(self, ticker: str, expiry: str) -> OptionsChainSummary:

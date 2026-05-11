@@ -5,6 +5,16 @@ import pytest
 
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 
+RICH_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "rich_local_data"
+
+
+def _copy_rich_fixture(tmp_path: Path) -> Path:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    for path in RICH_FIXTURE_DIR.glob("*.csv"):
+        (data_dir / path.name).write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+    return tmp_path
+
 
 def test_local_provider_returns_quote_for_known_ticker(tmp_path: Path):
     (tmp_path / "data").mkdir()
@@ -184,3 +194,36 @@ def test_local_provider_surfaces_existing_screener_context(tmp_path: Path):
 
     assert context["final_watchlist"]["finalstate"] == "Watch"
     assert context["final_watchlist"]["reason"] == "Fixture row"
+
+
+def test_local_provider_preserves_source_and_as_of_date_from_rich_fixture(tmp_path: Path):
+    provider = LocalCSVMarketDataProvider(base_dir=_copy_rich_fixture(tmp_path))
+
+    financials = provider.get_financials("ALFA")
+    earnings = provider.get_earnings("ALFA")
+    estimates = provider.get_analyst_estimates("ALFA")
+
+    assert financials.as_of_date == "2026-05-01"
+    assert "fixture_fundamentals" in " ".join(financials.source.notes)
+    assert "fixture_earnings" in " ".join(earnings.source.notes)
+    assert "fixture_estimates" in " ".join(estimates.source.notes)
+
+
+def test_local_provider_loads_peer_fixture_when_available(tmp_path: Path):
+    provider = LocalCSVMarketDataProvider(base_dir=_copy_rich_fixture(tmp_path))
+
+    peer_tickers = provider.get_peer_tickers("ALFA")
+    peer_inputs = provider.get_peer_valuation_inputs("ALFA")
+
+    assert peer_tickers == ["BETA", "GAMMA"]
+    assert {item["ticker"] for item in peer_inputs} == {"BETA", "GAMMA"}
+
+
+def test_local_provider_exposes_validation_metadata(tmp_path: Path):
+    provider = LocalCSVMarketDataProvider(base_dir=_copy_rich_fixture(tmp_path))
+
+    validation = provider.get_local_data_validation()
+
+    fundamentals = next(item for item in validation if item["name"] == "fundamentals")
+    assert fundamentals["validation_status"] == "valid"
+    assert "revenue" in fundamentals["available_optional_columns"]

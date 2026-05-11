@@ -1,0 +1,3 @@
+ticker,peer_ticker,peer_group,sector,industry,source,as_of_date
+ALFA,BETA,fixture_group,Technology,Software,fixture_peers,2026-05-01
+ALFA,GAMMA,fixture_group,Technology,Software,fixture_peers,2026-05-01

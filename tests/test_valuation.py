@@ -1,5 +1,7 @@
 import json
+from pathlib import Path
 
+from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.valuation import (
     DCFAssumptions,
     ValuationInput,
@@ -10,6 +12,16 @@ from src.valuation import (
     calculate_relative_valuation,
     validate_dcf_assumptions,
 )
+
+RICH_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "rich_local_data"
+
+
+def _copy_rich_fixture(tmp_path: Path) -> Path:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    for path in RICH_FIXTURE_DIR.glob("*.csv"):
+        (data_dir / path.name).write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+    return tmp_path
 
 
 def test_calculate_dcf_with_direct_fcf_and_shares():
@@ -182,3 +194,86 @@ def test_relative_valuation_returns_peer_data_unavailable_with_reported_multiple
 
     assert result.status == "peer_data_unavailable"
     assert result.available_multiples["trailing_pe_reported"] == 34.0
+
+
+def test_local_rich_fixture_produces_calculated_dcf(tmp_path: Path):
+    provider = LocalCSVMarketDataProvider(base_dir=_copy_rich_fixture(tmp_path))
+    quote = provider.get_quote("ALFA")
+    financials = provider.get_financials("ALFA")
+
+    result = build_valuation_result(
+        ValuationInput(
+            ticker="ALFA",
+            current_price=quote.price,
+            revenue=financials.revenue,
+            revenue_growth=financials.revenue_growth,
+            free_cash_flow=financials.free_cash_flow,
+            fcf_margin=financials.fcf_margin,
+            operating_margin=financials.operating_margin,
+            eps=financials.eps,
+            ebitda=financials.ebitda,
+            shares_outstanding=financials.shares_outstanding,
+            cash=financials.cash,
+            debt=financials.debt,
+            market_cap=financials.market_cap,
+            trailing_pe=financials.trailing_pe,
+            peer_inputs=provider.get_peer_valuation_inputs("ALFA"),
+        )
+    )
+
+    assert result.dcf_result.status == "calculated"
+    assert result.dcf_result.fair_value_per_share is not None
+
+
+def test_local_sparse_bundled_data_remains_partial_or_insufficient():
+    provider = LocalCSVMarketDataProvider()
+    quote = provider.get_quote("NVDA")
+    financials = provider.get_financials("NVDA")
+
+    result = build_valuation_result(
+        ValuationInput(
+            ticker="NVDA",
+            current_price=quote.price,
+            revenue=financials.revenue,
+            revenue_growth=financials.revenue_growth,
+            free_cash_flow=financials.free_cash_flow,
+            fcf_margin=financials.fcf_margin,
+            operating_margin=financials.operating_margin,
+            eps=financials.eps,
+            ebitda=financials.ebitda,
+            shares_outstanding=financials.shares_outstanding,
+            cash=financials.cash,
+            debt=financials.debt,
+            market_cap=financials.market_cap,
+            trailing_pe=financials.trailing_pe,
+        )
+    )
+
+    assert result.coverage in {"partial", "insufficient"}
+    assert result.dcf_result.status == "insufficient_data"
+
+
+def test_relative_valuation_uses_peer_medians_when_local_peer_data_exists(tmp_path: Path):
+    provider = LocalCSVMarketDataProvider(base_dir=_copy_rich_fixture(tmp_path))
+    quote = provider.get_quote("ALFA")
+    financials = provider.get_financials("ALFA")
+
+    result = calculate_relative_valuation(
+        ValuationInput(
+            ticker="ALFA",
+            current_price=quote.price,
+            revenue=financials.revenue,
+            free_cash_flow=financials.free_cash_flow,
+            eps=financials.eps,
+            shares_outstanding=financials.shares_outstanding,
+            cash=financials.cash,
+            debt=financials.debt,
+            ebitda=financials.ebitda,
+            market_cap=financials.market_cap,
+            peer_inputs=provider.get_peer_valuation_inputs("ALFA"),
+        )
+    )
+
+    assert result.status == "calculated"
+    assert result.peer_count == 2
+    assert result.peer_median_multiples["pe"] is not None

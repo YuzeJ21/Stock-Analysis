@@ -30,7 +30,9 @@ def test_local_data_catalog_discovers_existing_datasets(tmp_path: Path):
     assert discovered["prices"].date_column == "date"
     assert discovered["prices"].ticker_column == "ticker"
     assert discovered["prices"].latest_data_timestamp.startswith("2026-01-02")
+    assert discovered["prices"].validation_status == "valid"
     assert "momentum_leaders" in discovered
+    assert discovered["earnings"].validation_status == "missing_file"
 
 
 def test_local_data_catalog_lists_and_describes_tickers(tmp_path: Path):
@@ -55,3 +57,18 @@ def test_local_data_catalog_lists_and_describes_tickers(tmp_path: Path):
     assert coverage[0].ticker_present is True
     assert coverage[1].ticker_present is True
     assert coverage[2].ticker_present is False
+    assert coverage[2].validation_status == "missing_file"
+
+
+def test_local_data_catalog_uses_as_of_date_for_latest_timestamp(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "analyst_estimates.csv").write_text(
+        "ticker,current_quarter_eps,as_of_date\n"
+        "SPY,1.0,2026-05-01\n",
+        encoding="utf-8",
+    )
+    catalog = LocalDataCatalog(tmp_path)
+
+    metadata = catalog.dataset_metadata("analyst_estimates")
+
+    assert metadata.latest_data_timestamp.startswith("2026-05-01")

@@ -1,0 +1,2 @@
+ticker,current_quarter_eps,next_quarter_eps,current_year_eps,next_year_eps,target_mean_price,target_high_price,target_low_price,recommendation,revision_trend,source,as_of_date
+ALFA,1.40,1.55,6.10,6.80,165,180,145,outperform,stable,fixture_estimates,2026-05-01

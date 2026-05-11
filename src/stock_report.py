@@ -59,6 +59,7 @@ class StockReport:
     missing_data_warnings: list[str]
     data_freshness: list[DataFreshnessNote]
     dataset_coverage: list[dict[str, Any]] = field(default_factory=list)
+    local_data_validation: list[dict[str, Any]] = field(default_factory=list)
     screener_context: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -76,6 +77,7 @@ class StockReport:
             "missing_data_warnings": self.missing_data_warnings,
             "data_freshness": [note.to_dict() for note in self.data_freshness],
             "dataset_coverage": self.dataset_coverage,
+            "local_data_validation": self.local_data_validation,
             "screener_context": self.screener_context,
         }
 
@@ -239,6 +241,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         data_freshness.append(_metadata_from_source(estimates.source))
 
     dataset_coverage = provider.get_ticker_dataset_coverage(ticker) if hasattr(provider, "get_ticker_dataset_coverage") else []
+    local_data_validation = provider.get_local_data_validation() if hasattr(provider, "get_local_data_validation") else []
     screener_context = provider.get_screener_context(ticker) if hasattr(provider, "get_screener_context") else {}
     valuation = build_valuation_result(
         ValuationInput(
@@ -260,6 +263,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
             trailing_pe=financials.trailing_pe,
             forward_pe=financials.forward_pe,
             price_to_book=financials.price_to_book,
+            peer_inputs=provider.get_peer_valuation_inputs(ticker) if hasattr(provider, "get_peer_valuation_inputs") else [],
             source_metadata=[note.to_dict() for note in data_freshness],
             screener_context=screener_context,
         )
@@ -287,6 +291,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         missing_data_warnings=missing_data_warnings,
         data_freshness=data_freshness,
         dataset_coverage=dataset_coverage,
+        local_data_validation=local_data_validation,
         screener_context=screener_context,
     )
 
@@ -366,8 +371,24 @@ def main() -> None:
     parser.add_argument("--provider", default="local", choices=["local", "mock", "yfinance"], help="Research data provider")
     parser.add_argument("--output", help="Optional JSON output path")
     parser.add_argument("--list-local-tickers", action="store_true", help="List tickers discoverable from local CSV datasets.")
+    parser.add_argument("--validate-local-data", action="store_true", help="Validate local CSV datasets and report schema coverage.")
+    parser.add_argument("--json", action="store_true", help="Print validation output as JSON when used with --validate-local-data.")
     args = parser.parse_args()
     cli_base_dir = Path.cwd()
+
+    if args.validate_local_data:
+        provider = LocalCSVMarketDataProvider(base_dir=cli_base_dir)
+        validation = provider.get_local_data_validation()
+        if args.json:
+            print(json.dumps(validation, indent=2))
+        else:
+            for item in validation:
+                print(
+                    f"{item['name']}: status={item['validation_status']} rows={item['row_count']} "
+                    f"required_missing={','.join(item['missing_required_columns']) or '-'} "
+                    f"warnings={'; '.join(item['validation_warnings']) or '-'}"
+                )
+        return
 
     if args.list_local_tickers:
         provider = LocalCSVMarketDataProvider(base_dir=cli_base_dir)

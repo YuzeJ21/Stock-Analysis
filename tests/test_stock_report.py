@@ -18,6 +18,16 @@ from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.stock_report import build_stock_report, create_stock_report_payload, export_stock_report_json, main
 
+RICH_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "rich_local_data"
+
+
+def _copy_rich_fixture(tmp_path: Path) -> Path:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    for path in RICH_FIXTURE_DIR.glob("*.csv"):
+        (data_dir / path.name).write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+    return tmp_path
+
 
 def test_build_stock_report_assembles_expected_sections():
     source = make_source_metadata(
@@ -102,6 +112,7 @@ def test_build_stock_report_assembles_expected_sections():
     assert report["earnings_summary"]["next_earnings_date"] == "2026-07-24"
     assert report["analyst_estimate_summary"]["target_mean_price"] == 390.0
     assert "missing_data_warnings" in report
+    assert report["local_data_validation"] == []
     assert len(report["data_freshness"]) >= 3
     assert any("research-grade" in " ".join(note["notes"]).lower() for note in report["data_freshness"])
 
@@ -207,6 +218,7 @@ def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available
     assert payload["financial_summary"]["profit_margin"] == 0.30
     assert payload["data_freshness"][0]["provider"] == "local:prices.csv"
     assert payload["dataset_coverage"]
+    assert "local_data_validation" in payload
     assert payload["valuation_snapshot"]["status"] == "calculated"
     assert payload["valuation_snapshot"]["coverage"] == "partial"
 
@@ -249,3 +261,45 @@ def test_stock_report_cli_lists_local_tickers(tmp_path: Path, capsys):
     finally:
         sys.argv = previous_argv
         os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_validate_local_data_json(tmp_path: Path, capsys):
+    _copy_rich_fixture(tmp_path)
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--validate-local-data", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert any(item["name"] == "fundamentals" for item in payload)
+        assert any(item["name"] == "peers" for item in payload)
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_validate_local_data_human_output(tmp_path: Path, capsys):
+    _copy_rich_fixture(tmp_path)
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--validate-local-data"]
+    try:
+        main()
+        output = capsys.readouterr().out
+        assert "prices: status=valid" in output
+        assert "fundamentals: status=valid" in output
+        assert "peers: status=valid" in output
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_from_rich_local_fixture_is_serializable_and_includes_validation(tmp_path: Path):
+    payload = create_stock_report_payload("ALFA", provider_name="local", base_dir=_copy_rich_fixture(tmp_path))
+
+    assert payload["valuation_snapshot"]["dcf_result"]["status"] == "calculated"
+    assert payload["valuation_snapshot"]["relative_valuation"]["status"] == "calculated"
+    assert payload["local_data_validation"]
+    assert any(item["name"] == "peers" for item in payload["local_data_validation"])

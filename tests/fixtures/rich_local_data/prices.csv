@@ -1,0 +1,10 @@
+date,ticker,adj_close,volume,source,as_of_date
+2026-01-02,ALFA,100,100000,fixture_prices,2026-01-02
+2026-03-01,ALFA,120,110000,fixture_prices,2026-03-01
+2026-05-01,ALFA,150,120000,fixture_prices,2026-05-01
+2026-01-02,BETA,80,90000,fixture_prices,2026-01-02
+2026-03-01,BETA,82,95000,fixture_prices,2026-03-01
+2026-05-01,BETA,85,97000,fixture_prices,2026-05-01
+2026-01-02,GAMMA,60,88000,fixture_prices,2026-01-02
+2026-03-01,GAMMA,63,90000,fixture_prices,2026-03-01
+2026-05-01,GAMMA,66,93000,fixture_prices,2026-05-01

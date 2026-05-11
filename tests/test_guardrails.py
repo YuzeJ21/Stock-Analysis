@@ -11,6 +11,13 @@ BANNED_EXECUTION_TOKENS = (
     "ibkr",
 )
 
+BANNED_RECOMMENDATION_PHRASES = (
+    "buy now",
+    "sell now",
+    "strong buy",
+    "guaranteed return",
+)
+
 
 def test_no_trade_execution_module_or_order_placement_was_introduced():
     root = Path("src")
@@ -18,3 +25,17 @@ def test_no_trade_execution_module_or_order_placement_was_introduced():
     lowered = source_text.lower()
     for token in BANNED_EXECUTION_TOKENS:
         assert token not in lowered
+
+
+def test_stock_report_workflow_does_not_introduce_direct_recommendation_language():
+    guarded_paths = (
+        Path("src/stock_report.py"),
+        Path("src/valuation.py"),
+        Path("src/dashboard.py"),
+        Path("src/providers/market_data.py"),
+        Path("src/providers/local_market_data.py"),
+    )
+    source_text = "\n".join(path.read_text(encoding="utf-8") for path in guarded_paths)
+    lowered = source_text.lower()
+    for phrase in BANNED_RECOMMENDATION_PHRASES:
+        assert phrase not in lowered

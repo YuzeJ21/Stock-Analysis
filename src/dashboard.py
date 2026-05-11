@@ -161,6 +161,10 @@ def render_stock_report_beta() -> None:
             with st.expander("Local dataset coverage for selected ticker", expanded=False):
                 coverage = pd.DataFrame(local_provider.get_ticker_dataset_coverage(ticker))
                 st.dataframe(coverage, width="stretch", hide_index=True)
+        if local_provider is not None and hasattr(local_provider, "get_local_data_validation"):
+            with st.expander("Local Data Coverage / Validation", expanded=False):
+                validation = pd.DataFrame(local_provider.get_local_data_validation())
+                st.dataframe(validation, width="stretch", hide_index=True)
 
         if st.button("Generate Stock Report", key="stock-report-beta"):
             if not ticker:
@@ -277,6 +281,10 @@ def render_stock_report_beta() -> None:
                     st.write(f"- {warning}")
             else:
                 st.write("No explicit missing-data warnings were assembled from the current inputs.")
+
+            if report_payload.get("local_data_validation"):
+                with st.expander("Validation details used by this report", expanded=False):
+                    st.dataframe(pd.DataFrame(report_payload["local_data_validation"]), width="stretch", hide_index=True)
 
             st.markdown("**9. Source / Freshness Notes**")
             st.dataframe(pd.DataFrame(report_payload["data_freshness"]), width="stretch", hide_index=True)
