@@ -152,6 +152,8 @@ The stock report now includes a real valuation engine that stays conservative ab
 - direct FCF projection is used when free cash flow exists
 - revenue-plus-FCF-margin projection is used when revenue and FCF margin exist
 - EPS is never used as a hidden substitute for free cash flow
+- unusually high observed revenue growth is normalized through a deterministic fade path instead of being compounded flat for the full forecast
+- high observed growth and extreme FCF margins can be capped conservatively, with the original observed values preserved in the assumption output
 - WACC must remain above terminal growth
 - per-share fair value is shown only when equity value and shares outstanding are both available
 - when the inputs are incomplete, the valuation result returns `insufficient_data` or partial coverage instead of fabricated outputs
@@ -161,6 +163,13 @@ DCF defaults are explicit in code:
 - bear: lower growth, lower FCF margin, higher WACC, lower terminal growth
 - base: moderate growth, moderate WACC, moderate terminal growth
 - bull: higher growth, higher FCF margin, lower WACC, higher terminal growth while still below WACC
+- all three scenarios use the same conservative growth-normalization framework rather than blindly extrapolating a single high-growth year
+
+Assumption transparency:
+
+- DCF output includes the observed revenue growth, normalized growth target, applied year-by-year growth path, and whether the growth path was capped
+- fair value outputs are assumption-driven and informational only
+- users should review the staged/local assumptions before relying on the valuation output
 
 Sensitivity:
 

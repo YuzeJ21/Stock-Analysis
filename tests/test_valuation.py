@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.valuation import (
     DCFAssumptions,
@@ -40,6 +42,7 @@ def test_calculate_dcf_with_direct_fcf_and_shares():
     assert result.enterprise_value is not None
     assert result.equity_value is not None
     assert result.fair_value_per_share is not None
+    assert len(result.assumptions["applied_growth_by_year"]) == assumptions.forecast_years
 
 
 def test_calculate_dcf_with_revenue_and_fcf_margin():
@@ -60,6 +63,52 @@ def test_calculate_dcf_with_revenue_and_fcf_margin():
     assert result.status == "calculated"
     assert result.projected_fcfs
     assert result.fair_value_per_share is not None
+
+
+def test_high_growth_input_gets_normalized_and_warned():
+    valuation_input = ValuationInput(
+        ticker="NVDA",
+        revenue=215_938_000_000.0,
+        revenue_growth=0.6547,
+        free_cash_flow=96_676_000_000.0,
+        fcf_margin=0.4477,
+        shares_outstanding=24_300_000_000.0,
+        cash=10_605_000_000.0,
+        debt=8_468_000_000.0,
+    )
+    assumptions = build_default_scenarios(valuation_input)["base"]
+
+    result = calculate_dcf(valuation_input, assumptions)
+
+    assert result.status == "calculated"
+    assert result.assumptions["observed_revenue_growth"] == pytest.approx(0.6547)
+    assert result.assumptions["growth_was_capped"] is True
+    assert result.assumptions["revenue_growth"] == pytest.approx(0.40)
+    assert result.assumptions["normalized_growth_target"] == pytest.approx(0.08)
+    assert len(result.assumptions["applied_growth_by_year"]) == 5
+    assert result.assumptions["applied_growth_by_year"][0] > result.assumptions["applied_growth_by_year"][-1]
+    assert any("start-growth cap" in warning for warning in result.warnings)
+
+
+def test_normal_growth_input_is_not_unnecessarily_capped():
+    valuation_input = ValuationInput(
+        ticker="MSFT",
+        revenue=1000.0,
+        revenue_growth=0.10,
+        free_cash_flow=120.0,
+        shares_outstanding=20.0,
+        cash=100.0,
+        debt=50.0,
+    )
+    assumptions = build_default_scenarios(valuation_input)["base"]
+
+    result = calculate_dcf(valuation_input, assumptions)
+
+    assert result.status == "calculated"
+    assert result.assumptions["growth_was_capped"] is False
+    assert result.assumptions["observed_revenue_growth"] == pytest.approx(0.10)
+    assert result.assumptions["revenue_growth"] == pytest.approx(0.10)
+    assert not any("start-growth cap" in warning for warning in result.warnings)
 
 
 def test_calculate_dcf_returns_insufficient_data_when_fcf_and_revenue_are_missing():
@@ -119,6 +168,7 @@ def test_valuation_result_is_json_serializable():
     payload = json.dumps(result.to_dict())
 
     assert "dcf_result" in payload
+    assert "applied_growth_by_year" in payload
 
 
 def test_bull_base_bear_scenarios_return_structured_results():
@@ -135,6 +185,29 @@ def test_bull_base_bear_scenarios_return_structured_results():
 
     assert [scenario.name for scenario in result.scenarios] == ["bear", "base", "bull"]
     assert all(scenario.dcf_result.status in {"calculated", "insufficient_data"} for scenario in result.scenarios)
+    assert all("applied_growth_by_year" in scenario.dcf_result.assumptions for scenario in result.scenarios)
+
+
+def test_bull_base_bear_scenarios_all_use_fade_logic_for_high_growth_input():
+    valuation_input = ValuationInput(
+        ticker="NVDA",
+        revenue=215_938_000_000.0,
+        revenue_growth=0.6547,
+        free_cash_flow=96_676_000_000.0,
+        fcf_margin=0.4477,
+        shares_outstanding=24_300_000_000.0,
+        cash=10_605_000_000.0,
+        debt=8_468_000_000.0,
+    )
+
+    result = build_valuation_result(valuation_input)
+
+    for scenario in result.scenarios:
+        path = scenario.dcf_result.assumptions["applied_growth_by_year"]
+        assert path
+        assert path[0] >= path[-1]
+        assert scenario.dcf_result.assumptions["observed_revenue_growth"] is not None
+    assert result.scenarios[1].dcf_result.assumptions["normalized_growth_target"] == pytest.approx(0.08)
 
 
 def test_sensitivity_table_has_expected_shape_when_base_dcf_is_calculable():
@@ -225,7 +298,7 @@ def test_local_rich_fixture_produces_calculated_dcf(tmp_path: Path):
     assert result.dcf_result.fair_value_per_share is not None
 
 
-def test_local_sparse_bundled_data_remains_partial_or_insufficient():
+def test_local_bundled_data_reflects_available_coverage():
     provider = LocalCSVMarketDataProvider()
     quote = provider.get_quote("NVDA")
     financials = provider.get_financials("NVDA")
@@ -249,8 +322,12 @@ def test_local_sparse_bundled_data_remains_partial_or_insufficient():
         )
     )
 
-    assert result.coverage in {"partial", "insufficient"}
-    assert result.dcf_result.status == "insufficient_data"
+    if financials.revenue is not None and financials.free_cash_flow is not None and financials.shares_outstanding is not None:
+        assert result.dcf_result.status == "calculated"
+        assert result.dcf_result.assumptions["applied_growth_by_year"]
+    else:
+        assert result.coverage in {"partial", "insufficient"}
+        assert result.dcf_result.status == "insufficient_data"
 
 
 def test_relative_valuation_uses_peer_medians_when_local_peer_data_exists(tmp_path: Path):

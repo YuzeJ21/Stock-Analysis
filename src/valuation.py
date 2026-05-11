@@ -1,10 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 
 ALLOWED_RESULT_STATUSES = {"calculated", "insufficient_data", "not_applicable", "peer_data_unavailable"}
+DEFAULT_NORMALIZED_GROWTH_TARGET = 0.08
+DEFAULT_BEAR_NORMALIZED_GROWTH_TARGET = 0.05
+DEFAULT_BULL_NORMALIZED_GROWTH_TARGET = 0.10
+DEFAULT_MAX_START_GROWTH = 0.40
+DEFAULT_MAX_FCF_MARGIN = 0.45
+DEFAULT_MAX_PROJECTED_FCF_GROWTH = 0.35
 
 
 @dataclass
@@ -51,6 +57,15 @@ class DCFAssumptions:
     cash: float | None = None
     debt: float | None = None
     net_debt: float | None = None
+    observed_revenue_growth: float | None = None
+    observed_fcf_margin: float | None = None
+    normalized_growth_target: float = DEFAULT_NORMALIZED_GROWTH_TARGET
+    max_start_growth: float = DEFAULT_MAX_START_GROWTH
+    max_fcf_margin: float = DEFAULT_MAX_FCF_MARGIN
+    max_projected_fcf_growth: float | None = DEFAULT_MAX_PROJECTED_FCF_GROWTH
+    applied_growth_by_year: list[float] = field(default_factory=list)
+    growth_was_capped: bool = False
+    fcf_margin_was_capped: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -181,6 +196,7 @@ def _build_scenario_assumptions(
     margin_delta: float,
     wacc: float,
     terminal_growth: float,
+    normalized_growth_target: float,
     forecast_years: int = 5,
     tax_rate: float = 0.21,
 ) -> DCFAssumptions:
@@ -206,6 +222,9 @@ def _build_scenario_assumptions(
         cash=valuation_input.cash,
         debt=valuation_input.debt,
         net_debt=valuation_input.net_debt,
+        observed_revenue_growth=scenario_growth,
+        observed_fcf_margin=scenario_margin,
+        normalized_growth_target=normalized_growth_target,
     )
 
 
@@ -218,6 +237,7 @@ def build_default_scenarios(valuation_input: ValuationInput) -> dict[str, DCFAss
             margin_delta=-0.03,
             wacc=0.11,
             terminal_growth=0.02,
+            normalized_growth_target=DEFAULT_BEAR_NORMALIZED_GROWTH_TARGET,
         ),
         "base": _build_scenario_assumptions(
             valuation_input,
@@ -226,6 +246,7 @@ def build_default_scenarios(valuation_input: ValuationInput) -> dict[str, DCFAss
             margin_delta=0.0,
             wacc=0.09,
             terminal_growth=0.03,
+            normalized_growth_target=DEFAULT_NORMALIZED_GROWTH_TARGET,
         ),
         "bull": _build_scenario_assumptions(
             valuation_input,
@@ -234,6 +255,7 @@ def build_default_scenarios(valuation_input: ValuationInput) -> dict[str, DCFAss
             margin_delta=0.03,
             wacc=0.08,
             terminal_growth=0.035,
+            normalized_growth_target=DEFAULT_BULL_NORMALIZED_GROWTH_TARGET,
         ),
     }
 
@@ -250,22 +272,108 @@ def validate_dcf_assumptions(assumptions: DCFAssumptions) -> list[str]:
         warnings.append("Terminal growth must remain below WACC.")
     if assumptions.shares_outstanding is not None and assumptions.shares_outstanding <= 0:
         warnings.append("Shares outstanding must be positive when present.")
+    if assumptions.max_start_growth <= -1:
+        warnings.append("max_start_growth must remain above -100%.")
+    if assumptions.max_fcf_margin <= -1:
+        warnings.append("max_fcf_margin must remain above -100%.")
     return warnings
 
 
+def _build_growth_path(start_growth: float, target_growth: float, years: int) -> list[float]:
+    if years <= 0:
+        return []
+    if years == 1:
+        return [target_growth]
+    step = (start_growth - target_growth) / years
+    path = [start_growth - (step * year) for year in range(1, years + 1)]
+    return [max(growth, -0.95) for growth in path]
+
+
+def _normalize_dcf_assumptions(assumptions: DCFAssumptions) -> tuple[DCFAssumptions, list[str]]:
+    warnings: list[str] = []
+    observed_growth = assumptions.observed_revenue_growth if assumptions.observed_revenue_growth is not None else assumptions.revenue_growth
+    applied_start_growth = assumptions.revenue_growth if assumptions.revenue_growth is not None else 0.0
+    growth_was_capped = False
+    if observed_growth is not None:
+        applied_start_growth = observed_growth
+        if observed_growth > assumptions.max_start_growth:
+            applied_start_growth = assumptions.max_start_growth
+            growth_was_capped = True
+            warnings.append(
+                f"Observed revenue growth {observed_growth:.1%} exceeded the conservative start-growth cap of "
+                f"{assumptions.max_start_growth:.1%} and was normalized before projection."
+            )
+        elif observed_growth < -0.50:
+            applied_start_growth = -0.50
+            growth_was_capped = True
+            warnings.append(
+                f"Observed revenue growth {observed_growth:.1%} was below the conservative downside floor of -50.0% "
+                "and was normalized before projection."
+            )
+    target_growth = min(assumptions.normalized_growth_target, assumptions.max_start_growth)
+    if target_growth >= assumptions.wacc:
+        target_growth = min(max(assumptions.terminal_growth + 0.02, assumptions.terminal_growth), assumptions.wacc - 0.01)
+        warnings.append("Normalized growth target was reduced to keep it conservatively below WACC.")
+    if target_growth < -0.10:
+        target_growth = -0.10
+        warnings.append("Normalized growth target was raised to keep it within a conservative long-term range.")
+
+    applied_growth_by_year = _build_growth_path(applied_start_growth, target_growth, assumptions.forecast_years)
+    if assumptions.max_projected_fcf_growth is not None:
+        clipped_path: list[float] = []
+        path_capped = False
+        for growth in applied_growth_by_year:
+            clipped_growth = min(growth, assumptions.max_projected_fcf_growth)
+            if clipped_growth != growth:
+                path_capped = True
+            clipped_path.append(clipped_growth)
+        applied_growth_by_year = clipped_path
+        if path_capped:
+            warnings.append(
+                f"Projected growth was capped at {assumptions.max_projected_fcf_growth:.1%} in the early forecast years."
+            )
+
+    observed_fcf_margin = assumptions.observed_fcf_margin if assumptions.observed_fcf_margin is not None else assumptions.fcf_margin
+    applied_fcf_margin = assumptions.fcf_margin
+    fcf_margin_was_capped = False
+    if applied_fcf_margin is not None and applied_fcf_margin > assumptions.max_fcf_margin:
+        observed_value = observed_fcf_margin if observed_fcf_margin is not None else applied_fcf_margin
+        applied_fcf_margin = assumptions.max_fcf_margin
+        fcf_margin_was_capped = True
+        warnings.append(
+            f"Observed FCF margin {observed_value:.1%} exceeded the conservative margin cap of "
+            f"{assumptions.max_fcf_margin:.1%} and was normalized before projection."
+        )
+
+    normalized = replace(
+        assumptions,
+        revenue_growth=applied_start_growth,
+        fcf_margin=applied_fcf_margin,
+        observed_revenue_growth=observed_growth,
+        observed_fcf_margin=observed_fcf_margin,
+        normalized_growth_target=target_growth,
+        applied_growth_by_year=applied_growth_by_year,
+        growth_was_capped=growth_was_capped,
+        fcf_margin_was_capped=fcf_margin_was_capped,
+    )
+    return normalized, warnings
+
+
 def calculate_dcf(valuation_input: ValuationInput, assumptions: DCFAssumptions) -> DCFResult:
-    warnings = validate_dcf_assumptions(assumptions)
+    normalized_assumptions, normalization_warnings = _normalize_dcf_assumptions(assumptions)
+    validation_warnings = validate_dcf_assumptions(normalized_assumptions)
+    warnings = validation_warnings + normalization_warnings
     missing_fields: list[str] = []
     notes = [
         "DCF output is informational only and not a trading recommendation.",
         "Projected cash flows are driven by explicit scenario assumptions rather than hidden model calls.",
     ]
 
-    if warnings:
+    if validation_warnings:
         return DCFResult(
             status="insufficient_data",
             method_name="dcf",
-            assumptions=assumptions.to_dict(),
+            assumptions=normalized_assumptions.to_dict(),
             missing_fields=missing_fields,
             warnings=warnings,
             notes=notes + ["DCF calculation was skipped because assumptions failed validation."],
@@ -280,56 +388,56 @@ def calculate_dcf(valuation_input: ValuationInput, assumptions: DCFAssumptions) 
         current_fcf = valuation_input.free_cash_flow
         if current_fcf < 0:
             warnings.append("Base free cash flow is negative, so DCF outputs may be less stable.")
-    elif valuation_input.revenue is not None and assumptions.fcf_margin is not None:
-        current_fcf = valuation_input.revenue * assumptions.fcf_margin
+    elif valuation_input.revenue is not None and normalized_assumptions.fcf_margin is not None:
+        current_fcf = valuation_input.revenue * normalized_assumptions.fcf_margin
         notes.append("Base free cash flow was derived from revenue and FCF margin because direct FCF was unavailable.")
     else:
         if valuation_input.free_cash_flow is None:
             missing_fields.append("free_cash_flow")
         if valuation_input.revenue is None:
             missing_fields.append("revenue")
-        if assumptions.fcf_margin is None:
+        if normalized_assumptions.fcf_margin is None:
             missing_fields.append("fcf_margin")
         return DCFResult(
             status="insufficient_data",
             method_name="dcf",
-            assumptions=assumptions.to_dict(),
+            assumptions=normalized_assumptions.to_dict(),
             missing_fields=_sorted_unique(missing_fields),
             warnings=warnings,
             notes=notes + ["DCF requires either direct free cash flow or revenue plus FCF margin."],
             source_metadata=list(valuation_input.source_metadata),
         )
 
-    for year in range(1, assumptions.forecast_years + 1):
-        current_fcf = current_fcf * (1 + (assumptions.revenue_growth or 0.0))
+    for growth in normalized_assumptions.applied_growth_by_year:
+        current_fcf = current_fcf * (1 + growth)
         projected_fcfs.append(current_fcf)
-        discounted_fcfs.append(current_fcf / ((1 + assumptions.wacc) ** year))
+        discounted_fcfs.append(current_fcf / ((1 + normalized_assumptions.wacc) ** len(projected_fcfs)))
 
-    terminal_fcf = projected_fcfs[-1] * (1 + assumptions.terminal_growth)
-    terminal_value = terminal_fcf / (assumptions.wacc - assumptions.terminal_growth)
-    discounted_terminal_value = terminal_value / ((1 + assumptions.wacc) ** assumptions.forecast_years)
+    terminal_fcf = projected_fcfs[-1] * (1 + normalized_assumptions.terminal_growth)
+    terminal_value = terminal_fcf / (normalized_assumptions.wacc - normalized_assumptions.terminal_growth)
+    discounted_terminal_value = terminal_value / ((1 + normalized_assumptions.wacc) ** normalized_assumptions.forecast_years)
     enterprise_value = sum(discounted_fcfs) + discounted_terminal_value
 
     equity_value = None
-    if assumptions.cash is not None and assumptions.debt is not None:
-        equity_value = enterprise_value + assumptions.cash - assumptions.debt
-    elif assumptions.net_debt is not None:
-        equity_value = enterprise_value - assumptions.net_debt
+    if normalized_assumptions.cash is not None and normalized_assumptions.debt is not None:
+        equity_value = enterprise_value + normalized_assumptions.cash - normalized_assumptions.debt
+    elif normalized_assumptions.net_debt is not None:
+        equity_value = enterprise_value - normalized_assumptions.net_debt
     else:
         warnings.append("Equity value could not be derived because cash/debt or net debt is unavailable.")
         missing_fields.extend(["cash_or_debt"])
 
     fair_value_per_share = None
-    if equity_value is not None and assumptions.shares_outstanding is not None and assumptions.shares_outstanding > 0:
-        fair_value_per_share = equity_value / assumptions.shares_outstanding
-    elif equity_value is not None and assumptions.shares_outstanding is None:
+    if equity_value is not None and normalized_assumptions.shares_outstanding is not None and normalized_assumptions.shares_outstanding > 0:
+        fair_value_per_share = equity_value / normalized_assumptions.shares_outstanding
+    elif equity_value is not None and normalized_assumptions.shares_outstanding is None:
         warnings.append("Fair value per share could not be derived because shares outstanding is unavailable.")
         missing_fields.append("shares_outstanding")
 
     return DCFResult(
         status="calculated",
         method_name="dcf",
-        assumptions=assumptions.to_dict(),
+        assumptions=normalized_assumptions.to_dict(),
         missing_fields=_sorted_unique(missing_fields),
         warnings=_sorted_unique(warnings),
         notes=notes,
