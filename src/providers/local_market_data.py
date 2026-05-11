@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
+from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.market_data import (
     AnalystEstimateSummary,
     EarningsSummary,
@@ -15,18 +17,6 @@ from src.providers.market_data import (
 )
 
 
-def _normalize_columns(columns: list[str]) -> list[str]:
-    return [
-        column.strip()
-        .replace("%", "pct")
-        .replace("/", "_")
-        .replace(" ", "_")
-        .replace("-", "_")
-        .lower()
-        for column in columns
-    ]
-
-
 class LocalCSVMarketDataProvider(MarketDataProvider):
     """Research provider backed by local project CSVs.
 
@@ -36,6 +26,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
 
     def __init__(self, base_dir: Path | None = None) -> None:
         self.base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
+        self.catalog = LocalDataCatalog(self.base_dir)
         self.prices_path = self.base_dir / "data" / "prices.csv"
         self.fundamentals_path = self.base_dir / "data" / "fundamentals.csv"
 
@@ -43,7 +34,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         retrieved_at = (
             pd.Timestamp(file_path.stat().st_mtime, unit="s", tz="UTC").isoformat()
             if file_path.exists()
-            else pd.Timestamp.utcnow().isoformat()
+            else pd.Timestamp.now(tz="UTC").isoformat()
         )
         return make_source_metadata(
             provider=f"local:{file_path.name}",
@@ -53,31 +44,104 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             retrieved_at=retrieved_at,
         )
 
+    def _unavailable_source(self, provider_label: str, notes: list[str]) -> object:
+        return make_source_metadata(
+            provider=provider_label,
+            freshness="not available in local CSVs",
+            official=False,
+            notes=notes,
+        )
+
     def _load_prices(self) -> pd.DataFrame:
-        if not self.prices_path.exists():
+        prices = self.catalog.load_dataframe("prices")
+        if prices is None:
             raise FileNotFoundError(f"Local prices file is missing: {self.prices_path}")
-        prices = pd.read_csv(self.prices_path)
-        prices.columns = _normalize_columns(list(prices.columns))
+        required_columns = {"date", "ticker"}
+        missing_columns = sorted(required_columns - set(prices.columns))
+        if missing_columns:
+            raise ValueError(f"Local prices file is missing required columns: {', '.join(missing_columns)}")
         if "adj_close" in prices.columns and "close" not in prices.columns:
             prices["close"] = prices["adj_close"]
+        if "close" not in prices.columns:
+            raise ValueError("Local prices file must include either `close` or `adj_close`.")
         for optional_column in ("open", "high", "low"):
             if optional_column not in prices.columns:
                 prices[optional_column] = pd.NA
-        prices["date"] = pd.to_datetime(prices["date"], errors="coerce", format="mixed")
-        prices["ticker"] = prices["ticker"].astype("string").str.upper().str.strip()
         for column in ("open", "high", "low", "close", "adj_close", "volume"):
             if column in prices.columns:
                 prices[column] = pd.to_numeric(prices[column], errors="coerce")
         return prices.loc[prices["date"].notna()].copy()
 
     def _load_fundamentals(self) -> pd.DataFrame:
-        if not self.fundamentals_path.exists():
-            return pd.DataFrame()
-        frame = pd.read_csv(self.fundamentals_path)
-        frame.columns = _normalize_columns(list(frame.columns))
-        if "ticker" in frame.columns:
-            frame["ticker"] = frame["ticker"].astype("string").str.upper().str.strip()
-        return frame
+        frame = self.catalog.load_dataframe("fundamentals")
+        return frame.copy() if frame is not None else pd.DataFrame()
+
+    def _load_optional_dataset(self, dataset_name: str) -> pd.DataFrame:
+        frame = self.catalog.load_dataframe(dataset_name)
+        return frame.copy() if frame is not None else pd.DataFrame()
+
+    def _select_ticker_row(self, frame: pd.DataFrame, ticker: str) -> pd.Series:
+        if frame.empty or "ticker" not in frame.columns:
+            return pd.Series(dtype=object)
+        matches = frame.loc[frame["ticker"] == ticker]
+        return matches.iloc[-1] if not matches.empty else pd.Series(dtype=object)
+
+    def _float_value(self, row: pd.Series, *columns: str) -> float | None:
+        for column in columns:
+            if column in row and pd.notna(row[column]):
+                return float(row[column])
+        return None
+
+    def _string_value(self, row: pd.Series, *columns: str) -> str | None:
+        for column in columns:
+            if column in row and pd.notna(row[column]):
+                return str(row[column])
+        return None
+
+    def list_local_tickers(self) -> list[str]:
+        return self.catalog.list_tickers(
+            ["prices", "fundamentals", "earnings", "analyst_estimates", "universe", "holdings"]
+        )
+
+    def get_ticker_dataset_coverage(self, ticker: str) -> list[dict[str, Any]]:
+        coverage = self.catalog.describe_ticker(
+            ticker,
+            [
+                "prices",
+                "fundamentals",
+                "earnings",
+                "analyst_estimates",
+                "purpose_classification",
+                "momentum_leaders",
+                "portfolio_review",
+                "undervalued_candidates",
+                "final_watchlist",
+            ],
+        )
+        return [row.to_dict() for row in coverage]
+
+    def get_screener_context(self, ticker: str) -> dict[str, dict[str, Any]]:
+        ticker = ticker.upper()
+        context: dict[str, dict[str, Any]] = {}
+        for dataset_name in (
+            "purpose_classification",
+            "momentum_leaders",
+            "portfolio_review",
+            "undervalued_candidates",
+            "final_watchlist",
+        ):
+            frame = self.catalog.load_dataframe(dataset_name)
+            if frame is None or "ticker" not in frame.columns:
+                continue
+            matches = frame.loc[frame["ticker"] == ticker]
+            if matches.empty:
+                continue
+            row = matches.iloc[-1]
+            context[dataset_name] = {
+                column: (None if pd.isna(value) else value.item() if hasattr(value, "item") else value)
+                for column, value in row.to_dict().items()
+            }
+        return context
 
     def get_quote(self, ticker: str) -> QuoteSnapshot:
         ticker = ticker.upper()
@@ -130,53 +194,91 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
     def get_financials(self, ticker: str) -> FinancialSnapshot:
         ticker = ticker.upper()
         fundamentals = self._load_fundamentals()
-        frame = fundamentals.loc[fundamentals.get("ticker", pd.Series(dtype=object)) == ticker] if not fundamentals.empty else pd.DataFrame()
-        row = frame.iloc[0] if not frame.empty else pd.Series(dtype=object)
-        source = self._source(
-            self.fundamentals_path,
-            freshness="local fundamentals CSV",
-            notes=["Local sample fundamentals; fields may be sparse."],
+        row = self._select_ticker_row(fundamentals, ticker)
+        metadata = self.catalog.dataset_metadata("fundamentals")
+        source = (
+            metadata.source
+            if metadata is not None
+            else self._unavailable_source(
+                "local:fundamentals.csv",
+                ["Fundamentals file is unavailable in the local CSV-first pipeline."],
+            ).to_dict()
         )
         return FinancialSnapshot(
             ticker=ticker,
-            revenue=float(row["revenue"]) if "revenue" in row and pd.notna(row["revenue"]) else None,
-            eps=float(row["eps"]) if "eps" in row and pd.notna(row["eps"]) else None,
-            gross_margin=float(row["gross_margin"]) if "gross_margin" in row and pd.notna(row["gross_margin"]) else None,
-            operating_margin=float(row["operating_margin"]) if "operating_margin" in row and pd.notna(row["operating_margin"]) else None,
-            profit_margin=float(row["profit_margin"]) if "profit_margin" in row and pd.notna(row["profit_margin"]) else None,
-            free_cash_flow=float(row["free_cash_flow"]) if "free_cash_flow" in row and pd.notna(row["free_cash_flow"]) else None,
-            market_cap=float(row["market_cap"]) if "market_cap" in row and pd.notna(row["market_cap"]) else None,
-            enterprise_value=float(row["enterprise_value"]) if "enterprise_value" in row and pd.notna(row["enterprise_value"]) else None,
-            trailing_pe=float(row["pe_ratio"]) if "pe_ratio" in row and pd.notna(row["pe_ratio"]) else None,
-            forward_pe=float(row["forward_pe"]) if "forward_pe" in row and pd.notna(row["forward_pe"]) else None,
-            price_to_book=float(row["price_to_book"]) if "price_to_book" in row and pd.notna(row["price_to_book"]) else None,
-            shares_outstanding=float(row["shares_outstanding"]) if "shares_outstanding" in row and pd.notna(row["shares_outstanding"]) else None,
-            net_debt=float(row["net_debt"]) if "net_debt" in row and pd.notna(row["net_debt"]) else None,
+            revenue=self._float_value(row, "revenue"),
+            eps=self._float_value(row, "eps"),
+            gross_margin=self._float_value(row, "gross_margin"),
+            operating_margin=self._float_value(row, "operating_margin"),
+            profit_margin=self._float_value(row, "profit_margin"),
+            free_cash_flow=self._float_value(row, "free_cash_flow", "fcf"),
+            market_cap=self._float_value(row, "market_cap"),
+            enterprise_value=self._float_value(row, "enterprise_value"),
+            trailing_pe=self._float_value(row, "pe_ratio", "trailing_pe"),
+            forward_pe=self._float_value(row, "forward_pe"),
+            price_to_book=self._float_value(row, "price_to_book"),
+            shares_outstanding=self._float_value(row, "shares_outstanding"),
+            net_debt=self._float_value(row, "net_debt"),
             currency=None,
-            as_of_date=None,
-            source=source,
+            as_of_date=self._string_value(row, "as_of_date", "date"),
+            source=make_source_metadata(**source),
         )
 
     def get_earnings(self, ticker: str) -> EarningsSummary:
+        ticker = ticker.upper()
+        earnings = self._load_optional_dataset("earnings")
+        row = self._select_ticker_row(earnings, ticker)
+        metadata = self.catalog.dataset_metadata("earnings")
+        if metadata is None:
+            return EarningsSummary(
+                ticker=ticker,
+                notes=["No local earnings dataset is configured in the CSV-first pipeline."],
+                source=self._unavailable_source(
+                    "local:earnings.csv",
+                    ["Earnings fields are unavailable from the bundled local sample files."],
+                ),
+            )
         return EarningsSummary(
-            ticker=ticker.upper(),
-            notes=["No local earnings dataset is configured in the CSV-first pipeline."],
-            source=self._source(
-                self.fundamentals_path,
-                freshness="not available in local CSVs",
-                notes=["Earnings fields are unavailable from the bundled local sample files."],
-            ),
+            ticker=ticker,
+            next_earnings_date=self._string_value(row, "next_earnings_date", "earnings_date"),
+            last_earnings_date=self._string_value(row, "last_earnings_date"),
+            eps_estimate=self._float_value(row, "eps_estimate"),
+            eps_actual=self._float_value(row, "eps_actual"),
+            revenue_estimate=self._float_value(row, "revenue_estimate"),
+            revenue_actual=self._float_value(row, "revenue_actual"),
+            surprise_pct=self._float_value(row, "surprise_pct"),
+            notes=[] if not row.empty else [f"No local earnings row was found for {ticker}."],
+            source=make_source_metadata(**metadata.source),
         )
 
     def get_analyst_estimates(self, ticker: str) -> AnalystEstimateSummary:
+        ticker = ticker.upper()
+        estimates = self._load_optional_dataset("analyst_estimates")
+        row = self._select_ticker_row(estimates, ticker)
+        metadata = self.catalog.dataset_metadata("analyst_estimates")
+        if metadata is None:
+            return AnalystEstimateSummary(
+                ticker=ticker,
+                notes=["No local analyst-estimate dataset is configured in the CSV-first pipeline."],
+                source=self._unavailable_source(
+                    "local:analyst_estimates.csv",
+                    ["Analyst estimate fields are unavailable from the bundled local sample files."],
+                ),
+            )
         return AnalystEstimateSummary(
-            ticker=ticker.upper(),
-            notes=["No local analyst-estimate dataset is configured in the CSV-first pipeline."],
-            source=self._source(
-                self.fundamentals_path,
-                freshness="not available in local CSVs",
-                notes=["Analyst estimate fields are unavailable from the bundled local sample files."],
-            ),
+            ticker=ticker,
+            current_quarter_eps=self._float_value(row, "current_quarter_eps"),
+            next_quarter_eps=self._float_value(row, "next_quarter_eps"),
+            current_year_eps=self._float_value(row, "current_year_eps"),
+            next_year_eps=self._float_value(row, "next_year_eps"),
+            current_quarter_revenue=self._float_value(row, "current_quarter_revenue"),
+            next_quarter_revenue=self._float_value(row, "next_quarter_revenue"),
+            current_year_revenue=self._float_value(row, "current_year_revenue"),
+            next_year_revenue=self._float_value(row, "next_year_revenue"),
+            recommendation=self._string_value(row, "recommendation"),
+            target_mean_price=self._float_value(row, "target_mean_price"),
+            notes=[] if not row.empty else [f"No local analyst-estimate row was found for {ticker}."],
+            source=make_source_metadata(**metadata.source),
         )
 
     def get_options_chain(self, ticker: str, expiry: str) -> OptionsChainSummary:
@@ -186,9 +288,8 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             calls_count=0,
             puts_count=0,
             notes=["Options-chain data is not configured in the local CSV-first pipeline."],
-            source=self._source(
-                self.prices_path,
-                freshness="not available in local CSVs",
-                notes=["Options chain remains optional and unimplemented for local CSV data."],
+            source=self._unavailable_source(
+                "local:options_chain.csv",
+                ["Options chain remains optional and unimplemented for local CSV data."],
             ),
         )

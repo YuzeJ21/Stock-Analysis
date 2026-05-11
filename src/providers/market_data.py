@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
@@ -180,7 +180,7 @@ def make_source_metadata(
     return SourceMetadata(
         provider=provider,
         freshness=freshness,
-        retrieved_at=retrieved_at or datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        retrieved_at=retrieved_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         official=official,
         notes=notes or [],
     )

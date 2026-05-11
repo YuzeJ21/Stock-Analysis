@@ -139,7 +139,12 @@ def render_stock_report_beta() -> None:
             "Optional yfinance mode is unofficial / research-grade and must be explicitly enabled."
         )
 
-        preset_tickers = get_dashboard_tickers()
+        try:
+            local_provider = build_provider("local", base_dir=BASE_DIR)
+            preset_tickers = local_provider.list_local_tickers() if hasattr(local_provider, "list_local_tickers") else get_dashboard_tickers()
+        except FileNotFoundError:
+            local_provider = None
+            preset_tickers = get_dashboard_tickers()
         ticker_options = ["Custom"] + preset_tickers if preset_tickers else ["Custom"]
         selected = st.selectbox("Ticker", ticker_options, index=1 if len(ticker_options) > 1 else 0)
         custom_ticker = st.text_input("Custom ticker", value="" if selected != "Custom" else "AAPL")
@@ -151,6 +156,11 @@ def render_stock_report_beta() -> None:
             help="Leave this off to stay on the local CSV-first data path.",
         )
         provider_name = "yfinance" if use_yfinance else "local"
+
+        if local_provider is not None and ticker and hasattr(local_provider, "get_ticker_dataset_coverage"):
+            with st.expander("Local dataset coverage for selected ticker", expanded=False):
+                coverage = pd.DataFrame(local_provider.get_ticker_dataset_coverage(ticker))
+                st.dataframe(coverage, width="stretch", hide_index=True)
 
         if st.button("Generate Stock Report", key="stock-report-beta"):
             if not ticker:
@@ -196,8 +206,19 @@ def render_stock_report_beta() -> None:
             else:
                 st.write("No explicit risks were assembled from the currently available inputs.")
 
-            st.markdown("**8. Source / Freshness Notes**")
+            st.markdown("**8. Missing-Data Warnings**")
+            if report_payload["missing_data_warnings"]:
+                for warning in report_payload["missing_data_warnings"]:
+                    st.write(f"- {warning}")
+            else:
+                st.write("No explicit missing-data warnings were assembled from the current inputs.")
+
+            st.markdown("**9. Source / Freshness Notes**")
             st.dataframe(pd.DataFrame(report_payload["data_freshness"]), width="stretch", hide_index=True)
+
+            if report_payload.get("screener_context"):
+                with st.expander("Existing screener context", expanded=False):
+                    st.json(report_payload["screener_context"], expanded=False)
 
             payload = export_stock_report_json(report)
             st.download_button(

@@ -1,4 +1,5 @@
 """Pluggable data fetcher providers."""
+from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.market_data import (
     AnalystEstimateSummary,
     EarningsSummary,
@@ -15,6 +16,7 @@ __all__ = [
     "AnalystEstimateSummary",
     "EarningsSummary",
     "FinancialSnapshot",
+    "LocalDataCatalog",
     "LocalCSVMarketDataProvider",
     "MarketDataProvider",
     "MockMarketDataProvider",

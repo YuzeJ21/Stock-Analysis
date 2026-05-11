@@ -28,6 +28,7 @@ The `stock_analysis/` directory is a documented legacy scaffold kept for referen
 - `data/theme_map.csv`: theme-to-ETF mapping used by Market Direction
 - `data/prices.csv`: local OHLCV source used by the default CSV provider
 - `data/fundamentals.csv`: optional fundamentals for the value / re-rating engine
+- `src/providers/local_data_catalog.py`: detects which local CSV datasets actually exist and what columns/tickers they cover
 - `src/providers/csv_provider.py`: active local CSV data provider
 - `outputs/`: generated research outputs
 - `tests/`: regression and output-contract coverage for the active pipeline
@@ -95,8 +96,26 @@ Important:
 - yfinance-backed data should be treated as unofficial / research-grade
 - the core screener still runs on the local CSV-first pipeline
 - all new market/fundamental calls stay behind provider interfaces
-- valuation is scaffold-level only in this phase
+- valuation is scaffold-level only in this phase and remains incomplete until Phase 2A
 - local earnings and analyst-estimate coverage is intentionally limited unless a richer data source is added
+
+### Local CSV-first architecture
+
+The stock-report beta uses local files first.
+
+- required for local stock reports: `data/prices.csv`
+- optional for richer local stock reports: `data/fundamentals.csv`
+- optional if you add them later: `data/earnings.csv`, `data/earnings_calendar.csv`, `data/earnings_history.csv`
+- optional if you add them later: `data/analyst_estimates.csv` or `data/estimates.csv`
+- existing screener outputs under `outputs/*.csv` can also be surfaced as local context when they exist for a ticker
+
+Expected optional schema examples:
+
+- fundamentals: `ticker` plus fields such as `revenue`, `eps`, `free_cash_flow`, `profit_margin`, `operating_margin`, `pe_ratio`
+- earnings: `ticker` plus fields such as `next_earnings_date`, `last_earnings_date`, `eps_estimate`, `eps_actual`, `revenue_estimate`, `revenue_actual`, `surprise_pct`
+- analyst estimates: `ticker` plus fields such as `current_quarter_eps`, `next_quarter_eps`, `current_year_eps`, `next_year_eps`, `target_mean_price`, `recommendation`
+
+Missing files or sparse columns do not crash the workflow. The report continues with explicit missing-data warnings and source/freshness notes.
 
 ### Stock Report Beta in the dashboard
 
@@ -106,6 +125,8 @@ The Streamlit dashboard now includes a `Stock Report (Beta)` section.
 - optional yfinance mode is only used if you explicitly enable it
 - yfinance results are labeled unofficial / research-grade
 - the Beta section can export the structured report as JSON
+- the Beta section can show local dataset coverage for the selected ticker
+- the Beta section surfaces missing-data warnings instead of guessing unavailable values
 
 This section is additive and does not replace the existing CSV-first screener pages.
 
@@ -115,6 +136,12 @@ You can generate a structured JSON stock report from the command line:
 
 ```bash
 python -m src.stock_report --ticker NVDA --provider local
+```
+
+To discover locally available tickers first:
+
+```bash
+python -m src.stock_report --list-local-tickers
 ```
 
 For a demo/smoke workflow:
@@ -130,6 +157,18 @@ python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_
 ```
 
 For the local provider, use a ticker that actually exists in the bundled `data/prices.csv`. The sample project data currently supports names such as `NVDA`, `TSLA`, `SPY`, and `QQQ`.
+
+The exported JSON includes:
+
+- ticker
+- generated timestamp
+- provider name
+- price snapshot and performance windows
+- financial / earnings / analyst-estimate sections when local data exists
+- valuation scaffold status and notes
+- key risks
+- missing-data warnings
+- source / freshness metadata
 
 ## Optional daily price-data update
 
@@ -161,6 +200,8 @@ The dashboard includes:
 - Final Watchlist
 
 It reads from `outputs/*.csv`, shows friendly messages when files are missing, and surfaces explanation columns such as `Reason`, `MissingDataFields`, and `ConflictReasons` when available.
+
+The dashboard and CLI are research-only surfaces. They do not execute trades, route orders, or connect to brokers.
 
 ## Run tests
 

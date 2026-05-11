@@ -88,12 +88,15 @@ def test_build_stock_report_assembles_expected_sections():
     report = build_stock_report("MSFT", provider).to_dict()
 
     assert report["ticker"] == "MSFT"
+    assert report["provider_name"] == "MockMarketDataProvider"
+    assert report["generated_at"] is not None
     assert report["price_snapshot"]["price"] == 360.0
     assert report["performance"]["one_month"] is not None
     assert report["financial_summary"]["revenue"] == 250_000_000_000
     assert report["valuation_snapshot"]["ticker"] == "MSFT"
     assert report["earnings_summary"]["next_earnings_date"] == "2026-07-24"
     assert report["analyst_estimate_summary"]["target_mean_price"] == 390.0
+    assert "missing_data_warnings" in report
     assert len(report["data_freshness"]) >= 3
     assert any("research-grade" in " ".join(note["notes"]).lower() for note in report["data_freshness"])
 
@@ -171,6 +174,8 @@ def test_stock_report_json_export_is_serializable_and_contains_freshness_metadat
     assert output_path.exists()
     assert parsed["ticker"] == "AAPL"
     assert parsed["data_freshness"][0]["provider"] == "mock"
+    assert parsed["provider_name"] == "MockMarketDataProvider"
+    assert "missing_data_warnings" in parsed
     assert "status" in parsed["valuation_snapshot"]
     assert parsed["valuation_snapshot"]["status"] == "scaffold"
 
@@ -195,6 +200,7 @@ def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available
     assert payload["price_snapshot"]["price"] == 130.0
     assert payload["financial_summary"]["profit_margin"] == 0.30
     assert payload["data_freshness"][0]["provider"] == "local:prices.csv"
+    assert payload["dataset_coverage"]
 
 
 def test_stock_report_cli_fails_gracefully_for_missing_local_ticker(tmp_path: Path):
@@ -211,6 +217,27 @@ def test_stock_report_cli_fails_gracefully_for_missing_local_ticker(tmp_path: Pa
     try:
         with pytest.raises(SystemExit, match="Stock report generation failed: No local price rows were found for AAPL"):
             main()
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_lists_local_tickers(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,SPY,100,1000\n"
+        "2026-01-03,QQQ,101,1001\n",
+        encoding="utf-8",
+    )
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--list-local-tickers"]
+    try:
+        main()
+        output = capsys.readouterr().out.strip().splitlines()
+        assert output == ["QQQ", "SPY"]
     finally:
         sys.argv = previous_argv
         os.chdir(previous_cwd)

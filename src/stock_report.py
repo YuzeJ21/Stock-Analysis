@@ -47,6 +47,8 @@ class DataFreshnessNote:
 @dataclass
 class StockReport:
     ticker: str
+    generated_at: str
+    provider_name: str
     price_snapshot: dict[str, Any]
     performance: PerformanceSummary
     financial_summary: dict[str, Any]
@@ -54,11 +56,16 @@ class StockReport:
     earnings_summary: dict[str, Any]
     analyst_estimate_summary: dict[str, Any]
     key_risks: list[str]
+    missing_data_warnings: list[str]
     data_freshness: list[DataFreshnessNote]
+    dataset_coverage: list[dict[str, Any]] = field(default_factory=list)
+    screener_context: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "ticker": self.ticker,
+            "generated_at": self.generated_at,
+            "provider_name": self.provider_name,
             "price_snapshot": self.price_snapshot,
             "performance": self.performance.to_dict(),
             "financial_summary": self.financial_summary,
@@ -66,7 +73,10 @@ class StockReport:
             "earnings_summary": self.earnings_summary,
             "analyst_estimate_summary": self.analyst_estimate_summary,
             "key_risks": self.key_risks,
+            "missing_data_warnings": self.missing_data_warnings,
             "data_freshness": [note.to_dict() for note in self.data_freshness],
+            "dataset_coverage": self.dataset_coverage,
+            "screener_context": self.screener_context,
         }
 
 
@@ -131,6 +141,35 @@ def _build_risks(
         risks.append("Analyst estimate coverage is limited.")
 
     return risks
+
+
+def _build_missing_data_warnings(
+    performance: PerformanceSummary,
+    financials: FinancialSnapshot,
+    earnings: EarningsSummary,
+    estimates: AnalystEstimateSummary,
+    dataset_coverage: list[dict[str, Any]],
+) -> list[str]:
+    warnings: list[str] = []
+    core_datasets = {"prices", "fundamentals", "earnings", "analyst_estimates"}
+    if performance.one_month is None:
+        warnings.append("1M performance is unavailable from the current local price history.")
+    if performance.three_month is None:
+        warnings.append("3M performance is unavailable from the current local price history.")
+    if performance.one_year is None:
+        warnings.append("1Y performance is unavailable from the current local price history.")
+    if financials.revenue is None:
+        warnings.append("Revenue is unavailable from the current local fundamentals dataset.")
+    if financials.eps is None:
+        warnings.append("EPS is unavailable from the current local fundamentals dataset.")
+    if financials.free_cash_flow is None:
+        warnings.append("Free cash flow is unavailable from the current local fundamentals dataset.")
+    warnings.extend(earnings.notes)
+    warnings.extend(estimates.notes)
+    for row in dataset_coverage:
+        if row.get("dataset_name") in core_datasets and not row.get("ticker_present"):
+            warnings.append(f"{row['dataset_name']} has no local row for this ticker.")
+    return sorted(set(warnings))
 
 
 def _price_snapshot_dict(quote: QuoteSnapshot) -> dict[str, Any]:
@@ -200,8 +239,20 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
     if estimates.source:
         data_freshness.append(_metadata_from_source(estimates.source))
 
+    dataset_coverage = provider.get_ticker_dataset_coverage(ticker) if hasattr(provider, "get_ticker_dataset_coverage") else []
+    screener_context = provider.get_screener_context(ticker) if hasattr(provider, "get_screener_context") else {}
+    missing_data_warnings = _build_missing_data_warnings(
+        performance,
+        financials,
+        earnings,
+        estimates,
+        dataset_coverage,
+    )
+
     return StockReport(
         ticker=ticker,
+        generated_at=pd.Timestamp.now(tz="UTC").isoformat(),
+        provider_name=type(provider).__name__,
         price_snapshot=_price_snapshot_dict(quote),
         performance=performance,
         financial_summary=_financial_summary_dict(financials),
@@ -209,13 +260,17 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         earnings_summary=earnings.to_dict(),
         analyst_estimate_summary=estimates.to_dict(),
         key_risks=_build_risks(performance, financials, earnings, estimates),
+        missing_data_warnings=missing_data_warnings,
         data_freshness=data_freshness,
+        dataset_coverage=dataset_coverage,
+        screener_context=screener_context,
     )
 
 
 def export_stock_report_json(report: StockReport, output_path: Path | None = None) -> str:
     payload = json.dumps(report.to_dict(), indent=2)
     if output_path is not None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(payload + "\n", encoding="utf-8")
     return payload
 
@@ -268,13 +323,24 @@ def create_stock_report_payload(ticker: str, provider_name: str = "local", base_
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a structured stock report.")
-    parser.add_argument("--ticker", required=True, help="Ticker symbol to analyze")
+    parser.add_argument("--ticker", help="Ticker symbol to analyze")
     parser.add_argument("--provider", default="local", choices=["local", "mock", "yfinance"], help="Research data provider")
     parser.add_argument("--output", help="Optional JSON output path")
+    parser.add_argument("--list-local-tickers", action="store_true", help="List tickers discoverable from local CSV datasets.")
     args = parser.parse_args()
+    cli_base_dir = Path.cwd()
+
+    if args.list_local_tickers:
+        provider = LocalCSVMarketDataProvider(base_dir=cli_base_dir)
+        tickers = provider.list_local_tickers()
+        print("\n".join(tickers))
+        return
+
+    if not args.ticker:
+        raise SystemExit("--ticker is required unless --list-local-tickers is used.")
 
     try:
-        report = build_stock_report(args.ticker, build_provider(args.provider))
+        report = build_stock_report(args.ticker, build_provider(args.provider, base_dir=cli_base_dir))
         payload = export_stock_report_json(report, Path(args.output) if args.output else None)
     except (FileNotFoundError, LookupError, RuntimeError, ValueError) as exc:
         raise SystemExit(f"Stock report generation failed: {exc}") from exc
