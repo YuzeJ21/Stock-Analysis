@@ -58,6 +58,21 @@ The active pipeline now owns all generated CSVs:
 - `outputs/undervalued_candidates.csv`
 - `outputs/final_watchlist.csv`
 
+## Optional daily price-data update
+
+The project remains CSV-first and works without network access. If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:
+
+```bash
+python -m src.data_update
+```
+
+This updater:
+
+- uses a free daily source with no paid API keys
+- merges fetched rows into the local `data/prices.csv`
+- keeps the existing local CSV fallback if the remote source is unavailable
+- does not change the report pipeline requirement that local CSV data must exist for deterministic runs
+
 ## Run the dashboard
 
 ```bash
