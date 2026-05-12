@@ -445,7 +445,10 @@ Output:
 
 - `outputs/monthly_research_picks.csv`
 
-The default output is five candidates per month. These rows are research candidates, not direct trade advice.
+The default target is five candidates per month. The output may contain fewer than five rows when conservative filters
+exclude weak, ignored, or insufficiently supported names. The dashboard will show messages such as `4 of 5 research
+candidates available` rather than forcing lower-quality names into the list. These rows are research candidates, not
+direct trade advice.
 
 ### How scoring works
 
@@ -488,7 +491,11 @@ Outputs:
 - `outputs/monthly_picks_track_record.csv`
 - `outputs/monthly_picks_equity_curve.csv`
 
-The track record compares equal-weight monthly candidates against the benchmark when local price history supports the selection date and forward return window. If the bundled sample history is too short, the output says `Insufficient local history` instead of fabricating a performance record.
+The track record compares equal-weight monthly candidates against the benchmark when local price history supports the
+selection date and forward return window. It needs enough dated local prices for the candidates and benchmark to form
+month-end selections and next-month forward returns. If the bundled sample history is too short, the output says
+`Insufficient local history` instead of fabricating a performance record or showing an empty chart as if it were real
+performance.
 
 ### Interpretation
 
@@ -540,6 +547,9 @@ Warnings:
 - the Nasdaq directory contains many securities unless filtered
 - the S&P 500 source is not the official paid S&P feed
 - SMH holdings can change and should not be treated as recommendations
+- the VanEck SMH web surface may redirect through cookie or location flows in automated runtimes; if that source is
+  unavailable, use `data/custom_universe.csv` or stage `data/imports/universe.csv` manually with tickers you verified
+  yourself
 
 ### `data/custom_universe.csv`
 
@@ -684,6 +694,17 @@ The `Universe Manager` tab helps you inspect:
 - CLI commands for safe preview/write/apply workflows
 
 Universe changes remain CLI-first on purpose. The dashboard is read-only for apply actions.
+
+## Dashboard troubleshooting for partial data
+
+The dashboard is designed to look usable even when local data is sparse:
+
+- `Not available` means the source column or file is missing locally.
+- `Needs SEC enrichment` means valuation-heavy fields are not present in `data/fundamentals.csv`.
+- `Needs peers.csv`, `Needs earnings.csv`, or `Needs analyst_estimates.csv` means optional enrichment files are not configured.
+- `Not enough price history` means the local `data/prices.csv` window is too short for that return, technical context, or track-record calculation.
+- Monthly Picks may show fewer than the configured `top_n` when conservative filters reject weak or ignored names.
+- Track-record panels stay informational until local historical prices support month-end selection and next-month return calculations.
 
 ## SEC Companyfacts staging workflow
 

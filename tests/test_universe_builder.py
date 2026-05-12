@@ -130,6 +130,16 @@ def test_build_universe_preview_parses_smh_holdings_fixture(tmp_path: Path):
     assert rows.loc[rows["ticker"] == "NVDA", "etf_membership"].iloc[0] == "SMH"
 
 
+def test_smh_remote_failure_explains_manual_fallback(tmp_path: Path):
+    _setup_base_dir(tmp_path)
+    result = validate_universe_sources(base_dir=tmp_path, sources="smh", loader=_loader({}))
+
+    warning_text = " ".join(result["sources"][0]["warnings"])
+    assert result["sources"][0]["status"] == "source_unavailable"
+    assert "data/custom_universe.csv" in warning_text
+    assert "data/imports/universe.csv" in warning_text
+
+
 def test_write_universe_import_stages_csv_without_applying(tmp_path: Path):
     _setup_base_dir(tmp_path)
     result = write_universe_import(

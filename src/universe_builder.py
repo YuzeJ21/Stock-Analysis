@@ -331,12 +331,18 @@ def _read_custom_source(base_dir: Path) -> tuple[pd.DataFrame, UniverseSourceRes
 
 
 def _load_remote_text(source_name: str, url: str, loader: SourceLoader) -> tuple[str | None, list[str]]:
+    fallback_hint = ""
+    if source_name == "smh":
+        fallback_hint = (
+            " VanEck may require browser cookies or location handling from this runtime; "
+            "use data/custom_universe.csv or stage data/imports/universe.csv as the manual SMH fallback."
+        )
     try:
         return loader(url), []
     except URLError as exc:
-        return None, [f"{source_name}: remote source unavailable ({exc})."]
+        return None, [f"{source_name}: remote source unavailable ({exc}).{fallback_hint}"]
     except Exception as exc:  # pragma: no cover - defensive runtime path
-        return None, [f"{source_name}: source fetch failed ({exc})."]
+        return None, [f"{source_name}: source fetch failed ({exc}).{fallback_hint}"]
 
 
 def _parse_sp500_source(text: str) -> pd.DataFrame:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,7 @@ import streamlit as st
 
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
+from src.monthly_picks import MonthlyPickConfig
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
@@ -150,6 +152,16 @@ def format_value(value: object, fallback: str = "Not available") -> str:
     return f"{float(number):.2f}".rstrip("0").rstrip(".")
 
 
+def format_date_short(value: object, fallback: str = "Not available") -> str:
+    text = format_missing(value, fallback=fallback)
+    if text == fallback:
+        return fallback
+    parsed = pd.to_datetime(text, errors="coerce")
+    if pd.isna(parsed):
+        return text
+    return parsed.strftime("%Y-%m-%d")
+
+
 def format_percent(value: object, fallback: str = "Not enough history") -> str:
     number = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
     if pd.isna(number):
@@ -187,30 +199,89 @@ def score_badge(score: object) -> str:
     return _badge(f"{float(number):.1f}", tone)
 
 
-def missing_data_notice(value: object) -> str:
+def _translated_missing_item(item: str) -> str:
+    lowered = item.lower()
+    if "fundamentals unavailable" in lowered:
+        return "Needs SEC enrichment"
+    if "peer" in lowered:
+        return "Needs peers.csv"
+    if "earnings" in lowered:
+        return "Needs earnings.csv"
+    if "analyst" in lowered:
+        return "Needs analyst_estimates.csv"
+    if "return" in lowered or "price history" in lowered:
+        return "Not enough price history"
+    return item.strip()
+
+
+def summarize_missing_fields(value: object, max_items: int = 5) -> str:
     text = format_missing(value, fallback="No explicit missing-data warnings")
     if text == "No explicit missing-data warnings":
+        return text
+    items = [_translated_missing_item(item.strip()) for item in text.split(",") if item.strip()]
+    if not items:
+        return "No explicit missing-data warnings"
+    unique_items = list(dict.fromkeys(items))
+    if len(unique_items) <= max_items:
+        return ", ".join(unique_items)
+    shown = ", ".join(unique_items[:max_items])
+    return f"{shown}, +{len(unique_items) - max_items} more"
+
+
+def missing_data_notice(value: object) -> str:
+    text = summarize_missing_fields(value)
+    if text == "No explicit missing-data warnings":
         return _badge(text, "positive")
-    replacements = {
-        "fundamentals unavailable": "Needs SEC enrichment",
-        "peers": "Needs peers.csv",
-        "earnings": "Needs earnings.csv",
-        "analyst": "Needs analyst_estimates.csv",
-        "return": "Not enough price history",
-    }
-    lowered = text.lower()
-    for needle, replacement in replacements.items():
-        if needle in lowered:
-            text = text.replace(needle, replacement)
     return _badge(text, "caution")
 
 
+def compact_reason(value: object, max_sentences: int = 2, max_chars: int = 260) -> str:
+    text = format_missing(value)
+    if text == "Not available":
+        return text
+    sentences = [part.strip() for part in text.replace("\n", " ").split(". ") if part.strip()]
+    compact = ". ".join(sentences[:max_sentences])
+    if compact and not compact.endswith("."):
+        compact += "."
+    if len(compact) > max_chars:
+        compact = compact[: max_chars - 1].rstrip() + "..."
+    return compact
+
+
+def monthly_pick_availability_message(candidate_count: int, top_n: int) -> str:
+    if candidate_count >= top_n:
+        return f"{top_n} of {top_n} research candidates available."
+    if candidate_count == 0:
+        return f"0 of {top_n} research candidates available. Current filters found no qualifying local candidates."
+    return (
+        f"{candidate_count} of {top_n} research candidates available. Conservative filters left the rest unfilled; "
+        "weak or ignored names are not forced into the list."
+    )
+
+
+def track_record_status_message(track_frame: pd.DataFrame | None, equity_frame: pd.DataFrame | None) -> str:
+    if equity_frame is not None and not equity_frame.empty:
+        return "Local equity curve available."
+    if track_frame is not None and not track_frame.empty and "Notes" in track_frame.columns:
+        notes = "; ".join(
+            str(note)
+            for note in track_frame["Notes"].dropna().astype(str).unique().tolist()
+            if note and note.lower() != "nan"
+        )
+        if notes:
+            return f"Insufficient local history for an equity curve: {notes}"
+    return (
+        "Insufficient local history for an equity curve. Add more dated local prices for picks and the benchmark "
+        "so the app can calculate month-end selections and next-month forward returns."
+    )
+
+
 def readable_card(title: str, body: str, footer: str = "") -> None:
-    footer_html = f"<div style='margin-top:0.55rem;color:#475569;font-size:0.84rem;'>{footer}</div>" if footer else ""
+    footer_html = f"<div style='margin-top:0.65rem;color:#334155;font-size:0.86rem;'>{footer}</div>" if footer else ""
     st.markdown(
         f"""
-        <div style="border:1px solid #cbd5e1;border-radius:8px;padding:0.9rem 1rem;background:#ffffff;margin-bottom:0.75rem;">
-          <div style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0;color:#475569;font-weight:700;">{title}</div>
+        <div style="border:1px solid #94a3b8;border-left:5px solid #2563eb;border-radius:10px;padding:0.95rem 1rem;background:#ffffff;margin-bottom:0.85rem;box-shadow:0 1px 2px rgba(15,23,42,0.08);">
+          <div style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.02em;color:#334155;font-weight:800;">{html.escape(title)}</div>
           <div style="margin-top:0.35rem;color:#0f172a;font-size:1rem;line-height:1.45;">{body}</div>
           {footer_html}
         </div>
@@ -338,7 +409,14 @@ def _count_missing_warning_rows(output_frames: dict[str, tuple[pd.DataFrame | No
 
 def _latest_local_price_date(catalog: LocalDataCatalog) -> str:
     metadata = catalog.dataset_metadata("prices")
-    return metadata.latest_data_timestamp or "Unavailable"
+    return format_date_short(metadata.latest_data_timestamp, fallback="Unavailable")
+
+
+def _monthly_top_n() -> int:
+    try:
+        return MonthlyPickConfig.from_yaml(BASE_DIR / "config.yaml").top_n
+    except Exception:  # pragma: no cover - dashboard fallback
+        return 5
 
 
 def _fundamentals_coverage_count(catalog: LocalDataCatalog) -> int:
@@ -433,15 +511,17 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     st.subheader("Monthly Picks")
-    st.caption("Top 5 local research candidates. These are candidate rankings, not trade instructions.")
+    top_n = _monthly_top_n()
+    st.caption(f"Up to {top_n} local research candidates. These are candidate rankings, not trade instructions.")
     picks_frame, picks_message = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
     track_frame, _track_message = load_output(OUTPUTS_DIR / "monthly_picks_track_record.csv")
     equity_frame, _equity_message = load_output(OUTPUTS_DIR / "monthly_picks_equity_curve.csv")
     latest_price = _latest_local_price_date(catalog)
     universe = catalog.load_dataframe("universe")
+    candidate_count = 0 if picks_frame is None else len(picks_frame)
 
     hero_cols = st.columns(5)
-    hero_cols[0].metric("Research Candidates", 0 if picks_frame is None else len(picks_frame))
+    hero_cols[0].metric("Research Candidates", f"{candidate_count} of {top_n}")
     hero_cols[1].metric("Current Month", "Not generated" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"))
     hero_cols[2].metric("Benchmark", "SPY")
     hero_cols[3].metric("Universe Size", 0 if universe is None or universe.empty else len(universe))
@@ -452,23 +532,29 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     elif picks_frame.empty:
         st.info("Monthly picks output exists, but no candidates were generated from the current local outputs.")
     else:
-        st.markdown("### Top 5 Research Candidates")
+        st.info(monthly_pick_availability_message(candidate_count, top_n))
+        st.markdown("### Research Candidates")
         for _, row in picks_frame.sort_values(["Rank", "CompositeScore"], ascending=[True, False]).iterrows():
+            ticker = html.escape(format_missing(row.get("Ticker")))
+            rank = html.escape(format_value(row.get("Rank")))
+            theme = html.escape(format_missing(row.get("Theme"), "Unclassified"))
+            sector = html.escape(format_missing(row.get("Sector"), "No sector"))
+            reason = html.escape(compact_reason(row.get("Reason")))
             body = (
                 f"<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.55rem;'>"
                 f"{score_badge(row.get('CompositeScore'))}"
                 f"{status_badge(row.get('SetupStatus'))}"
                 f"{status_badge(row.get('FinalState'))}"
                 f"</div>"
-                f"<strong>{format_missing(row.get('Ticker'))}</strong> "
-                f"<span style='color:#475569;'>Rank {format_value(row.get('Rank'))} · "
-                f"{format_missing(row.get('Theme'), 'Unclassified')} · {format_missing(row.get('Sector'), 'No sector')}</span>"
-                f"<p style='margin:0.55rem 0 0 0;'>{format_missing(row.get('Reason'))}</p>"
+                f"<strong>{ticker}</strong> "
+                f"<span style='color:#334155;'>Rank {rank} · {theme} · {sector}</span>"
+                f"<p style='margin:0.55rem 0 0 0;'>{reason}</p>"
+                f"<p style='margin:0.35rem 0 0 0;color:#475569;font-size:0.88rem;'>Full transparent reason is available in the table below.</p>"
             )
             readable_card(
                 title="Research Candidate",
                 body=body,
-                footer=f"Missing data: {format_missing(row.get('MissingDataFields'), 'No explicit missing-data warnings')}",
+                footer=f"Data coverage: {missing_data_notice(row.get('MissingDataFields'))}",
             )
 
         with st.expander("Monthly candidates table", expanded=False):
@@ -499,7 +585,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         chart_frame = equity_frame.set_index("Month")[["PicksEquity", "BenchmarkEquity"]]
         st.line_chart(chart_frame)
     else:
-        st.info("Insufficient local history for an equity curve.")
+        st.info(track_record_status_message(track_frame, equity_frame))
     if track_frame is not None and not track_frame.empty:
         st.dataframe(clean_display_frame(track_frame), use_container_width=True, hide_index=True)
     else:
@@ -737,7 +823,39 @@ def render_data_health(provider) -> None:
         st.warning("Local provider could not be initialized.")
         return
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
-    st.dataframe(validation_rows, use_container_width=True, hide_index=True)
+    if not validation_rows.empty:
+        missing_optional = validation_rows.loc[
+            validation_rows.get("validation_status", pd.Series(dtype=str)).astype(str).eq("missing_file"),
+            "name",
+        ].astype(str).tolist()
+        if missing_optional:
+            st.info(
+                "Optional local datasets not configured: "
+                + ", ".join(missing_optional)
+                + ". This is expected until you add those CSVs; reports will show partial coverage instead of fabricating data."
+            )
+        validation_rows = validation_rows.copy()
+        if "validation_warnings" in validation_rows.columns:
+            validation_rows["validation_warnings"] = validation_rows["validation_warnings"].map(
+                lambda value: "; ".join(value) if isinstance(value, list) else format_missing(value, "-")
+            )
+        display_columns = [
+            column
+            for column in [
+                "name",
+                "validation_status",
+                "row_count",
+                "latest_data_timestamp",
+                "ticker_column",
+                "date_column",
+                "validation_warnings",
+                "file_path",
+            ]
+            if column in validation_rows.columns
+        ]
+        st.dataframe(clean_display_frame(validation_rows[display_columns]), use_container_width=True, hide_index=True)
+    else:
+        st.info("No local data validation rows are available.")
 
     staged_imports = validate_imports(base_dir=BASE_DIR)
     st.markdown("### Staged Import Status")

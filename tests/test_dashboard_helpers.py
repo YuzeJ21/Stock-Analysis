@@ -5,6 +5,7 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert dashboard.format_missing(None) == "Not available"
     assert dashboard.format_missing(float("nan")) == "Not available"
     assert dashboard.format_percent(None) == "Not enough history"
+    assert dashboard.format_date_short("2026-03-14T00:00:00") == "2026-03-14"
     assert "nan" not in dashboard.score_badge(None).lower()
 
 
@@ -19,3 +20,37 @@ def test_missing_data_notice_translates_common_gaps():
     html = dashboard.missing_data_notice("fundamentals unavailable, peers")
     assert "Needs SEC enrichment" in html
     assert "Needs peers.csv" in html
+
+
+def test_missing_data_summary_limits_noisy_fields():
+    text = dashboard.summarize_missing_fields("Return1M, Return3M, Return6M, EPSGrowth, FCFMargin, ForwardPE", max_items=3)
+
+    assert "Not enough price history" in text
+    assert "+1 more" in text
+
+
+def test_monthly_pick_availability_message_handles_less_than_top_n():
+    message = dashboard.monthly_pick_availability_message(4, 5)
+
+    assert "4 of 5" in message
+    assert "not forced" in message
+
+
+def test_track_record_status_message_explains_insufficient_history():
+    message = dashboard.track_record_status_message(None, None)
+
+    assert "Insufficient local history" in message
+    assert "forward returns" in message
+
+
+def test_compact_reason_avoids_wall_of_text():
+    reason = (
+        "Composite score uses transparent local components. "
+        "This row is a research candidate, not a trade instruction. "
+        "Missing or incomplete fields reduced confidence."
+    )
+
+    compact = dashboard.compact_reason(reason, max_sentences=2)
+
+    assert compact.count(".") == 2
+    assert "Missing or incomplete" not in compact
