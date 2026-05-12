@@ -97,6 +97,12 @@ Usage boundaries:
 - no order execution or broker integration is implemented
 - any future options-payoff tooling must stay educational only and require user-supplied legs or clearly labeled examples
 
+Additional open-source product references are documented in:
+
+- `.agents/skills/stock-analysis-core/references/open-source-product-map.md`
+
+QuantGT is used only as product inspiration for a simple monthly research-candidate experience, benchmark comparison, archive, and methodology layout. This project does not copy QuantGT branding, text, pricing, proprietary strategy, or performance claims.
+
 ## Optional stock report workflow
 
 The project now includes a typed stock-report assembly layer for research workflows.
@@ -384,6 +390,7 @@ The dashboard now uses a wide tabbed layout with a sidebar for display controls.
 Tabs:
 
 - Overview
+- Monthly Picks
 - Market Direction
 - Momentum Leaders
 - Portfolio Review
@@ -396,6 +403,7 @@ Tabs:
 What each tab is for:
 
 - `Overview`: quick metrics for universe size, holdings count, output coverage, missing-data warnings, local fundamentals coverage, DCF-ready count, and peer-ready count
+- `Monthly Picks`: top-five local research candidates, transparent scoring components, local track record, and archive views when enough local history exists
 - `Market Direction`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, `Final Watchlist`: filterable research tables with search, status filters, and highlighted explanation/risk fields
 - `Stock Report Beta`: user-triggered structured stock reports with local CSV data first and optional yfinance clearly labeled as unofficial / research-grade
 - `Data Health`: local dataset validation, row counts, freshness timestamps, staged import status, and schema warnings
@@ -408,8 +416,10 @@ The dashboard and CLI are research-only surfaces. They do not execute trades, ro
 ## Recommended daily workflow
 
 ```bash
-python3 -m src.data_update
+python3 -m src.data_update --universe-file data/universe.csv
 python3 -m src.report_generator
+python3 -m src.monthly_picks --generate --top-n 5
+python3 -m src.track_record --monthly-picks
 python3 -m src.stock_report --validate-local-data
 streamlit run src/dashboard.py
 ```
@@ -418,8 +428,75 @@ This keeps the project on its local research path:
 
 - refresh local prices if you want newer research inputs
 - regenerate the core screener CSV outputs
+- generate the monthly research-candidate layer and local track-record files
 - validate local enrichment coverage before relying on valuation-heavy reports
 - review everything through the dashboard without any broker or trade execution features
+
+## Monthly Research Picks
+
+The productized monthly layer produces a small, transparent research-candidate list:
+
+```bash
+python3 -m src.monthly_picks --generate --top-n 5
+python3 -m src.monthly_picks --generate --top-n 5 --json
+```
+
+Output:
+
+- `outputs/monthly_research_picks.csv`
+
+The default output is five candidates per month. These rows are research candidates, not direct trade advice.
+
+### How scoring works
+
+The score is intentionally transparent and uses local fields that already exist in the CSV-first workflow:
+
+- momentum / setup context from `outputs/momentum_leaders.csv`
+- final-state context from `outputs/final_watchlist.csv`
+- quality and value context from `outputs/undervalued_candidates.csv`
+- local liquidity and technical context from `data/prices.csv`
+- missing-data penalties when fields are unavailable
+
+Default weights live in `config.yaml` under `monthly_picks`:
+
+- momentum: 40%
+- final state: 25%
+- quality: 15%
+- valuation context: 10%
+- liquidity: 10%
+- risk penalty: subtractive 10% weight
+
+The output includes:
+
+- transparent score components
+- reason text
+- missing-data fields
+- source files
+- generation timestamp
+
+### Track record
+
+The local track-record module uses only local historical prices:
+
+```bash
+python3 -m src.track_record --monthly-picks
+python3 -m src.track_record --monthly-picks --benchmark SPY --json
+```
+
+Outputs:
+
+- `outputs/monthly_picks_track_record.csv`
+- `outputs/monthly_picks_equity_curve.csv`
+
+The track record compares equal-weight monthly candidates against the benchmark when local price history supports the selection date and forward return window. If the bundled sample history is too short, the output says `Insufficient local history` instead of fabricating a performance record.
+
+### Interpretation
+
+- monthly picks are research candidates, not trade instructions
+- benchmark comparison is local-history-only and may be unavailable on sparse sample data
+- no unverified performance claim is shown
+- missing data reduces confidence and remains visible
+- expanding the universe first can improve coverage, but larger universes require price updates and validation
 
 ## Universe expansion
 

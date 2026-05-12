@@ -13,7 +13,9 @@ def test_new_modules_import_cleanly():
         "src.providers.sec_companyfacts",
         "src.providers.yfinance_provider",
         "src.dashboard",
+        "src.monthly_picks",
         "src.stock_report",
+        "src.track_record",
         "src.universe_builder",
         "src.valuation",
     ]

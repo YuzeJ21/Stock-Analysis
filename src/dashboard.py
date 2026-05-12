@@ -23,6 +23,11 @@ PIPELINE_FILES = {
     "undervalued_candidates.csv": "Value / Re-rating",
     "final_watchlist.csv": "Final Watchlist",
 }
+MONTHLY_FILES = {
+    "monthly_research_picks.csv": "Monthly Research Picks",
+    "monthly_picks_track_record.csv": "Monthly Picks Track Record",
+    "monthly_picks_equity_curve.csv": "Monthly Picks Equity Curve",
+}
 TAB_TO_FILE = {
     "Market Direction": "market_direction.csv",
     "Momentum Leaders": "momentum_leaders.csv",
@@ -53,6 +58,13 @@ STATE_COLORS = {
     "peer_premium": "#fde68a",
     "mixed": "#e5e7eb",
     "insufficient_peer_data": "#f3f4f6",
+}
+BADGE_COLORS = {
+    "positive": ("#064e3b", "#d1fae5"),
+    "neutral": ("#1f2937", "#e5e7eb"),
+    "caution": ("#78350f", "#fef3c7"),
+    "negative": ("#7f1d1d", "#fee2e2"),
+    "info": ("#1e3a8a", "#dbeafe"),
 }
 
 
@@ -108,6 +120,108 @@ def style_frame(frame: pd.DataFrame):
     if highlight_columns:
         styler = styler.map(emphasize_text, subset=highlight_columns)
     return styler
+
+
+def format_missing(value: object, fallback: str = "Not available") -> str:
+    if value is None:
+        return fallback
+    try:
+        if pd.isna(value):
+            return fallback
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "none", "null", "<na>"}:
+        return fallback
+    return text
+
+
+def format_value(value: object, fallback: str = "Not available") -> str:
+    text = format_missing(value, fallback=fallback)
+    if text == fallback:
+        return text
+    number = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(number):
+        return text
+    if abs(float(number)) >= 1_000_000:
+        return f"{float(number) / 1_000_000:.1f}M"
+    if abs(float(number)) >= 1_000:
+        return f"{float(number):,.0f}"
+    return f"{float(number):.2f}".rstrip("0").rstrip(".")
+
+
+def format_percent(value: object, fallback: str = "Not enough history") -> str:
+    number = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(number):
+        return fallback
+    return f"{float(number) * 100:.1f}%"
+
+
+def _badge(text: object, tone: str = "neutral") -> str:
+    foreground, background = BADGE_COLORS.get(tone, BADGE_COLORS["neutral"])
+    label = format_missing(text)
+    return (
+        f"<span style='display:inline-block;padding:0.18rem 0.48rem;border-radius:0.45rem;"
+        f"font-size:0.78rem;font-weight:700;color:{foreground};background:{background};"
+        f"border:1px solid {foreground}22;'>{label}</span>"
+    )
+
+
+def status_badge(status: object) -> str:
+    text = format_missing(status)
+    lowered = text.lower()
+    if any(keyword in lowered for keyword in ("broken", "avoid", "risk reduce")):
+        return _badge(text, "negative")
+    if any(keyword in lowered for keyword in ("extended", "review", "insufficient")):
+        return _badge(text, "caution")
+    if any(keyword in lowered for keyword in ("watch", "setup", "candidate", "rotation", "keep")):
+        return _badge(text, "positive")
+    return _badge(text, "neutral")
+
+
+def score_badge(score: object) -> str:
+    number = pd.to_numeric(pd.Series([score]), errors="coerce").iloc[0]
+    if pd.isna(number):
+        return _badge("Not available", "neutral")
+    tone = "positive" if float(number) >= 75 else "info" if float(number) >= 55 else "caution" if float(number) >= 35 else "negative"
+    return _badge(f"{float(number):.1f}", tone)
+
+
+def missing_data_notice(value: object) -> str:
+    text = format_missing(value, fallback="No explicit missing-data warnings")
+    if text == "No explicit missing-data warnings":
+        return _badge(text, "positive")
+    replacements = {
+        "fundamentals unavailable": "Needs SEC enrichment",
+        "peers": "Needs peers.csv",
+        "earnings": "Needs earnings.csv",
+        "analyst": "Needs analyst_estimates.csv",
+        "return": "Not enough price history",
+    }
+    lowered = text.lower()
+    for needle, replacement in replacements.items():
+        if needle in lowered:
+            text = text.replace(needle, replacement)
+    return _badge(text, "caution")
+
+
+def readable_card(title: str, body: str, footer: str = "") -> None:
+    footer_html = f"<div style='margin-top:0.55rem;color:#475569;font-size:0.84rem;'>{footer}</div>" if footer else ""
+    st.markdown(
+        f"""
+        <div style="border:1px solid #cbd5e1;border-radius:8px;padding:0.9rem 1rem;background:#ffffff;margin-bottom:0.75rem;">
+          <div style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0;color:#475569;font-weight:700;">{title}</div>
+          <div style="margin-top:0.35rem;color:#0f172a;font-size:1rem;line-height:1.45;">{body}</div>
+          {footer_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def clean_display_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    cleaned = frame.copy()
+    return cleaned.where(pd.notna(cleaned), "Not available")
 
 
 def reorder_columns(frame: pd.DataFrame) -> pd.DataFrame:
@@ -176,7 +290,7 @@ def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
 
 def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> None:
     filtered = filter_frame(reorder_columns(frame), key)
-    st.dataframe(style_frame(filtered), use_container_width=True, hide_index=True)
+    st.dataframe(style_frame(clean_display_frame(filtered)), use_container_width=True, hide_index=True)
 
     if show_reason_details:
         reason_columns = [column for column in filtered.columns if "reason" in column.lower()]
@@ -267,7 +381,8 @@ def _peer_ready_count(catalog: LocalDataCatalog) -> int:
 def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], catalog: LocalDataCatalog, universe_summary: dict[str, Any]) -> None:
     holdings = catalog.load_dataframe("holdings")
     final_watchlist_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
-    output_file_count = sum(1 for frame, _message in output_frames.values() if frame is not None)
+    monthly_file_count = sum(1 for filename in MONTHLY_FILES if (OUTPUTS_DIR / filename).exists())
+    output_file_count = sum(1 for frame, _message in output_frames.values() if frame is not None) + monthly_file_count
     missing_warning_count = _count_missing_warning_rows(output_frames)
     current_universe = universe_summary["current_universe"]
 
@@ -297,12 +412,110 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
                 "Message": message or "",
             }
         )
+    for filename, label in MONTHLY_FILES.items():
+        frame, message = load_output(OUTPUTS_DIR / filename)
+        output_rows.append(
+            {
+                "Output": label,
+                "File": filename,
+                "Present": frame is not None,
+                "Rows": 0 if frame is None else len(frame),
+                "Message": message or "",
+            }
+        )
     st.dataframe(pd.DataFrame(output_rows), use_container_width=True, hide_index=True)
 
     if final_watchlist_frame is not None and not final_watchlist_frame.empty:
         st.markdown("### Final Watchlist Snapshot")
         snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
-        st.dataframe(final_watchlist_frame[snapshot_columns], use_container_width=True, hide_index=True)
+        st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), use_container_width=True, hide_index=True)
+
+
+def render_monthly_picks(catalog: LocalDataCatalog) -> None:
+    st.subheader("Monthly Picks")
+    st.caption("Top 5 local research candidates. These are candidate rankings, not trade instructions.")
+    picks_frame, picks_message = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
+    track_frame, _track_message = load_output(OUTPUTS_DIR / "monthly_picks_track_record.csv")
+    equity_frame, _equity_message = load_output(OUTPUTS_DIR / "monthly_picks_equity_curve.csv")
+    latest_price = _latest_local_price_date(catalog)
+    universe = catalog.load_dataframe("universe")
+
+    hero_cols = st.columns(5)
+    hero_cols[0].metric("Research Candidates", 0 if picks_frame is None else len(picks_frame))
+    hero_cols[1].metric("Current Month", "Not generated" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"))
+    hero_cols[2].metric("Benchmark", "SPY")
+    hero_cols[3].metric("Universe Size", 0 if universe is None or universe.empty else len(universe))
+    hero_cols[4].metric("Latest Price Date", latest_price)
+
+    if picks_frame is None:
+        st.info(picks_message or "Run `python3 -m src.monthly_picks --generate --top-n 5` to create monthly research candidates.")
+    elif picks_frame.empty:
+        st.info("Monthly picks output exists, but no candidates were generated from the current local outputs.")
+    else:
+        st.markdown("### Top 5 Research Candidates")
+        for _, row in picks_frame.sort_values(["Rank", "CompositeScore"], ascending=[True, False]).iterrows():
+            body = (
+                f"<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.55rem;'>"
+                f"{score_badge(row.get('CompositeScore'))}"
+                f"{status_badge(row.get('SetupStatus'))}"
+                f"{status_badge(row.get('FinalState'))}"
+                f"</div>"
+                f"<strong>{format_missing(row.get('Ticker'))}</strong> "
+                f"<span style='color:#475569;'>Rank {format_value(row.get('Rank'))} · "
+                f"{format_missing(row.get('Theme'), 'Unclassified')} · {format_missing(row.get('Sector'), 'No sector')}</span>"
+                f"<p style='margin:0.55rem 0 0 0;'>{format_missing(row.get('Reason'))}</p>"
+            )
+            readable_card(
+                title="Research Candidate",
+                body=body,
+                footer=f"Missing data: {format_missing(row.get('MissingDataFields'), 'No explicit missing-data warnings')}",
+            )
+
+        with st.expander("Monthly candidates table", expanded=False):
+            display_columns = [
+                column
+                for column in [
+                    "Rank",
+                    "Ticker",
+                    "Theme",
+                    "Sector",
+                    "CompositeScore",
+                    "MomentumScore",
+                    "QualityScore",
+                    "ValuationContextScore",
+                    "RiskPenalty",
+                    "LiquidityScore",
+                    "MAStackStatus",
+                    "RSI14",
+                    "Reason",
+                    "MissingDataFields",
+                ]
+                if column in picks_frame.columns
+            ]
+            st.dataframe(clean_display_frame(picks_frame[display_columns]), use_container_width=True, hide_index=True)
+
+    st.markdown("### Track Record")
+    if equity_frame is not None and not equity_frame.empty and {"Month", "PicksEquity", "BenchmarkEquity"}.issubset(equity_frame.columns):
+        chart_frame = equity_frame.set_index("Month")[["PicksEquity", "BenchmarkEquity"]]
+        st.line_chart(chart_frame)
+    else:
+        st.info("Insufficient local history for an equity curve.")
+    if track_frame is not None and not track_frame.empty:
+        st.dataframe(clean_display_frame(track_frame), use_container_width=True, hide_index=True)
+    else:
+        st.info("Run `python3 -m src.track_record --monthly-picks` to create the local track-record files.")
+
+    st.markdown("### Archive")
+    if track_frame is not None and not track_frame.empty:
+        archive_columns = [column for column in ["Month", "Picks", "AveragePickReturn", "BenchmarkReturn", "ExcessReturn", "Notes"] if column in track_frame.columns]
+        st.dataframe(clean_display_frame(track_frame[archive_columns]), use_container_width=True, hide_index=True)
+    else:
+        st.info("No local monthly archive is available yet.")
+
+    with st.expander("Methodology", expanded=False):
+        st.write("Monthly rankings use local screener outputs, local price history, optional local fundamentals, and transparent score components.")
+        st.write("Missing inputs reduce confidence and remain visible in the output.")
+        st.write("Track-record files are calculated only from local historical price data; insufficient history is shown explicitly.")
 
 
 def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
@@ -634,6 +847,7 @@ universe_summary = summarize_universe_manager(BASE_DIR)
 tabs = st.tabs(
     [
         "Overview",
+        "Monthly Picks",
         "Market Direction",
         "Momentum Leaders",
         "Portfolio Review",
@@ -648,18 +862,20 @@ tabs = st.tabs(
 with tabs[0]:
     render_overview(output_frames, catalog, universe_summary)
 with tabs[1]:
-    render_output_tab("Market Direction", output_frames, show_reason_details)
+    render_monthly_picks(catalog)
 with tabs[2]:
-    render_output_tab("Momentum Leaders", output_frames, show_reason_details)
+    render_output_tab("Market Direction", output_frames, show_reason_details)
 with tabs[3]:
-    render_output_tab("Portfolio Review", output_frames, show_reason_details)
+    render_output_tab("Momentum Leaders", output_frames, show_reason_details)
 with tabs[4]:
-    render_output_tab("Value / Re-rating", output_frames, show_reason_details)
+    render_output_tab("Portfolio Review", output_frames, show_reason_details)
 with tabs[5]:
-    render_output_tab("Final Watchlist", output_frames, show_reason_details)
+    render_output_tab("Value / Re-rating", output_frames, show_reason_details)
 with tabs[6]:
-    render_stock_report_beta(provider, show_raw_json)
+    render_output_tab("Final Watchlist", output_frames, show_reason_details)
 with tabs[7]:
-    render_data_health(provider)
+    render_stock_report_beta(provider, show_raw_json)
 with tabs[8]:
+    render_data_health(provider)
+with tabs[9]:
     render_universe_manager(universe_summary)

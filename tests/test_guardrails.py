@@ -35,6 +35,8 @@ def test_stock_report_workflow_does_not_introduce_direct_recommendation_language
         Path("src/stock_report.py"),
         Path("src/valuation.py"),
         Path("src/dashboard.py"),
+        Path("src/monthly_picks.py"),
+        Path("src/track_record.py"),
         Path("src/providers/market_data.py"),
         Path("src/providers/local_market_data.py"),
         Path("src/providers/sec_companyfacts.py"),
@@ -62,6 +64,7 @@ def test_gitignore_covers_local_runtime_artifacts():
 def test_external_skill_reference_files_exist():
     expected_paths = (
         Path(".agents/skills/stock-analysis-core/references/external-skill-map.md"),
+        Path(".agents/skills/stock-analysis-core/references/open-source-product-map.md"),
         Path(".agents/skills/stock-analysis-core/references/options-risk-education.md"),
     )
     for path in expected_paths:

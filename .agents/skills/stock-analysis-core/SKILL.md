@@ -109,3 +109,4 @@ The UI, CLI, or CSV renderer should consume this object rather than re-query dat
 - `references/valuation-workflow.md` — valuation scaffolding and scenario design
 - `references/earnings-workflow.md` — preview / recap / estimate-analysis steps
 - `references/risk-guardrails.md` — research-only constraints and review checklist
+- `references/open-source-product-map.md` — reviewed product inspiration and reuse boundaries

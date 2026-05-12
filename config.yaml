@@ -69,6 +69,18 @@ value_rules:
     - high_debt
     - persistent_underperformance
 
+monthly_picks:
+  top_n: 5
+  benchmark: SPY
+  rebalance_period: monthly
+  weights:
+    momentum: 0.40
+    final_state: 0.25
+    quality: 0.15
+    valuation: 0.10
+    liquidity: 0.10
+    risk_penalty: 0.10
+
 state_labels:
   - Ignore
   - Watch
