@@ -82,6 +82,21 @@ It adapts selected market-analysis concepts from `himself65/finance-skills` for 
 
 These are integrated as reusable research workflows only. They are not broker automations, trade execution systems, or production market-data guarantees.
 
+### External skill notes
+
+This project also reviews selected ideas from:
+
+- `himself65/finance-skills`
+- `himself65/trade-skills`
+
+Usage boundaries:
+
+- finance-skills concepts are used only as research workflow inspiration
+- trade-skills concepts are used only as options risk education
+- no trade recommendations are generated
+- no order execution or broker integration is implemented
+- any future options-payoff tooling must stay educational only and require user-supplied legs or clearly labeled examples
+
 ## Optional stock report workflow
 
 The project now includes a typed stock-report assembly layer for research workflows.

@@ -9,6 +9,9 @@ For stock-analysis workflow features, use `.agents/skills/stock-analysis-core/SK
 This project is for investment research, watchlist generation, portfolio review, and risk discipline.
 It must not implement auto-trading, order execution, broker integration, or direct buy/sell instructions.
 Never implement AI trade execution.
+Trade-skills concepts may only be used for education and risk explanation.
+The app must never recommend or execute option trades.
+If an options payoff feature is added later, it must require user-supplied legs or clearly labeled examples and remain educational only.
 
 ## Core philosophy
 
@@ -98,7 +101,7 @@ outputs/final_watchlist.csv
 
 ## Dashboard
 
-Build a simple Streamlit dashboard with pages:
+Build a simple Streamlit dashboard with pages or tabs:
 
 1. Market Direction
 2. Momentum Leaders

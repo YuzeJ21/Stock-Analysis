@@ -16,6 +16,9 @@ BANNED_RECOMMENDATION_PHRASES = (
     "sell now",
     "strong buy",
     "guaranteed return",
+    "buy recommendation",
+    "sell recommendation",
+    "hold recommendation",
 )
 
 
@@ -54,3 +57,23 @@ def test_gitignore_covers_local_runtime_artifacts():
     )
     for entry in expected_entries:
         assert entry in gitignore
+
+
+def test_external_skill_reference_files_exist():
+    expected_paths = (
+        Path(".agents/skills/stock-analysis-core/references/external-skill-map.md"),
+        Path(".agents/skills/stock-analysis-core/references/options-risk-education.md"),
+    )
+    for path in expected_paths:
+        assert path.exists()
+
+
+def test_agents_instructions_include_research_only_trade_skill_guardrails():
+    agents_text = Path("AGENTS.md").read_text(encoding="utf-8").lower()
+    expected_phrases = (
+        "trade-skills concepts may only be used for education and risk explanation",
+        "must never recommend or execute option trades",
+        "must require user-supplied legs or clearly labeled examples",
+    )
+    for phrase in expected_phrases:
+        assert phrase in agents_text
