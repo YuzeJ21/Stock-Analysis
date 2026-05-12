@@ -148,6 +148,36 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
         date_columns=("as_of_date",),
         ticker_columns=("ticker", "peer_ticker"),
     ),
+    "universe": LocalDatasetSchema(
+        dataset_name="universe",
+        required_columns=("ticker", "theme", "defaultpurpose", "marketcapbucket", "notes"),
+        optional_columns=(
+            "sectoretf",
+            "sector_etf",
+            "default_purpose",
+            "market_cap_bucket",
+            "company_name",
+            "universe_source",
+            "source_detail",
+            "index_membership",
+            "etf_membership",
+            "exchange",
+            "is_etf",
+            "as_of_date",
+            "in_local_sample",
+            "in_sp500",
+            "in_nasdaq",
+            "in_smh",
+            "in_holdings",
+            "in_custom",
+        ),
+        date_columns=("as_of_date",),
+    ),
+    "custom_universe": LocalDatasetSchema(
+        dataset_name="custom_universe",
+        required_columns=("ticker",),
+        optional_columns=("company_name", "theme", "sector", "sector_etf", "source", "notes"),
+    ),
 }
 
 
@@ -181,6 +211,18 @@ def normalize_columns(columns: list[str]) -> list[str]:
         .lower()
         for column in columns
     ]
+
+
+ALIASED_DATASET_COLUMNS: dict[str, dict[str, str]] = {
+    "universe": {
+        "sector_etf": "sectoretf",
+        "default_purpose": "defaultpurpose",
+        "market_cap_bucket": "marketcapbucket",
+    },
+    "custom_universe": {
+        "sectoretf": "sector_etf",
+    },
+}
 
 
 def _freshness_source(path: Path, latest_timestamp: str | None, notes: list[str]) -> dict[str, Any]:
@@ -238,6 +280,8 @@ def validate_local_dataset(dataset_name: str, file_path: Path | None) -> tuple[L
 
     frame = pd.read_csv(file_path)
     frame.columns = normalize_columns(list(frame.columns))
+    if dataset_name in ALIASED_DATASET_COLUMNS:
+        frame = frame.rename(columns=ALIASED_DATASET_COLUMNS[dataset_name])
     warnings: list[str] = []
 
     if schema is not None:

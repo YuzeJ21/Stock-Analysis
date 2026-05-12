@@ -1,32 +1,34 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import streamlit as st
 
+from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
+from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = BASE_DIR / "outputs"
 DATA_DIR = BASE_DIR / "data"
-WARNING_STATES = {"Broken", "Extended / No Chase", "Risk Reduce"}
-PAGE_TO_FILE = {
+PIPELINE_FILES = {
+    "purpose_classification.csv": "Purpose Classification",
+    "market_direction.csv": "Market Direction",
+    "momentum_leaders.csv": "Momentum Leaders",
+    "portfolio_review.csv": "Portfolio Review",
+    "undervalued_candidates.csv": "Value / Re-rating",
+    "final_watchlist.csv": "Final Watchlist",
+}
+TAB_TO_FILE = {
     "Market Direction": "market_direction.csv",
     "Momentum Leaders": "momentum_leaders.csv",
     "Portfolio Review": "portfolio_review.csv",
-    "Value / Re-rating Candidates": "undervalued_candidates.csv",
+    "Value / Re-rating": "undervalued_candidates.csv",
     "Final Watchlist": "final_watchlist.csv",
-}
-PIPELINE_MANAGED_FILES = {
-    "market_direction.csv",
-    "purpose_classification.csv",
-    "momentum_leaders.csv",
-    "portfolio_review.csv",
-    "undervalued_candidates.csv",
-    "final_watchlist.csv",
 }
 STATE_COLORS = {
     "Buyable Area": "#d1fae5",
@@ -41,7 +43,16 @@ STATE_COLORS = {
     "Add Candidate": "#bae6fd",
     "Hold but Do Not Add": "#e5e7eb",
     "Avoid": "#e5e7eb",
-    "Ignore": "#f3f4f6",
+    "Insufficient Data": "#f3f4f6",
+    "Strong Rotation": "#d1fae5",
+    "Early Rotation": "#dbeafe",
+    "Overextended": "#fde68a",
+    "Weak": "#fee2e2",
+    "Broken / Avoid": "#fca5a5",
+    "peer_discount": "#d1fae5",
+    "peer_premium": "#fde68a",
+    "mixed": "#e5e7eb",
+    "insufficient_peer_data": "#f3f4f6",
 }
 
 
@@ -57,382 +68,598 @@ def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
     return frame, None
 
 
+def load_pipeline_outputs() -> dict[str, tuple[pd.DataFrame | None, str | None]]:
+    return {filename: load_output(OUTPUTS_DIR / filename) for filename in PIPELINE_FILES}
+
+
 def is_state_column(name: str) -> bool:
     lowered = name.lower()
-    return lowered.endswith("state") or lowered.endswith("status") or lowered == "classification"
+    return (
+        lowered.endswith("state")
+        or lowered.endswith("status")
+        or lowered == "classification"
+        or lowered in {"setupstatus", "reviewstate", "finalstate", "themestatus", "peer_relative_status"}
+    )
 
 
-def style_state_columns(frame: pd.DataFrame):
+def style_frame(frame: pd.DataFrame):
     state_columns = [column for column in frame.columns if is_state_column(column)]
+    highlight_columns = [
+        column
+        for column in frame.columns
+        if column in {"FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "PeerRelativeStatus"}
+        or "reason" in column.lower()
+        or "missing" in column.lower()
+    ]
 
-    def color_value(value: object) -> str:
+    def color_state(value: object) -> str:
         if pd.isna(value):
             return ""
         return f"background-color: {STATE_COLORS.get(str(value), '')}"
 
-    if not state_columns:
-        return frame
-    return frame.style.map(color_value, subset=state_columns)
+    def emphasize_text(value: object) -> str:
+        if pd.isna(value) or str(value).strip() in {"", "nan"}:
+            return ""
+        return "font-weight: 600"
+
+    styler = frame.style
+    if state_columns:
+        styler = styler.map(color_state, subset=state_columns)
+    if highlight_columns:
+        styler = styler.map(emphasize_text, subset=highlight_columns)
+    return styler
 
 
-def find_warning_rows(frame: pd.DataFrame) -> pd.DataFrame:
-    state_columns = [column for column in frame.columns if is_state_column(column)]
-    if not state_columns:
-        return pd.DataFrame(columns=frame.columns)
-
-    mask = pd.Series(False, index=frame.index)
-    for column in state_columns:
-        mask = mask | frame[column].astype(str).isin(WARNING_STATES)
-    return frame.loc[mask].copy()
-
-
-def render_reasons(frame: pd.DataFrame) -> None:
-    reason_columns = [column for column in frame.columns if column.lower() == "reason" or "reason" in column.lower()]
-    if not reason_columns:
-        st.info("No reason columns were found in this output.")
-        return
-
-    with st.expander("Reasons", expanded=True):
-        for column in reason_columns:
-            st.markdown(f"**{column}**")
-            reasons = frame[[col for col in frame.columns if col in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState", column}]].copy()
-            st.dataframe(reasons, width="stretch", hide_index=True)
+def reorder_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    priority = [
+        "Ticker",
+        "Theme",
+        "SectorETF",
+        "FinalState",
+        "SetupStatus",
+        "ReviewState",
+        "ThemeStatus",
+        "FinalValueCategory",
+        "PeerRelativeStatus",
+        "RelativeOpportunityScore",
+        "WatchlistScore",
+        "Reason",
+        "MissingDataFields",
+    ]
+    ordered = [column for column in priority if column in frame.columns]
+    remaining = [column for column in frame.columns if column not in ordered]
+    return frame[ordered + remaining].copy()
 
 
-def render_supporting_columns(frame: pd.DataFrame) -> None:
-    supporting_columns = [
+def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
+    filtered = frame.copy()
+    with st.container():
+        search_value = st.text_input(f"Search {key}", key=f"{key}-search")
+        if search_value:
+            mask = filtered.astype(str).apply(
+                lambda row: row.str.contains(search_value, case=False, na=False).any(),
+                axis=1,
+            )
+            filtered = filtered.loc[mask].copy()
+
+        status_columns = [column for column in filtered.columns if is_state_column(column)]
+        status_column = status_columns[0] if status_columns else None
+        if status_column:
+            statuses = sorted(value for value in filtered[status_column].dropna().astype(str).unique().tolist() if value)
+            selected_statuses = st.multiselect(
+                f"Filter {key} by {status_column}",
+                options=statuses,
+                default=[],
+                key=f"{key}-status",
+            )
+            if selected_statuses:
+                filtered = filtered.loc[filtered[status_column].astype(str).isin(selected_statuses)].copy()
+
+        if "Theme" in filtered.columns:
+            themes = sorted(value for value in filtered["Theme"].dropna().astype(str).unique().tolist() if value)
+            selected_themes = st.multiselect(f"Filter {key} by Theme", options=themes, default=[], key=f"{key}-theme")
+            if selected_themes:
+                filtered = filtered.loc[filtered["Theme"].astype(str).isin(selected_themes)].copy()
+
+        if "SectorETF" in filtered.columns:
+            sectors = sorted(value for value in filtered["SectorETF"].dropna().astype(str).unique().tolist() if value)
+            selected_sectors = st.multiselect(
+                f"Filter {key} by Sector ETF",
+                options=sectors,
+                default=[],
+                key=f"{key}-sector",
+            )
+            if selected_sectors:
+                filtered = filtered.loc[filtered["SectorETF"].astype(str).isin(selected_sectors)].copy()
+    return filtered
+
+
+def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> None:
+    filtered = filter_frame(reorder_columns(frame), key)
+    st.dataframe(style_frame(filtered), use_container_width=True, hide_index=True)
+
+    if show_reason_details:
+        reason_columns = [column for column in filtered.columns if "reason" in column.lower()]
+        if reason_columns:
+            with st.expander(f"{key} reasons", expanded=False):
+                detail_columns = [column for column in filtered.columns if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState"} or column in reason_columns]
+                st.dataframe(filtered[detail_columns], use_container_width=True, hide_index=True)
+
+    support_columns = [
         column
-        for column in frame.columns
+        for column in filtered.columns
         if any(keyword in column.lower() for keyword in ("missing", "conflict", "risk"))
     ]
-    if not supporting_columns:
-        return
-
-    with st.expander("Missing Data And Risk Details", expanded=False):
-        columns = [
-            column
-            for column in frame.columns
-            if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState", "ThemeStatus"}
-            or column in supporting_columns
-        ]
-        st.dataframe(frame[columns], width="stretch", hide_index=True)
+    if support_columns:
+        with st.expander(f"{key} supporting details", expanded=False):
+            detail_columns = [column for column in filtered.columns if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState", "ThemeStatus"} or column in support_columns]
+            st.dataframe(filtered[detail_columns], use_container_width=True, hide_index=True)
 
 
-def get_dashboard_tickers() -> list[str]:
-    tickers: set[str] = set()
-    for filename in ("universe.csv", "holdings.csv"):
-        path = DATA_DIR / filename
-        if not path.exists():
+def get_local_provider():
+    try:
+        return build_provider("local", base_dir=BASE_DIR)
+    except Exception:  # pragma: no cover - defensive dashboard path
+        return None
+
+
+def _count_missing_warning_rows(output_frames: dict[str, tuple[pd.DataFrame | None, str | None]]) -> int:
+    identifiers: set[str] = set()
+    for filename, (frame, _message) in output_frames.items():
+        if frame is None or frame.empty:
             continue
-        frame = pd.read_csv(path)
-        normalized_columns = [column.strip().lower() for column in frame.columns]
-        frame.columns = normalized_columns
-        if "ticker" in frame.columns:
-            tickers.update(frame["ticker"].dropna().astype(str).str.upper().str.strip())
-    return sorted(ticker for ticker in tickers if ticker)
+        missing_columns = [column for column in frame.columns if "missing" in column.lower()]
+        if not missing_columns:
+            continue
+        identifier_column = "Ticker" if "Ticker" in frame.columns else "Theme" if "Theme" in frame.columns else None
+        if identifier_column is None:
+            continue
+        mask = pd.Series(False, index=frame.index)
+        for column in missing_columns:
+            values = frame[column].fillna("").astype(str).str.strip()
+            mask = mask | values.ne("") & values.ne("nan")
+        identifiers.update(frame.loc[mask, identifier_column].astype(str).tolist())
+    return len({value for value in identifiers if value})
 
 
-def render_stock_report_beta() -> None:
-    st.divider()
-    with st.expander("Stock Report (Beta)", expanded=False):
-        st.caption(
-            "Structured research report workflow. Uses the local CSV-backed provider by default. "
-            "Optional yfinance mode is unofficial / research-grade and must be explicitly enabled."
+def _latest_local_price_date(catalog: LocalDataCatalog) -> str:
+    metadata = catalog.dataset_metadata("prices")
+    return metadata.latest_data_timestamp or "Unavailable"
+
+
+def _fundamentals_coverage_count(catalog: LocalDataCatalog) -> int:
+    frame = catalog.load_dataframe("fundamentals")
+    if frame is None or frame.empty or "ticker" not in frame.columns:
+        return 0
+    return int(frame["ticker"].dropna().nunique())
+
+
+def _dcf_ready_count(catalog: LocalDataCatalog) -> int:
+    frame = catalog.load_dataframe("fundamentals")
+    if frame is None or frame.empty:
+        return 0
+    empty_series = pd.Series(index=frame.index, dtype=float)
+    fcf_ready = frame.get("free_cash_flow", empty_series).notna() | frame.get("fcf", empty_series).notna()
+    revenue_margin_ready = frame.get("revenue", empty_series).notna() & frame.get("fcf_margin", empty_series).notna()
+    if "ticker" not in frame.columns:
+        return 0
+    return int(frame.loc[fcf_ready | revenue_margin_ready, "ticker"].dropna().nunique())
+
+
+def _peer_ready_count(catalog: LocalDataCatalog) -> int:
+    peers = catalog.load_dataframe("peers")
+    fundamentals = catalog.load_dataframe("fundamentals")
+    if peers is None or peers.empty or fundamentals is None or fundamentals.empty:
+        return 0
+    peer_column = "peer_ticker" if "peer_ticker" in peers.columns else None
+    if "ticker" not in peers.columns or peer_column is None or "ticker" not in fundamentals.columns:
+        return 0
+    fundamentals_set = set(fundamentals["ticker"].dropna().astype(str))
+    ready_subjects = set()
+    for _, row in peers.iterrows():
+        subject = str(row.get("ticker", "")).upper().strip()
+        peer = str(row.get(peer_column, "")).upper().strip()
+        if subject and peer and peer in fundamentals_set and subject != peer:
+            ready_subjects.add(subject)
+    return len(ready_subjects)
+
+
+def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], catalog: LocalDataCatalog, universe_summary: dict[str, Any]) -> None:
+    holdings = catalog.load_dataframe("holdings")
+    final_watchlist_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
+    output_file_count = sum(1 for frame, _message in output_frames.values() if frame is not None)
+    missing_warning_count = _count_missing_warning_rows(output_frames)
+    current_universe = universe_summary["current_universe"]
+
+    metrics_top = st.columns(5)
+    metrics_top[0].metric("Universe Tickers", current_universe["row_count"])
+    metrics_top[1].metric("Holdings", 0 if holdings is None or holdings.empty else len(holdings))
+    metrics_top[2].metric("Output Files Present", output_file_count)
+    metrics_top[3].metric("Final Watchlist Candidates", 0 if final_watchlist_frame is None else len(final_watchlist_frame))
+    metrics_top[4].metric("Missing-Data Warning Names", missing_warning_count)
+
+    metrics_bottom = st.columns(4)
+    metrics_bottom[0].metric("Latest Local Price Date", _latest_local_price_date(catalog))
+    metrics_bottom[1].metric("Fundamentals Coverage", _fundamentals_coverage_count(catalog))
+    metrics_bottom[2].metric("DCF-Ready Count", _dcf_ready_count(catalog))
+    metrics_bottom[3].metric("Peer-Ready Count", _peer_ready_count(catalog))
+
+    st.markdown("### Output Snapshot")
+    output_rows = []
+    for filename, label in PIPELINE_FILES.items():
+        frame, message = output_frames[filename]
+        output_rows.append(
+            {
+                "Output": label,
+                "File": filename,
+                "Present": frame is not None,
+                "Rows": 0 if frame is None else len(frame),
+                "Message": message or "",
+            }
         )
+    st.dataframe(pd.DataFrame(output_rows), use_container_width=True, hide_index=True)
 
-        try:
-            local_provider = build_provider("local", base_dir=BASE_DIR)
-            preset_tickers = local_provider.list_local_tickers() if hasattr(local_provider, "list_local_tickers") else get_dashboard_tickers()
-        except FileNotFoundError:
-            local_provider = None
-            preset_tickers = get_dashboard_tickers()
-        ticker_options = ["Custom"] + preset_tickers if preset_tickers else ["Custom"]
-        selected = st.selectbox("Ticker", ticker_options, index=1 if len(ticker_options) > 1 else 0)
-        custom_ticker = st.text_input("Custom ticker", value="" if selected != "Custom" else "AAPL")
-        ticker = (custom_ticker if selected == "Custom" else selected).strip().upper()
+    if final_watchlist_frame is not None and not final_watchlist_frame.empty:
+        st.markdown("### Final Watchlist Snapshot")
+        snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
+        st.dataframe(final_watchlist_frame[snapshot_columns], use_container_width=True, hide_index=True)
 
-        use_yfinance = st.checkbox(
-            "Use yfinance (unofficial / research-grade)",
-            value=False,
-            help="Leave this off to stay on the local CSV-first data path.",
-        )
-        provider_name = "yfinance" if use_yfinance else "local"
 
-        if local_provider is not None and ticker and hasattr(local_provider, "get_ticker_dataset_coverage"):
-            with st.expander("Local dataset coverage for selected ticker", expanded=False):
-                coverage = pd.DataFrame(local_provider.get_ticker_dataset_coverage(ticker))
-                st.dataframe(coverage, width="stretch", hide_index=True)
-        if local_provider is not None and hasattr(local_provider, "get_local_data_validation"):
-            with st.expander("Local Data Coverage / Validation", expanded=False):
-                validation = pd.DataFrame(local_provider.get_local_data_validation())
-                st.dataframe(validation, width="stretch", hide_index=True)
-        with st.expander("Local Data Import / Merge", expanded=False):
-            import_dir = DATA_DIR / "imports"
-            st.write(f"Import directory exists: `{import_dir.exists()}`")
-            import_validation = validate_imports(base_dir=BASE_DIR)
-            sec_staged_path = import_dir / "fundamentals.csv"
-            if sec_staged_path.exists():
-                modified_at = pd.Timestamp(sec_staged_path.stat().st_mtime, unit="s", tz="UTC").isoformat()
-                staged_fundamentals = next(
-                    (
-                        item
-                        for item in import_validation.get("files", [])
-                        if item.get("file_name") == "fundamentals.csv"
-                    ),
-                    None,
-                )
-                sec_summary = {
-                    "file_exists": True,
-                    "last_modified": modified_at,
-                    "row_count": staged_fundamentals["validation"]["row_count"] if staged_fundamentals else 0,
-                    "validation_status": staged_fundamentals["validation"]["status"] if staged_fundamentals else "unknown",
-                }
-                st.caption("SEC staged fundamentals visibility")
-                st.json(sec_summary, expanded=False)
-            if import_validation["status"] == "no_staged_files":
-                st.info(import_validation["warnings"][0])
-            else:
-                staged_files = pd.DataFrame(
-                    [
-                        {
-                            "file_name": item["file_name"],
-                            "dataset_name": item["dataset_name"],
-                            "status": item["validation"]["status"],
-                            "row_count": item["validation"]["row_count"],
-                            "warnings": "; ".join(item["validation"]["warnings"]) or "-",
-                        }
-                        for item in import_validation["files"]
-                    ]
-                )
-                st.dataframe(staged_files, width="stretch", hide_index=True)
-                preview = preview_import_merge(base_dir=BASE_DIR)
-                if preview.get("preview"):
-                    preview_frame = pd.DataFrame(preview["preview"])
-                    st.caption("Preview only. Use CLI for apply.")
-                    st.dataframe(preview_frame, width="stretch", hide_index=True)
+def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
+    filename = TAB_TO_FILE[title]
+    frame, message = output_frames[filename]
+    st.subheader(title)
+    if message and frame is None:
+        st.info(message)
+        return
+    if message and frame is not None:
+        st.info(message)
+    if frame is None:
+        return
+    render_table(frame, title.lower().replace(" ", "-"), show_reason_details)
 
-        if st.button("Generate Stock Report", key="stock-report-beta"):
-            if not ticker:
-                st.warning("Enter a ticker to generate a stock report.")
-                return
+
+def render_stock_report_beta(provider, show_raw_json: bool) -> None:
+    st.subheader("Stock Report (Beta)")
+    st.caption(
+        "Structured research report workflow. Local CSV-backed data is the default. "
+        "Optional yfinance mode stays off by default and is labeled unofficial / research-grade."
+    )
+    local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
+    selection_cols = st.columns([2, 2, 1])
+    selected = selection_cols[0].selectbox("Local ticker", ["Custom"] + local_tickers if local_tickers else ["Custom"], index=1 if local_tickers else 0)
+    manual_ticker = selection_cols[1].text_input("Manual ticker", value="" if selected != "Custom" else "AAPL")
+    use_yfinance = selection_cols[2].checkbox("Use yfinance", value=False, help="Unofficial / research-grade. Leave off for the CSV-first path.")
+    ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
+    provider_name = "yfinance" if use_yfinance else "local"
+
+    if provider is not None and ticker:
+        coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
+        st.caption("Local dataset coverage for the selected ticker")
+        st.dataframe(coverage, use_container_width=True, hide_index=True)
+        peer_summary = provider.get_peer_summary(ticker)
+        readiness_cols = st.columns(4)
+        readiness_cols[0].metric("Peer Dataset", "Present" if peer_summary["peer_dataset_present"] else "Missing")
+        readiness_cols[1].metric("Peer Count", peer_summary["peer_count"])
+        readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
+        readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
+
+    if st.button("Generate Stock Report", key="stock-report-beta-button"):
+        if not ticker:
+            st.warning("Enter a ticker to generate a stock report.")
+        else:
             try:
-                provider = build_provider(provider_name, base_dir=BASE_DIR)
-                report = build_stock_report(ticker, provider)
+                chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)
+                report = build_stock_report(ticker, chosen_provider)
+                st.session_state["stock_report_beta_payload"] = report.to_dict()
+                st.session_state["stock_report_beta_download"] = export_stock_report_json(report)
+                st.session_state["stock_report_beta_ticker"] = ticker
+                st.session_state["stock_report_beta_provider"] = provider_name
             except RuntimeError as exc:
                 st.error(str(exc))
-                return
             except (LookupError, FileNotFoundError, ValueError) as exc:
                 st.warning(str(exc))
-                return
 
-            report_payload = report.to_dict()
-            if use_yfinance:
-                st.info("Using yfinance as an unofficial / research-grade source. This is not a production market-data feed.")
+    report_payload = st.session_state.get("stock_report_beta_payload")
+    if not report_payload:
+        return
 
-            st.subheader(f"{ticker} Stock Report")
-            st.markdown("**1. Price Snapshot**")
-            st.json(report_payload["price_snapshot"], expanded=False)
+    if st.session_state.get("stock_report_beta_provider") == "yfinance":
+        st.info("Using yfinance as an unofficial / research-grade source. Review source/freshness notes carefully.")
 
-            st.markdown("**2. 1M / 3M / 1Y Performance**")
-            st.json(report_payload["performance"], expanded=False)
+    readiness = report_payload.get("valuation_readiness", {})
+    readiness_cols = st.columns(4)
+    readiness_cols[0].metric("DCF Ready", "Yes" if readiness.get("dcf_ready") else "No")
+    readiness_cols[1].metric("Peer Ready", "Yes" if readiness.get("peer_ready") else "No")
+    readiness_cols[2].metric("Earnings Available", "Yes" if readiness.get("earnings_available") else "No")
+    readiness_cols[3].metric("Analyst Estimates", "Yes" if readiness.get("analyst_estimates_available") else "No")
 
-            st.markdown("**3. Financial Summary**")
-            st.json(report_payload["financial_summary"], expanded=False)
+    price = report_payload["price_snapshot"]
+    performance = report_payload["performance"]
+    financials = report_payload["financial_summary"]
+    valuation = report_payload["valuation_snapshot"]
+    relative = valuation["relative_valuation"]
 
-            valuation = report_payload["valuation_snapshot"]
-            st.markdown("**4. Valuation**")
-            st.write(f"Status: `{valuation['status']}`")
-            st.write(f"Coverage: `{valuation.get('coverage', 'n/a')}`")
+    section_a, section_b = st.columns(2)
+    with section_a:
+        st.markdown("#### Price")
+        price_metrics = st.columns(3)
+        price_metrics[0].metric("Price", "n/a" if price["price"] is None else f"{price['price']:.2f}")
+        price_metrics[1].metric("Previous Close", "n/a" if price["previous_close"] is None else f"{price['previous_close']:.2f}")
+        price_metrics[2].metric("Volume", "n/a" if price["volume"] is None else f"{int(price['volume']):,}")
+        with st.expander("Price detail", expanded=False):
+            st.json(price, expanded=False)
 
-            base_dcf = valuation["dcf_result"]
-            if base_dcf.get("fair_value_per_share") is not None:
-                st.write(f"Base-case fair value per share: `{base_dcf['fair_value_per_share']:.2f}`")
-            else:
-                st.write("Base-case fair value per share is unavailable with the current data.")
+        st.markdown("#### Financials")
+        financial_columns = [
+            "revenue",
+            "revenue_growth",
+            "eps",
+            "operating_margin",
+            "profit_margin",
+            "free_cash_flow",
+            "fcf_margin",
+            "cash",
+            "debt",
+            "shares_outstanding",
+        ]
+        st.dataframe(pd.DataFrame([{column: financials.get(column) for column in financial_columns}]), use_container_width=True, hide_index=True)
 
-            scenario_rows = []
-            for scenario in valuation.get("scenarios", []):
-                result = scenario["dcf_result"]
-                scenario_rows.append(
-                    {
-                        "Scenario": scenario["name"],
-                        "Status": result["status"],
-                        "WACC": scenario["assumptions"]["wacc"],
-                        "TerminalGrowth": scenario["assumptions"]["terminal_growth"],
-                        "RevenueGrowth": scenario["assumptions"]["revenue_growth"],
-                        "FCFMargin": scenario["assumptions"]["fcf_margin"],
-                        "FairValuePerShare": result["fair_value_per_share"],
-                        "EnterpriseValue": result["enterprise_value"],
-                        "EquityValue": result["equity_value"],
-                    }
-                )
-            if scenario_rows:
-                st.caption("Bull / base / bear scenarios")
-                st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
-
-            relative = valuation["relative_valuation"]
-            st.caption("Relative valuation")
-            st.write(f"Status: `{relative['status']}`")
-            st.write(f"Peer-relative status: `{relative.get('peer_relative_status', 'insufficient_peer_data')}`")
-            if relative.get("relative_opportunity_score") is not None:
-                st.write(f"Relative opportunity score: `{relative['relative_opportunity_score']:.1f}`")
-            if relative.get("peer_group"):
-                st.write(f"Peer group: `{relative['peer_group']}`")
-            if relative.get("peer_tickers"):
-                st.write(f"Peer tickers: `{', '.join(relative['peer_tickers'])}`")
-
-            comparison_rows = []
-            subject_multiples = relative.get("subject_multiples", {})
-            peer_medians = relative.get("peer_median_multiples", {})
-            discount_premium = relative.get("relative_discount_premium_by_metric", {})
-            metric_labels = {
-                "pe": "P/E",
-                "ps": "P/S",
-                "p_fcf": "P/FCF",
-                "ev_ebitda": "EV/EBITDA",
-            }
-            for metric_key, label in metric_labels.items():
-                if (
-                    subject_multiples.get(metric_key) is not None
-                    or peer_medians.get(metric_key) is not None
-                    or discount_premium.get(metric_key) is not None
-                ):
-                    comparison_rows.append(
-                        {
-                            "Metric": label,
-                            "Subject": subject_multiples.get(metric_key),
-                            "PeerMedian": peer_medians.get(metric_key),
-                            "DiscountPremiumPct": None
-                            if discount_premium.get(metric_key) is None
-                            else discount_premium.get(metric_key) * 100.0,
-                        }
-                    )
-            if comparison_rows:
-                st.caption("Subject vs peer medians")
-                st.dataframe(pd.DataFrame(comparison_rows), width="stretch", hide_index=True)
-
-            st.json(
-                {
-                    "available_multiples": relative["available_multiples"],
-                    "missing_fields": relative["missing_fields"],
-                    "warnings": relative["warnings"],
-                    "peer_missing_data_warnings": relative.get("peer_missing_data_warnings", []),
-                    "notes": relative["notes"],
-                },
-                expanded=False,
-            )
-
-            sensitivity = valuation["sensitivity_table"]
-            if sensitivity["status"] == "calculated" and sensitivity["fair_value_grid"]:
-                sensitivity_frame = pd.DataFrame(
-                    sensitivity["fair_value_grid"],
-                    index=[f"WACC {value:.1%}" for value in sensitivity["wacc_values"]],
-                    columns=[f"TG {value:.1%}" for value in sensitivity["terminal_growth_values"]],
-                )
-                st.caption("DCF sensitivity table")
-                st.dataframe(sensitivity_frame, width="stretch")
-            else:
-                st.caption("DCF sensitivity table unavailable")
-                st.write(", ".join(sensitivity["missing_fields"]) if sensitivity["missing_fields"] else "Not enough inputs for sensitivity analysis.")
-
-            if valuation.get("warnings") or valuation.get("notes"):
-                with st.expander("Valuation warnings and methodology notes", expanded=False):
-                    if valuation.get("warnings"):
-                        st.markdown("**Warnings**")
-                        for warning in valuation["warnings"]:
-                            st.write(f"- {warning}")
-                    if valuation.get("notes"):
-                        st.markdown("**Notes**")
-                        for note in valuation["notes"]:
-                            st.write(f"- {note}")
-
-            st.markdown("**5. Earnings Summary**")
+        st.markdown("#### Earnings / Analyst Estimates")
+        earnings_col, estimates_col = st.columns(2)
+        with earnings_col:
+            st.caption("Earnings")
             st.json(report_payload["earnings_summary"], expanded=False)
-
-            st.markdown("**6. Analyst Estimate Summary**")
+        with estimates_col:
+            st.caption("Analyst estimates")
             st.json(report_payload["analyst_estimate_summary"], expanded=False)
 
-            st.markdown("**7. Key Risks**")
-            if report_payload["key_risks"]:
-                for risk in report_payload["key_risks"]:
-                    st.write(f"- {risk}")
-            else:
-                st.write("No explicit risks were assembled from the currently available inputs.")
+    with section_b:
+        st.markdown("#### Performance")
+        perf_metrics = st.columns(3)
+        perf_metrics[0].metric("1M", "n/a" if performance["one_month"] is None else f"{performance['one_month'] * 100:.1f}%")
+        perf_metrics[1].metric("3M", "n/a" if performance["three_month"] is None else f"{performance['three_month'] * 100:.1f}%")
+        perf_metrics[2].metric("1Y", "n/a" if performance["one_year"] is None else f"{performance['one_year'] * 100:.1f}%")
 
-            st.markdown("**8. Missing-Data Warnings**")
-            if report_payload["missing_data_warnings"]:
-                for warning in report_payload["missing_data_warnings"]:
-                    st.write(f"- {warning}")
-            else:
-                st.write("No explicit missing-data warnings were assembled from the current inputs.")
+        st.markdown("#### Valuation")
+        st.write(f"Status: `{valuation['status']}`")
+        st.write(f"Coverage: `{valuation.get('coverage', 'n/a')}`")
+        base_dcf = valuation["dcf_result"]
+        if base_dcf.get("fair_value_per_share") is not None:
+            st.metric("Base Fair Value / Share", f"{base_dcf['fair_value_per_share']:.2f}")
+        else:
+            st.info("Per-share DCF output is unavailable with the current inputs.")
 
-            if report_payload.get("valuation_readiness"):
-                st.markdown("**9. Valuation Readiness**")
-                readiness = report_payload["valuation_readiness"]
-                st.json(readiness, expanded=False)
-
-            if report_payload.get("local_data_validation"):
-                with st.expander("Validation details used by this report", expanded=False):
-                    st.dataframe(pd.DataFrame(report_payload["local_data_validation"]), width="stretch", hide_index=True)
-
-            st.markdown("**10. Source / Freshness Notes**")
-            st.dataframe(pd.DataFrame(report_payload["data_freshness"]), width="stretch", hide_index=True)
-
-            if report_payload.get("screener_context"):
-                with st.expander("Existing screener context", expanded=False):
-                    st.json(report_payload["screener_context"], expanded=False)
-
-            payload = export_stock_report_json(report)
-            st.download_button(
-                "Download Stock Report JSON",
-                data=payload,
-                file_name=f"{ticker.lower()}_stock_report.json",
-                mime="application/json",
+        scenario_rows = []
+        for scenario in valuation.get("scenarios", []):
+            result = scenario["dcf_result"]
+            scenario_rows.append(
+                {
+                    "Scenario": scenario["name"],
+                    "Status": result["status"],
+                    "RevenueGrowth": scenario["assumptions"]["revenue_growth"],
+                    "FCFMargin": scenario["assumptions"]["fcf_margin"],
+                    "WACC": scenario["assumptions"]["wacc"],
+                    "TerminalGrowth": scenario["assumptions"]["terminal_growth"],
+                    "FairValuePerShare": result["fair_value_per_share"],
+                }
             )
+        if scenario_rows:
+            st.dataframe(pd.DataFrame(scenario_rows), use_container_width=True, hide_index=True)
 
+        st.markdown("#### Peer-Relative Valuation")
+        st.write(f"Status: `{relative['status']}`")
+        st.write(f"Peer-relative status: `{relative.get('peer_relative_status', 'insufficient_peer_data')}`")
+        if relative.get("relative_opportunity_score") is not None:
+            st.metric("Relative Opportunity Score", f"{relative['relative_opportunity_score']:.1f}")
+        comparison_rows = []
+        metric_labels = {"pe": "P/E", "ps": "P/S", "p_fcf": "P/FCF", "ev_ebitda": "EV/EBITDA"}
+        for metric_key, label in metric_labels.items():
+            subject = relative.get("subject_multiples", {}).get(metric_key)
+            peer_median = relative.get("peer_median_multiples", {}).get(metric_key)
+            discount = relative.get("relative_discount_premium_by_metric", {}).get(metric_key)
+            if subject is None and peer_median is None and discount is None:
+                continue
+            comparison_rows.append(
+                {
+                    "Metric": label,
+                    "Subject": subject,
+                    "PeerMedian": peer_median,
+                    "DiscountPremiumPct": None if discount is None else discount * 100.0,
+                }
+            )
+        if comparison_rows:
+            st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True, hide_index=True)
 
-st.set_page_config(page_title="Stock Purpose Screener", layout="wide")
-st.title("Stock Purpose Screener")
-st.caption("Research-oriented dashboard only. No direct buy/sell instructions, no broker integration, and no auto-trading.")
+    st.markdown("#### Missing Data")
+    if report_payload["missing_data_warnings"]:
+        for warning in report_payload["missing_data_warnings"]:
+            st.write(f"- {warning}")
+    else:
+        st.write("No explicit missing-data warnings were assembled from the current inputs.")
 
-page = st.sidebar.radio("Pages", list(PAGE_TO_FILE.keys()))
-selected_file = OUTPUTS_DIR / PAGE_TO_FILE[page]
-frame, message = load_output(selected_file)
+    st.markdown("#### Source / Freshness")
+    st.dataframe(pd.DataFrame(report_payload["data_freshness"]), use_container_width=True, hide_index=True)
 
-st.subheader(page)
+    sensitivity = valuation["sensitivity_table"]
+    if sensitivity["status"] == "calculated" and sensitivity["fair_value_grid"]:
+        with st.expander("DCF sensitivity table", expanded=False):
+            sensitivity_frame = pd.DataFrame(
+                sensitivity["fair_value_grid"],
+                index=[f"WACC {value:.1%}" for value in sensitivity["wacc_values"]],
+                columns=[f"TG {value:.1%}" for value in sensitivity["terminal_growth_values"]],
+            )
+            st.dataframe(sensitivity_frame, use_container_width=True)
 
-if message and frame is None:
-    st.info(message)
-    st.stop()
+    with st.expander("Valuation warnings / methodology notes", expanded=False):
+        st.json(
+            {
+                "warnings": valuation.get("warnings", []),
+                "notes": valuation.get("notes", []),
+                "peer_missing_data_warnings": relative.get("peer_missing_data_warnings", []),
+                "relative_missing_fields": relative.get("missing_fields", []),
+            },
+            expanded=False,
+        )
 
-if message and frame is not None:
-    st.info(message)
+    if report_payload.get("screener_context"):
+        with st.expander("Existing screener context", expanded=False):
+            st.json(report_payload["screener_context"], expanded=False)
 
-if selected_file.name not in PIPELINE_MANAGED_FILES:
-    st.info(
-        f"`{selected_file.name}` is not refreshed by `python -m src.report_generator` in the current pipeline. "
-        "This page is intentionally not rendered from legacy output so stale data is not mistaken for a fresh run."
+    if show_raw_json:
+        with st.expander("Raw stock report JSON", expanded=False):
+            st.json(report_payload, expanded=False)
+
+    st.download_button(
+        "Download Stock Report JSON",
+        data=st.session_state.get("stock_report_beta_download", "{}"),
+        file_name=f"{st.session_state.get('stock_report_beta_ticker', 'stock').lower()}_stock_report.json",
+        mime="application/json",
     )
-    st.stop()
 
-if frame is None:
-    st.stop()
 
-warning_rows = find_warning_rows(frame)
-if not warning_rows.empty:
-    present_states: list[str] = []
-    for state in ("Broken", "Extended / No Chase", "Risk Reduce"):
-        if warning_rows.astype(str).eq(state).any().any():
-            present_states.append(state)
-    st.warning(
-        "Warnings present in this page: "
-        + ", ".join(present_states)
-        + ". These are research risk flags, not trading instructions."
+def render_data_health(provider) -> None:
+    st.subheader("Data Health")
+    if provider is None:
+        st.warning("Local provider could not be initialized.")
+        return
+    validation_rows = pd.DataFrame(provider.get_local_data_validation())
+    st.dataframe(validation_rows, use_container_width=True, hide_index=True)
+
+    staged_imports = validate_imports(base_dir=BASE_DIR)
+    st.markdown("### Staged Import Status")
+    if staged_imports["status"] == "no_staged_files":
+        st.info(staged_imports["warnings"][0])
+    else:
+        staged_rows = []
+        for item in staged_imports["files"]:
+            staged_rows.append(
+                {
+                    "File": item["file_name"],
+                    "Dataset": item["dataset_name"],
+                    "Status": item["validation"]["status"],
+                    "Rows": item["validation"]["row_count"],
+                    "Warnings": "; ".join(item["validation"]["warnings"]) or "-",
+                }
+            )
+        st.dataframe(pd.DataFrame(staged_rows), use_container_width=True, hide_index=True)
+        preview = preview_import_merge(base_dir=BASE_DIR)
+        if preview.get("preview"):
+            st.caption("Preview only. Apply remains CLI-only.")
+            st.dataframe(pd.DataFrame(preview["preview"]), use_container_width=True, hide_index=True)
+
+    universe_summary = summarize_universe_manager(BASE_DIR)
+    staged_universe = universe_summary["staged_universe"]
+    st.markdown("### Staged Universe Import")
+    st.json(staged_universe, expanded=False)
+
+    st.markdown("### Runtime Artifact Hygiene")
+    st.write("- `data/cache/` is ignored for local cache payloads.")
+    st.write("- `data/backups/` is ignored for safe import/apply backups.")
+    st.write("- `data/imports/*.csv` is ignored so staged imports stay local until reviewed.")
+    st.write("- `outputs/*stock_report.json` is ignored so exported reports do not dirty the repo.")
+
+
+def render_universe_manager(universe_summary: dict[str, Any]) -> None:
+    st.subheader("Universe Manager")
+    current = universe_summary["current_universe"]
+    staged = universe_summary["staged_universe"]
+
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Current Universe Size", current["row_count"])
+    metric_cols[1].metric("Duplicate Tickers", current["duplicate_ticker_count"])
+    metric_cols[2].metric("Missing Theme", current["missing_theme_count"] + current["unclassified_theme_count"])
+    metric_cols[3].metric("Missing Sector ETF", current["missing_sector_etf_count"])
+
+    st.markdown("### Source Membership Counts")
+    membership_rows = [
+        {"MembershipFlag": key, "Count": value}
+        for key, value in current["membership_counts"].items()
+    ]
+    if membership_rows:
+        st.dataframe(pd.DataFrame(membership_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("No source membership flags are currently present in the canonical universe file.")
+
+    st.markdown("### Available Presets")
+    preset_rows = [{"Preset": name, "Sources": ", ".join(sources)} for name, sources in SOURCE_PRESETS.items()]
+    st.dataframe(pd.DataFrame(preset_rows), use_container_width=True, hide_index=True)
+
+    current_frame = pd.DataFrame(current["rows"])
+    if not current_frame.empty:
+        search = st.text_input("Search current universe", key="universe-manager-search")
+        if search:
+            current_frame = current_frame.loc[
+                current_frame.astype(str).apply(lambda row: row.str.contains(search, case=False, na=False).any(), axis=1)
+            ].copy()
+        st.dataframe(current_frame, use_container_width=True, hide_index=True)
+    else:
+        st.info("The current universe file is empty.")
+
+    st.markdown("### Staged Universe Import Status")
+    st.json(staged, expanded=False)
+
+    st.markdown("### CLI Workflow")
+    st.code(
+        "\n".join(
+            [
+                "python3 -m src.universe_builder --validate-sources",
+                "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50",
+                "python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50",
+                "python3 -m src.universe_builder --apply-import",
+            ]
+        ),
+        language="bash",
     )
-    with st.expander("Show warning rows", expanded=False):
-        st.dataframe(style_state_columns(warning_rows), width="stretch", hide_index=True)
 
-st.dataframe(style_state_columns(frame), width="stretch", hide_index=True)
-render_reasons(frame)
-render_supporting_columns(frame)
-render_stock_report_beta()
+
+st.set_page_config(page_title="Stock Research Screener", layout="wide")
+st.title("Stock Research Screener")
+st.caption(
+    "Research-only dashboard. No direct buy/sell advice, no broker integration, and no auto-trading. "
+    "The local CSV-first workflow remains the default path."
+)
+
+with st.sidebar:
+    st.header("Controls")
+    show_reason_details = st.checkbox("Show reason expanders", value=True)
+    show_raw_json = st.checkbox("Show raw report JSON expanders", value=False)
+    st.caption("CLI-only applies remain the safest path for staged imports and universe changes.")
+
+catalog = LocalDataCatalog(BASE_DIR)
+provider = get_local_provider()
+output_frames = load_pipeline_outputs()
+universe_summary = summarize_universe_manager(BASE_DIR)
+
+tabs = st.tabs(
+    [
+        "Overview",
+        "Market Direction",
+        "Momentum Leaders",
+        "Portfolio Review",
+        "Value / Re-rating",
+        "Final Watchlist",
+        "Stock Report Beta",
+        "Data Health",
+        "Universe Manager",
+    ]
+)
+
+with tabs[0]:
+    render_overview(output_frames, catalog, universe_summary)
+with tabs[1]:
+    render_output_tab("Market Direction", output_frames, show_reason_details)
+with tabs[2]:
+    render_output_tab("Momentum Leaders", output_frames, show_reason_details)
+with tabs[3]:
+    render_output_tab("Portfolio Review", output_frames, show_reason_details)
+with tabs[4]:
+    render_output_tab("Value / Re-rating", output_frames, show_reason_details)
+with tabs[5]:
+    render_output_tab("Final Watchlist", output_frames, show_reason_details)
+with tabs[6]:
+    render_stock_report_beta(provider, show_raw_json)
+with tabs[7]:
+    render_data_health(provider)
+with tabs[8]:
+    render_universe_manager(universe_summary)

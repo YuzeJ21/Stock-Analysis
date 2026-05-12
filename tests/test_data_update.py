@@ -8,8 +8,10 @@ from src.data_update import load_update_tickers, update_local_price_data
 class FakePriceSource:
     def __init__(self, payloads: dict[str, pd.DataFrame | None]) -> None:
         self.payloads = payloads
+        self.calls: list[str] = []
 
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        self.calls.append(ticker)
         payload = self.payloads.get(ticker)
         if payload is None:
             return pd.DataFrame(), [f"{ticker}: source unavailable"]
@@ -119,3 +121,139 @@ def test_update_local_price_data_keeps_existing_csv_when_remote_fetch_returns_no
     assert any("kept the existing local CSV fallback" in warning for warning in result.warnings)
     assert len(preserved) == 1
     assert preserved.iloc[0]["ticker"] == "SPY"
+
+
+def test_update_local_price_data_processes_chunks_and_max_tickers(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+
+    source = FakePriceSource(
+        {
+            "AAA": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "AAA",
+                        "open": 10.0,
+                        "high": 11.0,
+                        "low": 9.0,
+                        "close": 10.5,
+                        "adj_close": 10.5,
+                        "volume": 1000,
+                    }
+                ]
+            ),
+            "BBB": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "BBB",
+                        "open": 20.0,
+                        "high": 21.0,
+                        "low": 19.0,
+                        "close": 20.5,
+                        "adj_close": 20.5,
+                        "volume": 1200,
+                    }
+                ]
+            ),
+            "CCC": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "CCC",
+                        "open": 30.0,
+                        "high": 31.0,
+                        "low": 29.0,
+                        "close": 30.5,
+                        "adj_close": 30.5,
+                        "volume": 1400,
+                    }
+                ]
+            ),
+        }
+    )
+
+    result = update_local_price_data(
+        tmp_path,
+        source=source,
+        tickers=["AAA", "BBB", "CCC"],
+        chunk_size=2,
+        max_tickers=2,
+    )
+
+    assert result.chunks_processed == 1
+    assert result.tickers_updated == ["AAA", "BBB"]
+    assert source.calls == ["AAA", "BBB"]
+
+
+def test_update_local_price_data_skips_fresh_tickers_unless_refresh_requested(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    fresh_date = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize().date().isoformat()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        f"{fresh_date},SPY,100,1000\n",
+        encoding="utf-8",
+    )
+    source = FakePriceSource({"SPY": None})
+
+    result = update_local_price_data(tmp_path, source=source, tickers=["SPY"], freshness_days=1)
+
+    assert result.tickers_skipped_fresh == ["SPY"]
+    assert source.calls == []
+
+
+class FlakyPriceSource(FakePriceSource):
+    def __init__(self, payloads: dict[str, pd.DataFrame | None]) -> None:
+        super().__init__(payloads)
+        self.fail_once = {"BBB"}
+
+    def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        self.calls.append(ticker)
+        if ticker in self.fail_once:
+            self.fail_once.remove(ticker)
+            raise RuntimeError("temporary failure")
+        return super().fetch_history(ticker)
+
+
+def test_update_local_price_data_retries_and_continues_when_one_ticker_fails(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    source = FlakyPriceSource(
+        {
+            "AAA": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "AAA",
+                        "open": 10.0,
+                        "high": 11.0,
+                        "low": 9.0,
+                        "close": 10.5,
+                        "adj_close": 10.5,
+                        "volume": 1000,
+                    }
+                ]
+            ),
+            "BBB": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "BBB",
+                        "open": 20.0,
+                        "high": 21.0,
+                        "low": 19.0,
+                        "close": 20.5,
+                        "adj_close": 20.5,
+                        "volume": 1200,
+                    }
+                ]
+            ),
+        }
+    )
+
+    result = update_local_price_data(tmp_path, source=source, tickers=["AAA", "BBB"], retry_attempts=1)
+
+    assert set(result.tickers_updated) == {"AAA", "BBB"}
+    assert source.calls.count("BBB") >= 2

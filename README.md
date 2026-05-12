@@ -24,6 +24,7 @@ The `stock_analysis/` directory is a documented legacy scaffold kept for referen
 
 - `config.yaml`: thresholds, benchmark settings, and allowed state labels
 - `data/universe.csv`: screening universe, default purposes, theme metadata, and sector ETFs
+- `data/custom_universe.csv`: optional manual tickers for larger universe builds
 - `data/holdings.csv`: portfolio holdings, declared purposes, sizing, and thesis metadata
 - `data/theme_map.csv`: theme-to-ETF mapping used by Market Direction
 - `data/prices.csv`: local OHLCV source used by the default CSV provider
@@ -343,8 +344,19 @@ This updater:
 
 - uses a free daily source with no paid API keys
 - merges fetched rows into the local `data/prices.csv`
+- processes larger ticker sets in chunks
+- skips already-fresh tickers unless you pass `--refresh`
+- preserves partial progress instead of failing all-or-nothing when one ticker has issues
 - keeps the existing local CSV fallback if the remote source is unavailable
 - does not change the report pipeline requirement that local CSV data must exist for deterministic runs
+
+Useful flags:
+
+```bash
+python -m src.data_update --universe-file data/universe.csv --max-tickers 100
+python -m src.data_update --tickers NVDA,MSFT,AVGO
+python -m src.data_update --chunk-size 25 --refresh
+```
 
 ## Run the dashboard
 
@@ -352,15 +364,29 @@ This updater:
 streamlit run src/dashboard.py
 ```
 
-The dashboard includes:
+The dashboard now uses a wide tabbed layout with a sidebar for display controls.
 
+Tabs:
+
+- Overview
 - Market Direction
 - Momentum Leaders
 - Portfolio Review
-- Value / Re-rating Candidates
+- Value / Re-rating
 - Final Watchlist
+- Stock Report Beta
+- Data Health
+- Universe Manager
 
-It reads from `outputs/*.csv`, shows friendly messages when files are missing, and surfaces explanation columns such as `Reason`, `MissingDataFields`, and `ConflictReasons` when available.
+What each tab is for:
+
+- `Overview`: quick metrics for universe size, holdings count, output coverage, missing-data warnings, local fundamentals coverage, DCF-ready count, and peer-ready count
+- `Market Direction`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, `Final Watchlist`: filterable research tables with search, status filters, and highlighted explanation/risk fields
+- `Stock Report Beta`: user-triggered structured stock reports with local CSV data first and optional yfinance clearly labeled as unofficial / research-grade
+- `Data Health`: local dataset validation, row counts, freshness timestamps, staged import status, and schema warnings
+- `Universe Manager`: current universe size, source membership counts, staged universe import visibility, and CLI guidance for safe preview/write/apply flows
+
+It reads from local files and `outputs/*.csv`, shows friendly messages when files are missing, and surfaces explanation columns such as `Reason`, `MissingDataFields`, and `ConflictReasons` when available.
 
 The dashboard and CLI are research-only surfaces. They do not execute trades, route orders, or connect to brokers.
 
@@ -379,6 +405,61 @@ This keeps the project on its local research path:
 - regenerate the core screener CSV outputs
 - validate local enrichment coverage before relying on valuation-heavy reports
 - review everything through the dashboard without any broker or trade execution features
+
+## Universe expansion
+
+The project now includes a source-driven universe builder that stages candidate universes before you apply them.
+
+Supported sources:
+
+- current local sample universe from `data/universe.csv`
+- current holdings from `data/holdings.csv`
+- S&P 500 companies from the open-source/community `datasets/s-and-p-500-companies` constituent list
+- Nasdaq-listed securities from the official Nasdaq Trader symbol directory
+- SMH holdings from VanEck’s public holdings surface when accessible
+- manual local tickers from `data/custom_universe.csv`
+
+Recommended presets:
+
+- `core`: local universe + holdings
+- `sp500_smh`: S&P 500 + SMH + holdings
+- `broad`: S&P 500 + Nasdaq-listed common stocks + SMH + holdings
+
+Useful commands:
+
+```bash
+python3 -m src.universe_builder --validate-sources
+python3 -m src.universe_builder --preview --sources sp500,smh,holdings
+python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100
+python3 -m src.universe_builder --write-import --sources sp500,smh,holdings
+python3 -m src.universe_builder --apply-import
+```
+
+Safer smoke run for a larger build:
+
+```bash
+python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
+python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50
+```
+
+Warnings:
+
+- all-Nasdaq mode can be large and slow
+- the Nasdaq directory contains many securities unless filtered
+- the S&P 500 source is not the official paid S&P feed
+- SMH holdings can change and should not be treated as recommendations
+
+### `data/custom_universe.csv`
+
+If you want to seed manual names into broader builds, create `data/custom_universe.csv` with columns such as:
+
+- `ticker`
+- `company_name`
+- `theme`
+- `sector`
+- `sector_etf`
+- `source`
+- `notes`
 
 ## Enriching local CSV data
 
@@ -425,6 +506,7 @@ Supported staged files:
 - `analyst_estimates.csv`
 - `estimates.csv`
 - `peers.csv`
+- `universe.csv`
 
 The importer never fabricates values. You must provide real local data and, where possible, include `source` and `as_of_date`.
 
@@ -489,6 +571,27 @@ To add peer mappings through the same workflow, use `data/imports/peers.csv` wit
 - optional: `peer_group`, `sector`, `industry`, `source`, `as_of_date`
 
 Peer mappings are not fabricated by the project. They must come from your own local research workflow.
+
+## Universe Manager and Data Health
+
+The `Data Health` tab helps you inspect:
+
+- local dataset validation status
+- row counts and latest timestamps
+- missing optional files
+- schema warnings
+- staged import status
+
+The `Universe Manager` tab helps you inspect:
+
+- current universe size
+- source membership counts
+- duplicate ticker count
+- missing theme / sector ETF coverage
+- staged `data/imports/universe.csv` visibility
+- CLI commands for safe preview/write/apply workflows
+
+Universe changes remain CLI-first on purpose. The dashboard is read-only for apply actions.
 
 ## SEC Companyfacts staging workflow
 
@@ -601,6 +704,15 @@ This flow is explicit by design:
 - SEC enrichment stays read-only until you apply the local import merge
 - analyst estimates, peer mappings, and market prices are still separate local inputs
 - valuation remains informational and assumption-driven even after fundamentals are enriched
+
+If you also want to expand the screening universe afterward:
+
+```bash
+python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
+python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50
+python3 -m src.universe_builder --apply-import
+python3 -m src.data_update --universe-file data/universe.csv --max-tickers 100
+```
 
 ## Run tests
 

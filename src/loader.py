@@ -47,6 +47,18 @@ def _read_csv(path: Path, required: set[str] | None = None) -> tuple[pd.DataFram
     return frame, warnings
 
 
+def _normalize_universe_aliases(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    return frame.rename(
+        columns={
+            "sectoretf": "sector_etf",
+            "defaultpurpose": "default_purpose",
+            "marketcapbucket": "market_cap_bucket",
+        }
+    )
+
+
 def _normalize_ticker_column(frame: pd.DataFrame) -> pd.DataFrame:
     if "ticker" in frame.columns:
         frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
@@ -132,10 +144,7 @@ def load_inputs(base_dir: Path, fetcher: DataFetcher) -> LoadedData:
     config = AppConfig.load(base_dir / "config.yaml")
     warnings: list[str] = []
 
-    universe, universe_warnings = _read_csv(
-        base_dir / "data" / "universe.csv",
-        required={"ticker", "theme", "sectoretf", "defaultpurpose", "marketcapbucket"},
-    )
+    universe, universe_warnings = _read_csv(base_dir / "data" / "universe.csv")
     holdings, holdings_warnings = _read_csv(
         base_dir / "data" / "holdings.csv",
         required={"ticker", "primarypurpose"},
@@ -160,13 +169,11 @@ def load_inputs(base_dir: Path, fetcher: DataFetcher) -> LoadedData:
             "invalidationoverride": "invalidation_override",
         }
     )
-    universe = universe.rename(
-        columns={
-            "defaultpurpose": "default_purpose",
-            "marketcapbucket": "market_cap_bucket",
-            "sectoretf": "sector_etf",
-        }
-    )
+    universe = _normalize_universe_aliases(universe)
+    universe_required = {"ticker", "theme", "sector_etf", "default_purpose", "market_cap_bucket"}
+    missing_universe_columns = universe_required - set(universe.columns)
+    if missing_universe_columns:
+        warnings.append(f"universe.csv is missing columns: {sorted(missing_universe_columns)}")
 
     for frame in (universe, holdings, theme_map, fundamentals, peers):
         _normalize_ticker_column(frame)

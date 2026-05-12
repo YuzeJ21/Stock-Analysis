@@ -17,6 +17,7 @@ DATASET_CANDIDATES: dict[str, tuple[str, ...]] = {
     "peers": ("data/peers.csv",),
     "holdings": ("data/holdings.csv",),
     "universe": ("data/universe.csv",),
+    "custom_universe": ("data/custom_universe.csv",),
     "theme_map": ("data/theme_map.csv",),
     "purpose_classification": ("outputs/purpose_classification.csv",),
     "market_direction": ("outputs/market_direction.csv",),

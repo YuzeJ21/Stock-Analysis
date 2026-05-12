@@ -14,6 +14,7 @@ def test_new_modules_import_cleanly():
         "src.providers.yfinance_provider",
         "src.dashboard",
         "src.stock_report",
+        "src.universe_builder",
         "src.valuation",
     ]
     for module_name in module_names:
