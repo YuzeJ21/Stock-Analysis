@@ -38,28 +38,35 @@ TAB_TO_FILE = {
     "Final Watchlist": "final_watchlist.csv",
 }
 STATE_COLORS = {
-    "Buyable Area": "#d1fae5",
-    "Watch": "#dbeafe",
-    "Setup Forming": "#fef3c7",
-    "Pullback Add Candidate": "#e0f2fe",
-    "Extended / No Chase": "#fde68a",
-    "Risk Reduce": "#fecaca",
-    "Broken": "#fca5a5",
-    "Review Thesis": "#fcd34d",
-    "Keep": "#d1fae5",
-    "Add Candidate": "#bae6fd",
-    "Hold but Do Not Add": "#e5e7eb",
-    "Avoid": "#e5e7eb",
-    "Insufficient Data": "#f3f4f6",
-    "Strong Rotation": "#d1fae5",
-    "Early Rotation": "#dbeafe",
-    "Overextended": "#fde68a",
-    "Weak": "#fee2e2",
-    "Broken / Avoid": "#fca5a5",
-    "peer_discount": "#d1fae5",
-    "peer_premium": "#fde68a",
-    "mixed": "#e5e7eb",
-    "insufficient_peer_data": "#f3f4f6",
+    "Buyable Area": ("#dcfce7", "#14532d"),
+    "Watch": ("#dbeafe", "#1e3a8a"),
+    "Setup Forming": ("#fef9c3", "#713f12"),
+    "Pullback Add Candidate": ("#e0f2fe", "#075985"),
+    "Extended / No Chase": ("#ffedd5", "#9a3412"),
+    "Risk Reduce": ("#fee2e2", "#991b1b"),
+    "Broken": ("#fecaca", "#7f1d1d"),
+    "Review Thesis": ("#fef3c7", "#78350f"),
+    "Keep": ("#dcfce7", "#14532d"),
+    "Add Candidate": ("#dbeafe", "#1e3a8a"),
+    "Hold but Do Not Add": ("#e2e8f0", "#334155"),
+    "Avoid": ("#fee2e2", "#991b1b"),
+    "Insufficient Data": ("#e2e8f0", "#334155"),
+    "Strong Rotation": ("#dcfce7", "#14532d"),
+    "Early Rotation": ("#dbeafe", "#1e3a8a"),
+    "Overextended": ("#ffedd5", "#9a3412"),
+    "Weak": ("#fee2e2", "#991b1b"),
+    "Broken / Avoid": ("#fecaca", "#7f1d1d"),
+    "Peer Data Unavailable": ("#e2e8f0", "#334155"),
+    "Insufficient Peer Data": ("#e2e8f0", "#334155"),
+    "valid": ("#dcfce7", "#14532d"),
+    "valid_with_warnings": ("#fef9c3", "#713f12"),
+    "missing_file": ("#e2e8f0", "#334155"),
+    "Available": ("#dcfce7", "#14532d"),
+    "Not available": ("#e2e8f0", "#334155"),
+    "peer_discount": ("#dcfce7", "#14532d"),
+    "peer_premium": ("#ffedd5", "#9a3412"),
+    "mixed": ("#e2e8f0", "#334155"),
+    "insufficient_peer_data": ("#e2e8f0", "#334155"),
 }
 BADGE_COLORS = {
     "positive": ("#064e3b", "#d1fae5"),
@@ -109,19 +116,117 @@ def style_frame(frame: pd.DataFrame):
     def color_state(value: object) -> str:
         if pd.isna(value):
             return ""
-        return f"background-color: {STATE_COLORS.get(str(value), '')}"
+        style = STATE_COLORS.get(str(value))
+        if style is None:
+            return ""
+        background, foreground = style
+        return f"background-color: {background}; color: {foreground}; font-weight: 700"
 
     def emphasize_text(value: object) -> str:
         if pd.isna(value) or str(value).strip() in {"", "nan"}:
             return ""
-        return "font-weight: 600"
+        return "font-weight: 600; color: #111827"
 
     styler = frame.style
+    styler = styler.set_properties(**{"background-color": "#ffffff", "color": "#111827"})
     if state_columns:
         styler = styler.map(color_state, subset=state_columns)
     if highlight_columns:
         styler = styler.map(emphasize_text, subset=highlight_columns)
     return styler
+
+
+def apply_dashboard_theme() -> None:
+    st.markdown(
+        """
+        <style>
+        :root {
+          --research-bg: #f6f1e8;
+          --research-panel: #fffdf8;
+          --research-text: #172033;
+          --research-muted: #5b6474;
+          --research-border: #d8ccbc;
+          --research-accent: #0f6b63;
+          --research-accent-soft: #d9f3ec;
+        }
+        .stApp {
+          background: radial-gradient(circle at top left, #fff9ed 0, #f6f1e8 34%, #edf3f1 100%);
+          color: var(--research-text);
+        }
+        [data-testid="stSidebar"] {
+          background: #efe7da;
+          border-right: 1px solid var(--research-border);
+        }
+        [data-testid="stSidebar"] * {
+          color: var(--research-text) !important;
+        }
+        h1, h2, h3, h4, h5, h6, p, label, span, div {
+          color: var(--research-text);
+        }
+        [data-testid="stMarkdownContainer"] p {
+          color: var(--research-muted);
+        }
+        [data-testid="stMetric"] {
+          background: rgba(255, 253, 248, 0.86);
+          border: 1px solid var(--research-border);
+          border-radius: 14px;
+          padding: 0.8rem 0.9rem;
+          box-shadow: 0 1px 2px rgba(23,32,51,0.06);
+        }
+        [data-testid="stMetricLabel"] p {
+          color: #485365 !important;
+          font-weight: 750;
+        }
+        [data-testid="stMetricValue"] {
+          color: #172033 !important;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+          gap: 0.35rem;
+          border-bottom: 1px solid var(--research-border);
+        }
+        .stTabs [data-baseweb="tab"] {
+          background: transparent;
+          border-radius: 999px 999px 0 0;
+          color: #334155;
+          font-weight: 750;
+        }
+        .stTabs [aria-selected="true"] {
+          background: #172033 !important;
+          color: #ffffff !important;
+        }
+        .stTabs [data-baseweb="tab"] p {
+          color: inherit !important;
+        }
+        .stTabs [aria-selected="true"] p {
+          color: #ffffff !important;
+        }
+        div[data-testid="stAlert"] {
+          border-radius: 12px;
+          border: 1px solid #93c5fd;
+          background-color: #eff6ff;
+        }
+        div[data-testid="stAlert"] * {
+          color: #1e3a8a !important;
+        }
+        div[data-testid="stDataFrame"] {
+          border: 1px solid var(--research-border);
+          border-radius: 12px;
+          overflow: hidden;
+          background: #ffffff;
+        }
+        input, textarea, [data-baseweb="select"] > div {
+          background: #ffffff !important;
+          color: #172033 !important;
+          border-color: var(--research-border) !important;
+        }
+        code {
+          color: #0f6b63 !important;
+          background: #eaf7f3 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def format_missing(value: object, fallback: str = "Not available") -> str:
@@ -276,6 +381,26 @@ def track_record_status_message(track_frame: pd.DataFrame | None, equity_frame: 
     )
 
 
+def joined_notes(value: object) -> str:
+    if isinstance(value, list):
+        return "; ".join(str(item) for item in value if str(item).strip()) or "-"
+    return format_missing(value, "-")
+
+
+def ticker_coverage_display_frame(coverage: pd.DataFrame) -> pd.DataFrame:
+    if coverage.empty:
+        return coverage
+    display = coverage.copy()
+    display["Status"] = display["validation_status"].map(format_missing)
+    display["TickerData"] = display["ticker_present"].map(lambda value: "Available" if bool(value) else "Not available")
+    display["Rows"] = display["row_count_for_ticker"].map(lambda value: format_value(value, fallback="0"))
+    display["Latest"] = display["latest_data_timestamp"].map(lambda value: format_date_short(value, fallback="Not available"))
+    display["Notes"] = display["notes"].map(joined_notes)
+    return display[["dataset_name", "Status", "TickerData", "Rows", "Latest", "Notes"]].rename(
+        columns={"dataset_name": "Dataset"}
+    )
+
+
 def readable_card(title: str, body: str, footer: str = "") -> None:
     footer_html = f"<div style='margin-top:0.65rem;color:#334155;font-size:0.86rem;'>{footer}</div>" if footer else ""
     st.markdown(
@@ -291,8 +416,25 @@ def readable_card(title: str, body: str, footer: str = "") -> None:
 
 
 def clean_display_frame(frame: pd.DataFrame) -> pd.DataFrame:
-    cleaned = frame.copy()
-    return cleaned.where(pd.notna(cleaned), "Not available")
+    def clean_cell(value: object) -> str:
+        if isinstance(value, list):
+            return ", ".join(str(item) for item in value if str(item).strip()) or "Not available"
+        if isinstance(value, dict):
+            return ", ".join(f"{key}: {val}" for key, val in value.items()) or "Not available"
+        return format_missing(value)
+
+    return frame.copy().map(clean_cell)
+
+
+def display_with_summaries(frame: pd.DataFrame) -> pd.DataFrame:
+    display = clean_display_frame(frame)
+    if "Reason" in frame.columns:
+        display["ReasonSummary"] = frame["Reason"].map(compact_reason)
+    if "RankReason" in frame.columns:
+        display["RankReasonSummary"] = frame["RankReason"].map(compact_reason)
+    if "MissingDataFields" in frame.columns:
+        display["DataGaps"] = frame["MissingDataFields"].map(summarize_missing_fields)
+    return display
 
 
 def reorder_columns(frame: pd.DataFrame) -> pd.DataFrame:
@@ -314,6 +456,37 @@ def reorder_columns(frame: pd.DataFrame) -> pd.DataFrame:
     ordered = [column for column in priority if column in frame.columns]
     remaining = [column for column in frame.columns if column not in ordered]
     return frame[ordered + remaining].copy()
+
+
+def compact_table_columns(frame: pd.DataFrame) -> list[str]:
+    priority = [
+        "Ticker",
+        "Theme",
+        "SectorETF",
+        "FinalState",
+        "SetupStatus",
+        "ReviewState",
+        "ThemeStatus",
+        "FinalValueCategory",
+        "PeerRelativeStatus",
+        "WatchlistScore",
+        "WatchlistRank",
+        "RankReasonSummary",
+        "ReasonSummary",
+        "DataGaps",
+        "Return1M",
+        "Return3M",
+        "Return6M",
+        "RSPercentile",
+        "QualityScore",
+        "ValuationScore",
+        "ValueTrapRiskScore",
+        "ConcentrationRisk",
+    ]
+    selected = [column for column in priority if column in frame.columns]
+    if len(selected) < 6:
+        selected.extend(column for column in frame.columns if column not in selected and column not in {"Reason", "RankReason", "MissingDataFields"})
+    return selected[:14]
 
 
 def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
@@ -361,14 +534,20 @@ def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
 
 def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> None:
     filtered = filter_frame(reorder_columns(frame), key)
-    st.dataframe(style_frame(clean_display_frame(filtered)), use_container_width=True, hide_index=True)
+    display_frame = display_with_summaries(filtered)
+    compact_columns = compact_table_columns(display_frame)
+    st.caption("Showing the most useful columns first. Open the detail expanders below for full reasons, missing fields, and raw columns.")
+    st.dataframe(style_frame(display_frame[compact_columns]), width="stretch", hide_index=True)
+
+    with st.expander(f"{key} full table", expanded=False):
+        st.dataframe(style_frame(clean_display_frame(filtered)), width="stretch", hide_index=True)
 
     if show_reason_details:
         reason_columns = [column for column in filtered.columns if "reason" in column.lower()]
         if reason_columns:
             with st.expander(f"{key} reasons", expanded=False):
                 detail_columns = [column for column in filtered.columns if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState"} or column in reason_columns]
-                st.dataframe(filtered[detail_columns], use_container_width=True, hide_index=True)
+                st.dataframe(clean_display_frame(filtered[detail_columns]), width="stretch", hide_index=True)
 
     support_columns = [
         column
@@ -378,7 +557,7 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
     if support_columns:
         with st.expander(f"{key} supporting details", expanded=False):
             detail_columns = [column for column in filtered.columns if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState", "ThemeStatus"} or column in support_columns]
-            st.dataframe(filtered[detail_columns], use_container_width=True, hide_index=True)
+            st.dataframe(clean_display_frame(filtered[detail_columns]), width="stretch", hide_index=True)
 
 
 def get_local_provider():
@@ -501,12 +680,12 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
                 "Message": message or "",
             }
         )
-    st.dataframe(pd.DataFrame(output_rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
 
     if final_watchlist_frame is not None and not final_watchlist_frame.empty:
         st.markdown("### Final Watchlist Snapshot")
         snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
-        st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), use_container_width=True, hide_index=True)
+        st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
@@ -578,7 +757,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
                 ]
                 if column in picks_frame.columns
             ]
-            st.dataframe(clean_display_frame(picks_frame[display_columns]), use_container_width=True, hide_index=True)
+            st.dataframe(clean_display_frame(picks_frame[display_columns]), width="stretch", hide_index=True)
 
     st.markdown("### Track Record")
     if equity_frame is not None and not equity_frame.empty and {"Month", "PicksEquity", "BenchmarkEquity"}.issubset(equity_frame.columns):
@@ -587,14 +766,14 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     else:
         st.info(track_record_status_message(track_frame, equity_frame))
     if track_frame is not None and not track_frame.empty:
-        st.dataframe(clean_display_frame(track_frame), use_container_width=True, hide_index=True)
+        st.dataframe(clean_display_frame(track_frame), width="stretch", hide_index=True)
     else:
         st.info("Run `python3 -m src.track_record --monthly-picks` to create the local track-record files.")
 
     st.markdown("### Archive")
     if track_frame is not None and not track_frame.empty:
         archive_columns = [column for column in ["Month", "Picks", "AveragePickReturn", "BenchmarkReturn", "ExcessReturn", "Notes"] if column in track_frame.columns]
-        st.dataframe(clean_display_frame(track_frame[archive_columns]), use_container_width=True, hide_index=True)
+        st.dataframe(clean_display_frame(track_frame[archive_columns]), width="stretch", hide_index=True)
     else:
         st.info("No local monthly archive is available yet.")
 
@@ -635,7 +814,9 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         st.caption("Local dataset coverage for the selected ticker")
-        st.dataframe(coverage, use_container_width=True, hide_index=True)
+        st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
+        with st.expander("Full local coverage details", expanded=False):
+            st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
         peer_summary = provider.get_peer_summary(ticker)
         readiness_cols = st.columns(4)
         readiness_cols[0].metric("Peer Dataset", "Present" if peer_summary["peer_dataset_present"] else "Missing")
@@ -702,7 +883,13 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
             "debt",
             "shares_outstanding",
         ]
-        st.dataframe(pd.DataFrame([{column: financials.get(column) for column in financial_columns}]), use_container_width=True, hide_index=True)
+        financial_frame = pd.DataFrame(
+            [
+                {"Field": column, "Value": format_value(financials.get(column))}
+                for column in financial_columns
+            ]
+        )
+        st.dataframe(clean_display_frame(financial_frame), width="stretch", hide_index=True)
 
         st.markdown("#### Earnings / Analyst Estimates")
         earnings_col, estimates_col = st.columns(2)
@@ -744,7 +931,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
                 }
             )
         if scenario_rows:
-            st.dataframe(pd.DataFrame(scenario_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
 
         st.markdown("#### Peer-Relative Valuation")
         st.write(f"Status: `{relative['status']}`")
@@ -768,7 +955,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
                 }
             )
         if comparison_rows:
-            st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(comparison_rows), width="stretch", hide_index=True)
 
     st.markdown("#### Missing Data")
     if report_payload["missing_data_warnings"]:
@@ -778,7 +965,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         st.write("No explicit missing-data warnings were assembled from the current inputs.")
 
     st.markdown("#### Source / Freshness")
-    st.dataframe(pd.DataFrame(report_payload["data_freshness"]), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(report_payload["data_freshness"]), width="stretch", hide_index=True)
 
     sensitivity = valuation["sensitivity_table"]
     if sensitivity["status"] == "calculated" and sensitivity["fair_value_grid"]:
@@ -788,7 +975,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
                 index=[f"WACC {value:.1%}" for value in sensitivity["wacc_values"]],
                 columns=[f"TG {value:.1%}" for value in sensitivity["terminal_growth_values"]],
             )
-            st.dataframe(sensitivity_frame, use_container_width=True)
+            st.dataframe(sensitivity_frame, width="stretch")
 
     with st.expander("Valuation warnings / methodology notes", expanded=False):
         st.json(
@@ -853,7 +1040,7 @@ def render_data_health(provider) -> None:
             ]
             if column in validation_rows.columns
         ]
-        st.dataframe(clean_display_frame(validation_rows[display_columns]), use_container_width=True, hide_index=True)
+        st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
         st.info("No local data validation rows are available.")
 
@@ -873,11 +1060,11 @@ def render_data_health(provider) -> None:
                     "Warnings": "; ".join(item["validation"]["warnings"]) or "-",
                 }
             )
-        st.dataframe(pd.DataFrame(staged_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
         preview = preview_import_merge(base_dir=BASE_DIR)
         if preview.get("preview"):
             st.caption("Preview only. Apply remains CLI-only.")
-            st.dataframe(pd.DataFrame(preview["preview"]), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -908,13 +1095,13 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         for key, value in current["membership_counts"].items()
     ]
     if membership_rows:
-        st.dataframe(pd.DataFrame(membership_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(membership_rows), width="stretch", hide_index=True)
     else:
         st.info("No source membership flags are currently present in the canonical universe file.")
 
     st.markdown("### Available Presets")
     preset_rows = [{"Preset": name, "Sources": ", ".join(sources)} for name, sources in SOURCE_PRESETS.items()]
-    st.dataframe(pd.DataFrame(preset_rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
 
     current_frame = pd.DataFrame(current["rows"])
     if not current_frame.empty:
@@ -923,7 +1110,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
             current_frame = current_frame.loc[
                 current_frame.astype(str).apply(lambda row: row.str.contains(search, case=False, na=False).any(), axis=1)
             ].copy()
-        st.dataframe(current_frame, use_container_width=True, hide_index=True)
+        st.dataframe(current_frame, width="stretch", hide_index=True)
     else:
         st.info("The current universe file is empty.")
 
@@ -945,6 +1132,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 
 
 st.set_page_config(page_title="Stock Research Screener", layout="wide")
+apply_dashboard_theme()
 st.title("Stock Research Screener")
 st.caption(
     "Research-only dashboard. No direct buy/sell advice, no broker integration, and no auto-trading. "

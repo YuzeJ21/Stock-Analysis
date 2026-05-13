@@ -1,4 +1,5 @@
 import src.dashboard as dashboard
+import pandas as pd
 
 
 def test_dashboard_format_helpers_hide_raw_missing_values():
@@ -14,6 +15,14 @@ def test_dashboard_badges_use_high_contrast_html():
     assert "background" in html
     assert "color" in html
     assert "Watch" in html
+
+
+def test_state_styles_include_text_color_for_dark_mode():
+    styled = dashboard.style_frame(pd.DataFrame({"FinalState": ["Avoid"]}))._compute()
+    css_values = [item for styles in styled.ctx.values() for item in styles]
+
+    assert ("color", "#991b1b") in css_values
+    assert ("font-weight", "700") in css_values
 
 
 def test_missing_data_notice_translates_common_gaps():
@@ -54,3 +63,44 @@ def test_compact_reason_avoids_wall_of_text():
 
     assert compact.count(".") == 2
     assert "Missing or incomplete" not in compact
+
+
+def test_compact_table_columns_prefers_summaries_over_raw_reason():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["NVDA"],
+            "FinalState": ["Review Thesis"],
+            "Reason": ["Long reason"],
+            "ReasonSummary": ["Short reason"],
+            "MissingDataFields": ["Return1M"],
+            "DataGaps": ["Not enough price history"],
+        }
+    )
+
+    columns = dashboard.compact_table_columns(frame)
+
+    assert "ReasonSummary" in columns
+    assert "DataGaps" in columns
+    assert "Reason" not in columns
+
+
+def test_ticker_coverage_display_frame_hides_noisy_paths():
+    coverage = pd.DataFrame(
+        [
+            {
+                "dataset_name": "prices",
+                "file_path": "/tmp/prices.csv",
+                "validation_status": "valid",
+                "ticker_present": True,
+                "row_count_for_ticker": 25,
+                "latest_data_timestamp": "2026-03-14T00:00:00",
+                "notes": ["Ticker rows found in local dataset."],
+            }
+        ]
+    )
+
+    display = dashboard.ticker_coverage_display_frame(coverage)
+
+    assert list(display.columns) == ["Dataset", "Status", "TickerData", "Rows", "Latest", "Notes"]
+    assert display.iloc[0]["TickerData"] == "Available"
+    assert display.iloc[0]["Latest"] == "2026-03-14"
