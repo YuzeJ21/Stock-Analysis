@@ -444,6 +444,17 @@ The dashboard and CLI are research-only surfaces. They do not execute trades, ro
 
 ## Recommended daily workflow
 
+The easiest path is now:
+
+```bash
+make daily
+make dashboard
+```
+
+`make daily` runs the local price updater, report generator, monthly picks, track record, and local-data validation in order. `make dashboard` opens the Streamlit dashboard from the repo root.
+
+If you prefer the explicit commands, the equivalent workflow is:
+
 ```bash
 python3 -m src.data_update --universe-file data/universe.csv
 python3 -m src.report_generator
