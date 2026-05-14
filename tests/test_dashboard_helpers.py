@@ -104,3 +104,12 @@ def test_ticker_coverage_display_frame_hides_noisy_paths():
     assert list(display.columns) == ["Dataset", "Status", "TickerData", "Rows", "Latest", "Notes"]
     assert display.iloc[0]["TickerData"] == "Available"
     assert display.iloc[0]["Latest"] == "2026-03-14"
+
+
+def test_data_source_status_tables_handle_missing_outputs(tmp_path):
+    tables = dashboard.load_data_source_status_tables(tmp_path)
+
+    assert tables["data_source_status.csv"][0] is None
+    assert "has not been generated" in tables["data_source_status.csv"][1]
+    assert dashboard.friendly_data_source_status("manual_only") == "Manual input needed"
+    assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"

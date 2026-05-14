@@ -10,4 +10,6 @@ data/imports/*.csv
 !data/imports/.gitkeep
 outputs/*stock_report.json
 outputs/*_stock_report.json
+outputs/data_source_status.csv
+outputs/data_gap_report.csv
 local_artifacts_backup/

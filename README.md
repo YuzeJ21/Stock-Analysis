@@ -72,6 +72,42 @@ For tests, prefer the bounded command below so pytest never scans your home dire
 python3 -m pytest tests -q
 ```
 
+## Convenience commands
+
+The repo includes a `Makefile` and shell launchers so you do not need to remember every path-sensitive command.
+
+Common commands:
+
+```bash
+make test
+make pipeline
+make monthly
+make track-record
+make validate-data
+make daily
+make dashboard
+```
+
+SEC and universe helpers:
+
+```bash
+SEC_USER_AGENT="Your Name your.email@example.com" make sec-stage
+SEC_USER_AGENT="Your Name your.email@example.com" make sec-stage TICKERS=NVDA,MSFT
+make sec-validate
+make sec-preview
+make sec-apply
+make universe-preview
+make universe-apply
+```
+
+Path-proof shell launchers:
+
+```bash
+scripts/daily.sh
+scripts/dashboard.sh
+scripts/validate_all.sh
+```
+
 ## Run the pipeline
 
 Generate all active outputs:
@@ -156,6 +192,32 @@ The stock-report beta uses local files first.
 - existing screener outputs under `outputs/*.csv` can also be surfaced as local context when they exist for a ticker
 
 The local CSV path is now schema-driven and validated before the Stock Report Beta uses it. Missing files or sparse columns do not crash the workflow. The report continues with explicit missing-data warnings, schema validation notes, and source/freshness metadata.
+
+### Data source availability
+
+Optional files being missing is not automatically a bug. The app is designed to continue with partial coverage and clear warnings instead of inventing unavailable data.
+
+Run a local-only source check:
+
+```bash
+python3 -m src.data_sources --check
+python3 -m src.data_sources --check --json
+python3 -m src.data_sources --write-output
+```
+
+`--write-output` creates:
+
+- `outputs/data_source_status.csv`
+- `outputs/data_gap_report.csv`
+
+Important source boundaries:
+
+- SEC Companyfacts can stage candidate fundamentals only; it does not provide market prices, analyst estimates, earnings calendars, or peer mappings.
+- Peer mappings are manual/local research. Add them through `data/imports/peers.csv` or `data/peers.csv`; the app never guesses peers.
+- Earnings and analyst-estimate files are optional local CSVs and are not bundled with fabricated values.
+- SMH holdings can be unavailable because the VanEck page may require redirect, cookie, or location handling. Use `data/custom_universe.csv` or staged universe imports as the manual fallback.
+- yfinance remains optional, unofficial, and research-grade only. It is never required for the CSV-first pipeline.
+- Short local price history limits track-record, 3M/6M/1Y returns, and long-horizon momentum calculations.
 
 ### Phase 2B local schema definitions
 

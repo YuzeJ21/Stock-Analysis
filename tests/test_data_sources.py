@@ -1,0 +1,92 @@
+import json
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+from src.data_sources import (
+    DATA_SOURCE_REGISTRY,
+    build_data_source_payload,
+    main,
+    write_data_source_outputs,
+)
+
+
+def _write_minimal_local_data(root: Path) -> None:
+    data_dir = root / "data"
+    outputs_dir = root / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (data_dir / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,NVDA,100,1000\n",
+        encoding="utf-8",
+    )
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
+        "NVDA,AI,SMH,Momentum Leader,Large,fixture\n"
+        "MSFT,Software,QQQ,Core Compounder,Large,fixture\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text(
+        "ticker,primarypurpose\n"
+        "NVDA,Momentum Leader\n",
+        encoding="utf-8",
+    )
+
+
+def test_data_source_registry_contains_required_datasets():
+    datasets = {entry.dataset for entry in DATA_SOURCE_REGISTRY}
+
+    assert {
+        "prices",
+        "fundamentals",
+        "peers",
+        "earnings",
+        "analyst_estimates",
+        "universe",
+        "smh_holdings",
+        "sp500_constituents",
+        "nasdaq_symbols",
+        "local_outputs",
+    }.issubset(datasets)
+
+
+def test_data_source_check_handles_missing_optional_files_without_network(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+
+    payload = build_data_source_payload(tmp_path)
+    statuses = {row["dataset"]: row["availability_status"] for row in payload["data_sources"]}
+
+    assert statuses["prices"] == "available"
+    assert statuses["peers"] == "manual_only"
+    assert statuses["earnings"] == "manual_only"
+    assert statuses["analyst_estimates"] == "manual_only"
+    assert any(gap["dataset"] == "prices" and gap["ticker"] == "MSFT" for gap in payload["data_gaps"])
+
+
+def test_write_data_source_outputs_creates_csvs(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+
+    result = write_data_source_outputs(tmp_path)
+
+    status_path = Path(result["status_path"])
+    gap_path = Path(result["gap_report_path"])
+    assert status_path.exists()
+    assert gap_path.exists()
+    assert "dataset" in pd.read_csv(status_path).columns
+    assert "recommended_action" in pd.read_csv(gap_path).columns
+
+
+def test_data_sources_cli_check_json(tmp_path: Path, capsys):
+    _write_minimal_local_data(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "data_sources" in payload
+    assert "data_gaps" in payload

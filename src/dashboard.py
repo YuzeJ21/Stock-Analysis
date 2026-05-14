@@ -31,6 +31,10 @@ MONTHLY_FILES = {
     "monthly_picks_track_record.csv": "Monthly Picks Track Record",
     "monthly_picks_equity_curve.csv": "Monthly Picks Equity Curve",
 }
+DATA_SOURCE_FILES = {
+    "data_source_status.csv": "Data Source Status",
+    "data_gap_report.csv": "Data Gap Report",
+}
 TAB_TO_FILE = {
     "Market Direction": "market_direction.csv",
     "Momentum Leaders": "momentum_leaders.csv",
@@ -76,6 +80,15 @@ BADGE_COLORS = {
     "negative": ("#7f1d1d", "#fee2e2"),
     "info": ("#1e3a8a", "#dbeafe"),
 }
+DATA_SOURCE_STATUS_LABELS = {
+    "available": "Available",
+    "partial": "Partial",
+    "missing_file": "Missing local file",
+    "source_unavailable": "Source unavailable",
+    "manual_only": "Manual input needed",
+    "optional_unofficial": "Optional unofficial",
+    "not_supported": "Not supported",
+}
 
 
 def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
@@ -92,6 +105,16 @@ def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
 
 def load_pipeline_outputs() -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     return {filename: load_output(OUTPUTS_DIR / filename) for filename in PIPELINE_FILES}
+
+
+def load_data_source_status_tables(
+    outputs_dir: Path = OUTPUTS_DIR,
+) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
+    return {filename: load_output(outputs_dir / filename) for filename in DATA_SOURCE_FILES}
+
+
+def friendly_data_source_status(value: object) -> str:
+    return DATA_SOURCE_STATUS_LABELS.get(format_missing(value, "-"), format_missing(value, "-"))
 
 
 def is_state_column(name: str) -> bool:
@@ -1044,6 +1067,45 @@ def render_data_health(provider) -> None:
         st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
         st.info("No local data validation rows are available.")
+
+    st.markdown("### Data Source Availability")
+    source_tables = load_data_source_status_tables()
+    status_frame, status_message = source_tables["data_source_status.csv"]
+    gap_frame, gap_message = source_tables["data_gap_report.csv"]
+    if status_frame is None and gap_frame is None:
+        st.info(
+            "Data source status outputs have not been generated yet. Run "
+            "`python3 -m src.data_sources --write-output`."
+        )
+    else:
+        if status_frame is not None and not status_frame.empty:
+            display_status = status_frame.copy()
+            if "availability_status" in display_status.columns:
+                display_status["availability_status"] = display_status["availability_status"].map(friendly_data_source_status)
+            columns = [
+                column
+                for column in [
+                    "dataset",
+                    "availability_status",
+                    "row_count",
+                    "source_name",
+                    "required_for",
+                    "fallback_action",
+                    "notes",
+                ]
+                if column in display_status.columns
+            ]
+            st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
+        else:
+            st.info(status_message or "No data source status rows are available.")
+        if gap_frame is not None and not gap_frame.empty:
+            with st.expander("Data Gap Report", expanded=False):
+                display_gaps = gap_frame.copy()
+                if "status" in display_gaps.columns:
+                    display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
+                st.dataframe(clean_display_frame(display_gaps), width="stretch", hide_index=True)
+        else:
+            st.info(gap_message or "No data gaps were reported.")
 
     staged_imports = validate_imports(base_dir=BASE_DIR)
     st.markdown("### Staged Import Status")
