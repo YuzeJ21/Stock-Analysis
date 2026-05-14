@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import src.dashboard as dashboard
 import pandas as pd
 
@@ -113,3 +115,47 @@ def test_data_source_status_tables_handle_missing_outputs(tmp_path):
     assert "has not been generated" in tables["data_source_status.csv"][1]
     assert dashboard.friendly_data_source_status("manual_only") == "Manual input needed"
     assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"
+
+
+def test_onboarding_tables_handle_missing_outputs_and_summary():
+    tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
+
+    assert tables["ticker_data_coverage.csv"][0] is None
+    assert "has not been generated" in tables["ticker_data_coverage.csv"][1]
+    assert dashboard.summarize_ticker_coverage(None)["usable_price_tickers"] == 0
+
+
+def test_onboarding_summary_counts_core_and_optional_gaps():
+    coverage = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "usable_for_momentum": True,
+                "dcf_ready": True,
+                "peer_ready": True,
+                "has_earnings": False,
+                "has_analyst_estimates": False,
+                "missing_required_for_momentum": "",
+                "missing_required_for_dcf": "",
+                "missing_required_for_peer_relative": "",
+            },
+            {
+                "ticker": "AMD",
+                "usable_for_momentum": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "has_earnings": False,
+                "has_analyst_estimates": False,
+                "missing_required_for_momentum": "prices",
+                "missing_required_for_dcf": "fundamentals row",
+                "missing_required_for_peer_relative": "peer mapping",
+            },
+        ]
+    )
+
+    summary = dashboard.summarize_ticker_coverage(coverage)
+
+    assert summary["usable_price_tickers"] == 1
+    assert summary["dcf_ready_tickers"] == 1
+    assert summary["peer_ready_tickers"] == 1
+    assert summary["optional_only_missing_tickers"] == 1

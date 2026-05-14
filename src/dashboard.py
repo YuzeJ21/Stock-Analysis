@@ -35,6 +35,10 @@ DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
 }
+DATA_ONBOARDING_FILES = {
+    "ticker_data_coverage.csv": "Ticker Data Coverage",
+    "data_onboarding_actions.csv": "Data Onboarding Actions",
+}
 TAB_TO_FILE = {
     "Market Direction": "market_direction.csv",
     "Momentum Leaders": "momentum_leaders.csv",
@@ -113,8 +117,50 @@ def load_data_source_status_tables(
     return {filename: load_output(outputs_dir / filename) for filename in DATA_SOURCE_FILES}
 
 
+def load_data_onboarding_tables(
+    outputs_dir: Path = OUTPUTS_DIR,
+) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
+    return {filename: load_output(outputs_dir / filename) for filename in DATA_ONBOARDING_FILES}
+
+
 def friendly_data_source_status(value: object) -> str:
     return DATA_SOURCE_STATUS_LABELS.get(format_missing(value, "-"), format_missing(value, "-"))
+
+
+def summarize_ticker_coverage(coverage: pd.DataFrame | None) -> dict[str, int]:
+    if coverage is None or coverage.empty:
+        return {
+            "usable_price_tickers": 0,
+            "dcf_ready_tickers": 0,
+            "peer_ready_tickers": 0,
+            "optional_only_missing_tickers": 0,
+        }
+
+    def count_true(column: str) -> int:
+        if column not in coverage.columns:
+            return 0
+        return int(coverage[column].astype(str).str.lower().isin({"true", "1", "yes"}).sum())
+
+    optional_only = 0
+    for _, row in coverage.iterrows():
+        required_gaps = [
+            format_missing(row.get("missing_required_for_momentum"), ""),
+            format_missing(row.get("missing_required_for_dcf"), ""),
+            format_missing(row.get("missing_required_for_peer_relative"), ""),
+        ]
+        has_required_gap = any(value.strip() for value in required_gaps)
+        missing_optional = not bool(str(row.get("has_earnings", "")).lower() in {"true", "1", "yes"}) or not bool(
+            str(row.get("has_analyst_estimates", "")).lower() in {"true", "1", "yes"}
+        )
+        if missing_optional and not has_required_gap:
+            optional_only += 1
+
+    return {
+        "usable_price_tickers": count_true("usable_for_momentum"),
+        "dcf_ready_tickers": count_true("dcf_ready"),
+        "peer_ready_tickers": count_true("peer_ready"),
+        "optional_only_missing_tickers": optional_only,
+    }
 
 
 def is_state_column(name: str) -> bool:
@@ -1106,6 +1152,54 @@ def render_data_health(provider) -> None:
                 st.dataframe(clean_display_frame(display_gaps), width="stretch", hide_index=True)
         else:
             st.info(gap_message or "No data gaps were reported.")
+
+    st.markdown("### Ticker Coverage / Onboarding")
+    onboarding_tables = load_data_onboarding_tables()
+    coverage_frame, coverage_message = onboarding_tables["ticker_data_coverage.csv"]
+    actions_frame, actions_message = onboarding_tables["data_onboarding_actions.csv"]
+    if coverage_frame is None and actions_frame is None:
+        st.info(
+            "Ticker coverage outputs have not been generated yet. Run "
+            "`python3 -m src.data_onboarding --write-output`."
+        )
+    else:
+        summary = summarize_ticker_coverage(coverage_frame)
+        metric_cols = st.columns(4)
+        metric_cols[0].metric("Usable Price Data", summary["usable_price_tickers"])
+        metric_cols[1].metric("DCF Ready", summary["dcf_ready_tickers"])
+        metric_cols[2].metric("Peer Ready", summary["peer_ready_tickers"])
+        metric_cols[3].metric("Only Optional Gaps", summary["optional_only_missing_tickers"])
+
+        if coverage_frame is not None and not coverage_frame.empty:
+            coverage_columns = [
+                column
+                for column in [
+                    "ticker",
+                    "has_prices",
+                    "price_history_days",
+                    "dcf_ready",
+                    "peer_ready",
+                    "has_earnings",
+                    "has_analyst_estimates",
+                    "next_best_action",
+                ]
+                if column in coverage_frame.columns
+            ]
+            st.dataframe(clean_display_frame(coverage_frame[coverage_columns]), width="stretch", hide_index=True)
+        else:
+            st.info(coverage_message or "No ticker coverage rows are available.")
+
+        if actions_frame is not None and not actions_frame.empty:
+            st.markdown("#### Top 10 Onboarding Actions")
+            top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
+            action_columns = [
+                column
+                for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "target_file"]
+                if column in top_actions.columns
+            ]
+            st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)
+        else:
+            st.info(actions_message or "No onboarding action rows are available.")
 
     staged_imports = validate_imports(base_dir=BASE_DIR)
     st.markdown("### Staged Import Status")

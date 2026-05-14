@@ -1,0 +1,150 @@
+import json
+import sys
+import urllib.request
+from pathlib import Path
+
+import pandas as pd
+
+from src.data_onboarding import (
+    COVERAGE_COLUMNS,
+    build_onboarding_payload,
+    main,
+    write_onboarding_outputs,
+    write_onboarding_templates,
+)
+
+
+def _write_fixture(root: Path) -> None:
+    data_dir = root / "data"
+    outputs_dir = root / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (data_dir / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-01,NVDA,100,1000\n"
+        "2026-01-02,NVDA,101,1000\n"
+        "2026-01-03,NVDA,102,1000\n"
+        "2026-01-04,NVDA,103,1000\n"
+        "2026-01-05,NVDA,104,1000\n"
+        "2026-01-06,NVDA,105,1000\n"
+        "2026-01-07,NVDA,106,1000\n"
+        "2026-01-08,NVDA,107,1000\n"
+        "2026-01-09,NVDA,108,1000\n"
+        "2026-01-10,NVDA,109,1000\n"
+        "2026-01-11,NVDA,110,1000\n"
+        "2026-01-12,NVDA,111,1000\n"
+        "2026-01-13,NVDA,112,1000\n"
+        "2026-01-14,NVDA,113,1000\n"
+        "2026-01-15,NVDA,114,1000\n"
+        "2026-01-16,NVDA,115,1000\n"
+        "2026-01-17,NVDA,116,1000\n"
+        "2026-01-18,NVDA,117,1000\n"
+        "2026-01-19,NVDA,118,1000\n"
+        "2026-01-20,NVDA,119,1000\n"
+        "2026-01-21,NVDA,120,1000\n"
+        "2026-01-22,NVDA,121,1000\n"
+        "2026-01-01,AMD,50,1000\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,fcf_margin,shares_outstanding,eps,free_cash_flow,source,as_of_date\n"
+        "NVDA,1000,0.2,10,2,200,fixture,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (data_dir / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group,source,as_of_date\n"
+        "NVDA,AMD,semis,fixture,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (data_dir / "earnings.csv").write_text("ticker,next_earnings_date\nNVDA,2026-02-01\n", encoding="utf-8")
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
+        "NVDA,AI,SMH,Momentum Leader,Large,fixture\n"
+        "AMD,AI,SMH,Momentum Leader,Large,fixture\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text("ticker,primarypurpose\nNVDA,Momentum Leader\n", encoding="utf-8")
+    (outputs_dir / "final_watchlist.csv").write_text("Ticker,FinalState\nNVDA,Watch\n", encoding="utf-8")
+    (outputs_dir / "momentum_leaders.csv").write_text("Ticker,SetupStatus\nNVDA,Watch\n", encoding="utf-8")
+
+
+def test_data_onboarding_coverage_works_with_local_fixtures(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    coverage = {row["ticker"]: row for row in payload["ticker_coverage"]}
+
+    assert list(coverage["NVDA"].keys()) == COVERAGE_COLUMNS
+    assert coverage["NVDA"]["has_prices"] is True
+    assert coverage["NVDA"]["price_history_days"] == 22
+    assert coverage["NVDA"]["dcf_ready"] is True
+    assert coverage["AMD"]["usable_for_momentum"] is False
+
+
+def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimates(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    amd_actions = [row for row in payload["onboarding_actions"] if row["ticker"] == "AMD"]
+    priorities = [row["priority"] for row in amd_actions]
+
+    assert priorities == sorted(priorities)
+    assert priorities[0] == 1
+    assert any(row["dataset"] == "fundamentals" and row["priority"] == 2 for row in amd_actions)
+    assert any(row["dataset"] == "peers" and row["priority"] == 3 for row in amd_actions)
+    assert any(row["dataset"] == "analyst_estimates" and row["priority"] == 5 for row in amd_actions)
+
+
+def test_onboarding_missing_optional_files_do_not_crash(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "prices.csv").write_text("date,ticker,adj_close\n2026-01-01,NVDA,100\n", encoding="utf-8")
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\nNVDA,AI,SMH,Momentum Leader,Large,fixture\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text("ticker,primarypurpose\n", encoding="utf-8")
+
+    payload = build_onboarding_payload(tmp_path)
+
+    assert payload["ticker_coverage"][0]["ticker"] == "NVDA"
+    assert any(row["dataset"] == "earnings" for row in payload["onboarding_actions"])
+
+
+def test_onboarding_coverage_does_not_make_network_calls(tmp_path: Path, monkeypatch):
+    _write_fixture(tmp_path)
+
+    def fail_network(*_args, **_kwargs):
+        raise AssertionError("data onboarding should inspect local CSV files only")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fail_network)
+
+    payload = build_onboarding_payload(tmp_path)
+
+    assert payload["ticker_coverage"]
+
+
+def test_write_onboarding_outputs_and_templates(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    output_result = write_onboarding_outputs(tmp_path)
+    template_result = write_onboarding_templates(tmp_path)
+
+    assert Path(output_result["coverage_path"]).exists()
+    assert Path(output_result["actions_path"]).exists()
+    assert (tmp_path / "data" / "templates" / "peers.csv").exists()
+    assert (tmp_path / "data" / "templates" / "custom_universe.csv").exists()
+    assert any(item["dataset_name"] == "analyst_estimates" for item in template_result)
+
+
+def test_data_onboarding_cli_coverage_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--coverage", "--tickers", "NVDA,AMD", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert [row["ticker"] for row in payload["ticker_coverage"]] == ["AMD", "NVDA"]

@@ -6,10 +6,13 @@ __pycache__/
 data/cache/
 !data/cache/sec/.gitkeep
 data/backups/
+data/templates/*.csv
 data/imports/*.csv
 !data/imports/.gitkeep
 outputs/*stock_report.json
 outputs/*_stock_report.json
 outputs/data_source_status.csv
 outputs/data_gap_report.csv
+outputs/ticker_data_coverage.csv
+outputs/data_onboarding_actions.csv
 local_artifacts_backup/

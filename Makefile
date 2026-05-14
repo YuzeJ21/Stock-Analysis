@@ -1,4 +1,4 @@
-.PHONY: test pipeline monthly track-record validate-data daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply
+.PHONY: test pipeline monthly track-record validate-data daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates
 
 test:
 	python3 -m pytest tests -q
@@ -14,6 +14,16 @@ track-record:
 
 validate-data:
 	python3 -m src.stock_report --validate-local-data
+
+coverage:
+	python3 -m src.data_onboarding --coverage
+
+onboarding:
+	python3 -m src.data_sources --write-output
+	python3 -m src.data_onboarding --write-output
+
+templates:
+	python3 -m src.data_onboarding --write-templates
 
 daily:
 	python3 -m src.data_update --universe-file data/universe.csv

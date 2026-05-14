@@ -84,6 +84,9 @@ make pipeline
 make monthly
 make track-record
 make validate-data
+make coverage
+make onboarding
+make templates
 make daily
 make dashboard
 ```
@@ -218,6 +221,50 @@ Important source boundaries:
 - SMH holdings can be unavailable because the VanEck page may require redirect, cookie, or location handling. Use `data/custom_universe.csv` or staged universe imports as the manual fallback.
 - yfinance remains optional, unofficial, and research-grade only. It is never required for the CSV-first pipeline.
 - Short local price history limits track-record, 3M/6M/1Y returns, and long-horizon momentum calculations.
+
+### Data onboarding workflow
+
+Use the onboarding workflow when the dashboard shows sparse coverage or when you want a prioritized checklist for improving the local CSV dataset. It inspects local files only by default and does not fetch, guess, or fabricate unavailable data.
+
+```bash
+python3 -m src.data_onboarding --coverage
+python3 -m src.data_onboarding --coverage --tickers NVDA,MSFT,AMD,AVGO
+python3 -m src.data_onboarding --write-output
+python3 -m src.data_onboarding --write-templates
+```
+
+Convenience targets:
+
+```bash
+make coverage
+make onboarding
+make templates
+```
+
+`--write-output` creates:
+
+- `outputs/ticker_data_coverage.csv`
+- `outputs/data_onboarding_actions.csv`
+
+`--write-templates` creates header-only local templates under `data/templates/` for:
+
+- `peers.csv`
+- `fundamentals.csv`
+- `earnings.csv`
+- `analyst_estimates.csv`
+- `custom_universe.csv`
+
+Recommended order:
+
+1. Run `make onboarding`.
+2. Inspect the dashboard `Data Health` tab.
+3. Refresh prices for priority tickers, for example `python3 -m src.data_update --tickers NVDA,MSFT`.
+4. Stage SEC fundamentals for tickers that need DCF inputs.
+5. Manually add peer mappings for important themes in `data/imports/peers.csv`.
+6. Optionally add earnings or analyst-estimate CSVs only from trusted sources.
+7. Rerun `make pipeline` and `make dashboard`.
+
+Missing optional files are expected in many local workflows. Earnings, analyst estimates, peers, and SMH fallback data should remain blank until you provide verified local data.
 
 ### Phase 2B local schema definitions
 
@@ -509,11 +556,12 @@ The dashboard and CLI are research-only surfaces. They do not execute trades, ro
 The easiest path is now:
 
 ```bash
+make onboarding
 make daily
 make dashboard
 ```
 
-`make daily` runs the local price updater, report generator, monthly picks, track record, and local-data validation in order. `make dashboard` opens the Streamlit dashboard from the repo root.
+`make onboarding` refreshes local source/gap reports and ticker-level coverage actions. `make daily` runs the local price updater, report generator, monthly picks, track record, and local-data validation in order. `make dashboard` opens the Streamlit dashboard from the repo root.
 
 If you prefer the explicit commands, the equivalent workflow is:
 
@@ -523,6 +571,8 @@ python3 -m src.report_generator
 python3 -m src.monthly_picks --generate --top-n 5
 python3 -m src.track_record --monthly-picks
 python3 -m src.stock_report --validate-local-data
+python3 -m src.data_sources --write-output
+python3 -m src.data_onboarding --write-output
 streamlit run src/dashboard.py
 ```
 
@@ -532,6 +582,7 @@ This keeps the project on its local research path:
 - regenerate the core screener CSV outputs
 - generate the monthly research-candidate layer and local track-record files
 - validate local enrichment coverage before relying on valuation-heavy reports
+- create Data Health coverage/action reports so missing data has clear next steps
 - review everything through the dashboard without any broker or trade execution features
 
 ## Monthly Research Picks
@@ -994,6 +1045,8 @@ Final state-machine view combining purpose, momentum, and portfolio context into
 
 ## Local data onboarding tips
 
+- `python3 -m src.data_onboarding --write-output` creates ticker-level coverage and action reports for the Data Health dashboard
+- `python3 -m src.data_onboarding --write-templates` creates header-only onboarding templates under `data/templates/`
 - `--write-local-data-templates` creates header-only CSV templates under `data/templates/`
 - `--write-import-staging` creates header-only staging files under `data/imports/`
 - these templates are safe starting points for adding real local data later

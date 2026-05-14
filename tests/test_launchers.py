@@ -18,6 +18,9 @@ def test_makefile_contains_convenience_targets():
         "sec-apply",
         "universe-preview",
         "universe-apply",
+        "coverage",
+        "onboarding",
+        "templates",
     ):
         assert f"{target}:" in makefile
 
