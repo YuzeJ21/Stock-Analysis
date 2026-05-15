@@ -89,6 +89,7 @@ make onboarding
 make templates
 make price-refresh
 make price-status
+make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual
 make price-validate
 make price-preview
 make price-apply
@@ -560,6 +561,60 @@ Price update diagnostics are written to:
 - `outputs/price_update_status.csv`
 
 The dashboard `Data Health` tab surfaces this status file and gives the manual fallback commands. Price imports are still research-only local data management; no broker, order routing, or trade-execution integration is added.
+
+### Normalize manually downloaded price CSVs
+
+If you download historical OHLCV CSVs from a trusted source, place the raw files under:
+
+- `data/raw/prices/`
+
+Raw downloaded files are ignored by git so they do not get committed accidentally. They are treated as user-provided local data and are never applied directly to canonical `data/prices.csv`.
+
+Yahoo-style historical exports are supported when they contain:
+
+- `Date`
+- `Open`
+- `High`
+- `Low`
+- `Close`
+- `Adj Close` or `Adj Close*`
+- `Volume`
+
+Example:
+
+```bash
+make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual
+make price-validate
+make price-preview
+make price-apply
+```
+
+Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:
+
+```bash
+python3 -m src.price_import_normalizer \
+  --input data/raw/prices/prices.csv \
+  --source generic_manual \
+  --output data/imports/prices.csv
+```
+
+For unusual exports, map columns explicitly:
+
+```bash
+python3 -m src.price_import_normalizer \
+  --input data/raw/prices/custom.csv \
+  --date-col when \
+  --ticker-col symbol \
+  --open-col o \
+  --high-col h \
+  --low-col l \
+  --close-col c \
+  --volume-col v \
+  --adjusted-close-col adj \
+  --source mapped_manual
+```
+
+The normalizer writes/upserts only to `data/imports/prices.csv` using `date + ticker`. It reports rows read, written, skipped, invalid, and deduplicated, then prints the next validation/preview/apply commands. Do not use unverified or fabricated prices.
 
 ## Run the dashboard
 

@@ -1205,6 +1205,13 @@ def render_data_health(provider) -> None:
             if column in price_status_frame.columns
         ]
         st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
+        problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
+        if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():
+            st.warning(
+                "Remote price refresh had source issues. Use `data/raw/prices/` for downloaded CSVs, then run "
+                "`make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual`, "
+                "`make price-validate`, `make price-preview`, and `make price-apply`."
+            )
         st.caption(
             "Manual fallback is CLI-only: fill `data/imports/prices.csv` with verified OHLCV rows, then run "
             "`make price-validate`, `make price-preview`, and `make price-apply`."

@@ -26,6 +26,7 @@ def test_makefile_contains_convenience_targets():
         "price-preview",
         "price-apply",
         "price-refresh",
+        "price-normalize",
     ):
         assert f"{target}:" in makefile
 

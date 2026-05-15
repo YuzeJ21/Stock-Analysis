@@ -1,4 +1,4 @@
-.PHONY: test pipeline monthly track-record validate-data daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh
+.PHONY: test pipeline monthly track-record validate-data daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
 
 test:
 	python3 -m pytest tests -q
@@ -39,6 +39,13 @@ price-apply:
 
 price-refresh:
 	python3 -m src.data_update --universe-file data/universe.csv
+
+price-normalize:
+ifdef TICKER
+	python3 -m src.price_import_normalizer --input $(INPUT) --ticker $(TICKER) --source $(or $(SOURCE),generic_manual)
+else
+	python3 -m src.price_import_normalizer --input $(INPUT) --source $(or $(SOURCE),generic_manual)
+endif
 
 daily:
 	python3 -m src.data_update --universe-file data/universe.csv

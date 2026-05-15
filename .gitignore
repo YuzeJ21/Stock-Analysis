@@ -7,6 +7,8 @@ data/cache/
 !data/cache/sec/.gitkeep
 data/backups/
 data/templates/*.csv
+data/raw/prices/*
+!data/raw/prices/.gitkeep
 data/imports/*.csv
 !data/imports/.gitkeep
 outputs/*stock_report.json
