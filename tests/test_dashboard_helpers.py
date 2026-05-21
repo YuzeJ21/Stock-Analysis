@@ -1113,6 +1113,68 @@ def test_output_tab_chart_sections_are_research_only_and_targeted():
     assert "sell" not in rendered
 
 
+def test_categorical_count_frame_normalizes_missing_values():
+    frame = pd.DataFrame({"ReviewState": ["Review Thesis", "", None, "Review Thesis"]})
+
+    chart = dashboard.categorical_count_frame(frame, "ReviewState", "ReviewState")
+
+    assert chart.loc["Review Thesis", "Count"] == 2
+    assert chart.loc["Not available", "Count"] == 2
+
+
+def test_portfolio_review_risk_chart_frame_combines_review_and_concentration():
+    frame = pd.DataFrame(
+        {
+            "ReviewState": ["Review Thesis", "Keep", "Review Thesis"],
+            "ConcentrationRisk": [False, True, False],
+        }
+    )
+
+    chart = dashboard.portfolio_review_risk_chart_frame(frame)
+
+    assert "ReviewStateCount" in chart.columns
+    assert "ConcentrationRiskCount" in chart.columns
+    assert chart.loc["Review Thesis", "ReviewStateCount"] == 2
+    assert chart.loc["No concentration risk", "ConcentrationRiskCount"] == 2
+
+
+def test_final_watchlist_score_chart_frame_orders_ranked_names():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["amd", "nvda", "qqq", "amd"],
+            "WatchlistRank": [3, 2, 1, 4],
+            "WatchlistScore": [41.0, 55.0, 68.0, 10.0],
+            "RelativeOpportunityScore": [None, 22.0, None, 5.0],
+        }
+    )
+
+    chart = dashboard.final_watchlist_score_chart_frame(frame, max_rows=3)
+
+    assert list(chart.index) == ["QQQ", "NVDA", "AMD"]
+    assert chart.loc["AMD", "WatchlistScore"] == 41.0
+
+
+def test_output_tab_chart_sections_include_portfolio_and_watchlist_views():
+    portfolio_sections = dashboard.output_tab_chart_sections(
+        "Portfolio Review",
+        pd.DataFrame({"ReviewState": ["Review Thesis"], "ConcentrationRisk": [False]}),
+    )
+    watchlist_sections = dashboard.output_tab_chart_sections(
+        "Final Watchlist",
+        pd.DataFrame({"Ticker": ["NVDA"], "FinalState": ["Review Thesis"], "WatchlistScore": [40.0], "WatchlistRank": [2]}),
+    )
+    rendered = " ".join(
+        " ".join(str(value) for value in section[:2]) for section in portfolio_sections + watchlist_sections
+    ).lower()
+
+    assert len(portfolio_sections) == 1
+    assert len(watchlist_sections) == 2
+    assert "concentration-risk" in rendered or "concentration" in rendered
+    assert "watchlist" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_dominant_value_and_non_empty_count_handle_empty_fields():
     frame = pd.DataFrame(
         {

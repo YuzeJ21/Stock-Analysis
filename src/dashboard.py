@@ -1977,6 +1977,71 @@ def momentum_relative_strength_chart_frame(frame: pd.DataFrame | None, max_rows:
     return chart.set_index("Ticker")
 
 
+def categorical_count_frame(frame: pd.DataFrame | None, column: str, label: str) -> pd.DataFrame:
+    if frame is None or frame.empty or column not in frame.columns:
+        return pd.DataFrame(columns=["Count"])
+
+    values = (
+        frame[column]
+        .fillna("Not available")
+        .astype(str)
+        .str.strip()
+        .replace({"": "Not available", "nan": "Not available", "None": "Not available"})
+        .value_counts()
+        .rename_axis(label)
+        .reset_index(name="Count")
+    )
+    return values.set_index(label)
+
+
+def portfolio_review_risk_chart_frame(frame: pd.DataFrame | None) -> pd.DataFrame:
+    if frame is None or frame.empty:
+        return pd.DataFrame()
+
+    pieces: list[pd.DataFrame] = []
+    review_counts = categorical_count_frame(frame, "ReviewState", "ReviewState")
+    if not review_counts.empty:
+        pieces.append(review_counts.rename(columns={"Count": "ReviewStateCount"}))
+
+    concentration_counts = categorical_count_frame(frame, "ConcentrationRisk", "ConcentrationRisk")
+    if not concentration_counts.empty:
+        concentration_chart = concentration_counts.rename(columns={"Count": "ConcentrationRiskCount"})
+        concentration_chart.index = concentration_chart.index.map(
+            lambda value: "Concentration risk" if str(value).lower() == "true" else "No concentration risk" if str(value).lower() == "false" else str(value)
+        )
+        pieces.append(concentration_chart)
+
+    if not pieces:
+        return pd.DataFrame()
+    return pd.concat(pieces, axis=1).fillna(0)
+
+
+def final_watchlist_score_chart_frame(frame: pd.DataFrame | None, max_rows: int = 8) -> pd.DataFrame:
+    if frame is None or frame.empty or "Ticker" not in frame.columns:
+        return pd.DataFrame()
+
+    chart = frame.copy()
+    numeric_columns = [column for column in ["WatchlistScore", "RelativeOpportunityScore"] if column in chart.columns]
+    if not numeric_columns:
+        return pd.DataFrame()
+
+    for column in numeric_columns:
+        chart[column] = pd.to_numeric(chart[column], errors="coerce")
+    if "WatchlistRank" in chart.columns:
+        chart["WatchlistRank"] = pd.to_numeric(chart["WatchlistRank"], errors="coerce")
+
+    rank_columns = ["WatchlistRank"] if "WatchlistRank" in chart.columns else []
+    chart = chart.loc[chart[numeric_columns].notna().any(axis=1), ["Ticker", *numeric_columns, *rank_columns]].copy()
+    if chart.empty:
+        return pd.DataFrame()
+
+    chart["Ticker"] = chart["Ticker"].astype(str).str.upper().str.strip()
+    sort_columns = ["WatchlistRank", "WatchlistScore"] if "WatchlistRank" in chart.columns else ["WatchlistScore"]
+    ascending = [True, False] if "WatchlistRank" in chart.columns else [False]
+    chart = chart.sort_values(sort_columns, ascending=ascending, na_position="last").drop_duplicates(subset=["Ticker"]).head(max_rows)
+    return chart.set_index("Ticker")[numeric_columns]
+
+
 def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str, str, pd.DataFrame, str]]:
     if title == "Market Direction":
         chart_frame = market_direction_chart_frame(frame)
@@ -2009,6 +2074,41 @@ def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str
                     "Relative strength snapshot",
                     "Ranks the best locally supported momentum names by RS percentile and benchmark-relative performance.",
                     rs_frame,
+                    "bar",
+                )
+            )
+        return sections
+    if title == "Portfolio Review":
+        risk_frame = portfolio_review_risk_chart_frame(frame)
+        if risk_frame.empty:
+            return []
+        return [
+            (
+                "Portfolio risk snapshot",
+                "Summarizes current holding review states and explicit concentration-risk flags from the local portfolio review output.",
+                risk_frame,
+                "bar",
+            )
+        ]
+    if title == "Final Watchlist":
+        sections: list[tuple[str, str, pd.DataFrame, str]] = []
+        final_state_counts = categorical_count_frame(frame, "FinalState", "FinalState")
+        if not final_state_counts.empty:
+            sections.append(
+                (
+                    "Final state distribution",
+                    "Shows how the current watchlist splits across local end states such as setup-forming, review-thesis, or ignored names.",
+                    final_state_counts,
+                    "bar",
+                )
+            )
+        score_frame = final_watchlist_score_chart_frame(frame)
+        if not score_frame.empty:
+            sections.append(
+                (
+                    "Watchlist score snapshot",
+                    "Ranks the strongest locally scored watchlist names without inventing missing peer-relative or valuation data.",
+                    score_frame,
                     "bar",
                 )
             )
