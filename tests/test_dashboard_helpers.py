@@ -2323,6 +2323,28 @@ def test_universe_workflow_cards_explain_preview_first_and_manual_fallback():
     assert "4 staged ticker rows" in rendered
     assert "preview" in rendered
     assert "custom_universe.csv" in rendered
+
+
+def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
+    cards = dashboard.universe_action_path_cards(
+        {
+            "current_universe": {
+                "row_count": 12,
+                "duplicate_ticker_count": 1,
+                "missing_theme_count": 2,
+                "unclassified_theme_count": 1,
+            },
+            "staged_universe": {"exists": True, "row_count": 4},
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "Review staged universe"
+    assert "12 current rows" in rendered
+    assert "apply stays cli-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

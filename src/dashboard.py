@@ -2471,6 +2471,47 @@ def universe_preset_cards() -> list[dict[str, object]]:
     return cards
 
 
+def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[str, object]]:
+    current = universe_summary.get("current_universe", {})
+    staged = universe_summary.get("staged_universe", {})
+    row_count = int(current.get("row_count") or 0)
+    missing_theme_total = int(current.get("missing_theme_count") or 0) + int(current.get("unclassified_theme_count") or 0)
+    duplicate_count = int(current.get("duplicate_ticker_count") or 0)
+    staged_exists = bool(staged.get("exists"))
+    staged_rows = int(staged.get("row_count") or 0)
+
+    cards = [
+        {
+            "kicker": "BEST NEXT",
+            "title": "Preview universe update" if not staged_exists else "Review staged universe",
+            "body": (
+                "Start with a preview-first universe command so larger source-driven changes stay reviewable before any apply step."
+                if not staged_exists
+                else f"{staged_rows} staged ticker rows are waiting for review before any CLI-only apply step."
+            ),
+            "badges": ["preview first", "read-only"],
+            "command": "make universe-preview" if not staged_exists else "python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50",
+        },
+        {
+            "kicker": "CURRENT FILE",
+            "title": f"{row_count} current rows",
+            "body": (
+                f"{duplicate_count} duplicate ticker rows and {missing_theme_total} missing or unclassified themes are still visible in the canonical universe file."
+            ),
+            "badges": ["data/universe.csv", "coverage"],
+            "command": "make templates" if missing_theme_total else "make universe-preview",
+        },
+        {
+            "kicker": "STAGED FLOW",
+            "title": "Apply stays CLI-only",
+            "body": "Write a staged universe import first, inspect the CSV and staged diagnostics, then apply only after review.",
+            "badges": ["backup on apply", "csv-first"],
+            "command": "python3 -m src.universe_builder --apply-import",
+        },
+    ]
+    return cards
+
+
 def status_legend_rows() -> list[dict[str, str]]:
     return [
         {
@@ -6302,6 +6343,8 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 
     render_section_header("Universe Workflow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
     render_action_cards(universe_workflow_cards(universe_summary))
+    render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, staged import state, and safer apply flow.")
+    render_signal_cards(universe_action_path_cards(universe_summary))
 
     render_signal_cards(
         [

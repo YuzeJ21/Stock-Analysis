@@ -1026,6 +1026,7 @@ The `Universe Manager` tab helps you inspect:
 - source membership counts
 - duplicate ticker count
 - missing theme / sector ETF coverage
+- compact preview-first action paths for current/staged universe work
 - staged `data/imports/universe.csv` visibility
 - CLI commands for safe preview/write/apply workflows
 
