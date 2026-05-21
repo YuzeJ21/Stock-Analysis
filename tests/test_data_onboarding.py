@@ -447,6 +447,30 @@ def test_data_onboarding_cli_command_bundles_json(tmp_path: Path, capsys):
     assert "primary_command" in payload["command_bundles"][0]
 
 
+def test_data_onboarding_cli_command_bundles_can_filter_by_lane_and_holdings(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--command-bundles",
+        "--lane",
+        "peers",
+        "--holdings-only",
+        "--json",
+    ]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert len(payload["command_bundles"]) == 1
+    assert payload["command_bundles"][0]["lane"] == "peers"
+    assert payload["command_bundles"][0]["scope"] == "holdings_first"
+
+
 def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Path):
     _write_fixture(tmp_path)
 
@@ -478,6 +502,30 @@ def test_data_onboarding_cli_command_bundle_details_json(tmp_path: Path, capsys)
     assert "command_bundle_details" in payload
     assert payload["command_bundle_details"][0]["lane"] == "prices"
     assert "ticker" in payload["command_bundle_details"][0]
+
+
+def test_data_onboarding_cli_command_bundle_details_can_filter_by_lane_and_holdings(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--command-bundle-details",
+        "--lane",
+        "peers",
+        "--holdings-only",
+        "--json",
+    ]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert payload["command_bundle_details"]
+    assert all(row["lane"] == "peers" for row in payload["command_bundle_details"])
+    assert all(row["is_holding"] is True for row in payload["command_bundle_details"])
 
 
 def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_path: Path):

@@ -1178,6 +1178,19 @@ Each bundle keeps the workflow explicit by showing:
 
 If you want one row per ticker inside the current bundles, use `python3 -m src.data_onboarding --command-bundle-details` or `make command-bundle-details`. That output is also written to `outputs/command_bundle_details.csv` during `--write-output`.
 
+If you only want one lane at a time, use:
+
+```bash
+python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only
+python3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only
+python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only
+make bundle-prices
+make bundle-fundamentals
+make bundle-peers
+```
+
+These lane-specific views stay read-only and help you focus on one pass at a time without scanning the broader bundle output first.
+
 ## SEC Companyfacts staging workflow
 
 The project now includes a read-only SEC Companyfacts adapter that can stage candidate fundamentals into:

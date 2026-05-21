@@ -1732,6 +1732,47 @@ def _print_command_bundle_details(payload: dict[str, Any]) -> None:
     print(f"Command bundle detail rows: {len(payload['command_bundle_details'])}")
 
 
+def _normalized_lane(value: str | None) -> str:
+    return str(value or "").strip().lower().replace("-", "_")
+
+
+def _filter_command_bundle_payload(
+    payload: dict[str, Any],
+    *,
+    lane: str | None = None,
+    holdings_only: bool = False,
+) -> dict[str, Any]:
+    lane_value = _normalized_lane(lane)
+
+    bundles = payload.get("command_bundles", [])
+    details = payload.get("command_bundle_details", [])
+
+    if lane_value:
+        bundles = [row for row in bundles if _normalized_lane(row.get("lane")) == lane_value]
+        details = [row for row in details if _normalized_lane(row.get("lane")) == lane_value]
+
+    if holdings_only:
+        bundles = [
+            row
+            for row in bundles
+            if _normalized_lane(row.get("scope")) == "holdings_first"
+        ]
+        bundle_names = {str(row.get("bundle_name", "")) for row in bundles}
+        details = [
+            row
+            for row in details
+            if str(row.get("bundle_name", "")) in bundle_names and bool(row.get("is_holding", False))
+        ]
+    elif bundles:
+        bundle_names = {str(row.get("bundle_name", "")) for row in bundles}
+        details = [row for row in details if str(row.get("bundle_name", "")) in bundle_names]
+
+    filtered = dict(payload)
+    filtered["command_bundles"] = bundles
+    filtered["command_bundle_details"] = details
+    return filtered
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
@@ -1777,6 +1818,16 @@ def main() -> None:
         action="store_true",
         help="Print ticker-level detail rows for the current local command bundles.",
     )
+    parser.add_argument(
+        "--lane",
+        choices=["prices", "fundamentals", "peers"],
+        help="Optional lane filter for command bundle views.",
+    )
+    parser.add_argument(
+        "--holdings-only",
+        action="store_true",
+        help="Limit command bundle views to holdings-first rows when available.",
+    )
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
     parser.add_argument("--tickers", help="Comma-separated tickers to inspect. Defaults to universe and holdings tickers.")
@@ -1805,6 +1856,9 @@ def main() -> None:
         payload = write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
     else:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
+
+    if args.command_bundles or args.command_bundle_details:
+        payload = _filter_command_bundle_payload(payload, lane=args.lane, holdings_only=args.holdings_only)
 
     if args.json:
         if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles and not args.command_bundle_details:
