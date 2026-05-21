@@ -436,6 +436,37 @@ def test_stock_report_source_frame_hides_raw_missing_values():
     assert "CSV fallback" in frame.iloc[0]["Notes"]
 
 
+def test_stock_report_detail_frames_are_readable_not_raw_json():
+    frame = dashboard.stock_report_detail_frame(
+        {
+            "market_time": "2026-05-21T12:00:00Z",
+            "price": 123.45,
+            "source_notes": ["local CSV"],
+            "official": False,
+            "missing": None,
+        }
+    )
+
+    assert list(frame.columns) == ["Field", "Value"]
+    assert "2026-05-21" in frame["Value"].tolist()
+    assert "123.45" in frame["Value"].tolist()
+    assert "local CSV" in frame["Value"].tolist()
+    assert "No" in frame["Value"].tolist()
+    assert "Not available" in frame["Value"].tolist()
+
+
+def test_stock_report_notes_frame_summarizes_warning_sections():
+    frame = dashboard.stock_report_notes_frame(
+        {"warnings": ["high growth normalized"], "notes": ["informational only"]},
+        {"peer_missing_data_warnings": ["peers.csv missing"], "missing_fields": ["peer_ticker"]},
+    )
+
+    assert list(frame.columns) == ["Section", "Details"]
+    rendered = " ".join(frame["Details"].astype(str)).lower()
+    assert "high growth normalized" in rendered
+    assert "peers.csv missing" in rendered
+
+
 def test_stock_report_missing_data_text_stays_friendly():
     text = dashboard.stock_report_missing_data_text(["fundamentals unavailable, peers, Return1M"])
 

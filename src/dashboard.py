@@ -1321,6 +1321,37 @@ def stock_report_source_frame(source_rows: list[dict[str, object]]) -> pd.DataFr
     return pd.DataFrame(rows)
 
 
+def stock_report_detail_frame(data: dict[str, object]) -> pd.DataFrame:
+    rows = []
+    for key, value in data.items():
+        if isinstance(value, bool):
+            display = "Yes" if value else "No"
+        elif isinstance(value, list):
+            display = joined_notes(value)
+        elif isinstance(value, dict):
+            display = ", ".join(f"{item_key}: {format_missing(item_value)}" for item_key, item_value in value.items()) or "Not available"
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            display = format_value(value)
+        else:
+            display = format_date_short(value) if "date" in str(key).lower() or "time" in str(key).lower() else format_missing(value)
+        rows.append({"Field": display_column_label(str(key)), "Value": display})
+    return pd.DataFrame(rows)
+
+
+def stock_report_notes_frame(
+    valuation: dict[str, object],
+    relative: dict[str, object],
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {"Section": "DCF warnings", "Details": joined_notes(valuation.get("warnings", []))},
+            {"Section": "DCF notes", "Details": joined_notes(valuation.get("notes", []))},
+            {"Section": "Peer warnings", "Details": joined_notes(relative.get("peer_missing_data_warnings", []))},
+            {"Section": "Peer missing fields", "Details": joined_notes(relative.get("missing_fields", []))},
+        ]
+    )
+
+
 def data_health_overview_cards(
     validation_rows: pd.DataFrame,
     price_status_frame: pd.DataFrame | None,
@@ -2517,7 +2548,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         )
 
         with st.expander("Price snapshot detail", expanded=False):
-            st.json(price, expanded=False)
+            st.dataframe(stock_report_detail_frame(price), width="stretch", hide_index=True)
 
     with valuation_tab:
         base_dcf = valuation["dcf_result"]
@@ -2594,15 +2625,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
                 st.dataframe(sensitivity_frame, width="stretch")
 
         with st.expander("Valuation warnings and methodology notes", expanded=False):
-            st.json(
-                {
-                    "warnings": valuation.get("warnings", []),
-                    "notes": valuation.get("notes", []),
-                    "peer_missing_data_warnings": relative.get("peer_missing_data_warnings", []),
-                    "relative_missing_fields": relative.get("missing_fields", []),
-                },
-                expanded=False,
-            )
+            st.dataframe(stock_report_notes_frame(valuation, relative), width="stretch", hide_index=True)
 
     with earnings_tab:
         earnings = report_payload["earnings_summary"]
@@ -2622,7 +2645,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
             ]
             st.dataframe(clean_display_frame(stock_report_key_value_frame(earnings, earnings_fields)), width="stretch", hide_index=True)
             with st.expander("Earnings detail", expanded=False):
-                st.json(earnings, expanded=False)
+                st.dataframe(stock_report_detail_frame(earnings), width="stretch", hide_index=True)
         with estimates_col:
             st.markdown("#### Analyst Estimates")
             estimate_fields = [
@@ -2637,7 +2660,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
             ]
             st.dataframe(clean_display_frame(stock_report_key_value_frame(estimates, estimate_fields)), width="stretch", hide_index=True)
             with st.expander("Analyst estimate detail", expanded=False):
-                st.json(estimates, expanded=False)
+                st.dataframe(stock_report_detail_frame(estimates), width="stretch", hide_index=True)
 
     with sources_tab:
         st.markdown("#### Missing Data")
@@ -2656,7 +2679,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
 
         if report_payload.get("screener_context"):
             with st.expander("Existing screener context", expanded=False):
-                st.json(report_payload["screener_context"], expanded=False)
+                st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
         if show_raw_json:
             with st.expander("Raw stock report JSON", expanded=False):
