@@ -1443,6 +1443,23 @@ def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str,
     ]
 
 
+def staged_universe_status_frame(staged: dict[str, Any]) -> pd.DataFrame:
+    validation = staged.get("validation", {}) if isinstance(staged, dict) else {}
+    warnings = validation.get("warnings", []) if isinstance(validation, dict) else []
+    if isinstance(warnings, list):
+        warning_text = "; ".join(str(item) for item in warnings if str(item).strip()) or "No validation warnings"
+    else:
+        warning_text = format_missing(warnings, "No validation warnings")
+    return pd.DataFrame(
+        [
+            {"Field": "Staged file", "Value": format_missing(staged.get("path"), "Not staged")},
+            {"Field": "Rows", "Value": format_value(staged.get("row_count"), fallback="0")},
+            {"Field": "Validation", "Value": format_missing(validation.get("status"), "Not available")},
+            {"Field": "Warnings", "Value": warning_text},
+        ]
+    )
+
+
 def non_empty_count(frame: pd.DataFrame, columns: list[str]) -> int:
     if frame.empty:
         return 0
@@ -2940,7 +2957,9 @@ def render_data_health(provider) -> None:
                 st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
         st.markdown("#### Staged Universe Import")
-        st.json(staged_universe, expanded=False)
+        st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
+        with st.expander("Raw staged universe diagnostics", expanded=False):
+            st.json(staged_universe, expanded=False)
 
         st.markdown("#### Runtime Artifact Hygiene")
         st.write("- `data/cache/` is ignored for local cache payloads.")
@@ -3019,7 +3038,9 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         st.info("The current universe file is empty.")
 
     st.markdown("### Staged Universe Import Status")
-    st.json(staged, expanded=False)
+    st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
+    with st.expander("Raw staged universe diagnostics", expanded=False):
+        st.json(staged, expanded=False)
 
     st.markdown("### CLI Workflow")
     st.code(

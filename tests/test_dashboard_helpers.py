@@ -540,6 +540,22 @@ def test_universe_workflow_cards_explain_preview_first_and_manual_fallback():
     assert "sell" not in rendered
 
 
+def test_staged_universe_status_frame_hides_raw_json_shape():
+    frame = dashboard.staged_universe_status_frame(
+        {
+            "row_count": 4,
+            "path": "data/imports/universe.csv",
+            "validation": {"status": "valid_with_warnings", "warnings": ["manual review recommended"]},
+        }
+    )
+
+    assert list(frame.columns) == ["Field", "Value"]
+    assert "Staged file" in frame["Field"].tolist()
+    assert "data/imports/universe.csv" in frame["Value"].tolist()
+    assert "valid_with_warnings" in frame["Value"].tolist()
+    assert "manual review recommended" in frame["Value"].tolist()
+
+
 def test_output_tab_summary_cards_explain_rows_status_and_gaps():
     frame = pd.DataFrame(
         {
