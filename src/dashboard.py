@@ -417,17 +417,19 @@ def apply_dashboard_theme() -> None:
           font-weight: 750;
         }
         .section-title {
-          margin: 1.2rem 0 0.55rem 0;
+          margin: 1.35rem 0 0.42rem 0;
           font-size: 1.28rem;
           font-weight: 900;
           letter-spacing: -0.035em;
           color: var(--research-ink);
         }
         .section-caption {
-          margin-top: -0.35rem;
-          margin-bottom: 0.8rem;
-          color: var(--research-muted);
-          font-size: 0.94rem;
+          margin-top: 0;
+          margin-bottom: 0.92rem;
+          color: #526071;
+          font-size: 0.93rem;
+          line-height: 1.45;
+          max-width: 70rem;
         }
         .metric-card-grid {
           display: grid;
@@ -491,13 +493,15 @@ def apply_dashboard_theme() -> None:
         .command-chip {
           display: inline-block;
           margin-top: 0.45rem;
-          padding: 0.22rem 0.46rem;
-          border-radius: 8px;
-          background: #e7f5ef;
+          padding: 0.26rem 0.56rem;
+          border-radius: 999px;
+          background: linear-gradient(180deg, #eef9f5, #dff3ea);
+          border: 1px solid rgba(15, 118, 110, 0.18);
           color: #0b3b36;
           font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
           font-size: 0.76rem;
           font-weight: 800;
+          letter-spacing: -0.01em;
         }
         .notice-card {
           margin: 0.75rem 0 1rem 0;
@@ -740,13 +744,14 @@ def apply_dashboard_theme() -> None:
         }
         .tiny-badge {
           display: inline-block;
-          padding: 0.18rem 0.48rem;
+          padding: 0.22rem 0.54rem;
           border-radius: 999px;
           font-size: 0.73rem;
-          font-weight: 850;
-          border: 1px solid rgba(15, 59, 54, 0.16);
-          background: #f1f5f9;
+          font-weight: 900;
+          border: 1px solid rgba(15, 59, 54, 0.12);
+          background: linear-gradient(180deg, #f8fafc, #eef4f7);
           color: #334155;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
         }
         .subtle-panel {
           border: 1px solid var(--research-border);
@@ -757,6 +762,29 @@ def apply_dashboard_theme() -> None:
         }
         .subtle-panel strong {
           color: #111827;
+        }
+        .context-note {
+          display: block;
+          margin: 0.55rem 0 0.95rem 0;
+          padding: 0.72rem 0.85rem;
+          border-radius: 14px;
+          border: 1px solid #dce5dc;
+          background: rgba(255, 254, 250, 0.82);
+          color: #526071;
+          font-size: 0.86rem;
+          line-height: 1.44;
+        }
+        .context-note strong {
+          color: #102a43;
+          font-weight: 900;
+        }
+        .context-note.warning {
+          background: linear-gradient(180deg, #fff8ee, rgba(255,255,255,0.92));
+          border-color: #f4c78a;
+        }
+        .context-note.success {
+          background: linear-gradient(180deg, #f2fbf7, rgba(255,255,255,0.92));
+          border-color: #b9e5cf;
         }
         .cockpit-panel {
           display: grid;
@@ -1049,6 +1077,19 @@ def notice_card_html(title: str, body: str, command: str = "", tone: str = "info
 
 def render_notice_card(title: str, body: str, command: str = "", tone: str = "info") -> None:
     st.markdown(notice_card_html(title, body, command, tone), unsafe_allow_html=True)
+
+
+def context_note_html(title: str, body: str, tone: str = "neutral") -> str:
+    tone_class = "warning" if tone == "warning" else "success" if tone == "success" else ""
+    return (
+        f"<div class='context-note {tone_class}'>"
+        f"<strong>{html.escape(title)}</strong> {html.escape(body)}"
+        "</div>"
+    )
+
+
+def render_context_note(title: str, body: str, tone: str = "neutral") -> None:
+    st.markdown(context_note_html(title, body, tone), unsafe_allow_html=True)
 
 
 def tiny_badge_html(label: str) -> str:
@@ -2435,7 +2476,8 @@ def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
             if selected_sectors:
                 filtered = filtered.loc[filtered[sector_column].astype(str).isin(selected_sectors)].copy()
 
-        st.caption(
+        render_context_note(
+            "Active filters.",
             filter_summary_text(
                 key,
                 search_value,
@@ -2447,7 +2489,7 @@ def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
                 selected_sectors,
                 len(filtered),
                 total_count,
-            )
+            ),
         )
     return filtered
 
@@ -2457,7 +2499,10 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
     display_frame = reorder_columns(display_with_summaries(filtered))
     compact_columns = compact_table_columns(display_frame)
     render_signal_cards(table_focus_cards(filtered))
-    st.caption("Showing the most useful columns first. Open the detail panels below for reasons, data gaps, and operational context.")
+    render_context_note(
+        "Default view.",
+        "Showing the most useful columns first. Open the detail panels below for reasons, data gaps, and operational context.",
+    )
     st.dataframe(style_frame(presentation_frame(display_frame[compact_columns])), width="stretch", hide_index=True)
 
     for title, section_frame in detail_sections(filtered, show_reason_details):
@@ -2876,7 +2921,10 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
 
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
-        st.caption("Local dataset coverage for the selected ticker")
+        render_context_note(
+            "Local coverage.",
+            "Dataset readiness for the selected ticker based on local CSV availability and schema validation.",
+        )
         st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
         with st.expander("Full local coverage details", expanded=False):
             st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
@@ -3396,9 +3444,10 @@ def render_data_health(provider) -> None:
                     "`make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual`, "
                     "`make price-validate`, `make price-preview`, and `make price-apply`."
                 )
-            st.caption(
-                "Manual fallback is CLI-only: fill `data/imports/prices.csv` with verified OHLCV rows, then run "
-                "`make price-validate`, `make price-preview`, and `make price-apply`."
+            render_context_note(
+                "Manual fallback.",
+                "CLI-only: fill data/imports/prices.csv with verified OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
+                tone="warning",
             )
 
     with health_tabs[4]:
@@ -3419,7 +3468,7 @@ def render_data_health(provider) -> None:
             st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
             preview = preview_import_merge(base_dir=BASE_DIR)
             if preview.get("preview"):
-                st.caption("Preview only. Apply remains CLI-only.")
+                render_context_note("Preview only.", "Apply remains CLI-only for safer staged import review.")
                 st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
         st.markdown("#### Staged Universe Import")
@@ -3536,9 +3585,9 @@ with st.sidebar:
     show_reason_details = st.checkbox("Show reason expanders", value=True)
     show_raw_json = st.checkbox("Show raw report JSON expanders", value=False)
     st.divider()
-    st.caption("Safe local commands")
+    render_context_note("Safe local commands.", "These commands are read-only or preview-first by default.")
     st.code("make help\nmake verify\nmake onboarding\nmake daily\nmake dashboard", language="bash")
-    st.caption("CLI-only applies remain the safest path for staged imports and universe changes.")
+    render_context_note("Safety note.", "CLI-only applies remain the safest path for staged imports and universe changes.", tone="warning")
     with st.expander("How to read this dashboard", expanded=False):
         st.dataframe(pd.DataFrame(status_legend_rows()), width="stretch", hide_index=True)
     with st.expander("Missing-data recovery guide", expanded=False):

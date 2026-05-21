@@ -43,6 +43,14 @@ def test_notice_card_escapes_content_and_uses_tones():
     assert "notice-card warning" in html
 
 
+def test_context_note_html_is_readable_and_escaped():
+    html = dashboard.context_note_html("<Filters>", "Use <trusted> local CSV inputs.", tone="warning")
+
+    assert "context-note warning" in html
+    assert "&lt;Filters&gt;" in html
+    assert "&lt;trusted&gt;" in html
+
+
 def test_state_styles_include_text_color_for_dark_mode():
     styled = dashboard.style_frame(pd.DataFrame({"FinalState": ["Avoid"]}))._compute()
     css_values = [item for styles in styled.ctx.values() for item in styles]
@@ -282,6 +290,26 @@ def test_filter_summary_text_handles_no_active_filters():
     assert "Market Direction" in text
     assert "9 of 9 rows visible" in text
     assert "Use search or filters" in text
+
+
+def test_filter_summary_text_can_be_wrapped_in_context_note():
+    summary = dashboard.filter_summary_text(
+        "final-watchlist",
+        "nvda",
+        "FinalState",
+        ["Watch"],
+        "Theme",
+        ["AI"],
+        "SectorETF",
+        ["SMH"],
+        1,
+        12,
+    )
+    html = dashboard.context_note_html("Active filters.", summary)
+
+    assert "context-note" in html
+    assert "Active filters." in html
+    assert "1 of 12 rows visible" in html
 
 
 def test_ticker_coverage_display_frame_hides_noisy_paths():
