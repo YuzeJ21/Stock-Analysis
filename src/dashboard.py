@@ -1389,6 +1389,54 @@ def stock_report_local_context_cards(
     ]
 
 
+def stock_report_price_chart_frame(history: pd.DataFrame | None) -> pd.DataFrame:
+    if history is None or history.empty or "date" not in history.columns or "close" not in history.columns:
+        return pd.DataFrame(columns=["Close"])
+
+    frame = history.copy()
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    frame["close"] = pd.to_numeric(frame["close"], errors="coerce")
+    frame = frame.loc[frame["date"].notna() & frame["close"].notna(), ["date", "close"]].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=["Close"])
+
+    frame = frame.sort_values("date").drop_duplicates(subset="date", keep="last")
+    return frame.rename(columns={"close": "Close"}).set_index("date")
+
+
+def monthly_pick_score_chart_frame(picks_frame: pd.DataFrame | None, max_rows: int = 8) -> pd.DataFrame:
+    if picks_frame is None or picks_frame.empty or "Ticker" not in picks_frame.columns:
+        return pd.DataFrame()
+
+    score_columns = [
+        column
+        for column in ["CompositeScore", "MomentumScore", "QualityScore", "ValuationContextScore", "LiquidityScore"]
+        if column in picks_frame.columns
+    ]
+    if not score_columns:
+        return pd.DataFrame()
+
+    frame = picks_frame.copy()
+    for column in score_columns:
+        frame[column] = pd.to_numeric(frame[column], errors="coerce")
+
+    rank_columns = ["Rank"] if "Rank" in frame.columns else []
+    frame = frame.loc[frame[score_columns].notna().any(axis=1), ["Ticker", *score_columns, *rank_columns]].copy()
+    if frame.empty:
+        return pd.DataFrame()
+
+    frame["Ticker"] = frame["Ticker"].astype(str).str.upper().str.strip()
+    if "Rank" in frame.columns:
+        frame["Rank"] = pd.to_numeric(frame["Rank"], errors="coerce")
+        frame = frame.sort_values(["Rank", "CompositeScore"], ascending=[True, False], na_position="last")
+    else:
+        frame = frame.sort_values("CompositeScore", ascending=False, na_position="last")
+
+    frame = frame.drop_duplicates(subset=["Ticker"], keep="first").head(max_rows)
+    chart_frame = frame.set_index("Ticker")[score_columns]
+    return chart_frame.rename(columns={"ValuationContextScore": "ValuationScore"})
+
+
 def stock_report_missing_data_text(warnings: list[object]) -> str:
     if not warnings:
         return "No explicit missing-data warnings were assembled from the current inputs."
@@ -3022,6 +3070,13 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             + "</div>",
             unsafe_allow_html=True,
         )
+        score_chart_frame = monthly_pick_score_chart_frame(ordered_picks)
+        if not score_chart_frame.empty:
+            render_context_note(
+                "Score context.",
+                "This chart compares transparent local score components for the current candidate set. Missing components stay blank instead of being inferred.",
+            )
+            st.bar_chart(score_chart_frame, height=280)
 
         with st.expander("Monthly candidates table", expanded=False):
             display_columns = [
@@ -3139,10 +3194,12 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
             try:
                 chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)
                 report = build_stock_report(ticker, chosen_provider)
+                history = chosen_provider.get_price_history(ticker, period="1y", interval="1d")
                 st.session_state["stock_report_beta_payload"] = report.to_dict()
                 st.session_state["stock_report_beta_download"] = export_stock_report_json(report)
                 st.session_state["stock_report_beta_ticker"] = ticker
                 st.session_state["stock_report_beta_provider"] = provider_name
+                st.session_state["stock_report_beta_history"] = history
             except RuntimeError as exc:
                 st.error(str(exc))
             except (LookupError, FileNotFoundError, ValueError) as exc:
@@ -3185,6 +3242,26 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         price_columns[0].metric("Last Price", report_display_value(price.get("price"), "currency"))
         price_columns[1].metric("Previous Close", report_display_value(price.get("previous_close"), "currency"))
         price_columns[2].metric("Volume", report_display_value(price.get("volume"), "integer"))
+        history_chart = stock_report_price_chart_frame(st.session_state.get("stock_report_beta_history"))
+        if not history_chart.empty:
+            render_context_note(
+                "Price history chart.",
+                "Shows the selected provider's daily close history for up to one year. Short local history stays visible instead of being padded or backfilled.",
+            )
+            st.line_chart(history_chart, height=280)
+            if len(history_chart) < 60:
+                render_context_note(
+                    "Short history.",
+                    f"Only {len(history_chart)} daily rows are available for this chart. Longer local history improves trend and track-record context.",
+                    tone="warning",
+                )
+        else:
+            render_notice_card(
+                "Price chart not available yet",
+                "The report generated, but there is not enough provider-backed daily close history to render a chart. Add verified local prices or retry with an explicitly enabled research-grade provider.",
+                "make price-refresh",
+                tone="warning",
+            )
 
         performance_columns = st.columns(3)
         performance_columns[0].metric("1M Return", report_display_value(performance.get("one_month"), "percent"))

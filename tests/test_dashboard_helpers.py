@@ -689,6 +689,56 @@ def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
     assert "sell" not in rendered
 
 
+def test_stock_report_price_chart_frame_sorts_and_cleans_history():
+    history = pd.DataFrame(
+        {
+            "date": ["2026-05-03", "2026-05-01", "2026-05-03", "bad-date"],
+            "close": ["101.5", "99.0", "102.0", "103.0"],
+            "volume": [100, 110, 120, 130],
+        }
+    )
+
+    chart = dashboard.stock_report_price_chart_frame(history)
+
+    assert list(chart.columns) == ["Close"]
+    assert list(chart.index.strftime("%Y-%m-%d")) == ["2026-05-01", "2026-05-03"]
+    assert chart.iloc[-1]["Close"] == 102.0
+
+
+def test_stock_report_price_chart_frame_handles_missing_columns():
+    chart = dashboard.stock_report_price_chart_frame(pd.DataFrame({"ticker": ["NVDA"]}))
+
+    assert chart.empty
+    assert list(chart.columns) == ["Close"]
+
+
+def test_monthly_pick_score_chart_frame_prefers_ranked_candidates_and_scores():
+    picks = pd.DataFrame(
+        {
+            "Ticker": ["amd", "nvda", "amd", "avgo"],
+            "Rank": [2, 1, 3, None],
+            "CompositeScore": [78, 91, 65, 74],
+            "MomentumScore": [80, 95, 61, 70],
+            "QualityScore": [55, 88, 40, None],
+            "ValuationContextScore": [30, 44, 20, 26],
+        }
+    )
+
+    chart = dashboard.monthly_pick_score_chart_frame(picks, max_rows=3)
+
+    assert list(chart.index) == ["NVDA", "AMD", "AVGO"]
+    assert "ValuationScore" in chart.columns
+    assert chart.loc["AMD", "CompositeScore"] == 78
+
+
+def test_monthly_pick_score_chart_frame_returns_empty_without_score_columns():
+    picks = pd.DataFrame({"Ticker": ["NVDA"], "Theme": ["AI"]})
+
+    chart = dashboard.monthly_pick_score_chart_frame(picks)
+
+    assert chart.empty
+
+
 def test_stock_report_source_frame_hides_raw_missing_values():
     frame = dashboard.stock_report_source_frame(
         [
