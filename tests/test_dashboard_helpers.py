@@ -882,6 +882,43 @@ def test_overview_workflow_path_cards_fall_back_to_safe_defaults():
     assert "buy" not in rendered
 
 
+def test_overview_workflow_reason_card_uses_action_queue_context():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+
+    card = dashboard.overview_workflow_reason_card(None, queue)
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert card["title"] == "make price-worklist"
+    assert "nvda" in rendered
+    assert "need more local rows" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_workflow_reason_card_falls_back_to_status_snapshot():
+    payload = {"summary": {"data_gaps": 12, "critical_actions": 4}}
+
+    card = dashboard.overview_workflow_reason_card(payload, None)
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert card["title"] == "make onboarding"
+    assert "4 critical actions" in rendered
+    assert "12 visible data gaps" in rendered
+    assert "buy" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {

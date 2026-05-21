@@ -2936,6 +2936,43 @@ def overview_workflow_path_cards(
     ]
 
 
+def overview_workflow_reason_card(
+    project_status_payload: dict[str, Any] | None,
+    action_queue: pd.DataFrame | None,
+) -> dict[str, object]:
+    first_command = overview_workflow_path_cards(project_status_payload, action_queue)[0]["title"]
+    reason = "Start with local blocker triage before verification and UI review."
+    badges = ["why now", "research only"]
+
+    if action_queue is not None and not action_queue.empty:
+        top_row = action_queue.sort_values(["priority", "ticker", "action_type"], na_position="last").iloc[0]
+        dataset = format_missing(top_row.get("action_type"), "data")
+        ticker = format_missing(top_row.get("ticker"), "")
+        row_reason = compact_reason(top_row.get("reason"), max_sentences=1, max_chars=170)
+        if ticker and ticker != "Not available":
+            reason = f"{dataset.title()} pressure is currently led by {ticker}. {row_reason}"
+        else:
+            reason = f"{dataset.title()} pressure is currently the top local blocker. {row_reason}"
+        badges = [f"P{format_missing(top_row.get('priority'), '-')}", dataset]
+    elif project_status_payload:
+        summary = project_status_payload.get("summary", {})
+        data_gaps = int(summary.get("data_gaps") or 0)
+        critical_actions = int(summary.get("critical_actions") or 0)
+        reason = (
+            f"{critical_actions} critical actions and {data_gaps} visible data gaps are in the current read-only status snapshot, "
+            "so the workflow starts with local coverage before interpretation."
+        )
+        badges = ["status snapshot", "data first"]
+
+    return {
+        "kicker": "WHY THIS STEP NOW",
+        "title": str(first_command),
+        "body": reason,
+        "badges": badges,
+        "command": str(first_command),
+    }
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -3679,6 +3716,7 @@ def render_overview(
     render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
     render_section_header("Today's Workflow Path", "A compact local sequence from blocker triage to verification to dashboard review.")
     render_signal_cards(overview_workflow_path_cards(project_status_payload, action_queue_frame))
+    render_signal_cards([overview_workflow_reason_card(project_status_payload, action_queue_frame)])
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),
