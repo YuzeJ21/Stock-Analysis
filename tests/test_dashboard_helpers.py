@@ -1011,7 +1011,11 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     status_rows = dashboard.status_legend_rows()
     missing_rows = dashboard.missing_data_guide_rows()
     workflow_rows = dashboard.workflow_command_rows()
+    navigation_cards = dashboard.dashboard_navigation_cards()
+    empty_rows = dashboard.empty_state_command_rows()
     rendered = " ".join(str(row) for row in status_rows + missing_rows + workflow_rows).lower()
+    nav_rendered = " ".join(str(item) for card in navigation_cards for item in card).lower()
+    empty_rendered = " ".join(str(row) for row in empty_rows).lower()
 
     assert any(row["Label"] == "Research Ready" for row in status_rows)
     assert any("price history" in row["Dashboard Label"].lower() for row in missing_rows)
@@ -1021,6 +1025,14 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert any(row["Command"] == "make validate-all" for row in workflow_rows)
     assert any(row["Command"] == "make dashboard-smoke" for row in workflow_rows)
     assert any(row["Command"] == "make daily" for row in workflow_rows)
+    assert "overview tab" in nav_rendered
+    assert "monthly picks tab" in nav_rendered
+    assert "data health tab" in nav_rendered
+    assert "price-normalize" in empty_rendered
+    assert "sec-stage" in empty_rendered
+    assert "peers.csv" in empty_rendered
     assert "place_order" not in rendered
     assert "submit_order" not in rendered
     assert "execute_trade" not in rendered
+    assert "buy" not in nav_rendered
+    assert "sell" not in nav_rendered

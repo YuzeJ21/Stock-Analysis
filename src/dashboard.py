@@ -1870,6 +1870,45 @@ def workflow_command_rows() -> list[dict[str, str]]:
     ]
 
 
+def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
+    return [
+        (
+            "Start in Overview",
+            "Check workflow health, critical actions, and the next local data unlocks before reading the deeper tabs.",
+            "Overview tab",
+            "neutral",
+        ),
+        (
+            "Use Monthly Picks",
+            "Review the current research candidates and whether conservative filters left fewer than the target count.",
+            "Monthly Picks tab",
+            "neutral",
+        ),
+        (
+            "Open Stock Report Beta",
+            "Generate a structured single-ticker report with valuation, peer, earnings, and freshness context.",
+            "Stock Report Beta tab",
+            "neutral",
+        ),
+        (
+            "Fix gaps in Data Health",
+            "Use local validation, price refresh status, and onboarding actions before trusting thin or partial data.",
+            "Data Health tab",
+            "warning",
+        ),
+    ]
+
+
+def empty_state_command_rows() -> list[dict[str, str]]:
+    return [
+        {"Scenario": "No local prices or short history", "Next step": "make price-refresh or make price-normalize INPUT=... TICKER=... SOURCE=..."},
+        {"Scenario": "No local fundamentals for valuation", "Next step": "make sec-stage TICKERS=NVDA,MSFT then make sec-preview"},
+        {"Scenario": "No peer-relative context", "Next step": "make templates, fill peers.csv locally, then validate/preview/apply"},
+        {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
+        {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then come back to preview/apply"},
+    ]
+
+
 def action_queue_summary(queue: pd.DataFrame | None) -> dict[str, int]:
     if queue is None or queue.empty:
         return {"critical": 0, "high": 0, "medium": 0}
@@ -3379,7 +3418,12 @@ def render_data_health(provider) -> None:
         with st.expander("Local dataset validation details", expanded=False):
             st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
-        st.info("No local data validation rows are available.")
+        render_notice_card(
+            "Local validation is not available yet",
+            "Generate local validation rows to confirm which CSV datasets are present, partial, or missing before relying on broader outputs.",
+            "python3 -m src.stock_report --validate-local-data",
+            tone="warning",
+        )
 
     health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Staged Imports"])
 
@@ -3395,7 +3439,12 @@ def render_data_health(provider) -> None:
             )
         )
         if action_queue_frame is None:
-            st.info(action_queue_message or "No action queue is available yet.")
+            render_notice_card(
+                "Action queue is not available yet",
+                action_queue_message or "Generate the research action queue to surface priority price, fundamentals, peer, and onboarding tasks.",
+                "python3 -m src.action_queue --write-output",
+                tone="warning",
+            )
         else:
             queue_summary = action_queue_summary(action_queue_frame)
             metric_cols = st.columns(3)
@@ -3552,9 +3601,11 @@ def render_data_health(provider) -> None:
             )
         )
         if status_frame is None and gap_frame is None:
-            st.info(
-                "Data source status outputs have not been generated yet. Run "
-                "`python3 -m src.data_sources --write-output`."
+            render_notice_card(
+                "Data source status is not generated yet",
+                "Build the local source registry so this tab can show what is available, partial, manual-only, or missing.",
+                "python3 -m src.data_sources --write-output",
+                tone="warning",
             )
         else:
             if status_frame is not None and not status_frame.empty:
@@ -3576,7 +3627,12 @@ def render_data_health(provider) -> None:
                 ]
                 st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
             else:
-                st.info(status_message or "No data source status rows are available.")
+                render_notice_card(
+                    "No data source status rows are available",
+                    status_message or "Generate the local source registry to inspect dataset availability and fallback actions.",
+                    "python3 -m src.data_sources --write-output",
+                    tone="warning",
+                )
             if gap_frame is not None and not gap_frame.empty:
                 with st.expander("Data Gap Report", expanded=False):
                     display_gaps = gap_frame.copy()
@@ -3584,7 +3640,11 @@ def render_data_health(provider) -> None:
                         display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
                     st.dataframe(clean_display_frame(display_gaps), width="stretch", hide_index=True)
             else:
-                st.info(gap_message or "No data gaps were reported.")
+                render_notice_card(
+                    "No data gaps were reported",
+                    gap_message or "Either the local gap report has not been generated yet or there are currently no explicit source-gap rows to show.",
+                    "python3 -m src.data_sources --write-output",
+                )
 
     with health_tabs[3]:
         render_signal_cards(
@@ -3652,7 +3712,11 @@ def render_data_health(provider) -> None:
             )
         )
         if staged_imports["status"] == "no_staged_files":
-            st.info(staged_imports["warnings"][0])
+            render_notice_card(
+                "No staged imports to review",
+                staged_imports["warnings"][0],
+                "make templates",
+            )
         else:
             staged_rows = []
             for item in staged_imports["files"]:
@@ -3750,7 +3814,12 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
             ].copy()
         st.dataframe(current_frame, width="stretch", hide_index=True)
     else:
-        st.info("The current universe file is empty.")
+        render_notice_card(
+            "Current universe is empty",
+            "Add or stage a local universe before running broader screening, monthly picks, or larger price refresh workflows.",
+            "make universe-preview",
+            tone="warning",
+        )
 
     st.markdown("### Staged Universe Import Status")
     st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
@@ -3785,6 +3854,12 @@ with st.sidebar:
     show_reason_details = st.checkbox("Show reason expanders", value=True)
     show_raw_json = st.checkbox("Show raw report JSON expanders", value=False)
     st.divider()
+    render_context_note(
+        "Start here.",
+        "Overview shows workflow health, Monthly Picks shows current candidates, Stock Report Beta handles single-name deep dives, and Data Health explains what local data is still missing.",
+        tone="success",
+    )
+    render_action_cards(dashboard_navigation_cards())
     render_context_note("Safe local commands.", "These commands are read-only or preview-first by default.")
     st.code("make help\nmake verify\nmake onboarding\nmake daily\nmake dashboard", language="bash")
     render_context_note("Safety note.", "CLI-only applies remain the safest path for staged imports and universe changes.", tone="warning")
@@ -3794,6 +3869,8 @@ with st.sidebar:
         st.dataframe(pd.DataFrame(missing_data_guide_rows()), width="stretch", hide_index=True)
     with st.expander("Workflow command guide", expanded=False):
         st.dataframe(pd.DataFrame(workflow_command_rows()), width="stretch", hide_index=True)
+    with st.expander("Common empty states", expanded=False):
+        st.dataframe(pd.DataFrame(empty_state_command_rows()), width="stretch", hide_index=True)
     with st.expander("Resolved local paths", expanded=False):
         context = path_context(BASE_DIR, DATA_DIR, OUTPUTS_DIR)
         st.code(
