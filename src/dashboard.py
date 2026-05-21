@@ -55,6 +55,8 @@ DATA_ONBOARDING_FILES = {
     "price_import_worklist.csv": "Price Import Worklist",
     "fundamentals_peer_worklist.csv": "Fundamentals Peer Worklist",
     "optional_context_worklist.csv": "Optional Context Worklist",
+    "sec_stage_queue.csv": "SEC Stage Queue",
+    "peer_mapping_queue.csv": "Peer Mapping Queue",
     "ticker_unlock_ladder.csv": "Ticker Unlock Ladder",
     "unlock_priority_summary.csv": "Unlock Priority Summary",
 }
@@ -354,6 +356,46 @@ def summarize_optional_context_worklist(worklist: pd.DataFrame | None) -> dict[s
         "estimates_ready": count_true("has_analyst_estimates"),
         "missing_both": int(priorities.eq(5).sum()),
         "missing_one": int(priorities.eq(6).sum()),
+    }
+
+
+def summarize_sec_stage_queue(worklist: pd.DataFrame | None) -> dict[str, int]:
+    if worklist is None or worklist.empty:
+        return {
+            "priority_1": 0,
+            "priority_2": 0,
+            "holdings": 0,
+            "missing_fundamentals": 0,
+        }
+
+    priorities = pd.to_numeric(worklist.get("priority", pd.Series(dtype=float)), errors="coerce").fillna(0)
+    holdings_mask = worklist.get("is_holding", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+    missing_fundamentals_mask = ~worklist.get("has_fundamentals", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+    return {
+        "priority_1": int(priorities.eq(1).sum()),
+        "priority_2": int(priorities.eq(2).sum()),
+        "holdings": int(holdings_mask.sum()),
+        "missing_fundamentals": int(missing_fundamentals_mask.sum()),
+    }
+
+
+def summarize_peer_mapping_queue(worklist: pd.DataFrame | None) -> dict[str, int]:
+    if worklist is None or worklist.empty:
+        return {
+            "priority_1": 0,
+            "priority_2": 0,
+            "holdings": 0,
+            "missing_peer_mapping": 0,
+        }
+
+    priorities = pd.to_numeric(worklist.get("priority", pd.Series(dtype=float)), errors="coerce").fillna(0)
+    holdings_mask = worklist.get("is_holding", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+    missing_peer_mapping_mask = ~worklist.get("has_peer_mapping", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+    return {
+        "priority_1": int(priorities.eq(1).sum()),
+        "priority_2": int(priorities.eq(2).sum()),
+        "holdings": int(holdings_mask.sum()),
+        "missing_peer_mapping": int(missing_peer_mapping_mask.sum()),
     }
 
 
@@ -4462,6 +4504,8 @@ def render_data_health(provider) -> None:
     price_worklist_frame, price_worklist_message = onboarding_tables["price_import_worklist.csv"]
     fundamentals_peer_worklist_frame, fundamentals_peer_worklist_message = onboarding_tables["fundamentals_peer_worklist.csv"]
     optional_context_worklist_frame, optional_context_worklist_message = onboarding_tables["optional_context_worklist.csv"]
+    sec_stage_queue_frame, sec_stage_queue_message = onboarding_tables["sec_stage_queue.csv"]
+    peer_mapping_queue_frame, peer_mapping_queue_message = onboarding_tables["peer_mapping_queue.csv"]
     ticker_unlock_ladder_frame, ticker_unlock_ladder_message = onboarding_tables["ticker_unlock_ladder.csv"]
     unlock_priority_summary_frame, unlock_priority_summary_message = onboarding_tables["unlock_priority_summary.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
@@ -4615,6 +4659,20 @@ def render_data_health(provider) -> None:
                 metric_cols[1].metric("Estimates Ready", oc_summary["estimates_ready"])
                 metric_cols[2].metric("Missing Both Optional", oc_summary["missing_both"])
                 metric_cols[3].metric("Missing One Optional", oc_summary["missing_one"])
+            if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
+                sec_summary = summarize_sec_stage_queue(sec_stage_queue_frame)
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("SEC Queue P1", sec_summary["priority_1"])
+                metric_cols[1].metric("SEC Queue P2", sec_summary["priority_2"])
+                metric_cols[2].metric("Holdings in SEC Queue", sec_summary["holdings"])
+                metric_cols[3].metric("Missing Fundamentals Rows", sec_summary["missing_fundamentals"])
+            if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
+                peer_summary = summarize_peer_mapping_queue(peer_mapping_queue_frame)
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("Peer Queue P1", peer_summary["priority_1"])
+                metric_cols[1].metric("Peer Queue P2", peer_summary["priority_2"])
+                metric_cols[2].metric("Holdings in Peer Queue", peer_summary["holdings"])
+                metric_cols[3].metric("Missing Peer Mappings", peer_summary["missing_peer_mapping"])
             if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
                 ladder_summary = summarize_ticker_unlock_ladder(ticker_unlock_ladder_frame)
                 metric_cols = st.columns(5)
@@ -4775,6 +4833,48 @@ def render_data_health(provider) -> None:
                         if column in optional_context_worklist_frame.columns
                     ]
                     st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(20)), width="stretch", hide_index=True)
+            if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
+                with st.expander("SEC Stage Queue", expanded=False):
+                    sec_columns = [
+                        column
+                        for column in [
+                            "priority",
+                            "ticker",
+                            "is_holding",
+                            "theme",
+                            "sector_etf",
+                            "price_history_days",
+                            "has_fundamentals",
+                            "missing_required_for_dcf",
+                            "recommended_action",
+                            "example_command",
+                        ]
+                        if column in sec_stage_queue_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(sec_stage_queue_frame[sec_columns].head(20)), width="stretch", hide_index=True)
+            elif sec_stage_queue_message:
+                st.info(sec_stage_queue_message)
+            if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
+                with st.expander("Peer Mapping Queue", expanded=False):
+                    peer_columns = [
+                        column
+                        for column in [
+                            "priority",
+                            "ticker",
+                            "is_holding",
+                            "theme",
+                            "sector_etf",
+                            "has_peer_mapping",
+                            "dcf_ready",
+                            "missing_required_for_peer_relative",
+                            "recommended_action",
+                            "example_command",
+                        ]
+                        if column in peer_mapping_queue_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(peer_mapping_queue_frame[peer_columns].head(20)), width="stretch", hide_index=True)
+            elif peer_mapping_queue_message:
+                st.info(peer_mapping_queue_message)
             if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
                 with st.expander("Ticker Unlock Ladder", expanded=False):
                     ladder_columns = [

@@ -606,6 +606,8 @@ For DCF and peer-relative blockers, use:
 
 ```bash
 make fundamentals-peer-worklist
+make sec-stage-queue
+make peer-mapping-queue
 ```
 
 This prints which tickers still need:
@@ -613,6 +615,11 @@ This prints which tickers still need:
 - SEC-stageable fundamentals for DCF readiness
 - manual peer mappings in `data/imports/peers.csv`
 - peer fundamentals or peer price / market-cap context for peer-relative valuation
+
+The two focused queues go one step further:
+
+- `make sec-stage-queue` prioritizes which tickers should go through SEC staging first
+- `make peer-mapping-queue` prioritizes which tickers most need manual peer research next
 
 For optional earnings and analyst-estimate context, use:
 
@@ -1100,6 +1107,8 @@ make onboarding
 - `outputs/ticker_data_coverage.csv`
 - `outputs/data_onboarding_actions.csv`
 - `outputs/data_coverage_wizard.csv`
+- `outputs/sec_stage_queue.csv`
+- `outputs/peer_mapping_queue.csv`
 - `outputs/ticker_unlock_ladder.csv`
 
 The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use the existing safe workflows for actual data changes:

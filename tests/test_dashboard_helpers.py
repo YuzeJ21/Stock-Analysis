@@ -374,6 +374,10 @@ def test_onboarding_tables_handle_missing_outputs_and_summary():
     assert "has not been generated" in tables["fundamentals_peer_worklist.csv"][1]
     assert tables["optional_context_worklist.csv"][0] is None
     assert "has not been generated" in tables["optional_context_worklist.csv"][1]
+    assert tables["sec_stage_queue.csv"][0] is None
+    assert "has not been generated" in tables["sec_stage_queue.csv"][1]
+    assert tables["peer_mapping_queue.csv"][0] is None
+    assert "has not been generated" in tables["peer_mapping_queue.csv"][1]
     assert tables["ticker_unlock_ladder.csv"][0] is None
     assert "has not been generated" in tables["ticker_unlock_ladder.csv"][1]
     assert tables["unlock_priority_summary.csv"][0] is None
@@ -382,6 +386,8 @@ def test_onboarding_tables_handle_missing_outputs_and_summary():
     assert dashboard.summarize_price_worklist(None)["priority_1"] == 0
     assert dashboard.summarize_fundamentals_peer_worklist(None)["fundamentals_priority_1"] == 0
     assert dashboard.summarize_optional_context_worklist(None)["missing_both"] == 0
+    assert dashboard.summarize_sec_stage_queue(None)["priority_1"] == 0
+    assert dashboard.summarize_peer_mapping_queue(None)["priority_1"] == 0
     assert dashboard.summarize_ticker_unlock_ladder(None)["price_stage"] == 0
     assert dashboard.summarize_unlock_priority_summary(None)["holdings_groups"] == 0
 
@@ -436,6 +442,40 @@ def test_summarize_optional_context_worklist_counts_missing_optional_coverage():
     assert summary["estimates_ready"] == 1
     assert summary["missing_both"] == 1
     assert summary["missing_one"] == 2
+
+
+def test_summarize_sec_stage_queue_counts_priority_and_missing_rows():
+    worklist = pd.DataFrame(
+        {
+            "priority": [1, 2, 2],
+            "is_holding": [True, False, True],
+            "has_fundamentals": [False, True, False],
+        }
+    )
+
+    summary = dashboard.summarize_sec_stage_queue(worklist)
+
+    assert summary["priority_1"] == 1
+    assert summary["priority_2"] == 2
+    assert summary["holdings"] == 2
+    assert summary["missing_fundamentals"] == 2
+
+
+def test_summarize_peer_mapping_queue_counts_priority_and_missing_mappings():
+    worklist = pd.DataFrame(
+        {
+            "priority": [1, 2, 4],
+            "is_holding": [True, False, True],
+            "has_peer_mapping": [False, True, False],
+        }
+    )
+
+    summary = dashboard.summarize_peer_mapping_queue(worklist)
+
+    assert summary["priority_1"] == 1
+    assert summary["priority_2"] == 1
+    assert summary["holdings"] == 2
+    assert summary["missing_peer_mapping"] == 2
 
 
 def test_summarize_ticker_unlock_ladder_counts_stages():

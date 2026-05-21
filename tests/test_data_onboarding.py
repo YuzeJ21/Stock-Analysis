@@ -9,7 +9,9 @@ from src.data_onboarding import (
     COVERAGE_COLUMNS,
     FUNDAMENTALS_PEER_WORKLIST_COLUMNS,
     OPTIONAL_CONTEXT_WORKLIST_COLUMNS,
+    PEER_MAPPING_QUEUE_COLUMNS,
     PRICE_WORKLIST_COLUMNS,
+    SEC_STAGE_QUEUE_COLUMNS,
     TICKER_UNLOCK_LADDER_COLUMNS,
     UNLOCK_PRIORITY_SUMMARY_COLUMNS,
     WIZARD_COLUMNS,
@@ -169,18 +171,24 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     assert Path(output_result["price_worklist_path"]).exists()
     assert Path(output_result["fundamentals_peer_worklist_path"]).exists()
     assert Path(output_result["optional_context_worklist_path"]).exists()
+    assert Path(output_result["sec_stage_queue_path"]).exists()
+    assert Path(output_result["peer_mapping_queue_path"]).exists()
     assert Path(output_result["ticker_unlock_ladder_path"]).exists()
     assert Path(output_result["unlock_priority_summary_path"]).exists()
     wizard_frame = pd.read_csv(output_result["wizard_path"])
     price_worklist_frame = pd.read_csv(output_result["price_worklist_path"])
     fundamentals_peer_frame = pd.read_csv(output_result["fundamentals_peer_worklist_path"])
     optional_context_frame = pd.read_csv(output_result["optional_context_worklist_path"])
+    sec_stage_queue_frame = pd.read_csv(output_result["sec_stage_queue_path"])
+    peer_mapping_queue_frame = pd.read_csv(output_result["peer_mapping_queue_path"])
     unlock_ladder_frame = pd.read_csv(output_result["ticker_unlock_ladder_path"])
     unlock_summary_frame = pd.read_csv(output_result["unlock_priority_summary_path"])
     assert list(wizard_frame.columns) == WIZARD_COLUMNS
     assert list(price_worklist_frame.columns) == PRICE_WORKLIST_COLUMNS
     assert list(fundamentals_peer_frame.columns) == FUNDAMENTALS_PEER_WORKLIST_COLUMNS
     assert list(optional_context_frame.columns) == OPTIONAL_CONTEXT_WORKLIST_COLUMNS
+    assert list(sec_stage_queue_frame.columns) == SEC_STAGE_QUEUE_COLUMNS
+    assert list(peer_mapping_queue_frame.columns) == PEER_MAPPING_QUEUE_COLUMNS
     assert list(unlock_ladder_frame.columns) == TICKER_UNLOCK_LADDER_COLUMNS
     assert list(unlock_summary_frame.columns) == UNLOCK_PRIORITY_SUMMARY_COLUMNS
     assert (tmp_path / "data" / "templates" / "peers.csv").exists()
@@ -288,6 +296,59 @@ def test_data_onboarding_cli_optional_context_worklist_json(tmp_path: Path, caps
     assert "optional_context_worklist" in payload
     assert payload["optional_context_worklist"][0]["ticker"] == "AMD"
     assert "missing_optional_context" in payload["optional_context_worklist"][0]
+
+
+def test_data_onboarding_cli_sec_stage_queue_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--sec-stage-queue", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "sec_stage_queue" in payload
+    assert payload["sec_stage_queue"][0]["ticker"] == "AMD"
+    assert "missing_required_for_dcf" in payload["sec_stage_queue"][0]
+
+
+def test_sec_stage_queue_prioritizes_holdings_and_price_ready_names(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    queue = {row["ticker"]: row for row in payload["sec_stage_queue"]}
+
+    assert queue["AMD"]["priority"] == 4
+    assert queue["AMD"]["has_fundamentals"] is False
+    assert "Run SEC staging for fundamentals" in queue["AMD"]["recommended_action"]
+
+
+def test_data_onboarding_cli_peer_mapping_queue_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--peer-mapping-queue", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "peer_mapping_queue" in payload
+    assert payload["peer_mapping_queue"][0]["ticker"] == "NVDA"
+    assert "missing_required_for_peer_relative" in payload["peer_mapping_queue"][0]
+
+
+def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    queue = {row["ticker"]: row for row in payload["peer_mapping_queue"]}
+
+    assert queue["NVDA"]["priority"] == 1
+    assert queue["NVDA"]["is_holding"] is True
+    assert queue["NVDA"]["dcf_ready"] is True
+    assert "peer mappings exist" in queue["NVDA"]["recommended_action"].lower()
 
 
 def test_optional_context_worklist_keeps_optional_gaps_lower_priority(tmp_path: Path):
