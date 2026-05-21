@@ -1,4 +1,36 @@
-.PHONY: test pipeline monthly track-record validate-data research-health action-queue daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help test pipeline monthly track-record validate-data research-health action-queue daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
+
+help:
+	@echo "Stock Research Screener convenience commands"
+	@echo ""
+	@echo "Core:"
+	@echo "  make test             Run unit tests"
+	@echo "  make pipeline         Generate core CSV outputs"
+	@echo "  make daily            Refresh local workflow outputs end-to-end"
+	@echo "  make dashboard        Open the Streamlit dashboard"
+	@echo ""
+	@echo "Research outputs:"
+	@echo "  make monthly          Generate monthly research candidates"
+	@echo "  make track-record     Generate local monthly picks track record"
+	@echo "  make research-health  Generate data quality, liquidity, and correlation outputs"
+	@echo "  make action-queue     Generate prioritized data/research actions"
+	@echo ""
+	@echo "Data onboarding:"
+	@echo "  make onboarding       Write source status, coverage, and action queue outputs"
+	@echo "  make templates        Write local CSV templates"
+	@echo "  make validate-data    Validate local CSV datasets"
+	@echo ""
+	@echo "Price fallback:"
+	@echo "  make price-refresh    Attempt free remote price refresh with local fallback"
+	@echo "  make price-status     Show latest price update status"
+	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
+	@echo "  make price-validate && make price-preview && make price-apply"
+	@echo ""
+	@echo "Staged fundamentals and universe:"
+	@echo "  SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA,MSFT"
+	@echo "  make sec-validate && make sec-preview && make sec-apply"
+	@echo "  make universe-preview"
+	@echo "  make universe-apply"
 
 test:
 	python3 -m pytest tests -q

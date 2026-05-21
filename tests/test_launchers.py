@@ -5,6 +5,7 @@ def test_makefile_contains_convenience_targets():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
     for target in (
+        "help",
         "test",
         "pipeline",
         "monthly",
@@ -31,6 +32,19 @@ def test_makefile_contains_convenience_targets():
         "price-normalize",
     ):
         assert f"{target}:" in makefile
+
+
+def test_makefile_help_documents_key_workflows():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    for phrase in (
+        "Stock Research Screener convenience commands",
+        "make daily",
+        "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
+        "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA,MSFT",
+        "make universe-preview",
+    ):
+        assert phrase in makefile
 
 
 def test_shell_launchers_anchor_to_repo_root():

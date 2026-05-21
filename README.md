@@ -79,6 +79,7 @@ The repo includes a `Makefile` and shell launchers so you do not need to remembe
 Common commands:
 
 ```bash
+make help
 make test
 make pipeline
 make monthly
@@ -110,6 +111,8 @@ make sec-apply
 make universe-preview
 make universe-apply
 ```
+
+If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands.
 
 Path-proof shell launchers:
 
