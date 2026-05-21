@@ -1844,6 +1844,69 @@ def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
     assert "sell" not in rendered
 
 
+def test_stock_report_next_step_cards_prioritize_missing_prices_first():
+    payload = {
+        "ticker": "NVDA",
+        "valuation_readiness": {
+            "dcf_ready": False,
+            "peer_ready": False,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": ["prices missing"],
+    }
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": False},
+            {"dataset": "fundamentals", "ticker_present": False},
+        ]
+    )
+
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Fix price coverage"
+    assert "src.data_update --tickers nvda" in rendered
+    assert "data gaps" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_review():
+    payload = {
+        "ticker": "NVDA",
+        "valuation_readiness": {
+            "dcf_ready": False,
+            "peer_ready": False,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": ["fundamentals missing"],
+    }
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": True},
+            {"dataset": "fundamentals", "ticker_present": False},
+        ]
+    )
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["title"] == "Stage fundamentals"
+
+    payload["valuation_readiness"]["dcf_ready"] = True
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": True},
+            {"dataset": "fundamentals", "ticker_present": True},
+        ]
+    )
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["title"] == "Add peer mappings"
+
+    payload["valuation_readiness"]["peer_ready"] = True
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": True})
+    assert cards[0]["title"] == "Review full report"
+
+
 def test_stock_report_price_chart_frame_sorts_and_cleans_history():
     history = pd.DataFrame(
         {

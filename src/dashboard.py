@@ -1567,6 +1567,97 @@ def stock_report_local_context_cards(
     ]
 
 
+def stock_report_next_step_cards(
+    report_payload: dict[str, object],
+    coverage: pd.DataFrame | None,
+    peer_summary: dict[str, object] | None,
+) -> list[dict[str, object]]:
+    ticker = format_missing(report_payload.get("ticker"), "Selected ticker")
+    readiness = report_payload.get("valuation_readiness", {}) or {}
+    warnings = report_payload.get("missing_data_warnings", []) or []
+    peer_summary = peer_summary or {}
+    cards: list[dict[str, object]] = []
+
+    has_prices = False
+    has_fundamentals = False
+    if coverage is not None and not coverage.empty:
+        coverage_frame = coverage.copy()
+        if "dataset" in coverage_frame.columns and "ticker_present" in coverage_frame.columns:
+            coverage_frame["dataset"] = coverage_frame["dataset"].astype(str).str.strip().str.lower()
+            coverage_frame["ticker_present_bool"] = coverage_frame["ticker_present"].astype(str).str.lower().isin({"true", "1", "yes"})
+            has_prices = bool(
+                coverage_frame.loc[coverage_frame["dataset"].eq("prices"), "ticker_present_bool"].any()
+            )
+            has_fundamentals = bool(
+                coverage_frame.loc[coverage_frame["dataset"].eq("fundamentals"), "ticker_present_bool"].any()
+            )
+
+    if not has_prices:
+        cards.append(
+            {
+                "kicker": "NEXT STEP",
+                "title": "Fix price coverage",
+                "body": (
+                    f"{ticker} still needs stronger verified local price history before broader trust. "
+                    "Use the manual staged price workflow if the free refresh path stays unreliable."
+                ),
+                "badges": ["prices", "data moat"],
+                "command": f"python3 -m src.data_update --tickers {ticker}",
+            }
+        )
+    elif not readiness.get("dcf_ready") and not has_fundamentals:
+        cards.append(
+            {
+                "kicker": "NEXT STEP",
+                "title": "Stage fundamentals",
+                "body": (
+                    f"{ticker} has enough price context for more research, but DCF coverage is still missing local fundamentals. "
+                    "Stage SEC fundamentals before leaning on valuation."
+                ),
+                "badges": ["fundamentals", "sec queue"],
+                "command": f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}",
+            }
+        )
+    elif not readiness.get("peer_ready") or not peer_summary.get("peer_dataset_present"):
+        cards.append(
+            {
+                "kicker": "NEXT STEP",
+                "title": "Add peer mappings",
+                "body": (
+                    f"{ticker} can be reviewed now, but peer-relative context is still partial. "
+                    "Add manually researched peers if this name matters for deeper relative work."
+                ),
+                "badges": ["peers", "manual research"],
+                "command": "python3 -m src.data_onboarding --write-templates",
+            }
+        )
+    else:
+        cards.append(
+            {
+                "kicker": "NEXT STEP",
+                "title": "Review full report",
+                "body": (
+                    f"{ticker} already has the minimum local context for a deeper single-name pass. "
+                    "Move through valuation, technical context, and source/freshness together."
+                ),
+                "badges": ["ready", "single name"],
+                "command": "make verify",
+            }
+        )
+
+    cards.append(
+        {
+            "kicker": "DATA GAPS",
+            "title": f"{len(warnings)} visible",
+            "body": (
+                "Warnings stay explicit and should guide the next research step instead of being hidden behind a score."
+            ),
+            "badges": stock_report_readiness_badges(readiness)[:2],
+        }
+    )
+    return cards
+
+
 def stock_report_price_chart_frame(history: pd.DataFrame | None) -> pd.DataFrame:
     if history is None or history.empty or "date" not in history.columns or "close" not in history.columns:
         return pd.DataFrame(columns=["Close"])
@@ -5050,6 +5141,8 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
     use_yfinance = selection_cols[2].checkbox("Use yfinance", value=False, help="Unofficial / research-grade. Leave off for the CSV-first path.")
     ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
     provider_name = "yfinance" if use_yfinance else "local"
+    coverage = pd.DataFrame()
+    peer_summary: dict[str, object] = {}
 
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
@@ -5099,6 +5192,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         "A structured view of local research inputs. This is context only, not a trading instruction.",
     )
     render_signal_cards(stock_report_summary_cards(report_payload))
+    render_signal_cards(stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     st.markdown(
         "<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.5rem 0 1rem 0;'>"
         + "".join(status_badge(label) for label in stock_report_readiness_badges(readiness))
