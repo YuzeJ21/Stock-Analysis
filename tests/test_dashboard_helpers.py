@@ -1141,6 +1141,87 @@ def test_overview_best_current_name_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_overview_ready_name_handoff_cards_route_stock_report_names_to_verify_then_tab():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+    payload = {"recommended_next_commands": ["make onboarding", "make verify", "make dashboard"]}
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_ready_name_handoff_cards(coverage, holdings, payload, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "NVDA"
+    assert cards[1]["title"] == "make verify"
+    assert cards[2]["title"] == "Stock Report Beta"
+    assert "strongest currently usable local name" in rendered
+    assert "deeper single-name read" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_ready_name_handoff_cards_route_partial_names_to_monthly_picks():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "high",
+                "action_type": "fundamentals",
+                "ticker": "TSLA",
+                "title": "Refresh onboarding",
+                "reason": "Need richer local context.",
+                "example_command": "make onboarding",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_ready_name_handoff_cards(coverage, None, None, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "TSLA"
+    assert cards[1]["title"] in {"make onboarding", "Refresh onboarding"}
+    assert cards[2]["title"] == "Monthly Picks"
+    assert "monthly picks" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_ready_name_handoff_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.overview_ready_name_handoff_cards(None, None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "No current ready names yet"
+    assert cards[1]["title"] == "make help"
+    assert cards[2]["title"] == "Data Health"
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_market_context_cards_surface_local_theme_strength():
     market_direction = pd.DataFrame(
         [

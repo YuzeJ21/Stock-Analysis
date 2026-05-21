@@ -3794,6 +3794,74 @@ def overview_best_local_research_path_cards(
     ]
 
 
+def overview_ready_name_handoff_cards(
+    coverage: pd.DataFrame | None,
+    holdings: pd.DataFrame | None,
+    project_status_payload: dict[str, Any] | None,
+    action_queue: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    best_name = overview_best_current_name_cards(coverage, holdings, limit=1)[0]
+    next_command = overview_next_command_cards(project_status_payload, action_queue, limit=3)
+
+    surface = str(best_name.get("title", ""))
+    if surface == "Stock Report Beta":
+        command_text = "make verify"
+        badges = ["verification", "ready flow"]
+        body = (
+            "Run deterministic verification first, then move into Stock Report Beta for the deeper single-name read."
+        )
+        for row in next_command:
+            candidate = str(row.get("title", ""))
+            if "verify" in candidate.lower():
+                command_text = candidate
+                break
+    elif surface == "Monthly Picks":
+        fallback = next_command[0] if next_command else {"title": "make onboarding", "badges": ["data moat", "command"]}
+        command_text = format_missing(fallback.get("title"), "make onboarding")
+        badges = [str(item) for item in fallback.get("badges", [])][:2] or ["data moat", "command"]
+        body = (
+            f"Run {command_text} first if this name is still momentum-ready but lighter on deeper valuation or peer context, "
+            "then review it in Monthly Picks."
+        )
+    else:
+        fallback = next_command[0] if next_command else {"title": "make help", "badges": ["safe default"]}
+        command_text = format_missing(fallback.get("title"), "make help")
+        badges = [str(item) for item in fallback.get("badges", [])][:2] or ["safe default"]
+        body = "Use the local command map or onboarding flow before treating any name as ready."
+
+    next_tab = next((card for card in overview_handoff_cards() if card.get("title") == surface), overview_handoff_cards()[0])
+    ticker = format_missing(best_name.get("kicker"), "Not available")
+    if ticker == "BEST CURRENT NAMES":
+        ticker = format_missing(best_name.get("title"), "Not available")
+
+    return [
+        {
+            "kicker": "READY NAME",
+            "title": ticker,
+            "body": (
+                f"{ticker} is the strongest currently usable local name and is best reviewed next through {surface}."
+            ),
+            "badges": [str(item) for item in best_name.get("badges", [])][:2] or ["local coverage"],
+        },
+        {
+            "kicker": "READY NAME COMMAND",
+            "title": command_text,
+            "body": body,
+            "badges": badges,
+            "command": command_text,
+        },
+        {
+            "kicker": "READY NAME TAB",
+            "title": str(next_tab.get("title", "Data Health")),
+            "body": (
+                f"Open {next_tab.get('title', 'Data Health')} after the command step so the next read for {ticker} "
+                "matches the current local workflow state."
+            ),
+            "badges": [str(item) for item in next_tab.get("badges", [])][:2] or ["guided", "read-only"],
+        },
+    ]
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -4571,6 +4639,15 @@ def render_overview(
     render_signal_cards(overview_ready_blocked_cards(coverage_frame, ticker_unlock_ladder_frame, holdings))
     render_section_header("Best Current Names", "Which currently usable names best warrant a deeper single-name review or a quick candidate check next.")
     render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
+    render_section_header("Ready Name Handoff", "For the strongest currently usable name, show the next exact local command when context is still partial and the best follow-up tab.")
+    render_signal_cards(
+        overview_ready_name_handoff_cards(
+            coverage_frame,
+            holdings,
+            project_status_payload,
+            action_queue_frame,
+        )
+    )
     render_section_header("Today's Best Local Research Path", "One compact operator path: the strongest locally usable name, the next repo-native command, and the next tab to open after that.")
     render_signal_cards(
         overview_best_local_research_path_cards(
