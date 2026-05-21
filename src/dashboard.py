@@ -2635,6 +2635,67 @@ def holdings_unlock_cards(
     return cards
 
 
+def theme_unlock_cards(
+    unlock_priority_summary: pd.DataFrame | None,
+    limit: int = 3,
+) -> list[dict[str, object]]:
+    if unlock_priority_summary is None or unlock_priority_summary.empty or "group_type" not in unlock_priority_summary.columns:
+        return [
+            {
+                "kicker": "THEME FIRST",
+                "title": "No theme unlock board yet",
+                "body": "Generate onboarding outputs to surface which local themes or sector ETF clusters are blocked first.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    summary = unlock_priority_summary.copy()
+    summary["group_type"] = summary["group_type"].astype(str)
+    theme_rows = summary.loc[summary["group_type"].isin(["theme", "sector_etf"])].copy()
+    if theme_rows.empty:
+        return [
+            {
+                "kicker": "THEME FIRST",
+                "title": "No grouped theme unlocks yet",
+                "body": "Theme and sector ETF rows will appear here once local universe context is available.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    stage_rank = {"prices": 1, "fundamentals": 2, "peers": 3, "optional_context": 4, "ready": 5}
+    theme_rows["stage_rank"] = theme_rows.get("top_priority_stage", pd.Series(dtype=object)).map(stage_rank).fillna(99)
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "THEME FIRST",
+            "title": format_missing(theme_rows.iloc[0].get("next_unlock_goal"), "Unlock themes"),
+            "body": (
+                f"{len(theme_rows)} grouped theme or sector ETF contexts are available. "
+                f"Start where the highest-priority stage is still {format_missing(theme_rows.iloc[0].get('top_priority_stage'), 'coverage')}."
+            ),
+            "badges": ["theme lens", "research only"],
+        }
+    ]
+
+    for _, row in theme_rows.sort_values(["stage_rank", "holdings_count", "ticker_count", "group_name"], ascending=[True, False, False, True]).head(limit).iterrows():
+        cards.append(
+            {
+                "kicker": format_missing(row.get("group_name"), "Theme"),
+                "title": format_missing(row.get("next_unlock_goal"), "Unlock data"),
+                "body": (
+                    f"{format_missing(row.get('group_type'), 'group')} group with "
+                    f"{format_missing(row.get('ticker_count'), '0')} tickers and "
+                    f"{format_missing(row.get('holdings_count'), '0')} holdings. "
+                    f"Next action: {compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                ),
+                "badges": [
+                    format_missing(row.get("top_priority_stage"), "stage"),
+                    format_missing(row.get("group_type"), "group"),
+                ],
+            }
+        )
+    return cards
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -3366,6 +3427,8 @@ def render_overview(
     )
     render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
     render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
+    render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
+    render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),

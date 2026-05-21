@@ -677,6 +677,49 @@ def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_theme_unlock_cards_surface_grouped_theme_priorities():
+    summary = pd.DataFrame(
+        [
+            {
+                "group_type": "theme",
+                "group_name": "AI Semiconductors",
+                "ticker_count": 3,
+                "holdings_count": 1,
+                "top_priority_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "recommended_action": "Fill verified local price history first.",
+            },
+            {
+                "group_type": "sector_etf",
+                "group_name": "SMH",
+                "ticker_count": 8,
+                "holdings_count": 1,
+                "top_priority_stage": "fundamentals",
+                "next_unlock_goal": "Unlock DCF",
+                "recommended_action": "Stage or add verified fundamentals.",
+            },
+        ]
+    )
+
+    cards = dashboard.theme_unlock_cards(summary, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "THEME FIRST"
+    assert "ai semiconductors" in rendered
+    assert "smh" in rendered
+    assert "unlock monthly picks" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_theme_unlock_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.theme_unlock_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no theme unlock board yet" in rendered
+    assert "buy" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {
