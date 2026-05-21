@@ -3074,6 +3074,80 @@ def overview_research_pressure_cards(
     return cards
 
 
+def overview_deep_research_leverage_cards(
+    holdings: pd.DataFrame | None,
+    sec_stage_queue: pd.DataFrame | None,
+    peer_mapping_queue: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    holding_tickers: set[str] = set()
+    if holdings is not None and not holdings.empty:
+        holdings_lookup = {str(column).strip().lower(): str(column) for column in holdings.columns}
+        ticker_col = holdings_lookup.get("ticker")
+        if ticker_col:
+            holding_tickers = set(holdings[ticker_col].dropna().astype(str).str.upper().str.strip())
+
+    def _lane_card(frame: pd.DataFrame | None, lane_name: str, title: str, badge: str) -> dict[str, object] | None:
+        if frame is None or frame.empty or "ticker" not in frame.columns:
+            return None
+        rows = frame.copy()
+        rows["ticker"] = rows["ticker"].astype(str).str.upper().str.strip()
+        rows["priority"] = pd.to_numeric(rows.get("priority"), errors="coerce").fillna(999)
+        rows["is_holding"] = rows["ticker"].isin(holding_tickers)
+        rows["theme"] = rows.get("theme", pd.Series(dtype=object)).astype(str).str.strip()
+        rows = rows.loc[rows["ticker"].ne("")].copy()
+        if rows.empty:
+            return None
+
+        sorted_rows = rows.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True])
+        top_row = sorted_rows.iloc[0]
+        holdings_count = int(rows["is_holding"].sum())
+        unique_tickers = int(rows["ticker"].nunique())
+        themes = sorted({theme for theme in rows["theme"].tolist() if theme and theme != "Unclassified"})
+        lead_theme = themes[0] if themes else "Unclassified"
+        lead_names = ", ".join(sorted_rows["ticker"].head(3).tolist()) or "Not available"
+        leverage_score = holdings_count * 3 + len(themes) * 2 + min(unique_tickers, 5)
+        return {
+            "kicker": lane_name,
+            "title": title,
+            "body": (
+                f"{holdings_count} holdings, {len(themes)} themes, and {unique_tickers} queued tickers are currently gated here. "
+                f"Lead theme: {lead_theme}. Start with: {lead_names}. "
+                f"Next action: {compact_reason(top_row.get('recommended_action'), max_sentences=1, max_chars=140)}"
+            ),
+            "badges": [badge, f"leverage {leverage_score}"],
+            "_score": leverage_score,
+        }
+
+    sec_card = _lane_card(sec_stage_queue, "DCF LEVERAGE", "SEC fundamentals path", "fundamentals")
+    peer_card = _lane_card(peer_mapping_queue, "PEER LEVERAGE", "Manual peer path", "peers")
+
+    if sec_card is None and peer_card is None:
+        return [
+            {
+                "kicker": "DEEP RESEARCH LEVERAGE",
+                "title": "No deep-research leverage view yet",
+                "body": "Generate the SEC stage queue and peer mapping queue to rank which deeper research lane unlocks the most local value next.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    candidate_cards = [card for card in [sec_card, peer_card] if card is not None]
+    best_lane = max(candidate_cards, key=lambda item: item.get("_score", 0))
+    output_cards = [
+        {
+            "kicker": "BEST DEEP WORK NEXT",
+            "title": str(best_lane.get("title", "Deep research")),
+            "body": (
+                f"{best_lane.get('kicker', 'This lane')} currently unlocks the most local research value next "
+                "when you weigh holdings impact, grouped theme breadth, and queued ticker count."
+            ),
+            "badges": [str(item) for item in best_lane.get("badges", [])][:2] or ["research only"],
+        }
+    ]
+    output_cards.extend({key: value for key, value in card.items() if key != "_score"} for card in candidate_cards)
+    return output_cards
+
+
 def overview_ready_blocked_cards(
     coverage: pd.DataFrame | None,
     ticker_unlock_ladder: pd.DataFrame | None,
@@ -4328,6 +4402,14 @@ def render_overview(
             sec_stage_queue_frame,
             peer_mapping_queue_frame,
             unlock_priority_summary_frame,
+        )
+    )
+    render_section_header("Deep Research Leverage", "Which deeper research lane currently unlocks the most value next when you weigh holdings impact, theme breadth, and queued ticker count.")
+    render_signal_cards(
+        overview_deep_research_leverage_cards(
+            holdings,
+            sec_stage_queue_frame,
+            peer_mapping_queue_frame,
         )
     )
     render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need unlock work first.")
