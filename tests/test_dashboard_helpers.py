@@ -761,6 +761,38 @@ def test_overview_market_context_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_overview_benchmark_pressure_cards_surface_price_gap_and_spy_context():
+    market_direction = pd.DataFrame(
+        [
+            {
+                "Theme": "AI Semiconductors",
+                "RelativeReturnVsSPY": 0.09,
+            }
+        ]
+    )
+    price_status = pd.DataFrame({"status": ["parse_error", "fetched", "source_unavailable"]})
+    payload = {"summary": {"tickers_total": 12, "tickers_with_prices": 3}}
+
+    cards = dashboard.overview_benchmark_pressure_cards(market_direction, price_status, payload)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 2
+    assert "missing local prices" in rendered
+    assert "9/12" in rendered
+    assert "ai semiconductors" in rendered
+    assert "9.0%" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_benchmark_pressure_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.overview_benchmark_pressure_cards(None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "local prices present" in rendered or "ticker coverage is not available yet" in rendered
+    assert "buy" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {

@@ -2758,6 +2758,63 @@ def overview_market_context_cards(
     return cards
 
 
+def overview_benchmark_pressure_cards(
+    market_direction: pd.DataFrame | None,
+    price_status_frame: pd.DataFrame | None,
+    project_status_payload: dict[str, Any] | None,
+) -> list[dict[str, object]]:
+    summary = {} if not project_status_payload else project_status_payload.get("summary", {})
+    total_tickers = int(summary.get("tickers_total") or 0)
+    price_ready = int(summary.get("tickers_with_prices") or 0)
+    missing_prices = max(total_tickers - price_ready, 0)
+    price_counts = summarize_price_update_status(price_status_frame)
+    parse_or_source_errors = sum(
+        price_counts.get(status, 0) for status in ("parse_error", "source_unavailable", "network_error", "failed", "no_rows")
+    )
+
+    strongest_theme = "Not available"
+    relative_spy = "Not available"
+    if market_direction is not None and not market_direction.empty and "Theme" in market_direction.columns:
+        chart = market_direction.copy()
+        if "RelativeReturnVsSPY" in chart.columns:
+            chart["RelativeReturnVsSPY"] = pd.to_numeric(chart["RelativeReturnVsSPY"], errors="coerce")
+            chart = chart.loc[chart["RelativeReturnVsSPY"].notna()].copy()
+            if not chart.empty:
+                top_row = chart.sort_values("RelativeReturnVsSPY", ascending=False, na_position="last").iloc[0]
+                strongest_theme = format_missing(top_row.get("Theme"), "Not available")
+                relative_spy = report_display_value(top_row.get("RelativeReturnVsSPY"), "percent")
+
+    pressure_title = "Missing local prices" if missing_prices else "Local prices present"
+    pressure_body = (
+        f"{missing_prices}/{total_tickers} tickers still need verified local price history."
+        if total_tickers
+        else "Ticker coverage is not available yet."
+    )
+    if parse_or_source_errors:
+        pressure_body += f" Latest refresh surfaced {parse_or_source_errors} source-side price issues, so manual staged imports may still be the safer path."
+
+    benchmark_body = (
+        f"Strongest current local theme is {strongest_theme} at {relative_spy} vs SPY."
+        if strongest_theme != "Not available"
+        else "Local benchmark-relative theme context is not available yet."
+    )
+
+    return [
+        {
+            "kicker": "BENCHMARK PRESSURE",
+            "title": pressure_title,
+            "body": pressure_body,
+            "badges": ["price moat", "local only"],
+        },
+        {
+            "kicker": "SPY CONTEXT",
+            "title": strongest_theme,
+            "body": benchmark_body,
+            "badges": ["benchmark lens", "research only"],
+        },
+    ]
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -3452,6 +3509,7 @@ def render_overview(
     holdings = catalog.load_dataframe("holdings")
     market_direction_frame, _ = output_frames.get("market_direction.csv", (None, None))
     final_watchlist_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
+    price_status_frame, _ = load_price_update_status()
     monthly_file_count = sum(1 for filename in MONTHLY_FILES if (OUTPUTS_DIR / filename).exists())
     health_tables = load_research_health_tables()
     health_file_count = sum(1 for frame, _message in health_tables.values() if frame is not None)
@@ -3494,6 +3552,8 @@ def render_overview(
     render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
     render_section_header("Market Context", "The strongest locally supported theme and ETF context from current benchmark-relative output rows.")
     render_signal_cards(overview_market_context_cards(market_direction_frame))
+    render_section_header("Benchmark Pressure", "Whether weak coverage is mostly a local price-history issue or a broader benchmark-relative context issue.")
+    render_signal_cards(overview_benchmark_pressure_cards(market_direction_frame, price_status_frame, project_status_payload))
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),
