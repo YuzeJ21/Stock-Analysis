@@ -1405,6 +1405,44 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
     return cards
 
 
+def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str, str, str, str]]:
+    current = universe_summary.get("current_universe", {})
+    staged = universe_summary.get("staged_universe", {})
+    current_rows = int(current.get("row_count") or 0)
+    duplicate_count = int(current.get("duplicate_ticker_count") or 0)
+    missing_context = int(current.get("missing_theme_count") or 0) + int(current.get("unclassified_theme_count") or 0)
+    missing_sector_etf = int(current.get("missing_sector_etf_count") or 0)
+    staged_exists = bool(staged.get("path")) and int(staged.get("row_count") or 0) > 0
+    staged_rows = int(staged.get("row_count") or 0)
+    quality_tone = "warning" if duplicate_count or missing_context or missing_sector_etf else "neutral"
+    return [
+        (
+            "Current universe",
+            f"{current_rows} tickers are active. {duplicate_count} duplicate rows, {missing_context} missing/unclassified themes, and {missing_sector_etf} missing sector ETF values.",
+            "data/universe.csv",
+            quality_tone,
+        ),
+        (
+            "Staged universe",
+            f"{staged_rows} staged ticker rows are waiting for review." if staged_exists else "No staged universe import is waiting. Build an import before applying changes.",
+            "make universe-preview",
+            "warning" if staged_exists else "neutral",
+        ),
+        (
+            "Safe expansion path",
+            "Preview source-driven candidates first, write a staged CSV, then apply from the CLI only after review.",
+            "make universe-preview",
+            "neutral",
+        ),
+        (
+            "Manual fallback",
+            "If SMH or remote sources degrade, add verified rows through data/custom_universe.csv or data/imports/universe.csv.",
+            "make templates",
+            "neutral",
+        ),
+    ]
+
+
 def non_empty_count(frame: pd.DataFrame, columns: list[str]) -> int:
     if frame.empty:
         return 0
@@ -2918,6 +2956,9 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     )
     current = universe_summary["current_universe"]
     staged = universe_summary["staged_universe"]
+
+    render_section_header("Universe Workflow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
+    render_action_cards(universe_workflow_cards(universe_summary))
 
     render_signal_cards(
         [

@@ -516,6 +516,30 @@ def test_universe_preset_cards_include_preview_commands():
     assert "apply-import" not in rendered
 
 
+def test_universe_workflow_cards_explain_preview_first_and_manual_fallback():
+    cards = dashboard.universe_workflow_cards(
+        {
+            "current_universe": {
+                "row_count": 12,
+                "duplicate_ticker_count": 1,
+                "missing_theme_count": 2,
+                "unclassified_theme_count": 1,
+                "missing_sector_etf_count": 3,
+            },
+            "staged_universe": {"row_count": 4, "path": "data/imports/universe.csv"},
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card).lower()
+
+    assert cards[0][0] == "Current universe"
+    assert cards[0][3] == "warning"
+    assert "4 staged ticker rows" in rendered
+    assert "preview" in rendered
+    assert "custom_universe.csv" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_output_tab_summary_cards_explain_rows_status_and_gaps():
     frame = pd.DataFrame(
         {
