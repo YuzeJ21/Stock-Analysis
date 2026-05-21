@@ -227,6 +227,43 @@ def test_workflow_health_score_reflects_action_pressure():
     assert weak_label in {"Partial", "Needs Data"}
 
 
+def test_project_status_helpers_turn_payload_into_cards_and_commands():
+    payload = {
+        "summary": {
+            "data_sources_total": 10,
+            "data_sources_available": 4,
+            "data_gaps": 12,
+            "tickers_total": 20,
+            "tickers_with_prices": 9,
+            "tickers_dcf_ready": 3,
+            "tickers_peer_ready": 2,
+            "critical_actions": 5,
+            "onboarding_actions": 18,
+        },
+        "top_onboarding_actions": [
+            {
+                "priority": 1,
+                "dataset": "prices",
+                "ticker": "NVDA",
+                "reason": "Short local price history.",
+                "example_command": "make price-refresh",
+            }
+        ],
+        "recommended_next_commands": ["make onboarding", "make verify"],
+    }
+
+    cards = dashboard.project_status_metric_cards(payload)
+    actions = dashboard.project_status_action_cards(payload)
+    commands = dashboard.project_status_command_rows(payload)
+    rendered = " ".join(str(value) for card in cards for value in card)
+
+    assert "4/10" in rendered
+    assert "9/20" in rendered
+    assert actions[0][0] == "P1 prices - NVDA"
+    assert actions[0][3] == "danger"
+    assert commands[0]["Command"] == "make onboarding"
+
+
 def test_onboarding_summary_counts_core_and_optional_gaps():
     coverage = pd.DataFrame(
         [

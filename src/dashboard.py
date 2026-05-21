@@ -11,6 +11,7 @@ from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.monthly_picks import MonthlyPickConfig
 from src.paths import path_context
+from src.project_status import build_project_status_payload
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
@@ -1301,6 +1302,67 @@ def workflow_health_score(
     return score, "Needs Data"
 
 
+def project_status_metric_cards(payload: dict[str, Any] | None) -> list[tuple[str, object, str]]:
+    if not payload:
+        return []
+    summary = payload.get("summary", {})
+    total_sources = int(summary.get("data_sources_total") or 0)
+    available_sources = int(summary.get("data_sources_available") or 0)
+    total_tickers = int(summary.get("tickers_total") or 0)
+    price_ready = int(summary.get("tickers_with_prices") or 0)
+    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
+    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    return [
+        ("Data Sources", f"{available_sources}/{total_sources}", "Available local/source coverage"),
+        ("Data Gaps", int(summary.get("data_gaps") or 0), "Rows in the current gap report"),
+        ("Price Ready", f"{price_ready}/{total_tickers}", "Tickers with usable local prices"),
+        ("DCF Ready", f"{dcf_ready}/{total_tickers}", "Tickers with enough local valuation fields"),
+        ("Peer Ready", f"{peer_ready}/{total_tickers}", "Tickers with local peer context"),
+        (
+            "Critical Actions",
+            int(summary.get("critical_actions") or 0),
+            f"{int(summary.get('onboarding_actions') or 0)} onboarding actions total",
+        ),
+    ]
+
+
+def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) -> list[tuple[str, str, str, str]]:
+    if not payload:
+        return [
+            (
+                "Project status unavailable",
+                "Run the read-only status command to rebuild local source and onboarding summaries.",
+                "make status",
+                "warning",
+            )
+        ]
+    actions: list[tuple[str, str, str, str]] = []
+    for row in payload.get("top_onboarding_actions", [])[:limit]:
+        priority = int(row.get("priority") or 999)
+        dataset = format_missing(row.get("dataset"))
+        ticker = format_missing(row.get("ticker"), fallback="")
+        reason = format_missing(row.get("reason"), fallback="Local data coverage needs attention.")
+        command = format_missing(row.get("example_command"), fallback="make onboarding")
+        title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
+        tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
+        actions.append((title, reason, command, tone))
+    if not actions:
+        actions.append(
+            (
+                "No urgent onboarding actions",
+                "The read-only project status did not find priority local data tasks.",
+                "make verify",
+                "neutral",
+            )
+        )
+    return actions
+
+
+def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str, str]]:
+    commands = [] if not payload else payload.get("recommended_next_commands", [])
+    return [{"Step": f"Next {index}", "Command": str(command)} for index, command in enumerate(commands, start=1)]
+
+
 def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if action_queue is None or action_queue.empty:
         return []
@@ -1598,7 +1660,12 @@ def _peer_ready_count(catalog: LocalDataCatalog) -> int:
     return len(ready_subjects)
 
 
-def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], catalog: LocalDataCatalog, universe_summary: dict[str, Any]) -> None:
+def render_overview(
+    output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
+    catalog: LocalDataCatalog,
+    universe_summary: dict[str, Any],
+    project_status_payload: dict[str, Any] | None,
+) -> None:
     holdings = catalog.load_dataframe("holdings")
     final_watchlist_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
     monthly_file_count = sum(1 for filename in MONTHLY_FILES if (OUTPUTS_DIR / filename).exists())
@@ -1645,12 +1712,24 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
         unsafe_allow_html=True,
     )
 
+    status_cards = project_status_metric_cards(project_status_payload)
+    if status_cards:
+        render_section_header(
+            "Project Status",
+            "The same read-only snapshot shown by `make status`, surfaced here so the dashboard and terminal agree.",
+        )
+        render_metric_cards(status_cards)
+        command_rows = project_status_command_rows(project_status_payload)
+        if command_rows:
+            with st.expander("Recommended next commands", expanded=False):
+                st.dataframe(pd.DataFrame(command_rows), width="stretch", hide_index=True)
+
     priority_signals = top_priority_signals(action_queue_frame, limit=3)
     if priority_signals:
         render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
         render_signal_cards(priority_signals)
     else:
-        actions: list[tuple[str, str, str, str]] = []
+        actions: list[tuple[str, str, str, str]] = project_status_action_cards(project_status_payload)
         if missing_warning_count:
             actions.append(
                 (
@@ -2523,6 +2602,7 @@ catalog = LocalDataCatalog(BASE_DIR)
 provider = get_local_provider()
 output_frames = load_pipeline_outputs()
 universe_summary = summarize_universe_manager(BASE_DIR)
+project_status_payload = build_project_status_payload(BASE_DIR, data_dir=DATA_DIR, output_dir=OUTPUTS_DIR, top_n=5)
 render_app_header(catalog, output_frames)
 
 with st.sidebar:
@@ -2568,7 +2648,7 @@ tabs = st.tabs(
 )
 
 with tabs[0]:
-    render_overview(output_frames, catalog, universe_summary)
+    render_overview(output_frames, catalog, universe_summary, project_status_payload)
 with tabs[1]:
     render_monthly_picks(catalog)
 with tabs[2]:
