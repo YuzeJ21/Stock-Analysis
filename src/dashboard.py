@@ -3905,6 +3905,41 @@ def overview_next_command_cards(
     return deduped[:limit]
 
 
+def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int = 2) -> list[dict[str, object]]:
+    if bundle_frame is None or bundle_frame.empty:
+        return [
+            {
+                "kicker": "DATA BUNDLE",
+                "title": "Generate command bundles",
+                "body": "Write the onboarding outputs to surface holdings-first local bundles for prices, SEC staging, and peer mapping.",
+                "badges": ["read-only", "data moat"],
+                "command": "python3 -m src.data_onboarding --write-output",
+            }
+        ]
+
+    ordered = bundle_frame.copy()
+    if "ticker_count" in ordered.columns:
+        ordered["ticker_count"] = pd.to_numeric(ordered["ticker_count"], errors="coerce").fillna(0)
+
+    cards: list[dict[str, object]] = []
+    for _, row in ordered.head(limit).iterrows():
+        lane = format_missing(row.get("lane"), "bundle").replace("_", " ")
+        scope = format_missing(row.get("scope"), "scope").replace("_", " ")
+        cards.append(
+            {
+                "kicker": f"{lane.upper()} BUNDLE",
+                "title": format_missing(row.get("bundle_name"), "Local bundle"),
+                "body": (
+                    f"{format_missing(row.get('tickers'), 'No tickers')}: "
+                    f"{compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
+                ),
+                "badges": [scope, f"{format_value(row.get('ticker_count'), fallback='0')} tickers"],
+                "command": format_missing(row.get("primary_command"), ""),
+            }
+        )
+    return cards
+
+
 def overview_workflow_path_cards(
     project_status_payload: dict[str, Any] | None,
     action_queue: pd.DataFrame | None,
@@ -4970,6 +5005,7 @@ def render_overview(
     unlock_priority_summary_frame, _ = onboarding_tables["unlock_priority_summary.csv"]
     sec_stage_queue_frame, _ = onboarding_tables["sec_stage_queue.csv"]
     peer_mapping_queue_frame, _ = onboarding_tables["peer_mapping_queue.csv"]
+    command_bundles_frame, _ = onboarding_tables["command_bundles.csv"]
     latest_price = _latest_local_price_date(catalog)
     watchlist_count = 0 if final_watchlist_frame is None else len(final_watchlist_frame)
     monthly_frame, _ = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
@@ -5080,6 +5116,8 @@ def render_overview(
         render_signal_cards(overview_benchmark_pressure_cards(market_direction_frame, price_status_frame, project_status_payload))
         render_section_header("Best Next Commands", "A few repo-native commands that best match the current local blockers and verification state.")
         render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
+        render_section_header("Best Data Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, or peer-mapping pass.")
+        render_signal_cards(overview_command_bundle_cards(command_bundles_frame))
         render_section_header("Today's Workflow Path", "A compact local sequence from blocker triage to verification to dashboard review.")
         render_signal_cards(overview_workflow_path_cards(project_status_payload, action_queue_frame))
         render_signal_cards([overview_workflow_reason_card(project_status_payload, action_queue_frame)])

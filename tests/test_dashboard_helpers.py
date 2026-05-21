@@ -2654,3 +2654,31 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Monthly Picks tab" in navigation
     assert "Stock Report Beta tab" in navigation
     assert "Data Health tab" in navigation
+
+
+def test_overview_command_bundle_cards_surface_bundle_commands_safely():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "primary_command": "python3 -m src.data_update --tickers META,NVDA,TSLA",
+                "follow_up_command": "make price-status",
+                "target_file": "data/imports/prices.csv",
+                "why_it_matters": "These tickers still block broader local research because price history is missing or too short.",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_command_bundle_cards(bundles)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "PRICES BUNDLE"
+    assert "holdings first" in rendered
+    assert "src.data_update --tickers meta,nvda,tsla" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
