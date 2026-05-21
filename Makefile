@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers runbook-prices runbook-fundamentals runbook-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers detail-prices detail-fundamentals detail-peers runbook-prices runbook-fundamentals runbook-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -30,6 +30,9 @@ help:
 	@echo "  make bundle-prices    Show only the price bundle and its holdings-first scope when available"
 	@echo "  make bundle-fundamentals Show only the SEC fundamentals bundle"
 	@echo "  make bundle-peers     Show only the peer-mapping bundle"
+	@echo "  make detail-prices    Show only the price bundle detail rows"
+	@echo "  make detail-fundamentals Show only the SEC fundamentals detail rows"
+	@echo "  make detail-peers     Show only the peer-mapping detail rows"
 	@echo "  make runbook-prices   Show only the price bundle runbook"
 	@echo "  make runbook-fundamentals Show only the SEC fundamentals runbook"
 	@echo "  make runbook-peers    Show only the peer-mapping runbook"
@@ -115,6 +118,15 @@ bundle-fundamentals:
 
 bundle-peers:
 	python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only
+
+detail-prices:
+	python3 -m src.data_onboarding --command-bundle-details --lane prices --holdings-only
+
+detail-fundamentals:
+	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --holdings-only
+
+detail-peers:
+	python3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only
 
 runbook-prices:
 	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only

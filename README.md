@@ -1189,9 +1189,15 @@ If you only want one lane at a time, use:
 python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only
 python3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only
 python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only
+python3 -m src.data_onboarding --command-bundle-details --lane prices --holdings-only
+python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --holdings-only
+python3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only
 make bundle-prices
 make bundle-fundamentals
 make bundle-peers
+make detail-prices
+make detail-fundamentals
+make detail-peers
 python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only
 python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --holdings-only
 python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only
