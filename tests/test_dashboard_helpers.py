@@ -2189,6 +2189,69 @@ def test_data_health_fix_first_cards_prioritize_actions():
     assert "sell" not in rendered
 
 
+def test_data_health_action_path_cards_surface_best_and_lane_commands():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "dataset": "prices",
+                "ticker": "NVDA",
+                "recommended_action": "Add verified local price history first.",
+                "example_command": "make price-worklist",
+            },
+            {
+                "priority": 2,
+                "dataset": "fundamentals",
+                "ticker": "AMD",
+                "recommended_action": "Run SEC staging for fundamentals.",
+                "example_command": "make sec-stage TICKERS=AMD",
+            },
+            {
+                "priority": 2,
+                "dataset": "peers",
+                "ticker": "TSLA",
+                "recommended_action": "Add manually researched peers.",
+                "example_command": "make templates",
+            },
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_action_path_cards(actions, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert cards[0]["kicker"] == "BEST NEXT"
+    assert "price path" in rendered
+    assert "fundamentals path" in rendered
+    assert "peer path" in rendered
+    assert "make sec-stage tickers=amd" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_action_path_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.data_health_action_path_cards(None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert "no action paths yet" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
     wizard = pd.DataFrame(
         [

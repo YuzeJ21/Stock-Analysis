@@ -1890,6 +1890,72 @@ def data_health_overview_cards(
     ]
 
 
+def data_health_action_path_cards(
+    actions_frame: pd.DataFrame | None,
+    action_queue_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    def _fallback_card() -> list[dict[str, object]]:
+        return [
+            {
+                "kicker": "ACTION PATHS",
+                "title": "No action paths yet",
+                "body": "Generate the onboarding outputs and action queue to surface the best local command path for prices, fundamentals, peers, and optional context.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    if (actions_frame is None or actions_frame.empty) and (action_queue_frame is None or action_queue_frame.empty):
+        return _fallback_card()
+
+    cards: list[dict[str, object]] = []
+
+    if actions_frame is not None and not actions_frame.empty and "dataset" in actions_frame.columns:
+        ordered = actions_frame.copy()
+        ordered["priority"] = pd.to_numeric(ordered.get("priority"), errors="coerce").fillna(999)
+        ordered["dataset"] = ordered["dataset"].astype(str).str.strip().str.lower()
+        lane_map = {
+            "prices": ("PRICES", "Price path"),
+            "fundamentals": ("FUNDAMENTALS", "Fundamentals path"),
+            "peers": ("PEERS", "Peer path"),
+        }
+        for dataset, (kicker, title) in lane_map.items():
+            lane_rows = ordered.loc[ordered["dataset"].eq(dataset)].sort_values(["priority", "ticker"], na_position="last")
+            if lane_rows.empty:
+                continue
+            row = lane_rows.iloc[0]
+            cards.append(
+                {
+                    "kicker": kicker,
+                    "title": title,
+                    "body": (
+                        f"{format_missing(row.get('ticker'), 'Ticker')}: "
+                        f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                    ),
+                    "badges": [f"P{format_missing(row.get('priority'), '-')}", dataset],
+                    "command": format_missing(row.get("example_command"), "make onboarding"),
+                }
+            )
+
+    if action_queue_frame is not None and not action_queue_frame.empty:
+        top_signal = top_priority_signals(action_queue_frame, limit=1)
+        if top_signal:
+            signal = top_signal[0]
+            cards.insert(
+                0,
+                {
+                    "kicker": "BEST NEXT",
+                    "title": format_missing(signal.get("title"), "Priority action"),
+                    "body": compact_reason(signal.get("body"), max_sentences=1, max_chars=150),
+                    "badges": [str(item) for item in signal.get("badges", [])][:2] or ["priority"],
+                    "command": format_missing(signal.get("command"), "make onboarding"),
+                },
+            )
+
+    if not cards:
+        return _fallback_card()
+    return cards[:4]
+
+
 def data_health_tab_summary_cards(
     tab_name: str,
     validation_rows: pd.DataFrame,
@@ -5541,6 +5607,8 @@ def render_data_health(provider) -> None:
         )
     render_section_header("Priority Fixes", "Highest-priority local data actions. Apply/merge steps remain CLI-only and reviewable.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
+    render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers lanes.")
+    render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
 
     if not validation_rows.empty:
         missing_optional = validation_rows.loc[

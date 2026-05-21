@@ -689,7 +689,7 @@ What each tab is for:
 - `Monthly Picks`: top-five local research candidates, transparent scoring components, a compact next-step layer for generation/coverage/history/review, local track record, and archive views when enough local history exists
 - `Market Direction`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, `Final Watchlist`: filterable research tables with search, status filters, and highlighted explanation/risk fields
 - `Stock Report Beta`: user-triggered structured stock reports with local CSV data first and optional yfinance clearly labeled as unofficial / research-grade, plus a compact next-step layer for prices, fundamentals, peers, and data-gap review
-- `Data Health`: local dataset validation, research-health readiness, liquidity context, correlation concentration context, a ranked action queue, row counts, freshness timestamps, staged import status, and schema warnings
+- `Data Health`: local dataset validation, research-health readiness, liquidity context, correlation concentration context, a ranked action queue, compact action-path summaries for prices/fundamentals/peers, row counts, freshness timestamps, staged import status, and schema warnings
 - `Universe Manager`: current universe size, source membership counts, staged universe import visibility, and CLI guidance for safe preview/write/apply flows
 
 It reads from local files and `outputs/*.csv`, shows friendly messages when files are missing, and surfaces explanation columns such as `Reason`, `MissingDataFields`, and `ConflictReasons` when available.
