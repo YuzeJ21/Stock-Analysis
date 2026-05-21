@@ -1050,6 +1050,69 @@ def test_output_tab_summary_cards_explain_rows_status_and_gaps():
     assert "AI" in rendered
 
 
+def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
+    frame = pd.DataFrame(
+        {
+            "Theme": ["AI Semis", "Robotics", "Infra"],
+            "Return1M": [0.12, None, None],
+            "RelativeReturnVsSPY": [0.08, -0.03, None],
+            "RelativeReturnVsQQQ": [0.04, None, None],
+        }
+    )
+
+    chart = dashboard.market_direction_chart_frame(frame, max_rows=2)
+
+    assert list(chart.index) == ["AI Semis", "Robotics"]
+    assert "RelativeReturnVsSPY" in chart.columns
+
+
+def test_momentum_setup_distribution_frame_counts_statuses_cleanly():
+    frame = pd.DataFrame({"SetupStatus": ["Watch", "Avoid", "Watch", None, ""]})
+
+    chart = dashboard.momentum_setup_distribution_frame(frame)
+
+    assert chart.loc["Watch", "Count"] == 2
+    assert chart.loc["Avoid", "Count"] == 1
+    assert chart.loc["Not available", "Count"] == 2
+
+
+def test_momentum_relative_strength_chart_frame_ranks_supported_tickers():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["amd", "nvda", "amd", "avgo"],
+            "RSPercentile": [70, 95, 60, None],
+            "RelativeReturnVsSPY": [0.05, 0.18, 0.02, 0.07],
+            "RelativeReturnVsQQQ": [0.01, 0.11, -0.01, 0.03],
+        }
+    )
+
+    chart = dashboard.momentum_relative_strength_chart_frame(frame, max_rows=3)
+
+    assert list(chart.index) == ["NVDA", "AMD", "AVGO"]
+    assert chart.loc["AMD", "RSPercentile"] == 70
+
+
+def test_output_tab_chart_sections_are_research_only_and_targeted():
+    market_sections = dashboard.output_tab_chart_sections(
+        "Market Direction",
+        pd.DataFrame({"Theme": ["AI"], "RelativeReturnVsSPY": [0.12], "RelativeReturnVsQQQ": [0.08]}),
+    )
+    momentum_sections = dashboard.output_tab_chart_sections(
+        "Momentum Leaders",
+        pd.DataFrame({"Ticker": ["NVDA"], "SetupStatus": ["Watch"], "RSPercentile": [92], "RelativeReturnVsSPY": [0.18], "RelativeReturnVsQQQ": [0.11]}),
+    )
+    rendered = " ".join(
+        " ".join(str(value) for value in section[:2]) for section in market_sections + momentum_sections
+    ).lower()
+
+    assert len(market_sections) == 1
+    assert len(momentum_sections) == 2
+    assert "relative return" in rendered
+    assert "watch-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_dominant_value_and_non_empty_count_handle_empty_fields():
     frame = pd.DataFrame(
         {

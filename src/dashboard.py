@@ -1916,6 +1916,106 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
     ]
 
 
+def market_direction_chart_frame(frame: pd.DataFrame | None, max_rows: int = 6) -> pd.DataFrame:
+    if frame is None or frame.empty or "Theme" not in frame.columns:
+        return pd.DataFrame()
+
+    chart = frame.copy()
+    numeric_columns = [column for column in ["Return1M", "RelativeReturnVsSPY", "RelativeReturnVsQQQ"] if column in chart.columns]
+    if not numeric_columns:
+        return pd.DataFrame()
+
+    for column in numeric_columns:
+        chart[column] = pd.to_numeric(chart[column], errors="coerce")
+
+    chart = chart.loc[chart[numeric_columns].notna().any(axis=1), ["Theme", *numeric_columns]].copy()
+    if chart.empty:
+        return pd.DataFrame()
+
+    sort_column = "RelativeReturnVsSPY" if "RelativeReturnVsSPY" in chart.columns else numeric_columns[0]
+    chart["Theme"] = chart["Theme"].astype(str).str.strip()
+    chart = chart.sort_values(sort_column, ascending=False, na_position="last").head(max_rows)
+    return chart.set_index("Theme")
+
+
+def momentum_setup_distribution_frame(frame: pd.DataFrame | None) -> pd.DataFrame:
+    if frame is None or frame.empty or "SetupStatus" not in frame.columns:
+        return pd.DataFrame(columns=["Count"])
+
+    setup_counts = (
+        frame["SetupStatus"]
+        .fillna("Not available")
+        .astype(str)
+        .str.strip()
+        .replace({"": "Not available", "nan": "Not available", "None": "Not available"})
+        .value_counts()
+        .rename_axis("SetupStatus")
+        .reset_index(name="Count")
+    )
+    return setup_counts.set_index("SetupStatus")
+
+
+def momentum_relative_strength_chart_frame(frame: pd.DataFrame | None, max_rows: int = 8) -> pd.DataFrame:
+    if frame is None or frame.empty or "Ticker" not in frame.columns:
+        return pd.DataFrame()
+
+    chart = frame.copy()
+    numeric_columns = [column for column in ["RSPercentile", "RelativeReturnVsSPY", "RelativeReturnVsQQQ"] if column in chart.columns]
+    if not numeric_columns:
+        return pd.DataFrame()
+
+    for column in numeric_columns:
+        chart[column] = pd.to_numeric(chart[column], errors="coerce")
+
+    chart = chart.loc[chart[numeric_columns].notna().any(axis=1), ["Ticker", *numeric_columns]].copy()
+    if chart.empty:
+        return pd.DataFrame()
+
+    chart["Ticker"] = chart["Ticker"].astype(str).str.upper().str.strip()
+    sort_column = "RSPercentile" if "RSPercentile" in chart.columns else numeric_columns[0]
+    chart = chart.sort_values(sort_column, ascending=False, na_position="last").drop_duplicates(subset=["Ticker"]).head(max_rows)
+    return chart.set_index("Ticker")
+
+
+def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str, str, pd.DataFrame, str]]:
+    if title == "Market Direction":
+        chart_frame = market_direction_chart_frame(frame)
+        if chart_frame.empty:
+            return []
+        return [
+            (
+                "Theme performance snapshot",
+                "Shows the strongest locally supported themes by relative return. Themes without enough numeric context stay out of the chart instead of being guessed.",
+                chart_frame,
+                "bar",
+            )
+        ]
+    if title == "Momentum Leaders":
+        sections: list[tuple[str, str, pd.DataFrame, str]] = []
+        distribution_frame = momentum_setup_distribution_frame(frame)
+        if not distribution_frame.empty:
+            sections.append(
+                (
+                    "Setup distribution",
+                    "Counts the current local setup states so you can see whether the universe is mostly watch-only, avoid, or developing new setups.",
+                    distribution_frame,
+                    "bar",
+                )
+            )
+        rs_frame = momentum_relative_strength_chart_frame(frame)
+        if not rs_frame.empty:
+            sections.append(
+                (
+                    "Relative strength snapshot",
+                    "Ranks the best locally supported momentum names by RS percentile and benchmark-relative performance.",
+                    rs_frame,
+                    "bar",
+                )
+            )
+        return sections
+    return []
+
+
 def universe_preset_cards() -> list[dict[str, object]]:
     preset_descriptions = {
         "core": "Current local universe plus holdings. Safest and quickest workflow.",
@@ -3225,6 +3325,12 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     if frame is None:
         return
     render_signal_cards(output_tab_summary_cards(title, frame))
+    for section_title, description, chart_frame, chart_kind in output_tab_chart_sections(title, frame):
+        render_context_note(section_title + ".", description)
+        if chart_kind == "bar":
+            st.bar_chart(chart_frame, height=280)
+        else:
+            st.line_chart(chart_frame, height=280)
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details)
 
 
