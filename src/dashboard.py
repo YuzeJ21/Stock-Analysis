@@ -2946,6 +2946,71 @@ def theme_unlock_cards(
     return cards
 
 
+def theme_deep_research_cards(
+    sec_stage_queue: pd.DataFrame | None,
+    peer_mapping_queue: pd.DataFrame | None,
+    limit: int = 4,
+) -> list[dict[str, object]]:
+    def _group_rows(frame: pd.DataFrame | None, goal: str, dataset_badge: str) -> list[dict[str, object]]:
+        if frame is None or frame.empty or "theme" not in frame.columns:
+            return []
+        grouped = frame.copy()
+        grouped["theme"] = grouped["theme"].astype(str).str.strip()
+        grouped = grouped.loc[grouped["theme"].ne("") & grouped["theme"].ne("Unclassified")].copy()
+        if grouped.empty:
+            return []
+        grouped["priority"] = pd.to_numeric(grouped.get("priority"), errors="coerce").fillna(999)
+        grouped["ticker"] = grouped.get("ticker", pd.Series(dtype=object)).astype(str).str.upper().str.strip()
+        grouped["is_holding"] = grouped.get("is_holding", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+
+        rows: list[dict[str, object]] = []
+        for theme_name, theme_frame in grouped.groupby("theme", dropna=False):
+            theme_frame = theme_frame.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True])
+            top_row = theme_frame.iloc[0]
+            tickers = ", ".join(theme_frame["ticker"].head(4).tolist())
+            rows.append(
+                {
+                    "kicker": str(theme_name),
+                    "title": goal,
+                    "body": (
+                        f"{len(theme_frame)} ticker rows in this theme currently point to {dataset_badge.lower()} work. "
+                        f"Representative names: {tickers}. "
+                        f"Next action: {compact_reason(top_row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                    ),
+                    "badges": [dataset_badge, f"P{format_missing(top_row.get('priority'), '-')}"],
+                    "sort_priority": float(top_row.get("priority", 999)),
+                    "holdings_count": int(theme_frame["is_holding"].sum()),
+                }
+            )
+        return rows
+
+    cards = _group_rows(sec_stage_queue, "Unlock DCF", "fundamentals") + _group_rows(
+        peer_mapping_queue, "Unlock Peer Relative", "peers"
+    )
+    if not cards:
+        return [
+            {
+                "kicker": "THEME DCF / PEERS",
+                "title": "No theme deep-research board yet",
+                "body": "Generate the SEC stage queue and peer mapping queue to see which themes next benefit from deeper fundamentals or peer work.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    cards = sorted(cards, key=lambda item: (item.get("sort_priority", 999), -item.get("holdings_count", 0), str(item.get("kicker", ""))))
+    trimmed = []
+    seen: set[str] = set()
+    for card in cards:
+        key = f"{card.get('kicker')}|{card.get('title')}"
+        if key in seen:
+            continue
+        seen.add(key)
+        trimmed.append({key: value for key, value in card.items() if key not in {"sort_priority", "holdings_count"}})
+        if len(trimmed) >= limit:
+            break
+    return trimmed
+
+
 def overview_market_context_cards(
     market_direction: pd.DataFrame | None,
     limit: int = 3,
@@ -3988,6 +4053,8 @@ def render_overview(
     render_signal_cards(holdings_deep_research_cards(holdings, sec_stage_queue_frame, peer_mapping_queue_frame))
     render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
     render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
+    render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals staging or manual peer research once price-led blockers are already understood.")
+    render_signal_cards(theme_deep_research_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
     render_section_header("Market Context", "The strongest locally supported theme and ETF context from current benchmark-relative output rows.")
     render_signal_cards(overview_market_context_cards(market_direction_frame))
     render_section_header("Benchmark Pressure", "Whether weak coverage is mostly a local price-history issue or a broader benchmark-relative context issue.")

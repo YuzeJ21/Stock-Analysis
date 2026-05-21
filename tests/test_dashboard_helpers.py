@@ -810,6 +810,56 @@ def test_theme_unlock_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_theme_deep_research_cards_surface_sec_and_peer_theme_blockers():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "is_holding": True,
+                "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+            },
+            {
+                "priority": 2,
+                "ticker": "AMD",
+                "theme": "AI Semiconductors",
+                "is_holding": False,
+                "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
+            },
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "SMH",
+                "theme": "Semiconductor ETF",
+                "is_holding": False,
+                "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_deep_research_cards(sec_queue, peer_queue, limit=4)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert any(card["title"] == "Unlock DCF" for card in cards)
+    assert any(card["title"] == "Unlock Peer Relative" for card in cards)
+    assert "ai semiconductors" in rendered
+    assert "semiconductor etf" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_theme_deep_research_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.theme_deep_research_cards(None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no theme deep-research board yet" in rendered
+    assert "buy" not in rendered
+
+
 def test_overview_market_context_cards_surface_local_theme_strength():
     market_direction = pd.DataFrame(
         [
