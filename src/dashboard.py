@@ -32,6 +32,18 @@ MONTHLY_FILES = {
     "monthly_picks_track_record.csv": "Monthly Picks Track Record",
     "monthly_picks_equity_curve.csv": "Monthly Picks Equity Curve",
 }
+DASHBOARD_TAB_TITLES = [
+    "Overview",
+    "Monthly Picks",
+    "Market Direction",
+    "Momentum Leaders",
+    "Portfolio Review",
+    "Value / Re-rating",
+    "Final Watchlist",
+    "Stock Report Beta",
+    "Data Health",
+    "Universe Manager",
+]
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
@@ -1875,25 +1887,25 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
         (
             "Start in Overview",
             "Check workflow health, critical actions, and the next local data unlocks before reading the deeper tabs.",
-            "Overview tab",
+            f"{DASHBOARD_TAB_TITLES[0]} tab",
             "neutral",
         ),
         (
             "Use Monthly Picks",
             "Review the current research candidates and whether conservative filters left fewer than the target count.",
-            "Monthly Picks tab",
+            f"{DASHBOARD_TAB_TITLES[1]} tab",
             "neutral",
         ),
         (
             "Open Stock Report Beta",
             "Generate a structured single-ticker report with valuation, peer, earnings, and freshness context.",
-            "Stock Report Beta tab",
+            f"{DASHBOARD_TAB_TITLES[7]} tab",
             "neutral",
         ),
         (
             "Fix gaps in Data Health",
             "Use local validation, price refresh status, and onboarding actions before trusting thin or partial data.",
-            "Data Health tab",
+            f"{DASHBOARD_TAB_TITLES[8]} tab",
             "warning",
         ),
     ]
@@ -2801,7 +2813,7 @@ def render_overview(
     monthly_count = 0 if monthly_frame is None else len(monthly_frame)
 
     render_section_header(
-        "Command Center",
+        "Overview",
         "A quick read on whether the local research workflow is ready, partial, or waiting on data.",
     )
     st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
@@ -2852,7 +2864,7 @@ def render_overview(
             with st.expander("Recommended next commands", expanded=False):
                 st.dataframe(pd.DataFrame(command_rows), width="stretch", hide_index=True)
 
-    render_section_header("Coverage Wizard", "The next local data unlocks for richer research output.")
+    render_section_header("Next Data Unlocks", "The next local data unlocks for richer research output.")
     render_signal_cards(data_coverage_wizard_cards(wizard_frame))
 
     priority_signals = top_priority_signals(action_queue_frame, limit=3)
@@ -3091,7 +3103,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
 
 def render_stock_report_beta(provider, show_raw_json: bool) -> None:
     render_section_header(
-        "Stock Report (Beta)",
+        "Stock Report Beta",
         "Structured research report workflow. Local CSV-backed data is the default. "
         "Optional yfinance mode stays off by default and is labeled unofficial / research-grade.",
     )
@@ -3374,7 +3386,7 @@ def render_data_health(provider) -> None:
     staged_universe = universe_summary["staged_universe"]
 
     render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
-    render_section_header("Coverage Wizard", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
+    render_section_header("Next Data Unlocks", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
     render_signal_cards(data_coverage_wizard_cards(wizard_frame))
     if wizard_frame is None:
         render_notice_card(
@@ -3382,7 +3394,7 @@ def render_data_health(provider) -> None:
             wizard_message or "Generate the local data coverage wizard to see the next best coverage unlocks.",
             "python3 -m src.data_onboarding --write-output",
         )
-    render_section_header("Fix First", "Highest-priority local data actions. Apply/merge steps remain CLI-only and reviewable.")
+    render_section_header("Priority Fixes", "Highest-priority local data actions. Apply/merge steps remain CLI-only and reviewable.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
 
     if not validation_rows.empty:
@@ -3884,20 +3896,7 @@ with st.sidebar:
             language="text",
         )
 
-tabs = st.tabs(
-    [
-        "Overview",
-        "Monthly Picks",
-        "Market Direction",
-        "Momentum Leaders",
-        "Portfolio Review",
-        "Value / Re-rating",
-        "Final Watchlist",
-        "Stock Report Beta",
-        "Data Health",
-        "Universe Manager",
-    ]
-)
+tabs = st.tabs(DASHBOARD_TAB_TITLES)
 
 with tabs[0]:
     render_overview(output_frames, catalog, universe_summary, project_status_payload)

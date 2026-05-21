@@ -1036,3 +1036,16 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "execute_trade" not in rendered
     assert "buy" not in nav_rendered
     assert "sell" not in nav_rendered
+
+
+def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
+    assert dashboard.DASHBOARD_TAB_TITLES[0] == "Overview"
+    assert dashboard.DASHBOARD_TAB_TITLES[1] == "Monthly Picks"
+    assert dashboard.DASHBOARD_TAB_TITLES[7] == "Stock Report Beta"
+    assert dashboard.DASHBOARD_TAB_TITLES[8] == "Data Health"
+
+    navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
+    assert "Overview tab" in navigation
+    assert "Monthly Picks tab" in navigation
+    assert "Stock Report Beta tab" in navigation
+    assert "Data Health tab" in navigation
