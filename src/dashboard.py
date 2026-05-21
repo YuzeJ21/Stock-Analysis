@@ -1104,6 +1104,20 @@ def render_context_note(title: str, body: str, tone: str = "neutral") -> None:
     st.markdown(context_note_html(title, body, tone), unsafe_allow_html=True)
 
 
+def chart_panel_title(title: str) -> str:
+    cleaned = " ".join(str(title).strip().rstrip(".:;").split())
+    return cleaned if cleaned else "Chart"
+
+
+def render_chart_panel(title: str, description: str, chart_frame: pd.DataFrame, chart_kind: str = "bar", height: int = 280) -> None:
+    st.markdown(f"#### {chart_panel_title(title)}")
+    render_context_note(chart_panel_title(title) + ".", description)
+    if chart_kind == "line":
+        st.line_chart(chart_frame, height=height)
+    else:
+        st.bar_chart(chart_frame, height=height)
+
+
 def tiny_badge_html(label: str) -> str:
     return f"<span class='tiny-badge'>{html.escape(label)}</span>"
 
@@ -3344,11 +3358,12 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         )
         score_chart_frame = monthly_pick_score_chart_frame(ordered_picks)
         if not score_chart_frame.empty:
-            render_context_note(
-                "Score context.",
+            render_chart_panel(
+                "Score context",
                 "This chart compares transparent local score components for the current candidate set. Missing components stay blank instead of being inferred.",
+                score_chart_frame,
+                chart_kind="bar",
             )
-            st.bar_chart(score_chart_frame, height=280)
 
         with st.expander("Monthly candidates table", expanded=False):
             display_columns = [
@@ -3376,7 +3391,12 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     render_section_header("Track Record", "Shown only when local historical prices support benchmark comparison.")
     if equity_frame is not None and not equity_frame.empty and {"Month", "PicksEquity", "BenchmarkEquity"}.issubset(equity_frame.columns):
         chart_frame = equity_frame.set_index("Month")[["PicksEquity", "BenchmarkEquity"]]
-        st.line_chart(chart_frame)
+        render_chart_panel(
+            "Equity curve",
+            "Compares the locally calculated monthly picks equity curve against the benchmark only when enough local price history exists.",
+            chart_frame,
+            chart_kind="line",
+        )
     else:
         render_notice_card(
             "Track record needs more local history",
@@ -3426,11 +3446,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
         return
     render_signal_cards(output_tab_summary_cards(title, frame))
     for section_title, description, chart_frame, chart_kind in output_tab_chart_sections(title, frame):
-        render_context_note(section_title + ".", description)
-        if chart_kind == "bar":
-            st.bar_chart(chart_frame, height=280)
-        else:
-            st.line_chart(chart_frame, height=280)
+        render_chart_panel(section_title, description, chart_frame, chart_kind=chart_kind)
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details)
 
 
@@ -3522,11 +3538,12 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         price_columns[2].metric("Volume", report_display_value(price.get("volume"), "integer"))
         history_chart = stock_report_price_chart_frame(st.session_state.get("stock_report_beta_history"))
         if not history_chart.empty:
-            render_context_note(
-                "Price history chart.",
+            render_chart_panel(
+                "Price history chart",
                 "Shows the selected provider's daily close history for up to one year. Short local history stays visible instead of being padded or backfilled.",
+                history_chart,
+                chart_kind="line",
             )
-            st.line_chart(history_chart, height=280)
             if len(history_chart) < 60:
                 render_context_note(
                     "Short history.",

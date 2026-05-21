@@ -51,6 +51,12 @@ def test_context_note_html_is_readable_and_escaped():
     assert "&lt;trusted&gt;" in html
 
 
+def test_chart_panel_title_normalizes_spacing_and_trailing_punctuation():
+    assert dashboard.chart_panel_title(" Score context. ") == "Score context"
+    assert dashboard.chart_panel_title("Price history chart:") == "Price history chart"
+    assert dashboard.chart_panel_title("") == "Chart"
+
+
 def test_state_styles_include_text_color_for_dark_mode():
     styled = dashboard.style_frame(pd.DataFrame({"FinalState": ["Avoid"]}))._compute()
     css_values = [item for styles in styled.ctx.values() for item in styles]
