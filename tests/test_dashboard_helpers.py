@@ -230,6 +230,60 @@ def test_detail_sections_build_mid_level_panels_without_buy_sell_language():
     assert "sell" not in rendered
 
 
+def test_pick_filter_column_prefers_first_populated_candidate():
+    frame = pd.DataFrame(
+        {
+            "Sector": ["", None],
+            "SectorETF": ["SMH", "QQQ"],
+            "ETF": ["", ""],
+        }
+    )
+
+    assert dashboard.pick_filter_column(frame, ["Sector", "SectorETF", "ETF"]) == "SectorETF"
+
+
+def test_filter_summary_text_stays_readable_and_compact():
+    text = dashboard.filter_summary_text(
+        "monthly-research-picks",
+        "nvda",
+        "FinalState",
+        ["Watch", "Review Thesis", "Setup Forming", "Avoid"],
+        "Theme",
+        ["AI"],
+        "SectorETF",
+        ["SMH"],
+        4,
+        12,
+    )
+
+    assert "4 of 12 rows visible" in text
+    assert "search `nvda`" in text
+    assert "Final State: Watch, Review Thesis, Setup Forming +1 more" in text
+    assert "Theme: AI" in text
+    assert "Sector ETF: SMH" in text
+    assert "nan" not in text.lower()
+    assert "none" not in text.lower()
+
+
+def test_filter_summary_text_handles_no_active_filters():
+    text = dashboard.filter_summary_text(
+        "market-direction",
+        "",
+        None,
+        [],
+        None,
+        [],
+        None,
+        [],
+        9,
+        9,
+    )
+
+    assert "Market Direction" in text
+    assert "9 of 9 rows visible" in text
+    assert "Use search or filters" in text
+
+
 def test_ticker_coverage_display_frame_hides_noisy_paths():
     coverage = pd.DataFrame(
         [

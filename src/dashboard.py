@@ -2251,10 +2251,56 @@ def detail_sections(frame: pd.DataFrame, show_reason_details: bool) -> list[tupl
     return sections
 
 
+def pick_filter_column(frame: pd.DataFrame, candidates: list[str]) -> str | None:
+    for column in candidates:
+        if column in frame.columns:
+            values = frame[column].dropna().astype(str).str.strip()
+            values = values.loc[~values.str.lower().isin({"", "nan", "none", "null", "not available"})]
+            if not values.empty:
+                return column
+    return None
+
+
+def filter_summary_text(
+    key: str,
+    search_value: str,
+    status_column: str | None,
+    selected_statuses: list[str],
+    theme_column: str | None,
+    selected_themes: list[str],
+    sector_column: str | None,
+    selected_sectors: list[str],
+    filtered_count: int,
+    total_count: int,
+) -> str:
+    labels: list[str] = []
+    if search_value.strip():
+        labels.append(f"search `{search_value.strip()}`")
+    if status_column and selected_statuses:
+        labels.append(f"{display_column_label(status_column)}: {', '.join(selected_statuses[:3])}")
+        if len(selected_statuses) > 3:
+            labels[-1] += f" +{len(selected_statuses) - 3} more"
+    if theme_column and selected_themes:
+        labels.append(f"{display_column_label(theme_column)}: {', '.join(selected_themes[:3])}")
+        if len(selected_themes) > 3:
+            labels[-1] += f" +{len(selected_themes) - 3} more"
+    if sector_column and selected_sectors:
+        labels.append(f"{display_column_label(sector_column)}: {', '.join(selected_sectors[:3])}")
+        if len(selected_sectors) > 3:
+            labels[-1] += f" +{len(selected_sectors) - 3} more"
+
+    scope = f"{filtered_count} of {total_count} rows visible" if total_count else "No rows available"
+    if not labels:
+        return f"{display_column_label(key.replace('-', ' ')) if '-' in key else key.title()}: {scope}. Use search or filters to narrow the table."
+    return f"{scope}. Active filters: " + " | ".join(labels) + "."
+
+
 def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
     filtered = frame.copy()
     with st.container():
-        search_value = st.text_input(f"Search {key}", key=f"{key}-search")
+        total_count = len(filtered)
+        search_col, status_col_ui, theme_col_ui, sector_col_ui = st.columns([2.4, 1.4, 1.4, 1.4])
+        search_value = search_col.text_input("Search", key=f"{key}-search", placeholder="Ticker, theme, state, reason...")
         if search_value:
             mask = filtered.astype(str).apply(
                 lambda row: row.str.contains(search_value, case=False, na=False).any(),
@@ -2264,33 +2310,61 @@ def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
 
         status_columns = [column for column in filtered.columns if is_state_column(column)]
         status_column = status_columns[0] if status_columns else None
+        selected_statuses: list[str] = []
         if status_column:
             statuses = sorted(value for value in filtered[status_column].dropna().astype(str).unique().tolist() if value)
-            selected_statuses = st.multiselect(
-                f"Filter {key} by {status_column}",
+            selected_statuses = status_col_ui.multiselect(
+                display_column_label(status_column),
                 options=statuses,
                 default=[],
                 key=f"{key}-status",
+                placeholder="All",
             )
             if selected_statuses:
                 filtered = filtered.loc[filtered[status_column].astype(str).isin(selected_statuses)].copy()
 
-        if "Theme" in filtered.columns:
-            themes = sorted(value for value in filtered["Theme"].dropna().astype(str).unique().tolist() if value)
-            selected_themes = st.multiselect(f"Filter {key} by Theme", options=themes, default=[], key=f"{key}-theme")
+        theme_column = pick_filter_column(filtered, ["Theme"])
+        selected_themes: list[str] = []
+        if theme_column:
+            themes = sorted(value for value in filtered[theme_column].dropna().astype(str).unique().tolist() if value)
+            selected_themes = theme_col_ui.multiselect(
+                display_column_label(theme_column),
+                options=themes,
+                default=[],
+                key=f"{key}-theme",
+                placeholder="All",
+            )
             if selected_themes:
-                filtered = filtered.loc[filtered["Theme"].astype(str).isin(selected_themes)].copy()
+                filtered = filtered.loc[filtered[theme_column].astype(str).isin(selected_themes)].copy()
 
-        if "SectorETF" in filtered.columns:
-            sectors = sorted(value for value in filtered["SectorETF"].dropna().astype(str).unique().tolist() if value)
-            selected_sectors = st.multiselect(
-                f"Filter {key} by Sector ETF",
+        sector_column = pick_filter_column(filtered, ["Sector", "SectorETF", "ETF"])
+        selected_sectors: list[str] = []
+        if sector_column:
+            sectors = sorted(value for value in filtered[sector_column].dropna().astype(str).unique().tolist() if value)
+            selected_sectors = sector_col_ui.multiselect(
+                display_column_label(sector_column),
                 options=sectors,
                 default=[],
                 key=f"{key}-sector",
+                placeholder="All",
             )
             if selected_sectors:
-                filtered = filtered.loc[filtered["SectorETF"].astype(str).isin(selected_sectors)].copy()
+                filtered = filtered.loc[filtered[sector_column].astype(str).isin(selected_sectors)].copy()
+
+        st.caption(
+            filter_summary_text(
+                key,
+                search_value,
+                status_column,
+                selected_statuses,
+                theme_column,
+                selected_themes,
+                sector_column,
+                selected_sectors,
+                len(filtered),
+                total_count,
+            )
+        )
     return filtered
 
 
