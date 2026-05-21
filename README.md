@@ -263,6 +263,7 @@ make templates
 - `outputs/ticker_data_coverage.csv`
 - `outputs/data_onboarding_actions.csv`
 - `outputs/command_bundles.csv`
+- `outputs/command_bundle_details.csv`
 
 `--write-templates` creates header-only local templates under `data/templates/` for:
 
@@ -1157,6 +1158,7 @@ If you want a smaller, holdings-first command view instead of the full ticker qu
 ```bash
 python3 -m src.data_onboarding --command-bundles
 python3 -m src.data_onboarding --command-bundles --json
+python3 -m src.data_onboarding --command-bundle-details
 make command-bundles
 ```
 
@@ -1173,6 +1175,8 @@ Each bundle keeps the workflow explicit by showing:
 - the next follow-up command
 - the target local file
 - the safe next step if the remote path is unreliable
+
+If you want one row per ticker inside the current bundles, use `python3 -m src.data_onboarding --command-bundle-details` or `make command-bundle-details`. That output is also written to `outputs/command_bundle_details.csv` during `--write-output`.
 
 ## SEC Companyfacts staging workflow
 
