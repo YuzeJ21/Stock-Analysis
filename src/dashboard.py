@@ -4964,14 +4964,6 @@ def render_overview(
             unlock_priority_summary_frame,
         )
     )
-    render_section_header("Deep Research Leverage", "Which deeper research lane currently unlocks the most value next when you weigh holdings impact, theme breadth, and queued ticker count.")
-    render_signal_cards(
-        overview_deep_research_leverage_cards(
-            holdings,
-            sec_stage_queue_frame,
-            peer_mapping_queue_frame,
-        )
-    )
     render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
     render_signal_cards(
         overview_deep_research_priority_bridge_cards(
@@ -4980,29 +4972,8 @@ def render_overview(
             peer_mapping_queue_frame,
         )
     )
-    render_section_header("Deep Research Handoff", "For the top deep-research name, show the exact local command to run next and the best tab to use for queue confirmation.")
-    render_signal_cards(
-        overview_deep_research_handoff_cards(
-            holdings,
-            sec_stage_queue_frame,
-            peer_mapping_queue_frame,
-            project_status_payload,
-            action_queue_frame,
-        )
-    )
-    render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need unlock work first.")
-    render_signal_cards(overview_ready_blocked_cards(coverage_frame, ticker_unlock_ladder_frame, holdings))
     render_section_header("Best Current Names", "Which currently usable names best warrant a deeper single-name review or a quick candidate check next.")
     render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
-    render_section_header("Ready Name Handoff", "For the strongest currently usable name, show the next exact local command when context is still partial and the best follow-up tab.")
-    render_signal_cards(
-        overview_ready_name_handoff_cards(
-            coverage_frame,
-            holdings,
-            project_status_payload,
-            action_queue_frame,
-        )
-    )
     render_section_header("Current Top Surfaces", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next tab.")
     render_signal_cards(
         overview_current_top_surfaces_cards(
@@ -5023,36 +4994,72 @@ def render_overview(
             action_queue_frame,
         )
     )
-    render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
-    render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
-    render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging or manual peer research once price blockers are understood.")
-    render_signal_cards(holdings_deep_research_cards(holdings, sec_stage_queue_frame, peer_mapping_queue_frame))
-    render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
-    render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
-    render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals staging or manual peer research once price-led blockers are already understood.")
-    render_signal_cards(theme_deep_research_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
-    render_section_header("Market Context", "The strongest locally supported theme and ETF context from current benchmark-relative output rows.")
-    render_signal_cards(overview_market_context_cards(market_direction_frame))
-    render_section_header("Benchmark Pressure", "Whether weak coverage is mostly a local price-history issue or a broader benchmark-relative context issue.")
-    render_signal_cards(overview_benchmark_pressure_cards(market_direction_frame, price_status_frame, project_status_payload))
-    render_section_header("Best Next Commands", "A few repo-native commands that best match the current local blockers and verification state.")
-    render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
-    render_section_header("Today's Workflow Path", "A compact local sequence from blocker triage to verification to dashboard review.")
-    render_signal_cards(overview_workflow_path_cards(project_status_payload, action_queue_frame))
-    render_signal_cards([overview_workflow_reason_card(project_status_payload, action_queue_frame)])
-    render_metric_cards(
-        [
-            ("Workflow Health", f"{health_score}/100", health_label),
-            ("Universe", current_universe["row_count"], "Tickers in data/universe.csv"),
-            ("Holdings", 0 if holdings is None or holdings.empty else len(holdings), "Rows in holdings.csv"),
-            ("Final Watchlist", watchlist_count, "Current state-machine rows"),
-            ("Latest Price", latest_price, "From local prices.csv"),
-            ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
-            ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
-            ("Research Ready", health_summary["research_ready"], "Data Quality Wizard rows"),
-            ("Critical Actions", queue_summary["critical"], "Highest-priority remediation items"),
-        ]
-    )
+
+    with st.expander("More readiness and routing detail", expanded=False):
+        render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need unlock work first.")
+        render_signal_cards(overview_ready_blocked_cards(coverage_frame, ticker_unlock_ladder_frame, holdings))
+        render_section_header("Ready Name Handoff", "For the strongest currently usable name, show the next exact local command when context is still partial and the best follow-up tab.")
+        render_signal_cards(
+            overview_ready_name_handoff_cards(
+                coverage_frame,
+                holdings,
+                project_status_payload,
+                action_queue_frame,
+            )
+        )
+        render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
+        render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
+        render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
+        render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
+
+    with st.expander("More deep-research context", expanded=False):
+        render_section_header("Deep Research Leverage", "Which deeper research lane currently unlocks the most value next when you weigh holdings impact, theme breadth, and queued ticker count.")
+        render_signal_cards(
+            overview_deep_research_leverage_cards(
+                holdings,
+                sec_stage_queue_frame,
+                peer_mapping_queue_frame,
+            )
+        )
+        render_section_header("Deep Research Handoff", "For the top deep-research name, show the exact local command to run next and the best tab to use for queue confirmation.")
+        render_signal_cards(
+            overview_deep_research_handoff_cards(
+                holdings,
+                sec_stage_queue_frame,
+                peer_mapping_queue_frame,
+                project_status_payload,
+                action_queue_frame,
+            )
+        )
+        render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging or manual peer research once price blockers are understood.")
+        render_signal_cards(holdings_deep_research_cards(holdings, sec_stage_queue_frame, peer_mapping_queue_frame))
+        render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals staging or manual peer research once price-led blockers are already understood.")
+        render_signal_cards(theme_deep_research_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
+
+    with st.expander("More market and workflow context", expanded=False):
+        render_section_header("Market Context", "The strongest locally supported theme and ETF context from current benchmark-relative output rows.")
+        render_signal_cards(overview_market_context_cards(market_direction_frame))
+        render_section_header("Benchmark Pressure", "Whether weak coverage is mostly a local price-history issue or a broader benchmark-relative context issue.")
+        render_signal_cards(overview_benchmark_pressure_cards(market_direction_frame, price_status_frame, project_status_payload))
+        render_section_header("Best Next Commands", "A few repo-native commands that best match the current local blockers and verification state.")
+        render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
+        render_section_header("Today's Workflow Path", "A compact local sequence from blocker triage to verification to dashboard review.")
+        render_signal_cards(overview_workflow_path_cards(project_status_payload, action_queue_frame))
+        render_signal_cards([overview_workflow_reason_card(project_status_payload, action_queue_frame)])
+        render_metric_cards(
+            [
+                ("Workflow Health", f"{health_score}/100", health_label),
+                ("Universe", current_universe["row_count"], "Tickers in data/universe.csv"),
+                ("Holdings", 0 if holdings is None or holdings.empty else len(holdings), "Rows in holdings.csv"),
+                ("Final Watchlist", watchlist_count, "Current state-machine rows"),
+                ("Latest Price", latest_price, "From local prices.csv"),
+                ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
+                ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
+                ("Research Ready", health_summary["research_ready"], "Data Quality Wizard rows"),
+                ("Critical Actions", queue_summary["critical"], "Highest-priority remediation items"),
+            ]
+        )
+
     render_section_header("Next Deeper Tabs", "Where to go next after the high-level workflow read, depending on whether you need blocker triage, single-name depth, or broader candidate comparison.")
     render_signal_cards(overview_handoff_cards())
 
