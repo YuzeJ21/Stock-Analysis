@@ -1379,6 +1379,32 @@ def data_health_overview_cards(
     ]
 
 
+def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int = 4) -> list[tuple[str, str, str, str]]:
+    if actions_frame is None or actions_frame.empty:
+        return [
+            (
+                "Generate onboarding actions",
+                "Run the local onboarding workflow to identify price, fundamentals, peer, earnings, and estimate gaps.",
+                "make onboarding",
+                "warning",
+            )
+        ]
+    ordered = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(limit)
+    cards: list[tuple[str, str, str, str]] = []
+    for _, row in ordered.iterrows():
+        priority = int(row.get("priority") or 999)
+        dataset = format_missing(row.get("dataset"), "data")
+        ticker = format_missing(row.get("ticker"), fallback="")
+        title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
+        reason = compact_reason(row.get("reason"), max_sentences=1, max_chars=150)
+        action = format_missing(row.get("recommended_action"), fallback="Review local data coverage.")
+        command = format_missing(row.get("example_command"), fallback="make onboarding")
+        body = f"{reason} {action}".strip()
+        tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
+        cards.append((title, body, command, tone))
+    return cards
+
+
 def non_empty_count(frame: pd.DataFrame, columns: list[str]) -> int:
     if frame.empty:
         return 0
@@ -2615,6 +2641,8 @@ def render_data_health(provider) -> None:
     staged_universe = universe_summary["staged_universe"]
 
     render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
+    render_section_header("Fix First", "Highest-priority local data actions. Apply/merge steps remain CLI-only and reviewable.")
+    render_action_cards(data_health_fix_first_cards(actions_frame))
 
     if not validation_rows.empty:
         missing_optional = validation_rows.loc[

@@ -475,6 +475,38 @@ def test_data_health_overview_cards_prioritize_price_and_actions():
     assert "1 price-ready tickers" in rendered
 
 
+def test_data_health_fix_first_cards_prioritize_actions():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "dataset": "fundamentals",
+                "ticker": "MSFT",
+                "reason": "Needs verified local fundamentals.",
+                "recommended_action": "Run SEC staging, then validate and preview.",
+                "example_command": "make sec-stage TICKERS=MSFT",
+            },
+            {
+                "priority": 1,
+                "dataset": "prices",
+                "ticker": "NVDA",
+                "reason": "Short local price history.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows.",
+                "example_command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_fix_first_cards(actions)
+    rendered = " ".join(str(value) for card in cards for value in card).lower()
+
+    assert cards[0][0] == "P1 prices - NVDA"
+    assert cards[0][3] == "danger"
+    assert "price-normalize" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_universe_preset_cards_include_preview_commands():
     cards = dashboard.universe_preset_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values())
