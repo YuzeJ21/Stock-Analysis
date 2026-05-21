@@ -22,4 +22,5 @@ outputs/data_coverage_wizard.csv
 outputs/price_import_worklist.csv
 outputs/fundamentals_peer_worklist.csv
 outputs/optional_context_worklist.csv
+outputs/ticker_unlock_ladder.csv
 local_artifacts_backup/

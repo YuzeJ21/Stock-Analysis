@@ -1100,12 +1100,29 @@ make onboarding
 - `outputs/ticker_data_coverage.csv`
 - `outputs/data_onboarding_actions.csv`
 - `outputs/data_coverage_wizard.csv`
+- `outputs/ticker_unlock_ladder.csv`
 
 The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use the existing safe workflows for actual data changes:
 
 - prices: `data/raw/prices/` -> `make price-normalize` -> `make price-validate` -> `make price-preview` -> `make price-apply`
 - fundamentals: SEC staging -> validate -> preview -> apply
 - peers/earnings/estimates: fill trusted local CSVs under `data/imports/`, then validate and preview before applying
+
+If you want one row per ticker instead of several queue outputs, use:
+
+```bash
+python3 -m src.data_onboarding --unlock-ladder
+make unlock-ladder
+```
+
+This combines the current next-step stage for each ticker in order:
+
+1. prices
+2. fundamentals / DCF readiness
+3. peer-relative readiness
+4. optional earnings / analyst-estimate context
+
+The unlock ladder is also read-only and never fabricates missing data.
 
 ## SEC Companyfacts staging workflow
 

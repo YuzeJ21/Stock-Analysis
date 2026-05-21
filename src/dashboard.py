@@ -55,6 +55,7 @@ DATA_ONBOARDING_FILES = {
     "price_import_worklist.csv": "Price Import Worklist",
     "fundamentals_peer_worklist.csv": "Fundamentals Peer Worklist",
     "optional_context_worklist.csv": "Optional Context Worklist",
+    "ticker_unlock_ladder.csv": "Ticker Unlock Ladder",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -352,6 +353,26 @@ def summarize_optional_context_worklist(worklist: pd.DataFrame | None) -> dict[s
         "estimates_ready": count_true("has_analyst_estimates"),
         "missing_both": int(priorities.eq(5).sum()),
         "missing_one": int(priorities.eq(6).sum()),
+    }
+
+
+def summarize_ticker_unlock_ladder(worklist: pd.DataFrame | None) -> dict[str, int]:
+    if worklist is None or worklist.empty:
+        return {
+            "price_stage": 0,
+            "fundamentals_stage": 0,
+            "peer_stage": 0,
+            "optional_stage": 0,
+            "ready_stage": 0,
+        }
+
+    stage_series = worklist.get("current_unlock_stage", pd.Series(dtype=object)).astype(str)
+    return {
+        "price_stage": int(stage_series.eq("prices").sum()),
+        "fundamentals_stage": int(stage_series.eq("fundamentals").sum()),
+        "peer_stage": int(stage_series.eq("peers").sum()),
+        "optional_stage": int(stage_series.eq("optional_context").sum()),
+        "ready_stage": int(stage_series.eq("ready").sum()),
     }
 
 
@@ -3847,6 +3868,7 @@ def render_data_health(provider) -> None:
     price_worklist_frame, price_worklist_message = onboarding_tables["price_import_worklist.csv"]
     fundamentals_peer_worklist_frame, fundamentals_peer_worklist_message = onboarding_tables["fundamentals_peer_worklist.csv"]
     optional_context_worklist_frame, optional_context_worklist_message = onboarding_tables["optional_context_worklist.csv"]
+    ticker_unlock_ladder_frame, ticker_unlock_ladder_message = onboarding_tables["ticker_unlock_ladder.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -3998,6 +4020,14 @@ def render_data_health(provider) -> None:
                 metric_cols[1].metric("Estimates Ready", oc_summary["estimates_ready"])
                 metric_cols[2].metric("Missing Both Optional", oc_summary["missing_both"])
                 metric_cols[3].metric("Missing One Optional", oc_summary["missing_one"])
+            if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
+                ladder_summary = summarize_ticker_unlock_ladder(ticker_unlock_ladder_frame)
+                metric_cols = st.columns(5)
+                metric_cols[0].metric("Need Prices", ladder_summary["price_stage"])
+                metric_cols[1].metric("Need Fundamentals", ladder_summary["fundamentals_stage"])
+                metric_cols[2].metric("Need Peers", ladder_summary["peer_stage"])
+                metric_cols[3].metric("Need Optional Context", ladder_summary["optional_stage"])
+                metric_cols[4].metric("Coverage Ready", ladder_summary["ready_stage"])
 
             if data_quality_frame is not None and not data_quality_frame.empty:
                 data_quality_columns = [
@@ -4142,6 +4172,23 @@ def render_data_health(provider) -> None:
                         if column in optional_context_worklist_frame.columns
                     ]
                     st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(20)), width="stretch", hide_index=True)
+            if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
+                with st.expander("Ticker Unlock Ladder", expanded=False):
+                    ladder_columns = [
+                        column
+                        for column in [
+                            "ticker",
+                            "current_unlock_stage",
+                            "next_unlock_goal",
+                            "price_stage_status",
+                            "dcf_stage_status",
+                            "peer_stage_status",
+                            "optional_context_status",
+                            "example_command",
+                        ]
+                        if column in ticker_unlock_ladder_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(20)), width="stretch", hide_index=True)
 
     with health_tabs[2]:
         render_signal_cards(
@@ -4335,6 +4382,32 @@ def render_data_health(provider) -> None:
                 "Optional context worklist is not available yet",
                 optional_context_worklist_message
                 or "Generate the onboarding outputs to see which tickers still have optional earnings or analyst-estimate gaps.",
+                "python3 -m src.data_onboarding --write-output",
+                tone="warning",
+            )
+        if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
+            render_context_note(
+                "Ticker unlock ladder.",
+                "This single table combines prices, DCF, peer-relative, and optional context into one next-step ladder per ticker.",
+            )
+            ladder_columns = [
+                column
+                for column in [
+                    "ticker",
+                    "current_unlock_stage",
+                    "next_unlock_goal",
+                    "recommended_action",
+                    "target_file",
+                    "example_command",
+                ]
+                if column in ticker_unlock_ladder_frame.columns
+            ]
+            st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15)), width="stretch", hide_index=True)
+        else:
+            render_notice_card(
+                "Ticker unlock ladder is not available yet",
+                ticker_unlock_ladder_message
+                or "Generate the onboarding outputs to see the next per-ticker local data unlock stage.",
                 "python3 -m src.data_onboarding --write-output",
                 tone="warning",
             )

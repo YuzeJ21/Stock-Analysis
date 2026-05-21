@@ -92,6 +92,21 @@ OPTIONAL_CONTEXT_WORKLIST_COLUMNS = [
     "safe_next_step",
 ]
 
+TICKER_UNLOCK_LADDER_COLUMNS = [
+    "ticker",
+    "price_stage_status",
+    "price_history_days",
+    "dcf_stage_status",
+    "peer_stage_status",
+    "optional_context_status",
+    "current_unlock_stage",
+    "next_unlock_goal",
+    "recommended_action",
+    "target_file",
+    "example_command",
+    "safe_next_step",
+]
+
 WIZARD_COLUMNS = [
     "priority",
     "ticker",
@@ -199,6 +214,25 @@ class OptionalContextWorklistRow:
     earnings_context_ready: bool
     estimate_context_ready: bool
     missing_optional_context: str
+    recommended_action: str
+    target_file: str
+    example_command: str
+    safe_next_step: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class TickerUnlockLadderRow:
+    ticker: str
+    price_stage_status: str
+    price_history_days: int
+    dcf_stage_status: str
+    peer_stage_status: str
+    optional_context_status: str
+    current_unlock_stage: str
+    next_unlock_goal: str
     recommended_action: str
     target_file: str
     example_command: str
@@ -756,6 +790,95 @@ def build_optional_context_worklist(coverage_rows: list[TickerCoverage]) -> list
     return sorted(rows, key=lambda item: (item.priority, item.ticker))
 
 
+def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[TickerUnlockLadderRow]:
+    rows: list[TickerUnlockLadderRow] = []
+    for coverage in coverage_rows:
+        if coverage.usable_for_momentum and coverage.price_history_days >= 252:
+            price_stage_status = "preferred_history_ready"
+        elif coverage.usable_for_momentum:
+            price_stage_status = "momentum_ready_short_history"
+        elif coverage.has_prices:
+            price_stage_status = "partial_price_history"
+        else:
+            price_stage_status = "missing_prices"
+
+        dcf_stage_status = "dcf_ready" if coverage.dcf_ready else "dcf_blocked"
+        if coverage.peer_ready:
+            peer_stage_status = "peer_ready"
+        elif coverage.has_peer_mapping:
+            peer_stage_status = "peer_mapping_present_context_missing"
+        else:
+            peer_stage_status = "peer_mapping_missing"
+
+        if coverage.has_earnings and coverage.has_analyst_estimates:
+            optional_context_status = "fully_available"
+        elif coverage.has_earnings or coverage.has_analyst_estimates:
+            optional_context_status = "partially_available"
+        else:
+            optional_context_status = "missing_optional_context"
+
+        if not coverage.usable_for_momentum:
+            current_unlock_stage = "prices"
+            next_unlock_goal = "Unlock Monthly Picks"
+            recommended_action = "Add more verified local price history before working on deeper research context."
+            target_file = "data/imports/prices.csv"
+            example_command = f"python3 -m src.data_update --tickers {coverage.ticker}"
+            safe_next_step = "Use data/raw/prices/ plus price normalize/validate/preview/apply when the free source is unreliable."
+        elif not coverage.dcf_ready:
+            current_unlock_stage = "fundamentals"
+            next_unlock_goal = "Unlock DCF"
+            recommended_action = "Stage or add verified fundamentals so DCF inputs are explicit and reviewable."
+            target_file = "data/imports/fundamentals.csv"
+            example_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
+            safe_next_step = "Review staged SEC-derived fundamentals before import merge and keep unavailable fields blank."
+        elif not coverage.peer_ready:
+            current_unlock_stage = "peers"
+            next_unlock_goal = "Unlock Peer Relative"
+            recommended_action = "Add manual peer mappings and make sure peer price/fundamental context exists locally."
+            target_file = "data/imports/peers.csv"
+            example_command = "python3 -m src.data_onboarding --write-templates"
+            safe_next_step = "Use manually researched peers only; missing peer context should stay explicit."
+        elif not coverage.has_earnings or not coverage.has_analyst_estimates:
+            current_unlock_stage = "optional_context"
+            next_unlock_goal = "Add Optional Context"
+            recommended_action = "Add earnings or analyst-estimate rows only if you have trusted local sources."
+            target_file = (
+                "data/imports/earnings.csv"
+                if not coverage.has_earnings and coverage.has_analyst_estimates
+                else "data/imports/analyst_estimates.csv"
+                if coverage.has_earnings and not coverage.has_analyst_estimates
+                else "data/imports/earnings.csv and data/imports/analyst_estimates.csv"
+            )
+            example_command = "python3 -m src.data_onboarding --write-templates"
+            safe_next_step = "It is safe to leave optional context missing until you have verified local data."
+        else:
+            current_unlock_stage = "ready"
+            next_unlock_goal = "Maintain Coverage"
+            recommended_action = "Core local research coverage is already in place for this ticker."
+            target_file = ""
+            example_command = ""
+            safe_next_step = "Refresh prices and staged fundamentals only as real local data changes."
+
+        rows.append(
+            TickerUnlockLadderRow(
+                ticker=coverage.ticker,
+                price_stage_status=price_stage_status,
+                price_history_days=coverage.price_history_days,
+                dcf_stage_status=dcf_stage_status,
+                peer_stage_status=peer_stage_status,
+                optional_context_status=optional_context_status,
+                current_unlock_stage=current_unlock_stage,
+                next_unlock_goal=next_unlock_goal,
+                recommended_action=recommended_action,
+                target_file=target_file,
+                example_command=example_command,
+                safe_next_step=safe_next_step,
+            )
+        )
+    stage_rank = {"prices": 1, "fundamentals": 2, "peers": 3, "optional_context": 4, "ready": 5}
+    return sorted(rows, key=lambda item: (stage_rank.get(item.current_unlock_stage, 99), item.ticker))
+
+
 def build_onboarding_payload(
     project_root: Path | str | None = None,
     *,
@@ -769,6 +892,7 @@ def build_onboarding_payload(
     price_worklist = build_price_import_worklist(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
     fundamentals_peer_worklist = build_fundamentals_peer_worklist(coverage)
     optional_context_worklist = build_optional_context_worklist(coverage)
+    ticker_unlock_ladder = build_ticker_unlock_ladder(coverage)
     return {
         "ticker_coverage": [row.to_dict() for row in coverage],
         "onboarding_actions": [row.to_dict() for row in actions],
@@ -776,6 +900,7 @@ def build_onboarding_payload(
         "price_import_worklist": [row.to_dict() for row in price_worklist],
         "fundamentals_peer_worklist": [row.to_dict() for row in fundamentals_peer_worklist],
         "optional_context_worklist": [row.to_dict() for row in optional_context_worklist],
+        "ticker_unlock_ladder": [row.to_dict() for row in ticker_unlock_ladder],
     }
 
 
@@ -796,6 +921,7 @@ def write_onboarding_outputs(
     price_worklist_path = output_path / "price_import_worklist.csv"
     fundamentals_peer_worklist_path = output_path / "fundamentals_peer_worklist.csv"
     optional_context_worklist_path = output_path / "optional_context_worklist.csv"
+    ticker_unlock_ladder_path = output_path / "ticker_unlock_ladder.csv"
     pd.DataFrame(payload["ticker_coverage"], columns=COVERAGE_COLUMNS).to_csv(coverage_path, index=False)
     pd.DataFrame(payload["onboarding_actions"], columns=ACTION_COLUMNS).to_csv(actions_path, index=False)
     pd.DataFrame(payload["data_coverage_wizard"], columns=WIZARD_COLUMNS).to_csv(wizard_path, index=False)
@@ -806,6 +932,9 @@ def write_onboarding_outputs(
     pd.DataFrame(payload["optional_context_worklist"], columns=OPTIONAL_CONTEXT_WORKLIST_COLUMNS).to_csv(
         optional_context_worklist_path, index=False
     )
+    pd.DataFrame(payload["ticker_unlock_ladder"], columns=TICKER_UNLOCK_LADDER_COLUMNS).to_csv(
+        ticker_unlock_ladder_path, index=False
+    )
     return {
         **payload,
         "coverage_path": str(coverage_path),
@@ -814,6 +943,7 @@ def write_onboarding_outputs(
         "price_worklist_path": str(price_worklist_path),
         "fundamentals_peer_worklist_path": str(fundamentals_peer_worklist_path),
         "optional_context_worklist_path": str(optional_context_worklist_path),
+        "ticker_unlock_ladder_path": str(ticker_unlock_ladder_path),
     }
 
 
@@ -922,6 +1052,18 @@ def _print_optional_context_worklist(payload: dict[str, Any]) -> None:
     print(f"Optional context worklist rows: {len(payload['optional_context_worklist'])}")
 
 
+def _print_ticker_unlock_ladder(payload: dict[str, Any]) -> None:
+    print("Ticker unlock ladder:")
+    for row in payload["ticker_unlock_ladder"][:30]:
+        print(
+            f"- {row['ticker']}: stage={row['current_unlock_stage']} "
+            f"goal={row['next_unlock_goal']} price={row['price_stage_status']} "
+            f"dcf={row['dcf_stage_status']} peer={row['peer_stage_status']} optional={row['optional_context_status']}"
+        )
+        print(f"  next: {row['recommended_action']}")
+    print(f"Ticker unlock ladder rows: {len(payload['ticker_unlock_ladder'])}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
@@ -936,6 +1078,11 @@ def main() -> None:
         "--optional-context-worklist",
         action="store_true",
         help="Print prioritized optional earnings and analyst-estimate worklist rows.",
+    )
+    parser.add_argument(
+        "--unlock-ladder",
+        action="store_true",
+        help="Print one row per ticker showing the next core local data unlock stage.",
     )
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
@@ -967,20 +1114,24 @@ def main() -> None:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 
     if args.json:
-        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
+        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_ladder:
             print(json.dumps({"data_coverage_wizard": payload["data_coverage_wizard"]}, indent=2))
-        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
+        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_ladder:
             print(json.dumps({"price_import_worklist": payload["price_import_worklist"]}, indent=2))
-        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.optional_context_worklist:
+        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.optional_context_worklist and not args.unlock_ladder:
             print(json.dumps({"fundamentals_peer_worklist": payload["fundamentals_peer_worklist"]}, indent=2))
-        elif args.optional_context_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist:
+        elif args.optional_context_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.unlock_ladder:
             print(json.dumps({"optional_context_worklist": payload["optional_context_worklist"]}, indent=2))
+        elif args.unlock_ladder and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
+            print(json.dumps({"ticker_unlock_ladder": payload["ticker_unlock_ladder"]}, indent=2))
         else:
             print(json.dumps(payload, indent=2))
         return
 
     print(format_path_context(root, data_path, output_path))
-    if args.optional_context_worklist and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist:
+    if args.unlock_ladder and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
+        _print_ticker_unlock_ladder(payload)
+    elif args.optional_context_worklist and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist:
         _print_optional_context_worklist(payload)
     elif args.fundamentals_peer_worklist and not args.coverage and not args.wizard and not args.price_worklist:
         _print_fundamentals_peer_worklist(payload)
@@ -997,6 +1148,7 @@ def main() -> None:
         print(f"Wrote: {payload['price_worklist_path']}")
         print(f"Wrote: {payload['fundamentals_peer_worklist_path']}")
         print(f"Wrote: {payload['optional_context_worklist_path']}")
+        print(f"Wrote: {payload['ticker_unlock_ladder_path']}")
 
 
 if __name__ == "__main__":
