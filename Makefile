@@ -1,4 +1,4 @@
-.PHONY: help test pipeline monthly track-record validate-data research-health action-queue verify daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help test pipeline monthly track-record validate-data research-health action-queue verify daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -9,6 +9,7 @@ help:
 	@echo "  make verify           Run deterministic local verification"
 	@echo "  make daily            Refresh local workflow outputs end-to-end"
 	@echo "  make dashboard        Open the Streamlit dashboard"
+	@echo "  make dashboard-smoke  Start dashboard headless and check Streamlit health"
 	@echo ""
 	@echo "Research outputs:"
 	@echo "  make monthly          Generate monthly research candidates"
@@ -103,6 +104,9 @@ daily:
 
 dashboard:
 	streamlit run src/dashboard.py
+
+dashboard-smoke:
+	scripts/smoke_dashboard.sh
 
 sec-stage:
 ifdef TICKERS

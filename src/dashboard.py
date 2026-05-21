@@ -1260,6 +1260,7 @@ def workflow_command_rows() -> list[dict[str, str]]:
     return [
         {"Step": "Command menu", "Command": "make help"},
         {"Step": "Deterministic verification", "Command": "make verify"},
+        {"Step": "Dashboard smoke check", "Command": "make dashboard-smoke"},
         {"Step": "Daily refresh", "Command": "make daily"},
         {"Step": "Data coverage", "Command": "make onboarding"},
         {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},

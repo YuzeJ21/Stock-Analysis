@@ -16,6 +16,7 @@ def test_makefile_contains_convenience_targets():
         "verify",
         "daily",
         "dashboard",
+        "dashboard-smoke",
         "sec-stage",
         "sec-validate",
         "sec-preview",
@@ -42,6 +43,7 @@ def test_makefile_help_documents_key_workflows():
         "Stock Research Screener convenience commands",
         "make verify",
         "make daily",
+        "make dashboard-smoke",
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
         "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA,MSFT",
         "make universe-preview",
@@ -50,9 +52,17 @@ def test_makefile_help_documents_key_workflows():
 
 
 def test_shell_launchers_anchor_to_repo_root():
-    for script_name in ("daily.sh", "dashboard.sh", "validate_all.sh"):
+    for script_name in ("daily.sh", "dashboard.sh", "validate_all.sh", "smoke_dashboard.sh"):
         script = (Path("scripts") / script_name).read_text(encoding="utf-8")
         assert "set -euo pipefail" in script
         assert "REPO_ROOT" in script
         assert 'cd "${REPO_ROOT}"' in script
         assert 'echo "Repo root: ${REPO_ROOT}"' in script
+
+
+def test_dashboard_smoke_launcher_checks_streamlit_health_safely():
+    script = Path("scripts/smoke_dashboard.sh").read_text(encoding="utf-8")
+
+    assert "_stcore/health" in script
+    assert "SERVER_PID" in script
+    assert "trap cleanup EXIT" in script

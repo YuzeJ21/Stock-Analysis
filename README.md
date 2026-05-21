@@ -99,6 +99,7 @@ make price-preview
 make price-apply
 make daily
 make dashboard
+make dashboard-smoke
 ```
 
 SEC and universe helpers:
@@ -113,13 +114,14 @@ make universe-preview
 make universe-apply
 ```
 
-If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make verify` for deterministic local verification that avoids remote price refresh.
+If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make dashboard-smoke` for a quick headless Streamlit health check.
 
 Path-proof shell launchers:
 
 ```bash
 scripts/daily.sh
 scripts/dashboard.sh
+scripts/smoke_dashboard.sh
 scripts/validate_all.sh
 ```
 
