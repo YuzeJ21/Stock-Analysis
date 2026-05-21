@@ -1821,6 +1821,47 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
     )
 
 
+def overview_landing_cards(
+    project_status_payload: dict[str, Any] | None,
+    queue_summary: dict[str, int],
+    latest_price: str,
+    watchlist_count: int,
+    monthly_count: int,
+) -> list[dict[str, object]]:
+    summary = {} if not project_status_payload else project_status_payload.get("summary", {})
+    total_tickers = int(summary.get("tickers_total") or 0)
+    price_ready = int(summary.get("tickers_with_prices") or 0)
+    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
+    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    gap_count = int(summary.get("data_gaps") or 0)
+    return [
+        {
+            "kicker": "RESEARCH FLOW",
+            "title": f"{watchlist_count} watchlist rows",
+            "body": f"{monthly_count} current monthly candidates and latest local price date {latest_price}.",
+            "badges": ["local outputs"],
+        },
+        {
+            "kicker": "PRICE COVERAGE",
+            "title": f"{price_ready}/{total_tickers}",
+            "body": "Tickers with enough local price context for momentum and track-record workflows.",
+            "badges": ["highest leverage"],
+        },
+        {
+            "kicker": "VALUATION PATH",
+            "title": f"{dcf_ready} DCF-ready",
+            "body": f"{peer_ready} tickers also have peer-relative context. {gap_count} data gaps remain visible, not guessed.",
+            "badges": ["research only"],
+        },
+        {
+            "kicker": "FIX FIRST",
+            "title": f"{queue_summary.get('critical', 0)} critical",
+            "body": f"{queue_summary.get('high', 0)} high-priority remediation items remain in the local action queue.",
+            "badges": ["make onboarding"],
+        },
+    ]
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -1855,6 +1896,49 @@ def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
         f"<div class='pick-missing'><strong>Data gaps:</strong> {html.escape(missing_text)}</div>"
         "</div>"
     )
+
+
+def monthly_picks_landing_cards(
+    picks_frame: pd.DataFrame | None,
+    track_frame: pd.DataFrame | None,
+    equity_frame: pd.DataFrame | None,
+    top_n: int,
+    latest_price: str,
+    universe_count: int,
+) -> list[dict[str, object]]:
+    candidate_count = 0 if picks_frame is None else len(picks_frame)
+    month_value = "Not generated" if picks_frame is None or picks_frame.empty else format_missing(picks_frame.iloc[0].get("Month"), "Not available")
+    track_ready = equity_frame is not None and not equity_frame.empty
+    track_rows = 0 if track_frame is None else len(track_frame)
+    pick_gap_count = 0
+    if picks_frame is not None and not picks_frame.empty and "MissingDataFields" in picks_frame.columns:
+        pick_gap_count = non_empty_count(picks_frame, ["MissingDataFields"])
+    return [
+        {
+            "kicker": "MONTH",
+            "title": month_value,
+            "body": f"{candidate_count} of {top_n} conservative research candidate slots are filled from the current local run.",
+            "badges": ["transparent ranking"],
+        },
+        {
+            "kicker": "TRACK RECORD",
+            "title": "Ready" if track_ready else "Needs history",
+            "body": f"{track_rows} local monthly track-record row{'s' if track_rows != 1 else ''}. Forward returns appear only when enough history exists.",
+            "badges": ["SPY benchmark"],
+        },
+        {
+            "kicker": "LOCAL COVERAGE",
+            "title": latest_price,
+            "body": f"{universe_count} current universe tickers feed the monthly workflow through local price and screener outputs.",
+            "badges": ["latest price date"],
+        },
+        {
+            "kicker": "CONFIDENCE",
+            "title": f"{pick_gap_count} rows with gaps",
+            "body": "Missing fields remain attached to each candidate card so short history or missing fundamentals are obvious.",
+            "badges": ["no forced fills"],
+        },
+    ]
 
 
 def stock_report_brief_html(payload: dict[str, Any]) -> str:
@@ -2482,19 +2566,32 @@ def render_overview(
     health_score, health_label = workflow_health_score(queue_summary, health_summary)
     onboarding_tables = load_data_onboarding_tables()
     wizard_frame, _ = onboarding_tables["data_coverage_wizard.csv"]
+    latest_price = _latest_local_price_date(catalog)
+    watchlist_count = 0 if final_watchlist_frame is None else len(final_watchlist_frame)
+    monthly_frame, _ = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
+    monthly_count = 0 if monthly_frame is None else len(monthly_frame)
 
     render_section_header(
         "Command Center",
         "A quick read on whether the local research workflow is ready, partial, or waiting on data.",
     )
     st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
+    render_signal_cards(
+        overview_landing_cards(
+            project_status_payload,
+            queue_summary,
+            latest_price,
+            watchlist_count,
+            monthly_count,
+        )
+    )
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),
             ("Universe", current_universe["row_count"], "Tickers in data/universe.csv"),
             ("Holdings", 0 if holdings is None or holdings.empty else len(holdings), "Rows in holdings.csv"),
-            ("Final Watchlist", 0 if final_watchlist_frame is None else len(final_watchlist_frame), "Current state-machine rows"),
-            ("Latest Price", _latest_local_price_date(catalog), "From local prices.csv"),
+            ("Final Watchlist", watchlist_count, "Current state-machine rows"),
+            ("Latest Price", latest_price, "From local prices.csv"),
             ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
             ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
             ("Research Ready", health_summary["research_ready"], "Data Quality Wizard rows"),
@@ -2629,15 +2726,26 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     equity_frame, _equity_message = load_output(OUTPUTS_DIR / "monthly_picks_equity_curve.csv")
     latest_price = _latest_local_price_date(catalog)
     universe = catalog.load_dataframe("universe")
+    universe_count = 0 if universe is None or universe.empty else len(universe)
     candidate_count = 0 if picks_frame is None else len(picks_frame)
     action_queue_frame, _ = load_action_queue()
+    render_signal_cards(
+        monthly_picks_landing_cards(
+            picks_frame,
+            track_frame,
+            equity_frame,
+            top_n,
+            latest_price,
+            universe_count,
+        )
+    )
 
     render_metric_cards(
         [
             ("Candidates", f"{candidate_count} of {top_n}", "Conservative filters may return fewer"),
             ("Current Month", "Not generated" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"), "Generated from local outputs"),
             ("Benchmark", "SPY", "For local track-record comparison"),
-            ("Universe", 0 if universe is None or universe.empty else len(universe), "Current local universe size"),
+            ("Universe", universe_count, "Current local universe size"),
             ("Latest Price", latest_price, "From data/prices.csv"),
         ]
     )

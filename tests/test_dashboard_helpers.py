@@ -460,6 +460,29 @@ def test_project_status_cockpit_is_readable_and_research_safe():
     assert "sell" not in html.lower()
 
 
+def test_overview_landing_cards_surface_workflow_and_gap_context():
+    payload = {
+        "summary": {
+            "tickers_total": 12,
+            "tickers_with_prices": 3,
+            "tickers_dcf_ready": 0,
+            "tickers_peer_ready": 0,
+            "data_gaps": 25,
+        }
+    }
+    cards = dashboard.overview_landing_cards(payload, {"critical": 4, "high": 7}, "2026-05-12", 12, 4)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert "12 watchlist rows" in rendered
+    assert "4 current monthly candidates" in rendered
+    assert "3/12" in rendered
+    assert "0 dcf-ready" in rendered
+    assert "make onboarding" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {
@@ -485,6 +508,27 @@ def test_monthly_pick_card_html_is_product_style_and_clean():
     assert "Needs peers.csv" in html
     assert "nan" not in html.lower()
     assert "none" not in html.lower()
+
+
+def test_monthly_picks_landing_cards_show_history_and_gap_context():
+    picks = pd.DataFrame(
+        [
+            {"Month": "2026-05", "MissingDataFields": "Return3M"},
+            {"Month": "2026-05", "MissingDataFields": ""},
+        ]
+    )
+    track = pd.DataFrame([{"Month": "2026-04"}])
+    equity = pd.DataFrame()
+    cards = dashboard.monthly_picks_landing_cards(picks, track, equity, 5, "2026-05-12", 12)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert "2026-05" in rendered
+    assert "2 of 5" in rendered
+    assert "needs history" in rendered
+    assert "1 rows with gaps" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_stock_report_brief_html_summarizes_readiness_without_advice():
