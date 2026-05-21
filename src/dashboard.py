@@ -1206,6 +1206,67 @@ def universe_preset_cards() -> list[dict[str, object]]:
     return cards
 
 
+def status_legend_rows() -> list[dict[str, str]]:
+    return [
+        {
+            "Label": "Research Ready",
+            "Meaning": "Local price context and required research inputs are usable for the current workflow.",
+        },
+        {
+            "Label": "Partial Coverage",
+            "Meaning": "Some useful data exists, but at least one research path is incomplete.",
+        },
+        {
+            "Label": "Needs Price Data",
+            "Meaning": "Add or refresh verified OHLCV rows before relying on momentum or track-record context.",
+        },
+        {
+            "Label": "Needs Enrichment",
+            "Meaning": "Add verified local fundamentals, peer mappings, earnings, or estimate files as needed.",
+        },
+        {
+            "Label": "Insufficient Data",
+            "Meaning": "The app intentionally avoided calculating a result from incomplete inputs.",
+        },
+    ]
+
+
+def missing_data_guide_rows() -> list[dict[str, str]]:
+    return [
+        {
+            "Dashboard Label": "Not enough price history",
+            "What to do": "Run `make price-refresh`, or normalize verified downloaded OHLCV files before validate/preview/apply.",
+        },
+        {
+            "Dashboard Label": "Needs SEC enrichment",
+            "What to do": "Use SEC staging for fundamentals, then validate and preview before applying.",
+        },
+        {
+            "Dashboard Label": "Needs peers.csv",
+            "What to do": "Add manually researched peer mappings through `data/imports/peers.csv`.",
+        },
+        {
+            "Dashboard Label": "Needs earnings.csv",
+            "What to do": "Add trusted local earnings rows only if you have a reliable source.",
+        },
+        {
+            "Dashboard Label": "Needs analyst_estimates.csv",
+            "What to do": "Optional file. Leave missing unless you have a trusted local source.",
+        },
+    ]
+
+
+def workflow_command_rows() -> list[dict[str, str]]:
+    return [
+        {"Step": "Daily refresh", "Command": "make daily"},
+        {"Step": "Data coverage", "Command": "make onboarding"},
+        {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},
+        {"Step": "Price import safety", "Command": "make price-validate && make price-preview && make price-apply"},
+        {"Step": "SEC fundamentals staging", "Command": "make sec-stage TICKERS=NVDA,MSFT"},
+        {"Step": "Universe preview", "Command": "make universe-preview"},
+    ]
+
+
 def action_queue_summary(queue: pd.DataFrame | None) -> dict[str, int]:
     if queue is None or queue.empty:
         return {"critical": 0, "high": 0, "medium": 0}
@@ -2467,6 +2528,12 @@ with st.sidebar:
     st.caption("Safe local commands")
     st.code("make onboarding\nmake daily\nmake dashboard", language="bash")
     st.caption("CLI-only applies remain the safest path for staged imports and universe changes.")
+    with st.expander("How to read this dashboard", expanded=False):
+        st.dataframe(pd.DataFrame(status_legend_rows()), width="stretch", hide_index=True)
+    with st.expander("Missing-data recovery guide", expanded=False):
+        st.dataframe(pd.DataFrame(missing_data_guide_rows()), width="stretch", hide_index=True)
+    with st.expander("Workflow command guide", expanded=False):
+        st.dataframe(pd.DataFrame(workflow_command_rows()), width="stretch", hide_index=True)
     with st.expander("Resolved local paths", expanded=False):
         context = path_context(BASE_DIR, DATA_DIR, OUTPUTS_DIR)
         st.code(

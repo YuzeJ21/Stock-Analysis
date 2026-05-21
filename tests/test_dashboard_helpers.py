@@ -431,3 +431,17 @@ def test_presentation_frame_uses_readable_labels_and_values():
 def test_display_column_label_humanizes_unknown_columns():
     assert dashboard.display_column_label("avg_volume_20d") == "Avg Volume 20D"
     assert dashboard.display_column_label("PeerRelativeStatus") == "Peer Relative"
+
+
+def test_sidebar_guide_rows_are_actionable_and_research_safe():
+    status_rows = dashboard.status_legend_rows()
+    missing_rows = dashboard.missing_data_guide_rows()
+    workflow_rows = dashboard.workflow_command_rows()
+    rendered = " ".join(str(row) for row in status_rows + missing_rows + workflow_rows).lower()
+
+    assert any(row["Label"] == "Research Ready" for row in status_rows)
+    assert any("price history" in row["Dashboard Label"].lower() for row in missing_rows)
+    assert any(row["Command"] == "make daily" for row in workflow_rows)
+    assert "place_order" not in rendered
+    assert "submit_order" not in rendered
+    assert "execute_trade" not in rendered
