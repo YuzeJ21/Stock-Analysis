@@ -4092,6 +4092,70 @@ def monthly_picks_landing_cards(
     ]
 
 
+def monthly_picks_next_step_cards(
+    picks_frame: pd.DataFrame | None,
+    track_frame: pd.DataFrame | None,
+    equity_frame: pd.DataFrame | None,
+    top_n: int,
+    action_queue: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    candidate_count = 0 if picks_frame is None else len(picks_frame)
+    has_candidates = picks_frame is not None and not picks_frame.empty
+    has_track_record = track_frame is not None and not track_frame.empty
+    has_equity = equity_frame is not None and not equity_frame.empty
+    fallback_command = overview_next_command_cards(None, action_queue, limit=1)[0] if action_queue is not None else {
+        "title": "make onboarding",
+        "badges": ["data moat", "command"],
+    }
+
+    if not has_candidates:
+        primary = {
+            "kicker": "NEXT STEP",
+            "title": "Generate monthly picks",
+            "body": "The candidate set is not generated yet. Refresh the local monthly candidate file before interpreting this tab.",
+            "badges": ["monthly workflow", "read-only"],
+            "command": "python3 -m src.monthly_picks --generate --top-n 5",
+        }
+    elif candidate_count < top_n:
+        command_text = format_missing(fallback_command.get("title"), "make onboarding")
+        primary = {
+            "kicker": "NEXT STEP",
+            "title": "Improve candidate coverage",
+            "body": (
+                f"Only {candidate_count} of {top_n} conservative slots are filled. Run {command_text} to improve local price or fundamentals coverage before forcing weaker names into the list."
+            ),
+            "badges": ["coverage first", "no forced fills"],
+            "command": command_text,
+        }
+    elif not has_track_record or not has_equity:
+        primary = {
+            "kicker": "NEXT STEP",
+            "title": "Build track-record context",
+            "body": "Candidates exist, but local history is still too short for a fuller benchmark comparison. Keep the picks visible, but treat performance context as incomplete.",
+            "badges": ["history needed", "sp y benchmark".replace(" ", "")],
+            "command": "python3 -m src.track_record --monthly-picks",
+        }
+    else:
+        primary = {
+            "kicker": "NEXT STEP",
+            "title": "Review current candidates",
+            "body": "The current monthly list and track record are both present. Move through the candidate cards, score context, and archive together.",
+            "badges": ["ready", "research only"],
+            "command": "make dashboard",
+        }
+
+    gap_count = 0
+    if picks_frame is not None and not picks_frame.empty and "MissingDataFields" in picks_frame.columns:
+        gap_count = non_empty_count(picks_frame, ["MissingDataFields"])
+    secondary = {
+        "kicker": "DATA GAPS",
+        "title": f"{gap_count} rows with gaps",
+        "body": "Missing fields remain attached to each candidate so partial confidence is explicit instead of hidden.",
+        "badges": ["transparent scoring", "local only"],
+    }
+    return [primary, secondary]
+
+
 def stock_report_brief_html(payload: dict[str, Any]) -> str:
     ticker = format_missing(payload.get("ticker"), "Selected ticker")
     valuation = payload.get("valuation_snapshot", {})
@@ -4990,6 +5054,15 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             top_n,
             latest_price,
             universe_count,
+        )
+    )
+    render_signal_cards(
+        monthly_picks_next_step_cards(
+            picks_frame,
+            track_frame,
+            equity_frame,
+            top_n,
+            action_queue_frame,
         )
     )
 

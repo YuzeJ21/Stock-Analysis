@@ -1714,6 +1714,39 @@ def test_monthly_picks_landing_cards_show_history_and_gap_context():
     assert "sell" not in rendered
 
 
+def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_review():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+
+    cards = dashboard.monthly_picks_next_step_cards(None, None, None, 5, queue)
+    assert cards[0]["title"] == "Generate monthly picks"
+
+    picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": "Return3M"}] * 4)
+    cards = dashboard.monthly_picks_next_step_cards(picks, None, None, 5, queue)
+    assert cards[0]["title"] == "Improve candidate coverage"
+    assert "make price-worklist" in cards[0]["body"]
+
+    full_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": ""}] * 5)
+    cards = dashboard.monthly_picks_next_step_cards(full_picks, None, None, 5, queue)
+    assert cards[0]["title"] == "Build track-record context"
+
+    track = pd.DataFrame([{"Month": "2026-04"}])
+    equity = pd.DataFrame([{"Month": "2026-04", "PicksEquity": 1.0, "BenchmarkEquity": 1.0}])
+    cards = dashboard.monthly_picks_next_step_cards(full_picks, track, equity, 5, queue)
+    assert cards[0]["title"] == "Review current candidates"
+
+
 def test_stock_report_brief_html_summarizes_readiness_without_advice():
     html = dashboard.stock_report_brief_html(
         {
