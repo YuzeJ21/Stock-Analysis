@@ -1187,6 +1187,56 @@ def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
     assert "sell" not in rendered
 
 
+def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+    payload = {"recommended_next_commands": ["make onboarding", "make verify", "make dashboard"]}
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_best_local_research_path_cards(coverage, holdings, payload, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "NVDA"
+    assert cards[1]["title"] == "make onboarding"
+    assert cards[2]["title"] == "Stock Report Beta"
+    assert "best current name" in rendered
+    assert "next command" in rendered
+    assert "next tab" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_best_local_research_path_cards_fall_back_gracefully():
+    cards = dashboard.overview_best_local_research_path_cards(None, None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "BEST CURRENT NAMES"
+    assert cards[1]["title"] == "make help"
+    assert cards[2]["title"] == "Data Health"
+    assert "no current ready names yet" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_interpretation_guardrail_card_flags_partial_workflow():
     payload = {
         "summary": {
