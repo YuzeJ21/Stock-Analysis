@@ -934,6 +934,80 @@ def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
     assert "sell" not in rendered
 
 
+def test_overview_interpretation_guardrail_card_flags_partial_workflow():
+    payload = {
+        "summary": {
+            "tickers_total": 12,
+            "tickers_with_prices": 3,
+            "tickers_dcf_ready": 0,
+            "tickers_peer_ready": 0,
+            "data_gaps": 19,
+        }
+    }
+
+    card = dashboard.overview_interpretation_guardrail_card(
+        payload,
+        {"critical": 2, "high": 4, "medium": 0},
+        {"needs_price_data": 6, "thin_liquidity": 1, "high_correlation": 0},
+    )
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert "workflow" in card["title"].lower()
+    assert "the workflow is usable, but some outputs should still be treated as partial" in rendered
+    assert "19 visible data gaps remain" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_interpretation_guardrail_card_flags_needs_data_workflow():
+    payload = {
+        "summary": {
+            "tickers_total": 12,
+            "tickers_with_prices": 3,
+            "tickers_dcf_ready": 0,
+            "tickers_peer_ready": 0,
+            "data_gaps": 19,
+        }
+    }
+
+    card = dashboard.overview_interpretation_guardrail_card(
+        payload,
+        {"critical": 8, "high": 4, "medium": 0},
+        {"needs_price_data": 6, "thin_liquidity": 2, "high_correlation": 1},
+    )
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert "needs data workflow" in rendered
+    assert "coverage is still the main blocker" in rendered
+    assert "3/12 tickers have usable prices" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_interpretation_guardrail_card_supports_ready_workflow():
+    payload = {
+        "summary": {
+            "tickers_total": 10,
+            "tickers_with_prices": 10,
+            "tickers_dcf_ready": 8,
+            "tickers_peer_ready": 7,
+            "data_gaps": 0,
+        }
+    }
+
+    card = dashboard.overview_interpretation_guardrail_card(
+        payload,
+        {"critical": 0, "high": 0, "medium": 0},
+        {"needs_price_data": 0, "thin_liquidity": 0, "high_correlation": 0},
+    )
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert "ready workflow" in rendered
+    assert "10/10 tickers have prices" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {

@@ -2555,6 +2555,47 @@ def overview_landing_cards(
     ]
 
 
+def overview_interpretation_guardrail_card(
+    project_status_payload: dict[str, Any] | None,
+    queue_summary: dict[str, int],
+    health_summary: dict[str, int],
+) -> dict[str, object]:
+    summary = {} if not project_status_payload else project_status_payload.get("summary", {})
+    total_tickers = int(summary.get("tickers_total") or 0)
+    price_ready = int(summary.get("tickers_with_prices") or 0)
+    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
+    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    data_gaps = int(summary.get("data_gaps") or 0)
+    health_score, health_label = workflow_health_score(queue_summary, health_summary)
+
+    if health_label == "Ready":
+        body = (
+            f"Local coverage is strong enough to read momentum, watchlist, and valuation context with fewer blockers. "
+            f"{price_ready}/{total_tickers} tickers have prices, {dcf_ready} are DCF-ready, and {peer_ready} have peer-relative context."
+        )
+        badges = ["ready", "read with context"]
+    elif health_label == "Partial":
+        body = (
+            f"The workflow is usable, but some outputs should still be treated as partial. "
+            f"{data_gaps} visible data gaps remain, so rankings and valuation context should stay tied to the missing-data notes."
+        )
+        badges = ["partial", "check gaps"]
+    else:
+        body = (
+            f"Coverage is still the main blocker. "
+            f"Only {price_ready}/{total_tickers} tickers have usable prices, while DCF-ready and peer-ready coverage remain sparse. "
+            "Use onboarding and Data Health before leaning on downstream rankings."
+        )
+        badges = ["needs data", "coverage first"]
+
+    return {
+        "kicker": "INTERPRETATION GUARDRAIL",
+        "title": f"{health_label} workflow · {health_score}/100",
+        "body": body,
+        "badges": badges,
+    }
+
+
 def holdings_unlock_cards(
     holdings: pd.DataFrame | None,
     ticker_unlock_ladder: pd.DataFrame | None,
@@ -3727,6 +3768,7 @@ def render_overview(
             monthly_count,
         )
     )
+    render_signal_cards([overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary)])
     render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
     render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
     render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
