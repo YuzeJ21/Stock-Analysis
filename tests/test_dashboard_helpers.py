@@ -942,6 +942,37 @@ def test_overview_ready_blocked_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_overview_best_current_name_cards_route_ready_names_to_next_surface():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+
+    cards = dashboard.overview_best_current_name_cards(coverage, holdings, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 2
+    assert cards[0]["kicker"] == "NVDA"
+    assert cards[0]["title"] == "Stock Report Beta"
+    assert cards[1]["title"] == "Monthly Picks"
+    assert "holding" in rendered
+    assert "deeper single-name review" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_best_current_name_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.overview_best_current_name_cards(None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no current ready names yet" in rendered
+    assert "buy" not in rendered
+
+
 def test_overview_market_context_cards_surface_local_theme_strength():
     market_direction = pd.DataFrame(
         [

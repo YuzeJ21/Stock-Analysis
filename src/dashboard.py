@@ -3155,6 +3155,82 @@ def overview_ready_blocked_cards(
     ]
 
 
+def overview_best_current_name_cards(
+    coverage: pd.DataFrame | None,
+    holdings: pd.DataFrame | None,
+    limit: int = 3,
+) -> list[dict[str, object]]:
+    if coverage is None or coverage.empty:
+        return [
+            {
+                "kicker": "BEST CURRENT NAMES",
+                "title": "No current ready names yet",
+                "body": "Generate onboarding outputs to surface which names are already usable with today’s local coverage.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    coverage_frame = coverage.copy()
+    coverage_frame["ticker"] = coverage_frame.get("ticker", pd.Series(dtype=object)).astype(str).str.upper().str.strip()
+    holding_tickers: set[str] = set()
+    if holdings is not None and not holdings.empty:
+        lookup = {str(column).strip().lower(): str(column) for column in holdings.columns}
+        ticker_col = lookup.get("ticker")
+        if ticker_col:
+            holding_tickers = set(holdings[ticker_col].dropna().astype(str).str.upper().str.strip())
+    coverage_frame["is_holding"] = coverage_frame["ticker"].isin(holding_tickers)
+
+    def _truthy(column: str) -> pd.Series:
+        return coverage_frame.get(column, pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+
+    coverage_frame["usable_for_momentum_bool"] = _truthy("usable_for_momentum")
+    coverage_frame["dcf_ready_bool"] = _truthy("dcf_ready")
+    coverage_frame["peer_ready_bool"] = _truthy("peer_ready")
+
+    ready = coverage_frame.loc[coverage_frame["usable_for_momentum_bool"]].copy()
+    if ready.empty:
+        return [
+            {
+                "kicker": "BEST CURRENT NAMES",
+                "title": "No current ready names yet",
+                "body": "Price-ready names will appear here once local momentum coverage is usable.",
+                "badges": ["needs prices"],
+            }
+        ]
+
+    ready["score"] = (
+        ready["dcf_ready_bool"].astype(int) * 2
+        + ready["peer_ready_bool"].astype(int) * 2
+        + ready["is_holding"].astype(int)
+    )
+    ready = ready.sort_values(["score", "is_holding", "ticker"], ascending=[False, False, True])
+
+    cards: list[dict[str, object]] = []
+    for _, row in ready.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "Ticker")
+        if bool(row.get("dcf_ready_bool")) or bool(row.get("peer_ready_bool")):
+            next_surface = "Stock Report Beta"
+            body = "This name already has enough local context for a deeper single-name review."
+        else:
+            next_surface = "Monthly Picks"
+            body = "This name is usable for current momentum-style research even if valuation context is still partial."
+        if bool(row.get("is_holding")):
+            body += " It is also a current holding, so portfolio review context is immediately relevant."
+        cards.append(
+            {
+                "kicker": ticker,
+                "title": next_surface,
+                "body": body,
+                "badges": [
+                    "holding" if bool(row.get("is_holding")) else "universe",
+                    "dcf ready" if bool(row.get("dcf_ready_bool")) else "momentum ready",
+                    "peer ready" if bool(row.get("peer_ready_bool")) else "partial context",
+                ],
+            }
+        )
+    return cards
+
+
 def overview_market_context_cards(
     market_direction: pd.DataFrame | None,
     limit: int = 3,
@@ -4204,6 +4280,8 @@ def render_overview(
     )
     render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need unlock work first.")
     render_signal_cards(overview_ready_blocked_cards(coverage_frame, ticker_unlock_ladder_frame, holdings))
+    render_section_header("Best Current Names", "Which currently usable names best warrant a deeper single-name review or a quick candidate check next.")
+    render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
     render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
     render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
     render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging or manual peer research once price blockers are understood.")
