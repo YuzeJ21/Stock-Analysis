@@ -110,6 +110,74 @@ def test_compact_table_columns_prefers_summaries_over_raw_reason():
     assert "Reason" not in columns
 
 
+def test_compact_table_columns_prioritize_rank_purpose_and_hide_noise():
+    frame = pd.DataFrame(
+        {
+            "GeneratedAt": ["2026-05-21T00:00:00Z"],
+            "SourceFiles": ["outputs/final_watchlist.csv"],
+            "Month": ["2026-05"],
+            "Rank": [1],
+            "Ticker": ["NVDA"],
+            "PrimaryPurpose": ["Momentum Leader"],
+            "CompositeScore": [52.5],
+            "ReasonSummary": ["Transparent local context."],
+            "DataGaps": ["Needs SEC enrichment"],
+        }
+    )
+
+    columns = dashboard.compact_table_columns(frame)
+
+    assert columns[:4] == ["Month", "Rank", "Ticker", "PrimaryPurpose"]
+    assert "GeneratedAt" not in columns
+    assert "SourceFiles" not in columns
+
+
+def test_reorder_columns_surfaces_summary_and_research_context_first():
+    frame = pd.DataFrame(
+        {
+            "ReasonSummary": ["Short reason"],
+            "Ticker": ["NVDA"],
+            "CompositeScore": [55.0],
+            "PrimaryPurpose": ["Momentum Leader"],
+            "DataGaps": ["Not enough price history"],
+            "GeneratedAt": ["2026-05-21T00:00:00Z"],
+        }
+    )
+
+    reordered = dashboard.reorder_columns(frame)
+
+    assert list(reordered.columns[:5]) == [
+        "Ticker",
+        "PrimaryPurpose",
+        "CompositeScore",
+        "ReasonSummary",
+        "DataGaps",
+    ]
+
+
+def test_table_focus_cards_summarize_state_context_and_gaps_cleanly():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD"],
+            "PrimaryPurpose": ["Momentum Leader", "Momentum Leader"],
+            "FinalState": ["Watch", "Watch"],
+            "MissingDataFields": ["Return3M", ""],
+            "WatchlistScore": [72.0, 61.0],
+        }
+    )
+
+    cards = dashboard.table_focus_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert "2 rows" in rendered
+    assert "watch" in rendered
+    assert "momentum leader" in rendered
+    assert "1 row with gaps" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_ticker_coverage_display_frame_hides_noisy_paths():
     coverage = pd.DataFrame(
         [
@@ -683,6 +751,16 @@ def test_presentation_frame_uses_readable_labels_and_values():
     assert display.iloc[0]["Watchlist Score"] == "81.2"
     assert "Not enough price history" in display.iloc[0]["Missing Data"]
     assert "Needs peers.csv" in display.iloc[0]["Missing Data"]
+
+
+def test_presentation_frame_handles_duplicate_source_columns_safely():
+    frame = pd.DataFrame([["NVDA", "Short reason", "Long reason"]], columns=["Ticker", "ReasonSummary", "ReasonSummary"])
+
+    display = dashboard.presentation_frame(frame)
+
+    assert list(display.columns) == ["Ticker", "Reason", "Reason (2)"]
+    assert display.iloc[0]["Reason"] == "Short reason."
+    assert display.iloc[0]["Reason (2)"] == "Long reason."
 
 
 def test_display_column_label_humanizes_unknown_columns():

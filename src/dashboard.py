@@ -1982,12 +1982,16 @@ def format_table_cell(column: str, value: object) -> str:
 
 
 def presentation_frame(frame: pd.DataFrame) -> pd.DataFrame:
-    display = pd.DataFrame(
-        {
-            display_column_label(column): frame[column].map(lambda value, column=column: format_table_cell(column, value))
-            for column in frame.columns
-        }
-    )
+    display_columns: dict[str, pd.Series] = {}
+    label_counts: dict[str, int] = {}
+    for index, column in enumerate(frame.columns):
+        label = display_column_label(column)
+        label_counts[label] = label_counts.get(label, 0) + 1
+        if label_counts[label] > 1:
+            label = f"{label} ({label_counts[label]})"
+        series = frame.iloc[:, index].map(lambda value, column=column: format_table_cell(column, value))
+        display_columns[label] = series
+    display = pd.DataFrame(display_columns)
     return display
 
 
@@ -2004,9 +2008,15 @@ def display_with_summaries(frame: pd.DataFrame) -> pd.DataFrame:
 
 def reorder_columns(frame: pd.DataFrame) -> pd.DataFrame:
     priority = [
+        "Month",
+        "Rank",
         "Ticker",
+        "CompanyName",
         "Theme",
+        "Sector",
         "SectorETF",
+        "ETF",
+        "PrimaryPurpose",
         "FinalState",
         "SetupStatus",
         "ReviewState",
@@ -2014,8 +2024,31 @@ def reorder_columns(frame: pd.DataFrame) -> pd.DataFrame:
         "FinalValueCategory",
         "PeerRelativeStatus",
         "RelativeOpportunityScore",
+        "CompositeScore",
+        "MomentumScore",
+        "TechnicalContextScore",
+        "QualityScore",
+        "ValuationScore",
+        "RiskPenalty",
+        "LiquidityScore",
         "WatchlistScore",
+        "WatchlistRank",
+        "Return1M",
+        "Return3M",
+        "Return6M",
+        "Return12M",
+        "RSPercentile",
+        "DataQualityScore",
+        "MomentumReady",
+        "DCFReady",
+        "PeerReady",
+        "PriceHistoryDays",
+        "NextBestAction",
+        "RankReasonSummary",
+        "ReasonSummary",
+        "DataGaps",
         "Reason",
+        "RankReason",
         "MissingDataFields",
     ]
     ordered = [column for column in priority if column in frame.columns]
@@ -2025,17 +2058,32 @@ def reorder_columns(frame: pd.DataFrame) -> pd.DataFrame:
 
 def compact_table_columns(frame: pd.DataFrame) -> list[str]:
     priority = [
+        "Month",
+        "Rank",
         "Ticker",
+        "CompanyName",
         "Theme",
+        "Sector",
         "SectorETF",
+        "ETF",
+        "PrimaryPurpose",
         "FinalState",
         "SetupStatus",
         "ReviewState",
         "ThemeStatus",
         "FinalValueCategory",
         "PeerRelativeStatus",
+        "RelativeOpportunityScore",
+        "CompositeScore",
+        "MomentumScore",
+        "TechnicalContextScore",
+        "RiskPenalty",
+        "LiquidityScore",
         "WatchlistScore",
         "WatchlistRank",
+        "RSPercentile",
+        "PriceHistoryDays",
+        "NextBestAction",
         "RankReasonSummary",
         "ReasonSummary",
         "DataGaps",
@@ -2050,8 +2098,69 @@ def compact_table_columns(frame: pd.DataFrame) -> list[str]:
     ]
     selected = [column for column in priority if column in frame.columns]
     if len(selected) < 6:
-        selected.extend(column for column in frame.columns if column not in selected and column not in {"Reason", "RankReason", "MissingDataFields"})
+        selected.extend(
+            column
+            for column in frame.columns
+            if column not in selected
+            and column
+            not in {
+                "Reason",
+                "RankReason",
+                "MissingDataFields",
+                "SourceFiles",
+                "GeneratedAt",
+                "Source",
+                "Description",
+                "MemberTickers",
+            }
+        )
     return selected[:14]
+
+
+def table_focus_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
+    row_count = len(frame)
+    row_label = "row" if row_count == 1 else "rows"
+    lead_state, lead_state_count = dominant_value(
+        frame,
+        ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "PeerRelativeStatus"],
+    )
+    lead_context, lead_context_count = dominant_value(frame, ["PrimaryPurpose", "Theme", "Sector", "SectorETF", "ETF"])
+    missing_count = non_empty_count(frame, [column for column in frame.columns if "missing" in column.lower()])
+    missing_label = "row" if missing_count == 1 else "rows"
+    score_count = non_empty_count(
+        frame,
+        [
+            column
+            for column in frame.columns
+            if any(token in column.lower() for token in ("score", "percentile", "return", "relativeopportunity"))
+        ],
+    )
+    return [
+        {
+            "kicker": "VISIBLE ROWS",
+            "title": f"{row_count} {row_label}",
+            "body": "Current filtered view. Use search and status/theme filters to narrow the table before opening full details.",
+            "badges": ["filter-aware"],
+        },
+        {
+            "kicker": "LEAD STATE",
+            "title": lead_state,
+            "body": f"Most common visible state across {lead_state_count} row{'s' if lead_state_count != 1 else ''}.",
+            "badges": ["status first"],
+        },
+        {
+            "kicker": "LEAD CONTEXT",
+            "title": lead_context,
+            "body": f"Most common purpose/theme context across {lead_context_count} row{'s' if lead_context_count != 1 else ''}.",
+            "badges": ["research lens"],
+        },
+        {
+            "kicker": "DATA COVERAGE",
+            "title": f"{missing_count} {missing_label} with gaps",
+            "body": f"{score_count} row{'s' if score_count != 1 else ''} include score, return, or percentile context in the visible view.",
+            "badges": ["missing data stays visible"],
+        },
+    ]
 
 
 def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
@@ -2099,8 +2208,9 @@ def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
 
 def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> None:
     filtered = filter_frame(reorder_columns(frame), key)
-    display_frame = display_with_summaries(filtered)
+    display_frame = reorder_columns(display_with_summaries(filtered))
     compact_columns = compact_table_columns(display_frame)
+    render_signal_cards(table_focus_cards(filtered))
     st.caption("Showing the most useful columns first. Open the detail expanders below for full reasons, missing fields, and raw columns.")
     st.dataframe(style_frame(presentation_frame(display_frame[compact_columns])), width="stretch", hide_index=True)
 
