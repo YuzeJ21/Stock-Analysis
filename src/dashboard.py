@@ -2082,6 +2082,52 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
     ]
 
 
+def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
+    if price_worklist_frame is None or price_worklist_frame.empty:
+        return [
+            {
+                "kicker": "PRICE TARGETS",
+                "title": "No price targets yet",
+                "body": "Write the onboarding outputs to surface exact history targets for Monthly Picks, track record, and fuller 1Y local coverage.",
+                "badges": ["read-only"],
+                "command": "python3 -m src.data_onboarding --write-output",
+            }
+        ]
+
+    ordered = price_worklist_frame.copy()
+    sort_columns: list[str] = []
+    if "priority" in ordered.columns:
+        ordered["priority"] = pd.to_numeric(ordered["priority"], errors="coerce")
+        sort_columns.append("priority")
+    if "rows_needed_for_next_goal" in ordered.columns:
+        ordered["rows_needed_for_next_goal"] = pd.to_numeric(ordered["rows_needed_for_next_goal"], errors="coerce")
+        sort_columns.append("rows_needed_for_next_goal")
+    if "ticker" in ordered.columns:
+        sort_columns.append("ticker")
+    if sort_columns:
+        ordered = ordered.sort_values(sort_columns, kind="stable")
+
+    cards: list[dict[str, object]] = []
+    for _, row in ordered.head(limit).iterrows():
+        cards.append(
+            {
+                "kicker": format_missing(row.get("next_price_goal"), "Price target").upper(),
+                "title": format_missing(row.get("ticker"), "Ticker"),
+                "body": (
+                    f"{format_value(row.get('rows_needed_for_next_goal'), fallback='0')} rows still needed to reach "
+                    f"{format_value(row.get('next_target_history_rows'), fallback='0')} rows. "
+                    f"Suggested start: {format_missing(row.get('suggested_start_date'), 'Not available')}."
+                ),
+                "badges": [
+                    f"{format_value(row.get('price_history_days'), fallback='0')} local rows",
+                    f"P{format_value(row.get('priority'), fallback='-')}",
+                ],
+                "command": format_missing(row.get("example_command"), ""),
+            }
+        )
+    return cards
+
+
 def data_health_tab_summary_cards(
     tab_name: str,
     validation_rows: pd.DataFrame,
@@ -6143,6 +6189,8 @@ def render_data_health(provider) -> None:
                 metric_cols[1].metric("Track Record Ready", worklist_summary["track_record_ready"])
                 metric_cols[2].metric("1Y History Ready", worklist_summary["preferred_history_ready"])
                 metric_cols[3].metric("Urgent Price Gaps", worklist_summary["priority_1"])
+                render_section_header("Price History Targets", "Which tickers need the next exact local history step for Monthly Picks, track record, or a fuller 1Y view.")
+                render_signal_cards(data_health_price_target_cards(price_worklist_frame))
             if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
                 fp_summary = summarize_fundamentals_peer_worklist(fundamentals_peer_worklist_frame)
                 metric_cols = st.columns(4)
