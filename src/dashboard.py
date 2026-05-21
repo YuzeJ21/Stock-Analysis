@@ -2163,6 +2163,94 @@ def table_focus_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
     ]
 
 
+TABLE_IDENTITY_COLUMNS = {
+    "Month",
+    "Rank",
+    "Ticker",
+    "CompanyName",
+    "Theme",
+    "Sector",
+    "SectorETF",
+    "ETF",
+    "PrimaryPurpose",
+    "FinalState",
+    "SetupStatus",
+    "ReviewState",
+    "ThemeStatus",
+    "FinalValueCategory",
+    "PeerRelativeStatus",
+    "RelativeOpportunityScore",
+    "WatchlistScore",
+    "WatchlistRank",
+    "CompositeScore",
+    "MomentumScore",
+    "TechnicalContextScore",
+    "QualityScore",
+    "ValuationScore",
+    "RiskPenalty",
+    "LiquidityScore",
+    "RSPercentile",
+    "Return1M",
+    "Return3M",
+    "Return6M",
+    "Return12M",
+}
+
+TABLE_OPERATIONAL_COLUMNS = {
+    "Source",
+    "SourceFiles",
+    "GeneratedAt",
+    "Description",
+    "MemberTickers",
+    "TickersWithData",
+    "HistoryDays",
+}
+
+
+def detail_columns(frame: pd.DataFrame, category: str) -> list[str]:
+    columns = list(frame.columns)
+    identity = [column for column in columns if column in TABLE_IDENTITY_COLUMNS]
+    if category == "reasons":
+        detail = [column for column in columns if "reason" in column.lower()]
+    elif category == "support":
+        detail = [
+            column
+            for column in columns
+            if any(keyword in column.lower() for keyword in ("missing", "conflict", "risk"))
+        ]
+    elif category == "operations":
+        detail = [
+            column
+            for column in columns
+            if column in TABLE_OPERATIONAL_COLUMNS
+            or any(keyword in column.lower() for keyword in ("source", "generated", "member", "description"))
+        ]
+    else:
+        detail = []
+    selected = [column for column in identity + detail if column in columns]
+    return list(dict.fromkeys(selected))
+
+
+def detail_sections(frame: pd.DataFrame, show_reason_details: bool) -> list[tuple[str, pd.DataFrame]]:
+    sections: list[tuple[str, pd.DataFrame]] = []
+    if show_reason_details:
+        reason_cols = detail_columns(frame, "reasons")
+        if any("reason" in column.lower() for column in reason_cols):
+            sections.append(("Reasons", frame[reason_cols].copy()))
+
+    support_cols = detail_columns(frame, "support")
+    if any(
+        any(keyword in column.lower() for keyword in ("missing", "conflict", "risk"))
+        for column in support_cols
+    ):
+        sections.append(("Risk and data gaps", frame[support_cols].copy()))
+
+    operations_cols = detail_columns(frame, "operations")
+    if any(column not in TABLE_IDENTITY_COLUMNS for column in operations_cols):
+        sections.append(("Source and operational context", frame[operations_cols].copy()))
+    return sections
+
+
 def filter_frame(frame: pd.DataFrame, key: str) -> pd.DataFrame:
     filtered = frame.copy()
     with st.container():
@@ -2211,28 +2299,15 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
     display_frame = reorder_columns(display_with_summaries(filtered))
     compact_columns = compact_table_columns(display_frame)
     render_signal_cards(table_focus_cards(filtered))
-    st.caption("Showing the most useful columns first. Open the detail expanders below for full reasons, missing fields, and raw columns.")
+    st.caption("Showing the most useful columns first. Open the detail panels below for reasons, data gaps, and operational context.")
     st.dataframe(style_frame(presentation_frame(display_frame[compact_columns])), width="stretch", hide_index=True)
+
+    for title, section_frame in detail_sections(filtered, show_reason_details):
+        with st.expander(f"{key} {title.lower()}", expanded=False):
+            st.dataframe(style_frame(presentation_frame(section_frame)), width="stretch", hide_index=True)
 
     with st.expander(f"{key} full table", expanded=False):
         st.dataframe(style_frame(presentation_frame(filtered)), width="stretch", hide_index=True)
-
-    if show_reason_details:
-        reason_columns = [column for column in filtered.columns if "reason" in column.lower()]
-        if reason_columns:
-            with st.expander(f"{key} reasons", expanded=False):
-                detail_columns = [column for column in filtered.columns if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState"} or column in reason_columns]
-                st.dataframe(presentation_frame(filtered[detail_columns]), width="stretch", hide_index=True)
-
-    support_columns = [
-        column
-        for column in filtered.columns
-        if any(keyword in column.lower() for keyword in ("missing", "conflict", "risk"))
-    ]
-    if support_columns:
-        with st.expander(f"{key} supporting details", expanded=False):
-            detail_columns = [column for column in filtered.columns if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState", "ThemeStatus"} or column in support_columns]
-            st.dataframe(presentation_frame(filtered[detail_columns]), width="stretch", hide_index=True)
 
 
 def get_local_provider():

@@ -178,6 +178,58 @@ def test_table_focus_cards_summarize_state_context_and_gaps_cleanly():
     assert "sell" not in rendered
 
 
+def test_detail_columns_group_reasons_support_and_operational_fields():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["NVDA"],
+            "Theme": ["AI"],
+            "FinalState": ["Watch"],
+            "Reason": ["Transparent local context."],
+            "RankReason": ["Strong relative score."],
+            "MissingDataFields": ["Return3M"],
+            "ConflictReasons": ["Price history is short."],
+            "RiskPenalty": [12.0],
+            "SourceFiles": ["outputs/final_watchlist.csv"],
+            "GeneratedAt": ["2026-05-21T00:00:00Z"],
+            "MemberTickers": ["NVDA, AVGO"],
+        }
+    )
+
+    reason_columns = dashboard.detail_columns(frame, "reasons")
+    support_columns = dashboard.detail_columns(frame, "support")
+    operations_columns = dashboard.detail_columns(frame, "operations")
+
+    assert "Reason" in reason_columns
+    assert "RankReason" in reason_columns
+    assert "MissingDataFields" in support_columns
+    assert "ConflictReasons" in support_columns
+    assert "RiskPenalty" in support_columns
+    assert "SourceFiles" in operations_columns
+    assert "GeneratedAt" in operations_columns
+    assert "MemberTickers" in operations_columns
+
+
+def test_detail_sections_build_mid_level_panels_without_buy_sell_language():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["NVDA"],
+            "Theme": ["AI"],
+            "FinalState": ["Watch"],
+            "Reason": ["Transparent local context."],
+            "MissingDataFields": ["Return3M"],
+            "SourceFiles": ["outputs/final_watchlist.csv"],
+        }
+    )
+
+    sections = dashboard.detail_sections(frame, show_reason_details=True)
+    titles = [title for title, _ in sections]
+    rendered = " ".join(str(value) for title, detail in sections for value in [title, detail.to_dict()]).lower()
+
+    assert titles == ["Reasons", "Risk and data gaps", "Source and operational context"]
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_ticker_coverage_display_frame_hides_noisy_paths():
     coverage = pd.DataFrame(
         [
