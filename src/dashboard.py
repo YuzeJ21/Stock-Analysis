@@ -878,6 +878,101 @@ def readable_card(title: str, body: str, footer: str = "") -> None:
     )
 
 
+def report_display_value(value: object, value_type: str = "number") -> str:
+    if value_type == "percent":
+        return format_percent(value)
+    if value_type == "date":
+        return format_date_short(value)
+    if value_type == "integer":
+        number = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+        if pd.isna(number):
+            return "Not available"
+        return f"{int(number):,}"
+    if value_type == "currency":
+        number = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+        if pd.isna(number):
+            return "Not available"
+        return f"${float(number):,.2f}"
+    return format_value(value)
+
+
+def stock_report_key_value_frame(
+    data: dict[str, object],
+    fields: list[tuple[str, str, str]],
+) -> pd.DataFrame:
+    rows = []
+    for key, label, value_type in fields:
+        rows.append({"Metric": label, "Value": report_display_value(data.get(key), value_type)})
+    return pd.DataFrame(rows)
+
+
+def stock_report_readiness_badges(readiness: dict[str, object]) -> list[str]:
+    definitions = [
+        ("dcf_ready", "DCF ready", "DCF needs data"),
+        ("peer_ready", "Peer ready", "Peers needed"),
+        ("earnings_available", "Earnings available", "Earnings missing"),
+        ("analyst_estimates_available", "Estimates available", "Estimates missing"),
+    ]
+    return [ready_label if readiness.get(key) else missing_label for key, ready_label, missing_label in definitions]
+
+
+def stock_report_summary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    price = report_payload.get("price_snapshot", {}) or {}
+    performance = report_payload.get("performance", {}) or {}
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    readiness = report_payload.get("valuation_readiness", {}) or {}
+    warnings = report_payload.get("missing_data_warnings", []) or []
+    return [
+        {
+            "kicker": "PRICE",
+            "title": report_display_value(price.get("price"), "currency"),
+            "body": f"Volume {report_display_value(price.get('volume'), 'integer')} from {format_missing(price.get('market_time'), 'local data')}.",
+            "badges": [format_missing(report_payload.get("provider_name"), "local provider")],
+        },
+        {
+            "kicker": "PERFORMANCE",
+            "title": f"1M {report_display_value(performance.get('one_month'), 'percent')}",
+            "body": f"3M {report_display_value(performance.get('three_month'), 'percent')} · 1Y {report_display_value(performance.get('one_year'), 'percent')}.",
+            "badges": ["Local price history"],
+        },
+        {
+            "kicker": "VALUATION",
+            "title": format_missing(valuation.get("status"), "Not available"),
+            "body": f"Coverage: {format_missing(valuation.get('coverage'), 'Not available')}. Assumptions remain visible and informational only.",
+            "badges": stock_report_readiness_badges(readiness)[:2],
+        },
+        {
+            "kicker": "DATA",
+            "title": f"{len(warnings)} warning{'s' if len(warnings) != 1 else ''}",
+            "body": "Missing inputs stay visible; the report does not fabricate unavailable fields.",
+            "badges": stock_report_readiness_badges(readiness)[2:],
+        },
+    ]
+
+
+def stock_report_missing_data_text(warnings: list[object]) -> str:
+    if not warnings:
+        return "No explicit missing-data warnings were assembled from the current inputs."
+    return "; ".join(summarize_missing_fields(warning, max_items=4) for warning in warnings)
+
+
+def stock_report_source_frame(source_rows: list[dict[str, object]]) -> pd.DataFrame:
+    if not source_rows:
+        return pd.DataFrame(columns=["Provider", "Freshness", "Retrieved", "Official", "Notes"])
+    rows = []
+    for row in source_rows:
+        rows.append(
+            {
+                "Provider": format_missing(row.get("provider")),
+                "Freshness": format_missing(row.get("freshness")),
+                "Retrieved": format_date_short(row.get("retrieved_at"), fallback="Not available"),
+                "Official": "Yes" if row.get("official") else "No",
+                "Notes": joined_notes(row.get("notes")),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def action_queue_summary(queue: pd.DataFrame | None) -> dict[str, int]:
     if queue is None or queue.empty:
         return {"critical": 0, "high": 0, "medium": 0}
@@ -1461,11 +1556,17 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         st.info("Using yfinance as an unofficial / research-grade source. Review source/freshness notes carefully.")
 
     readiness = report_payload.get("valuation_readiness", {})
-    readiness_cols = st.columns(4)
-    readiness_cols[0].metric("DCF Ready", "Yes" if readiness.get("dcf_ready") else "No")
-    readiness_cols[1].metric("Peer Ready", "Yes" if readiness.get("peer_ready") else "No")
-    readiness_cols[2].metric("Earnings Available", "Yes" if readiness.get("earnings_available") else "No")
-    readiness_cols[3].metric("Analyst Estimates", "Yes" if readiness.get("analyst_estimates_available") else "No")
+    render_section_header(
+        f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
+        "A structured view of local research inputs. This is context only, not a trading instruction.",
+    )
+    render_signal_cards(stock_report_summary_cards(report_payload))
+    st.markdown(
+        "<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.5rem 0 1rem 0;'>"
+        + "".join(status_badge(label) for label in stock_report_readiness_badges(readiness))
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
     price = report_payload["price_snapshot"]
     performance = report_payload["performance"]
@@ -1473,84 +1574,86 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
     valuation = report_payload["valuation_snapshot"]
     relative = valuation["relative_valuation"]
 
-    section_a, section_b = st.columns(2)
-    with section_a:
-        st.markdown("#### Price")
-        price_metrics = st.columns(3)
-        price_metrics[0].metric("Price", "n/a" if price["price"] is None else f"{price['price']:.2f}")
-        price_metrics[1].metric("Previous Close", "n/a" if price["previous_close"] is None else f"{price['previous_close']:.2f}")
-        price_metrics[2].metric("Volume", "n/a" if price["volume"] is None else f"{int(price['volume']):,}")
-        with st.expander("Price detail", expanded=False):
+    snapshot_tab, valuation_tab, earnings_tab, sources_tab = st.tabs(
+        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]
+    )
+
+    with snapshot_tab:
+        price_columns = st.columns(3)
+        price_columns[0].metric("Last Price", report_display_value(price.get("price"), "currency"))
+        price_columns[1].metric("Previous Close", report_display_value(price.get("previous_close"), "currency"))
+        price_columns[2].metric("Volume", report_display_value(price.get("volume"), "integer"))
+
+        performance_columns = st.columns(3)
+        performance_columns[0].metric("1M Return", report_display_value(performance.get("one_month"), "percent"))
+        performance_columns[1].metric("3M Return", report_display_value(performance.get("three_month"), "percent"))
+        performance_columns[2].metric("1Y Return", report_display_value(performance.get("one_year"), "percent"))
+
+        st.markdown("#### Financial Context")
+        financial_fields = [
+            ("revenue", "Revenue", "number"),
+            ("revenue_growth", "Revenue Growth", "percent"),
+            ("eps", "EPS", "number"),
+            ("operating_margin", "Operating Margin", "percent"),
+            ("profit_margin", "Profit Margin", "percent"),
+            ("free_cash_flow", "Free Cash Flow", "number"),
+            ("fcf_margin", "FCF Margin", "percent"),
+            ("cash", "Cash", "number"),
+            ("debt", "Debt", "number"),
+            ("shares_outstanding", "Shares Outstanding", "integer"),
+        ]
+        st.dataframe(
+            clean_display_frame(stock_report_key_value_frame(financials, financial_fields)),
+            width="stretch",
+            hide_index=True,
+        )
+
+        with st.expander("Price snapshot detail", expanded=False):
             st.json(price, expanded=False)
 
-        st.markdown("#### Financials")
-        financial_columns = [
-            "revenue",
-            "revenue_growth",
-            "eps",
-            "operating_margin",
-            "profit_margin",
-            "free_cash_flow",
-            "fcf_margin",
-            "cash",
-            "debt",
-            "shares_outstanding",
-        ]
-        financial_frame = pd.DataFrame(
-            [
-                {"Field": column, "Value": format_value(financials.get(column))}
-                for column in financial_columns
-            ]
-        )
-        st.dataframe(clean_display_frame(financial_frame), width="stretch", hide_index=True)
-
-        st.markdown("#### Earnings / Analyst Estimates")
-        earnings_col, estimates_col = st.columns(2)
-        with earnings_col:
-            st.caption("Earnings")
-            st.json(report_payload["earnings_summary"], expanded=False)
-        with estimates_col:
-            st.caption("Analyst estimates")
-            st.json(report_payload["analyst_estimate_summary"], expanded=False)
-
-    with section_b:
-        st.markdown("#### Performance")
-        perf_metrics = st.columns(3)
-        perf_metrics[0].metric("1M", "n/a" if performance["one_month"] is None else f"{performance['one_month'] * 100:.1f}%")
-        perf_metrics[1].metric("3M", "n/a" if performance["three_month"] is None else f"{performance['three_month'] * 100:.1f}%")
-        perf_metrics[2].metric("1Y", "n/a" if performance["one_year"] is None else f"{performance['one_year'] * 100:.1f}%")
-
-        st.markdown("#### Valuation")
-        st.write(f"Status: `{valuation['status']}`")
-        st.write(f"Coverage: `{valuation.get('coverage', 'n/a')}`")
+    with valuation_tab:
         base_dcf = valuation["dcf_result"]
-        if base_dcf.get("fair_value_per_share") is not None:
-            st.metric("Base Fair Value / Share", f"{base_dcf['fair_value_per_share']:.2f}")
-        else:
-            st.info("Per-share DCF output is unavailable with the current inputs.")
+        valuation_columns = st.columns(4)
+        valuation_columns[0].metric("Valuation Status", format_missing(valuation.get("status")))
+        valuation_columns[1].metric("Coverage", format_missing(valuation.get("coverage")))
+        valuation_columns[2].metric("DCF Status", format_missing(base_dcf.get("status")))
+        valuation_columns[3].metric(
+            "Base Fair Value / Share",
+            report_display_value(base_dcf.get("fair_value_per_share"), "currency"),
+        )
+        if base_dcf.get("fair_value_per_share") is None:
+            st.info("Per-share DCF output is unavailable with the current local inputs. Missing fields remain visible below.")
 
         scenario_rows = []
         for scenario in valuation.get("scenarios", []):
             result = scenario["dcf_result"]
+            assumptions = scenario["assumptions"]
             scenario_rows.append(
                 {
                     "Scenario": scenario["name"],
                     "Status": result["status"],
-                    "RevenueGrowth": scenario["assumptions"]["revenue_growth"],
-                    "FCFMargin": scenario["assumptions"]["fcf_margin"],
-                    "WACC": scenario["assumptions"]["wacc"],
-                    "TerminalGrowth": scenario["assumptions"]["terminal_growth"],
-                    "FairValuePerShare": result["fair_value_per_share"],
+                    "Revenue Growth": report_display_value(assumptions.get("revenue_growth"), "percent"),
+                    "FCF Margin": report_display_value(assumptions.get("fcf_margin"), "percent"),
+                    "WACC": report_display_value(assumptions.get("wacc"), "percent"),
+                    "Terminal Growth": report_display_value(assumptions.get("terminal_growth"), "percent"),
+                    "Fair Value / Share": report_display_value(result.get("fair_value_per_share"), "currency"),
                 }
             )
         if scenario_rows:
+            st.markdown("#### Bull / Base / Bear Scenarios")
             st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
 
         st.markdown("#### Peer-Relative Valuation")
-        st.write(f"Status: `{relative['status']}`")
-        st.write(f"Peer-relative status: `{relative.get('peer_relative_status', 'insufficient_peer_data')}`")
-        if relative.get("relative_opportunity_score") is not None:
-            st.metric("Relative Opportunity Score", f"{relative['relative_opportunity_score']:.1f}")
+        peer_columns = st.columns(4)
+        peer_columns[0].metric("Peer Status", format_missing(relative.get("status")))
+        peer_columns[1].metric("Peer Group", format_missing(relative.get("peer_group"), "Not configured"))
+        peer_columns[2].metric("Peer Count", report_display_value(relative.get("peer_count"), "integer"))
+        peer_columns[3].metric(
+            "Relative Score",
+            report_display_value(relative.get("relative_opportunity_score"), "number"),
+        )
+        st.markdown(status_badge(relative.get("peer_relative_status", "insufficient_peer_data")), unsafe_allow_html=True)
+
         comparison_rows = []
         metric_labels = {"pe": "P/E", "ps": "P/S", "p_fcf": "P/FCF", "ev_ebitda": "EV/EBITDA"}
         for metric_key, label in metric_labels.items():
@@ -1562,52 +1665,94 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
             comparison_rows.append(
                 {
                     "Metric": label,
-                    "Subject": subject,
-                    "PeerMedian": peer_median,
-                    "DiscountPremiumPct": None if discount is None else discount * 100.0,
+                    "Subject": report_display_value(subject, "number"),
+                    "Peer Median": report_display_value(peer_median, "number"),
+                    "Discount / Premium": report_display_value(discount, "percent"),
                 }
             )
         if comparison_rows:
             st.dataframe(pd.DataFrame(comparison_rows), width="stretch", hide_index=True)
+        else:
+            st.info("Peer-relative multiples are unavailable until local peers and peer fundamentals/prices are present.")
 
-    st.markdown("#### Missing Data")
-    if report_payload["missing_data_warnings"]:
-        for warning in report_payload["missing_data_warnings"]:
-            st.write(f"- {warning}")
-    else:
-        st.write("No explicit missing-data warnings were assembled from the current inputs.")
+        sensitivity = valuation["sensitivity_table"]
+        if sensitivity["status"] == "calculated" and sensitivity["fair_value_grid"]:
+            with st.expander("DCF sensitivity table", expanded=False):
+                sensitivity_frame = pd.DataFrame(
+                    sensitivity["fair_value_grid"],
+                    index=[f"WACC {value:.1%}" for value in sensitivity["wacc_values"]],
+                    columns=[f"TG {value:.1%}" for value in sensitivity["terminal_growth_values"]],
+                )
+                st.dataframe(sensitivity_frame, width="stretch")
 
-    st.markdown("#### Source / Freshness")
-    st.dataframe(pd.DataFrame(report_payload["data_freshness"]), width="stretch", hide_index=True)
-
-    sensitivity = valuation["sensitivity_table"]
-    if sensitivity["status"] == "calculated" and sensitivity["fair_value_grid"]:
-        with st.expander("DCF sensitivity table", expanded=False):
-            sensitivity_frame = pd.DataFrame(
-                sensitivity["fair_value_grid"],
-                index=[f"WACC {value:.1%}" for value in sensitivity["wacc_values"]],
-                columns=[f"TG {value:.1%}" for value in sensitivity["terminal_growth_values"]],
+        with st.expander("Valuation warnings and methodology notes", expanded=False):
+            st.json(
+                {
+                    "warnings": valuation.get("warnings", []),
+                    "notes": valuation.get("notes", []),
+                    "peer_missing_data_warnings": relative.get("peer_missing_data_warnings", []),
+                    "relative_missing_fields": relative.get("missing_fields", []),
+                },
+                expanded=False,
             )
-            st.dataframe(sensitivity_frame, width="stretch")
 
-    with st.expander("Valuation warnings / methodology notes", expanded=False):
-        st.json(
-            {
-                "warnings": valuation.get("warnings", []),
-                "notes": valuation.get("notes", []),
-                "peer_missing_data_warnings": relative.get("peer_missing_data_warnings", []),
-                "relative_missing_fields": relative.get("missing_fields", []),
-            },
-            expanded=False,
+    with earnings_tab:
+        earnings = report_payload["earnings_summary"]
+        estimates = report_payload["analyst_estimate_summary"]
+        earnings_col, estimates_col = st.columns(2)
+        with earnings_col:
+            st.markdown("#### Earnings")
+            earnings_fields = [
+                ("next_earnings_date", "Next Earnings Date", "date"),
+                ("last_earnings_date", "Last Earnings Date", "date"),
+                ("fiscal_period", "Fiscal Period", "number"),
+                ("eps_estimate", "EPS Estimate", "number"),
+                ("eps_actual", "EPS Actual", "number"),
+                ("revenue_estimate", "Revenue Estimate", "number"),
+                ("revenue_actual", "Revenue Actual", "number"),
+                ("surprise_pct", "Surprise", "percent"),
+            ]
+            st.dataframe(clean_display_frame(stock_report_key_value_frame(earnings, earnings_fields)), width="stretch", hide_index=True)
+            with st.expander("Earnings detail", expanded=False):
+                st.json(earnings, expanded=False)
+        with estimates_col:
+            st.markdown("#### Analyst Estimates")
+            estimate_fields = [
+                ("current_quarter_eps", "Current Quarter EPS", "number"),
+                ("next_quarter_eps", "Next Quarter EPS", "number"),
+                ("current_year_eps", "Current Year EPS", "number"),
+                ("next_year_eps", "Next Year EPS", "number"),
+                ("target_mean_price", "Target Mean Price", "currency"),
+                ("target_high_price", "Target High Price", "currency"),
+                ("target_low_price", "Target Low Price", "currency"),
+                ("revision_trend", "Revision Trend", "number"),
+            ]
+            st.dataframe(clean_display_frame(stock_report_key_value_frame(estimates, estimate_fields)), width="stretch", hide_index=True)
+            with st.expander("Analyst estimate detail", expanded=False):
+                st.json(estimates, expanded=False)
+
+    with sources_tab:
+        st.markdown("#### Missing Data")
+        warning_text = stock_report_missing_data_text(report_payload.get("missing_data_warnings", []))
+        if report_payload.get("missing_data_warnings"):
+            st.warning(warning_text)
+        else:
+            st.success(warning_text)
+
+        st.markdown("#### Source / Freshness")
+        st.dataframe(
+            clean_display_frame(stock_report_source_frame(report_payload.get("data_freshness", []))),
+            width="stretch",
+            hide_index=True,
         )
 
-    if report_payload.get("screener_context"):
-        with st.expander("Existing screener context", expanded=False):
-            st.json(report_payload["screener_context"], expanded=False)
+        if report_payload.get("screener_context"):
+            with st.expander("Existing screener context", expanded=False):
+                st.json(report_payload["screener_context"], expanded=False)
 
-    if show_raw_json:
-        with st.expander("Raw stock report JSON", expanded=False):
-            st.json(report_payload, expanded=False)
+        if show_raw_json:
+            with st.expander("Raw stock report JSON", expanded=False):
+                st.json(report_payload, expanded=False)
 
     st.download_button(
         "Download Stock Report JSON",

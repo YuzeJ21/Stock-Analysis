@@ -250,3 +250,72 @@ def test_onboarding_summary_counts_core_and_optional_gaps():
     assert summary["dcf_ready_tickers"] == 1
     assert summary["peer_ready_tickers"] == 1
     assert summary["optional_only_missing_tickers"] == 1
+
+
+def test_stock_report_helpers_format_missing_values_cleanly():
+    frame = dashboard.stock_report_key_value_frame(
+        {"price": None, "return": float("nan"), "volume": 12345},
+        [
+            ("price", "Price", "currency"),
+            ("return", "Return", "percent"),
+            ("volume", "Volume", "integer"),
+        ],
+    )
+
+    assert frame.iloc[0]["Value"] == "Not available"
+    assert frame.iloc[1]["Value"] == "Not enough history"
+    assert frame.iloc[2]["Value"] == "12,345"
+    assert not frame["Value"].astype(str).str.lower().str.contains("nan|none|null").any()
+
+
+def test_stock_report_summary_cards_are_readable_and_research_only():
+    payload = {
+        "ticker": "NVDA",
+        "provider_name": "LocalCSVMarketDataProvider",
+        "price_snapshot": {"price": 100.0, "volume": None, "market_time": None},
+        "performance": {"one_month": 0.12, "three_month": None, "one_year": 0.4},
+        "valuation_snapshot": {"status": "partial", "coverage": "limited"},
+        "valuation_readiness": {
+            "dcf_ready": True,
+            "peer_ready": False,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": ["peers missing"],
+    }
+
+    cards = dashboard.stock_report_summary_cards(payload)
+    rendered = " ".join(str(value) for card in cards for value in card.values())
+
+    assert len(cards) == 4
+    assert "$100.00" in rendered
+    assert "Peers needed" in rendered
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
+
+
+def test_stock_report_source_frame_hides_raw_missing_values():
+    frame = dashboard.stock_report_source_frame(
+        [
+            {
+                "provider": "local",
+                "freshness": None,
+                "retrieved_at": "2026-05-21T10:00:00Z",
+                "official": False,
+                "notes": ["CSV fallback"],
+            }
+        ]
+    )
+
+    assert frame.iloc[0]["Freshness"] == "Not available"
+    assert frame.iloc[0]["Retrieved"] == "2026-05-21"
+    assert frame.iloc[0]["Official"] == "No"
+    assert "CSV fallback" in frame.iloc[0]["Notes"]
+
+
+def test_stock_report_missing_data_text_stays_friendly():
+    text = dashboard.stock_report_missing_data_text(["fundamentals unavailable, peers, Return1M"])
+
+    assert "Needs SEC enrichment" in text
+    assert "Needs peers.csv" in text
+    assert "Not enough price history" in text
