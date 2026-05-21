@@ -1,9 +1,10 @@
-.PHONY: help test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
 	@echo ""
 	@echo "Core:"
+	@echo "  make status           Print read-only local project status"
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
 	@echo "  make verify           Run deterministic local verification"
@@ -37,6 +38,9 @@ help:
 
 test:
 	python3 -m pytest tests -q
+
+status:
+	python3 -m src.project_status
 
 pipeline:
 	python3 -m src.report_generator

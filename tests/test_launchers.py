@@ -6,6 +6,7 @@ def test_makefile_contains_convenience_targets():
 
     for target in (
         "help",
+        "status",
         "test",
         "pipeline",
         "monthly",
@@ -42,6 +43,7 @@ def test_makefile_help_documents_key_workflows():
 
     for phrase in (
         "Stock Research Screener convenience commands",
+        "make status",
         "make verify",
         "make validate-all",
         "make daily",

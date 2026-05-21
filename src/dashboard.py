@@ -1259,6 +1259,7 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
 def workflow_command_rows() -> list[dict[str, str]]:
     return [
         {"Step": "Command menu", "Command": "make help"},
+        {"Step": "Read-only status", "Command": "make status"},
         {"Step": "Deterministic verification", "Command": "make verify"},
         {"Step": "Extended validation", "Command": "make validate-all"},
         {"Step": "Dashboard smoke check", "Command": "make dashboard-smoke"},
