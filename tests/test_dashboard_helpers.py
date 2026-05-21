@@ -1008,6 +1008,40 @@ def test_overview_interpretation_guardrail_card_supports_ready_workflow():
     assert "sell" not in rendered
 
 
+def test_overview_coverage_hotspot_cards_surface_dataset_pressure():
+    queue = pd.DataFrame(
+        [
+            {"priority": 1, "action_type": "prices", "ticker": "NVDA"},
+            {"priority": 1, "action_type": "prices", "ticker": "AMD"},
+            {"priority": 2, "action_type": "fundamentals", "ticker": "MSFT"},
+            {"priority": 3, "action_type": "peers", "ticker": "NVDA"},
+            {"priority": 4, "action_type": "earnings", "ticker": "AVGO"},
+        ]
+    )
+
+    cards = dashboard.overview_coverage_hotspot_cards(queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Prices"
+    assert any(card["title"] == "Fundamentals" for card in cards)
+    assert any(card["title"] == "Peers" for card in cards)
+    assert "2 action rows and 2 affected tickers" in rendered
+    assert "examples:" in rendered
+    assert "nvda" in rendered
+    assert "amd" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_coverage_hotspot_cards_handle_missing_queue():
+    cards = dashboard.overview_coverage_hotspot_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert "no hotspot queue yet" in rendered
+    assert "prices, fundamentals, peers, or optional context" in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {

@@ -2596,6 +2596,74 @@ def overview_interpretation_guardrail_card(
     }
 
 
+def overview_coverage_hotspot_cards(action_queue: pd.DataFrame | None, limit: int = 4) -> list[dict[str, object]]:
+    if action_queue is None or action_queue.empty or "action_type" not in action_queue.columns:
+        return [
+            {
+                "kicker": "COVERAGE HOTSPOT",
+                "title": "No hotspot queue yet",
+                "body": "Generate the local action queue to see whether prices, fundamentals, peers, or optional context are creating the most research friction.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    queue = action_queue.copy()
+    queue["action_type"] = queue["action_type"].astype(str).str.strip().str.lower()
+    queue["ticker"] = queue.get("ticker", pd.Series(dtype=object)).astype(str).str.strip().str.upper()
+    queue["priority"] = pd.to_numeric(queue.get("priority"), errors="coerce").fillna(999)
+
+    label_map = {
+        "prices": ("PRICE PRESSURE", "Prices", "Verified local price history still drives the most downstream research value."),
+        "fundamentals": ("DCF PRESSURE", "Fundamentals", "SEC-stageable or local fundamentals are still blocking richer valuation context."),
+        "peers": ("PEER PRESSURE", "Peers", "Manual peer mappings are still required for peer-relative research and medians."),
+        "earnings": ("OPTIONAL CONTEXT", "Earnings", "Optional earnings context is still missing for some single-name reports."),
+        "analyst_estimates": ("OPTIONAL CONTEXT", "Analyst Estimates", "Optional analyst context is still missing for some single-name reports."),
+    }
+
+    cards: list[dict[str, object]] = []
+    grouped = (
+        queue.groupby("action_type", dropna=False)
+        .agg(
+            row_count=("action_type", "size"),
+            ticker_count=("ticker", lambda series: int(series.replace("", pd.NA).dropna().nunique())),
+            best_priority=("priority", "min"),
+        )
+        .reset_index()
+        .sort_values(["best_priority", "row_count", "action_type"], ascending=[True, False, True])
+    )
+
+    for _, row in grouped.head(limit).iterrows():
+        action_type = str(row.get("action_type", "")).strip().lower()
+        kicker, title, base_body = label_map.get(
+            action_type,
+            ("COVERAGE HOTSPOT", display_column_label(action_type or "coverage"), "This dataset type still has visible local workflow pressure."),
+        )
+        sample_rows = queue.loc[queue["action_type"] == action_type].sort_values(["priority", "ticker"], na_position="last").head(3)
+        tickers = [ticker for ticker in sample_rows["ticker"].tolist() if ticker and ticker != "NAN"]
+        ticker_count = int(row.get("ticker_count", 0) or 0)
+        row_count = int(row.get("row_count", 0) or 0)
+        body = f"{base_body} {row_count} action rows and {ticker_count} affected tickers are currently visible."
+        if tickers:
+            body += f" Examples: {', '.join(tickers[:3])}."
+        cards.append(
+            {
+                "kicker": kicker,
+                "title": title,
+                "body": body,
+                "badges": [f"P{int(row.get('best_priority', 999))}", f"{ticker_count} tickers"],
+            }
+        )
+
+    return cards or [
+        {
+            "kicker": "COVERAGE HOTSPOT",
+            "title": "No hotspot queue yet",
+            "body": "Generate the local action queue to see whether prices, fundamentals, peers, or optional context are creating the most research friction.",
+            "badges": ["read-only"],
+        }
+    ]
+
+
 def holdings_unlock_cards(
     holdings: pd.DataFrame | None,
     ticker_unlock_ladder: pd.DataFrame | None,
@@ -3769,6 +3837,8 @@ def render_overview(
         )
     )
     render_signal_cards([overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary)])
+    render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
+    render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
     render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
     render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
     render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
