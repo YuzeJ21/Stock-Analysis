@@ -919,6 +919,21 @@ def test_overview_workflow_reason_card_falls_back_to_status_snapshot():
     assert "buy" not in rendered
 
 
+def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
+    cards = dashboard.overview_handoff_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "Data Health"
+    assert cards[1]["title"] == "Stock Report Beta"
+    assert cards[2]["title"] == "Monthly Picks"
+    assert "blocking the local research workflow" in rendered
+    assert "single-name deep dive" in rendered
+    assert "track-record readiness" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {

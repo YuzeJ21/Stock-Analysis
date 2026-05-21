@@ -2973,6 +2973,29 @@ def overview_workflow_reason_card(
     }
 
 
+def overview_handoff_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "NEXT DEEPER TAB",
+            "title": "Data Health",
+            "body": "Use this when prices, fundamentals, peers, or staged imports are still blocking the local research workflow. It is the best place to inspect blockers before interpreting deeper outputs.",
+            "badges": ["coverage", "read-only"],
+        },
+        {
+            "kicker": "NEXT DEEPER TAB",
+            "title": "Stock Report Beta",
+            "body": "Use this for a single-name deep dive after local coverage is good enough to support price, valuation, peer, and missing-assumption context in one place.",
+            "badges": ["single name", "deep dive"],
+        },
+        {
+            "kicker": "NEXT DEEPER TAB",
+            "title": "Monthly Picks",
+            "body": "Use this after core coverage is in place to compare the current local candidate set, visible data gaps, and track-record readiness without turning the workflow into trade advice.",
+            "badges": ["candidate view", "research only"],
+        },
+    ]
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -3730,6 +3753,8 @@ def render_overview(
             ("Critical Actions", queue_summary["critical"], "Highest-priority remediation items"),
         ]
     )
+    render_section_header("Next Deeper Tabs", "Where to go next after the high-level workflow read, depending on whether you need blocker triage, single-name depth, or broader candidate comparison.")
+    render_signal_cards(overview_handoff_cards())
 
     st.markdown(
         (
