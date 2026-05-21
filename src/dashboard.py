@@ -231,20 +231,27 @@ def apply_dashboard_theme() -> None:
         """
         <style>
         :root {
-          --research-bg: #f6f1e8;
-          --research-panel: #fffdf8;
-          --research-text: #172033;
-          --research-muted: #5b6474;
-          --research-border: #d8ccbc;
-          --research-accent: #0f6b63;
-          --research-accent-soft: #d9f3ec;
+          --research-bg: #f4f6f1;
+          --research-panel: #fffefa;
+          --research-ink: #111827;
+          --research-text: #1f2937;
+          --research-muted: #667085;
+          --research-border: #d7ddcf;
+          --research-accent: #0f766e;
+          --research-accent-strong: #0b3b36;
+          --research-accent-soft: #d8f3ed;
+          --research-warning: #a16207;
+          --research-danger: #b42318;
         }
         .stApp {
-          background: radial-gradient(circle at top left, #fff9ed 0, #f6f1e8 34%, #edf3f1 100%);
+          background:
+            radial-gradient(circle at top left, rgba(15, 118, 110, 0.15) 0, rgba(244, 246, 241, 0) 32rem),
+            linear-gradient(135deg, #fbfaf4 0%, #f3f7f4 42%, #eef5f2 100%);
           color: var(--research-text);
+          font-family: "Avenir Next", "SF Pro Display", "Segoe UI", sans-serif;
         }
         [data-testid="stSidebar"] {
-          background: #efe7da;
+          background: #f0f4ee;
           border-right: 1px solid var(--research-border);
         }
         [data-testid="stSidebar"] * {
@@ -255,6 +262,141 @@ def apply_dashboard_theme() -> None:
         }
         [data-testid="stMarkdownContainer"] p {
           color: var(--research-muted);
+        }
+        .block-container {
+          padding-top: 1.6rem;
+          max-width: 1500px;
+        }
+        .app-hero {
+          position: relative;
+          overflow: hidden;
+          border-radius: 28px;
+          padding: 1.6rem 1.8rem;
+          margin: 0.2rem 0 1.2rem 0;
+          background:
+            linear-gradient(135deg, rgba(15, 59, 54, 0.96), rgba(15, 118, 110, 0.90)),
+            radial-gradient(circle at 78% 8%, rgba(236, 253, 245, 0.34), rgba(236, 253, 245, 0) 18rem);
+          border: 1px solid rgba(255, 255, 255, 0.36);
+          box-shadow: 0 22px 55px rgba(15, 59, 54, 0.18);
+        }
+        .hero-kicker {
+          color: #b8f5e8;
+          font-size: 0.78rem;
+          font-weight: 850;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+        .hero-title {
+          color: #ffffff;
+          font-size: clamp(2.0rem, 4vw, 4.1rem);
+          line-height: 0.98;
+          font-weight: 900;
+          letter-spacing: -0.06em;
+          margin: 0.38rem 0 0.55rem 0;
+        }
+        .hero-subtitle {
+          color: rgba(255, 255, 255, 0.84);
+          max-width: 56rem;
+          font-size: 1.02rem;
+          line-height: 1.55;
+        }
+        .hero-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.55rem;
+          margin-top: 1.05rem;
+        }
+        .hero-pill {
+          color: #ecfdf5;
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.24);
+          border-radius: 999px;
+          padding: 0.34rem 0.68rem;
+          font-size: 0.82rem;
+          font-weight: 750;
+        }
+        .section-title {
+          margin: 1.2rem 0 0.55rem 0;
+          font-size: 1.28rem;
+          font-weight: 900;
+          letter-spacing: -0.035em;
+          color: var(--research-ink);
+        }
+        .section-caption {
+          margin-top: -0.35rem;
+          margin-bottom: 0.8rem;
+          color: var(--research-muted);
+          font-size: 0.94rem;
+        }
+        .metric-card-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 0.8rem;
+          margin: 0.75rem 0 1.05rem 0;
+        }
+        .metric-card {
+          background: rgba(255, 254, 250, 0.92);
+          border: 1px solid var(--research-border);
+          border-radius: 18px;
+          padding: 0.95rem 1rem;
+          box-shadow: 0 10px 28px rgba(17, 24, 39, 0.06);
+        }
+        .metric-label {
+          color: #5b6474;
+          font-size: 0.72rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-weight: 850;
+        }
+        .metric-value {
+          color: var(--research-ink);
+          font-size: 1.65rem;
+          font-weight: 900;
+          letter-spacing: -0.045em;
+          margin-top: 0.2rem;
+        }
+        .metric-note {
+          color: var(--research-muted);
+          font-size: 0.82rem;
+          margin-top: 0.18rem;
+        }
+        .action-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+          gap: 0.85rem;
+          margin: 0.8rem 0 1rem 0;
+        }
+        .action-card {
+          background: #fffefa;
+          border: 1px solid var(--research-border);
+          border-left: 6px solid var(--research-accent);
+          border-radius: 18px;
+          padding: 0.95rem 1rem;
+          box-shadow: 0 12px 32px rgba(17, 24, 39, 0.07);
+        }
+        .action-card.warning { border-left-color: #d97706; }
+        .action-card.danger { border-left-color: #dc2626; }
+        .action-title {
+          color: var(--research-ink);
+          font-size: 0.94rem;
+          font-weight: 900;
+          margin-bottom: 0.32rem;
+        }
+        .action-body {
+          color: var(--research-muted);
+          font-size: 0.88rem;
+          line-height: 1.4;
+        }
+        .command-chip {
+          display: inline-block;
+          margin-top: 0.45rem;
+          padding: 0.22rem 0.46rem;
+          border-radius: 8px;
+          background: #e7f5ef;
+          color: #0b3b36;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 0.76rem;
+          font-weight: 800;
         }
         [data-testid="stMetric"] {
           background: rgba(255, 253, 248, 0.86);
@@ -273,16 +415,22 @@ def apply_dashboard_theme() -> None:
         .stTabs [data-baseweb="tab-list"] {
           gap: 0.35rem;
           border-bottom: 1px solid var(--research-border);
+          flex-wrap: wrap;
+          row-gap: 0.25rem;
         }
         .stTabs [data-baseweb="tab"] {
-          background: transparent;
-          border-radius: 999px 999px 0 0;
+          background: rgba(255, 254, 250, 0.72);
+          border: 1px solid var(--research-border);
+          border-bottom: 0;
+          border-radius: 999px;
           color: #334155;
-          font-weight: 750;
+          font-weight: 800;
+          padding: 0.42rem 0.78rem;
         }
         .stTabs [aria-selected="true"] {
-          background: #172033 !important;
+          background: #0b3b36 !important;
           color: #ffffff !important;
+          border-color: #0b3b36 !important;
         }
         .stTabs [data-baseweb="tab"] p {
           color: inherit !important;
@@ -293,7 +441,7 @@ def apply_dashboard_theme() -> None:
         div[data-testid="stAlert"] {
           border-radius: 12px;
           border: 1px solid #93c5fd;
-          background-color: #eff6ff;
+          background-color: #eef7ff;
         }
         div[data-testid="stAlert"] * {
           color: #1e3a8a !important;
@@ -394,6 +542,84 @@ def score_badge(score: object) -> str:
     return _badge(f"{float(number):.1f}", tone)
 
 
+def render_section_header(title: str, caption: str = "") -> None:
+    caption_html = f"<div class='section-caption'>{html.escape(caption)}</div>" if caption else ""
+    st.markdown(
+        f"<div class='section-title'>{html.escape(title)}</div>{caption_html}",
+        unsafe_allow_html=True,
+    )
+
+
+def metric_card_html(label: str, value: object, note: str = "") -> str:
+    note_html = f"<div class='metric-note'>{html.escape(note)}</div>" if note else ""
+    return (
+        "<div class='metric-card'>"
+        f"<div class='metric-label'>{html.escape(label)}</div>"
+        f"<div class='metric-value'>{html.escape(str(value))}</div>"
+        f"{note_html}"
+        "</div>"
+    )
+
+
+def render_metric_cards(cards: list[tuple[str, object, str]]) -> None:
+    st.markdown(
+        "<div class='metric-card-grid'>"
+        + "".join(metric_card_html(label, value, note) for label, value, note in cards)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def action_card_html(title: str, body: str, command: str = "", tone: str = "neutral") -> str:
+    tone_class = "warning" if tone == "warning" else "danger" if tone == "danger" else ""
+    command_html = f"<div class='command-chip'>{html.escape(command)}</div>" if command else ""
+    return (
+        f"<div class='action-card {tone_class}'>"
+        f"<div class='action-title'>{html.escape(title)}</div>"
+        f"<div class='action-body'>{html.escape(body)}</div>"
+        f"{command_html}"
+        "</div>"
+    )
+
+
+def render_action_cards(cards: list[tuple[str, str, str, str]]) -> None:
+    st.markdown(
+        "<div class='action-grid'>"
+        + "".join(action_card_html(title, body, command, tone) for title, body, command, tone in cards)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]]) -> None:
+    universe = catalog.load_dataframe("universe")
+    tickers = 0 if universe is None or universe.empty else len(universe)
+    final_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
+    monthly_frame, _ = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
+    final_count = 0 if final_frame is None else len(final_frame)
+    monthly_count = 0 if monthly_frame is None else len(monthly_frame)
+    latest_price = _latest_local_price_date(catalog)
+    st.markdown(
+        f"""
+        <div class="app-hero">
+          <div class="hero-kicker">CSV-first research cockpit</div>
+          <div class="hero-title">Stock Research Screener</div>
+          <div class="hero-subtitle">
+            A local, explainable workflow for market direction, momentum leadership, portfolio review,
+            valuation context, monthly research candidates, and data readiness. No trade execution.
+          </div>
+          <div class="hero-pills">
+            <span class="hero-pill">{tickers} universe tickers</span>
+            <span class="hero-pill">{final_count} watchlist rows</span>
+            <span class="hero-pill">{monthly_count} monthly candidates</span>
+            <span class="hero-pill">Latest price: {html.escape(latest_price)}</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _translated_missing_item(item: str) -> str:
     lowered = item.lower()
     if "fundamentals unavailable" in lowered:
@@ -492,12 +718,12 @@ def ticker_coverage_display_frame(coverage: pd.DataFrame) -> pd.DataFrame:
 
 
 def readable_card(title: str, body: str, footer: str = "") -> None:
-    footer_html = f"<div style='margin-top:0.65rem;color:#334155;font-size:0.86rem;'>{footer}</div>" if footer else ""
+    footer_html = f"<div style='margin-top:0.72rem;color:#475467;font-size:0.86rem;'>{footer}</div>" if footer else ""
     st.markdown(
         f"""
-        <div style="border:1px solid #94a3b8;border-left:5px solid #2563eb;border-radius:10px;padding:0.95rem 1rem;background:#ffffff;margin-bottom:0.85rem;box-shadow:0 1px 2px rgba(15,23,42,0.08);">
-          <div style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.02em;color:#334155;font-weight:800;">{html.escape(title)}</div>
-          <div style="margin-top:0.35rem;color:#0f172a;font-size:1rem;line-height:1.45;">{body}</div>
+        <div style="border:1px solid #d7ddcf;border-radius:20px;padding:1.05rem 1.1rem;background:rgba(255,254,250,0.94);margin-bottom:0.85rem;box-shadow:0 14px 34px rgba(17,24,39,0.07);">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.12em;color:#0f766e;font-weight:900;">{html.escape(title)}</div>
+          <div style="margin-top:0.45rem;color:#111827;font-size:1rem;line-height:1.46;">{body}</div>
           {footer_html}
         </div>
         """,
@@ -733,20 +959,64 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
     missing_warning_count = _count_missing_warning_rows(output_frames)
     current_universe = universe_summary["current_universe"]
 
-    metrics_top = st.columns(5)
-    metrics_top[0].metric("Universe Tickers", current_universe["row_count"])
-    metrics_top[1].metric("Holdings", 0 if holdings is None or holdings.empty else len(holdings))
-    metrics_top[2].metric("Output Files Present", output_file_count)
-    metrics_top[3].metric("Final Watchlist Candidates", 0 if final_watchlist_frame is None else len(final_watchlist_frame))
-    metrics_top[4].metric("Missing-Data Warning Names", missing_warning_count)
+    render_section_header(
+        "Command Center",
+        "A quick read on whether the local research workflow is ready, partial, or waiting on data.",
+    )
+    render_metric_cards(
+        [
+            ("Universe", current_universe["row_count"], "Tickers in data/universe.csv"),
+            ("Holdings", 0 if holdings is None or holdings.empty else len(holdings), "Rows in holdings.csv"),
+            ("Outputs", output_file_count, "Generated research files present"),
+            ("Final Watchlist", 0 if final_watchlist_frame is None else len(final_watchlist_frame), "Current state-machine rows"),
+            ("Missing Data", missing_warning_count, "Names with explicit warnings"),
+            ("Latest Price", _latest_local_price_date(catalog), "From local prices.csv"),
+            ("Fundamentals", _fundamentals_coverage_count(catalog), "Tickers with local fundamentals"),
+            ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
+            ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
+        ]
+    )
 
-    metrics_bottom = st.columns(4)
-    metrics_bottom[0].metric("Latest Local Price Date", _latest_local_price_date(catalog))
-    metrics_bottom[1].metric("Fundamentals Coverage", _fundamentals_coverage_count(catalog))
-    metrics_bottom[2].metric("DCF-Ready Count", _dcf_ready_count(catalog))
-    metrics_bottom[3].metric("Peer-Ready Count", _peer_ready_count(catalog))
+    actions: list[tuple[str, str, str, str]] = []
+    if missing_warning_count:
+        actions.append(
+            (
+                "Data gaps are visible",
+                f"{missing_warning_count} ticker/theme names have missing-data warnings. Use onboarding before trusting broader rankings.",
+                "make onboarding",
+                "warning",
+            )
+        )
+    if _dcf_ready_count(catalog) == 0:
+        actions.append(
+            (
+                "Valuation coverage is sparse",
+                "DCF-ready count is zero. Stage SEC fundamentals or add verified local fundamentals before leaning on valuation context.",
+                "make sec-stage TICKERS=NVDA,MSFT",
+                "warning",
+            )
+        )
+    if _peer_ready_count(catalog) == 0:
+        actions.append(
+            (
+                "Peer context needs local research",
+                "No peer-ready tickers detected. Add verified peer mappings manually if peer-relative valuation matters.",
+                "make templates",
+                "neutral",
+            )
+        )
+    if not actions:
+        actions.append(
+            (
+                "Workflow looks ready",
+                "Core outputs are present and the dashboard can proceed with the current local dataset.",
+                "make daily",
+                "neutral",
+            )
+        )
+    render_action_cards(actions)
 
-    st.markdown("### Output Snapshot")
+    render_section_header("Output Snapshot", "Generated files and row counts from the active CSV-first pipeline.")
     output_rows = []
     for filename, label in PIPELINE_FILES.items():
         frame, message = output_frames[filename]
@@ -773,15 +1043,17 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
     st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
 
     if final_watchlist_frame is not None and not final_watchlist_frame.empty:
-        st.markdown("### Final Watchlist Snapshot")
+        render_section_header("Final Watchlist Snapshot", "Top-level state and reason context without opening the full table.")
         snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
         st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
-    st.subheader("Monthly Picks")
+    render_section_header(
+        "Monthly Picks",
+        "A compact, product-style view of the current local research candidates and whether the track record has enough data.",
+    )
     top_n = _monthly_top_n()
-    st.caption(f"Up to {top_n} local research candidates. These are candidate rankings, not trade instructions.")
     picks_frame, picks_message = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
     track_frame, _track_message = load_output(OUTPUTS_DIR / "monthly_picks_track_record.csv")
     equity_frame, _equity_message = load_output(OUTPUTS_DIR / "monthly_picks_equity_curve.csv")
@@ -789,12 +1061,15 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     universe = catalog.load_dataframe("universe")
     candidate_count = 0 if picks_frame is None else len(picks_frame)
 
-    hero_cols = st.columns(5)
-    hero_cols[0].metric("Research Candidates", f"{candidate_count} of {top_n}")
-    hero_cols[1].metric("Current Month", "Not generated" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"))
-    hero_cols[2].metric("Benchmark", "SPY")
-    hero_cols[3].metric("Universe Size", 0 if universe is None or universe.empty else len(universe))
-    hero_cols[4].metric("Latest Price Date", latest_price)
+    render_metric_cards(
+        [
+            ("Candidates", f"{candidate_count} of {top_n}", "Conservative filters may return fewer"),
+            ("Current Month", "Not generated" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"), "Generated from local outputs"),
+            ("Benchmark", "SPY", "For local track-record comparison"),
+            ("Universe", 0 if universe is None or universe.empty else len(universe), "Current local universe size"),
+            ("Latest Price", latest_price, "From data/prices.csv"),
+        ]
+    )
 
     if picks_frame is None:
         st.info(picks_message or "Run `python3 -m src.monthly_picks --generate --top-n 5` to create monthly research candidates.")
@@ -802,7 +1077,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         st.info("Monthly picks output exists, but no candidates were generated from the current local outputs.")
     else:
         st.info(monthly_pick_availability_message(candidate_count, top_n))
-        st.markdown("### Research Candidates")
+        render_section_header("Research Candidates", "Ranked research candidates, not buy/sell instructions.")
         for _, row in picks_frame.sort_values(["Rank", "CompositeScore"], ascending=[True, False]).iterrows():
             ticker = html.escape(format_missing(row.get("Ticker")))
             rank = html.escape(format_value(row.get("Rank")))
@@ -849,7 +1124,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             ]
             st.dataframe(clean_display_frame(picks_frame[display_columns]), width="stretch", hide_index=True)
 
-    st.markdown("### Track Record")
+    render_section_header("Track Record", "Shown only when local historical prices support benchmark comparison.")
     if equity_frame is not None and not equity_frame.empty and {"Month", "PicksEquity", "BenchmarkEquity"}.issubset(equity_frame.columns):
         chart_frame = equity_frame.set_index("Month")[["PicksEquity", "BenchmarkEquity"]]
         st.line_chart(chart_frame)
@@ -860,7 +1135,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     else:
         st.info("Run `python3 -m src.track_record --monthly-picks` to create the local track-record files.")
 
-    st.markdown("### Archive")
+    render_section_header("Archive", "Prior local monthly pick lists and returns when calculable.")
     if track_frame is not None and not track_frame.empty:
         archive_columns = [column for column in ["Month", "Picks", "AveragePickReturn", "BenchmarkReturn", "ExcessReturn", "Notes"] if column in track_frame.columns]
         st.dataframe(clean_display_frame(track_frame[archive_columns]), width="stretch", hide_index=True)
@@ -876,7 +1151,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
 def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
     filename = TAB_TO_FILE[title]
     frame, message = output_frames[filename]
-    st.subheader(title)
+    render_section_header(title, "Search, filter, and inspect the most important columns first.")
     if message and frame is None:
         st.info(message)
         return
@@ -888,10 +1163,10 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
 
 
 def render_stock_report_beta(provider, show_raw_json: bool) -> None:
-    st.subheader("Stock Report (Beta)")
-    st.caption(
+    render_section_header(
+        "Stock Report (Beta)",
         "Structured research report workflow. Local CSV-backed data is the default. "
-        "Optional yfinance mode stays off by default and is labeled unofficial / research-grade."
+        "Optional yfinance mode stays off by default and is labeled unofficial / research-grade.",
     )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
@@ -1095,7 +1370,10 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
 
 
 def render_data_health(provider) -> None:
-    st.subheader("Data Health")
+    render_section_header(
+        "Data Health",
+        "Validation, source availability, price refresh diagnostics, and onboarding actions in one place.",
+    )
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
@@ -1300,7 +1578,10 @@ def render_data_health(provider) -> None:
 
 
 def render_universe_manager(universe_summary: dict[str, Any]) -> None:
-    st.subheader("Universe Manager")
+    render_section_header(
+        "Universe Manager",
+        "Review current universe coverage and use CLI-only apply commands for safer changes.",
+    )
     current = universe_summary["current_universe"]
     staged = universe_summary["staged_universe"]
 
@@ -1354,16 +1635,19 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 
 st.set_page_config(page_title="Stock Research Screener", layout="wide")
 apply_dashboard_theme()
-st.title("Stock Research Screener")
-st.caption(
-    "Research-only dashboard. No direct buy/sell advice, no broker integration, and no auto-trading. "
-    "The local CSV-first workflow remains the default path."
-)
+catalog = LocalDataCatalog(BASE_DIR)
+provider = get_local_provider()
+output_frames = load_pipeline_outputs()
+universe_summary = summarize_universe_manager(BASE_DIR)
+render_app_header(catalog, output_frames)
 
 with st.sidebar:
-    st.header("Controls")
+    st.header("Research Controls")
     show_reason_details = st.checkbox("Show reason expanders", value=True)
     show_raw_json = st.checkbox("Show raw report JSON expanders", value=False)
+    st.divider()
+    st.caption("Safe local commands")
+    st.code("make onboarding\nmake daily\nmake dashboard", language="bash")
     st.caption("CLI-only applies remain the safest path for staged imports and universe changes.")
     with st.expander("Resolved local paths", expanded=False):
         context = path_context(BASE_DIR, DATA_DIR, OUTPUTS_DIR)
@@ -1377,11 +1661,6 @@ with st.sidebar:
             ),
             language="text",
         )
-
-catalog = LocalDataCatalog(BASE_DIR)
-provider = get_local_provider()
-output_frames = load_pipeline_outputs()
-universe_summary = summarize_universe_manager(BASE_DIR)
 
 tabs = st.tabs(
     [

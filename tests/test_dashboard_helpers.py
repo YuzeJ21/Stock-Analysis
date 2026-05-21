@@ -19,6 +19,16 @@ def test_dashboard_badges_use_high_contrast_html():
     assert "Watch" in html
 
 
+def test_dashboard_card_helpers_render_modern_markup():
+    metric = dashboard.metric_card_html("Universe", 12, "local tickers")
+    action = dashboard.action_card_html("Price fallback", "Normalize downloaded CSVs", "make price-normalize", "warning")
+
+    assert "metric-card" in metric
+    assert "Universe" in metric
+    assert "action-card warning" in action
+    assert "make price-normalize" in action
+
+
 def test_state_styles_include_text_color_for_dark_mode():
     styled = dashboard.style_frame(pd.DataFrame({"FinalState": ["Avoid"]}))._compute()
     css_values = [item for styles in styled.ctx.values() for item in styles]
