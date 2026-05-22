@@ -1931,9 +1931,12 @@ def _print_price_worklist(payload: dict[str, Any]) -> None:
         print(
             f"- P{row['priority']} {row['ticker']}: {row['price_history_days']} rows, "
             f"momentum_ready={row['momentum_ready']} track_record_ready={row['track_record_ready']} "
-            f"preferred_history_ready={row['preferred_history_ready']}"
+            f"preferred_history_ready={row['preferred_history_ready']} "
+            f"goal={row['next_price_goal']} target_rows={row['next_target_history_rows']} "
+            f"rows_needed={row['rows_needed_for_next_goal']} start={row.get('suggested_start_date') or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  command: {row['example_command']}")
     print(f"Price worklist rows: {len(payload['price_import_worklist'])}")
 
 
@@ -1969,6 +1972,8 @@ def _print_sec_stage_queue(payload: dict[str, Any]) -> None:
             f"missing_dcf={row['missing_required_for_dcf'] or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  command: {row['example_command']}")
+        print(f"  target_file: {row['target_file']}")
     print(f"SEC stage queue rows: {len(payload['sec_stage_queue'])}")
 
 
@@ -1981,6 +1986,8 @@ def _print_peer_mapping_queue(payload: dict[str, Any]) -> None:
             f"missing_peer={row['missing_required_for_peer_relative'] or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  command: {row['example_command']}")
+        print(f"  target_file: {row['target_file']}")
     print(f"Peer mapping queue rows: {len(payload['peer_mapping_queue'])}")
 
 

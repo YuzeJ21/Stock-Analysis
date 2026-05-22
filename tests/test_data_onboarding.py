@@ -254,6 +254,24 @@ def test_data_onboarding_cli_price_worklist_json(tmp_path: Path, capsys):
     assert "price_history_days" in payload["price_import_worklist"][0]
 
 
+def test_data_onboarding_cli_price_worklist_text_surfaces_goal_and_command(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--price-worklist"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "price import worklist" in output
+    assert "goal=unlock monthly picks" in output
+    assert "target_rows=21" in output
+    assert "rows_needed=" in output
+    assert "command:" in output
+    assert "make price-normalize" in output
+
+
 def test_price_worklist_prioritizes_sparse_price_history(tmp_path: Path):
     _write_fixture(tmp_path)
 
@@ -331,6 +349,22 @@ def test_data_onboarding_cli_sec_stage_queue_json(tmp_path: Path, capsys):
     assert "missing_required_for_dcf" in payload["sec_stage_queue"][0]
 
 
+def test_data_onboarding_cli_sec_stage_queue_text_surfaces_command_and_target_file(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--sec-stage-queue"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "sec stage queue" in output
+    assert "command:" in output
+    assert "sec-stage-fundamentals --tickers amd" in output
+    assert "target_file: data/imports/fundamentals.csv" in output
+
+
 def test_sec_stage_queue_prioritizes_holdings_and_price_ready_names(tmp_path: Path):
     _write_fixture(tmp_path)
 
@@ -355,6 +389,22 @@ def test_data_onboarding_cli_peer_mapping_queue_json(tmp_path: Path, capsys):
     assert "peer_mapping_queue" in payload
     assert payload["peer_mapping_queue"][0]["ticker"] == "NVDA"
     assert "missing_required_for_peer_relative" in payload["peer_mapping_queue"][0]
+
+
+def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target_file(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--peer-mapping-queue"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "peer mapping queue" in output
+    assert "command:" in output
+    assert "write-templates" in output
+    assert "target_file: data/imports/peers.csv" in output
 
 
 def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):

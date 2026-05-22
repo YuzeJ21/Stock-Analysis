@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers detail-prices detail-fundamentals detail-peers runbook-prices runbook-fundamentals runbook-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers detail-prices detail-fundamentals detail-peers runbook-prices runbook-fundamentals runbook-peers focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -36,6 +36,9 @@ help:
 	@echo "  make runbook-prices   Show only the price bundle runbook"
 	@echo "  make runbook-fundamentals Show only the SEC fundamentals runbook"
 	@echo "  make runbook-peers    Show only the peer-mapping runbook"
+	@echo "  make focus-price TICKER=AMD Show one ticker's price detail row and runbook"
+	@echo "  make focus-fundamentals TICKER=NVDA Show one ticker's SEC detail row and runbook"
+	@echo "  make focus-peers TICKER=NVDA Show one ticker's peer detail row and runbook"
 	@echo "  make price-worklist   Show ticker-by-ticker local price-history gaps"
 	@echo "  make fundamentals-peer-worklist Show DCF and peer-relative local blockers"
 	@echo "  make optional-context-worklist Show optional earnings and estimate gaps"
@@ -136,6 +139,27 @@ runbook-fundamentals:
 
 runbook-peers:
 	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only
+
+focus-price:
+ifndef TICKER
+	$(error TICKER is required, for example: make focus-price TICKER=AMD)
+endif
+	python3 -m src.data_onboarding --command-bundle-details --lane prices --tickers $(TICKER)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --tickers $(TICKER)
+
+focus-fundamentals:
+ifndef TICKER
+	$(error TICKER is required, for example: make focus-fundamentals TICKER=NVDA)
+endif
+	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --tickers $(TICKER)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --tickers $(TICKER)
+
+focus-peers:
+ifndef TICKER
+	$(error TICKER is required, for example: make focus-peers TICKER=NVDA)
+endif
+	python3 -m src.data_onboarding --command-bundle-details --lane peers --tickers $(TICKER)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --tickers $(TICKER)
 
 onboarding:
 	python3 -m src.data_sources --write-output

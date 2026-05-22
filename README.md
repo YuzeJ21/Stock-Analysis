@@ -1213,9 +1213,20 @@ python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-
 make runbook-prices
 make runbook-fundamentals
 make runbook-peers
+make focus-price TICKER=AMD
+make focus-fundamentals TICKER=NVDA
+make focus-peers TICKER=NVDA
 ```
 
 These lane-specific views stay read-only and help you focus on one pass at a time without scanning the broader bundle output first.
+
+If you want a single-name follow-through instead of a holdings-first lane view, use the `focus-*` shortcuts. Each one prints both the ticker-level bundle detail row and the matching runbook for that ticker:
+
+```bash
+make focus-price TICKER=AMD
+make focus-fundamentals TICKER=NVDA
+make focus-peers TICKER=NVDA
+```
 
 ## SEC Companyfacts staging workflow
 
