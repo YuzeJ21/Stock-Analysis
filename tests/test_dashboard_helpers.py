@@ -4100,6 +4100,50 @@ def test_overview_workflow_reason_card_uses_review_fallback_when_queue_copy_is_m
     assert "not available" not in rendered
 
 
+def test_overview_workflow_reason_card_uses_imports_and_bundle_fallbacks_when_queue_copy_is_missing():
+    imports_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "title": "Advance staged fundamentals",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+            }
+        ]
+    )
+    bundle_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "peers",
+                "ticker": "",
+                "title": "Run peer bundle",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make bundle-peers",
+                "example_command": "",
+            }
+        ]
+    )
+
+    imports_card = dashboard.overview_workflow_reason_card(None, imports_queue)
+    bundle_card = dashboard.overview_workflow_reason_card(None, bundle_queue)
+
+    assert imports_card["title"] == "make imports-validate"
+    assert "nvda" in " ".join(str(value) for value in imports_card.values()).lower()
+    assert "staged local workflow next" in " ".join(str(value) for value in imports_card.values()).lower()
+    assert bundle_card["title"] == "make bundle-peers"
+    assert "highest-leverage local bundle first" in " ".join(str(value) for value in bundle_card.values()).lower()
+    assert "not available" not in " ".join(str(value) for value in imports_card.values()).lower()
+    assert "not available" not in " ".join(str(value) for value in bundle_card.values()).lower()
+
+
 def test_overview_workflow_reason_card_uses_runbook_fallback_when_queue_copy_is_missing():
     queue = pd.DataFrame(
         [
