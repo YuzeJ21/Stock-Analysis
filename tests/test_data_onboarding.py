@@ -365,6 +365,62 @@ def test_data_coverage_wizard_normalizes_stale_peer_example_commands():
     assert amd_peer_row.example_command == "make templates"
 
 
+def test_data_coverage_wizard_normalizes_legacy_operator_example_commands():
+    coverage = [
+        TickerCoverage(
+            ticker="NVDA",
+            has_prices=True,
+            price_history_days=80,
+            has_fundamentals=False,
+            dcf_ready=False,
+            has_peer_mapping=False,
+            peer_ready=False,
+            has_earnings=False,
+            has_analyst_estimates=False,
+            usable_for_momentum=True,
+            usable_for_monthly_picks=True,
+            usable_for_dcf=False,
+            usable_for_peer_relative=False,
+            missing_required_for_momentum="",
+            missing_required_for_dcf="free_cash_flow",
+            missing_required_for_peer_relative="peer mapping",
+            next_best_action="Run make focus-fundamentals TICKER=NVDA.",
+            target_file="data/imports/fundamentals.csv",
+            focus_command="make focus-fundamentals TICKER=NVDA",
+            example_command="SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=nvda, msft",
+        ),
+        TickerCoverage(
+            ticker="AMD",
+            has_prices=False,
+            price_history_days=0,
+            has_fundamentals=False,
+            dcf_ready=False,
+            has_peer_mapping=False,
+            peer_ready=False,
+            has_earnings=False,
+            has_analyst_estimates=False,
+            usable_for_momentum=False,
+            usable_for_monthly_picks=False,
+            usable_for_dcf=False,
+            usable_for_peer_relative=False,
+            missing_required_for_momentum="prices",
+            missing_required_for_dcf="prices",
+            missing_required_for_peer_relative="prices",
+            next_best_action="Run make focus-price TICKER=AMD.",
+            target_file="data/imports/prices.csv",
+            focus_command="make focus-price TICKER=AMD",
+            example_command="python3 -m src.data_update --tickers amd, nvda",
+        ),
+    ]
+
+    rows = build_data_coverage_wizard(coverage)
+    nvda_row = next(row for row in rows if row.ticker == "NVDA")
+    amd_row = next(row for row in rows if row.ticker == "AMD")
+
+    assert nvda_row.example_command == "make sec-stage TICKERS=NVDA"
+    assert amd_row.example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+
+
 def test_optional_context_worklist_surfaces_template_focus_command(tmp_path: Path):
     _write_fixture(tmp_path)
 

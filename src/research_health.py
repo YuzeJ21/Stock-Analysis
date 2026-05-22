@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -74,7 +75,7 @@ def _staged_peer_next_best_action() -> str:
 
 def _normalized_peer_example_command(focus_command: str, example_command: str) -> str:
     focus = str(focus_command or "").strip()
-    example = str(example_command or "").strip()
+    example = _normalize_operator_example_command(example_command)
     if focus == "make imports-validate":
         return "make imports-preview"
     if focus.startswith("make focus-peers"):
@@ -84,12 +85,40 @@ def _normalized_peer_example_command(focus_command: str, example_command: str) -
 
 def _normalized_fundamentals_example_command(focus_command: str, example_command: str, ticker: str) -> str:
     focus = str(focus_command or "").strip()
-    example = str(example_command or "").strip()
+    example = _normalize_operator_example_command(example_command)
     if focus == "make imports-validate":
         return "make imports-preview"
     if focus.startswith("make focus-fundamentals"):
         return f"make sec-stage TICKERS={ticker}"
     return example
+
+
+def _normalize_operator_example_command(command: object) -> str:
+    text = str(command or "").strip()
+    if not text:
+        return text
+    sec_stage_match = re.fullmatch(
+        r"SEC_USER_AGENT=(?:'[^']*'|\"[^\"]*\"|\S+)\s+make sec-stage TICKERS=(.+)",
+        text,
+    )
+    if sec_stage_match:
+        tickers = ",".join(
+            part.strip().upper()
+            for part in sec_stage_match.group(1).split(",")
+            if part.strip()
+        )
+        if tickers:
+            return f"make sec-stage TICKERS={tickers}"
+    price_match = re.fullmatch(r"python3 -m src\.data_update --tickers (.+)", text)
+    if price_match:
+        tickers = ",".join(
+            part.strip().upper()
+            for part in price_match.group(1).split(",")
+            if part.strip()
+        )
+        if tickers:
+            return f"make price-refresh TICKERS={tickers}"
+    return text
 
 LIQUIDITY_COLUMNS = [
     "Ticker",
