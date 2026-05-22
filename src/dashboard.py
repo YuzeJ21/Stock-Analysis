@@ -2835,7 +2835,7 @@ def data_health_deep_research_target_cards(
                     "kicker": "DCF TARGET",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
-                        f"{normalize_operator_copy(row.get('recommended_action')) if format_missing(row.get('recommended_action'), '') != 'Not available' else 'Review fundamentals path.'} "
+                        f"{compact_reason(row.get('recommended_action') or 'Review fundamentals path.', max_sentences=1, max_chars=150)} "
                         f"Missing: {format_missing(row.get('missing_required_for_dcf'), 'Not specified')}."
                     ),
                     "badges": [
@@ -2857,7 +2857,7 @@ def data_health_deep_research_target_cards(
                     "kicker": "PEER TARGET",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
-                        f"{normalize_operator_copy(row.get('recommended_action')) if format_missing(row.get('recommended_action'), '') != 'Not available' else 'Review peer path.'} "
+                        f"{compact_reason(row.get('recommended_action') or 'Review peer path.', max_sentences=1, max_chars=150)} "
                         f"Missing: {format_missing(row.get('missing_required_for_peer_relative'), 'Not specified')}."
                     ),
                     "badges": [

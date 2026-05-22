@@ -4872,6 +4872,28 @@ def test_data_health_deep_research_target_cards_preserve_staged_fundamentals_com
     assert "make status-check top_n=5" in cards[0]["body"].lower()
 
 
+def test_data_health_deep_research_target_cards_use_review_fallback_when_action_is_missing():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "is_holding": False,
+                "theme": "Semis",
+                "price_history_days": 84,
+                "missing_required_for_dcf": "fundamentals row",
+                "recommended_action": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_deep_research_target_cards(sec_queue, pd.DataFrame())
+
+    assert "review fundamentals path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_price_target_cards_surface_exact_history_targets_safely():
     worklist = pd.DataFrame(
         [
