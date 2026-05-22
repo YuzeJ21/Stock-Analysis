@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -355,6 +356,8 @@ def _example_command_needs_refresh(status: str, example_command: str, ticker: st
     if not expected:
         return False
     if text in {"make onboarding", "make status"}:
+        return True
+    if re.fullmatch(r"python3 -m src\.data_update --tickers .+", text):
         return True
     return text != expected
 

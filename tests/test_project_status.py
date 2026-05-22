@@ -82,6 +82,36 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
     assert payload["recommended_next_command_rows"][0]["Reason"] == "NVDA: parse failed"
 
 
+def test_project_status_normalizes_legacy_raw_price_example_command(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+    pd.DataFrame(
+        [
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "NVDA",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "parse_error",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "parse_error",
+                "error_message": "NVDA: parse failed",
+                "fallback_used": True,
+                "recommended_action": "Run make focus-price TICKER=NVDA, or run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "focus_command": "make focus-price TICKER=NVDA",
+                "example_command": "python3 -m src.data_update --tickers NVDA",
+                "target_file": "data/imports/prices.csv",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=3)
+
+    top_action = payload["top_onboarding_actions"][0]
+    assert top_action["example_command"] == "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
+
+
 def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_steps(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
     imports_dir = tmp_path / "data" / "imports"

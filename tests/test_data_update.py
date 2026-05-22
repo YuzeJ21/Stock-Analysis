@@ -314,6 +314,25 @@ def test_enrich_price_update_status_frame_refreshes_stale_example_command():
     assert enriched.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
 
 
+def test_enrich_price_update_status_frame_refreshes_legacy_raw_price_command():
+    frame = pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "status": "parse_error",
+                "requested_start": "",
+                "rows_merged": 0,
+                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "example_command": "python3 -m src.data_update --tickers AMD",
+            }
+        ]
+    )
+
+    enriched = enrich_price_update_status_frame(frame)
+
+    assert enriched.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+
+
 def test_refresh_price_update_status_output_rewrites_legacy_file(tmp_path: Path):
     (tmp_path / "outputs").mkdir()
     path = tmp_path / "outputs" / "price_update_status.csv"
