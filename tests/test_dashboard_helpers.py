@@ -5081,6 +5081,15 @@ def test_price_refresh_fallback_message_uses_runbook_and_normalize_flow():
     assert warned.startswith("Remote price refresh had source issues.")
 
 
+def test_price_refresh_cli_note_message_uses_runbook_and_normalize_flow():
+    note = dashboard.price_refresh_cli_note_message()
+
+    assert note.startswith("CLI-only:")
+    assert "make runbook-prices-broader" in note
+    assert "make focus-price" in note
+    assert "make price-normalize" in note
+
+
 def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     bundles = pd.DataFrame(
         [

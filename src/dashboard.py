@@ -1698,6 +1698,10 @@ def price_refresh_fallback_message(include_remote_failure_prefix: bool = False) 
     return body
 
 
+def price_refresh_cli_note_message() -> str:
+    return "CLI-only: " + price_refresh_fallback_message()
+
+
 def format_value(value: object, fallback: str = "Not available") -> str:
     text = format_missing(value, fallback=fallback)
     if text == fallback:
@@ -7787,7 +7791,7 @@ def render_data_health(provider) -> None:
                 st.warning(price_refresh_fallback_message(include_remote_failure_prefix=True))
             render_context_note(
                 "Manual fallback.",
-                "CLI-only: start with make status, follow the printed price focus or runbook path, then use make price-normalize, make price-validate, make price-preview, and make price-apply for downloaded files.",
+                price_refresh_cli_note_message(),
                 tone="warning",
             )
         if price_worklist_frame is not None and not price_worklist_frame.empty:
