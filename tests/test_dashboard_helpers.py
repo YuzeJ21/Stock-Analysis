@@ -4837,6 +4837,8 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make price-validate" in empty_rendered
     assert "make price-preview" in empty_rendered
     assert "make price-apply" in empty_rendered
+    assert "make runbook-fundamentals-broader" in rendered
+    assert "make runbook-peers-broader" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
