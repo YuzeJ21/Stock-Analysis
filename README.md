@@ -1377,7 +1377,7 @@ make imports-validate
 make imports-preview
 make imports-apply
 make validate-data
-python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
+make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
 ```
 
 This remains a research-only workflow. It does not execute trades, place orders, or provide direct buy/sell advice.
