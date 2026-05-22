@@ -890,6 +890,45 @@ def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
     assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in amd_row["NextBestAction"]
 
 
+def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(tmp_path):
+    pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "DataQualityScore": 65,
+                "ReadinessStatus": "Needs Enrichment",
+                "MomentumReady": True,
+                "MonthlyPicksReady": True,
+                "DCFReady": False,
+                "PeerReady": False,
+                "EarningsAvailable": False,
+                "AnalystEstimatesAvailable": False,
+                "PriceHistoryDays": 80,
+                "MissingDataFields": "DCF inputs, peer mapping",
+                "NextBestAction": "Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "FocusCommand": "make focus-fundamentals TICKER=NVDA",
+                "ExampleCommand": "make onboarding",
+                "Reason": "old",
+            }
+        ]
+    ).to_csv(tmp_path / "data_quality_wizard.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        tables = dashboard.load_research_health_tables(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    frame, message = tables["data_quality_wizard.csv"]
+    assert message is None
+    assert frame is not None
+    nvda_row = frame.loc[frame["Ticker"] == "NVDA"].iloc[0]
+    assert nvda_row["FocusCommand"] == "make focus-fundamentals TICKER=NVDA"
+    assert "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA" in nvda_row["ExampleCommand"]
+    assert "make focus-fundamentals TICKER=NVDA" in nvda_row["NextBestAction"]
+
+
 def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path):
     pd.DataFrame(
         [

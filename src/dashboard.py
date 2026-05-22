@@ -333,6 +333,14 @@ def load_research_health_tables(
                 normalized_actions = stale_price_rows["NextBestAction"].astype(str).str.strip().str.lower()
                 if not normalized_actions.str.contains("make focus-price").all():
                     needs_refresh = True
+            if not needs_refresh:
+                enrichment_rows = wizard_frame.loc[
+                    wizard_frame["ReadinessStatus"].astype(str).str.strip().isin({"Needs Enrichment", "Partial Coverage"})
+                ]
+                if not enrichment_rows.empty:
+                    normalized_actions = enrichment_rows["NextBestAction"].astype(str).str.strip().str.lower()
+                    if not normalized_actions.str.contains(r"make focus-(?:fundamentals|peers)|make imports-validate", regex=True).all():
+                        needs_refresh = True
     if needs_refresh:
         run_research_health(BASE_DIR, output_dir=outputs_dir)
         tables["data_quality_wizard.csv"] = load_output(outputs_dir / "data_quality_wizard.csv")
