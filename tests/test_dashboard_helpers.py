@@ -6542,6 +6542,32 @@ def test_data_coverage_wizard_cards_use_staged_flow_fallback_when_row_copy_is_mi
     assert "not available" not in valuation_card["body"].lower()
 
 
+def test_data_coverage_wizard_cards_use_runbook_fallback_when_row_copy_is_missing():
+    wizard = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "unlock_goal": "Unlock Peer Relative",
+                "blocking_dataset": "peers",
+                "current_status": "",
+                "why_it_matters": "",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_coverage_wizard_cards(wizard)
+    peer_card = next(card for card in cards if card["kicker"] == "PEERS")
+
+    assert peer_card["title"] == "1 blocker"
+    assert peer_card["command"] == "make runbook-peers"
+    assert "staged local workflow next" in peer_card["body"].lower()
+    assert "not available" not in peer_card["body"].lower()
+
+
 def test_universe_preset_cards_include_preview_commands():
     cards = dashboard.universe_preset_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values())
