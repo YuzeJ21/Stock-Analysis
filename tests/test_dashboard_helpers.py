@@ -2276,6 +2276,8 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "ticker_count": 2,
                 "tickers": "AMD,AVGO",
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
                 "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
@@ -2304,6 +2306,8 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
     assert cards[0]["kicker"] == "PRICES"
     assert "holdings first" in rendered
     assert "unlock monthly picks" in rendered
+    assert "21 target rows" in rendered
+    assert "start by 2025-12-01" in rendered
     assert "src.data_update --tickers amd,avgo" in rendered
     assert "make sec-stage tickers=nvda" in rendered
     assert "buy" not in rendered
@@ -2323,6 +2327,8 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Use staged local imports if the free refresh fails.",
             },
@@ -2336,6 +2342,8 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Use staged local imports if the free refresh fails.",
             },
@@ -2349,6 +2357,8 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Reopen Data Health or Overview after refreshing outputs.",
             },
@@ -2361,6 +2371,8 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
     assert cards[0]["kicker"] == "PRICES RUNBOOK"
     assert "run bundle command" in rendered
     assert "unlock monthly picks" in rendered
+    assert "21 target rows" in rendered
+    assert "start by 2025-12-01" in rendered
     assert "make price-status" in rendered
     assert "make onboarding" in rendered
     assert "buy" not in rendered
@@ -2883,6 +2895,8 @@ def test_dashboard_column_labels_cover_bundle_goal_fields():
     assert dashboard.COLUMN_LABELS["GoalSummary"] == "Goal Summary"
     assert dashboard.COLUMN_LABELS["TargetGoal"] == "Target Goal"
     assert dashboard.COLUMN_LABELS["RowsNeeded"] == "Rows Needed"
+    assert dashboard.COLUMN_LABELS["TargetHistoryRows"] == "Target History Rows"
+    assert dashboard.COLUMN_LABELS["SuggestedStartDate"] == "Suggested Start Date"
 
 
 def test_overview_command_bundle_cards_surface_bundle_commands_safely():
@@ -2895,6 +2909,8 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
                 "ticker_count": 3,
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; Unlock Track Record for 1 ticker; 57 verified rows still needed across this bundle",
+                "target_history_rows": 63,
+                "suggested_start_date": "2025-10-01",
                 "primary_command": "python3 -m src.data_update --tickers META,NVDA,TSLA",
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
@@ -2910,6 +2926,8 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     assert cards[0]["kicker"] == "PRICES BUNDLE"
     assert "holdings first" in rendered
     assert "unlock monthly picks" in rendered
+    assert "63 target rows" in rendered
+    assert "start by 2025-10-01" in rendered
     assert "src.data_update --tickers meta,nvda,tsla" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -2927,6 +2945,8 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
                 "command": "python3 -m src.data_update --tickers META",
                 "tickers": "META",
                 "goal_summary": "Unlock Monthly Picks for 1 ticker; 21 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
@@ -2937,6 +2957,8 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
                 "command": "make price-status",
                 "tickers": "META",
                 "goal_summary": "Unlock Monthly Picks for 1 ticker; 21 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
             },
             {
                 "bundle_name": "SEC Fundamentals Bundle",
@@ -2947,6 +2969,8 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
                 "command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
                 "tickers": "NVDA",
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
+                "target_history_rows": 0,
+                "suggested_start_date": "",
             },
         ]
     )
@@ -2957,6 +2981,8 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
     assert cards[0]["kicker"] == "PRICES LANE"
     assert "run bundle command" in rendered
     assert "unlock monthly picks" in rendered
+    assert "21 target rows" in rendered
+    assert "start by 2025-12-01" in rendered
     assert "make price-status" in rendered
     assert "make sec-stage tickers=nvda" in rendered
     assert "buy" not in rendered

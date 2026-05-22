@@ -167,6 +167,8 @@ COMMAND_BUNDLE_COLUMNS = [
     "ticker_count",
     "tickers",
     "goal_summary",
+    "target_history_rows",
+    "suggested_start_date",
     "primary_command",
     "follow_up_command",
     "target_file",
@@ -184,6 +186,8 @@ COMMAND_BUNDLE_DETAIL_COLUMNS = [
     "current_unlock_stage",
     "target_goal",
     "rows_needed",
+    "target_history_rows",
+    "suggested_start_date",
     "recommended_action",
     "primary_command",
     "follow_up_command",
@@ -201,6 +205,8 @@ COMMAND_BUNDLE_RUNBOOK_COLUMNS = [
     "target_file",
     "tickers",
     "goal_summary",
+    "target_history_rows",
+    "suggested_start_date",
     "why_it_matters",
     "safe_next_step",
 ]
@@ -254,6 +260,8 @@ class CommandBundleRow:
     ticker_count: int
     tickers: str
     goal_summary: str
+    target_history_rows: int
+    suggested_start_date: str
     primary_command: str
     follow_up_command: str
     target_file: str
@@ -275,6 +283,8 @@ class CommandBundleDetailRow:
     current_unlock_stage: str
     target_goal: str
     rows_needed: int
+    target_history_rows: int
+    suggested_start_date: str
     recommended_action: str
     primary_command: str
     follow_up_command: str
@@ -296,6 +306,8 @@ class CommandBundleRunbookRow:
     target_file: str
     tickers: str
     goal_summary: str
+    target_history_rows: int
+    suggested_start_date: str
     why_it_matters: str
     safe_next_step: str
 
@@ -1418,6 +1430,9 @@ def build_command_bundles(
         tickers = ",".join(row.ticker for row in price_targets)
         scope = "holdings_first" if any(bool(context_lookup.get(row.ticker, {}).get("is_holding", False)) for row in price_targets) else "broader_queue"
         goal_counts = Counter(row.next_price_goal for row in price_targets if row.next_price_goal and row.next_price_goal != "Maintain Coverage")
+        target_history_rows = max((int(row.next_target_history_rows) for row in price_targets), default=0)
+        start_dates = sorted(date for date in (str(row.suggested_start_date or "").strip() for row in price_targets) if date)
+        suggested_start_date = start_dates[0] if start_dates else ""
         if goal_counts:
             goal_parts = [f"{goal} for {count} ticker{'s' if count != 1 else ''}" for goal, count in goal_counts.items()]
             total_rows_needed = sum(max(0, row.rows_needed_for_next_goal) for row in price_targets)
@@ -1434,6 +1449,8 @@ def build_command_bundles(
                 ticker_count=len(price_targets),
                 tickers=tickers,
                 goal_summary=goal_summary,
+                target_history_rows=target_history_rows,
+                suggested_start_date=suggested_start_date,
                 primary_command=f"python3 -m src.data_update --tickers {tickers}",
                 follow_up_command="make price-status",
                 target_file="data/imports/prices.csv",
@@ -1453,6 +1470,8 @@ def build_command_bundles(
                 ticker_count=len(sec_targets),
                 tickers=tickers,
                 goal_summary="Advance explicit local DCF readiness for the listed tickers",
+                target_history_rows=0,
+                suggested_start_date="",
                 primary_command=f"SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS={tickers}",
                 follow_up_command="make sec-preview",
                 target_file="data/imports/fundamentals.csv",
@@ -1472,6 +1491,8 @@ def build_command_bundles(
                 ticker_count=len(peer_targets),
                 tickers=tickers,
                 goal_summary="Advance transparent peer-relative readiness for the listed tickers",
+                target_history_rows=0,
+                suggested_start_date="",
                 primary_command="make templates",
                 follow_up_command="make onboarding",
                 target_file="data/imports/peers.csv",
@@ -1518,6 +1539,11 @@ def build_command_bundle_details(
                     if price_target is not None:
                         target_goal = price_target.next_price_goal
                         rows_needed = max(0, int(price_target.rows_needed_for_next_goal))
+                        target_history_rows = max(0, int(price_target.next_target_history_rows))
+                        suggested_start_date = str(price_target.suggested_start_date or "")
+                    else:
+                        target_history_rows = 0
+                        suggested_start_date = ""
                 elif bundle.lane == "fundamentals":
                     recommended_action = (
                         "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs."
@@ -1525,6 +1551,8 @@ def build_command_bundle_details(
                         else "Stage or add richer verified fundamentals to close the remaining DCF input gaps."
                     )
                     target_goal = "Unlock DCF"
+                    target_history_rows = 0
+                    suggested_start_date = ""
                 elif bundle.lane == "peers":
                     recommended_action = (
                         "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent."
@@ -1532,6 +1560,14 @@ def build_command_bundle_details(
                         else "Peer mappings exist, but local peer fundamentals or price context are still missing."
                     )
                     target_goal = "Unlock Peer Relative"
+                    target_history_rows = 0
+                    suggested_start_date = ""
+                else:
+                    target_history_rows = 0
+                    suggested_start_date = ""
+            else:
+                target_history_rows = 0
+                suggested_start_date = ""
             details.append(
                 CommandBundleDetailRow(
                     bundle_name=bundle.bundle_name,
@@ -1543,6 +1579,8 @@ def build_command_bundle_details(
                     current_unlock_stage=str(getattr(ladder, "current_unlock_stage", "")),
                     target_goal=target_goal,
                     rows_needed=rows_needed,
+                    target_history_rows=target_history_rows,
+                    suggested_start_date=suggested_start_date,
                     recommended_action=recommended_action or bundle.why_it_matters,
                     primary_command=bundle.primary_command,
                     follow_up_command=bundle.follow_up_command,
@@ -1588,6 +1626,8 @@ def build_command_bundle_runbook(
                     target_file=bundle.target_file,
                     tickers=bundle.tickers,
                     goal_summary=bundle.goal_summary,
+                    target_history_rows=bundle.target_history_rows,
+                    suggested_start_date=bundle.suggested_start_date,
                     why_it_matters=bundle.why_it_matters,
                     safe_next_step=safe_next_step,
                 )
@@ -1865,6 +1905,11 @@ def _print_command_bundles(payload: dict[str, Any]) -> None:
         )
         if row.get("goal_summary"):
             print(f"  goal: {row['goal_summary']}")
+        if row.get("target_history_rows"):
+            print(
+                f"  target_history_rows: {row['target_history_rows']} "
+                f"suggested_start_date: {row.get('suggested_start_date') or '-'}"
+            )
         print(f"  command: {row['primary_command']}")
         print(f"  follow-up: {row['follow_up_command']}")
     print(f"Command bundle rows: {len(payload['command_bundles'])}")
@@ -1875,7 +1920,8 @@ def _print_command_bundle_details(payload: dict[str, Any]) -> None:
         print(
             f"{row['bundle_name']}: lane={row['lane']} ticker={row['ticker']} "
             f"holding={row['is_holding']} stage={row['current_unlock_stage']} "
-            f"goal={row.get('target_goal') or '-'} rows_needed={row.get('rows_needed', 0)}"
+            f"goal={row.get('target_goal') or '-'} rows_needed={row.get('rows_needed', 0)} "
+            f"target_rows={row.get('target_history_rows', 0)} start={row.get('suggested_start_date') or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
     print(f"Command bundle detail rows: {len(payload['command_bundle_details'])}")
@@ -1889,6 +1935,11 @@ def _print_command_bundle_runbook(payload: dict[str, Any]) -> None:
         )
         if row.get("goal_summary"):
             print(f"  goal: {row['goal_summary']}")
+        if row.get("target_history_rows"):
+            print(
+                f"  target_history_rows: {row['target_history_rows']} "
+                f"suggested_start_date: {row.get('suggested_start_date') or '-'}"
+            )
     print(f"Command bundle runbook rows: {len(payload['command_bundle_runbook'])}")
 
 

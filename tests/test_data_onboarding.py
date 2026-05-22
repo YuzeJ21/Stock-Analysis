@@ -469,6 +469,10 @@ def test_data_onboarding_cli_command_bundles_text_surfaces_goal_summary(tmp_path
     assert "price coverage bundle" in output
     assert "goal:" in output
     assert "unlock monthly picks" in output
+    assert "target_history_rows:" in output
+    assert "suggested_start_date:" in output
+    assert "target_history_rows:" in output
+    assert "suggested_start_date:" in output
 
 
 def test_data_onboarding_cli_command_bundles_can_filter_by_lane_and_holdings(tmp_path: Path, capsys):
@@ -505,6 +509,8 @@ def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Pa
     assert bundles["prices"]["scope"] == "broader_queue"
     assert "AMD" in bundles["prices"]["tickers"]
     assert "Unlock Monthly Picks" in bundles["prices"]["goal_summary"]
+    assert bundles["prices"]["target_history_rows"] >= 21
+    assert bundles["prices"]["suggested_start_date"]
     assert "src.data_update --tickers AMD" in bundles["prices"]["primary_command"]
     assert bundles["fundamentals"]["scope"] == "broader_queue"
     assert "AMD" in bundles["fundamentals"]["tickers"]
@@ -606,6 +612,8 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
     assert price_detail["current_unlock_stage"] == "prices"
     assert price_detail["target_goal"] == "Unlock Monthly Picks"
     assert price_detail["rows_needed"] >= 1
+    assert price_detail["target_history_rows"] >= 21
+    assert price_detail["suggested_start_date"]
     assert "src.data_update --tickers AMD" in price_detail["primary_command"]
     assert peer_detail["is_holding"] is True
     assert peer_detail["current_unlock_stage"] == "peers"
@@ -623,6 +631,8 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert [row["step_order"] for row in price_steps] == [1, 2, 3]
     assert price_steps[0]["step_label"] == "Run bundle command"
     assert "Unlock Monthly Picks" in price_steps[0]["goal_summary"]
+    assert price_steps[0]["target_history_rows"] >= 21
+    assert price_steps[0]["suggested_start_date"]
     assert "src.data_update --tickers" in price_steps[0]["command"]
     assert price_steps[-1]["command"] == "make onboarding"
 

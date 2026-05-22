@@ -184,6 +184,8 @@ COLUMN_LABELS = {
     "GoalSummary": "Goal Summary",
     "TargetGoal": "Target Goal",
     "RowsNeeded": "Rows Needed",
+    "TargetHistoryRows": "Target History Rows",
+    "SuggestedStartDate": "Suggested Start Date",
 }
 
 
@@ -251,6 +253,13 @@ def summarize_price_update_status(status_frame: pd.DataFrame | None) -> dict[str
         return {}
     counts = status_frame["status"].astype(str).str.lower().value_counts()
     return {status: int(count) for status, count in counts.items()}
+
+
+def _target_rows_hint(value: object) -> str:
+    numeric = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(numeric):
+        return ""
+    return str(int(numeric))
 
 
 def summarize_ticker_coverage(coverage: pd.DataFrame | None) -> dict[str, int]:
@@ -2014,6 +2023,13 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
     cards: list[dict[str, object]] = []
     for _, row in ordered.head(limit).iterrows():
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
+        target_history_rows = _target_rows_hint(row.get("target_history_rows"))
+        suggested_start_date = format_missing(row.get("suggested_start_date"), "")
+        hints: list[str] = []
+        if target_history_rows not in {"", "-"}:
+            hints.append(f"{target_history_rows} target rows")
+        if suggested_start_date not in {"", "-"}:
+            hints.append(f"start by {suggested_start_date}")
         cards.append(
             {
                 "kicker": format_missing(row.get("lane"), "bundle").upper(),
@@ -2021,6 +2037,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
                 "body": (
                     f"{format_missing(row.get('tickers'), 'No tickers')}: "
                     f"{goal_summary or compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
+                    f"{' (' + '; '.join(hints) + ')' if hints else ''}"
                 ),
                 "badges": [
                     format_missing(row.get("scope"), "scope").replace("_", " "),
@@ -2056,6 +2073,16 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             continue
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
+        target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
+        suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
+        hint_text = ""
+        if target_history_rows not in {"", "-"} or suggested_start_date not in {"", "-"}:
+            parts = []
+            if target_history_rows not in {"", "-"}:
+                parts.append(f"{target_history_rows} target rows")
+            if suggested_start_date not in {"", "-"}:
+                parts.append(f"start by {suggested_start_date}")
+            hint_text = f" ({'; '.join(parts)})"
         steps = []
         for _, row in lane_rows.head(3).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
@@ -2067,7 +2094,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                 "kicker": f"{lane.upper()} RUNBOOK",
                 "title": bundle_name,
                 "body": (
-                    f"{goal_summary}. " if goal_summary else ""
+                    f"{goal_summary}{hint_text}. " if goal_summary else ""
                 ) + (" | ".join(steps) if steps else "No runbook steps available."),
                 "badges": [
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
@@ -4209,6 +4236,13 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         lane = format_missing(row.get("lane"), "bundle").replace("_", " ")
         scope = format_missing(row.get("scope"), "scope").replace("_", " ")
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
+        target_history_rows = _target_rows_hint(row.get("target_history_rows"))
+        suggested_start_date = format_missing(row.get("suggested_start_date"), "")
+        hints: list[str] = []
+        if target_history_rows not in {"", "-"}:
+            hints.append(f"{target_history_rows} target rows")
+        if suggested_start_date not in {"", "-"}:
+            hints.append(f"start by {suggested_start_date}")
         cards.append(
             {
                 "kicker": f"{lane.upper()} BUNDLE",
@@ -4216,6 +4250,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
                 "body": (
                     f"{format_missing(row.get('tickers'), 'No tickers')}: "
                     f"{goal_summary or compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
+                    f"{' (' + '; '.join(hints) + ')' if hints else ''}"
                 ),
                 "badges": [scope, f"{format_value(row.get('ticker_count'), fallback='0')} tickers"],
                 "command": format_missing(row.get("primary_command"), ""),
@@ -4245,6 +4280,16 @@ def overview_bundle_handoff_cards(
     primary_command = format_missing(top_bundle.get("primary_command"), "")
     follow_up_command = format_missing(top_bundle.get("follow_up_command"), "")
     goal_summary = compact_reason(top_bundle.get("goal_summary"), max_sentences=1, max_chars=120)
+    target_history_rows = _target_rows_hint(top_bundle.get("target_history_rows"))
+    suggested_start_date = format_missing(top_bundle.get("suggested_start_date"), "")
+    hint_text = ""
+    if target_history_rows not in {"", "-"} or suggested_start_date not in {"", "-"}:
+        parts = []
+        if target_history_rows not in {"", "-"}:
+            parts.append(f"{target_history_rows} target rows")
+        if suggested_start_date not in {"", "-"}:
+            parts.append(f"start by {suggested_start_date}")
+        hint_text = f" ({'; '.join(parts)})"
     lane = format_missing(top_bundle.get("lane"), "bundle").replace("_", " ")
     ticker_text = format_missing(top_bundle.get("tickers"), "No tickers")
     refresh_command = "make onboarding"
@@ -4278,7 +4323,7 @@ def overview_bundle_handoff_cards(
             "kicker": f"{lane.upper()} HANDOFF",
             "title": bundle_name,
             "body": (
-                f"{goal_summary}. " if goal_summary else ""
+                f"{goal_summary}{hint_text}. " if goal_summary else ""
             ) + f"Start with {primary_command} for {ticker_text}. This is the highest-leverage local bundle right now.",
             "badges": ["bundle first", "research only"],
             "command": primary_command,
@@ -4332,6 +4377,16 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
         tickers = format_missing(lane_rows.iloc[0].get("tickers"), "No tickers")
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
+        target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
+        suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
+        hint_text = ""
+        if target_history_rows not in {"", "-"} or suggested_start_date not in {"", "-"}:
+            parts = []
+            if target_history_rows not in {"", "-"}:
+                parts.append(f"{target_history_rows} target rows")
+            if suggested_start_date not in {"", "-"}:
+                parts.append(f"start by {suggested_start_date}")
+            hint_text = f" ({'; '.join(parts)})"
         steps: list[str] = []
         for _, row in lane_rows.head(2).iterrows():
             steps.append(
@@ -4341,7 +4396,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             {
                 "kicker": f"{lane.upper()} LANE",
                 "title": bundle_name,
-                "body": (f"{goal_summary}. " if goal_summary else "") + f"{tickers}. " + " | ".join(steps),
+                "body": (f"{goal_summary}{hint_text}. " if goal_summary else "") + f"{tickers}. " + " | ".join(steps),
                 "badges": [
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     "runbook",
@@ -6223,6 +6278,8 @@ def render_data_health(provider) -> None:
                     "current_unlock_stage",
                     "target_goal",
                     "rows_needed",
+                    "target_history_rows",
+                    "suggested_start_date",
                     "recommended_action",
                     "primary_command",
                     "follow_up_command",
@@ -6249,6 +6306,8 @@ def render_data_health(provider) -> None:
                     "command",
                     "tickers",
                     "goal_summary",
+                    "target_history_rows",
+                    "suggested_start_date",
                     "target_file",
                 ]
                 if column in command_bundle_runbook_frame.columns
