@@ -147,7 +147,10 @@ def _data_quality_needs_refresh(frame: pd.DataFrame) -> bool:
     enrichment_rows = frame.loc[frame["ReadinessStatus"].astype(str).str.strip().isin({"Needs Enrichment", "Partial Coverage"})]
     if enrichment_rows.empty:
         return False
-    return not enrichment_rows["NextBestAction"].astype(str).str.contains(r"make focus-(?:fundamentals|peers|price)\s+TICKER=", regex=True).all()
+    return not enrichment_rows["NextBestAction"].astype(str).str.contains(
+        r"make focus-(?:fundamentals|peers|price)\s+TICKER=|make imports-validate",
+        regex=True,
+    ).all()
 
 
 def _data_gaps_need_refresh(frame: pd.DataFrame) -> bool:

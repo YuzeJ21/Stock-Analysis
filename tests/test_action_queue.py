@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.action_queue import build_action_queue_payload, build_action_queue_rows, write_action_queue_output
+from src.action_queue import (
+    _data_quality_needs_refresh,
+    build_action_queue_payload,
+    build_action_queue_rows,
+    write_action_queue_output,
+)
 
 
 def test_action_queue_prioritizes_price_failures_before_optional_gaps():
@@ -453,6 +458,26 @@ def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp
     )
     assert staged_row["title"] == "Advance staged fundamentals import"
     assert "data/imports/fundamentals.csv" in staged_row["reason"]
+
+
+def test_data_quality_refresh_detector_accepts_staged_peer_enrichment_rows():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "ReadinessStatus": "Partial Coverage",
+                "NextBestAction": (
+                    "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                    "to confirm the live local peer mappings."
+                ),
+                "FocusCommand": "make imports-validate",
+                "ExampleCommand": "make imports-preview",
+                "Reason": "Peer mappings are staged but not live yet.",
+            }
+        ]
+    )
+
+    assert _data_quality_needs_refresh(frame) is False
 
 
 def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_rows():
