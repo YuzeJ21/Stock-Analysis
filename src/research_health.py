@@ -73,6 +73,46 @@ def _staged_peer_next_best_action() -> str:
     )
 
 
+def _normalized_price_next_best_action(ticker: str, action_text: object) -> str:
+    text = str(action_text or "").strip()
+    normalized = text.lower()
+    if f"make focus-price ticker={ticker.lower()}" not in normalized:
+        return _price_next_best_action(ticker)
+    if f"make price-refresh tickers={ticker.lower()}" not in normalized:
+        return _price_next_best_action(ticker)
+    return text
+
+
+def _normalized_fundamentals_next_best_action(ticker: str, focus_command: str, action_text: object) -> str:
+    text = str(action_text or "").strip()
+    normalized = text.lower()
+    if str(focus_command or "").strip() == "make imports-validate":
+        return text if "make imports-validate" in normalized else _staged_fundamentals_next_best_action()
+    if f"make focus-fundamentals ticker={ticker.lower()}" not in normalized:
+        return _fundamentals_next_best_action(ticker)
+    if f"make sec-stage tickers={ticker.lower()}" not in normalized:
+        return _fundamentals_next_best_action(ticker)
+    return text
+
+
+def _normalized_peer_next_best_action(
+    ticker: str,
+    focus_command: str,
+    action_text: object,
+    *,
+    missing_mapping: bool,
+) -> str:
+    text = str(action_text or "").strip()
+    normalized = text.lower()
+    if str(focus_command or "").strip() == "make imports-validate":
+        return text if "make imports-validate" in normalized else _staged_peer_next_best_action()
+    if f"make focus-peers ticker={ticker.lower()}" not in normalized:
+        return _peer_next_best_action(ticker, missing_mapping=missing_mapping)
+    if missing_mapping and "make templates" not in normalized:
+        return _peer_next_best_action(ticker, missing_mapping=True)
+    return text
+
+
 def _normalized_peer_example_command(focus_command: str, example_command: str) -> str:
     focus = str(focus_command or "").strip()
     example = _normalize_operator_example_command(example_command)
@@ -281,23 +321,16 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
         )
         next_best_action = str(row.get("next_best_action", "") or "").strip()
         if not momentum_ready:
-            if "make focus-price" not in next_best_action:
-                next_best_action = _price_next_best_action(ticker)
+            next_best_action = _normalized_price_next_best_action(ticker, next_best_action)
         elif not dcf_ready:
-            if focus_command == "make imports-validate":
-                if "make imports-validate" not in next_best_action:
-                    next_best_action = _staged_fundamentals_next_best_action()
-            elif "make focus-fundamentals" not in next_best_action:
-                next_best_action = _fundamentals_next_best_action(ticker)
+            next_best_action = _normalized_fundamentals_next_best_action(ticker, focus_command, next_best_action)
         elif not peer_ready:
-            if focus_command == "make imports-validate":
-                if "make imports-validate" not in next_best_action:
-                    next_best_action = _staged_peer_next_best_action()
-            elif not has_peer_mapping:
-                if "make focus-peers" not in next_best_action:
-                    next_best_action = _peer_next_best_action(ticker, missing_mapping=True)
-            elif "make focus-peers" not in next_best_action:
-                next_best_action = _peer_next_best_action(ticker, missing_mapping=False)
+            next_best_action = _normalized_peer_next_best_action(
+                ticker,
+                focus_command,
+                next_best_action,
+                missing_mapping=not has_peer_mapping,
+            )
 
         rows.append(
             {

@@ -212,6 +212,76 @@ def test_data_quality_wizard_normalizes_legacy_operator_example_commands():
     assert amd["ExampleCommand"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
 
 
+def test_data_quality_wizard_normalizes_stale_action_text():
+    coverage = [
+        {
+            "ticker": "NVDA",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": "Run make focus-fundamentals TICKER=NVDA.",
+            "focus_command": "make focus-fundamentals TICKER=NVDA",
+            "example_command": "make sec-stage TICKERS=NVDA",
+            "missing_required_for_dcf": "free_cash_flow",
+            "missing_required_for_peer_relative": "peer mapping",
+        },
+        {
+            "ticker": "AMD",
+            "has_prices": False,
+            "price_history_days": 0,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": False,
+            "usable_for_monthly_picks": False,
+            "next_best_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+            "focus_command": "make focus-price TICKER=AMD",
+            "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+            "missing_required_for_momentum": "prices",
+            "missing_required_for_dcf": "prices",
+            "missing_required_for_peer_relative": "prices",
+        },
+        {
+            "ticker": "TSLA",
+            "has_prices": True,
+            "price_history_days": 90,
+            "has_fundamentals": True,
+            "dcf_ready": True,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": "Run make focus-peers TICKER=TSLA.",
+            "focus_command": "make focus-peers TICKER=TSLA",
+            "example_command": "make templates",
+            "missing_required_for_peer_relative": "peer mapping",
+        },
+    ]
+
+    frame = build_data_quality_wizard(coverage)
+
+    nvda = frame.loc[frame["Ticker"] == "NVDA"].iloc[0]
+    amd = frame.loc[frame["Ticker"] == "AMD"].iloc[0]
+    tsla = frame.loc[frame["Ticker"] == "TSLA"].iloc[0]
+
+    assert "make sec-stage TICKERS=NVDA" in nvda["NextBestAction"]
+    assert "make price-refresh TICKERS=AMD" in amd["NextBestAction"]
+    assert "python3 -m src.data_update --tickers AMD" not in amd["NextBestAction"]
+    assert "write templates" in tsla["NextBestAction"]
+
+
 def test_data_quality_wizard_normalizes_stale_enrichment_actions():
     coverage = [
         {

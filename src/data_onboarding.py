@@ -692,6 +692,46 @@ def _staged_peer_import_action_text() -> str:
     )
 
 
+def _normalized_price_action_text(ticker: str, action_text: object) -> str:
+    text = str(action_text or "").strip()
+    normalized = text.lower()
+    if f"make focus-price ticker={ticker.lower()}" not in normalized:
+        return _price_action_text(ticker)
+    if f"make price-refresh tickers={ticker.lower()}" not in normalized:
+        return _price_action_text(ticker)
+    return text
+
+
+def _normalized_fundamentals_action_text(ticker: str, focus_command: str, action_text: object) -> str:
+    text = str(action_text or "").strip()
+    normalized = text.lower()
+    if str(focus_command or "").strip() == "make imports-validate":
+        return text if "make imports-validate" in normalized else _staged_fundamentals_action_text()
+    if f"make focus-fundamentals ticker={ticker.lower()}" not in normalized:
+        return _fundamentals_action_text(ticker)
+    if f"make sec-stage tickers={ticker.lower()}" not in normalized:
+        return _fundamentals_action_text(ticker)
+    return text
+
+
+def _normalized_peer_action_text(
+    ticker: str,
+    focus_command: str,
+    action_text: object,
+    *,
+    missing_mapping: bool,
+) -> str:
+    text = str(action_text or "").strip()
+    normalized = text.lower()
+    if str(focus_command or "").strip() == "make imports-validate":
+        return text if "make imports-validate" in normalized else _staged_peer_import_action_text()
+    if f"make focus-peers ticker={ticker.lower()}" not in normalized:
+        return _peer_action_text(ticker, missing_mapping=missing_mapping)
+    if missing_mapping and "make templates" not in normalized:
+        return _peer_action_text(ticker, missing_mapping=True)
+    return text
+
+
 def _normalized_peer_example_command(focus_command: str, example_command: str) -> str:
     focus = str(focus_command or "").strip()
     example = _normalize_operator_example_command(example_command)
@@ -1191,6 +1231,11 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                 row.example_command if _has_staged_fundamentals_follow_through(row) else f"make sec-stage TICKERS={row.ticker}",
                 row.ticker,
             )
+            recommended_action = _normalized_fundamentals_action_text(
+                row.ticker,
+                focus_command,
+                row.next_best_action if _has_staged_fundamentals_follow_through(row) else _fundamentals_action_text(row.ticker),
+            )
             rows.append(
                 DataCoverageWizardRow(
                     priority=2,
@@ -1199,7 +1244,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     blocking_dataset="fundamentals",
                     current_status=row.missing_required_for_dcf or "DCF inputs incomplete",
                     why_it_matters="DCF needs free cash flow or revenue plus FCF margin, and shares outstanding.",
-                    recommended_action=row.next_best_action if _has_staged_fundamentals_follow_through(row) else _fundamentals_action_text(row.ticker),
+                    recommended_action=recommended_action,
                     target_file=row.target_file if _has_staged_fundamentals_follow_through(row) else "data/imports/fundamentals.csv",
                     focus_command=focus_command,
                     example_command=example_command,
@@ -1213,7 +1258,12 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
             example_command = "make templates"
             safe_next_step = "Use data/imports/peers.csv for mappings; never fabricate peer relationships."
             if row.has_peer_mapping:
-                recommended_action = row.next_best_action or recommended_action
+                recommended_action = _normalized_peer_action_text(
+                    row.ticker,
+                    row.focus_command or focus_command,
+                    row.next_best_action or recommended_action,
+                    missing_mapping=not row.has_peer_mapping,
+                )
                 target_file = row.target_file or target_file
                 focus_command = row.focus_command or focus_command
                 example_command = _normalized_peer_example_command(
