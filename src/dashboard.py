@@ -244,6 +244,42 @@ def load_monthly_outputs(
     return tables
 
 
+def _data_gap_action_needs_refresh(row: pd.Series) -> bool:
+    dataset = str(row.get("dataset", "")).strip()
+    ticker = str(row.get("ticker", "")).strip().upper()
+    recommended_action = str(row.get("recommended_action", "")).strip()
+    focus_command = normalize_operator_command(str(row.get("focus_command", "")).strip())
+    normalized_action = recommended_action.lower()
+    if focus_command == "make imports-validate":
+        return "make imports-validate" not in normalized_action or "make imports-preview" not in normalized_action
+    if dataset == "prices" and ticker:
+        expected_focus = f"make focus-price ticker={ticker.lower()}"
+        return expected_focus not in normalized_action or "make price-refresh tickers=" not in normalized_action
+    if dataset == "fundamentals" and ticker:
+        expected_focus = f"make focus-fundamentals ticker={ticker.lower()}"
+        return expected_focus not in normalized_action or "make sec-stage tickers=" not in normalized_action
+    if dataset == "peers" and ticker:
+        expected_focus = f"make focus-peers ticker={ticker.lower()}"
+        return expected_focus not in normalized_action or "make templates" not in normalized_action
+    return False
+
+
+def _data_source_action_needs_refresh(row: pd.Series) -> bool:
+    dataset = str(row.get("dataset", "")).strip()
+    fallback_action = str(row.get("fallback_action", "")).strip()
+    focus_command = normalize_operator_command(str(row.get("focus_command", "")).strip())
+    normalized_action = fallback_action.lower()
+    if focus_command == "make imports-validate":
+        return "make imports-validate" not in normalized_action or "make imports-preview" not in normalized_action
+    if dataset == "prices":
+        return "make status" not in normalized_action or "normalize verified local ohlcv files" not in normalized_action
+    if dataset == "fundamentals":
+        return "make status" not in normalized_action or "validate/preview/apply" not in normalized_action
+    if dataset == "peers":
+        return "make status" not in normalized_action or "make templates" not in normalized_action
+    return False
+
+
 def load_data_source_status_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
@@ -284,6 +320,9 @@ def load_data_source_status_tables(
             if expected_example and example_command != expected_example:
                 needs_refresh = True
                 break
+            if _data_gap_action_needs_refresh(row):
+                needs_refresh = True
+                break
     if not needs_refresh and source_frame is not None and not source_frame.empty:
         for _, row in source_frame.iterrows():
             dataset = str(row.get("dataset", "")).strip()
@@ -303,6 +342,9 @@ def load_data_source_status_tables(
             elif dataset == "local_outputs" and focus_command == "make status":
                 expected_example = "make status"
             if expected_example and example_command != expected_example:
+                needs_refresh = True
+                break
+            if _data_source_action_needs_refresh(row):
                 needs_refresh = True
                 break
     if needs_refresh:

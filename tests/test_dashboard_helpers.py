@@ -643,6 +643,73 @@ def test_data_source_status_tables_refresh_stale_example_commands(tmp_path):
     assert gap_frame.loc[gap_frame["dataset"] == "fundamentals", "example_command"].iloc[0] == "make imports-preview"
 
 
+def test_data_source_status_tables_refresh_stale_action_text(tmp_path):
+    outputs_dir = tmp_path
+    pd.DataFrame(
+        [
+            {
+                "dataset": "fundamentals",
+                "ticker": "",
+                "status": "partial",
+                "reason": "old",
+                "required_for": "valuation",
+                "recommended_action": "Stage fundamentals manually, then apply them later.",
+                "target_file": "data/imports/fundamentals.csv",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "local_file": "data/imports/fundamentals.csv",
+                "source_name": "fixture",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_gap_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "dataset": "fundamentals",
+                "source_name": "fixture",
+                "source_type": "local_csv",
+                "availability_status": "partial",
+                "required_for": "valuation",
+                "is_required": False,
+                "is_optional": True,
+                "is_manual_only": False,
+                "is_unofficial": False,
+                "requires_network": False,
+                "requires_user_agent": False,
+                "requires_api_key": False,
+                "expected_local_file": "data/fundamentals.csv",
+                "fallback_action": "Stage fundamentals manually, then apply them later.",
+                "target_file": "data/imports/fundamentals.csv",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "notes": "old",
+                "local_file": "data/imports/fundamentals.csv",
+                "row_count": 6,
+                "available_columns": "ticker,revenue,fcf",
+                "validation_warnings": "as_of_date missing",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_source_status.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        tables = dashboard.load_data_source_status_tables(outputs_dir)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    source_frame, _ = tables["data_source_status.csv"]
+    gap_frame, _ = tables["data_gap_report.csv"]
+    assert source_frame is not None
+    assert gap_frame is not None
+    refreshed_source_action = source_frame.loc[source_frame["dataset"] == "fundamentals", "fallback_action"].iloc[0]
+    refreshed_gap_action = gap_frame.loc[gap_frame["dataset"] == "fundamentals", "recommended_action"].iloc[0]
+    assert "make imports-validate" in refreshed_source_action
+    assert "make imports-preview" in refreshed_source_action
+    assert "make imports-validate" in refreshed_gap_action
+    assert "make imports-preview" in refreshed_gap_action
+
+
 def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
     frame, message = dashboard.load_price_update_status(tmp_path)
 
