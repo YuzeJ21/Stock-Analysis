@@ -4,8 +4,8 @@ help:
 	@echo "Stock Research Screener convenience commands"
 	@echo ""
 	@echo "Core:"
-	@echo "  make status           Refresh supporting artifacts, then print read-only local project status"
-	@echo "  make status-check     Print the current read-only local project status without refreshing artifacts"
+	@echo "  make status [TOP_N=5] Refresh supporting artifacts, then print read-only local project status"
+	@echo "  make status-check [TOP_N=5] Print the current read-only local project status without refreshing artifacts"
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
 	@echo "  make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] Generate one local stock report JSON"
@@ -85,10 +85,10 @@ test:
 	python3 -m pytest tests -q
 
 status:
-	python3 -m src.project_status --refresh-artifacts
+	python3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)
 
 status-check:
-	python3 -m src.project_status
+	python3 -m src.project_status --top-n $(or $(TOP_N),5)
 
 pipeline:
 	python3 -m src.report_generator

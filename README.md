@@ -127,7 +127,7 @@ make universe-preview
 make universe-apply
 ```
 
-If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make status` first when you want the read-only local project snapshot plus a refresh of the supporting operator artifacts, or `make status-check` when you only want the current summary without that refresh step. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make dashboard-smoke` before deeper dashboard review. Use `make validate-all` for the extended local validation launcher, including monthly picks, track record, data-source checks, and a dashboard smoke check.
+If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make status` first when you want the read-only local project snapshot plus a refresh of the supporting operator artifacts, or `make status-check` when you only want the current summary without that refresh step. Both status paths accept `TOP_N=...` if you want a shorter terminal snapshot. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make dashboard-smoke` before deeper dashboard review. Use `make validate-all` for the extended local validation launcher, including monthly picks, track record, data-source checks, and a dashboard smoke check.
 
 Path-proof shell launchers:
 
@@ -790,6 +790,12 @@ If you want the current project-status summary without first refreshing those su
 
 ```bash
 make status-check
+```
+
+To keep either status view shorter in the terminal, add `TOP_N=...`, for example:
+
+```bash
+make status-check TOP_N=2
 ```
 
 If price history is the main blocker, run:

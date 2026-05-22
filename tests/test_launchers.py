@@ -83,8 +83,8 @@ def test_makefile_help_documents_key_workflows():
 
     for phrase in (
         "Stock Research Screener convenience commands",
-        "make status",
-        "make status-check",
+        "make status [TOP_N=5]",
+        "make status-check [TOP_N=5]",
         "make verify",
         "make validate-all",
         "make daily",
@@ -144,7 +144,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "- Use `make pipeline` to generate the core local outputs." in readme
     assert "- Use `make dashboard` to run the dashboard." in readme
     assert "## Run the pipeline\n\nGenerate all active outputs:\n\n```bash\nmake pipeline" in readme
-    assert "Use `make status` first when you want the read-only local project snapshot plus a refresh of the supporting operator artifacts, or `make status-check` when you only want the current summary without that refresh step." in readme
+    assert "Use `make status` first when you want the read-only local project snapshot plus a refresh of the supporting operator artifacts, or `make status-check` when you only want the current summary without that refresh step. Both status paths accept `TOP_N=...` if you want a shorter terminal snapshot." in readme
     assert "Use the repo-native front door to generate a structured local stock report:\n\n```bash\nmake stock-report TICKER=NVDA" in readme
     assert "If you want to write JSON to a file through the same front door:\n\n```bash\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
     assert "To discover locally available tickers first:\n\n```bash\nmake local-tickers" in readme
@@ -216,6 +216,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If the current blocker path is already satisfied and you want the monthly layer directly, use:\n\n```bash\nmake monthly" in readme
     assert "The local track-record module uses only local historical prices:\n\n```bash\nmake track-record" in readme
     assert "If you want the current project-status summary without first refreshing those supporting artifacts, use:\n\n```bash\nmake status-check" in readme
+    assert "To keep either status view shorter in the terminal, add `TOP_N=...`, for example:\n\n```bash\nmake status-check TOP_N=2" in readme
     assert "Generate them through the normal workflow or directly:\n\n```bash\nmake status\nmake verify\nmake research-health-check\nmake research-health" in readme
     assert "If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`." in readme
     assert "Generate it with:\n\n```bash\nmake status\nmake action-queue-check\nmake action-queue" in readme
@@ -288,7 +289,8 @@ def test_daily_launcher_reuses_current_make_targets():
 def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    assert "status-check:\n\tpython3 -m src.project_status" in makefile
+    assert "status:\n\tpython3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)" in makefile
+    assert "status-check:\n\tpython3 -m src.project_status --top-n $(or $(TOP_N),5)" in makefile
     assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "unlock-ladder:\n\tpython3 -m src.data_onboarding --unlock-ladder $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
