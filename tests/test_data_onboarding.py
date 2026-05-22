@@ -138,6 +138,8 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
     assert any(row["dataset"] == "peers" and row["priority"] == 3 for row in amd_actions)
     assert any(row["dataset"] == "peers" and row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_actions)
     assert any(row["dataset"] == "peers" and "make focus-peers TICKER=AMD" in row["recommended_action"] for row in amd_actions)
+    assert any(row["dataset"] == "earnings" and row["focus_command"] == "make templates" for row in amd_actions)
+    assert any(row["dataset"] == "analyst_estimates" and row["focus_command"] == "make templates" for row in amd_actions)
     assert any(row["dataset"] == "analyst_estimates" and row["priority"] == 5 for row in amd_actions)
 
 
@@ -167,6 +169,8 @@ def test_data_coverage_wizard_ranks_core_unlocks_before_optional_context(tmp_pat
     assert any(row["focus_command"] == "make focus-price TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "prices")
     assert any(row["focus_command"] == "make focus-fundamentals TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "fundamentals")
     assert any(row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "peers")
+    assert any(row["focus_command"] == "make templates" for row in amd_rows if row["blocking_dataset"] == "earnings")
+    assert any(row["focus_command"] == "make templates" for row in amd_rows if row["blocking_dataset"] == "analyst_estimates")
     assert any(
         "make focus-price TICKER=AMD" in row["recommended_action"]
         and row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
@@ -521,6 +525,8 @@ def test_optional_context_worklist_keeps_optional_gaps_lower_priority(tmp_path: 
     assert worklist["AMD"]["priority"] == 5
     assert "earnings" in worklist["AMD"]["missing_optional_context"]
     assert "analyst_estimates" in worklist["AMD"]["missing_optional_context"]
+    assert worklist["AMD"]["example_command"] == "make templates"
+    assert "run make templates" in worklist["AMD"]["recommended_action"].lower()
     assert worklist["NVDA"]["priority"] == 6
     assert worklist["NVDA"]["has_earnings"] is True
     assert worklist["NVDA"]["has_analyst_estimates"] is False

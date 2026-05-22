@@ -653,6 +653,14 @@ def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
     )
 
 
+def _earnings_action_text() -> str:
+    return "Run make templates, then fill data/imports/earnings.csv manually only if you have a trusted source."
+
+
+def _analyst_estimates_action_text() -> str:
+    return "Run make templates, then fill data/imports/analyst_estimates.csv manually only if you have a trusted source."
+
+
 def _action_for_coverage(row: TickerCoverage) -> str:
     if not row.has_prices:
         return _price_action_text(row.ticker)
@@ -894,10 +902,10 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="earnings",
                     status="optional_missing",
                     reason="No local earnings row is configured.",
-                    recommended_action="Add earnings manually only from a trusted source.",
+                    recommended_action=_earnings_action_text(),
                     target_file="data/imports/earnings.csv",
-                    focus_command="",
-                    example_command="python3 -m src.data_onboarding --write-templates",
+                    focus_command="make templates",
+                    example_command="make templates",
                 )
             )
         if not row.has_analyst_estimates:
@@ -908,10 +916,10 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="analyst_estimates",
                     status="optional_missing",
                     reason="No local analyst-estimate row is configured.",
-                    recommended_action="Leave analyst_estimates missing unless a trusted source exists.",
+                    recommended_action=_analyst_estimates_action_text(),
                     target_file="data/imports/analyst_estimates.csv",
-                    focus_command="",
-                    example_command="python3 -m src.data_onboarding --write-templates",
+                    focus_command="make templates",
+                    example_command="make templates",
                 )
             )
     actions.append(
@@ -1007,10 +1015,10 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     blocking_dataset="earnings",
                     current_status="optional local earnings row missing",
                     why_it_matters="Earnings context improves the stock report but does not block core ranking or valuation.",
-                    recommended_action="Add earnings rows manually only from a trusted source.",
+                    recommended_action=_earnings_action_text(),
                     target_file="data/imports/earnings.csv",
-                    focus_command="",
-                    example_command="python3 -m src.data_onboarding --write-templates",
+                    focus_command="make templates",
+                    example_command="make templates",
                     safe_next_step="Leave earnings blank when no trusted local source exists.",
                 )
             )
@@ -1023,10 +1031,10 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     blocking_dataset="analyst_estimates",
                     current_status="optional local analyst-estimate row missing",
                     why_it_matters="Estimate context is optional and should not be treated as a recommendation.",
-                    recommended_action="Add analyst estimates only if you have a trusted local source.",
+                    recommended_action=_analyst_estimates_action_text(),
                     target_file="data/imports/analyst_estimates.csv",
-                    focus_command="",
-                    example_command="python3 -m src.data_onboarding --write-templates",
+                    focus_command="make templates",
+                    example_command="make templates",
                     safe_next_step="It is safe to leave analyst estimates missing.",
                 )
             )
@@ -1209,15 +1217,18 @@ def build_optional_context_worklist(coverage_rows: list[TickerCoverage]) -> list
         else:
             priority = 5 if len(missing_context) == 2 else 6
             if missing_context == ["earnings"]:
-                recommended_action = "Add local earnings rows only if you have a trusted source."
+                recommended_action = _earnings_action_text()
                 target_file = "data/imports/earnings.csv"
             elif missing_context == ["analyst_estimates"]:
-                recommended_action = "Add analyst estimates only if you have a trusted local source."
+                recommended_action = _analyst_estimates_action_text()
                 target_file = "data/imports/analyst_estimates.csv"
             else:
-                recommended_action = "Optional earnings and analyst-estimate context are missing; add them only from trusted local sources."
+                recommended_action = (
+                    "Run make templates, then fill data/imports/earnings.csv and data/imports/analyst_estimates.csv "
+                    "manually only from trusted local sources."
+                )
                 target_file = "data/imports/earnings.csv and data/imports/analyst_estimates.csv"
-            example_command = "python3 -m src.data_onboarding --write-templates"
+            example_command = "make templates"
             safe_next_step = "It is safe to leave optional context missing until you have verified local data."
 
         rows.append(

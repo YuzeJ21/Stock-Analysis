@@ -28,8 +28,9 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
                     "dataset": "analyst_estimates",
                     "status": "optional_missing",
                     "reason": "No analyst row.",
-                    "recommended_action": "Leave missing unless trusted source exists.",
+                    "recommended_action": "Run make templates, then fill data/imports/analyst_estimates.csv manually only if you have a trusted source.",
                     "target_file": "data/imports/analyst_estimates.csv",
+                    "focus_command": "make templates",
                     "example_command": "make templates",
                 }
             ]
@@ -46,6 +47,7 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
     assert "normalize verified downloaded ohlcv files" in rows[0].recommended_action.lower()
     assert "price-validate" in rows[0].reason.lower()
     assert rows[-1].action_type == "analyst_estimates"
+    assert rows[-1].focus_command == "make templates"
 
 
 def test_action_queue_uses_research_health_when_price_data_is_missing():
