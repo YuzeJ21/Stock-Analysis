@@ -63,6 +63,23 @@ STALE_DATA_GAP_ACTIONS = {
 }
 
 
+def _normalize_global_gap_recommended_action(dataset: str, focus_command: str, recommended_action: str) -> str:
+    normalized_dataset = str(dataset or "").strip().lower()
+    normalized_focus = str(focus_command or "").strip().lower()
+    normalized_recommended = str(recommended_action or "").strip()
+
+    if normalized_dataset == "fundamentals" and (
+        normalized_focus == "make imports-validate"
+        or normalized_focus.startswith("make runbook-fundamentals")
+    ):
+        if "make imports-validate" not in normalized_recommended.lower():
+            return (
+                "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                "to confirm the live local fundamentals and DCF inputs."
+            )
+    return normalized_recommended
+
+
 @dataclass
 class ActionQueueItem:
     priority: int
@@ -783,7 +800,11 @@ def build_action_queue_rows(
                     ticker=ticker,
                     title=_global_gap_title(dataset, focus_command, ticker),
                     status=status or "gap",
-                    recommended_action=str(row.get("recommended_action", "")).strip(),
+                    recommended_action=_normalize_global_gap_recommended_action(
+                        dataset,
+                        focus_command,
+                        str(row.get("recommended_action", "")).strip(),
+                    ),
                     focus_command=focus_command,
                     example_command=example_command,
                     target_file=target_file,

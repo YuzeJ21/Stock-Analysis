@@ -731,6 +731,10 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     fundamentals_row = next(row for row in rows if row.action_type == "fundamentals" and not row.ticker)
     assert fundamentals_row.focus_command == "make runbook-fundamentals-broader"
     assert fundamentals_row.example_command == "make runbook-fundamentals-broader"
+    assert fundamentals_row.recommended_action == (
+        "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+        "to confirm the live local fundamentals and DCF inputs."
+    )
 
     peers_row = next(row for row in rows if row.action_type == "peers" and not row.ticker)
     assert peers_row.focus_command == "make runbook-peers-broader"
