@@ -969,6 +969,9 @@ def test_data_onboarding_cli_peer_runbook_text_surfaces_manual_peer_step(tmp_pat
     assert "peer mapping bundle" in output
     assert "fill peer mappings manually" in output
     assert "data/imports/peers.csv" in output
+    assert "make imports-validate" in output
+    assert "make imports-preview" in output
+    assert "make imports-apply" in output
 
 
 def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_path: Path):
@@ -1026,11 +1029,17 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
         for row in runbook
         if row["lane"] == "peers" and row["scope"] == "holdings_first"
     ]
-    assert [row["step_order"] for row in peer_steps] == [1, 2, 3]
+    assert [row["step_order"] for row in peer_steps] == [1, 2, 3, 4, 5, 6]
     assert peer_steps[1]["step_label"] == "Fill peer mappings manually"
     assert peer_steps[1]["command"] == "data/imports/peers.csv"
-    assert peer_steps[2]["step_label"] == "Refresh status outputs"
-    assert peer_steps[2]["command"] == "make status"
+    assert peer_steps[2]["step_label"] == "Validate staged peer mappings"
+    assert peer_steps[2]["command"] == "make imports-validate"
+    assert peer_steps[3]["step_label"] == "Preview peer mapping merge"
+    assert peer_steps[3]["command"] == "make imports-preview"
+    assert peer_steps[4]["step_label"] == "Apply peer mapping merge"
+    assert peer_steps[4]["command"] == "make imports-apply"
+    assert peer_steps[5]["step_label"] == "Refresh status outputs"
+    assert peer_steps[5]["command"] == "make status"
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():

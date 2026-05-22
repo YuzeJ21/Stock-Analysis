@@ -1827,7 +1827,10 @@ def build_command_bundles(
                 follow_up_command="data/imports/peers.csv",
                 target_file="data/imports/peers.csv",
                 why_it_matters=why_it_matters,
-                safe_next_step="Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",
+                safe_next_step=(
+                    "Fill only manually researched peers for the listed tickers, then validate, preview, and apply "
+                    "the staged import before make status refreshes readiness and action outputs."
+                ),
             )
         )
 
@@ -2030,6 +2033,21 @@ def build_command_bundle_runbook(
                     "Fill peer mappings manually",
                     "data/imports/peers.csv",
                     "Fill only manually researched peer mappings for the listed tickers and keep missing peer context explicit when you do not have a trusted comparison set.",
+                ),
+                (
+                    "Validate staged peer mappings",
+                    "make imports-validate",
+                    "Validate staged peer mappings before preview so schema and duplicate-key issues surface before merge.",
+                ),
+                (
+                    "Preview peer mapping merge",
+                    "make imports-preview",
+                    "Preview the staged peer mapping merge and confirm the composite ticker and peer_ticker keys before apply.",
+                ),
+                (
+                    "Apply peer mapping merge",
+                    "make imports-apply",
+                    "Apply the staged peer mapping merge only after validation and preview are clean.",
                 ),
                 (
                     "Refresh status outputs",

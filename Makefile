@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -68,6 +68,7 @@ help:
 	@echo "Staged fundamentals and universe:"
 	@echo "  SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA,MSFT"
 	@echo "  make sec-validate && make sec-preview && make sec-apply"
+	@echo "  make imports-validate && make imports-preview && make imports-apply"
 	@echo "  make universe-preview"
 	@echo "  make universe-apply"
 
@@ -283,6 +284,15 @@ sec-preview:
 	python3 -m src.stock_report --preview-import-merge
 
 sec-apply:
+	python3 -m src.stock_report --apply-import-merge
+
+imports-validate:
+	python3 -m src.stock_report --validate-imports
+
+imports-preview:
+	python3 -m src.stock_report --preview-import-merge
+
+imports-apply:
 	python3 -m src.stock_report --apply-import-merge
 
 universe-preview:
