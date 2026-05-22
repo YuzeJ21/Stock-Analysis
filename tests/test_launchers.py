@@ -128,6 +128,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
 
     assert "- Use `make pipeline` to generate the core local outputs." in readme
     assert "- Use `make dashboard` to run the dashboard." in readme
+    assert "## Run the pipeline\n\nGenerate all active outputs:\n\n```bash\nmake pipeline" in readme
     for phrase in (
         'export SEC_USER_AGENT="Your Name your.email@example.com"',
         "make sec-stage TICKERS=NVDA,MSFT",

@@ -143,7 +143,7 @@ scripts/validate_all.sh
 Generate all active outputs:
 
 ```bash
-python -m src.report_generator
+make pipeline
 ```
 
 The active pipeline now owns all generated CSVs:
