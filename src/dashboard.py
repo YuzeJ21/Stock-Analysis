@@ -4422,13 +4422,20 @@ def holdings_unlock_cards(
             )
         else:
             fallback_action = command_family_fallback(command, f"Review {stage} path.")
+        next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
+        if staged_price_import and (
+            "make price-validate" not in next_action_summary
+            or "make price-preview" not in next_action_summary
+            or "make price-apply" not in next_action_summary
+        ):
+            next_action_summary = compact_reason(fallback_action, max_sentences=1, max_chars=150)
         cards.append(
             {
                 "kicker": ticker,
                 "title": goal,
                 "body": (
                     f"{purpose}. Current stage: {stage}. "
-                    f"Next action: {compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
+                    f"Next action: {next_action_summary}"
                 ),
                 "badges": [stage, format_missing(row.get("price_stage_status"), "prices")],
                 "command": command,

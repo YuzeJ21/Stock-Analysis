@@ -2190,6 +2190,31 @@ def test_holdings_unlock_cards_keep_staged_import_front_doors_when_target_files_
     assert "staged peer import" in peer_card["body"].lower()
 
 
+def test_holdings_unlock_cards_upgrade_generic_staged_price_note_to_explicit_follow_through():
+    holdings = pd.DataFrame([{"Ticker": "AMD", "PrimaryPurpose": "Core Compounder"}])
+    ladder = pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "current_unlock_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+                "price_stage_status": "partial_price_history",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_unlock_cards(holdings, ladder, None, limit=1)
+
+    assert cards[0]["command"] == "make price-validate"
+    assert "make price-preview" in cards[0]["body"].lower()
+    assert "make price-apply" in cards[0]["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in cards[0]["body"].lower()
+
+
 def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
     holdings = pd.DataFrame(
         [
