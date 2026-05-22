@@ -2109,6 +2109,30 @@ def test_holdings_unlock_cards_use_review_fallback_when_action_is_missing():
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_holdings_unlock_cards_use_runbook_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "AMD", "PrimaryPurpose": "Core Compounder"}])
+    ladder = pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "current_unlock_stage": "peers",
+                "next_unlock_goal": "Unlock Peer Relative",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "make runbook-peers",
+                "price_stage_status": "momentum_ready_short_history",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_unlock_cards(holdings, ladder, None, limit=1)
+
+    assert cards[0]["kicker"] == "AMD"
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
     holdings = pd.DataFrame(
         [

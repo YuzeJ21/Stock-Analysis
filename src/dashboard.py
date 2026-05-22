@@ -4359,7 +4359,15 @@ def holdings_unlock_cards(
         stage = format_missing(row.get("current_unlock_stage"), "coverage")
         goal = format_missing(row.get("next_unlock_goal"), "Unlock data")
         purpose = format_missing(purpose_map.get(ticker), "Portfolio holding")
-        fallback_action = f"Review {stage} path."
+        command = preferred_row_command(
+            row,
+            ticker_focus_command(
+                stage,
+                row.get("ticker"),
+                unlock_stage_command(stage, "make onboarding"),
+            ),
+        )
+        fallback_action = command_family_fallback(command, f"Review {stage} path.")
         cards.append(
             {
                 "kicker": ticker,
@@ -4369,14 +4377,7 @@ def holdings_unlock_cards(
                     f"Next action: {compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
                 ),
                 "badges": [stage, format_missing(row.get("price_stage_status"), "prices")],
-                "command": preferred_row_command(
-                    row,
-                    ticker_focus_command(
-                        stage,
-                        row.get("ticker"),
-                        unlock_stage_command(stage, "make onboarding"),
-                    ),
-                ),
+                "command": command,
             }
         )
     return cards
