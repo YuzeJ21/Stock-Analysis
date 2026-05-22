@@ -354,6 +354,21 @@ def _normalize_onboarding_recommended_action(
     return text
 
 
+def _normalize_onboarding_example_command(
+    dataset: str,
+    ticker: str,
+    focus_command: str,
+    example_command: str,
+) -> str:
+    text = str(example_command or "").strip()
+    fallback = _example_command_for_focus_command(focus_command, ticker)
+    if not fallback:
+        return text
+    if not text or text in {"make onboarding", "make status"}:
+        return fallback
+    return text
+
+
 def _normalize_data_quality_coverage_action(
     ticker: str,
     status: str,
@@ -650,6 +665,12 @@ def build_action_queue_rows(
                 focus_command,
                 str(row.get("recommended_action", "")).strip(),
             )
+            example_command = _normalize_onboarding_example_command(
+                dataset,
+                ticker,
+                focus_command,
+                str(row.get("example_command", "")).strip(),
+            )
             items.append(
                 ActionQueueItem(
                     priority=priority_value,
@@ -660,7 +681,7 @@ def build_action_queue_rows(
                     status=status,
                     recommended_action=recommended_action,
                     focus_command=focus_command,
-                    example_command=str(row.get("example_command", "")).strip(),
+                    example_command=example_command,
                     target_file=str(row.get("target_file", "")).strip(),
                     source_file=str(row.get("target_file", "")).strip(),
                     source_artifact="outputs/data_onboarding_actions.csv",

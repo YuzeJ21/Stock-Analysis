@@ -1150,3 +1150,57 @@ def test_data_quality_needs_refresh_rejects_stale_example_commands():
     )
 
     assert _data_quality_needs_refresh(frame) is True
+
+
+def test_action_queue_rows_normalize_stale_onboarding_example_commands():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(
+            [
+                {
+                    "priority": 1,
+                    "dataset": "prices",
+                    "ticker": "AMD",
+                    "status": "missing_or_incomplete",
+                    "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                    "focus_command": "make focus-price TICKER=AMD",
+                    "example_command": "make status",
+                    "target_file": "data/imports/prices.csv",
+                    "reason": "prices",
+                },
+                {
+                    "priority": 2,
+                    "dataset": "fundamentals",
+                    "ticker": "NVDA",
+                    "status": "missing_or_incomplete",
+                    "recommended_action": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA.",
+                    "focus_command": "make focus-fundamentals TICKER=NVDA",
+                    "example_command": "make onboarding",
+                    "target_file": "data/imports/fundamentals.csv",
+                    "reason": "fundamentals",
+                },
+                {
+                    "priority": 3,
+                    "dataset": "peers",
+                    "ticker": "META",
+                    "status": "manual_input_needed",
+                    "recommended_action": "Run make focus-peers TICKER=META, or write templates and fill data/imports/peers.csv manually with transparent peer mappings.",
+                    "focus_command": "make focus-peers TICKER=META",
+                    "example_command": "make onboarding",
+                    "target_file": "data/imports/peers.csv",
+                    "reason": "peer mapping",
+                },
+            ]
+        ),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(),
+    )
+
+    amd_row = next(row for row in rows if row.ticker == "AMD")
+    nvda_row = next(row for row in rows if row.ticker == "NVDA")
+    meta_row = next(row for row in rows if row.ticker == "META")
+
+    assert amd_row.example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    assert nvda_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert meta_row.example_command == "make templates"
