@@ -95,7 +95,6 @@ make validate-data
 make research-health
 make action-queue
 make coverage
-make onboarding
 make templates
 make price-status
 make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual
@@ -257,9 +256,11 @@ Convenience targets:
 ```bash
 make coverage
 make command-bundles
-make onboarding
 make templates
+make status
 ```
+
+Use `make onboarding` after you have changed local imports and want to refresh the generated onboarding, coverage, bundle, and action-queue outputs in one pass.
 
 `--write-output` creates:
 
@@ -558,7 +559,7 @@ make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manua
 make price-validate
 make price-preview
 make price-apply
-make onboarding
+make status
 make daily
 make dashboard
 ```
@@ -1132,7 +1133,7 @@ python3 -m src.data_onboarding --wizard
 python3 -m src.data_onboarding --wizard --json
 python3 -m src.data_onboarding --write-output
 make data-wizard
-make onboarding
+make status
 ```
 
 `python3 -m src.data_onboarding --write-output` writes:
