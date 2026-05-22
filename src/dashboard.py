@@ -4118,18 +4118,21 @@ def overview_landing_cards(
             "title": f"{watchlist_count} watchlist rows",
             "body": f"{monthly_count} current monthly candidates and latest local price date {latest_price}.",
             "badges": ["local outputs"],
+            "command": "make monthly",
         },
         {
             "kicker": "PRICE COVERAGE",
             "title": f"{price_ready}/{total_tickers}",
             "body": "Tickers with enough local price context for momentum and track-record workflows.",
             "badges": ["highest leverage"],
+            "command": "make runbook-prices-broader",
         },
         {
             "kicker": "VALUATION PATH",
             "title": f"{dcf_ready} DCF-ready",
             "body": f"{peer_ready} tickers also have peer-relative context. {gap_count} data gaps remain visible, not guessed.",
             "badges": ["research only"],
+            "command": "make runbook-fundamentals-broader",
         },
         {
             "kicker": "FIX FIRST",
