@@ -2128,6 +2128,70 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
     return cards
 
 
+def data_health_deep_research_target_cards(
+    sec_stage_queue_frame: pd.DataFrame | None,
+    peer_mapping_queue_frame: pd.DataFrame | None,
+    limit_per_lane: int = 2,
+) -> list[dict[str, object]]:
+    cards: list[dict[str, object]] = []
+
+    if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
+        sec_rows = sec_stage_queue_frame.copy()
+        if "priority" in sec_rows.columns:
+            sec_rows["priority"] = pd.to_numeric(sec_rows["priority"], errors="coerce")
+            sec_rows = sec_rows.sort_values(["priority", "price_history_days", "ticker"], ascending=[True, False, True], kind="stable")
+        for _, row in sec_rows.head(limit_per_lane).iterrows():
+            cards.append(
+                {
+                    "kicker": "DCF TARGET",
+                    "title": format_missing(row.get("ticker"), "Ticker"),
+                    "body": (
+                        f"{format_missing(row.get('recommended_action'), 'Review fundamentals path.')} "
+                        f"Missing: {format_missing(row.get('missing_required_for_dcf'), 'Not specified')}."
+                    ),
+                    "badges": [
+                        "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
+                        f"{format_value(row.get('price_history_days'), fallback='0')} price rows",
+                    ],
+                    "command": format_missing(row.get("example_command"), ""),
+                }
+            )
+
+    if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
+        peer_rows = peer_mapping_queue_frame.copy()
+        if "priority" in peer_rows.columns:
+            peer_rows["priority"] = pd.to_numeric(peer_rows["priority"], errors="coerce")
+            peer_rows = peer_rows.sort_values(["priority", "ticker"], kind="stable")
+        for _, row in peer_rows.head(limit_per_lane).iterrows():
+            cards.append(
+                {
+                    "kicker": "PEER TARGET",
+                    "title": format_missing(row.get("ticker"), "Ticker"),
+                    "body": (
+                        f"{format_missing(row.get('recommended_action'), 'Review peer path.')} "
+                        f"Missing: {format_missing(row.get('missing_required_for_peer_relative'), 'Not specified')}."
+                    ),
+                    "badges": [
+                        "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
+                        "dcf ready" if str(row.get("dcf_ready", "")).lower() in {"true", "1"} else "dcf blocked",
+                    ],
+                    "command": format_missing(row.get("example_command"), ""),
+                }
+            )
+
+    if cards:
+        return cards
+    return [
+        {
+            "kicker": "DEEP TARGETS",
+            "title": "No DCF or peer targets yet",
+            "body": "Write the onboarding outputs to surface explicit fundamentals and peer-relative target queues.",
+            "badges": ["read-only"],
+            "command": "python3 -m src.data_onboarding --write-output",
+        }
+    ]
+
+
 def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if price_worklist_frame is None or price_worklist_frame.empty:
         return [
@@ -6267,6 +6331,8 @@ def render_data_health(provider) -> None:
                 metric_cols[1].metric("Peer Queue P2", peer_summary["priority_2"])
                 metric_cols[2].metric("Holdings in Peer Queue", peer_summary["holdings"])
                 metric_cols[3].metric("Missing Peer Mappings", peer_summary["missing_peer_mapping"])
+                render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
+                render_signal_cards(data_health_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
             if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
                 ladder_summary = summarize_ticker_unlock_ladder(ticker_unlock_ladder_frame)
                 metric_cols = st.columns(5)
