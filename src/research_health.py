@@ -31,6 +31,13 @@ DATA_QUALITY_COLUMNS = [
     "Reason",
 ]
 
+
+def _price_next_best_action(ticker: str) -> str:
+    return (
+        f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and "
+        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
+    )
+
 LIQUIDITY_COLUMNS = [
     "Ticker",
     "LiquidityStatus",
@@ -182,6 +189,10 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
             f"Momentum ready={momentum_ready}, DCF ready={dcf_ready}, peer ready={peer_ready}. "
             f"Missing or optional gaps: {missing_text or 'none reported'}."
         )
+        next_best_action = str(row.get("next_best_action", "") or "").strip()
+        if not momentum_ready and "make focus-price" not in next_best_action:
+            next_best_action = _price_next_best_action(ticker)
+
         rows.append(
             {
                 "Ticker": ticker,
@@ -195,7 +206,7 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
                 "AnalystEstimatesAvailable": has_estimates,
                 "PriceHistoryDays": history_days,
                 "MissingDataFields": missing_text,
-                "NextBestAction": row.get("next_best_action", ""),
+                "NextBestAction": next_best_action,
                 "FocusCommand": focus_command,
                 "ExampleCommand": example_command,
                 "Reason": reason,

@@ -58,8 +58,8 @@ def test_data_quality_wizard_scores_readiness_and_reasons():
             "usable_for_momentum": False,
             "usable_for_monthly_picks": False,
             "next_best_action": (
-                "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and "
-                "normalize verified downloaded OHLCV files into data/imports/prices.csv."
+                "Run python3 -m src.data_update --tickers AMD, or add verified rows to "
+                "data/imports/prices.csv and run validate/preview/apply."
             ),
         },
     ]
@@ -72,6 +72,9 @@ def test_data_quality_wizard_scores_readiness_and_reasons():
     assert frame["Reason"].fillna("").str.len().gt(0).all()
     assert "prices" in frame.loc[frame["Ticker"] == "AMD", "MissingDataFields"].iloc[0]
     assert "make focus-price TICKER=AMD" in frame.loc[frame["Ticker"] == "AMD", "NextBestAction"].iloc[0]
+    assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in frame.loc[
+        frame["Ticker"] == "AMD", "NextBestAction"
+    ].iloc[0]
     assert frame.loc[frame["Ticker"] == "AMD", "FocusCommand"].iloc[0] == "make focus-price TICKER=AMD"
     assert "make price-normalize" in frame.loc[frame["Ticker"] == "AMD", "ExampleCommand"].iloc[0]
 
