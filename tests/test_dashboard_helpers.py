@@ -2734,6 +2734,19 @@ def test_onboarding_notice_copy_uses_onboarding_front_door_for_generated_artifac
     assert "grouped unlock priorities by holdings, theme, and sector etf" in unlock_body.lower()
 
 
+def test_artifact_notice_copy_uses_narrow_front_doors_for_specific_artifacts():
+    action_body, action_command = dashboard.artifact_notice_copy("action_queue")
+    health_body, health_command = dashboard.artifact_notice_copy("research_health")
+    sources_body, sources_command = dashboard.artifact_notice_copy("data_source_status")
+
+    assert action_command == "make action-queue"
+    assert "research action queue" in action_body.lower()
+    assert health_command == "make research-health"
+    assert "research health outputs are not available yet" in health_body.lower()
+    assert sources_command == "make data-sources"
+    assert "local source registry" in sources_body.lower()
+
+
 def test_overview_next_command_cards_prioritize_project_status_commands():
     payload = {
         "recommended_next_commands": ["make onboarding", "make verify", "make dashboard"],

@@ -4876,6 +4876,31 @@ def onboarding_notice_copy(kind: str, message: str | None = None) -> tuple[str, 
     return (message or ONBOARDING_NOTICE_DEFAULTS[kind], "make onboarding")
 
 
+ARTIFACT_NOTICE_DEFAULTS: dict[str, tuple[str, str]] = {
+    "action_queue": (
+        "Run make action-queue to refresh the research action queue and surface priority price, fundamentals, peer, and onboarding tasks.",
+        "make action-queue",
+    ),
+    "research_health": (
+        "Research health outputs are not available yet. Run make research-health to refresh those diagnostics, or make verify for the broader local validation pass.",
+        "make research-health",
+    ),
+    "data_source_status": (
+        "Run make data-sources to refresh the local source registry so this tab can show what is available, partial, manual-only, or missing.",
+        "make data-sources",
+    ),
+    "data_source_rows": (
+        "Run make data-sources to refresh the local source registry and inspect dataset availability plus fallback actions.",
+        "make data-sources",
+    ),
+}
+
+
+def artifact_notice_copy(kind: str, message: str | None = None) -> tuple[str, str]:
+    default_body, command = ARTIFACT_NOTICE_DEFAULTS[kind]
+    return (message or default_body, command)
+
+
 def overview_benchmark_pressure_cards(
     market_direction: pd.DataFrame | None,
     price_status_frame: pd.DataFrame | None,
@@ -7293,10 +7318,11 @@ def render_data_health(provider) -> None:
             )
         )
         if action_queue_frame is None:
+            action_queue_notice_body, action_queue_notice_command = artifact_notice_copy("action_queue", action_queue_message)
             render_notice_card(
                 "Action queue is not available yet",
-                action_queue_message or "Run make status to refresh the research action queue and surface priority price, fundamentals, peer, and onboarding tasks.",
-                "make status",
+                action_queue_notice_body,
+                action_queue_notice_command,
                 tone="warning",
             )
         else:
@@ -7334,9 +7360,8 @@ def render_data_health(provider) -> None:
             )
         )
         if data_quality_frame is None and liquidity_frame is None and correlation_frame is None:
-            st.info(
-                "Research health outputs are not available yet. Run `make status` to refresh operator artifacts, or `make verify` for the broader local validation pass."
-            )
+            research_health_notice_body, _ = artifact_notice_copy("research_health")
+            st.info(research_health_notice_body)
         else:
             health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
             metric_cols = st.columns(4)
@@ -7623,10 +7648,11 @@ def render_data_health(provider) -> None:
             )
         )
         if status_frame is None and gap_frame is None:
+            data_source_notice_body, data_source_notice_command = artifact_notice_copy("data_source_status")
             render_notice_card(
                 "Data source status is not generated yet",
-                "Run make status to refresh the local source registry so this tab can show what is available, partial, manual-only, or missing.",
-                "make status",
+                data_source_notice_body,
+                data_source_notice_command,
                 tone="warning",
             )
         else:
@@ -7637,10 +7663,11 @@ def render_data_health(provider) -> None:
                 columns = data_source_status_table_columns(display_status)
                 st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
             else:
+                data_source_rows_notice_body, data_source_rows_notice_command = artifact_notice_copy("data_source_rows", status_message)
                 render_notice_card(
                     "No data source status rows are available",
-                    status_message or "Run make status to refresh the local source registry and inspect dataset availability plus fallback actions.",
-                    "make status",
+                    data_source_rows_notice_body,
+                    data_source_rows_notice_command,
                     tone="warning",
                 )
             if gap_frame is not None and not gap_frame.empty:
