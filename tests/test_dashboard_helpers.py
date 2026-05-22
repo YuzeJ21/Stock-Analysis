@@ -2746,9 +2746,9 @@ def test_overview_benchmark_pressure_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "local prices present" in rendered or "ticker coverage is not available yet" in rendered
-    assert cards[0]["command"] == "make status"
+    assert cards[0]["command"] == "make runbook-prices-broader"
     assert cards[1]["command"] == "make pipeline"
-    assert "make status" in rendered
+    assert "make runbook-prices-broader" in rendered
     assert "make pipeline" in rendered
     assert "buy" not in rendered
 

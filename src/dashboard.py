@@ -4948,7 +4948,7 @@ def overview_benchmark_pressure_cards(
             "title": pressure_title,
             "body": pressure_body,
             "badges": ["price moat", "local only"],
-            "command": "make status" if not total_tickers else "",
+            "command": "make runbook-prices-broader" if not total_tickers else "",
         },
         {
             "kicker": "SPY CONTEXT",
