@@ -3570,6 +3570,8 @@ def test_overview_ready_name_handoff_cards_handle_missing_inputs_gracefully():
     assert cards[2]["title"] == "Data Health"
     assert "no locally ready name yet" in cards[0]["body"].lower()
     assert "clear blockers before treating any name as ready" in cards[0]["body"].lower()
+    assert "next read matches the current local workflow state" in cards[2]["body"].lower()
+    assert "for no current ready names yet" not in cards[2]["body"].lower()
     assert "refresh local coverage and onboarding outputs" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -3677,6 +3679,8 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
     assert cards[3]["title"] == "Data Health"
     assert "no locally ready name yet" in cards[0]["body"].lower()
     assert "highest-leverage blocker" in cards[0]["body"].lower()
+    assert "next read matches the current local workflow state" in cards[3]["body"].lower()
+    assert "for no current ready names yet" not in cards[3]["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
 

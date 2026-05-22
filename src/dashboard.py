@@ -6111,8 +6111,15 @@ def overview_ready_name_handoff_cards(
             "kicker": "READY NAME TAB",
             "title": str(next_tab.get("title", "Data Health")),
             "body": (
-                f"Open {next_tab.get('title', 'Data Health')} after the command step so the next read for {ticker} "
-                "matches the current local workflow state."
+                (
+                    f"Open {next_tab.get('title', 'Data Health')} after the command step so the next read "
+                    "matches the current local workflow state."
+                )
+                if ticker == "No current ready names yet"
+                else (
+                    f"Open {next_tab.get('title', 'Data Health')} after the command step so the next read for {ticker} "
+                    "matches the current local workflow state."
+                )
             ),
             "badges": [str(item) for item in next_tab.get("badges", [])][:2] or ["guided", "read-only"],
         },
