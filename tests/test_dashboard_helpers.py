@@ -2212,6 +2212,21 @@ def test_data_health_overview_cards_prioritize_price_and_actions():
     assert "1 price-ready tickers" in rendered
 
 
+def test_data_health_overview_cards_without_price_status_use_status_first_guidance():
+    validation = pd.DataFrame({"validation_status": ["valid", "missing_file"]})
+    action_queue = pd.DataFrame({"urgency": ["critical"]})
+    coverage = pd.DataFrame({"usable_for_momentum": [False]})
+
+    cards = dashboard.data_health_overview_cards(validation, None, action_queue, coverage)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "price status not generated" in rendered
+    assert "make status" in rendered
+    assert "manual fallback" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     validation = pd.DataFrame({"validation_status": ["valid", "missing_file"]})
     coverage = pd.DataFrame(

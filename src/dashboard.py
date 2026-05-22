@@ -1943,8 +1943,8 @@ def data_health_overview_cards(
     )
     if price_status_frame is None:
         price_title = "Price status not generated"
-        price_body = "Run price refresh or use manual staged OHLCV import when the remote source is unavailable."
-        price_badges = ["make price-refresh"]
+        price_body = "Start with make status, then use the first price focus or runbook path it prints. For downloaded files, use manual staged OHLCV import before validate/preview/apply."
+        price_badges = ["make status", "manual fallback"]
     elif price_problem_count:
         price_title = f"{price_problem_count} price issue{'s' if price_problem_count != 1 else ''}"
         price_body = "Use raw downloaded CSVs only as user-provided inputs, then normalize, validate, preview, and apply."
@@ -6148,8 +6148,8 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         else:
             render_notice_card(
                 "Price chart not available yet",
-                "The report generated, but there is not enough provider-backed daily close history to render a chart. Add verified local prices or retry with an explicitly enabled research-grade provider.",
-                "make price-refresh",
+                "The report generated, but there is not enough provider-backed daily close history to render a chart. Start with make status, then use the first price focus or runbook path it prints. For downloaded files, use make price-normalize before validate/preview/apply.",
+                "make status",
                 tone="warning",
             )
 
