@@ -3877,7 +3877,8 @@ def overview_landing_cards(
             "kicker": "FIX FIRST",
             "title": f"{queue_summary.get('critical', 0)} critical",
             "body": f"{queue_summary.get('high', 0)} high-priority remediation items remain in the local action queue.",
-            "badges": ["make status"],
+            "badges": ["make action-queue-check TOP_N=10"],
+            "command": "make action-queue-check TOP_N=10",
         },
     ]
 

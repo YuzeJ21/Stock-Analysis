@@ -1736,7 +1736,8 @@ def test_overview_landing_cards_surface_workflow_and_gap_context():
     assert "4 current monthly candidates" in rendered
     assert "3/12" in rendered
     assert "0 dcf-ready" in rendered
-    assert "make status" in rendered
+    assert cards[3]["command"] == "make action-queue-check TOP_N=10"
+    assert "make action-queue-check top_n=10" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
