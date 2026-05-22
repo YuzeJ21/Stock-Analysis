@@ -1804,7 +1804,8 @@ def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no holdings unlock board yet" in rendered
-    assert "make status" in rendered
+    assert "make onboarding" in rendered
+    assert cards[0]["command"] == "make onboarding"
     assert "buy" not in rendered
 
 
