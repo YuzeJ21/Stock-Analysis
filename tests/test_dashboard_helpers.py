@@ -2627,6 +2627,35 @@ def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
     assert "sell" not in rendered
 
 
+def test_stock_report_local_context_cards_show_staged_peer_import_state():
+    coverage = pd.DataFrame(
+        [
+            {
+                "dataset": "peers",
+                "ticker_present": True,
+                "validation_status": "valid",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+    peer_summary = {
+        "peer_dataset_present": False,
+        "peer_count": 2,
+        "peer_fundamentals_available": 0,
+        "peer_market_context_available": 0,
+    }
+
+    cards = dashboard.stock_report_local_context_cards(coverage, peer_summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "staged" in rendered
+    assert "validate/preview/apply" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_next_step_cards_prioritize_missing_prices_first():
     payload = {
         "ticker": "NVDA",
@@ -2686,6 +2715,24 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
     assert cards[0]["title"] == "Add peer mappings"
     assert cards[0]["command"] == "make focus-peers TICKER=NVDA"
+
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": True},
+            {"dataset": "fundamentals", "ticker_present": True},
+            {
+                "dataset": "peers",
+                "ticker_present": True,
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/peers.csv",
+            },
+        ]
+    )
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["title"] == "Advance staged peer import"
+    assert cards[0]["command"] == "make imports-validate"
+    assert "staged peer mappings" in cards[0]["body"].lower()
 
     payload["valuation_readiness"]["peer_ready"] = True
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": True})

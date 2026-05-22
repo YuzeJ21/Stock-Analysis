@@ -1832,11 +1832,24 @@ def stock_report_local_context_cards(
     coverage: pd.DataFrame,
     peer_summary: dict[str, object],
 ) -> list[dict[str, object]]:
+    peer_row: pd.Series | None = None
+    if not coverage.empty and "dataset" in coverage.columns:
+        peer_matches = coverage.loc[
+            coverage["dataset"].astype(str).str.strip().str.lower().eq("peers")
+        ]
+        if not peer_matches.empty:
+            peer_row = peer_matches.iloc[0]
     available_datasets = 0 if coverage.empty else int(coverage.get("ticker_present", pd.Series(dtype=object)).astype(bool).sum())
     validation_warnings = 0
     if not coverage.empty and "validation_status" in coverage.columns:
         validation_warnings = int(coverage["validation_status"].astype(str).eq("valid_with_warnings").sum())
     peer_count = int(peer_summary.get("peer_count") or 0)
+    peer_focus_command = preferred_row_command(peer_row, "") if peer_row is not None else ""
+    peer_target_file = format_missing(peer_row.get("target_file"), "") if peer_row is not None else ""
+    staged_peer_import = (
+        peer_focus_command == "make imports-validate"
+        and peer_target_file == "data/imports/peers.csv"
+    )
     return [
         {
             "kicker": "LOCAL DATASETS",
@@ -1846,9 +1859,13 @@ def stock_report_local_context_cards(
         },
         {
             "kicker": "PEER MAPPING",
-            "title": "Present" if peer_summary.get("peer_dataset_present") else "Missing",
-            "body": f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for local peer-relative context.",
-            "badges": ["manual research"],
+            "title": "Staged" if staged_peer_import else "Present" if peer_summary.get("peer_dataset_present") else "Missing",
+            "body": (
+                f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} staged locally and waiting on validate/preview/apply before live peer-relative context."
+                if staged_peer_import
+                else f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for local peer-relative context."
+            ),
+            "badges": ["manual research", "staged import" if staged_peer_import else "csv-first"],
         },
         {
             "kicker": "PEER FUNDAMENTALS",
@@ -1878,6 +1895,7 @@ def stock_report_next_step_cards(
 
     has_prices = False
     has_fundamentals = False
+    peer_row: pd.Series | None = None
     if coverage is not None and not coverage.empty:
         coverage_frame = coverage.copy()
         if "dataset" in coverage_frame.columns and "ticker_present" in coverage_frame.columns:
@@ -1889,6 +1907,16 @@ def stock_report_next_step_cards(
             has_fundamentals = bool(
                 coverage_frame.loc[coverage_frame["dataset"].eq("fundamentals"), "ticker_present_bool"].any()
             )
+            peer_matches = coverage_frame.loc[coverage_frame["dataset"].eq("peers")]
+            if not peer_matches.empty:
+                peer_row = peer_matches.iloc[0]
+
+    peer_command = preferred_row_command(peer_row, ticker_focus_command("peers", ticker, fallback="make templates")) if peer_row is not None else ticker_focus_command("peers", ticker, fallback="make templates")
+    peer_target_file = format_missing(peer_row.get("target_file"), "") if peer_row is not None else ""
+    staged_peer_import = (
+        peer_command == "make imports-validate"
+        and peer_target_file == "data/imports/peers.csv"
+    )
 
     if not has_prices:
         cards.append(
@@ -1924,13 +1952,18 @@ def stock_report_next_step_cards(
         cards.append(
             {
                 "kicker": "NEXT STEP",
-                "title": "Add peer mappings",
+                "title": "Advance staged peer import" if staged_peer_import else "Add peer mappings",
                 "body": (
-                    f"{ticker} can be reviewed now, but peer-relative context is still partial. "
-                    "Add manually researched peers if this name matters for deeper relative work."
+                    f"{ticker} already has staged peer mappings in {peer_target_file}. "
+                    "Validate, preview, and apply them before trusting peer-relative context."
+                    if staged_peer_import
+                    else (
+                        f"{ticker} can be reviewed now, but peer-relative context is still partial. "
+                        "Add manually researched peers if this name matters for deeper relative work."
+                    )
                 ),
-                "badges": ["peers", "manual research"],
-                "command": ticker_focus_command("peers", ticker, fallback="make templates"),
+                "badges": ["peers", "staged import" if staged_peer_import else "manual research"],
+                "command": peer_command,
             }
         )
     else:
