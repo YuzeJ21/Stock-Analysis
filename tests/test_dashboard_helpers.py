@@ -14,6 +14,17 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert cleaned.iloc[0]["Ready"] == "Yes"
     assert cleaned.iloc[1]["Ready"] == "No"
 
+    action_rows = dashboard.clean_display_frame(
+        pd.DataFrame(
+            {
+                "recommended_action": [
+                    "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals."
+                ]
+            }
+        )
+    )
+    assert "make status-check TOP_N=5" in action_rows.iloc[0]["recommended_action"]
+
 
 def test_dashboard_badges_use_high_contrast_html():
     html = dashboard.status_badge("Watch")

@@ -6090,7 +6090,7 @@ def clean_display_frame(frame: pd.DataFrame) -> pd.DataFrame:
             return ", ".join(str(item) for item in value if str(item).strip()) or "Not available"
         if isinstance(value, dict):
             return ", ".join(f"{key}: {val}" for key, val in value.items()) or "Not available"
-        return format_missing(value)
+        return normalize_operator_copy(value)
 
     return frame.copy().map(clean_cell)
 
