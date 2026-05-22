@@ -1863,6 +1863,8 @@ def _print_command_bundles(payload: dict[str, Any]) -> None:
             f"{row['bundle_name']}: lane={row['lane']} scope={row['scope']} "
             f"tickers={row['tickers']} count={row['ticker_count']}"
         )
+        if row.get("goal_summary"):
+            print(f"  goal: {row['goal_summary']}")
         print(f"  command: {row['primary_command']}")
         print(f"  follow-up: {row['follow_up_command']}")
     print(f"Command bundle rows: {len(payload['command_bundles'])}")
@@ -1872,7 +1874,8 @@ def _print_command_bundle_details(payload: dict[str, Any]) -> None:
     for row in payload["command_bundle_details"][:30]:
         print(
             f"{row['bundle_name']}: lane={row['lane']} ticker={row['ticker']} "
-            f"holding={row['is_holding']} stage={row['current_unlock_stage']}"
+            f"holding={row['is_holding']} stage={row['current_unlock_stage']} "
+            f"goal={row.get('target_goal') or '-'} rows_needed={row.get('rows_needed', 0)}"
         )
         print(f"  next: {row['recommended_action']}")
     print(f"Command bundle detail rows: {len(payload['command_bundle_details'])}")
@@ -1884,6 +1887,8 @@ def _print_command_bundle_runbook(payload: dict[str, Any]) -> None:
             f"{row['bundle_name']}: lane={row['lane']} step={row['step_order']} "
             f"{row['step_label']} -> {row['command']}"
         )
+        if row.get("goal_summary"):
+            print(f"  goal: {row['goal_summary']}")
     print(f"Command bundle runbook rows: {len(payload['command_bundle_runbook'])}")
 
 

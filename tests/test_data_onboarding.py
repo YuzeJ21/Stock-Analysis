@@ -456,6 +456,21 @@ def test_data_onboarding_cli_command_bundles_json(tmp_path: Path, capsys):
     assert "primary_command" in payload["command_bundles"][0]
 
 
+def test_data_onboarding_cli_command_bundles_text_surfaces_goal_summary(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--command-bundles"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "price coverage bundle" in output
+    assert "goal:" in output
+    assert "unlock monthly picks" in output
+
+
 def test_data_onboarding_cli_command_bundles_can_filter_by_lane_and_holdings(tmp_path: Path, capsys):
     _write_fixture(tmp_path)
     previous_argv = sys.argv[:]
@@ -562,6 +577,21 @@ def test_data_onboarding_cli_command_bundle_runbook_can_filter_by_lane_and_holdi
     assert payload["command_bundle_runbook"]
     assert all(row["lane"] == "peers" for row in payload["command_bundle_runbook"])
     assert all(row["scope"] == "holdings_first" for row in payload["command_bundle_runbook"])
+
+
+def test_data_onboarding_cli_command_bundle_runbook_text_surfaces_goal_summary(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--command-bundle-runbook", "--lane", "prices"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "price coverage bundle" in output
+    assert "goal:" in output
+    assert "unlock monthly picks" in output
 
 
 def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_path: Path):
