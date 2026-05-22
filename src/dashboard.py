@@ -5548,6 +5548,8 @@ def overview_best_local_research_path_cards(
     command_text = format_missing(next_command.get("title"), "make status")
     tab_text = format_missing(next_tab.get("title"), "Data Health")
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
+    if command_text == "make help" and ready_command_text and ready_command_text != "make help":
+        command_text = ready_command_text
     if tab_text == "Stock Report Beta" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"} and ready_command_text:
         command_text = ready_command_text
     if tab_text == "Monthly Picks" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"}:
@@ -5630,6 +5632,10 @@ def overview_ready_name_handoff_cards(
             f"Run {command_text} first if this name is still momentum-ready but lighter on deeper valuation or peer context, "
             "then review it in Monthly Picks."
         )
+    elif surface == "No current ready names yet":
+        command_text = "make onboarding"
+        badges = ["data moat", "command"]
+        body = "Run make onboarding to refresh local coverage and onboarding outputs before treating any name as ready."
     else:
         fallback = next_command[0] if next_command else {"title": "make help", "badges": ["safe default"]}
         command_text = format_missing(fallback.get("title"), "make help")
@@ -5693,6 +5699,8 @@ def overview_current_top_surfaces_cards(
     command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
     next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
+    if command_text == "make help" and ready_command_text and ready_command_text != "make help":
+        command_text = ready_command_text
     if next_tab == "Stock Report Beta" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"} and ready_command_text:
         command_text = ready_command_text
     if next_tab == "Monthly Picks" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"}:

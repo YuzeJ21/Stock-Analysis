@@ -2721,8 +2721,9 @@ def test_overview_ready_name_handoff_cards_handle_missing_inputs_gracefully():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "No current ready names yet"
-    assert cards[1]["title"] == "make help"
+    assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
+    assert "refresh local coverage and onboarding outputs" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -2795,7 +2796,7 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
     assert len(cards) == 4
     assert cards[0]["title"] == "No current ready names yet"
     assert cards[1]["title"] == "No deep-research shortlist yet"
-    assert cards[2]["title"] == "make help"
+    assert cards[2]["title"] == "make onboarding"
     assert cards[3]["title"] == "Data Health"
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -3396,7 +3397,7 @@ def test_overview_best_local_research_path_cards_fall_back_gracefully():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "BEST CURRENT NAMES"
-    assert cards[1]["title"] == "make help"
+    assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
     assert "no current ready names yet" in rendered
     assert "buy" not in rendered
