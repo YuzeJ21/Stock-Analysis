@@ -3802,6 +3802,25 @@ def test_overview_next_command_cards_use_bundle_and_import_fallbacks_when_reason
     assert "not available" not in cards[1]["body"].lower()
 
 
+def test_overview_next_command_cards_use_runbook_fallback_when_reason_is_missing():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Run broader peer workflow",
+                "Command": "make runbook-peers-broader",
+                "Reason": "",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_next_command_cards(payload, None, limit=1)
+
+    assert cards[0]["title"] == "make runbook-peers-broader"
+    assert "runbook" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "use the ordered lane runbook" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_next_command_cards_fall_back_to_action_queue():
     queue = pd.DataFrame(
         [
