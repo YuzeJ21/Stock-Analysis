@@ -60,6 +60,14 @@ cd "/Users/yjian070/Documents/New project"
 Most project CLIs now print the resolved project root, data directory, and outputs directory before doing file work. By default, they resolve paths from this repository root rather than from whatever shell directory you happen to be in. If you intentionally want to run against a fixture or alternate local dataset, pass explicit paths:
 
 ```bash
+make validate-data
+make pipeline
+make monthly
+```
+
+If you intentionally want lower-level CLI control against a fixture or alternate local dataset, the raw module commands remain available:
+
+```bash
 python3 -m src.stock_report --project-root "/Users/yjian070/Documents/New project" --validate-local-data
 python3 -m src.stock_report --data-dir data --output-dir outputs --ticker NVDA --provider local
 python3 -m src.report_generator --data-dir data --output-dir outputs
