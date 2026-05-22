@@ -7737,7 +7737,7 @@ def test_data_health_deep_research_target_cards_use_runbook_fallback_when_action
     cards = dashboard.data_health_deep_research_target_cards(sec_queue, pd.DataFrame())
 
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -7783,7 +7783,7 @@ def test_data_health_deep_research_target_cards_use_peer_runbook_fallback_when_a
     cards = dashboard.data_health_deep_research_target_cards(pd.DataFrame(), peer_queue)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -8036,7 +8036,7 @@ def test_overview_deep_research_target_cards_use_runbook_fallback_when_action_is
     cards = dashboard.overview_deep_research_target_cards(sec_queue, pd.DataFrame())
 
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -8082,7 +8082,7 @@ def test_overview_deep_research_target_cards_use_peer_runbook_fallback_when_acti
     cards = dashboard.overview_deep_research_target_cards(pd.DataFrame(), peer_queue)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 

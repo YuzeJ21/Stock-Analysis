@@ -3017,6 +3017,8 @@ def data_health_deep_research_target_cards(
                 if staged_fundamentals_import
                 else command_family_fallback(command, "Review fundamentals path.")
             )
+            if not staged_fundamentals_import and "runbook-" in command.lower():
+                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
             cards.append(
                 {
                     "kicker": "DCF TARGET",
@@ -3059,6 +3061,8 @@ def data_health_deep_research_target_cards(
                 if staged_peer_import
                 else command_family_fallback(command, "Review peer path.")
             )
+            if not staged_peer_import and "runbook-" in command.lower():
+                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
             cards.append(
                 {
                     "kicker": "PEER TARGET",
@@ -3121,6 +3125,8 @@ def overview_deep_research_target_cards(
                 if staged_fundamentals_import
                 else command_family_fallback(command, "Review fundamentals path.")
             )
+            if not staged_fundamentals_import and "runbook-" in command.lower():
+                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
             cards.append(
                 {
                     "kicker": "UNLOCK DCF",
@@ -3163,6 +3169,8 @@ def overview_deep_research_target_cards(
                 if staged_peer_import
                 else command_family_fallback(command, "Review peer path.")
             )
+            if not staged_peer_import and "runbook-" in command.lower():
+                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
             cards.append(
                 {
                     "kicker": "UNLOCK PEERS",
