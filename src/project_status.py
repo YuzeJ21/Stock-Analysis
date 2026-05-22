@@ -25,10 +25,47 @@ def _first_non_empty(*values: object) -> str:
     return ""
 
 
-def _recommended_next_command_rows(onboarding_payload: dict[str, Any]) -> list[dict[str, str]]:
+def _enrich_top_actions(onboarding_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    actions = [dict(row) for row in onboarding_payload.get("onboarding_actions", [])]
+    price_worklist = {
+        str(row.get("ticker") or "").strip().upper(): row
+        for row in onboarding_payload.get("price_import_worklist", [])
+        if str(row.get("ticker") or "").strip()
+    }
+    sec_stage_queue = {
+        str(row.get("ticker") or "").strip().upper(): row
+        for row in onboarding_payload.get("sec_stage_queue", [])
+        if str(row.get("ticker") or "").strip()
+    }
+    peer_mapping_queue = {
+        str(row.get("ticker") or "").strip().upper(): row
+        for row in onboarding_payload.get("peer_mapping_queue", [])
+        if str(row.get("ticker") or "").strip()
+    }
+
+    enriched: list[dict[str, Any]] = []
+    for row in actions:
+        dataset = str(row.get("dataset") or "").strip().lower()
+        ticker = str(row.get("ticker") or "").strip().upper()
+        source_row: dict[str, Any] | None = None
+        if dataset == "prices":
+            source_row = price_worklist.get(ticker)
+        elif dataset == "fundamentals":
+            source_row = sec_stage_queue.get(ticker)
+        elif dataset == "peers":
+            source_row = peer_mapping_queue.get(ticker)
+
+        if source_row:
+            for field in ("reason", "recommended_action", "focus_command", "example_command"):
+                value = _first_non_empty(source_row.get(field), row.get(field))
+                if value:
+                    row[field] = value
+        enriched.append(row)
+    return enriched
+
+
+def _recommended_next_command_rows(actions: list[dict[str, Any]], bundles: list[dict[str, Any]]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
-    actions = onboarding_payload.get("onboarding_actions", [])
-    bundles = onboarding_payload.get("command_bundles", [])
 
     if actions:
         top_action = actions[0]
@@ -94,8 +131,9 @@ def build_project_status_payload(
     sources = source_payload["data_sources"]
     gaps = source_payload["data_gaps"]
     coverage = onboarding_payload["ticker_coverage"]
+    enriched_actions = _enrich_top_actions(onboarding_payload)
     actions = sorted(
-        onboarding_payload["onboarding_actions"],
+        enriched_actions,
         key=lambda row: (int(row.get("priority") or 999), str(row.get("ticker") or ""), str(row.get("dataset") or "")),
     )
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
@@ -112,7 +150,7 @@ def build_project_status_payload(
         "onboarding_actions": len(actions),
         "critical_actions": sum(1 for row in actions if int(row.get("priority") or 999) <= 1),
     }
-    command_rows = _recommended_next_command_rows(onboarding_payload)
+    command_rows = _recommended_next_command_rows(actions, onboarding_payload.get("command_bundles", []))
     return {
         "project_root": str(root),
         "data_dir": str(data_path),
