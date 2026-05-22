@@ -5782,12 +5782,25 @@ def overview_workflow_path_cards(
     if any("dashboard-smoke" in str(command) for command in commands):
         third_command = "make dashboard-smoke"
 
+    first_body = "Start with the highest-value local data or workflow blocker before interpreting downstream research outputs."
+    first_badges = ["today", "data first"]
+    lowered_first = first_command.lower()
+    if "focus-" in lowered_first:
+        first_body = "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
+        first_badges = ["today", "single name"]
+    elif "bundle-" in lowered_first:
+        first_body = "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
+        first_badges = ["today", "bundle first"]
+    elif "runbook-" in lowered_first or "imports-" in lowered_first:
+        first_body = "Use the staged local workflow next so validation and preview safeguards stay in place."
+        first_badges = ["today", "staged flow"]
+
     return [
         {
             "kicker": "STEP 1",
             "title": first_command,
-            "body": "Start with the highest-value local data or workflow blocker before interpreting downstream research outputs.",
-            "badges": ["today", "data first"],
+            "body": first_body,
+            "badges": first_badges,
             "command": first_command,
         },
         {
