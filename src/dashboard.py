@@ -5562,6 +5562,8 @@ def overview_current_top_surfaces_cards(
     blocked_name = format_missing(deep_cards[0].get("title"), "Not available")
     command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
     next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
+    if next_tab == "Monthly Picks" and command_text in {"make status", "make onboarding"}:
+        command_text = "make monthly"
     blocked_summary = compact_reason(deep_cards[0].get("body"), max_sentences=2, max_chars=220)
     blocked_follow_through = compact_reason(deep_cards[1].get("body"), max_sentences=2, max_chars=220) if len(deep_cards) > 1 else ""
     blocked_reason = blocked_summary
