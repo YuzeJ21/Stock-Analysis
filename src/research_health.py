@@ -598,6 +598,7 @@ def _json_ready(payload: dict[str, Any]) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate local-only research health CSVs.")
+    parser.add_argument("--check", action="store_true", help="Print the current read-only research health summary.")
     parser.add_argument("--write-output", action="store_true", help="Write data quality, liquidity, and correlation CSVs.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
     parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
@@ -609,6 +610,9 @@ def main() -> None:
     explicit_tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
     if args.write_output and explicit_tickers:
         parser.error("--tickers is only supported for read-only research health views")
+
+    if args.check and args.write_output:
+        parser.error("--check cannot be combined with --write-output")
 
     result = run(
         Path(args.project_root) if args.project_root else None,
@@ -627,7 +631,7 @@ def main() -> None:
             output_dir=Path(args.output_dir) if args.output_dir else None,
         )
     )
-    print("Generated research health outputs:")
+    print("Generated research health outputs:" if args.write_output else "Research health summary:")
     for name, path in result["files"].items():
         print(f"- {name}: {path}")
     print("Row counts:")

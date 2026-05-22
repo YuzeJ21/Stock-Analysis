@@ -122,7 +122,7 @@ research-health:
 	python3 -m src.research_health --write-output
 
 research-health-check:
-	python3 -m src.research_health --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.research_health --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)
 
 action-queue:
 	python3 -m src.action_queue --write-output

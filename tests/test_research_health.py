@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import pandas as pd
 
@@ -10,6 +11,7 @@ from src.research_health import (
     build_correlation_risk,
     build_data_quality_wizard,
     build_liquidity_risk,
+    main,
     run,
 )
 
@@ -460,3 +462,34 @@ def test_filter_research_health_warnings_respects_ticker_slice():
     filtered = _filter_research_health_warnings(warnings, ["nvda"])
 
     assert filtered == ["Missing OHLCV data for NVDA", "General loader warning"]
+
+
+def test_research_health_cli_check_uses_read_only_summary_wording(tmp_path: Path, capsys):
+    data_dir = tmp_path / "data"
+    output_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    output_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (data_dir / "prices.csv").write_text(_price_frame().to_csv(index=False), encoding="utf-8")
+    (data_dir / "universe.csv").write_text(
+        "Ticker,Theme,SectorETF,DefaultPurpose,MarketCapBucket,Notes\n"
+        "NVDA,AI,SMH,Momentum Leader,Large,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text(
+        "Ticker,Shares,CostBasis,PositionPercent,PrimaryPurpose,SecondaryTags,OriginalThesis,MaxPositionPercent,InvalidationOverride\n",
+        encoding="utf-8",
+    )
+    (data_dir / "theme_map.csv").write_text("Theme,ETF,Description\nAI,SMH,Semiconductors\n", encoding="utf-8")
+    (data_dir / "fundamentals.csv").write_text("ticker,free_cash_flow,shares_outstanding\nNVDA,1000000,100000\n", encoding="utf-8")
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--top-n", "1"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert "research health summary:" in output
+    assert "generated research health outputs:" not in output
