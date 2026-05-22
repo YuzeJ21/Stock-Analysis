@@ -4321,6 +4321,25 @@ def test_overview_workflow_path_cards_use_bundle_fallback_when_reason_is_missing
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_overview_workflow_path_cards_use_runbook_fallback_when_reason_is_missing():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Open peer runbook",
+                "Command": "make runbook-peers",
+                "Reason": "",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_workflow_path_cards(payload, None)
+
+    assert cards[0]["title"] == "make runbook-peers"
+    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "use the staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_workflow_path_cards_use_status_check_when_structured_command_is_missing():
     payload = {
         "recommended_next_command_rows": [
