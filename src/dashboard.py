@@ -1749,6 +1749,13 @@ def format_percent(value: object, fallback: str = "Not enough history") -> str:
     return f"{float(number) * 100:.1f}%"
 
 
+def normalize_operator_copy(text: object) -> str:
+    normalized = format_missing(text)
+    if normalized == "Not available":
+        return normalized
+    return re.sub(r"\bmake status\b(?!-check)", "make status-check TOP_N=5", normalized)
+
+
 def _badge(text: object, tone: str = "neutral") -> str:
     foreground, background = BADGE_COLORS.get(tone, BADGE_COLORS["neutral"])
     label = format_missing(text)
@@ -1981,7 +1988,7 @@ def missing_data_notice(value: object) -> str:
 
 
 def compact_reason(value: object, max_sentences: int = 2, max_chars: int = 260) -> str:
-    text = format_missing(value)
+    text = normalize_operator_copy(value)
     if text == "Not available":
         return text
     sentences = [part.strip() for part in text.replace("\n", " ").split(". ") if part.strip()]

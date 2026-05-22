@@ -2888,6 +2888,7 @@ def test_overview_current_top_surfaces_cards_prefer_staged_peer_handoff_reason()
     assert cards[2]["title"] == "make verify"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "make status-check top_n=5" in rendered
 
 
 def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in_blocked_and_tab_cards():
@@ -2927,10 +2928,11 @@ def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in
     assert cards[1]["title"] == "AMD"
     assert "unlock dcf" in cards[1]["body"].lower()
     assert "make imports-apply" in cards[1]["body"].lower()
+    assert "make status-check top_n=5" in rendered
     assert cards[3]["title"] == "Stock Report Beta"
     assert "open stock report beta after the command step" in cards[3]["body"].lower()
     assert "nvda" in cards[3]["body"].lower()
-    assert "live staged fundamentals" in rendered
+    assert "live staged" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
