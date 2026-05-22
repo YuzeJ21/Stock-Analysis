@@ -55,11 +55,11 @@ help:
 	@echo "  make focus-price TICKER=AMD Show one ticker's price detail row and runbook"
 	@echo "  make focus-fundamentals TICKER=NVDA Show one ticker's SEC detail row and runbook"
 	@echo "  make focus-peers TICKER=NVDA Show one ticker's peer detail row and runbook"
-	@echo "  make price-worklist   Show ticker-by-ticker local price-history gaps"
-	@echo "  make fundamentals-peer-worklist Show DCF and peer-relative local blockers"
-	@echo "  make optional-context-worklist Show optional earnings and estimate gaps"
-	@echo "  make sec-stage-queue  Show prioritized SEC fundamentals staging candidates"
-	@echo "  make peer-mapping-queue Show prioritized manual peer-mapping candidates"
+	@echo "  make price-worklist [TICKERS=NVDA,MSFT] Show ticker-by-ticker local price-history gaps"
+	@echo "  make fundamentals-peer-worklist [TICKERS=NVDA,MSFT] Show DCF and peer-relative local blockers"
+	@echo "  make optional-context-worklist [TICKERS=NVDA,MSFT] Show optional earnings and estimate gaps"
+	@echo "  make sec-stage-queue [TICKERS=NVDA,MSFT] Show prioritized SEC fundamentals staging candidates"
+	@echo "  make peer-mapping-queue [TICKERS=NVDA,MSFT] Show prioritized manual peer-mapping candidates"
 	@echo "  make templates        Write local CSV templates for peers, earnings, estimates, and manual fallbacks"
 	@echo "  make import-staging   Write header-only staging CSV files under data/imports"
 	@echo "  make validate-data    Validate local CSV datasets"
@@ -239,19 +239,19 @@ price-status:
 	python3 -m src.data_update --price-status
 
 price-worklist:
-	python3 -m src.data_onboarding --price-worklist
+	python3 -m src.data_onboarding --price-worklist $(if $(TICKERS),--tickers $(TICKERS),)
 
 fundamentals-peer-worklist:
-	python3 -m src.data_onboarding --fundamentals-peer-worklist
+	python3 -m src.data_onboarding --fundamentals-peer-worklist $(if $(TICKERS),--tickers $(TICKERS),)
 
 optional-context-worklist:
-	python3 -m src.data_onboarding --optional-context-worklist
+	python3 -m src.data_onboarding --optional-context-worklist $(if $(TICKERS),--tickers $(TICKERS),)
 
 sec-stage-queue:
-	python3 -m src.data_onboarding --sec-stage-queue
+	python3 -m src.data_onboarding --sec-stage-queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 peer-mapping-queue:
-	python3 -m src.data_onboarding --peer-mapping-queue
+	python3 -m src.data_onboarding --peer-mapping-queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 price-validate:
 	python3 -m src.data_update --validate-price-imports

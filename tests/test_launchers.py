@@ -117,11 +117,11 @@ def test_makefile_help_documents_key_workflows():
         "make focus-price TICKER=AMD",
         "make focus-fundamentals TICKER=NVDA",
         "make focus-peers TICKER=NVDA",
-        "make price-worklist",
-        "make fundamentals-peer-worklist",
-        "make optional-context-worklist",
-        "make sec-stage-queue",
-        "make peer-mapping-queue",
+        "make price-worklist [TICKERS=NVDA,MSFT]",
+        "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT]",
+        "make optional-context-worklist [TICKERS=NVDA,MSFT]",
+        "make sec-stage-queue [TICKERS=NVDA,MSFT]",
+        "make peer-mapping-queue [TICKERS=NVDA,MSFT]",
         "make import-staging",
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
         "export SEC_USER_AGENT='Name email@example.com'",
@@ -192,6 +192,9 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "Apply the merge safely:\n\n```bash\nmake imports-apply" in readme
     assert "If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:\n\n```bash\nmake price-refresh" in readme
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
+    assert "If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake price-worklist TICKERS=NVDA,MSFT" in readme
+    assert "If you want to narrow those blocker queues to a specific local ticker slice, use:\n\n```bash\nmake fundamentals-peer-worklist TICKERS=NVDA,MSFT\nmake sec-stage-queue TICKERS=NVDA,MSFT\nmake peer-mapping-queue TICKERS=NVDA,MSFT" in readme
+    assert "To focus that optional-context pass on a smaller local ticker slice, use:\n\n```bash\nmake optional-context-worklist TICKERS=NVDA,MSFT" in readme
     assert "If you want a larger CLI-only smoke run:\n\n```bash\nmake universe-preview\nmake universe-apply" in readme
     assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" not in readme
     assert "If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data" in readme
@@ -272,6 +275,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "command-bundles:\n\tpython3 -m src.data_onboarding --command-bundles $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "command-bundle-details:\n\tpython3 -m src.data_onboarding --command-bundle-details $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "command-bundle-runbook:\n\tpython3 -m src.data_onboarding --command-bundle-runbook $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "price-worklist:\n\tpython3 -m src.data_onboarding --price-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "fundamentals-peer-worklist:\n\tpython3 -m src.data_onboarding --fundamentals-peer-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "optional-context-worklist:\n\tpython3 -m src.data_onboarding --optional-context-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile

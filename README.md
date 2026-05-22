@@ -646,12 +646,26 @@ make price-apply
 
 `make price-worklist` shows the current ticker-by-ticker local history gap list, including which names are not yet ready for momentum, track record, or longer-horizon research context.
 
+If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:
+
+```bash
+make price-worklist TICKERS=NVDA,MSFT
+```
+
 For DCF and peer-relative blockers, use:
 
 ```bash
 make fundamentals-peer-worklist
 make sec-stage-queue
 make peer-mapping-queue
+```
+
+If you want to narrow those blocker queues to a specific local ticker slice, use:
+
+```bash
+make fundamentals-peer-worklist TICKERS=NVDA,MSFT
+make sec-stage-queue TICKERS=NVDA,MSFT
+make peer-mapping-queue TICKERS=NVDA,MSFT
 ```
 
 This prints which tickers still need:
@@ -669,6 +683,12 @@ For optional earnings and analyst-estimate context, use:
 
 ```bash
 make optional-context-worklist
+```
+
+To focus that optional-context pass on a smaller local ticker slice, use:
+
+```bash
+make optional-context-worklist TICKERS=NVDA,MSFT
 ```
 
 This keeps non-blocking enrichment explicit without treating it like a core pipeline failure. The output shows which tickers still have optional local context gaps and points back to `data/imports/earnings.csv` or `data/imports/analyst_estimates.csv` only when you have trusted local data.
