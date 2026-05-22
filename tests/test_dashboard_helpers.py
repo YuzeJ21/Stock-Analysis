@@ -1674,6 +1674,43 @@ def test_top_priority_signals_use_review_fallback_when_row_copy_is_missing():
     assert "not available" not in signals[0]["body"].lower()
 
 
+def test_top_priority_signals_use_command_family_fallbacks_when_row_copy_is_missing():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "title": "Advance staged fundamentals",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+            },
+            {
+                "priority": 2,
+                "urgency": "high",
+                "action_type": "peers",
+                "ticker": "",
+                "title": "Run peer bundle",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make bundle-peers",
+                "example_command": "",
+            },
+        ]
+    )
+
+    signals = dashboard.top_priority_signals(queue, limit=2)
+
+    assert signals[0]["title"] == "make imports-validate"
+    assert "staged local workflow next" in signals[0]["body"].lower()
+    assert signals[1]["title"] == "make bundle-peers"
+    assert "highest-leverage local bundle first" in signals[1]["body"].lower()
+    assert "not available" not in " ".join(signal["body"] for signal in signals).lower()
+
+
 def test_operator_summary_helpers_normalize_legacy_status_copy():
     queue = pd.DataFrame(
         [
@@ -5215,6 +5252,42 @@ def test_data_health_action_path_cards_use_review_fallback_when_row_copy_is_miss
     assert "review price path." in cards[0]["body"].lower()
     assert any("review peer path." in str(card.get("body", "")).lower() for card in cards)
     assert "not available" not in rendered
+
+
+def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_copy_is_missing():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "",
+                "recommended_action": "",
+            }
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "title": "Advance staged fundamentals",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_action_path_cards(actions, queue)
+
+    assert cards[0]["title"] == "make imports-validate"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert any("review fundamentals path." in str(card.get("body", "")).lower() for card in cards[1:])
+    assert "not available" not in " ".join(str(value) for card in cards for value in card.values()).lower()
 
 
 def test_data_health_command_bundle_cards_surface_holdings_first_commands():

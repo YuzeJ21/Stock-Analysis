@@ -1769,6 +1769,15 @@ def review_path_fallback(dataset: object) -> str:
     return "Review local data coverage."
 
 
+def command_family_fallback(command: object, default: str) -> str:
+    lowered = format_missing(command, fallback="").strip().lower()
+    if "imports-" in lowered or "runbook-" in lowered:
+        return "Use the staged local workflow next so validation and preview safeguards stay in place."
+    if "bundle-" in lowered:
+        return "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
+    return default
+
+
 def _badge(text: object, tone: str = "neutral") -> str:
     foreground, background = BADGE_COLORS.get(tone, BADGE_COLORS["neutral"])
     label = format_missing(text)
@@ -6329,9 +6338,17 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
     rows = []
     ordered = action_queue.sort_values(["priority", "ticker", "action_type"], na_position="last").head(limit)
     for _, row in ordered.iterrows():
+        command = preferred_row_command(
+            row,
+            ticker_focus_command(
+                row.get("action_type"),
+                row.get("ticker"),
+                "make action-queue-check TOP_N=10",
+            ),
+        )
         reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
-        body_source = review_path_fallback(row.get("action_type"))
+        body_source = command_family_fallback(command, review_path_fallback(row.get("action_type")))
         if recommended_action and recommended_action != reason:
             body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
         elif reason and reason != "Not available":
@@ -6339,28 +6356,14 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
         rows.append(
             {
                 "kicker": str(row.get("urgency", "Action")).upper(),
-                "title": preferred_row_command(
-                    row,
-                    ticker_focus_command(
-                        row.get("action_type"),
-                        row.get("ticker"),
-                        "make action-queue-check TOP_N=10",
-                    ),
-                ),
+                "title": command,
                 "body": compact_reason(body_source, max_sentences=2, max_chars=240),
                 "badges": [
                     f"P{format_missing(row.get('priority'), '-')}",
                     format_missing(row.get("action_type"), "action"),
                     format_missing(row.get("ticker"), "portfolio-wide"),
                 ],
-                "command": preferred_row_command(
-                    row,
-                    ticker_focus_command(
-                        row.get("action_type"),
-                        row.get("ticker"),
-                        "make action-queue-check TOP_N=10",
-                    ),
-                ),
+                "command": command,
             }
         )
     return rows
