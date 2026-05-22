@@ -5538,9 +5538,18 @@ def overview_bundle_handoff_cards(
         elif target_file == "data/imports/prices.csv":
             follow_up_command = "make price-validate"
 
+    monthly_refresh_context = " ".join(
+        part
+        for part in [
+            goal_summary,
+            compact_reason(top_bundle.get("why_it_matters"), max_sentences=1, max_chars=150),
+            staged_summary,
+        ]
+        if part and part != "Not available"
+    ).lower()
     if (
         str(top_bundle.get("lane", "")).strip().lower() == "prices"
-        and "unlock monthly picks" in goal_summary.lower()
+        and "monthly picks" in monthly_refresh_context
         and refresh_command in {"make status", "make status-check TOP_N=5", "make onboarding"}
     ):
         refresh_command = "make monthly"
