@@ -1694,6 +1694,27 @@ def test_project_status_read_only_fallbacks_use_status_check():
     assert "sell" not in html.lower()
 
 
+def test_project_status_action_cards_use_lane_front_doors_when_commands_are_missing():
+    payload = {
+        "top_onboarding_actions": [
+            {
+                "priority": 1,
+                "dataset": "fundamentals",
+                "ticker": "AMD",
+                "reason": "DCF inputs are still missing.",
+                "recommended_action": "Stage candidate fundamentals and preview them before apply.",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    }
+
+    actions = dashboard.project_status_action_cards(payload)
+
+    assert actions[0][0] == "P1 fundamentals - AMD"
+    assert actions[0][2] == "make focus-fundamentals TICKER=AMD"
+
+
 def test_project_status_command_rows_prefer_structured_rows():
     payload = {
         "recommended_next_command_rows": [
@@ -3921,6 +3942,27 @@ def test_data_health_fix_first_cards_fall_back_to_onboarding_refresh():
     assert "make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_fix_first_cards_use_lane_front_doors_when_commands_are_missing():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "dataset": "peers",
+                "ticker": "AMD",
+                "reason": "Peer mappings are missing.",
+                "recommended_action": "Research a peer set and stage it through the imports workflow.",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_fix_first_cards(actions)
+
+    assert cards[0][0] == "P1 peers - AMD"
+    assert cards[0][2] == "make focus-peers TICKER=AMD"
 
 
 def test_data_health_action_path_cards_surface_best_and_lane_commands():
