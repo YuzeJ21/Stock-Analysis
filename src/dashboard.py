@@ -2713,13 +2713,20 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=150)
+            if target_file == "data/imports/fundamentals.csv":
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+            elif target_file == "data/imports/peers.csv":
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+            else:
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
             if staged_summary == "Not available":
-                if target_file == "data/imports/fundamentals.csv":
-                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
-                elif target_file == "data/imports/peers.csv":
-                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
-                else:
-                    staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+                staged_summary = default_staged_summary
+            elif target_file == "data/imports/prices.csv" and (
+                "make price-validate" not in staged_summary
+                or "make price-preview" not in staged_summary
+                or "make price-apply" not in staged_summary
+            ):
+                staged_summary = default_staged_summary
         body_summary = (
             goal_summary
             if goal_summary != "Not available"
@@ -5562,13 +5569,20 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=150)
+            if target_file == "data/imports/fundamentals.csv":
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+            elif target_file == "data/imports/peers.csv":
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+            else:
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
             if staged_summary == "Not available":
-                if target_file == "data/imports/fundamentals.csv":
-                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
-                elif target_file == "data/imports/peers.csv":
-                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
-                else:
-                    staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+                staged_summary = default_staged_summary
+            elif target_file == "data/imports/prices.csv" and (
+                "make price-validate" not in staged_summary
+                or "make price-preview" not in staged_summary
+                or "make price-apply" not in staged_summary
+            ):
+                staged_summary = default_staged_summary
         body_summary = (
             goal_summary
             if goal_summary != "Not available"
