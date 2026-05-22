@@ -2601,9 +2601,13 @@ def data_health_action_path_cards(
     action_queue_frame: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
     def _action_path_body(row: pd.Series) -> str:
+        command = preferred_row_command(
+            row,
+            ticker_focus_command(row.get("dataset"), row.get("ticker"), "make data-wizard TOP_N=10"),
+        )
         reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
-        body_source = review_path_fallback(row.get("dataset"))
+        body_source = command_family_fallback(command, review_path_fallback(row.get("dataset")))
         if reason and reason != "Not available":
             body_source = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
         elif recommended_action and recommended_action != "Not available":

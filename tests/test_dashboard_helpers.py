@@ -5319,6 +5319,8 @@ def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_cop
                 "ticker": "NVDA",
                 "reason": "",
                 "recommended_action": "",
+                "focus_command": "make imports-validate",
+                "example_command": "",
             }
         ]
     )
@@ -5342,7 +5344,7 @@ def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_cop
 
     assert cards[0]["title"] == "make imports-validate"
     assert "staged local workflow next" in cards[0]["body"].lower()
-    assert any("review fundamentals path." in str(card.get("body", "")).lower() for card in cards[1:])
+    assert any("staged local workflow next" in str(card.get("body", "")).lower() for card in cards[1:])
     assert "not available" not in " ".join(str(value) for card in cards for value in card.values()).lower()
 
 
