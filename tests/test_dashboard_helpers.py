@@ -1344,6 +1344,46 @@ def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path):
     assert "make focus-price TICKER=AMD" in set(detail_frame["exact_next_command"])
 
 
+def test_load_data_onboarding_tables_refreshes_env_prefixed_sec_bundle_commands(tmp_path):
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        dashboard.write_onboarding_outputs(dashboard.BASE_DIR, output_dir=tmp_path)
+
+        pd.DataFrame(
+            [
+                {
+                    "bundle_name": "Fundamentals Bundle",
+                    "lane": "fundamentals",
+                    "scope": "holdings_first",
+                    "ticker_count": 1,
+                    "tickers": "NVDA",
+                    "goal_summary": "old",
+                    "target_history_rows": 0,
+                    "suggested_start_date": "",
+                    "bundle_shortcut_command": "make bundle-fundamentals",
+                    "detail_shortcut_command": "make detail-fundamentals",
+                    "runbook_shortcut_command": "make runbook-fundamentals",
+                    "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
+                    "follow_up_command": "make sec-validate",
+                    "target_file": "data/imports/fundamentals.csv",
+                    "why_it_matters": "old",
+                    "safe_next_step": "old",
+                }
+            ]
+        ).to_csv(tmp_path / "command_bundles.csv", index=False)
+
+        tables = dashboard.load_data_onboarding_tables(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    bundle_frame, bundle_message = tables["command_bundles.csv"]
+    assert bundle_message is None
+    assert bundle_frame is not None
+    assert not bundle_frame["primary_command"].astype(str).str.startswith("SEC_USER_AGENT=").any()
+    assert bundle_frame["primary_command"].astype(str).str.startswith("make sec-stage TICKERS=").any()
+
+
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 
