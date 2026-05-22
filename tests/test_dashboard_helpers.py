@@ -3271,6 +3271,7 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
+    assert cards[0]["command"] == "make sec-stage TICKERS=NVDA"
     assert "make sec-stage tickers=nvda" in rendered
     assert "stage or add richer verified fundamentals" in rendered
     assert cards[2]["title"] == "Data Health"
@@ -3302,6 +3303,7 @@ def test_overview_deep_research_handoff_cards_keep_staged_peer_reason_and_comman
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "TSLA"
+    assert cards[0]["command"] == "make imports-validate"
     assert cards[1]["title"] == "make imports-validate"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -3331,6 +3333,7 @@ def test_overview_deep_research_handoff_cards_keep_staged_fundamentals_reason_an
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "NVDA"
+    assert cards[0]["command"] == "make imports-validate"
     assert cards[1]["title"] == "make imports-validate"
     assert "staged fundamentals import" in cards[1]["body"].lower()
     assert "make imports-preview" in rendered
@@ -3359,6 +3362,7 @@ def test_overview_deep_research_handoff_cards_keep_runbook_fundamentals_reason_a
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "NVDA"
+    assert cards[0]["command"] == "make runbook-fundamentals"
     assert cards[1]["title"] == "make runbook-fundamentals"
     assert "staged local workflow next" in cards[1]["body"].lower()
     assert "buy" not in rendered
@@ -3385,6 +3389,7 @@ def test_overview_deep_research_handoff_cards_keep_runbook_peer_reason_and_comma
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "TSLA"
+    assert cards[0]["command"] == "make runbook-peers"
     assert cards[1]["title"] == "make runbook-peers"
     assert "staged local workflow next" in cards[1]["body"].lower()
     assert "buy" not in rendered
@@ -3397,6 +3402,7 @@ def test_overview_deep_research_handoff_cards_fall_back_to_safe_command():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "No deep-research shortlist yet"
+    assert cards[0]["command"] == "make onboarding"
     assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
     assert "refresh the onboarding outputs" in rendered

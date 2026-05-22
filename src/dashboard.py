@@ -5034,6 +5034,7 @@ def overview_deep_research_handoff_cards(
                 else f"{ticker} is the clearest current name for {lane.lower()} based on the local SEC and peer queues."
             ),
             "badges": [str(item) for item in top_priority.get("badges", [])][:2] or ["research only"],
+            "command": command_text,
         },
         {
             "kicker": "DEEP RESEARCH COMMAND",
