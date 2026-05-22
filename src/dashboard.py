@@ -1292,21 +1292,34 @@ def ticker_focus_command(lane: str, ticker: object, fallback: str = "") -> str:
 
 
 def preferred_row_command(row: pd.Series | dict[str, object], fallback: str = "") -> str:
+    def _raw_value(key: str) -> object:
+        return row.get(key) if hasattr(row, "get") else ""
+
     focus_command = ""
     if hasattr(row, "get"):
-        focus_command = format_missing(row.get("focus_command"), fallback="")
-    return focus_command or format_missing(row.get("example_command") if hasattr(row, "get") else "", fallback)
+        focus_command = normalize_operator_command(format_missing(_raw_value("focus_command"), fallback=""))
+    example_command = normalize_operator_command(format_missing(_raw_value("example_command"), fallback=""))
+    return focus_command or example_command or normalize_operator_command(fallback)
+
+
+def normalize_operator_command(command: object) -> str:
+    command_text = format_missing(command, "")
+    if command_text == "make onboarding":
+        return "make status"
+    if command_text == "make dashboard":
+        return "make dashboard-smoke"
+    return command_text
 
 
 def preferred_bundle_command(row: pd.Series | dict[str, object], fallback: str = "") -> str:
     if hasattr(row, "get"):
-        shortcut = format_missing(row.get("bundle_shortcut_command"), fallback="")
+        shortcut = normalize_operator_command(format_missing(row.get("bundle_shortcut_command"), fallback=""))
         if shortcut:
             return shortcut
-        primary = format_missing(row.get("primary_command"), fallback="")
+        primary = normalize_operator_command(format_missing(row.get("primary_command"), fallback=""))
         if primary:
             return primary
-    return fallback
+    return normalize_operator_command(fallback)
 
 
 def unlock_ladder_table_columns(frame: pd.DataFrame | None, *, include_statuses: bool = True) -> list[str]:
@@ -3314,7 +3327,7 @@ def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str
     if command_rows:
         rows: list[dict[str, str]] = []
         for row in command_rows:
-            command = format_missing(row.get("Command"), "")
+            command = normalize_operator_command(row.get("Command"))
             if not command:
                 continue
             rows.append(
@@ -3330,9 +3343,7 @@ def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str
     commands = payload.get("recommended_next_commands", [])
     normalized: list[dict[str, str]] = []
     for index, command in enumerate(commands, start=1):
-        command_text = str(command)
-        if command_text == "make onboarding":
-            command_text = "make status"
+        command_text = normalize_operator_command(command)
         normalized.append({"Step": f"Next {index}", "Command": command_text})
     return normalized
 

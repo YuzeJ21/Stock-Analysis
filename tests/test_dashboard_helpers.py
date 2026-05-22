@@ -1641,7 +1641,7 @@ def test_overview_ready_name_handoff_cards_route_partial_names_to_monthly_picks(
 
     assert len(cards) == 3
     assert cards[0]["title"] == "TSLA"
-    assert cards[1]["title"] in {"make onboarding", "Refresh onboarding"}
+    assert cards[1]["title"] == "make status"
     assert cards[2]["title"] == "Monthly Picks"
     assert "monthly picks" in rendered
     assert "buy" not in rendered
@@ -1831,7 +1831,27 @@ def test_overview_next_command_cards_prioritize_project_status_commands():
     assert len(cards) == 3
     assert cards[0]["title"] == "make status"
     assert "make verify" in rendered
-    assert "make dashboard" in rendered
+    assert "make dashboard-smoke" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_next_command_cards_normalize_legacy_dashboard_command_rows():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Refresh local snapshot",
+                "Command": "make dashboard",
+                "Reason": "Open the dashboard after refreshing the local operator outputs.",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_next_command_cards(payload, None, limit=1)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "make dashboard-smoke"
+    assert "dashboard-smoke" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
