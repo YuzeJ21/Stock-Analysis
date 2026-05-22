@@ -781,33 +781,36 @@ make optional-context-worklist
 
 This keeps optional enrichment visible while preserving the rule that missing earnings or estimates should never be fabricated and should not block the core local workflow.
 
-If you prefer the explicit commands, the equivalent workflow is:
+If you prefer the broader repo-native workflow instead of one-off generator commands, use:
 
 ```bash
-python3 -m src.data_update --universe-file data/universe.csv
-python3 -m src.report_generator
-python3 -m src.research_health --write-output
-python3 -m src.monthly_picks --generate --top-n 5
-python3 -m src.track_record --monthly-picks
-python3 -m src.stock_report --validate-local-data
-python3 -m src.data_sources --write-output
-python3 -m src.data_onboarding --write-output
-streamlit run src/dashboard.py
+make status
+make verify
+make dashboard-smoke
+make dashboard
 ```
 
 This keeps the project on its local research path:
 
-- refresh local prices if you want newer research inputs
-- regenerate the core screener CSV outputs
-- generate local-only research-health outputs for data readiness, liquidity context, and correlation concentration
-- generate the monthly research-candidate layer and local track-record files
-- validate local enrichment coverage before relying on valuation-heavy reports
-- create Data Health coverage/action reports so missing data has clear next steps
+- refresh the operator snapshot and print the highest-priority local blocker path
+- run deterministic local verification for core outputs, diagnostics, monthly layers, and read-only status artifacts
+- smoke-check the dashboard before deeper review
 - review everything through the dashboard without any broker or trade execution features
+
+If you still want the fully explicit lower-level sequence, use the underlying commands behind `make daily`, `make verify`, and `make status`.
 
 ## Monthly Research Picks
 
-The productized monthly layer produces a small, transparent research-candidate list:
+The productized monthly layer produces a small, transparent research-candidate list.
+
+Start with the blocker-first workflow first:
+
+```bash
+make status
+make dashboard-smoke
+```
+
+If the current blocker path is already satisfied and you want the monthly layer directly, the explicit commands are:
 
 ```bash
 python3 -m src.monthly_picks --generate --top-n 5
@@ -1089,11 +1092,11 @@ The pipeline also writes local-only research health files:
 - `outputs/liquidity_risk.csv`: local volume and dollar-volume context using only local price rows
 - `outputs/correlation_risk.csv`: local co-movement context based on overlapping local return history
 
-Generate them through the normal pipeline or directly:
+Generate them through the normal workflow or directly:
 
 ```bash
-python3 -m src.report_generator
-python3 -m src.research_health --write-output
+make status
+make verify
 make research-health
 ```
 
@@ -1115,7 +1118,7 @@ This queue combines:
 Generate it with:
 
 ```bash
-python3 -m src.action_queue --write-output
+make status
 make action-queue
 ```
 
@@ -1134,11 +1137,11 @@ The data coverage wizard is the next layer above onboarding. It translates local
 Generate it with:
 
 ```bash
+make status
+make data-wizard
 python3 -m src.data_onboarding --wizard
 python3 -m src.data_onboarding --wizard --json
 python3 -m src.data_onboarding --write-output
-make data-wizard
-make status
 ```
 
 `python3 -m src.data_onboarding --write-output` writes:
@@ -1469,7 +1472,10 @@ Final state-machine view combining purpose, momentum, and portfolio context into
 
 ## Local data onboarding tips
 
-- `python3 -m src.data_onboarding --write-output` creates ticker-level coverage and action reports for the Data Health dashboard
+- `make status` refreshes ticker-level coverage, action, queue, source-status, research-health, and project-status artifacts for the Data Health dashboard
+- `make onboarding` reruns the underlying onboarding/status writers directly when you want a full manual refresh after editing local files
+- `make templates` creates header-only onboarding templates under `data/templates/`
+- `python3 -m src.data_onboarding --write-output` is the lower-level writer behind the onboarding/status workflow
 - `python3 -m src.data_onboarding --write-templates` creates header-only onboarding templates under `data/templates/`
 - `--write-local-data-templates` creates header-only CSV templates under `data/templates/`
 - `--write-import-staging` creates header-only staging files under `data/imports/`
