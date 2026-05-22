@@ -3336,6 +3336,58 @@ def test_overview_deep_research_handoff_cards_keep_staged_fundamentals_reason_an
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_handoff_cards_keep_runbook_fundamentals_reason_and_command():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "",
+                "focus_command": "make runbook-fundamentals",
+                "example_command": "",
+            }
+        ]
+    )
+    payload = {"recommended_next_commands": ["make status", "make verify", "make dashboard-smoke"]}
+
+    cards = dashboard.overview_deep_research_handoff_cards(holdings, sec_queue, None, payload, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "NVDA"
+    assert cards[1]["title"] == "make runbook-fundamentals"
+    assert "staged local workflow next" in cards[1]["body"].lower()
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_deep_research_handoff_cards_keep_runbook_peer_reason_and_command():
+    holdings = pd.DataFrame([{"Ticker": "TSLA"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+                "example_command": "",
+            }
+        ]
+    )
+    payload = {"recommended_next_commands": ["make status", "make verify", "make dashboard-smoke"]}
+
+    cards = dashboard.overview_deep_research_handoff_cards(holdings, None, peer_queue, payload, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "TSLA"
+    assert cards[1]["title"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[1]["body"].lower()
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_deep_research_handoff_cards_fall_back_to_safe_command():
     cards = dashboard.overview_deep_research_handoff_cards(None, None, None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
