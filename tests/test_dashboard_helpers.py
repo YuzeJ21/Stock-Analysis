@@ -1589,7 +1589,7 @@ def test_top_priority_signals_are_compact_and_sorted():
     queue = pd.DataFrame(
         [
             {"priority": 2, "urgency": "high", "action_type": "fundamentals", "ticker": "NVDA", "title": "Improve fundamentals", "reason": "Need SEC staging.", "focus_command": "make focus-fundamentals TICKER=NVDA", "example_command": "make sec-stage"},
-            {"priority": 1, "urgency": "critical", "action_type": "prices", "ticker": "AMD", "title": "Repair prices", "reason": "No local prices.", "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.", "focus_command": "make focus-price TICKER=AMD", "example_command": "make price-refresh"},
+            {"priority": 1, "urgency": "critical", "action_type": "prices", "ticker": "AMD", "title": "Repair prices", "reason": "No local prices.", "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.", "focus_command": "make focus-price TICKER=AMD", "example_command": "make price-refresh"},
         ]
     )
 
@@ -1637,7 +1637,7 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
                 "dataset": "prices",
                 "ticker": "NVDA",
                 "reason": "Short local price history.",
-                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-refresh",
             }
@@ -2454,7 +2454,7 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
                 "ticker": "NVDA",
                 "title": "Repair prices",
                 "reason": "NVDA update failed during remote refresh.",
-                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
                 "example_command": "make price-worklist",
             }
         ]
@@ -2740,7 +2740,7 @@ def test_overview_next_command_cards_fall_back_to_action_queue():
                 "ticker": "NVDA",
                 "title": "Repair prices",
                 "reason": "NVDA update failed during remote refresh.",
-                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
                 "example_command": "make price-worklist",
             }
         ]
@@ -2848,7 +2848,7 @@ def test_overview_workflow_reason_card_uses_action_queue_context():
                 "ticker": "NVDA",
                 "title": "Repair prices",
                 "reason": "NVDA update failed during remote refresh.",
-                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
                 "example_command": "make price-worklist",
             }
         ]
@@ -2860,7 +2860,9 @@ def test_overview_workflow_reason_card_uses_action_queue_context():
     assert card["title"] == "make price-worklist"
     assert "nvda" in rendered
     assert "normalize verified downloaded ohlcv rows" in rendered
-    assert "validate/preview/apply" in rendered
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -2910,7 +2912,7 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
                 "ticker": "NVDA",
                 "title": "Repair prices",
                 "reason": "NVDA update failed during remote refresh.",
-                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
                 "example_command": "make price-worklist",
             }
         ]
@@ -3700,7 +3702,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "dataset": "prices",
                 "ticker": "NVDA",
                 "reason": "No verified local price history is present yet.",
-                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-worklist",
             },
@@ -3733,7 +3735,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "ticker": "NVDA",
                 "title": "Repair prices",
                 "reason": "NVDA update failed during remote refresh.",
-                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-worklist",
             }
@@ -4113,7 +4115,7 @@ def test_data_health_deep_research_target_cards_preserve_staged_fundamentals_com
                 "is_holding": True,
                 "theme": "AI Semis",
                 "price_history_days": 63,
-                "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+                "missing_required_for_dcf": "staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply",
                 "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
                 "focus_command": "make imports-validate",
                 "example_command": "make imports-preview",
@@ -4218,7 +4220,7 @@ def test_overview_deep_research_target_cards_preserve_staged_fundamentals_comman
                 "is_holding": True,
                 "theme": "AI Semis",
                 "price_history_days": 63,
-                "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+                "missing_required_for_dcf": "staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply",
                 "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
                 "focus_command": "make imports-validate",
                 "example_command": "make imports-preview",
@@ -4243,7 +4245,7 @@ def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values
                 "blocking_dataset": "prices",
                 "current_status": "0 local price rows",
                 "why_it_matters": "Monthly ranking needs verified local price history.",
-                "recommended_action": "Refresh NVDA prices, or normalize verified downloaded OHLCV rows into data/imports/prices.csv before validate/preview/apply.",
+                "recommended_action": "Refresh NVDA prices, or normalize verified downloaded OHLCV rows into data/imports/prices.csv before make price-validate, make price-preview, and make price-apply.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "python3 -m src.data_update --tickers NVDA",
             },
@@ -4957,7 +4959,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             },
             {
                 "bundle_name": "SEC Fundamentals Bundle",

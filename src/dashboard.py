@@ -280,7 +280,12 @@ def _data_source_action_needs_refresh(row: pd.Series) -> bool:
             or "make price-apply" not in normalized_action
         )
     if dataset == "fundamentals":
-        return "make status" not in normalized_action or "validate/preview/apply" not in normalized_action
+        return (
+            "make status" not in normalized_action
+            or "make imports-validate" not in normalized_action
+            or "make imports-preview" not in normalized_action
+            or "make imports-apply" not in normalized_action
+        )
     if dataset == "peers":
         return "make status" not in normalized_action or "make templates" not in normalized_action
     return False
@@ -7619,7 +7624,7 @@ def render_data_health(provider) -> None:
                 st.warning(price_refresh_fallback_message(include_remote_failure_prefix=True))
             render_context_note(
                 "Manual fallback.",
-                "CLI-only: start with make status, follow the printed price focus or runbook path, and use make price-normalize before price-validate/preview/apply for downloaded files.",
+                "CLI-only: start with make status, follow the printed price focus or runbook path, then use make price-normalize, make price-validate, make price-preview, and make price-apply for downloaded files.",
                 tone="warning",
             )
         if price_worklist_frame is not None and not price_worklist_frame.empty:
