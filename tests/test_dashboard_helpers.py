@@ -5091,6 +5091,13 @@ def test_price_refresh_cli_note_message_uses_runbook_and_normalize_flow():
     assert "make price-normalize" in note
 
 
+def test_data_gap_report_notice_uses_data_sources_front_door():
+    body, command = dashboard.data_gap_report_notice(None)
+
+    assert "local gap report has not been generated yet" in body.lower()
+    assert command == "make data-sources"
+
+
 def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     bundles = pd.DataFrame(
         [

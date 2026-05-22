@@ -1702,6 +1702,11 @@ def price_refresh_cli_note_message() -> str:
     return "CLI-only: " + price_refresh_fallback_message()
 
 
+def data_gap_report_notice(message: str | None) -> tuple[str, str]:
+    body = message or "Either the local gap report has not been generated yet or there are currently no explicit source-gap rows to show."
+    return body, "make data-sources"
+
+
 def format_value(value: object, fallback: str = "Not available") -> str:
     text = format_missing(value, fallback=fallback)
     if text == fallback:
@@ -7756,10 +7761,11 @@ def render_data_health(provider) -> None:
                     display_frame = display_gaps[gap_columns] if gap_columns else display_gaps
                     st.dataframe(clean_display_frame(display_frame), width="stretch", hide_index=True)
             else:
+                gap_notice_body, gap_notice_command = data_gap_report_notice(gap_message)
                 render_notice_card(
                     "No data gaps were reported",
-                    gap_message or "Either the local gap report has not been generated yet or there are currently no explicit source-gap rows to show.",
-                    "make status",
+                    gap_notice_body,
+                    gap_notice_command,
                 )
 
     with health_tabs[3]:
