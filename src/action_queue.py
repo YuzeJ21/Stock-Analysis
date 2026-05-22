@@ -366,6 +366,8 @@ def build_action_queue_rows(
             ticker = _normalized_ticker(row.get("Ticker"))
             if status == "Needs Price Data":
                 recommended_action = str(row.get("NextBestAction", "")).strip()
+                focus_command = str(row.get("FocusCommand", "")).strip() or focus_command_for_ticker("prices", ticker)
+                example_command = str(row.get("ExampleCommand", "")).strip() or _price_normalize_command(ticker)
                 if ticker and "make focus-price" not in recommended_action:
                     recommended_action = _price_focus_recommended_action(ticker)
                 items.append(
@@ -377,8 +379,8 @@ def build_action_queue_rows(
                         title=f"Add enough local price history for {ticker}",
                         status=status,
                         recommended_action=recommended_action or "Refresh or manually import prices for this ticker.",
-                        focus_command=focus_command_for_ticker("prices", ticker),
-                        example_command=_price_normalize_command(ticker),
+                        focus_command=focus_command,
+                        example_command=example_command,
                         source_file="data/imports/prices.csv",
                         source_artifact="outputs/data_quality_wizard.csv",
                         reason=str(row.get("Reason", "")).strip(),
@@ -389,8 +391,12 @@ def build_action_queue_rows(
                     str(row.get("NextBestAction", "")).strip()
                     or "Review the local missing-data fields and enrich what matters most."
                 )
-                focus_command = _focus_command_from_action_text(recommended_action, ticker)
-                example_command = _example_command_for_focus_command(focus_command, ticker) or "make onboarding"
+                focus_command = str(row.get("FocusCommand", "")).strip() or _focus_command_from_action_text(recommended_action, ticker)
+                example_command = (
+                    str(row.get("ExampleCommand", "")).strip()
+                    or _example_command_for_focus_command(focus_command, ticker)
+                    or "make onboarding"
+                )
                 items.append(
                     ActionQueueItem(
                         priority=2,

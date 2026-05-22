@@ -62,6 +62,8 @@ def test_action_queue_uses_research_health_when_price_data_is_missing():
                     "Ticker": "AMD",
                     "ReadinessStatus": "Needs Price Data",
                     "NextBestAction": "Refresh or import prices.",
+                    "FocusCommand": "make focus-price TICKER=AMD",
+                    "ExampleCommand": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                     "Reason": "No local prices found.",
                 }
             ]
@@ -90,6 +92,8 @@ def test_action_queue_uses_focus_commands_for_enrichment_rows():
                         "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
                         "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
                     ),
+                    "FocusCommand": "make focus-fundamentals TICKER=NVDA",
+                    "ExampleCommand": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
                     "MissingDataFields": "DCF inputs, peer mapping",
                     "Reason": "Missing DCF and peer coverage.",
                 },
@@ -100,6 +104,8 @@ def test_action_queue_uses_focus_commands_for_enrichment_rows():
                         "Run make focus-peers TICKER=TSLA, or write templates and fill data/imports/peers.csv "
                         "manually with transparent peer mappings."
                     ),
+                    "FocusCommand": "make focus-peers TICKER=TSLA",
+                    "ExampleCommand": "make templates",
                     "MissingDataFields": "peer mapping",
                     "Reason": "Missing peer mapping.",
                 },
@@ -114,7 +120,7 @@ def test_action_queue_uses_focus_commands_for_enrichment_rows():
 
     tsla_row = next(row for row in rows if row.ticker == "TSLA")
     assert tsla_row.focus_command == "make focus-peers TICKER=TSLA"
-    assert tsla_row.example_command == "python3 -m src.data_onboarding --write-templates"
+    assert tsla_row.example_command == "make templates"
     assert tsla_row.source_file == "data/imports/peers.csv"
 
 

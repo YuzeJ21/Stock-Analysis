@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.data_onboarding import build_ticker_coverage
+from src.data_onboarding import build_ticker_coverage, focus_command_for_ticker
 from src.loader import load_inputs
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.csv_provider import CSVDataFetcher
@@ -26,6 +26,8 @@ DATA_QUALITY_COLUMNS = [
     "PriceHistoryDays",
     "MissingDataFields",
     "NextBestAction",
+    "FocusCommand",
+    "ExampleCommand",
     "Reason",
 ]
 
@@ -154,6 +156,23 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
             status = "Needs Enrichment"
 
         missing_text = _missing_join(missing_fields)
+        focus_command = ""
+        example_command = ""
+        if not momentum_ready:
+            focus_command = focus_command_for_ticker("prices", ticker)
+            example_command = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+        elif not dcf_ready:
+            focus_command = focus_command_for_ticker("fundamentals", ticker)
+            example_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+        elif not peer_ready:
+            focus_command = focus_command_for_ticker("peers", ticker)
+            example_command = "make templates"
+        elif not has_earnings:
+            focus_command = "make templates"
+            example_command = "make templates"
+        elif not has_estimates:
+            focus_command = "make templates"
+            example_command = "make templates"
         reason = (
             f"{ticker} has {history_days} local price rows. "
             f"Momentum ready={momentum_ready}, DCF ready={dcf_ready}, peer ready={peer_ready}. "
@@ -173,6 +192,8 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
                 "PriceHistoryDays": history_days,
                 "MissingDataFields": missing_text,
                 "NextBestAction": row.get("next_best_action", ""),
+                "FocusCommand": focus_command,
+                "ExampleCommand": example_command,
                 "Reason": reason,
             }
         )

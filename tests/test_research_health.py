@@ -72,6 +72,8 @@ def test_data_quality_wizard_scores_readiness_and_reasons():
     assert frame["Reason"].fillna("").str.len().gt(0).all()
     assert "prices" in frame.loc[frame["Ticker"] == "AMD", "MissingDataFields"].iloc[0]
     assert "make focus-price TICKER=AMD" in frame.loc[frame["Ticker"] == "AMD", "NextBestAction"].iloc[0]
+    assert frame.loc[frame["Ticker"] == "AMD", "FocusCommand"].iloc[0] == "make focus-price TICKER=AMD"
+    assert "make price-normalize" in frame.loc[frame["Ticker"] == "AMD", "ExampleCommand"].iloc[0]
 
 
 def test_liquidity_risk_calculates_context_without_recommendations():
