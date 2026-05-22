@@ -237,13 +237,20 @@ def load_data_onboarding_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in DATA_ONBOARDING_FILES}
+    needs_refresh = False
     coverage_frame, _ = tables.get("ticker_data_coverage.csv", (None, None))
     if coverage_frame is not None and not coverage_frame.empty:
         required_columns = {"target_file", "focus_command", "example_command"}
         if not required_columns.issubset(set(coverage_frame.columns)):
-            write_onboarding_outputs(BASE_DIR, output_dir=outputs_dir)
-            for filename in DATA_ONBOARDING_FILES:
-                tables[filename] = load_output(outputs_dir / filename)
+            needs_refresh = True
+    optional_context_frame, _ = tables.get("optional_context_worklist.csv", (None, None))
+    if optional_context_frame is not None and not optional_context_frame.empty:
+        if "focus_command" not in optional_context_frame.columns:
+            needs_refresh = True
+    if needs_refresh:
+        write_onboarding_outputs(BASE_DIR, output_dir=outputs_dir)
+        for filename in DATA_ONBOARDING_FILES:
+            tables[filename] = load_output(outputs_dir / filename)
     return tables
 
 

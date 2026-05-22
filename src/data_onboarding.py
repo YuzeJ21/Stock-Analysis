@@ -99,6 +99,7 @@ OPTIONAL_CONTEXT_WORKLIST_COLUMNS = [
     "missing_optional_context",
     "recommended_action",
     "target_file",
+    "focus_command",
     "example_command",
     "safe_next_step",
 ]
@@ -446,6 +447,7 @@ class OptionalContextWorklistRow:
     missing_optional_context: str
     recommended_action: str
     target_file: str
+    focus_command: str
     example_command: str
     safe_next_step: str
 
@@ -1255,10 +1257,12 @@ def build_optional_context_worklist(coverage_rows: list[TickerCoverage]) -> list
             priority = 7
             recommended_action = "Optional context is already available locally."
             target_file = ""
+            focus_command = ""
             example_command = ""
             safe_next_step = "No optional context action is required for this ticker."
         else:
             priority = 5 if len(missing_context) == 2 else 6
+            focus_command = "make templates"
             if missing_context == ["earnings"]:
                 recommended_action = _earnings_action_text()
                 target_file = "data/imports/earnings.csv"
@@ -1285,6 +1289,7 @@ def build_optional_context_worklist(coverage_rows: list[TickerCoverage]) -> list
                 missing_optional_context=", ".join(missing_context),
                 recommended_action=recommended_action,
                 target_file=target_file,
+                focus_command=focus_command,
                 example_command=example_command,
                 safe_next_step=safe_next_step,
             )

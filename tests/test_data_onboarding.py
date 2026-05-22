@@ -21,6 +21,7 @@ from src.data_onboarding import (
     build_onboarding_actions,
     build_onboarding_payload,
     build_data_coverage_wizard,
+    build_optional_context_worklist,
     build_ticker_coverage,
     main,
     write_onboarding_outputs,
@@ -162,6 +163,18 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert nvda["focus_command"] == "make focus-peers TICKER=NVDA"
     assert nvda["target_file"] == "data/fundamentals.csv, data/prices.csv"
     assert "validate-local-data" in nvda["example_command"]
+
+
+def test_optional_context_worklist_surfaces_template_focus_command(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    coverage = build_ticker_coverage(tmp_path)
+    worklist = build_optional_context_worklist(coverage)
+    amd = next(row.to_dict() for row in worklist if row.ticker == "AMD")
+
+    assert amd["focus_command"] == "make templates"
+    assert amd["example_command"] == "make templates"
+    assert "data/imports/earnings.csv" in amd["target_file"]
 
 
 def test_build_onboarding_actions_uses_normalize_first_price_workflow(tmp_path: Path):

@@ -716,6 +716,40 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path)
     assert "make price-normalize" in amd_row["example_command"]
 
 
+def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(tmp_path):
+    pd.DataFrame(
+        [
+            {
+                "priority": 5,
+                "ticker": "AMD",
+                "has_earnings": False,
+                "has_analyst_estimates": False,
+                "earnings_context_ready": False,
+                "estimate_context_ready": False,
+                "missing_optional_context": "earnings, analyst_estimates",
+                "recommended_action": "old",
+                "target_file": "data/imports/earnings.csv and data/imports/analyst_estimates.csv",
+                "example_command": "make templates",
+                "safe_next_step": "old",
+            }
+        ]
+    ).to_csv(tmp_path / "optional_context_worklist.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        tables = dashboard.load_data_onboarding_tables(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    frame, message = tables["optional_context_worklist.csv"]
+    assert message is None
+    assert frame is not None
+    assert "focus_command" in frame.columns
+    amd_row = frame.loc[frame["ticker"] == "AMD"].iloc[0]
+    assert amd_row["focus_command"] == "make templates"
+
+
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 
