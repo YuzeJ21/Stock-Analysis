@@ -3040,7 +3040,7 @@ def data_health_tab_summary_cards(
                     "For downloaded files, run make price-normalize, make price-validate, "
                     "make price-preview, and make price-apply."
                 ),
-                "badges": ["manual fallback", "make price-normalize"],
+                "badges": ["make price-status TOP_N=10", "manual fallback"],
             },
         ]
     if tab_name == "Staged Imports":

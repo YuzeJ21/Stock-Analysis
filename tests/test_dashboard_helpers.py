@@ -3866,6 +3866,7 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     ).lower()
 
     assert "1" in rendered
+    assert "make price-status top_n=10" in rendered
     assert "manual fallback" in rendered
     assert "make price-normalize" in rendered
     assert "make price-validate" in rendered
