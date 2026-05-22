@@ -269,6 +269,29 @@ def _focus_command_from_action_text(action_text: str, ticker: str) -> str:
     return match.group(0) if match else ""
 
 
+def _coverage_lane_from_context(missing_fields: str, focus_command: str, recommended_action: str) -> str:
+    normalized_focus = str(focus_command or "").strip().lower()
+    if normalized_focus.startswith("make focus-price"):
+        return "prices"
+    if normalized_focus.startswith("make focus-fundamentals"):
+        return "fundamentals"
+    if normalized_focus.startswith("make focus-peers") or normalized_focus == "make imports-validate":
+        return "peers"
+
+    context = " ".join(
+        part.strip().lower()
+        for part in (str(missing_fields or ""), str(recommended_action or ""))
+        if str(part or "").strip()
+    )
+    if any(token in context for token in ("dcf", "fundamental", "free_cash_flow", "revenue", "shares_outstanding")):
+        return "fundamentals"
+    if "peer" in context:
+        return "peers"
+    if "price" in context or "ohlcv" in context:
+        return "prices"
+    return ""
+
+
 def _example_command_for_focus_command(focus_command: str, ticker: str) -> str:
     ticker = _normalized_ticker(ticker)
     normalized_focus = str(focus_command or "").strip().lower()
@@ -278,6 +301,8 @@ def _example_command_for_focus_command(focus_command: str, ticker: str) -> str:
         return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
     if normalized_focus.startswith("make focus-peers"):
         return "make templates"
+    if normalized_focus == "make imports-validate":
+        return "make imports-preview"
     return ""
 
 
@@ -297,6 +322,52 @@ def _normalize_onboarding_recommended_action(
     if dataset == "peers" and ticker and normalized_focus.startswith("make focus-peers") and "make focus-peers" not in text:
         return _peer_focus_recommended_action(ticker, missing_mapping=status == "manual_input_needed")
     return text
+
+
+def _normalize_data_quality_coverage_action(
+    ticker: str,
+    status: str,
+    missing_fields: str,
+    recommended_action: str,
+    focus_command: str,
+    example_command: str,
+) -> tuple[str, str, str]:
+    ticker = _normalized_ticker(ticker)
+    normalized_status = str(status or "").strip()
+    normalized_recommended = str(recommended_action or "").strip()
+    normalized_focus = str(focus_command or "").strip()
+    normalized_example = str(example_command or "").strip()
+    lane = _coverage_lane_from_context(missing_fields, normalized_focus, normalized_recommended)
+
+    if normalized_status == "Needs Price Data":
+        if ticker and "make focus-price" not in normalized_recommended:
+            normalized_recommended = _price_focus_recommended_action(ticker)
+        if not normalized_focus:
+            normalized_focus = focus_command_for_ticker("prices", ticker)
+        if not normalized_example or normalized_example in {"make onboarding", "make status"}:
+            normalized_example = _price_normalize_command(ticker)
+        return normalized_recommended, normalized_focus, normalized_example
+
+    if lane == "fundamentals":
+        if ticker and "make focus-fundamentals" not in normalized_recommended:
+            normalized_recommended = _fundamentals_focus_recommended_action(ticker)
+        if not normalized_focus:
+            normalized_focus = focus_command_for_ticker("fundamentals", ticker)
+        if not normalized_example or normalized_example in {"make onboarding", "make status"}:
+            normalized_example = _example_command_for_focus_command(normalized_focus, ticker) or "make sec-validate"
+        return normalized_recommended, normalized_focus, normalized_example
+
+    if lane == "peers":
+        missing_mapping = "peer mapping" in str(missing_fields or "").strip().lower()
+        if normalized_focus != "make imports-validate" and ticker and "make focus-peers" not in normalized_recommended:
+            normalized_recommended = _peer_focus_recommended_action(ticker, missing_mapping=missing_mapping)
+        if not normalized_focus:
+            normalized_focus = focus_command_for_ticker("peers", ticker)
+        if not normalized_example or normalized_example in {"make onboarding", "make status"}:
+            normalized_example = _example_command_for_focus_command(normalized_focus, ticker) or "make templates"
+        return normalized_recommended, normalized_focus, normalized_example
+
+    return normalized_recommended, normalized_focus, normalized_example
 
 
 def _source_file_for_focus_command(focus_command: str) -> str:
@@ -500,16 +571,20 @@ def build_action_queue_rows(
                     )
                 )
             elif status in {"Needs Enrichment", "Partial Coverage"} and ticker:
-                recommended_action = (
-                    str(row.get("NextBestAction", "")).strip()
-                    or "Review the local missing-data fields and enrich what matters most."
-                )
+                recommended_action = str(row.get("NextBestAction", "")).strip()
                 focus_command = str(row.get("FocusCommand", "")).strip() or _focus_command_from_action_text(recommended_action, ticker)
-                example_command = (
-                    str(row.get("ExampleCommand", "")).strip()
-                    or _example_command_for_focus_command(focus_command, ticker)
-                    or "make status"
+                example_command = str(row.get("ExampleCommand", "")).strip()
+                missing_fields = str(row.get("MissingDataFields", "")).strip()
+                recommended_action, focus_command, example_command = _normalize_data_quality_coverage_action(
+                    ticker=ticker,
+                    status=status,
+                    missing_fields=missing_fields,
+                    recommended_action=recommended_action or "Review the local missing-data fields and enrich what matters most.",
+                    focus_command=focus_command,
+                    example_command=example_command,
                 )
+                if not example_command:
+                    example_command = _example_command_for_focus_command(focus_command, ticker) or "make status"
                 items.append(
                     ActionQueueItem(
                         priority=2,
@@ -524,7 +599,7 @@ def build_action_queue_rows(
                         target_file=_source_file_for_focus_command(focus_command),
                         source_file=_source_file_for_focus_command(focus_command),
                         source_artifact="outputs/data_quality_wizard.csv",
-                        reason=str(row.get("MissingDataFields", "")).strip() or str(row.get("Reason", "")).strip(),
+                        reason=missing_fields or str(row.get("Reason", "")).strip(),
                     )
                 )
 

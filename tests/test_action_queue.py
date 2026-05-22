@@ -1045,3 +1045,47 @@ def test_action_queue_payload_normalizes_legacy_parse_error_reason_from_price_st
     assert price_row["focus_command"] == "make focus-price TICKER=META"
     assert "provider rows could not be parsed cleanly" in price_row["reason"]
     assert "Expected 1 fields in line 6, saw 2" in price_row["reason"]
+
+
+def test_action_queue_rows_normalize_stale_data_quality_coverage_actions():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(
+            [
+                {
+                    "Ticker": "NVDA",
+                    "ReadinessStatus": "Needs Enrichment",
+                    "MissingDataFields": "DCF inputs, peer mapping",
+                    "NextBestAction": "Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "FocusCommand": "",
+                    "ExampleCommand": "make onboarding",
+                    "Reason": "DCF inputs, peer mapping",
+                },
+                {
+                    "Ticker": "AMD",
+                    "ReadinessStatus": "Partial Coverage",
+                    "MissingDataFields": "peer mapping",
+                    "NextBestAction": "Add data/imports/peers.csv manually with real peer mappings.",
+                    "FocusCommand": "",
+                    "ExampleCommand": "make onboarding",
+                    "Reason": "peer mapping",
+                },
+            ]
+        ),
+    )
+
+    nvda_row = next(row for row in rows if row.ticker == "NVDA")
+    amd_row = next(row for row in rows if row.ticker == "AMD")
+
+    assert nvda_row.action_type == "coverage"
+    assert nvda_row.focus_command == "make focus-fundamentals TICKER=NVDA"
+    assert "make focus-fundamentals TICKER=NVDA" in nvda_row.recommended_action
+    assert nvda_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+
+    assert amd_row.action_type == "coverage"
+    assert amd_row.focus_command == "make focus-peers TICKER=AMD"
+    assert "make focus-peers TICKER=AMD" in amd_row.recommended_action
+    assert amd_row.example_command == "make templates"
