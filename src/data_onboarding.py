@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -165,6 +166,7 @@ COMMAND_BUNDLE_COLUMNS = [
     "scope",
     "ticker_count",
     "tickers",
+    "goal_summary",
     "primary_command",
     "follow_up_command",
     "target_file",
@@ -180,6 +182,8 @@ COMMAND_BUNDLE_DETAIL_COLUMNS = [
     "theme",
     "sector_etf",
     "current_unlock_stage",
+    "target_goal",
+    "rows_needed",
     "recommended_action",
     "primary_command",
     "follow_up_command",
@@ -196,6 +200,7 @@ COMMAND_BUNDLE_RUNBOOK_COLUMNS = [
     "command",
     "target_file",
     "tickers",
+    "goal_summary",
     "why_it_matters",
     "safe_next_step",
 ]
@@ -248,6 +253,7 @@ class CommandBundleRow:
     scope: str
     ticker_count: int
     tickers: str
+    goal_summary: str
     primary_command: str
     follow_up_command: str
     target_file: str
@@ -267,6 +273,8 @@ class CommandBundleDetailRow:
     theme: str
     sector_etf: str
     current_unlock_stage: str
+    target_goal: str
+    rows_needed: int
     recommended_action: str
     primary_command: str
     follow_up_command: str
@@ -287,6 +295,7 @@ class CommandBundleRunbookRow:
     command: str
     target_file: str
     tickers: str
+    goal_summary: str
     why_it_matters: str
     safe_next_step: str
 
@@ -1379,19 +1388,20 @@ def build_command_bundles(
     output_dir: Path | str | None = None,
 ) -> list[CommandBundleRow]:
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
+    price_worklist = build_price_import_worklist(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
     sec_queue = build_sec_stage_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
     peer_queue = build_peer_mapping_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
 
-    holdings_first_prices: list[TickerCoverage] = []
-    broader_price_queue: list[TickerCoverage] = []
-    for coverage in coverage_rows:
-        if coverage.usable_for_momentum:
+    holdings_first_prices: list[PriceWorklistRow] = []
+    broader_price_queue: list[PriceWorklistRow] = []
+    for price_row in price_worklist:
+        if price_row.momentum_ready:
             continue
-        context = context_lookup.get(coverage.ticker, {})
+        context = context_lookup.get(price_row.ticker, {})
         if bool(context.get("is_holding", False)):
-            holdings_first_prices.append(coverage)
+            holdings_first_prices.append(price_row)
         else:
-            broader_price_queue.append(coverage)
+            broader_price_queue.append(price_row)
 
     holdings_first_prices.sort(key=lambda item: (item.price_history_days > 0, item.price_history_days, item.ticker))
     broader_price_queue.sort(key=lambda item: (item.price_history_days > 0, item.price_history_days, item.ticker))
@@ -1407,6 +1417,15 @@ def build_command_bundles(
     if price_targets:
         tickers = ",".join(row.ticker for row in price_targets)
         scope = "holdings_first" if any(bool(context_lookup.get(row.ticker, {}).get("is_holding", False)) for row in price_targets) else "broader_queue"
+        goal_counts = Counter(row.next_price_goal for row in price_targets if row.next_price_goal and row.next_price_goal != "Maintain Coverage")
+        if goal_counts:
+            goal_parts = [f"{goal} for {count} ticker{'s' if count != 1 else ''}" for goal, count in goal_counts.items()]
+            total_rows_needed = sum(max(0, row.rows_needed_for_next_goal) for row in price_targets)
+            goal_summary = "; ".join(goal_parts)
+            if total_rows_needed:
+                goal_summary = f"{goal_summary}; {total_rows_needed} verified rows still needed across this bundle"
+        else:
+            goal_summary = "Maintain local price coverage for this bundle"
         bundles.append(
             CommandBundleRow(
                 bundle_name="Price Coverage Bundle",
@@ -1414,6 +1433,7 @@ def build_command_bundles(
                 scope=scope,
                 ticker_count=len(price_targets),
                 tickers=tickers,
+                goal_summary=goal_summary,
                 primary_command=f"python3 -m src.data_update --tickers {tickers}",
                 follow_up_command="make price-status",
                 target_file="data/imports/prices.csv",
@@ -1432,6 +1452,7 @@ def build_command_bundles(
                 scope=scope,
                 ticker_count=len(sec_targets),
                 tickers=tickers,
+                goal_summary="Advance explicit local DCF readiness for the listed tickers",
                 primary_command=f"SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS={tickers}",
                 follow_up_command="make sec-preview",
                 target_file="data/imports/fundamentals.csv",
@@ -1450,6 +1471,7 @@ def build_command_bundles(
                 scope=scope,
                 ticker_count=len(peer_targets),
                 tickers=tickers,
+                goal_summary="Advance transparent peer-relative readiness for the listed tickers",
                 primary_command="make templates",
                 follow_up_command="make onboarding",
                 target_file="data/imports/peers.csv",
@@ -1474,6 +1496,10 @@ def build_command_bundle_details(
     coverage_map = {row.ticker: row for row in coverage_rows}
     bundles = build_command_bundles(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
     ladder_map = {row.ticker: row for row in build_ticker_unlock_ladder(coverage_rows)}
+    price_worklist_map = {
+        row.ticker: row
+        for row in build_price_import_worklist(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    }
 
     details: list[CommandBundleDetailRow] = []
     for bundle in bundles:
@@ -1483,21 +1509,29 @@ def build_command_bundle_details(
             context = context_lookup.get(ticker, {})
             ladder = ladder_map.get(ticker)
             recommended_action = ""
+            target_goal = ""
+            rows_needed = 0
             if coverage is not None:
                 if bundle.lane == "prices":
                     recommended_action = coverage.next_best_action
+                    price_target = price_worklist_map.get(ticker)
+                    if price_target is not None:
+                        target_goal = price_target.next_price_goal
+                        rows_needed = max(0, int(price_target.rows_needed_for_next_goal))
                 elif bundle.lane == "fundamentals":
                     recommended_action = (
                         "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs."
                         if not coverage.has_fundamentals
                         else "Stage or add richer verified fundamentals to close the remaining DCF input gaps."
                     )
+                    target_goal = "Unlock DCF"
                 elif bundle.lane == "peers":
                     recommended_action = (
                         "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent."
                         if not coverage.has_peer_mapping
                         else "Peer mappings exist, but local peer fundamentals or price context are still missing."
                     )
+                    target_goal = "Unlock Peer Relative"
             details.append(
                 CommandBundleDetailRow(
                     bundle_name=bundle.bundle_name,
@@ -1507,6 +1541,8 @@ def build_command_bundle_details(
                     theme=str(context.get("theme", "") or "Unclassified"),
                     sector_etf=str(context.get("sector_etf", "") or "Unclassified"),
                     current_unlock_stage=str(getattr(ladder, "current_unlock_stage", "")),
+                    target_goal=target_goal,
+                    rows_needed=rows_needed,
                     recommended_action=recommended_action or bundle.why_it_matters,
                     primary_command=bundle.primary_command,
                     follow_up_command=bundle.follow_up_command,
@@ -1551,6 +1587,7 @@ def build_command_bundle_runbook(
                     command=command,
                     target_file=bundle.target_file,
                     tickers=bundle.tickers,
+                    goal_summary=bundle.goal_summary,
                     why_it_matters=bundle.why_it_matters,
                     safe_next_step=safe_next_step,
                 )

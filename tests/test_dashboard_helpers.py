@@ -2275,6 +2275,7 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "scope": "holdings_first",
                 "ticker_count": 2,
                 "tickers": "AMD,AVGO",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
@@ -2287,6 +2288,7 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "scope": "holdings_first",
                 "ticker_count": 1,
                 "tickers": "NVDA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
                 "follow_up_command": "make sec-preview",
                 "target_file": "data/imports/fundamentals.csv",
@@ -2301,6 +2303,7 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
 
     assert cards[0]["kicker"] == "PRICES"
     assert "holdings first" in rendered
+    assert "unlock monthly picks" in rendered
     assert "src.data_update --tickers amd,avgo" in rendered
     assert "make sec-stage tickers=nvda" in rendered
     assert "buy" not in rendered
@@ -2319,6 +2322,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "command": "python3 -m src.data_update --tickers AMD,AVGO",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Use staged local imports if the free refresh fails.",
             },
@@ -2331,6 +2335,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "command": "make price-status",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Use staged local imports if the free refresh fails.",
             },
@@ -2343,6 +2348,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "command": "make onboarding",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Reopen Data Health or Overview after refreshing outputs.",
             },
@@ -2354,6 +2360,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
 
     assert cards[0]["kicker"] == "PRICES RUNBOOK"
     assert "run bundle command" in rendered
+    assert "unlock monthly picks" in rendered
     assert "make price-status" in rendered
     assert "make onboarding" in rendered
     assert "buy" not in rendered
@@ -2881,6 +2888,7 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
                 "scope": "holdings_first",
                 "ticker_count": 3,
                 "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; Unlock Track Record for 1 ticker; 57 verified rows still needed across this bundle",
                 "primary_command": "python3 -m src.data_update --tickers META,NVDA,TSLA",
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
@@ -2895,6 +2903,7 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
 
     assert cards[0]["kicker"] == "PRICES BUNDLE"
     assert "holdings first" in rendered
+    assert "unlock monthly picks" in rendered
     assert "src.data_update --tickers meta,nvda,tsla" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -2911,6 +2920,7 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
                 "step_label": "Run bundle command",
                 "command": "python3 -m src.data_update --tickers META",
                 "tickers": "META",
+                "goal_summary": "Unlock Monthly Picks for 1 ticker; 21 verified rows still needed across this bundle",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
@@ -2920,6 +2930,7 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
                 "step_label": "Review follow-up output",
                 "command": "make price-status",
                 "tickers": "META",
+                "goal_summary": "Unlock Monthly Picks for 1 ticker; 21 verified rows still needed across this bundle",
             },
             {
                 "bundle_name": "SEC Fundamentals Bundle",
@@ -2929,6 +2940,7 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
                 "step_label": "Run bundle command",
                 "command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
                 "tickers": "NVDA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
             },
         ]
     )
@@ -2938,6 +2950,7 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
 
     assert cards[0]["kicker"] == "PRICES LANE"
     assert "run bundle command" in rendered
+    assert "unlock monthly picks" in rendered
     assert "make price-status" in rendered
     assert "make sec-stage tickers=nvda" in rendered
     assert "buy" not in rendered
@@ -2953,6 +2966,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "scope": "holdings_first",
                 "ticker_count": 3,
                 "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
                 "follow_up_command": "make sec-preview",
                 "target_file": "data/imports/fundamentals.csv",
@@ -2984,6 +2998,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "step_label": "Run bundle command",
                 "command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
                 "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
                 "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
@@ -2996,6 +3011,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "step_label": "Review follow-up output",
                 "command": "make sec-preview",
                 "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
                 "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
@@ -3008,6 +3024,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "step_label": "Refresh onboarding outputs",
                 "command": "make onboarding",
                 "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
                 "safe_next_step": "Reopen Data Health or Overview after refreshing outputs.",
@@ -3019,6 +3036,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["kicker"] == "FUNDAMENTALS HANDOFF"
+    assert "dcf readiness" in rendered
     assert "make sec-stage" in rendered
     assert "make sec-preview" in rendered
     assert "make onboarding" in rendered

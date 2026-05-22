@@ -2010,13 +2010,14 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
 
     cards: list[dict[str, object]] = []
     for _, row in ordered.head(limit).iterrows():
+        goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         cards.append(
             {
                 "kicker": format_missing(row.get("lane"), "bundle").upper(),
                 "title": format_missing(row.get("bundle_name"), "Local bundle"),
                 "body": (
                     f"{format_missing(row.get('tickers'), 'No tickers')}: "
-                    f"{compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
+                    f"{goal_summary or compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
                 ),
                 "badges": [
                     format_missing(row.get("scope"), "scope").replace("_", " "),
@@ -2051,6 +2052,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         if lane_rows.empty:
             continue
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
+        goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
         steps = []
         for _, row in lane_rows.head(3).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
@@ -2061,7 +2063,9 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             {
                 "kicker": f"{lane.upper()} RUNBOOK",
                 "title": bundle_name,
-                "body": " | ".join(steps) if steps else "No runbook steps available.",
+                "body": (
+                    f"{goal_summary}. " if goal_summary else ""
+                ) + (" | ".join(steps) if steps else "No runbook steps available."),
                 "badges": [
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     format_missing(lane_rows.iloc[0].get("tickers"), "No tickers"),
@@ -4201,13 +4205,14 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
     for _, row in ordered.head(limit).iterrows():
         lane = format_missing(row.get("lane"), "bundle").replace("_", " ")
         scope = format_missing(row.get("scope"), "scope").replace("_", " ")
+        goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         cards.append(
             {
                 "kicker": f"{lane.upper()} BUNDLE",
                 "title": format_missing(row.get("bundle_name"), "Local bundle"),
                 "body": (
                     f"{format_missing(row.get('tickers'), 'No tickers')}: "
-                    f"{compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
+                    f"{goal_summary or compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
                 ),
                 "badges": [scope, f"{format_value(row.get('ticker_count'), fallback='0')} tickers"],
                 "command": format_missing(row.get("primary_command"), ""),
@@ -4236,6 +4241,7 @@ def overview_bundle_handoff_cards(
     bundle_name = format_missing(top_bundle.get("bundle_name"), "Local bundle")
     primary_command = format_missing(top_bundle.get("primary_command"), "")
     follow_up_command = format_missing(top_bundle.get("follow_up_command"), "")
+    goal_summary = compact_reason(top_bundle.get("goal_summary"), max_sentences=1, max_chars=120)
     lane = format_missing(top_bundle.get("lane"), "bundle").replace("_", " ")
     ticker_text = format_missing(top_bundle.get("tickers"), "No tickers")
     refresh_command = "make onboarding"
@@ -4268,7 +4274,9 @@ def overview_bundle_handoff_cards(
         {
             "kicker": f"{lane.upper()} HANDOFF",
             "title": bundle_name,
-            "body": f"Start with {primary_command} for {ticker_text}. This is the highest-leverage local bundle right now.",
+            "body": (
+                f"{goal_summary}. " if goal_summary else ""
+            ) + f"Start with {primary_command} for {ticker_text}. This is the highest-leverage local bundle right now.",
             "badges": ["bundle first", "research only"],
             "command": primary_command,
         },
@@ -4320,6 +4328,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             continue
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
         tickers = format_missing(lane_rows.iloc[0].get("tickers"), "No tickers")
+        goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
         steps: list[str] = []
         for _, row in lane_rows.head(2).iterrows():
             steps.append(
@@ -4329,7 +4338,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             {
                 "kicker": f"{lane.upper()} LANE",
                 "title": bundle_name,
-                "body": f"{tickers}. " + " | ".join(steps),
+                "body": (f"{goal_summary}. " if goal_summary else "") + f"{tickers}. " + " | ".join(steps),
                 "badges": [
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     "runbook",

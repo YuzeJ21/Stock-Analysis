@@ -489,12 +489,15 @@ def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Pa
     assert list(payload["command_bundles"][0].keys()) == COMMAND_BUNDLE_COLUMNS
     assert bundles["prices"]["scope"] == "broader_queue"
     assert "AMD" in bundles["prices"]["tickers"]
+    assert "Unlock Monthly Picks" in bundles["prices"]["goal_summary"]
     assert "src.data_update --tickers AMD" in bundles["prices"]["primary_command"]
     assert bundles["fundamentals"]["scope"] == "broader_queue"
     assert "AMD" in bundles["fundamentals"]["tickers"]
+    assert "DCF readiness" in bundles["fundamentals"]["goal_summary"]
     assert "make sec-stage" in bundles["fundamentals"]["primary_command"]
     assert bundles["peers"]["scope"] == "holdings_first"
     assert "NVDA" in bundles["peers"]["tickers"]
+    assert "peer-relative readiness" in bundles["peers"]["goal_summary"]
     assert bundles["peers"]["target_file"] == "data/imports/peers.csv"
 
 
@@ -571,9 +574,12 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
 
     assert list(details[0].keys()) == COMMAND_BUNDLE_DETAIL_COLUMNS
     assert price_detail["current_unlock_stage"] == "prices"
+    assert price_detail["target_goal"] == "Unlock Monthly Picks"
+    assert price_detail["rows_needed"] >= 1
     assert "src.data_update --tickers AMD" in price_detail["primary_command"]
     assert peer_detail["is_holding"] is True
     assert peer_detail["current_unlock_stage"] == "peers"
+    assert peer_detail["target_goal"] == "Unlock Peer Relative"
 
 
 def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path: Path):
@@ -586,6 +592,7 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert list(runbook[0].keys()) == COMMAND_BUNDLE_RUNBOOK_COLUMNS
     assert [row["step_order"] for row in price_steps] == [1, 2, 3]
     assert price_steps[0]["step_label"] == "Run bundle command"
+    assert "Unlock Monthly Picks" in price_steps[0]["goal_summary"]
     assert "src.data_update --tickers" in price_steps[0]["command"]
     assert price_steps[-1]["command"] == "make onboarding"
 
