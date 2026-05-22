@@ -4180,7 +4180,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "scope": "holdings_first",
                 "step_order": 7,
                 "step_label": "Refresh status outputs",
-                "command": "make status",
+                "command": "make price-status",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
@@ -4205,7 +4205,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
     assert "make price-validate" in rendered
     assert "make price-preview" in rendered
     assert "make price-apply" in rendered
-    assert "make status" in rendered
+    assert "make price-status" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
