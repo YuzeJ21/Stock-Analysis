@@ -4804,6 +4804,7 @@ def test_data_health_deep_research_target_cards_preserve_staged_fundamentals_com
 
     assert cards[0]["command"] == "make imports-validate"
     assert "make imports-apply" in cards[0]["body"].lower()
+    assert "make status-check top_n=5" in cards[0]["body"].lower()
 
 
 def test_overview_price_target_cards_surface_exact_history_targets_safely():
@@ -4909,6 +4910,7 @@ def test_overview_deep_research_target_cards_preserve_staged_fundamentals_comman
 
     assert cards[0]["command"] == "make imports-validate"
     assert "make imports-apply" in cards[0]["body"].lower()
+    assert "make status-check top_n=5" in cards[0]["body"].lower()
 
 
 def test_deep_research_target_fallback_cards_use_onboarding_refresh():
