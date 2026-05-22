@@ -4368,6 +4368,10 @@ def theme_deep_research_cards(
                         f"Next action: {compact_reason(top_row.get('recommended_action'), max_sentences=1, max_chars=150)}"
                     ),
                     "badges": [dataset_badge, f"P{format_missing(top_row.get('priority'), '-')}"],
+                    "command": preferred_row_command(
+                        top_row,
+                        ticker_focus_command(dataset_badge, top_row.get("ticker"), "make onboarding"),
+                    ),
                     "sort_priority": float(top_row.get("priority", 999)),
                     "holdings_count": int(theme_frame["is_holding"].sum()),
                 }

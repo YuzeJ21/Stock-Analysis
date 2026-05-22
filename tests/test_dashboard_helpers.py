@@ -2180,6 +2180,8 @@ def test_theme_deep_research_cards_surface_sec_and_peer_theme_blockers():
 
     assert any(card["title"] == "Unlock DCF" for card in cards)
     assert any(card["title"] == "Unlock Peer Relative" for card in cards)
+    assert any(card.get("command") == "make focus-fundamentals TICKER=NVDA" for card in cards)
+    assert any(card.get("command") == "make focus-peers TICKER=SMH" for card in cards)
     assert "ai semiconductors" in rendered
     assert "semiconductor etf" in rendered
     assert "buy" not in rendered
