@@ -133,6 +133,74 @@ def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_step
     assert "make imports-apply" in staged_row["Reason"]
 
 
+def test_project_status_combines_staged_fundamentals_and_peer_imports_into_one_follow_through(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+    imports_dir = tmp_path / "data" / "imports"
+    imports_dir.mkdir()
+    pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "theme": "AI",
+                "sector": "Semis",
+                "revenue": 100,
+                "revenue_growth": 0.2,
+                "eps": 1.0,
+                "free_cash_flow": 10,
+                "fcf": 10,
+                "fcf_margin": 0.1,
+                "profit_margin": 0.2,
+                "operating_margin": 0.15,
+                "gross_margin": 0.3,
+                "ebitda": 15,
+                "cash": 20,
+                "debt": 5,
+                "net_debt": -15,
+                "shares_outstanding": 100,
+                "pe_ratio": 25,
+                "trailing_pe": 24,
+                "forward_pe": 22,
+                "price_to_book": 3,
+                "market_cap": 1000,
+                "enterprise_value": 1020,
+                "debt_to_equity": 0.4,
+                "source": "sec_companyfacts",
+                "as_of_date": "2025-12-31",
+                "sec_cik": "1",
+                "sec_form": "10-K",
+                "sec_filed_date": "2026-02-01",
+                "sec_accession": "0001",
+                "sec_fact_warnings": "",
+                "sec_entity_name": "AMD INC",
+            }
+        ]
+    ).to_csv(imports_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "peer_ticker": "AMD",
+                "peer_group": "ai_semis",
+                "sector": "Semis",
+                "industry": "Semiconductors",
+                "source": "manual",
+                "as_of_date": "2026-05-22",
+            }
+        ]
+    ).to_csv(imports_dir / "peers.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=4)
+
+    staged_rows = [row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate"]
+    assert len(staged_rows) == 1
+    staged_row = staged_rows[0]
+    assert staged_row["Step"] == "Advance staged imports"
+    assert "data/imports/fundamentals.csv" in staged_row["Reason"]
+    assert "data/imports/peers.csv" in staged_row["Reason"]
+    assert "fundamentals and peers" in staged_row["Reason"]
+    assert "make imports-apply" in staged_row["Reason"]
+
+
 def test_project_status_normalizes_legacy_parse_error_reason_from_price_status(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
     pd.DataFrame(

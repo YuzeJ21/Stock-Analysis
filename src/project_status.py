@@ -166,11 +166,38 @@ def _select_top_bundle(actions: list[dict[str, Any]], bundles: list[dict[str, An
 
 
 def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
+    grouped_rows: dict[str, list[dict[str, Any]]] = {}
+    command_order: list[str] = []
     for row in problem_sources:
         command = _first_non_empty(row.get("focus_command"))
         if not command or command == "make status":
             continue
+        if command not in grouped_rows:
+            grouped_rows[command] = []
+            command_order.append(command)
+        grouped_rows[command].append(row)
+
+    rows: list[dict[str, str]] = []
+    for command in command_order:
+        grouped = grouped_rows[command]
+        if command == "make imports-validate" and len(grouped) > 1:
+            datasets = [str(row.get("dataset") or "data").replace("_", " ") for row in grouped]
+            target_files = [
+                _first_non_empty(row.get("target_file"), row.get("local_file"))
+                for row in grouped
+                if _first_non_empty(row.get("target_file"), row.get("local_file"))
+            ]
+            dataset_text = " and ".join(datasets[:-1] + [datasets[-1]]) if len(datasets) <= 2 else ", ".join(datasets[:-1]) + f", and {datasets[-1]}"
+            file_text = " and ".join(target_files[:-1] + [target_files[-1]]) if len(target_files) <= 2 else ", ".join(target_files[:-1]) + f", and {target_files[-1]}"
+            reason = (
+                f"Staged rows are already present in {file_text}. "
+                "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                f"to confirm the live local {dataset_text} inputs."
+            )
+            rows.append({"Step": "Advance staged imports", "Command": command, "Reason": reason})
+            continue
+
+        row = grouped[0]
         dataset = str(row.get("dataset") or "data").replace("_", " ")
         status = str(row.get("availability_status") or "").strip().lower()
         if command == "make imports-validate":
