@@ -1563,7 +1563,7 @@ def build_unlock_priority_summary(
             return "make status", bundle_shortcut_for_scope("peers", scope, "runbook")
         if stage == "optional_context":
             return "make templates", "make templates"
-        return "make daily", "make dashboard"
+        return "make status", "make dashboard-smoke"
 
     def _stage_action(stage: str, frame: pd.DataFrame) -> str:
         if stage == "prices":

@@ -18,10 +18,13 @@ from src.data_onboarding import (
     TICKER_UNLOCK_LADDER_COLUMNS,
     UNLOCK_PRIORITY_SUMMARY_COLUMNS,
     WIZARD_COLUMNS,
+    TickerCoverage,
     build_onboarding_actions,
     build_onboarding_payload,
     build_data_coverage_wizard,
     build_optional_context_worklist,
+    build_ticker_unlock_ladder,
+    build_unlock_priority_summary,
     build_ticker_coverage,
     main,
     write_onboarding_outputs,
@@ -653,6 +656,59 @@ def test_data_onboarding_cli_unlock_summary_text_surfaces_commands(tmp_path: Pat
     assert "unlock priority summary" in output
     assert "focus: make status" in output
     assert "command: make runbook" in output
+
+
+def test_unlock_priority_summary_uses_status_first_ready_defaults(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "shares": 1, "primarypurpose": "Momentum Leader"}]).to_csv(
+        data_dir / "holdings.csv",
+        index=False,
+    )
+    coverage_rows = [
+        TickerCoverage(
+            ticker="NVDA",
+            has_prices=True,
+            price_history_days=300,
+            has_fundamentals=True,
+            dcf_ready=True,
+            has_peer_mapping=True,
+            peer_ready=True,
+            has_earnings=True,
+            has_analyst_estimates=True,
+            usable_for_momentum=True,
+            usable_for_monthly_picks=True,
+            usable_for_dcf=True,
+            usable_for_peer_relative=True,
+            missing_required_for_momentum="",
+            missing_required_for_dcf="",
+            missing_required_for_peer_relative="",
+            next_best_action="Coverage is sufficient for the current CSV-first research workflow.",
+            target_file="",
+            focus_command="",
+            example_command="",
+        )
+    ]
+
+    summary = build_unlock_priority_summary(
+        coverage_rows,
+        build_ticker_unlock_ladder(coverage_rows),
+        tmp_path,
+        data_dir=data_dir,
+        output_dir=outputs_dir,
+    )
+
+    holdings_row = next(row for row in summary if row.group_type == "holdings")
+    assert holdings_row.top_priority_stage == "ready"
+    assert holdings_row.focus_command == "make status"
+    assert holdings_row.example_command == "make dashboard-smoke"
 
 
 def test_data_onboarding_cli_command_bundles_json(tmp_path: Path, capsys):
