@@ -1167,6 +1167,9 @@ def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Pa
     assert "NVDA" in peer_bundle["tickers"]
     assert "peer-relative readiness" in peer_bundle["goal_summary"]
     assert peer_bundle["target_file"] == "data/imports/peers.csv"
+    assert "make imports-validate" in peer_bundle["safe_next_step"]
+    assert "make imports-preview" in peer_bundle["safe_next_step"]
+    assert "make imports-apply" in peer_bundle["safe_next_step"]
 
 
 def test_data_onboarding_cli_command_bundle_details_json(tmp_path: Path, capsys):

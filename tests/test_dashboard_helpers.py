@@ -5007,7 +5007,7 @@ def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
                 "follow_up_command": "data/imports/peers.csv",
                 "target_file": "data/imports/peers.csv",
                 "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
-                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",
+                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make imports-validate, make imports-preview, and make imports-apply before make status refreshes readiness and action outputs.",
             }
         ]
     )
@@ -5037,7 +5037,7 @@ def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
                 "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
                 "target_file": "data/imports/peers.csv",
                 "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
-                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",
+                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make imports-validate, make imports-preview, and make imports-apply before make status refreshes readiness and action outputs.",
             },
             {
                 "bundle_name": "Peer Mapping Bundle",
@@ -5050,7 +5050,7 @@ def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
                 "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
                 "target_file": "data/imports/peers.csv",
                 "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
-                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",
+                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make imports-validate, make imports-preview, and make imports-apply before make status refreshes readiness and action outputs.",
             },
             {
                 "bundle_name": "Peer Mapping Bundle",

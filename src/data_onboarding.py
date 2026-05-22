@@ -2044,8 +2044,8 @@ def build_command_bundles(
                 target_file="data/imports/peers.csv",
                 why_it_matters=why_it_matters,
                 safe_next_step=(
-                    "Fill only manually researched peers for the listed tickers, then validate, preview, and apply "
-                    "the staged import before make status refreshes readiness and action outputs."
+                    "Fill only manually researched peers for the listed tickers, then run make imports-validate, "
+                    "make imports-preview, and make imports-apply before make status refreshes readiness and action outputs."
                 ),
             )
         )
