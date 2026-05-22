@@ -467,7 +467,7 @@ To validate your local CSV datasets and see schema/freshness warnings:
 make validate-data
 ```
 
-For JSON-friendly validation output:
+If you explicitly want machine-readable validation output:
 
 ```bash
 python -m src.stock_report --validate-local-data --json

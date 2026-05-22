@@ -163,6 +163,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "make runbook-prices\nmake runbook-fundamentals\nmake runbook-peers" in readme
     assert "If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:\n\n```bash\nmake bundle-prices-broader\nmake detail-prices-broader\nmake runbook-prices-broader" in readme
     assert "To validate your local CSV datasets and see schema/freshness warnings:\n\n```bash\nmake validate-data" in readme
+    assert "If you explicitly want machine-readable validation output:\n\n```bash\npython -m src.stock_report --validate-local-data --json" in readme
     assert "To scaffold header-only local enrichment templates without fabricating any production data:\n\n```bash\nmake templates" in readme
     assert "make imports-validate" in readme
     assert "make imports-preview" in readme
