@@ -6120,6 +6120,7 @@ def overview_ready_name_handoff_cards(
                 else f"{ticker} is the strongest currently usable local name and is best reviewed next through {surface}."
             ),
             "badges": [str(item) for item in best_name.get("badges", [])][:2] or ["local coverage"],
+            "command": command_text,
         },
         {
             "kicker": "READY NAME COMMAND",
