@@ -2777,6 +2777,13 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             hint_text = f" ({'; '.join(parts)})"
         steps = []
         first_command = ""
+        fallback_first_command = ""
+        if target_file == "data/imports/fundamentals.csv":
+            fallback_first_command = "make imports-validate"
+        elif target_file == "data/imports/peers.csv":
+            fallback_first_command = "make imports-validate"
+        elif target_file == "data/imports/prices.csv":
+            fallback_first_command = "make price-validate"
         max_steps = 7 if lane == "prices" else 5
         for _, row in lane_rows.head(max_steps).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
@@ -2796,7 +2803,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     format_missing(lane_rows.iloc[0].get("tickers"), "No tickers"),
                 ],
-                "command": first_command,
+                "command": first_command or fallback_first_command,
             }
         )
         if len(cards) >= limit:
@@ -5602,6 +5609,13 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             hint_text = f" ({'; '.join(parts)})"
         steps: list[str] = []
         first_command = ""
+        fallback_first_command = ""
+        if target_file == "data/imports/fundamentals.csv":
+            fallback_first_command = "make imports-validate"
+        elif target_file == "data/imports/peers.csv":
+            fallback_first_command = "make imports-validate"
+        elif target_file == "data/imports/prices.csv":
+            fallback_first_command = "make price-validate"
         for _, row in lane_rows.head(2).iterrows():
             command = format_missing(row.get("command"), "")
             normalized_command = normalize_operator_command(command)
@@ -5618,7 +5632,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     "runbook",
                 ],
-                "command": first_command,
+                "command": first_command or fallback_first_command,
             }
         )
         if len(cards) >= limit:
