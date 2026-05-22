@@ -562,7 +562,7 @@ def test_top_priority_signals_are_compact_and_sorted():
     queue = pd.DataFrame(
         [
             {"priority": 2, "urgency": "high", "action_type": "fundamentals", "ticker": "NVDA", "title": "Improve fundamentals", "reason": "Need SEC staging.", "focus_command": "make focus-fundamentals TICKER=NVDA", "example_command": "make sec-stage"},
-            {"priority": 1, "urgency": "critical", "action_type": "prices", "ticker": "AMD", "title": "Repair prices", "reason": "No local prices.", "focus_command": "make focus-price TICKER=AMD", "example_command": "make price-refresh"},
+            {"priority": 1, "urgency": "critical", "action_type": "prices", "ticker": "AMD", "title": "Repair prices", "reason": "No local prices.", "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.", "focus_command": "make focus-price TICKER=AMD", "example_command": "make price-refresh"},
         ]
     )
 
@@ -571,6 +571,7 @@ def test_top_priority_signals_are_compact_and_sorted():
     assert signals[0]["title"] == "Repair prices"
     assert "P1" in signals[0]["badges"]
     assert signals[0]["command"] == "make focus-price TICKER=AMD"
+    assert "normalize verified downloaded ohlcv rows" in signals[0]["body"].lower()
     assert signals[1]["title"] == "Improve fundamentals"
 
 
@@ -1480,7 +1481,8 @@ def test_overview_next_command_cards_fall_back_to_action_queue():
                 "action_type": "prices",
                 "ticker": "NVDA",
                 "title": "Repair prices",
-                "reason": "Need more local rows.",
+                "reason": "NVDA update failed during remote refresh.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
                 "example_command": "make price-worklist",
             }
         ]
@@ -1490,7 +1492,8 @@ def test_overview_next_command_cards_fall_back_to_action_queue():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "make price-worklist" in rendered
-    assert "repair prices" in rendered or "need more local rows" in rendered
+    assert cards[0]["title"] == "make price-worklist"
+    assert "normalize verified downloaded ohlcv rows" in rendered
     assert "buy" not in rendered
 
 

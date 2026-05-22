@@ -4251,7 +4251,7 @@ def overview_next_command_cards(
                 {
                     "kicker": format_missing(signal.get("kicker"), "Priority"),
                     "title": title,
-                    "body": compact_reason(signal.get("body"), max_sentences=1, max_chars=160),
+                    "body": compact_reason(signal.get("body"), max_sentences=2, max_chars=240),
                     "badges": [str(item) for item in signal.get("badges", [])][:2],
                     "command": command,
                 }
@@ -4964,11 +4964,16 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
     rows = []
     ordered = action_queue.sort_values(["priority", "ticker", "action_type"], na_position="last").head(limit)
     for _, row in ordered.iterrows():
+        reason = format_missing(row.get("reason"), "")
+        recommended_action = format_missing(row.get("recommended_action"), "")
+        body_source = reason
+        if recommended_action and recommended_action != reason:
+            body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
         rows.append(
             {
                 "kicker": str(row.get("urgency", "Action")).upper(),
                 "title": format_missing(row.get("title"), "Research action"),
-                "body": compact_reason(row.get("reason"), max_sentences=1, max_chars=180),
+                "body": compact_reason(body_source, max_sentences=2, max_chars=240),
                 "badges": [
                     f"P{format_missing(row.get('priority'), '-')}",
                     format_missing(row.get("action_type"), "action"),
