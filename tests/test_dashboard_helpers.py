@@ -2098,6 +2098,26 @@ def test_holdings_deep_research_cards_use_review_fallback_when_action_is_missing
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_holdings_deep_research_cards_use_peer_review_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, None, peer_queue, limit=1)
+
+    assert cards[0]["kicker"] == "TSLA"
+    assert "review peer path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     cards = dashboard.holdings_unlock_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
