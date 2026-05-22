@@ -737,6 +737,11 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     )
 
     peers_row = next(row for row in rows if row.action_type == "peers" and not row.ticker)
+    assert peers_row.recommended_action == (
+        "Run make templates, then fill data/imports/peers.csv manually with transparent peer mappings. "
+        "After that, run make imports-validate, make imports-preview, make imports-apply, and make status "
+        "before relying on peer-relative valuation."
+    )
     assert peers_row.focus_command == "make runbook-peers-broader"
     assert peers_row.example_command == "make runbook-peers-broader"
     assert peers_row.target_file == "data/imports/peers.csv"

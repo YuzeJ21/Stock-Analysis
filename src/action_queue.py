@@ -77,6 +77,17 @@ def _normalize_global_gap_recommended_action(dataset: str, focus_command: str, r
                 "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
                 "to confirm the live local fundamentals and DCF inputs."
             )
+    if normalized_dataset == "peers" and (
+        normalized_focus == "make imports-validate"
+        or normalized_focus.startswith("make runbook-peers")
+        or normalized_focus == "make status"
+    ):
+        if "make templates" not in normalized_recommended.lower() or "make imports-validate" not in normalized_recommended.lower():
+            return (
+                "Run make templates, then fill data/imports/peers.csv manually with transparent peer mappings. "
+                "After that, run make imports-validate, make imports-preview, make imports-apply, and make status "
+                "before relying on peer-relative valuation."
+            )
     return normalized_recommended
 
 
