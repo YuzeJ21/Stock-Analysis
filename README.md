@@ -236,7 +236,7 @@ Important source boundaries:
 - SEC Companyfacts can stage candidate fundamentals only; it does not provide market prices, analyst estimates, earnings calendars, or peer mappings.
 - Peer mappings are manual/local research. Add them through `data/imports/peers.csv` or `data/peers.csv`; the app never guesses peers.
 - Earnings and analyst-estimate files are optional local CSVs and are not bundled with fabricated values.
-- SMH holdings can be unavailable because the VanEck page may require redirect, cookie, or location handling. Use `data/custom_universe.csv` or staged universe imports as the manual fallback.
+- SMH holdings can be unavailable because the VanEck page may require redirect, cookie, or location handling. Run `make templates`, then fill `data/custom_universe.csv` with verified tickers only if you need the manual fallback.
 - yfinance remains optional, unofficial, and research-grade only. It is never required for the CSV-first pipeline.
 - Short local price history limits track-record, 3M/6M/1Y returns, and long-horizon momentum calculations.
 

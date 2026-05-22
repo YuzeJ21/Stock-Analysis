@@ -935,10 +935,13 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
             dataset="smh_holdings",
             status="manual_fallback_available",
             reason="SMH remote holdings can be unavailable because of redirect/cookie/location handling.",
-            recommended_action="Use data/custom_universe.csv if the SMH source is unavailable.",
+            recommended_action=(
+                "Run make templates, then fill data/custom_universe.csv with verified tickers only if the SMH "
+                "source is unavailable."
+            ),
             target_file="data/custom_universe.csv",
-            focus_command="",
-            example_command="python3 -m src.data_onboarding --write-templates",
+            focus_command="make templates",
+            example_command="make templates",
         )
     )
     return sorted(actions, key=lambda item: (item.priority, item.ticker, item.dataset))

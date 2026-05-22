@@ -141,6 +141,11 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
     assert any(row["dataset"] == "earnings" and row["focus_command"] == "make templates" for row in amd_actions)
     assert any(row["dataset"] == "analyst_estimates" and row["focus_command"] == "make templates" for row in amd_actions)
     assert any(row["dataset"] == "analyst_estimates" and row["priority"] == 5 for row in amd_actions)
+    smh_action = next(row for row in payload["onboarding_actions"] if row["dataset"] == "smh_holdings")
+    assert smh_action["focus_command"] == "make templates"
+    assert smh_action["example_command"] == "make templates"
+    assert "data/custom_universe.csv" in smh_action["recommended_action"]
+    assert "make templates" in smh_action["recommended_action"]
 
 
 def test_build_onboarding_actions_uses_normalize_first_price_workflow(tmp_path: Path):

@@ -198,7 +198,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/custom_universe.csv or data/imports/universe.csv",
-        fallback_action="Use data/custom_universe.csv or staged universe import for SMH fallback when the remote page is unavailable.",
+        fallback_action=(
+            "Run make templates, then fill data/custom_universe.csv with verified tickers only if the remote "
+            "SMH page is unavailable. Use staged universe import only after previewing the source-driven build."
+        ),
         notes="The remote SMH page can require redirect/cookie/location handling; this check does not fetch it.",
     ),
     DataSourceRegistryEntry(

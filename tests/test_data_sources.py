@@ -64,6 +64,9 @@ def test_data_source_registry_contains_required_datasets():
     assert "make templates" in earnings_entry.fallback_action
     analyst_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "analyst_estimates")
     assert "make templates" in analyst_entry.fallback_action
+    smh_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "smh_holdings")
+    assert "make templates" in smh_entry.fallback_action
+    assert "data/custom_universe.csv" in smh_entry.fallback_action
 
 
 def test_data_source_check_handles_missing_optional_files_without_network(tmp_path: Path):
