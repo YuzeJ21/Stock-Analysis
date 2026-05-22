@@ -3978,6 +3978,8 @@ def test_overview_benchmark_pressure_cards_surface_price_gap_and_spy_context():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 2
+    assert cards[0]["command"] == "make runbook-prices-broader"
+    assert cards[1]["command"] == "make pipeline"
     assert "missing local prices" in rendered
     assert "9/12" in rendered
     assert "ai semiconductors" in rendered

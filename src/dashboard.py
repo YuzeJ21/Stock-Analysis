@@ -5368,14 +5368,14 @@ def overview_benchmark_pressure_cards(
             "title": pressure_title,
             "body": pressure_body,
             "badges": ["price moat", "local only"],
-            "command": "make runbook-prices-broader" if not total_tickers else "",
+            "command": "make runbook-prices-broader" if (not total_tickers or missing_prices or parse_or_source_errors) else "",
         },
         {
             "kicker": "SPY CONTEXT",
             "title": strongest_theme,
             "body": benchmark_body,
             "badges": ["benchmark lens", "research only"],
-            "command": "make pipeline" if strongest_theme == "Not available" else "",
+            "command": "make pipeline",
         },
     ]
 
