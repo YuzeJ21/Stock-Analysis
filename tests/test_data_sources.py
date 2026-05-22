@@ -81,10 +81,13 @@ def test_data_source_registry_contains_required_datasets():
     assert "data/custom_universe.csv" in smh_entry.fallback_action
     universe_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "universe")
     assert "make universe-preview" in universe_entry.fallback_action
+    assert "make universe-apply" in universe_entry.fallback_action
     sp500_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "sp500_constituents")
     assert "make universe-preview" in sp500_entry.fallback_action
+    assert "make universe-apply" in sp500_entry.fallback_action
     nasdaq_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "nasdaq_symbols")
     assert "make universe-preview" in nasdaq_entry.fallback_action
+    assert "make universe-apply" in nasdaq_entry.fallback_action
     local_outputs_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "local_outputs")
     assert "make verify" in local_outputs_entry.fallback_action
 
@@ -109,7 +112,9 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert source_lookup["sp500_constituents"]["example_command"] == "make universe-preview"
     assert source_lookup["sp500_constituents"]["target_file"] == "data/imports/universe.csv"
     assert "make universe-preview" in source_lookup["sp500_constituents"]["fallback_action"]
+    assert "make universe-apply" in source_lookup["sp500_constituents"]["fallback_action"]
     assert "make universe-preview" in source_lookup["nasdaq_symbols"]["fallback_action"]
+    assert "make universe-apply" in source_lookup["nasdaq_symbols"]["fallback_action"]
     assert source_lookup["nasdaq_symbols"]["example_command"] == "make universe-preview"
     assert any(gap["dataset"] == "prices" and gap["ticker"] == "MSFT" for gap in payload["data_gaps"])
     gap_lookup = {gap["dataset"]: gap for gap in payload["data_gaps"] if not gap["ticker"]}
@@ -189,11 +194,29 @@ def test_missing_universe_gap_uses_preview_first_flow(tmp_path: Path):
     universe_status = next(row for row in payload["data_sources"] if row["dataset"] == "universe")
     assert universe_status["availability_status"] == "missing_file"
     assert "make universe-preview" in universe_status["fallback_action"]
+    assert "make universe-apply" in universe_status["fallback_action"]
     universe_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "universe" and not gap["ticker"])
     assert "make universe-preview" in universe_gap["recommended_action"]
     assert universe_gap["focus_command"] == "make universe-preview"
     assert universe_gap["example_command"] == "make universe-preview"
     assert universe_gap["target_file"] == "data/imports/universe.csv"
+
+
+def test_staged_universe_status_mentions_make_preview_and_apply(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    imports_dir = data_dir / "imports"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    imports_dir.mkdir()
+    (imports_dir / "universe.csv").write_text("ticker\nNVDA\n", encoding="utf-8")
+
+    payload = build_data_source_payload(tmp_path)
+    source_lookup = {row["dataset"]: row for row in payload["data_sources"]}
+
+    assert source_lookup["sp500_constituents"]["availability_status"] == "partial"
+    assert "make universe-preview" in source_lookup["sp500_constituents"]["notes"]
+    assert "make universe-apply" in source_lookup["sp500_constituents"]["notes"]
 
 
 def test_staged_peer_import_changes_data_source_status_and_gap_flow(tmp_path: Path):

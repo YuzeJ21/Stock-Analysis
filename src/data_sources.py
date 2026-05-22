@@ -332,7 +332,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/universe.csv",
         fallback_action=(
-            "Run make universe-preview first, then apply the staged universe only "
+            "Run make universe-preview first, then run make universe-apply only "
             "after previewing the source-driven build."
         ),
         notes="Missing theme/sector metadata is labeled Unclassified rather than fabricated.",
@@ -352,7 +352,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/custom_universe.csv or data/imports/universe.csv",
         fallback_action=(
             "Run make templates, then fill data/custom_universe.csv with verified tickers only if the remote "
-            "SMH page is unavailable. Use staged universe import only after previewing the source-driven build."
+            "SMH page is unavailable. Run make universe-preview before make universe-apply for any staged universe import."
         ),
         notes="The remote SMH page can require redirect/cookie/location handling; this check does not fetch it.",
     ),
@@ -371,7 +371,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
             "Run make universe-preview first, then review the staged S&P 500 / SMH "
-            "preset universe before applying."
+            "preset universe before make universe-apply."
         ),
         notes="Open-source/community source, not the official paid S&P feed; no live check is performed here.",
     ),
@@ -390,7 +390,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
             "Run make universe-preview first, then review the broader staged universe "
-            "before applying; all-Nasdaq mode can be large."
+            "before make universe-apply; all-Nasdaq mode can be large."
         ),
         notes="No live check is performed by data_sources; universe_builder handles parsing when explicitly invoked.",
     ),
@@ -469,7 +469,7 @@ def _remote_source_status(entry: DataSourceRegistryEntry, data_dir: Path) -> tup
             return "partial", "Manual universe fallback file is present.", 1
         return "source_unavailable", "Remote SMH source is not checked here; use the documented manual fallback if it fails.", 0
     if staged_universe.exists():
-        return "partial", "A staged universe file exists; validate and preview before applying.", 1
+        return "partial", "A staged universe file exists; run make universe-preview before make universe-apply.", 1
     return "optional_unofficial" if entry.is_unofficial else "partial", "Remote source is available only when universe_builder is explicitly run.", 0
 
 
