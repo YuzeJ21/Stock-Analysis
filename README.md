@@ -14,7 +14,7 @@ It is research-only software:
 
 The supported implementation lives in `src/`.
 
-- Use `python -m src.report_generator` to generate outputs.
+- Use `make pipeline` to generate the core local outputs.
 - Use `streamlit run src/dashboard.py` to run the dashboard.
 - The root `run.py` and `dashboard.py` files are compatibility wrappers that forward to the active `src` implementation.
 

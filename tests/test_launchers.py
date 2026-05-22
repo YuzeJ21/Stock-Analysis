@@ -126,6 +126,7 @@ def test_makefile_help_documents_key_workflows():
 def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     readme = Path("README.md").read_text(encoding="utf-8")
 
+    assert "- Use `make pipeline` to generate the core local outputs." in readme
     for phrase in (
         'export SEC_USER_AGENT="Your Name your.email@example.com"',
         "make sec-stage TICKERS=NVDA,MSFT",
