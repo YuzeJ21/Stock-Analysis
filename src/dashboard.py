@@ -3535,6 +3535,38 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
     return cards
 
 
+def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, Any]) -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "CURRENT",
+            "title": f"{current['row_count']} tickers",
+            "body": (
+                f"{current['duplicate_ticker_count']} duplicate rows and "
+                f"{current['missing_theme_count'] + current['unclassified_theme_count']} missing or unclassified themes."
+            ),
+            "badges": ["data/universe.csv"],
+        },
+        {
+            "kicker": "STAGING",
+            "title": "Staged file present" if staged.get("exists") else "No staged universe",
+            "body": (
+                "Run make universe-preview before make universe-apply. Dashboard stays read-only for safety."
+                if staged.get("exists")
+                else "No staged universe is waiting; run make universe-preview before make universe-apply."
+            ),
+            "badges": ["data/imports/universe.csv"],
+            "command": "make universe-apply",
+        },
+        {
+            "kicker": "WORKFLOW",
+            "title": "Preview first",
+            "body": "Use source presets to build a candidate universe with make universe-preview, then run make universe-apply only after reviewing the staged CSV.",
+            "badges": ["CSV-first", "backup on apply"],
+            "command": "make universe-preview",
+        },
+    ]
+
+
 def status_legend_rows() -> list[dict[str, str]]:
     return [
         {
@@ -7818,30 +7850,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, staged import state, and safer apply flow.")
     render_signal_cards(universe_action_path_cards(universe_summary))
 
-    render_signal_cards(
-        [
-            {
-                "kicker": "CURRENT",
-                "title": f"{current['row_count']} tickers",
-                "body": f"{current['duplicate_ticker_count']} duplicate rows and {current['missing_theme_count'] + current['unclassified_theme_count']} missing or unclassified themes.",
-                "badges": ["data/universe.csv"],
-            },
-            {
-                "kicker": "STAGING",
-                "title": "Staged file present" if staged.get("exists") else "No staged universe",
-                "body": "Preview staged universe changes before applying. Dashboard stays read-only for safety.",
-                "badges": ["data/imports/universe.csv"],
-                "command": "make universe-apply",
-            },
-            {
-                "kicker": "WORKFLOW",
-                "title": "Preview first",
-                "body": "Use source presets to build a candidate universe, then apply only after reviewing the staged CSV.",
-                "badges": ["CSV-first", "backup on apply"],
-                "command": "make universe-preview",
-            },
-        ]
-    )
+    render_signal_cards(universe_manager_summary_cards(current, staged))
 
     metric_cols = st.columns(4)
     metric_cols[0].metric("Current Universe Size", current["row_count"])

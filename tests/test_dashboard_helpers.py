@@ -4351,6 +4351,26 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
     assert "sell" not in rendered
 
 
+def test_universe_manager_summary_cards_surface_make_preview_and_apply():
+    cards = dashboard.universe_manager_summary_cards(
+        {
+            "row_count": 12,
+            "duplicate_ticker_count": 1,
+            "missing_theme_count": 2,
+            "unclassified_theme_count": 1,
+        },
+        {"exists": True, "row_count": 4},
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[1]["command"] == "make universe-apply"
+    assert cards[2]["command"] == "make universe-preview"
+    assert "make universe-preview" in rendered
+    assert "make universe-apply" in rendered
+    assert "staged file present" in rendered
+
+
 def test_staged_universe_status_frame_hides_raw_json_shape():
     frame = dashboard.staged_universe_status_frame(
         {
