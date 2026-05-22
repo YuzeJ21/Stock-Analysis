@@ -4906,12 +4906,14 @@ def overview_benchmark_pressure_cards(
             "title": pressure_title,
             "body": pressure_body,
             "badges": ["price moat", "local only"],
+            "command": "make status" if not total_tickers else "",
         },
         {
             "kicker": "SPY CONTEXT",
             "title": strongest_theme,
             "body": benchmark_body,
             "badges": ["benchmark lens", "research only"],
+            "command": "make pipeline" if strongest_theme == "Not available" else "",
         },
     ]
 
