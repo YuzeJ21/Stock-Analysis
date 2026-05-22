@@ -919,9 +919,11 @@ make data-sources-check
 The default `make universe-preview` / `make universe-apply` path uses the safer `sp500_smh` preset with a capped preview-sized build. Use `make data-sources-check` when you want the read-only source-health pass first. If you want a larger CLI-only smoke run:
 
 ```bash
-python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
-python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50
+make universe-preview
+make universe-apply
 ```
+
+The lower-level `src.universe_builder` flags remain available only when you explicitly need custom CLI-only scripting control.
 
 Warnings:
 

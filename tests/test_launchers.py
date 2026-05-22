@@ -168,6 +168,8 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "Apply the merge safely:\n\n```bash\nmake imports-apply" in readme
     assert "If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:\n\n```bash\nmake price-refresh" in readme
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
+    assert "If you want a larger CLI-only smoke run:\n\n```bash\nmake universe-preview\nmake universe-apply" in readme
+    assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" not in readme
     assert "If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data" in readme
     assert "make imports-apply\nmake validate-data\npython -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json" in readme
 
