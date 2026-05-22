@@ -6507,6 +6507,56 @@ def test_data_health_fix_first_cards_use_staged_flow_fallback_when_row_copy_is_m
     assert "not available" not in " ".join(card[1] for card in cards).lower()
 
 
+def test_data_health_fix_first_cards_keep_staged_follow_through_visible_when_target_files_are_present():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            },
+            {
+                "priority": 2,
+                "dataset": "peers",
+                "ticker": "TSLA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            },
+            {
+                "priority": 3,
+                "dataset": "prices",
+                "ticker": "AMD",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make price-validate",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_fix_first_cards(actions)
+
+    assert cards[0][2] == "make imports-validate"
+    assert "make imports-preview" in cards[0][1].lower()
+    assert "make imports-apply" in cards[0][1].lower()
+    assert cards[1][2] == "make imports-validate"
+    assert "make imports-preview" in cards[1][1].lower()
+    assert "make imports-apply" in cards[1][1].lower()
+    assert cards[2][2] == "make price-validate"
+    assert "make price-preview" in cards[2][1].lower()
+    assert "make price-apply" in cards[2][1].lower()
+    assert "use staged local imports if the free refresh fails" not in " ".join(card[1] for card in cards).lower()
+
+
 def test_data_health_action_path_cards_surface_best_and_lane_commands():
     actions = pd.DataFrame(
         [

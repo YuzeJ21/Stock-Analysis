@@ -3359,11 +3359,38 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
             row,
             ticker_focus_command(row.get("dataset"), row.get("ticker"), "make data-wizard TOP_N=10"),
         )
+        target_file = format_missing(row.get("target_file"), "")
+        staged_follow_through = ""
+        if target_file == "data/imports/fundamentals.csv":
+            command = "make imports-validate"
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+        elif target_file == "data/imports/peers.csv":
+            command = "make imports-validate"
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+        elif target_file == "data/imports/prices.csv":
+            command = "make price-validate"
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
         action = compact_reason(
             row.get("recommended_action") or command_family_fallback(command, "Review local data coverage."),
             max_sentences=1,
             max_chars=150,
         )
+        if staged_follow_through:
+            normalized_action = action.lower()
+            if target_file == "data/imports/prices.csv":
+                if (
+                    "make price-validate" not in normalized_action
+                    or "make price-preview" not in normalized_action
+                    or "make price-apply" not in normalized_action
+                ):
+                    action = staged_follow_through
+            else:
+                if (
+                    "make imports-validate" not in normalized_action
+                    or "make imports-preview" not in normalized_action
+                    or "make imports-apply" not in normalized_action
+                ):
+                    action = staged_follow_through
         body = action if not reason or reason == "Not available" else f"{reason} {action}".strip()
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         cards.append((title, body, command, tone))
