@@ -1823,22 +1823,14 @@ def build_command_bundle_details(
                         target_history_rows = 0
                         suggested_start_date = ""
                 elif bundle.lane == "fundamentals":
-                    recommended_action = (
-                        "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs."
-                        if not coverage.has_fundamentals
-                        else "Stage or add richer verified fundamentals to close the remaining DCF input gaps."
-                    )
+                    recommended_action = _fundamentals_action_text(ticker)
                     target_goal = "Unlock DCF"
                     target_history_rows = 0
                     suggested_start_date = ""
                     fallback_manual_command = ""
                     exact_next_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
                 elif bundle.lane == "peers":
-                    recommended_action = (
-                        "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent."
-                        if not coverage.has_peer_mapping
-                        else "Peer mappings exist, but local peer fundamentals or price context are still missing."
-                    )
+                    recommended_action = _peer_action_text(ticker, missing_mapping=not coverage.has_peer_mapping)
                     target_goal = "Unlock Peer Relative"
                     target_history_rows = 0
                     suggested_start_date = ""

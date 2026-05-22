@@ -918,6 +918,7 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
     payload = build_onboarding_payload(tmp_path)
     details = payload["command_bundle_details"]
     price_detail = next(row for row in details if row["lane"] == "prices" and row["ticker"] == "AMD")
+    fundamentals_detail = next(row for row in details if row["lane"] == "fundamentals" and row["ticker"] == "AMD")
     peer_detail = next(row for row in details if row["lane"] == "peers" and row["ticker"] == "NVDA")
 
     assert list(details[0].keys()) == COMMAND_BUNDLE_DETAIL_COLUMNS
@@ -929,10 +930,12 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
     assert price_detail["exact_next_command"] == "python3 -m src.data_update --tickers AMD"
     assert "make price-normalize" in price_detail["fallback_manual_command"]
     assert "src.data_update --tickers AMD" in price_detail["primary_command"]
+    assert "make focus-fundamentals TICKER=AMD" in fundamentals_detail["recommended_action"]
     assert peer_detail["is_holding"] is True
     assert peer_detail["current_unlock_stage"] == "peers"
     assert peer_detail["target_goal"] == "Unlock Peer Relative"
     assert peer_detail["exact_next_command"] == "make templates"
+    assert "make focus-peers TICKER=NVDA" in peer_detail["recommended_action"]
 
 
 def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path: Path):
