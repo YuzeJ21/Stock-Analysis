@@ -8177,6 +8177,36 @@ def test_overview_command_bundle_cards_use_staged_follow_through_when_summaries_
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_overview_command_bundle_cards_use_price_staged_follow_through_when_summaries_are_missing():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "ticker_count": 2,
+                "tickers": "AMD,AVGO",
+                "goal_summary": "",
+                "why_it_matters": "",
+                "bundle_shortcut_command": "",
+                "detail_shortcut_command": "",
+                "runbook_shortcut_command": "make runbook-prices",
+                "primary_command": "",
+                "target_file": "data/imports/prices.csv",
+                "safe_next_step": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_command_bundle_cards(bundles)
+
+    assert cards[0]["command"] == "make runbook-prices"
+    assert "make price-validate" in cards[0]["body"].lower()
+    assert "make price-preview" in cards[0]["body"].lower()
+    assert "make price-apply" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_bundle_cards_and_handoff_use_lane_runbooks_when_bundle_commands_are_missing():
     bundles = pd.DataFrame(
         [
