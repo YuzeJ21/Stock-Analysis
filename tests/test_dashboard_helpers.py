@@ -577,6 +577,44 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
     assert price_rows["recommended_action"].astype(str).str.contains("make focus-price").all()
 
 
+def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
+    pd.DataFrame(
+        [
+            {
+                "Ticker": "AMD",
+                "DataQualityScore": 10,
+                "ReadinessStatus": "Needs Price Data",
+                "MomentumReady": False,
+                "MonthlyPicksReady": False,
+                "DCFReady": False,
+                "PeerReady": False,
+                "EarningsAvailable": False,
+                "AnalystEstimatesAvailable": False,
+                "PriceHistoryDays": 0,
+                "MissingDataFields": "prices",
+                "NextBestAction": "old",
+                "Reason": "old",
+            }
+        ]
+    ).to_csv(tmp_path / "data_quality_wizard.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        tables = dashboard.load_research_health_tables(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    frame, message = tables["data_quality_wizard.csv"]
+    assert message is None
+    assert frame is not None
+    assert "FocusCommand" in frame.columns
+    assert "ExampleCommand" in frame.columns
+    amd_row = frame.loc[frame["Ticker"] == "AMD"].iloc[0]
+    assert amd_row["FocusCommand"] == "make focus-price TICKER=AMD"
+    assert "make price-normalize" in amd_row["ExampleCommand"]
+
+
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 

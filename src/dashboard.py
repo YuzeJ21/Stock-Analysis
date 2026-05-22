@@ -12,6 +12,7 @@ from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
+from src.research_health import run as run_research_health
 from src.monthly_picks import MonthlyPickConfig
 from src.paths import path_context
 from src.project_status import build_project_status_payload
@@ -235,7 +236,17 @@ def load_data_onboarding_tables(
 def load_research_health_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
-    return {filename: load_output(outputs_dir / filename) for filename in RESEARCH_HEALTH_FILES}
+    tables = {filename: load_output(outputs_dir / filename) for filename in RESEARCH_HEALTH_FILES}
+    wizard_frame, _ = tables.get("data_quality_wizard.csv", (None, None))
+    if wizard_frame is not None and not wizard_frame.empty:
+        required_columns = {"FocusCommand", "ExampleCommand"}
+        if not required_columns.issubset(set(wizard_frame.columns)):
+            run_research_health(BASE_DIR, output_dir=outputs_dir)
+            tables["data_quality_wizard.csv"] = load_output(outputs_dir / "data_quality_wizard.csv")
+            for key in ("liquidity_risk", "correlation_risk"):
+                filename = f"{key}.csv"
+                tables[filename] = load_output(outputs_dir / filename)
+    return tables
 
 
 def load_action_queue(
