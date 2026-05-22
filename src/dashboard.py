@@ -2225,9 +2225,9 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
             {
                 "kicker": "COMMAND BUNDLES",
                 "title": "No bundles yet",
-                "body": "Generate onboarding outputs to surface holdings-first local command bundles for prices, SEC staging, and peer mapping.",
+                "body": "Run make status to refresh the onboarding outputs and surface holdings-first local command bundles for prices, SEC staging, and peer mapping.",
                 "badges": ["read-only"],
-                "command": "python3 -m src.data_onboarding --write-output",
+                "command": "make status",
             }
         ]
 
@@ -2270,9 +2270,9 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             {
                 "kicker": "RUNBOOK",
                 "title": "No bundle runbook yet",
-                "body": "Generate onboarding outputs to surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
+                "body": "Run make status to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
                 "badges": ["read-only"],
-                "command": "python3 -m src.data_onboarding --write-output",
+                "command": "make status",
             }
         ]
 
@@ -2325,9 +2325,9 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         {
             "kicker": "RUNBOOK",
             "title": "No bundle runbook yet",
-            "body": "Generate onboarding outputs to surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
+            "body": "Run make status to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
             "badges": ["read-only"],
-            "command": "python3 -m src.data_onboarding --write-output",
+            "command": "make status",
         }
     ]
 
@@ -2338,9 +2338,9 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
             {
                 "kicker": "PRICE TARGETS",
                 "title": "No price targets yet",
-                "body": "Write the onboarding outputs to surface exact history targets for Monthly Picks, track record, and fuller 1Y local coverage.",
+                "body": "Run make status to refresh the onboarding outputs and surface exact history targets for Monthly Picks, track record, and fuller 1Y local coverage.",
                 "badges": ["read-only"],
-                "command": "python3 -m src.data_onboarding --write-output",
+                "command": "make status",
             }
         ]
 
@@ -2435,9 +2435,9 @@ def data_health_deep_research_target_cards(
         {
             "kicker": "DEEP TARGETS",
             "title": "No DCF or peer targets yet",
-            "body": "Write the onboarding outputs to surface explicit fundamentals and peer-relative target queues.",
+            "body": "Run make status to refresh the onboarding outputs and surface explicit fundamentals and peer-relative target queues.",
             "badges": ["read-only"],
-            "command": "python3 -m src.data_onboarding --write-output",
+            "command": "make status",
         }
     ]
 
@@ -2499,9 +2499,9 @@ def overview_deep_research_target_cards(
         {
             "kicker": "DEEP TARGETS",
             "title": "Generate DCF and peer targets",
-            "body": "Write the onboarding outputs to surface the next exact fundamentals and peer-relative targets.",
+            "body": "Run make status to refresh the onboarding outputs and surface the next exact fundamentals and peer-relative targets.",
             "badges": ["read-only", "data moat"],
-            "command": "python3 -m src.data_onboarding --write-output",
+            "command": "make status",
         }
     ]
 
@@ -2512,9 +2512,9 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
             {
                 "kicker": "PRICE TARGET",
                 "title": "Generate price targets",
-                "body": "Write the onboarding outputs to surface the next exact history targets for Monthly Picks, track record, and fuller local coverage.",
+                "body": "Run make status to refresh the onboarding outputs and surface the next exact history targets for Monthly Picks, track record, and fuller local coverage.",
                 "badges": ["read-only", "data moat"],
-                "command": "python3 -m src.data_onboarding --write-output",
+                "command": "make status",
             }
         ]
 
@@ -4505,9 +4505,9 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
             {
                 "kicker": "DATA BUNDLE",
                 "title": "Generate command bundles",
-                "body": "Write the onboarding outputs to surface holdings-first local bundles for prices, SEC staging, and peer mapping.",
+                "body": "Run make status to refresh the onboarding outputs and surface holdings-first local bundles for prices, SEC staging, and peer mapping.",
                 "badges": ["read-only", "data moat"],
-                "command": "python3 -m src.data_onboarding --write-output",
+                "command": "make status",
             }
         ]
 
@@ -4553,9 +4553,9 @@ def overview_bundle_handoff_cards(
             {
                 "kicker": "BUNDLE HANDOFF",
                 "title": "Generate bundle guidance",
-                "body": "Write the onboarding outputs first, then use Data Health to inspect the current local bundle workflow.",
+                "body": "Run make status first, then use Data Health to inspect the current local bundle workflow.",
                 "badges": ["read-only", "data moat"],
-                "command": "python3 -m src.data_onboarding --write-output",
+                "command": "make status",
             }
         ]
 
@@ -4642,9 +4642,9 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             {
                 "kicker": "BUNDLE RUNBOOK",
                 "title": "Generate bundle runbook",
-                "body": "Write the onboarding outputs to surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
+                "body": "Run make status to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
                 "badges": ["read-only", "data moat"],
-                "command": "python3 -m src.data_onboarding --write-output",
+                "command": "make status",
             }
         ]
 
@@ -4696,9 +4696,9 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         {
             "kicker": "BUNDLE RUNBOOK",
             "title": "Generate bundle runbook",
-            "body": "Write the onboarding outputs to surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
+            "body": "Run make status to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
             "badges": ["read-only", "data moat"],
-            "command": "python3 -m src.data_onboarding --write-output",
+            "command": "make status",
         }
     ]
 
@@ -6567,8 +6567,8 @@ def render_data_health(provider) -> None:
     if wizard_frame is None:
         render_notice_card(
             "Coverage wizard has not been generated",
-            wizard_message or "Generate the local data coverage wizard to see the next best coverage unlocks.",
-            "python3 -m src.data_onboarding --write-output",
+            wizard_message or "Run make status to refresh the local data coverage wizard and see the next best coverage unlocks.",
+            "make status",
         )
     render_section_header("Priority Fixes", "Highest-priority local data actions. Apply/merge steps remain CLI-only and reviewable.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
@@ -6581,8 +6581,8 @@ def render_data_health(provider) -> None:
     if command_bundles_frame is None:
         render_notice_card(
             "Command bundles have not been generated yet",
-            command_bundles_message or "Write the onboarding outputs to generate holdings-first local command bundles.",
-            "python3 -m src.data_onboarding --write-output",
+            command_bundles_message or "Run make status to refresh the onboarding outputs and generate holdings-first local command bundles.",
+            "make status",
         )
     if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
         with st.expander("Command bundle detail rows", expanded=False):
@@ -6612,8 +6612,8 @@ def render_data_health(provider) -> None:
     elif command_bundle_details_frame is None:
         render_notice_card(
             "Command bundle detail rows are not available yet",
-            command_bundle_details_message or "Write the onboarding outputs to generate ticker-level bundle detail rows.",
-            "python3 -m src.data_onboarding --write-output",
+            command_bundle_details_message or "Run make status to refresh the onboarding outputs and generate ticker-level bundle detail rows.",
+            "make status",
         )
     if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
         with st.expander("Command bundle runbook", expanded=False):
@@ -6639,8 +6639,8 @@ def render_data_health(provider) -> None:
     elif command_bundle_runbook_frame is None:
         render_notice_card(
             "Command bundle runbook is not available yet",
-            command_bundle_runbook_message or "Write the onboarding outputs to generate ordered bundle runbook rows.",
-            "python3 -m src.data_onboarding --write-output",
+            command_bundle_runbook_message or "Run make status to refresh the onboarding outputs and generate ordered bundle runbook rows.",
+            "make status",
         )
 
     if not validation_rows.empty:
@@ -7136,8 +7136,8 @@ def render_data_health(provider) -> None:
             render_notice_card(
                 "Price history worklist is not available yet",
                 price_worklist_message
-                or "Generate the onboarding outputs to see exact local price-history gaps and the safe manual-import path.",
-                "python3 -m src.data_onboarding --write-output",
+                or "Run make status to refresh the onboarding outputs and see exact local price-history gaps plus the safe manual-import path.",
+                "make status",
                 tone="warning",
             )
         if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
@@ -7165,8 +7165,8 @@ def render_data_health(provider) -> None:
             render_notice_card(
                 "Fundamentals and peer worklist is not available yet",
                 fundamentals_peer_worklist_message
-                or "Generate the onboarding outputs to see which tickers still need SEC fundamentals or manual peer mappings.",
-                "python3 -m src.data_onboarding --write-output",
+                or "Run make status to refresh the onboarding outputs and see which tickers still need SEC fundamentals or manual peer mappings.",
+                "make status",
                 tone="warning",
             )
         if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
@@ -7192,8 +7192,8 @@ def render_data_health(provider) -> None:
             render_notice_card(
                 "Optional context worklist is not available yet",
                 optional_context_worklist_message
-                or "Generate the onboarding outputs to see which tickers still have optional earnings or analyst-estimate gaps.",
-                "python3 -m src.data_onboarding --write-output",
+                or "Run make status to refresh the onboarding outputs and see which tickers still have optional earnings or analyst-estimate gaps.",
+                "make status",
                 tone="warning",
             )
         if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
@@ -7207,8 +7207,8 @@ def render_data_health(provider) -> None:
             render_notice_card(
                 "Ticker unlock ladder is not available yet",
                 ticker_unlock_ladder_message
-                or "Generate the onboarding outputs to see the next per-ticker local data unlock stage.",
-                "python3 -m src.data_onboarding --write-output",
+                or "Run make status to refresh the onboarding outputs and see the next per-ticker local data unlock stage.",
+                "make status",
                 tone="warning",
             )
         if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
@@ -7222,8 +7222,8 @@ def render_data_health(provider) -> None:
             render_notice_card(
                 "Unlock priority summary is not available yet",
                 unlock_priority_summary_message
-                or "Generate the onboarding outputs to see grouped unlock priorities by holdings, theme, and sector ETF.",
-                "python3 -m src.data_onboarding --write-output",
+                or "Run make status to refresh the onboarding outputs and see grouped unlock priorities by holdings, theme, and sector ETF.",
+                "make status",
                 tone="warning",
             )
 

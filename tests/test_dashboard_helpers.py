@@ -2840,6 +2840,26 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
     assert "sell" not in rendered
 
 
+def test_data_health_onboarding_fallback_cards_use_status_refresh():
+    bundle_cards = dashboard.data_health_command_bundle_cards(None)
+    runbook_cards = dashboard.data_health_command_bundle_runbook_cards(None)
+    target_cards = dashboard.data_health_price_target_cards(None)
+
+    rendered = " ".join(
+        str(value)
+        for card_group in (bundle_cards, runbook_cards, target_cards)
+        for card in card_group
+        for value in card.values()
+    ).lower()
+
+    assert bundle_cards[0]["command"] == "make status"
+    assert runbook_cards[0]["command"] == "make status"
+    assert target_cards[0]["command"] == "make status"
+    assert "run make status to refresh the onboarding outputs" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
     runbook = pd.DataFrame(
         [
@@ -3694,6 +3714,26 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     assert "63 target rows" in rendered
     assert "start by 2025-10-01" in rendered
     assert "make bundle-prices" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_onboarding_fallback_cards_use_status_refresh():
+    bundle_cards = dashboard.overview_command_bundle_cards(None)
+    handoff_cards = dashboard.overview_bundle_handoff_cards(None, None, None)
+    runbook_cards = dashboard.overview_bundle_runbook_cards(None)
+
+    rendered = " ".join(
+        str(value)
+        for card_group in (bundle_cards, handoff_cards, runbook_cards)
+        for card in card_group
+        for value in card.values()
+    ).lower()
+
+    assert bundle_cards[0]["command"] == "make status"
+    assert handoff_cards[0]["command"] == "make status"
+    assert runbook_cards[0]["command"] == "make status"
+    assert "run make status" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
