@@ -948,3 +948,62 @@ def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: P
     assert {"priority", "action_type", "recommended_action", "reason"} <= set(frame.columns)
     assert "focus_command" in frame.columns
     assert frame.iloc[0]["action_type"] == "prices"
+
+
+def test_action_queue_payload_normalizes_legacy_parse_error_reason_from_price_status(tmp_path: Path):
+    outputs_dir = tmp_path / "outputs"
+    data_dir = tmp_path / "data"
+    outputs_dir.mkdir()
+    data_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {"ticker": "META", "theme": "AI", "sectoretf": "XLK", "defaultpurpose": "Core Compounder"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares", "primarypurpose"]).to_csv(data_dir / "holdings.csv", index=False)
+    (outputs_dir / "data_onboarding_actions.csv").write_text(
+        "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n",
+        encoding="utf-8",
+    )
+    (outputs_dir / "data_gap_report.csv").write_text(
+        "dataset,ticker,status,reason,required_for,recommended_action,local_file,source_name\n",
+        encoding="utf-8",
+    )
+    pd.DataFrame(
+        [
+            {
+                "Ticker": "META",
+                "DataQualityScore": 0,
+                "ReadinessStatus": "Needs Price Data",
+                "MomentumReady": False,
+                "MonthlyPicksReady": False,
+                "DCFReady": False,
+                "PeerReady": False,
+                "EarningsAvailable": False,
+                "AnalystEstimatesAvailable": False,
+                "PriceHistoryDays": 0,
+                "MissingDataFields": "prices",
+                "NextBestAction": (
+                    "Run make focus-price TICKER=META, or run python3 -m src.data_update --tickers META and "
+                    "normalize verified downloaded OHLCV files into data/imports/prices.csv."
+                ),
+                "FocusCommand": "make focus-price TICKER=META",
+                "ExampleCommand": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
+                "Reason": "META has 0 local price rows.",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_quality_wizard.csv", index=False)
+    (outputs_dir / "price_update_status.csv").write_text(
+        "run_timestamp,ticker,requested_start,requested_end,provider,status,rows_fetched,rows_merged,error_category,error_message,fallback_used,recommended_action\n"
+        "2026-05-21T00:00:00Z,META,,2026-05-21,stooq,parse_error,0,0,parse_error,\"META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)\",false,Retry later or use staged manual prices in data/imports/prices.csv.\n",
+        encoding="utf-8",
+    )
+
+    payload = build_action_queue_payload(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+
+    price_row = next(row for row in payload["action_queue"] if row["action_type"] == "prices")
+    assert price_row["ticker"] == "META"
+    assert price_row["focus_command"] == "make focus-price TICKER=META"
+    assert "provider rows could not be parsed cleanly" in price_row["reason"]
+    assert "Expected 1 fields in line 6, saw 2" in price_row["reason"]

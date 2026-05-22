@@ -10,6 +10,7 @@ from typing import Any
 import pandas as pd
 
 from src.data_onboarding import build_onboarding_payload, focus_command_for_ticker
+from src.data_update import enrich_price_update_status_frame
 from src.data_sources import build_data_source_payload
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.research_health import run as run_research_health
@@ -580,7 +581,7 @@ def build_action_queue_payload(
     data_path = resolve_data_dir(data_dir, root)
     output_path = resolve_outputs_dir(output_dir, root)
 
-    price_status = _load_csv(output_path / "price_update_status.csv")
+    price_status = enrich_price_update_status_frame(_load_csv(output_path / "price_update_status.csv"))
     price_worklist = _load_csv(output_path / "price_import_worklist.csv")
     onboarding_actions = _load_csv(output_path / "data_onboarding_actions.csv")
     data_gaps = _load_csv(output_path / "data_gap_report.csv")
