@@ -307,8 +307,7 @@ def build_action_queue_rows(
             ticker = _normalized_ticker(row.get("ticker"))
             worklist_row = _worklist_lookup(price_worklist, ticker)
             fallback_recommended_action = (
-                f"Run python3 -m src.data_update --tickers {ticker}, or normalize verified downloaded OHLCV files into "
-                "data/imports/prices.csv."
+                _price_focus_recommended_action(ticker)
                 if ticker
                 else "Use staged manual prices in data/imports/prices.csv."
             )
@@ -320,6 +319,8 @@ def build_action_queue_rows(
                 or row_recommended_action
                 or fallback_recommended_action
             )
+            if ticker and "make focus-price" not in recommended_action:
+                recommended_action = _price_focus_recommended_action(ticker)
             fallback_command = _price_normalize_command(ticker)
             example_command = str(worklist_row.get("example_command", "")).strip() or fallback_command
             safe_next_step = str(worklist_row.get("safe_next_step", "")).strip() or (
