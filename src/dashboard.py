@@ -3668,9 +3668,9 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
 
 def empty_state_command_rows() -> list[dict[str, str]]:
     return [
-        {"Scenario": "No local prices or short history", "Next step": "make status, then use the first make focus-price TICKER=... or make runbook-prices-broader path. For downloaded files, use make price-normalize INPUT=... TICKER=... SOURCE=..."},
-        {"Scenario": "No local fundamentals for valuation", "Next step": "make status, then use make focus-fundamentals TICKER=... or make runbook-fundamentals-broader, then run make imports-validate, make imports-preview, and make imports-apply"},
-        {"Scenario": "No peer-relative context", "Next step": "make status, then use make focus-peers TICKER=... or make runbook-peers-broader. If mappings are missing, run make templates, then fill data/imports/peers.csv; if mappings already exist, follow the staged peer fundamentals or price blocker the queue prints."},
+        {"Scenario": "No local prices or short history", "Next step": "Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize INPUT=... TICKER=... SOURCE=..., then run make price-validate, make price-preview, and make price-apply."},
+        {"Scenario": "No local fundamentals for valuation", "Next step": "Use make runbook-fundamentals-broader or make focus-fundamentals TICKER=... first, then run make imports-validate, make imports-preview, and make imports-apply."},
+        {"Scenario": "No peer-relative context", "Next step": "Use make runbook-peers-broader or make focus-peers TICKER=... first. If mappings are missing, run make templates, then fill data/imports/peers.csv; if mappings already exist, follow the staged peer fundamentals or price blocker the queue prints."},
         {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
         {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then run make imports-validate, make imports-preview, and make imports-apply for staged local datasets, or use make price-validate, make price-preview, and make price-apply for staged price rows."},
     ]

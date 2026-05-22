@@ -4824,7 +4824,9 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make status-check top_n=5" in rendered
     assert "make data-wizard top_n=5" in rendered
     assert "data health tab" in nav_rendered
-    assert "make status" in empty_rendered
+    assert "make runbook-prices-broader" in empty_rendered
+    assert "make runbook-fundamentals-broader" in empty_rendered
+    assert "make runbook-peers-broader" in empty_rendered
     assert "make focus-price" in empty_rendered
     assert "run make templates, then fill data/imports/peers.csv" in empty_rendered
     assert "price-normalize" in empty_rendered
