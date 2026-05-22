@@ -1600,6 +1600,8 @@ def preferred_row_command(row: pd.Series | dict[str, object], fallback: str = ""
 
 def normalize_operator_command(command: object) -> str:
     command_text = format_missing(command, "")
+    if command_text == "make status":
+        return "make status-check TOP_N=5"
     if command_text == "make onboarding":
         return "make status-check TOP_N=5"
     if command_text == "make dashboard":

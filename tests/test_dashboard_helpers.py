@@ -1693,7 +1693,7 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
     assert "normalize verified downloaded ohlcv rows" in actions[0][1].lower()
     assert actions[0][2] == "make focus-price TICKER=NVDA"
     assert actions[0][3] == "danger"
-    assert commands[0]["Command"] == "make status"
+    assert commands[0]["Command"] == "make status-check TOP_N=5"
 
 
 def test_project_status_cockpit_is_readable_and_research_safe():
@@ -2885,7 +2885,7 @@ def test_overview_current_top_surfaces_cards_prefer_staged_peer_handoff_reason()
     cards = dashboard.overview_current_top_surfaces_cards(coverage, holdings, None, peer_queue, payload, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[2]["title"] == "make status"
+    assert cards[2]["title"] == "make verify"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
 
