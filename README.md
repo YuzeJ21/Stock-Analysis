@@ -101,9 +101,9 @@ make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_man
 make price-validate
 make price-preview
 make price-apply
-make daily
-make dashboard
 make dashboard-smoke
+make dashboard
+make daily
 ```
 
 SEC and universe helpers:
@@ -118,7 +118,7 @@ make universe-preview
 make universe-apply
 ```
 
-If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make status` for a read-only local project snapshot. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make validate-all` for the extended local validation launcher, including monthly picks, track record, data-source checks, and a dashboard smoke check. Use `make dashboard-smoke` for only the quick headless Streamlit health check.
+If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make status` first for the read-only local project snapshot and the printed focus/runbook path. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make dashboard-smoke` before deeper dashboard review. Use `make validate-all` for the extended local validation launcher, including monthly picks, track record, data-source checks, and a dashboard smoke check.
 
 Path-proof shell launchers:
 
