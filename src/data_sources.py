@@ -137,11 +137,11 @@ def _gap_example_command(dataset: str, ticker: str) -> str:
 def _gap_target_file(dataset: str, ticker: str) -> str:
     ticker = str(ticker or "").strip().upper()
     if dataset == "prices":
-        return "data/imports/prices.csv" if ticker else "data/prices.csv"
+        return "data/imports/prices.csv"
     if dataset == "fundamentals":
-        return "data/imports/fundamentals.csv" if ticker else "data/fundamentals.csv"
+        return "data/imports/fundamentals.csv"
     if dataset == "peers":
-        return "data/imports/peers.csv" if ticker else "data/peers.csv"
+        return "data/imports/peers.csv"
     if dataset == "earnings":
         return "data/imports/earnings.csv"
     if dataset == "analyst_estimates":

@@ -82,7 +82,7 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert statuses["analyst_estimates"] == "manual_only"
     assert source_lookup["fundamentals"]["focus_command"] == "make status"
     assert source_lookup["fundamentals"]["example_command"] == "make runbook-fundamentals-broader"
-    assert source_lookup["fundamentals"]["target_file"] == "data/fundamentals.csv"
+    assert source_lookup["fundamentals"]["target_file"] == "data/imports/fundamentals.csv"
     assert source_lookup["smh_holdings"]["focus_command"] == "make templates"
     assert source_lookup["smh_holdings"]["target_file"] == "data/custom_universe.csv"
     assert source_lookup["sp500_constituents"]["focus_command"] == "make universe-preview"
@@ -92,7 +92,8 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert "make status" in gap_lookup["fundamentals"]["recommended_action"]
     assert gap_lookup["fundamentals"]["focus_command"] == "make status"
     assert gap_lookup["fundamentals"]["example_command"] == "make runbook-fundamentals-broader"
-    assert gap_lookup["fundamentals"]["target_file"] == "data/fundamentals.csv"
+    assert gap_lookup["fundamentals"]["target_file"] == "data/imports/fundamentals.csv"
+    assert gap_lookup["peers"]["target_file"] == "data/imports/peers.csv"
     assert "make templates" in gap_lookup["peers"]["recommended_action"]
     assert gap_lookup["peers"]["focus_command"] == "make status"
     assert gap_lookup["peers"]["example_command"] == "make runbook-peers-broader"
