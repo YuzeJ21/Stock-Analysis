@@ -3833,11 +3833,15 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         priority = int(row.get("priority") or 999)
         dataset = format_missing(row.get("dataset"))
         ticker = format_missing(row.get("ticker"), fallback="")
-        reason = normalize_operator_copy(row.get("reason") or "Local data coverage needs attention.")
+        reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
-        body = recommended_action
+        body = review_path_fallback(row.get("dataset"))
         if reason and reason != "Not available":
             body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
+        elif recommended_action and recommended_action != "Not available":
+            body = recommended_action
+        elif body == "Review local data coverage.":
+            body = "Local data coverage needs attention."
         command = preferred_row_command(
             row,
             ticker_focus_command(row.get("dataset"), row.get("ticker"), "make status-check TOP_N=5"),

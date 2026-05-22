@@ -1831,6 +1831,29 @@ def test_project_status_action_cards_use_lane_front_doors_when_commands_are_miss
     assert actions[0][2] == "make focus-fundamentals TICKER=AMD"
 
 
+def test_project_status_action_cards_use_review_fallback_when_row_copy_is_missing():
+    payload = {
+        "top_onboarding_actions": [
+            {
+                "priority": 1,
+                "dataset": "peers",
+                "ticker": "TSLA",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    }
+
+    actions = dashboard.project_status_action_cards(payload)
+
+    assert actions[0][0] == "P1 peers - TSLA"
+    assert actions[0][2] == "make focus-peers TICKER=TSLA"
+    assert "review peer path." in actions[0][1].lower()
+    assert "not available" not in actions[0][1].lower()
+
+
 def test_project_status_command_rows_prefer_structured_rows():
     payload = {
         "recommended_next_command_rows": [
