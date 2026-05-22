@@ -2086,6 +2086,7 @@ def stock_report_next_step_cards(
 
     has_prices = False
     has_fundamentals = False
+    fundamentals_row: pd.Series | None = None
     peer_row: pd.Series | None = None
     if coverage is not None and not coverage.empty:
         coverage_frame = coverage.copy()
@@ -2098,10 +2099,26 @@ def stock_report_next_step_cards(
             has_fundamentals = bool(
                 coverage_frame.loc[coverage_frame["dataset"].eq("fundamentals"), "ticker_present_bool"].any()
             )
+            fundamentals_matches = coverage_frame.loc[coverage_frame["dataset"].eq("fundamentals")]
+            if not fundamentals_matches.empty:
+                fundamentals_row = fundamentals_matches.iloc[0]
             peer_matches = coverage_frame.loc[coverage_frame["dataset"].eq("peers")]
             if not peer_matches.empty:
                 peer_row = peer_matches.iloc[0]
 
+    fundamentals_command = preferred_row_command(
+        fundamentals_row,
+        ticker_focus_command("fundamentals", ticker, fallback=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"),
+    ) if fundamentals_row is not None else ticker_focus_command(
+        "fundamentals",
+        ticker,
+        fallback=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}",
+    )
+    fundamentals_target_file = format_missing(fundamentals_row.get("target_file"), "") if fundamentals_row is not None else ""
+    staged_fundamentals_import = (
+        fundamentals_command == "make imports-validate"
+        and fundamentals_target_file == "data/imports/fundamentals.csv"
+    )
     peer_command = preferred_row_command(peer_row, ticker_focus_command("peers", ticker, fallback="make templates")) if peer_row is not None else ticker_focus_command("peers", ticker, fallback="make templates")
     peer_target_file = format_missing(peer_row.get("target_file"), "") if peer_row is not None else ""
     staged_peer_import = (
@@ -2126,17 +2143,18 @@ def stock_report_next_step_cards(
         cards.append(
             {
                 "kicker": "NEXT STEP",
-                "title": "Stage fundamentals",
+                "title": "Advance staged fundamentals import" if staged_fundamentals_import else "Stage fundamentals",
                 "body": (
-                    f"{ticker} has enough price context for more research, but DCF coverage is still missing local fundamentals. "
-                    "Stage SEC fundamentals before leaning on valuation."
+                    f"{ticker} already has staged fundamentals in {fundamentals_target_file}. "
+                    "Validate, preview, and apply them before trusting DCF coverage."
+                    if staged_fundamentals_import
+                    else (
+                        f"{ticker} has enough price context for more research, but DCF coverage is still missing local fundamentals. "
+                        "Stage SEC fundamentals before leaning on valuation."
+                    )
                 ),
-                "badges": ["fundamentals", "sec queue"],
-                "command": ticker_focus_command(
-                    "fundamentals",
-                    ticker,
-                    fallback=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}",
-                ),
+                "badges": ["fundamentals", "staged import" if staged_fundamentals_import else "sec queue"],
+                "command": fundamentals_command,
             }
         )
     elif not readiness.get("peer_ready") or not peer_summary.get("peer_dataset_present"):

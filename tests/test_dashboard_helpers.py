@@ -3216,6 +3216,23 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
     assert cards[0]["title"] == "Stage fundamentals"
     assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
 
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": True},
+            {
+                "dataset": "fundamentals",
+                "ticker_present": False,
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/fundamentals.csv",
+            },
+        ]
+    )
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["title"] == "Advance staged fundamentals import"
+    assert cards[0]["command"] == "make imports-validate"
+    assert "staged fundamentals" in cards[0]["body"].lower()
+
     payload["valuation_readiness"]["dcf_ready"] = True
     coverage = pd.DataFrame(
         [
