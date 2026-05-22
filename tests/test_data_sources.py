@@ -58,6 +58,7 @@ def test_data_source_registry_contains_required_datasets():
 
     prices_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "prices")
     assert "make status" in prices_entry.fallback_action
+    assert "make price-normalize" in prices_entry.fallback_action
     assert "make price-validate" in prices_entry.fallback_action
     assert "make price-preview" in prices_entry.fallback_action
     assert "make price-apply" in prices_entry.fallback_action
