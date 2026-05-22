@@ -10,6 +10,7 @@ import pandas as pd
 
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.local_data_catalog import LocalDataCatalog
+from src.providers.local_schemas import validate_local_dataset
 
 
 AVAILABILITY_STATUSES = {
@@ -170,6 +171,53 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
             f"--tickers {ticker}."
         )
     return ""
+
+
+def _staged_import_file_name(dataset: str) -> str | None:
+    if dataset == "peers":
+        return "peers.csv"
+    if dataset == "earnings":
+        return "earnings.csv"
+    if dataset == "analyst_estimates":
+        return "analyst_estimates.csv"
+    return None
+
+
+def _staged_import_status(dataset: str, root: Path, data_path: Path) -> dict[str, Any] | None:
+    file_name = _staged_import_file_name(dataset)
+    if not file_name:
+        return None
+    staged_path = data_path / "imports" / file_name
+    if not staged_path.exists():
+        return None
+    validation, frame = validate_local_dataset(dataset, staged_path)
+    row_count = len(frame) if frame is not None else validation.row_count
+    return {
+        "path": staged_path,
+        "row_count": row_count,
+        "status": validation.status,
+        "available_columns": validation.available_columns,
+        "warnings": validation.warnings,
+    }
+
+
+def _staged_import_follow_up(dataset: str) -> str:
+    if dataset == "peers":
+        return (
+            "Run make imports-validate, then make imports-preview, then make imports-apply, "
+            "then make status to confirm the live peer mappings."
+        )
+    if dataset == "earnings":
+        return (
+            "Run make imports-validate, then make imports-preview, then make imports-apply, "
+            "then make status to confirm the live local earnings context."
+        )
+    if dataset == "analyst_estimates":
+        return (
+            "Run make imports-validate, then make imports-preview, then make imports-apply, "
+            "then make status to confirm the live local analyst-estimate context."
+        )
+    return "Run make imports-validate, then make imports-preview, then make imports-apply, then make status."
 
 
 DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
@@ -434,6 +482,9 @@ def build_data_source_status(
         warnings = ""
         notes = entry.notes
         status = "not_supported"
+        fallback_action = entry.fallback_action
+        focus_command = _gap_focus_command(entry.dataset, "")
+        example_command = _gap_example_command(entry.dataset, "")
 
         if entry.dataset in metadata_by_name:
             metadata = metadata_by_name[entry.dataset]
@@ -442,6 +493,21 @@ def build_data_source_status(
             row_count = int(metadata.row_count)
             columns = ", ".join(metadata.available_columns)
             warnings = "; ".join(metadata.validation_warnings)
+            if entry.dataset in {"peers", "earnings", "analyst_estimates"} and metadata.validation_status == "missing_file":
+                staged = _staged_import_status(entry.dataset, root, data_path)
+                if staged and staged["row_count"] > 0 and staged["status"] in {"valid", "valid_with_warnings"}:
+                    status = "partial"
+                    local_file = _display_path(staged["path"], root)
+                    row_count = int(staged["row_count"])
+                    columns = ", ".join(staged["available_columns"])
+                    warnings = "; ".join(staged["warnings"])
+                    notes = (
+                        f"{entry.notes} Staged import rows are present; validate, preview, apply, "
+                        "then refresh status before relying on canonical local data."
+                    )
+                    fallback_action = _staged_import_follow_up(entry.dataset)
+                    focus_command = "make imports-validate"
+                    example_command = "make imports-preview"
         elif entry.dataset == "local_outputs":
             status, row_count, present, missing = _output_status(output_path)
             local_file = _display_path(output_path, root)
@@ -469,10 +535,10 @@ def build_data_source_status(
                 requires_user_agent=entry.requires_user_agent,
                 requires_api_key=entry.requires_api_key,
                 expected_local_file=entry.expected_local_file,
-                fallback_action=entry.fallback_action,
+                fallback_action=fallback_action,
                 target_file=_gap_target_file(entry.dataset, ""),
-                focus_command=_gap_focus_command(entry.dataset, ""),
-                example_command=_gap_example_command(entry.dataset, ""),
+                focus_command=focus_command,
+                example_command=example_command,
                 notes=notes,
                 local_file=local_file,
                 row_count=row_count,
@@ -519,9 +585,9 @@ def build_data_gap_report(
                 reason=row.validation_warnings or row.notes,
                 required_for=row.required_for,
                 recommended_action=row.fallback_action,
-                target_file=_gap_target_file(row.dataset, ""),
-                focus_command=_gap_focus_command(row.dataset, ""),
-                example_command=_gap_example_command(row.dataset, ""),
+                target_file=row.target_file,
+                focus_command=row.focus_command,
+                example_command=row.example_command,
                 local_file=row.local_file,
                 source_name=row.source_name,
             )

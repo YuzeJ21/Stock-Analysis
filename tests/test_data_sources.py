@@ -185,6 +185,56 @@ def test_missing_universe_gap_uses_preview_first_flow(tmp_path: Path):
     assert universe_gap["target_file"] == "data/imports/universe.csv"
 
 
+def test_staged_peer_import_changes_data_source_status_and_gap_flow(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    imports_dir = data_dir / "imports"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    imports_dir.mkdir()
+    (data_dir / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,NVDA,100,1000\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,theme,sector,pe_ratio,revenue_growth,profit_margin,debt_to_equity\n"
+        "NVDA,AI,Semis,30,0.2,0.3,0.4\n",
+        encoding="utf-8",
+    )
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
+        "NVDA,AI,SMH,Momentum Leader,Large,fixture\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text(
+        "ticker,primarypurpose\n"
+        "NVDA,Momentum Leader\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group,source,as_of_date\n"
+        "NVDA,AMD,ai_semis,manual,2026-05-22\n",
+        encoding="utf-8",
+    )
+
+    payload = build_data_source_payload(tmp_path)
+
+    peers_status = next(row for row in payload["data_sources"] if row["dataset"] == "peers")
+    assert peers_status["availability_status"] == "partial"
+    assert peers_status["local_file"] == "data/imports/peers.csv"
+    assert peers_status["row_count"] == 1
+    assert peers_status["focus_command"] == "make imports-validate"
+    assert peers_status["example_command"] == "make imports-preview"
+    assert "make imports-apply" in peers_status["fallback_action"]
+    peers_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "peers" and not gap["ticker"])
+    assert peers_gap["status"] == "partial"
+    assert peers_gap["focus_command"] == "make imports-validate"
+    assert peers_gap["example_command"] == "make imports-preview"
+    assert "make imports-apply" in peers_gap["recommended_action"]
+    assert peers_gap["local_file"] == "data/imports/peers.csv"
+
+
 def test_data_sources_cli_check_json(tmp_path: Path, capsys):
     _write_minimal_local_data(tmp_path)
     previous_argv = sys.argv[:]
