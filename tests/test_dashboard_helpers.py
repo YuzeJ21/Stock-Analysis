@@ -4981,6 +4981,21 @@ def test_overview_coverage_hotspot_cards_use_onboarding_for_optional_context():
     assert cards[1]["command"] == "make onboarding"
 
 
+def test_overview_coverage_hotspot_cards_use_action_queue_check_for_unknown_action_type():
+    queue = pd.DataFrame(
+        [
+            {"priority": 1, "action_type": "source_registry", "ticker": ""},
+        ]
+    )
+
+    cards = dashboard.overview_coverage_hotspot_cards(queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Source Registry"
+    assert cards[0]["command"] == "make action-queue-check TOP_N=10"
+    assert "visible local workflow pressure" in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {
