@@ -1651,8 +1651,36 @@ def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortli
     assert "unlock dcf" in rendered
     assert "unlock peer relative" in rendered
     assert "next surface: data health" in rendered
-    assert cards[0]["command"] == "Not available"
+    assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
     assert "current holding" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_deep_research_priority_bridge_cards_keep_staged_peer_command_when_present():
+    holdings = pd.DataFrame([{"Ticker": "TSLA"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "has_peer_mapping": True,
+                "peer_ready": False,
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local peer inputs.",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_priority_bridge_cards(holdings, None, peer_queue, limit=1)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "TSLA"
+    assert cards[0]["command"] == "make imports-validate"
+    assert "unlock peer relative" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

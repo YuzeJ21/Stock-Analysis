@@ -4146,17 +4146,24 @@ def overview_deep_research_priority_bridge_cards(
         rows = rows.loc[rows["ticker"].ne("")].copy()
         if rows.empty:
             return
+        lane_fallback = ""
+        if lane == "Unlock DCF":
+            lane_fallback = "fundamentals"
+        elif lane == "Unlock Peer Relative":
+            lane_fallback = "peers"
         for _, row in rows.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True]).iterrows():
+            ticker = format_missing(row.get("ticker"), "Ticker")
+            fallback_command = ticker_focus_command(lane_fallback, ticker, fallback="") if lane_fallback else ""
             priority_rows.append(
                 {
-                    "ticker": format_missing(row.get("ticker"), "Ticker"),
+                    "ticker": ticker,
                     "lane": lane,
                     "theme": format_missing(row.get("theme"), "Unclassified"),
                     "is_holding": bool(row.get("is_holding")),
                     "priority": float(row.get("priority", 999)),
                     "next_surface": next_surface,
                     "recommended_action": compact_reason(row.get("recommended_action"), max_sentences=1, max_chars=140),
-                "command": preferred_row_command(row, "Not available"),
+                    "command": preferred_row_command(row, fallback_command or "Not available"),
                 }
             )
 
