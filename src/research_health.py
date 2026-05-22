@@ -38,6 +38,32 @@ def _price_next_best_action(ticker: str) -> str:
         "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
 
+
+def _fundamentals_next_best_action(ticker: str) -> str:
+    return (
+        f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
+        f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}."
+    )
+
+
+def _peer_next_best_action(ticker: str, *, missing_mapping: bool) -> str:
+    if missing_mapping:
+        return (
+            f"Run make focus-peers TICKER={ticker}, or write templates and fill data/imports/peers.csv manually "
+            "with transparent peer mappings."
+        )
+    return (
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the staged local import "
+        "workflows so peer-relative valuation can calculate transparently."
+    )
+
+
+def _staged_peer_next_best_action() -> str:
+    return (
+        "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+        "to confirm the live local peer mappings."
+    )
+
 LIQUIDITY_COLUMNS = [
     "Ticker",
     "LiquidityStatus",
@@ -190,8 +216,21 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
             f"Missing or optional gaps: {missing_text or 'none reported'}."
         )
         next_best_action = str(row.get("next_best_action", "") or "").strip()
-        if not momentum_ready and "make focus-price" not in next_best_action:
-            next_best_action = _price_next_best_action(ticker)
+        if not momentum_ready:
+            if "make focus-price" not in next_best_action:
+                next_best_action = _price_next_best_action(ticker)
+        elif not dcf_ready:
+            if "make focus-fundamentals" not in next_best_action:
+                next_best_action = _fundamentals_next_best_action(ticker)
+        elif not peer_ready:
+            if focus_command == "make imports-validate":
+                if "make imports-validate" not in next_best_action:
+                    next_best_action = _staged_peer_next_best_action()
+            elif not has_peer_mapping:
+                if "make focus-peers" not in next_best_action:
+                    next_best_action = _peer_next_best_action(ticker, missing_mapping=True)
+            elif "make focus-peers" not in next_best_action:
+                next_best_action = _peer_next_best_action(ticker, missing_mapping=False)
 
         rows.append(
             {

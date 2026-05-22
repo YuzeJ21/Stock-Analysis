@@ -109,6 +109,54 @@ def test_data_quality_wizard_uses_staged_peer_follow_through_when_mappings_alrea
     assert "make imports-apply" in frame.loc[0, "NextBestAction"]
 
 
+def test_data_quality_wizard_normalizes_stale_enrichment_actions():
+    coverage = [
+        {
+            "ticker": "NVDA",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": True,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": "Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+        },
+        {
+            "ticker": "AMD",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": True,
+            "dcf_ready": True,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": "Add data/imports/peers.csv manually with real peer mappings.",
+        },
+    ]
+
+    frame = build_data_quality_wizard(coverage)
+
+    nvda = frame.loc[frame["Ticker"] == "NVDA"].iloc[0]
+    amd = frame.loc[frame["Ticker"] == "AMD"].iloc[0]
+
+    assert nvda["ReadinessStatus"] == "Partial Coverage"
+    assert nvda["FocusCommand"] == "make focus-fundamentals TICKER=NVDA"
+    assert "make focus-fundamentals TICKER=NVDA" in nvda["NextBestAction"]
+    assert "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA" in nvda["ExampleCommand"]
+
+    assert amd["ReadinessStatus"] == "Partial Coverage"
+    assert amd["FocusCommand"] == "make focus-peers TICKER=AMD"
+    assert "make focus-peers TICKER=AMD" in amd["NextBestAction"]
+    assert amd["ExampleCommand"] == "make templates"
+
+
 def test_liquidity_risk_calculates_context_without_recommendations():
     frame = build_liquidity_risk(_price_frame(), tickers=["NVDA", "THIN", "MISSING"])
 
