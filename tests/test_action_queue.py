@@ -509,6 +509,58 @@ def test_action_queue_prefers_explicit_data_gap_commands_when_present():
     assert row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
 
 
+def test_action_queue_derives_ticker_gap_example_command_from_focus_command():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(
+            [
+                {
+                    "dataset": "fundamentals",
+                    "ticker": "NVDA",
+                    "status": "partial",
+                    "reason": "No local fundamentals row was found for NVDA.",
+                    "recommended_action": "Start with make status, then follow the printed fundamentals focus or runbook path.",
+                    "local_file": "data/fundamentals.csv",
+                }
+            ]
+        ),
+        data_quality=pd.DataFrame(),
+        command_bundles=pd.DataFrame(),
+    )
+
+    row = rows[0]
+    assert row.focus_command == "make focus-fundamentals TICKER=NVDA"
+    assert row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+
+
+def test_action_queue_uses_status_for_unknown_global_gap_fallback():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(
+            [
+                {
+                    "dataset": "local_outputs",
+                    "ticker": "",
+                    "status": "partial",
+                    "reason": "Generated outputs need a refresh.",
+                    "recommended_action": "Refresh the operator outputs.",
+                    "local_file": "outputs/final_watchlist.csv",
+                }
+            ]
+        ),
+        data_quality=pd.DataFrame(),
+        command_bundles=pd.DataFrame(),
+    )
+
+    row = rows[0]
+    assert row.focus_command == "make status"
+    assert row.example_command == "make status"
+
+
 def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):
     outputs_dir = tmp_path / "outputs"
     data_dir = tmp_path / "data"

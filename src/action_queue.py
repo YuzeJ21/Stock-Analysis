@@ -197,6 +197,8 @@ def _example_command_rank(item: ActionQueueItem) -> int:
     command = (item.example_command or "").strip().lower()
     if not command:
         return 9
+    if command == "make status":
+        return 3
     if command == "make onboarding":
         return 4
     if command == "make daily":
@@ -278,7 +280,7 @@ def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
         return "make universe-preview"
     if dataset in {"earnings", "analyst_estimates"}:
         return "make templates"
-    return "make daily"
+    return "make status"
 
 
 def _global_gap_example_command(dataset: str, command_bundles: pd.DataFrame) -> str:
@@ -290,7 +292,7 @@ def _global_gap_example_command(dataset: str, command_bundles: pd.DataFrame) -> 
         return "python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100"
     if dataset == "universe":
         return "make universe-preview"
-    return "make daily"
+    return "make status"
 
 
 def _global_gap_source_file(dataset: str, source_file: str) -> str:
@@ -443,7 +445,7 @@ def build_action_queue_rows(
                 example_command = (
                     str(row.get("ExampleCommand", "")).strip()
                     or _example_command_for_focus_command(focus_command, ticker)
-                    or "make onboarding"
+                    or "make status"
                 )
                 items.append(
                     ActionQueueItem(
@@ -521,9 +523,8 @@ def build_action_queue_rows(
                 example_command = (
                     _global_gap_example_command(dataset, command_bundles)
                     if not ticker
-                    else "make onboarding"
-                    if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}
-                    else "make daily"
+                    else _example_command_for_focus_command(focus_command, ticker)
+                    or "make status"
                 )
             target_file = (
                 str(row.get("target_file", "")).strip()
