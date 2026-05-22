@@ -2288,7 +2288,8 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     )
 
     cards = dashboard.monthly_picks_next_step_cards(None, None, None, 5, queue)
-    assert cards[0]["title"] == "Generate monthly picks"
+    assert cards[0]["title"] == "Refresh monthly context"
+    assert cards[0]["command"] == "make status"
 
     picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": "Return3M"}] * 4)
     cards = dashboard.monthly_picks_next_step_cards(picks, None, None, 5, queue)
@@ -2297,7 +2298,8 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
 
     full_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": ""}] * 5)
     cards = dashboard.monthly_picks_next_step_cards(full_picks, None, None, 5, queue)
-    assert cards[0]["title"] == "Build track-record context"
+    assert cards[0]["title"] == "Improve track-record coverage"
+    assert cards[0]["command"] == "make price-worklist"
 
     track = pd.DataFrame([{"Month": "2026-04"}])
     equity = pd.DataFrame([{"Month": "2026-04", "PicksEquity": 1.0, "BenchmarkEquity": 1.0}])

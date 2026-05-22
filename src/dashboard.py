@@ -1606,7 +1606,8 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
     universe = catalog.load_dataframe("universe")
     tickers = 0 if universe is None or universe.empty else len(universe)
     final_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
-    monthly_frame, _ = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
+    monthly_tables = load_monthly_outputs()
+    monthly_frame, _ = monthly_tables["monthly_research_picks.csv"]
     final_count = 0 if final_frame is None else len(final_frame)
     monthly_count = 0 if monthly_frame is None else len(monthly_frame)
     latest_price = _latest_local_price_date(catalog)
@@ -5145,17 +5146,27 @@ def monthly_picks_next_step_cards(
         "title": "make status",
         "badges": ["data moat", "command"],
     }
+    command_text = format_missing(fallback_command.get("title"), "make status")
 
-    if not has_candidates:
+    if picks_frame is None:
         primary = {
             "kicker": "NEXT STEP",
-            "title": "Generate monthly picks",
-            "body": "The candidate set is not generated yet. Refresh the local monthly candidate file before interpreting this tab.",
-            "badges": ["monthly workflow", "read-only"],
-            "command": "python3 -m src.monthly_picks --generate --top-n 5",
+            "title": "Refresh monthly context",
+            "body": "Monthly candidate outputs are unavailable right now. Start with make status so the local blocker path and monthly research files refresh together before interpreting this tab.",
+            "badges": ["status first", "read-only"],
+            "command": "make status",
+        }
+    elif picks_frame.empty:
+        primary = {
+            "kicker": "NEXT STEP",
+            "title": "Improve candidate coverage",
+            "body": (
+                f"Current local filters did not support any monthly candidates. Run {command_text} to improve local price or fundamentals coverage instead of forcing weaker names into the list."
+            ),
+            "badges": ["coverage first", "no forced fills"],
+            "command": command_text,
         }
     elif candidate_count < top_n:
-        command_text = format_missing(fallback_command.get("title"), "make status")
         primary = {
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
@@ -5168,10 +5179,12 @@ def monthly_picks_next_step_cards(
     elif not has_track_record or not has_equity:
         primary = {
             "kicker": "NEXT STEP",
-            "title": "Build track-record context",
-            "body": "Candidates exist, but local history is still too short for a fuller benchmark comparison. Keep the picks visible, but treat performance context as incomplete.",
+            "title": "Improve track-record coverage",
+            "body": (
+                f"Candidates exist, but local history is still too short for a fuller benchmark comparison. Run {command_text} to improve price coverage before treating performance context as complete."
+            ),
             "badges": ["history needed", "sp y benchmark".replace(" ", "")],
-            "command": "python3 -m src.track_record --monthly-picks",
+            "command": command_text,
         }
     else:
         primary = {
