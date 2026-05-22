@@ -4202,6 +4202,7 @@ def overview_deep_research_priority_bridge_cards(
                     row["theme"],
                 ],
                 "command": row["command"],
+                "command_reason": row["recommended_action"],
             }
         )
         if len(cards) >= limit:
@@ -4233,7 +4234,9 @@ def overview_deep_research_handoff_cards(
     command_text = format_missing(top_priority.get("command"), "")
     if not command_text or command_text == "Not available":
         command_text = format_missing(fallback_command.get("title"), "make status")
-    command_reason = compact_reason(top_priority.get("body"), max_sentences=3, max_chars=240)
+    command_reason = compact_reason(top_priority.get("command_reason"), max_sentences=2, max_chars=220)
+    if not command_reason or command_reason == "Not available":
+        command_reason = compact_reason(top_priority.get("body"), max_sentences=3, max_chars=240)
     if command_text == format_missing(fallback_command.get("title"), "make status"):
         fallback_reason = compact_reason(fallback_command.get("body"), max_sentences=2, max_chars=220)
         if fallback_reason and fallback_reason != "Not available":

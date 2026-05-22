@@ -1748,6 +1748,37 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_handoff_cards_keep_staged_peer_reason_and_command():
+    holdings = pd.DataFrame([{"Ticker": "TSLA"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "has_peer_mapping": True,
+                "peer_ready": False,
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local peer inputs.",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+    payload = {"recommended_next_commands": ["make status", "make verify", "make dashboard-smoke"]}
+
+    cards = dashboard.overview_deep_research_handoff_cards(holdings, None, peer_queue, payload, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "TSLA"
+    assert cards[1]["title"] == "make imports-validate"
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "live local peer inputs" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_deep_research_handoff_cards_fall_back_to_safe_command():
     cards = dashboard.overview_deep_research_handoff_cards(None, None, None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
