@@ -3169,13 +3169,17 @@ def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str,
         ),
         (
             "Staged universe",
-            f"{staged_rows} staged ticker rows are waiting for review." if staged_exists else "No staged universe import is waiting. Build an import before applying changes.",
+            (
+                f"{staged_rows} staged ticker rows are waiting for review before make universe-apply."
+                if staged_exists
+                else "No staged universe import is waiting. Build one with make universe-preview before make universe-apply."
+            ),
             "make universe-preview",
             "warning" if staged_exists else "neutral",
         ),
         (
             "Safe expansion path",
-            "Preview source-driven candidates first, write a staged CSV, then apply from the CLI only after review.",
+            "Run make universe-preview first, inspect the staged CSV, then run make universe-apply from the CLI only after review.",
             "make universe-preview",
             "neutral",
         ),

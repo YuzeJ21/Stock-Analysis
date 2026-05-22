@@ -4317,7 +4317,8 @@ def test_universe_workflow_cards_explain_preview_first_and_manual_fallback():
     assert cards[0][0] == "Current universe"
     assert cards[0][3] == "warning"
     assert "4 staged ticker rows" in rendered
-    assert "preview" in rendered
+    assert "make universe-preview" in rendered
+    assert "make universe-apply" in rendered
     assert "custom_universe.csv" in rendered
     assert "make templates" in rendered
 
