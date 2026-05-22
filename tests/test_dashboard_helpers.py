@@ -500,6 +500,7 @@ def test_load_price_update_status_enriches_legacy_command_fields(tmp_path):
 
     assert message is None
     assert frame is not None
+    assert frame.iloc[0]["recommended_action"].startswith("Run make focus-price TICKER=AMD")
     assert frame.iloc[0]["focus_command"] == "make focus-price TICKER=AMD"
     assert frame.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
     assert frame.iloc[0]["target_file"] == "data/imports/prices.csv"

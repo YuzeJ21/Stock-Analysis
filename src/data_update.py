@@ -299,10 +299,29 @@ def _price_target_file(status: str) -> str:
     return "data/imports/prices.csv"
 
 
+def _recommended_action_needs_refresh(status: str, recommended_action: str, ticker: str) -> bool:
+    if not recommended_action.strip():
+        return True
+    normalized_action = recommended_action.strip().lower()
+    if status in {"fetched", "skipped_fresh"}:
+        return False
+    if normalized_action in {
+        "retry later or use staged manual prices in data/imports/prices.csv.",
+        "use staged manual prices in data/imports/prices.csv.",
+        "use staged manual prices.",
+    }:
+        return True
+    if ticker and "make focus-price" not in normalized_action:
+        return True
+    return False
+
+
 def enrich_price_update_status_frame(frame: pd.DataFrame) -> pd.DataFrame:
     enriched = frame.copy()
     if "ticker" not in enriched.columns or "status" not in enriched.columns:
         return enriched
+    if "recommended_action" not in enriched.columns:
+        enriched["recommended_action"] = ""
     if "focus_command" not in enriched.columns:
         enriched["focus_command"] = ""
     if "example_command" not in enriched.columns:
@@ -313,6 +332,11 @@ def enrich_price_update_status_frame(frame: pd.DataFrame) -> pd.DataFrame:
     for index, row in enriched.iterrows():
         status = str(row.get("status", "")).strip().lower()
         ticker = str(row.get("ticker", "")).strip().upper()
+        recommended_action = str(row.get("recommended_action", "")).strip()
+        rows_merged = pd.to_numeric(pd.Series([row.get("rows_merged")]), errors="coerce").fillna(0).iloc[0]
+        has_local_data = bool(str(row.get("requested_start", "")).strip()) or bool(rows_merged)
+        if _recommended_action_needs_refresh(status, recommended_action, ticker):
+            enriched.at[index, "recommended_action"] = _price_recommended_action(status, ticker, has_local_data)
         if not str(row.get("focus_command", "")).strip():
             enriched.at[index, "focus_command"] = _price_focus_command(status, ticker)
         if not str(row.get("example_command", "")).strip():
@@ -941,7 +965,20 @@ def main() -> None:
             rows = summary.get("rows", [])
             if rows:
                 frame = pd.DataFrame(rows)
-                print(frame[["ticker", "status", "rows_fetched", "rows_merged", "recommended_action"]].to_string(index=False))
+                display_columns = [
+                    column
+                    for column in [
+                        "ticker",
+                        "status",
+                        "rows_fetched",
+                        "rows_merged",
+                        "recommended_action",
+                        "focus_command",
+                        "example_command",
+                    ]
+                    if column in frame.columns
+                ]
+                print(frame[display_columns].to_string(index=False))
             for warning in summary.get("warnings", []):
                 print(f"warning: {warning}")
         return

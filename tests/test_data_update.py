@@ -4,6 +4,7 @@ import pandas as pd
 
 from src.data_update import (
     apply_price_import_merge,
+    enrich_price_update_status_frame,
     load_update_tickers,
     preview_price_import_merge,
     show_price_update_status,
@@ -250,9 +251,29 @@ def test_show_price_update_status_enriches_legacy_rows_with_commands(tmp_path: P
 
     assert payload["status"] == "available"
     row = payload["rows"][0]
+    assert row["recommended_action"].startswith("Run make focus-price TICKER=AMD")
     assert row["focus_command"] == "make focus-price TICKER=AMD"
     assert row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
     assert row["target_file"] == "data/imports/prices.csv"
+
+
+def test_enrich_price_update_status_frame_refreshes_stale_price_actions():
+    frame = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "status": "parse_error",
+                "requested_start": "2026-03-15",
+                "rows_merged": 0,
+                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+            }
+        ]
+    )
+
+    enriched = enrich_price_update_status_frame(frame)
+
+    assert enriched.iloc[0]["recommended_action"].startswith("Run make focus-price TICKER=QQQ")
+    assert "normalize verified downloaded OHLCV rows into data/imports/prices.csv" in enriched.iloc[0]["recommended_action"]
 
 
 class FlakyPriceSource(FakePriceSource):
