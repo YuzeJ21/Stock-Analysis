@@ -8054,6 +8054,65 @@ def test_data_coverage_wizard_cards_use_runbook_fallback_when_row_copy_is_missin
     assert "not available" not in peer_card["body"].lower()
 
 
+def test_data_coverage_wizard_cards_keep_staged_follow_through_visible_when_target_files_are_present():
+    wizard = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "unlock_goal": "Unlock DCF",
+                "blocking_dataset": "fundamentals",
+                "current_status": "",
+                "why_it_matters": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            },
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "unlock_goal": "Unlock Peer Relative",
+                "blocking_dataset": "peers",
+                "current_status": "",
+                "why_it_matters": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            },
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "unlock_goal": "Unlock Monthly Picks",
+                "blocking_dataset": "prices",
+                "current_status": "",
+                "why_it_matters": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make price-validate",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+            },
+        ]
+    )
+
+    cards = dashboard.data_coverage_wizard_cards(wizard)
+    valuation_card = next(card for card in cards if card["kicker"] == "VALUATION")
+    peer_card = next(card for card in cards if card["kicker"] == "PEERS")
+    monthly_card = next(card for card in cards if card["kicker"] == "MONTHLY")
+
+    assert valuation_card["command"] == "make imports-validate"
+    assert "make imports-preview" in valuation_card["body"].lower()
+    assert "make imports-apply" in valuation_card["body"].lower()
+    assert peer_card["command"] == "make imports-validate"
+    assert "make imports-preview" in peer_card["body"].lower()
+    assert "make imports-apply" in peer_card["body"].lower()
+    assert monthly_card["command"] == "make price-validate"
+    assert "make price-preview" in monthly_card["body"].lower()
+    assert "make price-apply" in monthly_card["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in " ".join(card["body"] for card in cards).lower()
+
+
 def test_universe_preset_cards_include_preview_commands():
     cards = dashboard.universe_preset_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values())

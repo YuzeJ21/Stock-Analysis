@@ -3416,6 +3416,33 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         current_status = format_missing(first.get("current_status"), "")
         why_it_matters = compact_reason(first.get("why_it_matters"), max_sentences=1, max_chars=140)
         recommended_action = compact_reason(first.get("recommended_action"), max_sentences=1, max_chars=150)
+        target_file = format_missing(first.get("target_file"), "")
+        staged_follow_through = ""
+        if target_file == "data/imports/fundamentals.csv":
+            command = "make imports-validate"
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+        elif target_file == "data/imports/peers.csv":
+            command = "make imports-validate"
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+        elif target_file == "data/imports/prices.csv":
+            command = "make price-validate"
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
+        if staged_follow_through:
+            normalized_action = recommended_action.lower()
+            if target_file == "data/imports/prices.csv":
+                if (
+                    "make price-validate" not in normalized_action
+                    or "make price-preview" not in normalized_action
+                    or "make price-apply" not in normalized_action
+                ):
+                    recommended_action = staged_follow_through
+            else:
+                if (
+                    "make imports-validate" not in normalized_action
+                    or "make imports-preview" not in normalized_action
+                    or "make imports-apply" not in normalized_action
+                ):
+                    recommended_action = staged_follow_through
         body_parts = [f"Start with {ticker}."]
         if current_status and current_status != "Not available":
             body_parts.append(f"Current blocker: {current_status}.")
