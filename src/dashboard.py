@@ -290,16 +290,26 @@ def load_data_onboarding_tables(
                 ticker = str(row.get("ticker", "")).strip().upper()
                 recommended_action = str(row.get("recommended_action", "")).strip()
                 focus_command = normalize_operator_command(str(row.get("focus_command", "")).strip())
+                example_command = normalize_operator_command(str(row.get("example_command", "")).strip())
                 expected = ""
+                expected_example = ""
                 if focus_command == "make imports-validate":
                     expected = "make imports-validate"
+                    expected_example = "make imports-preview"
                 elif dataset == "prices" and ticker:
                     expected = f"make focus-price TICKER={ticker}"
+                    expected_example = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
                 elif dataset == "fundamentals" and ticker:
                     expected = f"make focus-fundamentals TICKER={ticker}"
+                    expected_example = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
                 elif dataset == "peers" and ticker:
                     expected = f"make focus-peers TICKER={ticker}"
-                if expected and (focus_command != expected or expected not in recommended_action):
+                    expected_example = "make templates"
+                if expected and (
+                    focus_command != expected
+                    or expected not in recommended_action
+                    or (expected_example and example_command != expected_example)
+                ):
                     needs_refresh = True
                     break
     command_bundles_frame, _ = tables.get("command_bundles.csv", (None, None))
@@ -359,6 +369,18 @@ def load_research_health_tables(
                 normalized_actions = stale_price_rows["NextBestAction"].astype(str).str.strip().str.lower()
                 if not normalized_actions.str.contains("make focus-price").all():
                     needs_refresh = True
+                elif "ExampleCommand" in stale_price_rows.columns:
+                    for _, row in stale_price_rows.iterrows():
+                        ticker = str(row.get("Ticker", "")).strip().upper()
+                        expected_example = (
+                            f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+                            if ticker
+                            else ""
+                        )
+                        example_command = normalize_operator_command(str(row.get("ExampleCommand", "")).strip())
+                        if expected_example and example_command != expected_example:
+                            needs_refresh = True
+                            break
             if not needs_refresh:
                 enrichment_rows = wizard_frame.loc[
                     wizard_frame["ReadinessStatus"].astype(str).str.strip().isin({"Needs Enrichment", "Partial Coverage"})
@@ -367,6 +389,21 @@ def load_research_health_tables(
                     normalized_actions = enrichment_rows["NextBestAction"].astype(str).str.strip().str.lower()
                     if not normalized_actions.str.contains(r"make focus-(?:fundamentals|peers)|make imports-validate", regex=True).all():
                         needs_refresh = True
+                    elif {"Ticker", "FocusCommand", "ExampleCommand"}.issubset(set(enrichment_rows.columns)):
+                        for _, row in enrichment_rows.iterrows():
+                            ticker = str(row.get("Ticker", "")).strip().upper()
+                            focus_command = normalize_operator_command(str(row.get("FocusCommand", "")).strip())
+                            example_command = normalize_operator_command(str(row.get("ExampleCommand", "")).strip())
+                            expected_example = ""
+                            if focus_command == "make imports-validate":
+                                expected_example = "make imports-preview"
+                            elif focus_command.startswith("make focus-fundamentals") and ticker:
+                                expected_example = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+                            elif focus_command.startswith("make focus-peers"):
+                                expected_example = "make templates"
+                            if expected_example and example_command != expected_example:
+                                needs_refresh = True
+                                break
     if needs_refresh:
         run_research_health(BASE_DIR, output_dir=outputs_dir)
         tables["data_quality_wizard.csv"] = load_output(outputs_dir / "data_quality_wizard.csv")

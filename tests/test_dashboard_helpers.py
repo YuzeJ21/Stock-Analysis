@@ -905,7 +905,7 @@ def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(t
                 "AnalystEstimatesAvailable": False,
                 "PriceHistoryDays": 80,
                 "MissingDataFields": "DCF inputs, peer mapping",
-                "NextBestAction": "Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "NextBestAction": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA.",
                 "FocusCommand": "make focus-fundamentals TICKER=NVDA",
                 "ExampleCommand": "make onboarding",
                 "Reason": "old",
@@ -1019,10 +1019,10 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
                     "blocking_dataset": "prices",
                     "current_status": "0 local price rows",
                     "why_it_matters": "old",
-                    "recommended_action": "Refresh AMD prices, or normalize verified downloaded OHLCV files into data/imports/prices.csv before validate/preview/apply.",
+                    "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                     "target_file": "data/imports/prices.csv",
                     "focus_command": "make focus-price TICKER=AMD",
-                    "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                    "example_command": "make status",
                     "safe_next_step": "old",
                 },
                 {
@@ -1032,10 +1032,10 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
                     "blocking_dataset": "fundamentals",
                     "current_status": "DCF inputs incomplete",
                     "why_it_matters": "old",
-                    "recommended_action": "Run SEC staging for candidate fundamentals, then validate and preview before applying.",
+                    "recommended_action": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA.",
                     "target_file": "data/imports/fundamentals.csv",
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
-                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "example_command": "make onboarding",
                     "safe_next_step": "old",
                 },
                 {
@@ -1045,10 +1045,10 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
                     "blocking_dataset": "peers",
                     "current_status": "Peer-relative inputs incomplete",
                     "why_it_matters": "old",
-                    "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                    "recommended_action": "Run make focus-peers TICKER=META, or write templates and fill data/imports/peers.csv manually with transparent peer mappings.",
                     "target_file": "data/imports/peers.csv",
                     "focus_command": "make focus-peers TICKER=META",
-                    "example_command": "make templates",
+                    "example_command": "make onboarding",
                     "safe_next_step": "old",
                 },
             ]
@@ -1068,10 +1068,13 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
 
     assert "make focus-price TICKER=AMD" in str(amd_row["recommended_action"])
     assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
+    assert "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual" == amd_row["example_command"]
     assert "make focus-fundamentals TICKER=NVDA" in str(nvda_row["recommended_action"])
     assert nvda_row["focus_command"] == "make focus-fundamentals TICKER=NVDA"
+    assert "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA" == nvda_row["example_command"]
     assert "make focus-peers TICKER=META" in str(meta_row["recommended_action"])
     assert meta_row["focus_command"] == "make focus-peers TICKER=META"
+    assert meta_row["example_command"] == "make templates"
 
 
 def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path):
