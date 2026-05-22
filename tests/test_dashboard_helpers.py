@@ -3660,6 +3660,24 @@ def test_monthly_picks_coverage_gap_uses_data_wizard_without_blocker_queue():
     assert "sell" not in rendered
 
 
+def test_monthly_picks_coverage_gap_uses_data_wizard_with_empty_queue():
+    picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": "Return3M"}] * 4)
+
+    cards = dashboard.monthly_picks_next_step_cards(picks, None, None, 5, pd.DataFrame())
+
+    assert cards[0]["title"] == "Improve candidate coverage"
+    assert cards[0]["command"] == "make data-wizard TOP_N=10"
+
+
+def test_monthly_picks_track_record_gap_uses_track_record_front_door_with_empty_queue():
+    full_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": ""}] * 5)
+
+    cards = dashboard.monthly_picks_next_step_cards(full_picks, None, None, 5, pd.DataFrame())
+
+    assert cards[0]["title"] == "Improve track-record coverage"
+    assert cards[0]["command"] == "make track-record"
+
+
 def test_stock_report_brief_html_summarizes_readiness_without_advice():
     html = dashboard.stock_report_brief_html(
         {

@@ -5858,7 +5858,7 @@ def monthly_picks_next_step_cards(
             "badges": ["data moat", "command"],
         }
         command_text = format_missing(fallback_command.get("title"), "make status")
-        if command_text in {"", "Not available", "make status"}:
+        if command_text in {"", "Not available", "make help", "make status", "make status-check TOP_N=5", "make onboarding"}:
             return "make data-wizard TOP_N=10"
         return command_text
 
@@ -5903,7 +5903,7 @@ def monthly_picks_next_step_cards(
         }
     elif not has_track_record or not has_equity:
         track_record_command = command_text
-        if track_record_command in {"", "Not available", "make status"}:
+        if track_record_command in {"", "Not available", "make help", "make status", "make status-check TOP_N=5", "make onboarding"}:
             track_record_command = "make track-record"
         primary = {
             "kicker": "NEXT STEP",
