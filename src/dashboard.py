@@ -2677,6 +2677,8 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
     cards: list[dict[str, object]] = []
     for _, row in ordered.head(limit).iterrows():
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
+        lane_summary = review_path_fallback(row.get("lane"))
+        body_summary = goal_summary if goal_summary != "Not available" else compact_reason(row.get("why_it_matters") or lane_summary, max_sentences=1, max_chars=150)
         target_history_rows = _target_rows_hint(row.get("target_history_rows"))
         suggested_start_date = format_missing(row.get("suggested_start_date"), "")
         hints: list[str] = []
@@ -2690,7 +2692,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
                 "title": format_missing(row.get("bundle_name"), "Local bundle"),
                 "body": (
                     f"{format_missing(row.get('tickers'), 'No tickers')}: "
-                    f"{goal_summary or compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
+                    f"{body_summary}"
                     f"{' (' + '; '.join(hints) + ')' if hints else ''}"
                 ),
                 "badges": [
@@ -5216,6 +5218,8 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         lane = format_missing(row.get("lane"), "bundle").replace("_", " ")
         scope = format_missing(row.get("scope"), "scope").replace("_", " ")
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
+        lane_summary = review_path_fallback(row.get("lane"))
+        body_summary = goal_summary if goal_summary != "Not available" else compact_reason(row.get("why_it_matters") or lane_summary, max_sentences=1, max_chars=150)
         target_history_rows = _target_rows_hint(row.get("target_history_rows"))
         suggested_start_date = format_missing(row.get("suggested_start_date"), "")
         hints: list[str] = []
@@ -5229,7 +5233,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
                 "title": format_missing(row.get("bundle_name"), "Local bundle"),
                 "body": (
                     f"{format_missing(row.get('tickers'), 'No tickers')}: "
-                    f"{goal_summary or compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
+                    f"{body_summary}"
                     f"{' (' + '; '.join(hints) + ')' if hints else ''}"
                 ),
                 "badges": [scope, f"{format_value(row.get('ticker_count'), fallback='0')} tickers"],

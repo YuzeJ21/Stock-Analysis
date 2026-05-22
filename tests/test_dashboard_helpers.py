@@ -4825,6 +4825,32 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
     assert "sell" not in rendered
 
 
+def test_data_health_command_bundle_cards_use_review_fallback_when_summaries_are_missing():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "ticker_count": 1,
+                "tickers": "TSLA",
+                "goal_summary": "",
+                "why_it_matters": "",
+                "bundle_shortcut_command": "",
+                "detail_shortcut_command": "",
+                "runbook_shortcut_command": "make runbook-peers",
+                "primary_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_command_bundle_cards(bundles)
+
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "review peer path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_data_health_onboarding_fallback_cards_use_status_refresh():
     bundle_cards = dashboard.data_health_command_bundle_cards(None)
     runbook_cards = dashboard.data_health_command_bundle_runbook_cards(None)
@@ -6103,6 +6129,32 @@ def test_overview_command_bundle_cards_use_bundle_native_shortcuts_when_primary_
     cards = dashboard.overview_command_bundle_cards(bundles)
 
     assert cards[0]["command"] == "make runbook-prices"
+
+
+def test_overview_command_bundle_cards_use_review_fallback_when_summaries_are_missing():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "ticker_count": 1,
+                "tickers": "TSLA",
+                "goal_summary": "",
+                "why_it_matters": "",
+                "bundle_shortcut_command": "",
+                "detail_shortcut_command": "",
+                "runbook_shortcut_command": "make runbook-peers",
+                "primary_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_command_bundle_cards(bundles)
+
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "review peer path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
 
 
 def test_bundle_cards_and_handoff_use_lane_runbooks_when_bundle_commands_are_missing():
