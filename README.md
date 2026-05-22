@@ -815,6 +815,8 @@ make status-check TOP_N=2
 
 If you want to inspect only a smaller local ticker slice in the read-only status view, use `make status-check TICKERS=NVDA,MSFT`.
 
+The raw read-only CLI path is `python3 -m src.project_status --check`.
+
 If price history is the main blocker, run:
 
 ```bash

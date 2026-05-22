@@ -89,7 +89,7 @@ status:
 	python3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)
 
 status-check:
-	python3 -m src.project_status --top-n $(or $(TOP_N),5) $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.project_status --check --top-n $(or $(TOP_N),5) $(if $(TICKERS),--tickers $(TICKERS),)
 
 pipeline:
 	python3 -m src.report_generator

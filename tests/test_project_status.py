@@ -372,6 +372,21 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "open price coverage bundle runbook: make runbook-prices" in output
 
 
+def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+    _write_minimal_local_data(tmp_path)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--top-n", "2"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert "project status summary" in output
+    assert "wrote:" not in output
+
+
 def test_project_status_human_write_output_reports_written_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     _write_minimal_local_data(tmp_path)
 

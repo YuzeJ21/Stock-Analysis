@@ -413,6 +413,7 @@ def _print_human(payload: dict[str, Any]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Print a read-only local project status snapshot.")
+    parser.add_argument("--check", action="store_true", help="Print the current read-only local project status.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
     parser.add_argument("--write-output", action="store_true", help="Write machine-readable project status outputs.")
     parser.add_argument(
@@ -432,6 +433,8 @@ def main() -> None:
     data_path = resolve_data_dir(args.data_dir, root)
     output_path = resolve_outputs_dir(args.output_dir, root)
     should_write_output = args.write_output or args.refresh_artifacts
+    if args.check and should_write_output:
+        parser.error("--check cannot be combined with --write-output or --refresh-artifacts")
     if should_write_output and explicit_tickers:
         parser.error("--tickers is only supported for read-only project status views")
     payload = (
