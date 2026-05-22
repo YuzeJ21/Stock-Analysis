@@ -480,6 +480,67 @@ def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
     assert counts["parse_error"] == 2
 
 
+def test_load_price_update_status_enriches_legacy_command_fields(tmp_path):
+    pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "status": "parse_error",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "parse_error",
+                "error_message": "AMD parse failed",
+                "fallback_used": True,
+                "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV rows into data/imports/prices.csv.",
+            }
+        ]
+    ).to_csv(tmp_path / "price_update_status.csv", index=False)
+
+    frame, message = dashboard.load_price_update_status(tmp_path)
+
+    assert message is None
+    assert frame is not None
+    assert frame.iloc[0]["focus_command"] == "make focus-price TICKER=AMD"
+    assert frame.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    assert frame.iloc[0]["target_file"] == "data/imports/prices.csv"
+
+
+def test_price_update_status_table_columns_surface_command_fields():
+    columns = dashboard.price_update_status_table_columns(
+        pd.DataFrame(
+            [
+                {
+                    "ticker": "AMD",
+                    "status": "parse_error",
+                    "rows_fetched": 0,
+                    "rows_merged": 0,
+                    "error_category": "parse_error",
+                    "error_message": "AMD parse failed",
+                    "fallback_used": True,
+                    "recommended_action": "Fix prices",
+                    "focus_command": "make focus-price TICKER=AMD",
+                    "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                    "target_file": "data/imports/prices.csv",
+                }
+            ]
+        )
+    )
+
+    assert columns == [
+        "ticker",
+        "status",
+        "rows_fetched",
+        "rows_merged",
+        "error_category",
+        "error_message",
+        "fallback_used",
+        "recommended_action",
+        "focus_command",
+        "example_command",
+        "target_file",
+    ]
+
+
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 

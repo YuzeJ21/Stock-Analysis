@@ -35,6 +35,9 @@ PRICE_STATUS_COLUMNS = [
     "error_message",
     "fallback_used",
     "recommended_action",
+    "focus_command",
+    "example_command",
+    "target_file",
 ]
 
 
@@ -260,7 +263,7 @@ def _categorize_price_error(messages: list[str]) -> tuple[str, str]:
 
 
 def _price_recommended_action(status: str, ticker: str, has_local_data: bool) -> str:
-    normalize_action = f"Run python3 -m src.data_update --tickers {ticker}, or normalize verified downloaded OHLCV rows into data/imports/prices.csv."
+    normalize_action = f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and normalize verified downloaded OHLCV rows into data/imports/prices.csv."
     if status == "fetched":
         return "No action needed; remote rows were merged into local prices."
     if status == "skipped_fresh":
@@ -276,6 +279,47 @@ def _price_recommended_action(status: str, ticker: str, has_local_data: bool) ->
     if has_local_data:
         return "Leave unchanged because local data exists; use staged manual prices if you need fresher rows."
     return normalize_action
+
+
+def _price_focus_command(status: str, ticker: str) -> str:
+    if status in {"fetched", "skipped_fresh"} or not ticker:
+        return ""
+    return f"make focus-price TICKER={ticker}"
+
+
+def _price_example_command(status: str, ticker: str) -> str:
+    if status in {"fetched", "skipped_fresh"} or not ticker:
+        return ""
+    return f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+
+
+def _price_target_file(status: str) -> str:
+    if status in {"fetched", "skipped_fresh"}:
+        return "data/prices.csv"
+    return "data/imports/prices.csv"
+
+
+def enrich_price_update_status_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    enriched = frame.copy()
+    if "ticker" not in enriched.columns or "status" not in enriched.columns:
+        return enriched
+    if "focus_command" not in enriched.columns:
+        enriched["focus_command"] = ""
+    if "example_command" not in enriched.columns:
+        enriched["example_command"] = ""
+    if "target_file" not in enriched.columns:
+        enriched["target_file"] = ""
+
+    for index, row in enriched.iterrows():
+        status = str(row.get("status", "")).strip().lower()
+        ticker = str(row.get("ticker", "")).strip().upper()
+        if not str(row.get("focus_command", "")).strip():
+            enriched.at[index, "focus_command"] = _price_focus_command(status, ticker)
+        if not str(row.get("example_command", "")).strip():
+            enriched.at[index, "example_command"] = _price_example_command(status, ticker)
+        if not str(row.get("target_file", "")).strip():
+            enriched.at[index, "target_file"] = _price_target_file(status)
+    return enriched
 
 
 def _price_status_row(
@@ -305,6 +349,9 @@ def _price_status_row(
         "error_message": error_message,
         "fallback_used": fallback_used,
         "recommended_action": _price_recommended_action(status, ticker, has_local_data),
+        "focus_command": _price_focus_command(status, ticker),
+        "example_command": _price_example_command(status, ticker),
+        "target_file": _price_target_file(status),
     }
 
 
@@ -822,6 +869,7 @@ def show_price_update_status(base_dir: Path | None = None, *, output_dir: Path |
             ],
         }
     frame = pd.read_csv(path)
+    frame = enrich_price_update_status_frame(frame)
     return {
         "status": "available",
         "path": str(path),

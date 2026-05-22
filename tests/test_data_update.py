@@ -223,6 +223,38 @@ def test_show_price_update_status_missing_file_uses_status_flow_guidance(tmp_pat
     assert "make price-normalize" in payload["warnings"][0]
 
 
+def test_show_price_update_status_enriches_legacy_rows_with_commands(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "AMD",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "parse_error",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "parse_error",
+                "error_message": "AMD: parse failed",
+                "fallback_used": True,
+                "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV rows into data/imports/prices.csv.",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
+
+    payload = show_price_update_status(tmp_path)
+
+    assert payload["status"] == "available"
+    row = payload["rows"][0]
+    assert row["focus_command"] == "make focus-price TICKER=AMD"
+    assert row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    assert row["target_file"] == "data/imports/prices.csv"
+
+
 class FlakyPriceSource(FakePriceSource):
     def __init__(self, payloads: dict[str, pd.DataFrame | None]) -> None:
         super().__init__(payloads)
@@ -298,6 +330,9 @@ def test_update_local_price_data_writes_status_when_remote_parse_errors(tmp_path
     assert status.iloc[0]["status"] == "parse_error"
     assert status.iloc[0]["fallback_used"] in {True, "True", "true"}
     assert "normalize verified downloaded ohlcv rows into data/imports/prices.csv" in status.iloc[0]["recommended_action"].lower()
+    assert status.iloc[0]["focus_command"] == "make focus-price TICKER=SPY"
+    assert status.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/SPY.csv TICKER=SPY SOURCE=yahoo_manual"
+    assert status.iloc[0]["target_file"] == "data/imports/prices.csv"
 
 
 def _write_price_import_fixture(root: Path) -> None:

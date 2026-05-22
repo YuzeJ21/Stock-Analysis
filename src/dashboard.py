@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
@@ -255,7 +256,10 @@ def load_price_update_status(
             "`make status` first, then follow the printed price focus or runbook path. "
             "For downloaded files, use `make price-normalize` before validate/preview/apply."
         )
-    return load_output(path)
+    frame, message = load_output(path)
+    if frame is None:
+        return frame, message
+    return enrich_price_update_status_frame(frame), message
 
 
 def friendly_data_source_status(value: object) -> str:
@@ -279,6 +283,25 @@ def data_source_status_table_columns(frame: pd.DataFrame | None) -> list[str]:
         "source_type",
         "expected_local_file",
         "notes",
+    ]
+    return [column for column in columns if column in frame.columns]
+
+
+def price_update_status_table_columns(frame: pd.DataFrame | None) -> list[str]:
+    if frame is None:
+        return []
+    columns = [
+        "ticker",
+        "status",
+        "rows_fetched",
+        "rows_merged",
+        "error_category",
+        "error_message",
+        "fallback_used",
+        "recommended_action",
+        "focus_command",
+        "example_command",
+        "target_file",
     ]
     return [column for column in columns if column in frame.columns]
 
@@ -7012,20 +7035,7 @@ def render_data_health(provider) -> None:
                 metric_cols[1].metric("Skipped Fresh", status_counts.get("skipped_fresh", 0))
                 metric_cols[2].metric("Parse / Source Errors", sum(status_counts.get(status, 0) for status in statuses[2:]))
                 metric_cols[3].metric("Fallback Used", int(price_status_frame.get("fallback_used", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"}).sum()))
-            display_columns = [
-                column
-                for column in [
-                    "ticker",
-                    "status",
-                    "rows_fetched",
-                    "rows_merged",
-                    "error_category",
-                    "error_message",
-                    "fallback_used",
-                    "recommended_action",
-                ]
-                if column in price_status_frame.columns
-            ]
+            display_columns = price_update_status_table_columns(price_status_frame)
             st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
             problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
             if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():

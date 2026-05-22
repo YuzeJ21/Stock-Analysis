@@ -367,7 +367,19 @@ def build_action_queue_rows(
             if ticker and "make focus-price" not in recommended_action:
                 recommended_action = _price_focus_recommended_action(ticker)
             fallback_command = _price_normalize_command(ticker)
-            example_command = str(worklist_row.get("example_command", "")).strip() or fallback_command
+            example_command = (
+                str(worklist_row.get("example_command", "")).strip()
+                or str(row.get("example_command", "")).strip()
+                or fallback_command
+            )
+            focus_command = (
+                str(row.get("focus_command", "")).strip()
+                or focus_command_for_ticker("prices", ticker)
+            )
+            target_file = (
+                str(row.get("target_file", "")).strip()
+                or "data/imports/prices.csv"
+            )
             safe_next_step = str(worklist_row.get("safe_next_step", "")).strip() or (
                 "Run make price-validate and make price-preview before make price-apply; do not fabricate missing history."
                 if ticker
@@ -384,9 +396,9 @@ def build_action_queue_rows(
                     title=f"Repair price history for {ticker}" if ticker else "Repair price history",
                     status=status,
                     recommended_action=recommended_action,
-                    focus_command=focus_command_for_ticker("prices", ticker),
+                    focus_command=focus_command,
                     example_command=example_command,
-                    source_file="data/imports/prices.csv",
+                    source_file=target_file,
                     source_artifact="outputs/price_update_status.csv",
                     reason=reason,
                 )
