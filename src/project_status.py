@@ -42,6 +42,19 @@ def _enrich_top_actions(onboarding_payload: dict[str, Any]) -> list[dict[str, An
         for row in onboarding_payload.get("peer_mapping_queue", [])
         if str(row.get("ticker") or "").strip()
     }
+    holdings_first_price_tickers: set[str] = set()
+    for row in onboarding_payload.get("command_bundles", []):
+        if str(row.get("lane") or "").strip().lower() != "prices":
+            continue
+        if str(row.get("scope") or "").strip().lower() != "holdings_first":
+            continue
+        holdings_first_price_tickers.update(
+            {
+                ticker.strip().upper()
+                for ticker in str(row.get("tickers") or "").split(",")
+                if ticker.strip()
+            }
+        )
 
     enriched: list[dict[str, Any]] = []
     for row in actions:
@@ -60,8 +73,23 @@ def _enrich_top_actions(onboarding_payload: dict[str, Any]) -> list[dict[str, An
                 value = _first_non_empty(source_row.get(field), row.get(field))
                 if value:
                     row[field] = value
+            if dataset == "prices" and ticker:
+                row["is_holding"] = ticker in holdings_first_price_tickers
+            elif "is_holding" in source_row:
+                row["is_holding"] = bool(source_row.get("is_holding"))
+        elif dataset == "prices" and ticker:
+            row["is_holding"] = ticker in holdings_first_price_tickers
         enriched.append(row)
     return enriched
+
+
+def _action_rank(row: dict[str, Any]) -> tuple[int, int, str, str]:
+    return (
+        int(row.get("priority") or 999),
+        0 if bool(row.get("is_holding")) else 1,
+        str(row.get("ticker") or ""),
+        str(row.get("dataset") or ""),
+    )
 
 
 def _bundle_rank(bundle: dict[str, Any]) -> tuple[int, int, str]:
@@ -171,10 +199,7 @@ def build_project_status_payload(
     gaps = source_payload["data_gaps"]
     coverage = onboarding_payload["ticker_coverage"]
     enriched_actions = _enrich_top_actions(onboarding_payload)
-    actions = sorted(
-        enriched_actions,
-        key=lambda row: (int(row.get("priority") or 999), str(row.get("ticker") or ""), str(row.get("dataset") or "")),
-    )
+    actions = sorted(enriched_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     summary = {
         "data_sources_total": len(sources),

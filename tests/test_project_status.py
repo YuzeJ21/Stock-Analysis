@@ -73,8 +73,16 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
     outputs_dir.mkdir()
     pd.DataFrame(
         [
-            {"ticker": "NVDA", "date": "2026-01-01", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 1000},
-            {"ticker": "NVDA", "date": "2026-01-02", "open": 10, "high": 12, "low": 9, "close": 11, "volume": 1100},
+            {
+                "ticker": "NVDA",
+                "date": f"2026-01-{day:02d}",
+                "open": 10 + day,
+                "high": 11 + day,
+                "low": 9 + day,
+                "close": 10 + day,
+                "volume": 1000 + day,
+            }
+            for day in range(1, 23)
         ]
     ).to_csv(data_dir / "prices.csv", index=False)
     pd.DataFrame(
@@ -93,3 +101,37 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
 
     assert payload["top_onboarding_actions"][0]["ticker"] == "AMD"
     assert payload["recommended_next_command_rows"][1]["Command"] == "make runbook-prices-broader"
+
+
+def test_project_status_prefers_holdings_first_price_blockers_when_priority_matches(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "date": "2026-01-01", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 1000},
+            {"ticker": "NVDA", "date": "2026-01-02", "open": 10, "high": 12, "low": 9, "close": 11, "volume": 1100},
+        ]
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "META", "theme": "AI", "sectoretf": "QQQ", "defaultpurpose": "Core Compounder"},
+            {"ticker": "AMD", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+            {"ticker": "NVDA", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "shares": 1, "primarypurpose": "Momentum Leader"},
+            {"ticker": "META", "shares": 1, "primarypurpose": "Core Compounder"},
+        ]
+    ).to_csv(data_dir / "holdings.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "theme": "AI"}]).to_csv(data_dir / "fundamentals.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=5)
+
+    assert payload["top_onboarding_actions"][0]["ticker"] == "META"
+    assert payload["top_onboarding_actions"][0]["focus_command"] == "make focus-price TICKER=META"
+    assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=META"
+    assert payload["recommended_next_command_rows"][1]["Command"] == "make runbook-prices"
