@@ -5404,7 +5404,11 @@ def overview_benchmark_pressure_cards(
             "title": pressure_title,
             "body": pressure_body,
             "badges": ["price moat", "local only"],
-            "command": "make runbook-prices-broader" if (not total_tickers or missing_prices or parse_or_source_errors) else "",
+            "command": (
+                "make runbook-prices-broader"
+                if (not total_tickers or missing_prices or parse_or_source_errors)
+                else "make price-status TOP_N=10"
+            ),
         },
         {
             "kicker": "SPY CONTEXT",

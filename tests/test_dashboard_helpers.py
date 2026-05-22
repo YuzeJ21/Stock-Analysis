@@ -4039,6 +4039,29 @@ def test_overview_benchmark_pressure_cards_surface_price_gap_and_spy_context():
     assert "sell" not in rendered
 
 
+def test_overview_benchmark_pressure_cards_keep_price_status_visible_when_prices_are_present():
+    market_direction = pd.DataFrame(
+        [
+            {
+                "Theme": "AI Semiconductors",
+                "RelativeReturnVsSPY": 0.09,
+            }
+        ]
+    )
+    price_status = pd.DataFrame({"status": ["fetched", "fetched"]})
+    payload = {"summary": {"tickers_total": 12, "tickers_with_prices": 12}}
+
+    cards = dashboard.overview_benchmark_pressure_cards(market_direction, price_status, payload)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Local prices present"
+    assert cards[0]["command"] == "make price-status TOP_N=10"
+    assert cards[1]["command"] == "make pipeline"
+    assert "make price-status top_n=10" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_benchmark_pressure_cards_handle_missing_inputs_gracefully():
     cards = dashboard.overview_benchmark_pressure_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
