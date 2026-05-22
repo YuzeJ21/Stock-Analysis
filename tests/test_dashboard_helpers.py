@@ -4392,6 +4392,48 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
     assert cards[0]["title"] == "Review full report"
 
 
+def test_stock_report_next_step_cards_use_staged_import_front_doors_when_commands_are_missing():
+    payload = {
+        "ticker": "NVDA",
+        "valuation_readiness": {
+            "dcf_ready": False,
+            "peer_ready": False,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": [],
+    }
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": True},
+            {
+                "dataset": "fundamentals",
+                "ticker_present": False,
+                "target_file": "data/imports/fundamentals.csv",
+            },
+        ]
+    )
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["title"] == "Advance staged fundamentals import"
+    assert cards[0]["command"] == "make imports-validate"
+
+    payload["valuation_readiness"]["dcf_ready"] = True
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": True},
+            {"dataset": "fundamentals", "ticker_present": True},
+            {
+                "dataset": "peers",
+                "ticker_present": True,
+                "target_file": "data/imports/peers.csv",
+            },
+        ]
+    )
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    assert cards[0]["title"] == "Advance staged peer import"
+    assert cards[0]["command"] == "make imports-validate"
+
+
 def test_stock_report_price_chart_frame_sorts_and_cleans_history():
     history = pd.DataFrame(
         {

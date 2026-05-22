@@ -2242,24 +2242,32 @@ def stock_report_next_step_cards(
             if not peer_matches.empty:
                 peer_row = peer_matches.iloc[0]
 
+    fundamentals_target_file = format_missing(fundamentals_row.get("target_file"), "") if fundamentals_row is not None else ""
+    fundamentals_fallback = (
+        "make imports-validate"
+        if fundamentals_target_file == "data/imports/fundamentals.csv"
+        else ticker_focus_command("fundamentals", ticker, fallback=f"make sec-stage TICKERS={ticker}")
+    )
     fundamentals_command = preferred_row_command(
         fundamentals_row,
-        ticker_focus_command("fundamentals", ticker, fallback=f"make sec-stage TICKERS={ticker}"),
+        fundamentals_fallback,
     ) if fundamentals_row is not None else ticker_focus_command(
         "fundamentals",
         ticker,
         fallback=f"make sec-stage TICKERS={ticker}",
     )
-    fundamentals_target_file = format_missing(fundamentals_row.get("target_file"), "") if fundamentals_row is not None else ""
     staged_fundamentals_import = (
-        fundamentals_command == "make imports-validate"
-        and fundamentals_target_file == "data/imports/fundamentals.csv"
+        fundamentals_target_file == "data/imports/fundamentals.csv"
     )
-    peer_command = preferred_row_command(peer_row, ticker_focus_command("peers", ticker, fallback="make templates")) if peer_row is not None else ticker_focus_command("peers", ticker, fallback="make templates")
     peer_target_file = format_missing(peer_row.get("target_file"), "") if peer_row is not None else ""
+    peer_fallback = (
+        "make imports-validate"
+        if peer_target_file == "data/imports/peers.csv"
+        else ticker_focus_command("peers", ticker, fallback="make templates")
+    )
+    peer_command = preferred_row_command(peer_row, peer_fallback) if peer_row is not None else ticker_focus_command("peers", ticker, fallback="make templates")
     staged_peer_import = (
-        peer_command == "make imports-validate"
-        and peer_target_file == "data/imports/peers.csv"
+        peer_target_file == "data/imports/peers.csv"
     )
 
     if not has_prices:
