@@ -188,6 +188,40 @@ def _source_file_for_focus_command(focus_command: str) -> str:
     return "outputs/data_quality_wizard.csv"
 
 
+def _bundle_runbook_shortcut(command_bundles: pd.DataFrame, lane: str) -> str:
+    if command_bundles.empty or "lane" not in command_bundles.columns or "runbook_shortcut_command" not in command_bundles.columns:
+        return ""
+    lane_rows = command_bundles.loc[command_bundles["lane"].astype(str).str.strip() == lane].copy()
+    if lane_rows.empty:
+        return ""
+    if "scope" in lane_rows.columns:
+        scope_rank = {"broader_queue": 0, "holdings_first": 1}
+        lane_rows["_scope_rank"] = lane_rows["scope"].astype(str).map(scope_rank).fillna(9)
+        lane_rows = lane_rows.sort_values(["_scope_rank", "bundle_name"] if "bundle_name" in lane_rows.columns else ["_scope_rank"])
+    row = lane_rows.iloc[0]
+    return str(row.get("runbook_shortcut_command", "")).strip()
+
+
+def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
+    if dataset == "fundamentals":
+        return _bundle_runbook_shortcut(command_bundles, "fundamentals") or "make sec-preview"
+    if dataset == "peers":
+        return _bundle_runbook_shortcut(command_bundles, "peers") or "make templates"
+    if dataset in {"earnings", "analyst_estimates"}:
+        return "make templates"
+    return "make daily"
+
+
+def _global_gap_source_file(dataset: str, source_file: str) -> str:
+    if dataset == "peers":
+        return "data/imports/peers.csv"
+    if dataset == "earnings":
+        return "data/imports/earnings.csv"
+    if dataset == "analyst_estimates":
+        return "data/imports/analyst_estimates.csv"
+    return source_file
+
+
 def _dedupe(items: list[ActionQueueItem]) -> list[ActionQueueItem]:
     best_by_key: dict[tuple[str, str], ActionQueueItem] = {}
     for item in items:
@@ -224,7 +258,9 @@ def build_action_queue_rows(
     onboarding_actions: pd.DataFrame,
     data_gaps: pd.DataFrame,
     data_quality: pd.DataFrame,
+    command_bundles: pd.DataFrame | None = None,
 ) -> list[ActionQueueItem]:
+    command_bundles = command_bundles if command_bundles is not None else pd.DataFrame()
     items: list[ActionQueueItem] = []
 
     if not price_status.empty:
@@ -358,6 +394,24 @@ def build_action_queue_rows(
                 priority = 5
             if dataset == "earnings":
                 priority = 4
+            focus_command = (
+                focus_command_for_ticker("prices", ticker)
+                if dataset == "prices" and ticker
+                else focus_command_for_ticker("fundamentals", ticker)
+                if dataset == "fundamentals" and ticker
+                else focus_command_for_ticker("peers", ticker)
+                if dataset == "peers" and ticker
+                else ""
+            )
+            if not ticker:
+                focus_command = _global_gap_command(dataset, command_bundles)
+            example_command = (
+                _global_gap_command(dataset, command_bundles)
+                if not ticker
+                else "make onboarding"
+                if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}
+                else "make daily"
+            )
             items.append(
                 ActionQueueItem(
                     priority=priority,
@@ -367,17 +421,9 @@ def build_action_queue_rows(
                     title=f"Resolve {dataset} gap for {ticker}".strip() if ticker else f"Resolve {dataset} gap".strip(),
                     status=status or "gap",
                     recommended_action=str(row.get("recommended_action", "")).strip(),
-                    focus_command=(
-                        focus_command_for_ticker("prices", ticker)
-                        if dataset == "prices" and ticker
-                        else focus_command_for_ticker("fundamentals", ticker)
-                        if dataset == "fundamentals" and ticker
-                        else focus_command_for_ticker("peers", ticker)
-                        if dataset == "peers" and ticker
-                        else ""
-                    ),
-                    example_command="make onboarding" if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"} else "make daily",
-                    source_file=str(row.get("local_file", "")).strip(),
+                    focus_command=focus_command,
+                    example_command=example_command,
+                    source_file=_global_gap_source_file(dataset, str(row.get("local_file", "")).strip()),
                     source_artifact="outputs/data_gap_report.csv",
                     reason=str(row.get("reason", "")).strip(),
                 )
@@ -401,12 +447,14 @@ def build_action_queue_payload(
     onboarding_actions = _load_csv(output_path / "data_onboarding_actions.csv")
     data_gaps = _load_csv(output_path / "data_gap_report.csv")
     data_quality = _load_csv(output_path / "data_quality_wizard.csv")
+    command_bundles = _load_csv(output_path / "command_bundles.csv")
 
     onboarding_payload: dict[str, Any] | None = None
-    if _onboarding_actions_need_refresh(onboarding_actions) or price_worklist.empty:
+    if _onboarding_actions_need_refresh(onboarding_actions) or price_worklist.empty or command_bundles.empty:
         onboarding_payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path)
         onboarding_actions = pd.DataFrame(onboarding_payload["onboarding_actions"])
         price_worklist = pd.DataFrame(onboarding_payload["price_import_worklist"])
+        command_bundles = pd.DataFrame(onboarding_payload["command_bundles"])
     if data_gaps.empty:
         data_gaps = pd.DataFrame(build_data_source_payload(root, data_dir=data_path, output_dir=output_path)["data_gaps"])
     if _data_quality_needs_refresh(data_quality):
@@ -419,6 +467,7 @@ def build_action_queue_payload(
         onboarding_actions=onboarding_actions,
         data_gaps=data_gaps,
         data_quality=data_quality,
+        command_bundles=command_bundles,
     )
     return {
         "action_queue": [item.to_dict() for item in items],

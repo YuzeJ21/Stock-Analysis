@@ -312,6 +312,73 @@ def test_action_queue_drops_redundant_coverage_rows_when_specific_action_matches
     assert nvda_rows[0].focus_command == "make focus-fundamentals TICKER=NVDA"
 
 
+def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(
+            [
+                {
+                    "dataset": "fundamentals",
+                    "ticker": "",
+                    "status": "partial",
+                    "reason": "Freshness metadata is file-based only.",
+                    "recommended_action": "Run SEC staging for fundamentals, then validate, preview, and apply the staged import.",
+                    "local_file": "data/fundamentals.csv",
+                },
+                {
+                    "dataset": "peers",
+                    "ticker": "",
+                    "status": "manual_only",
+                    "reason": "Local CSV file is not present.",
+                    "recommended_action": "Add peers manually.",
+                    "local_file": "data/peers.csv",
+                },
+                {
+                    "dataset": "earnings",
+                    "ticker": "",
+                    "status": "manual_only",
+                    "reason": "Local CSV file is not present.",
+                    "recommended_action": "Add earnings manually.",
+                    "local_file": "data/earnings.csv",
+                },
+            ]
+        ),
+        data_quality=pd.DataFrame(),
+        command_bundles=pd.DataFrame(
+            [
+                {
+                    "lane": "fundamentals",
+                    "scope": "broader_queue",
+                    "bundle_name": "SEC Fundamentals Bundle (Broader Queue)",
+                    "runbook_shortcut_command": "make runbook-fundamentals-broader",
+                },
+                {
+                    "lane": "peers",
+                    "scope": "broader_queue",
+                    "bundle_name": "Peer Mapping Bundle (Broader Queue)",
+                    "runbook_shortcut_command": "make runbook-peers-broader",
+                },
+            ]
+        ),
+    )
+
+    fundamentals_row = next(row for row in rows if row.action_type == "fundamentals" and not row.ticker)
+    assert fundamentals_row.focus_command == "make runbook-fundamentals-broader"
+    assert fundamentals_row.example_command == "make runbook-fundamentals-broader"
+
+    peers_row = next(row for row in rows if row.action_type == "peers" and not row.ticker)
+    assert peers_row.focus_command == "make runbook-peers-broader"
+    assert peers_row.example_command == "make runbook-peers-broader"
+    assert peers_row.source_file == "data/imports/peers.csv"
+
+    earnings_row = next(row for row in rows if row.action_type == "earnings" and not row.ticker)
+    assert earnings_row.focus_command == "make templates"
+    assert earnings_row.example_command == "make templates"
+    assert earnings_row.source_file == "data/imports/earnings.csv"
+
+
 def test_action_queue_merges_price_status_with_price_worklist_guidance():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(
