@@ -3469,9 +3469,9 @@ def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str
 
 def universe_preset_cards() -> list[dict[str, object]]:
     preset_descriptions = {
-        "core": "Current local universe plus holdings. Safest and quickest workflow.",
-        "sp500_smh": "S&P 500 community list, SMH holdings if available, plus holdings.",
-        "broad": "Adds Nasdaq-listed common stocks. Larger and slower; preview first.",
+        "core": "Current local universe plus holdings. Safest and quickest workflow; start with make universe-preview.",
+        "sp500_smh": "S&P 500 community list, SMH holdings if available, plus holdings. Start with make universe-preview before make universe-apply.",
+        "broad": "Adds Nasdaq-listed common stocks. Larger and slower; run make universe-preview before make universe-apply.",
     }
     cards = []
     for name, sources in SOURCE_PRESETS.items():
@@ -3479,7 +3479,10 @@ def universe_preset_cards() -> list[dict[str, object]]:
             {
                 "kicker": "PRESET",
                 "title": name,
-                "body": preset_descriptions.get(name, "Source-driven universe preset. Preview before applying."),
+                "body": preset_descriptions.get(
+                    name,
+                    "Source-driven universe preset. Run make universe-preview before make universe-apply.",
+                ),
                 "badges": [", ".join(sources)],
                 "command": "make universe-preview",
             }
@@ -3501,9 +3504,9 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
             "kicker": "BEST NEXT",
             "title": "Preview universe update" if not staged_exists else "Apply staged universe",
             "body": (
-                "Start with a preview-first universe command so larger source-driven changes stay reviewable before any apply step."
+                "Start with make universe-preview so larger source-driven changes stay reviewable before make universe-apply."
                 if not staged_exists
-                else f"{staged_rows} staged ticker rows are already visible in the dashboard; apply only after reviewing the staged CSV and diagnostics."
+                else f"{staged_rows} staged ticker rows are already visible in the dashboard; run make universe-apply only after reviewing the staged CSV and diagnostics."
             ),
             "badges": ["preview first", "read-only"],
             "command": "make universe-preview" if not staged_exists else "make universe-apply",
@@ -3520,7 +3523,7 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
         {
             "kicker": "STAGED FLOW",
             "title": "Apply stays CLI-only",
-            "body": "Write a staged universe import first, inspect the CSV and staged diagnostics, then apply only after review.",
+            "body": "Run make universe-preview first, inspect the staged CSV and diagnostics, then run make universe-apply only after review.",
             "badges": ["backup on apply", "csv-first"],
             "command": "make universe-apply",
         },

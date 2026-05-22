@@ -4342,6 +4342,8 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
     assert cards[2]["command"] == "make universe-apply"
     assert "12 current rows" in rendered
     assert "apply stays cli-only" in rendered
+    assert "make universe-preview" in rendered
+    assert "make universe-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "buy" not in rendered
