@@ -15,7 +15,7 @@ It is research-only software:
 The supported implementation lives in `src/`.
 
 - Use `make pipeline` to generate the core local outputs.
-- Use `streamlit run src/dashboard.py` to run the dashboard.
+- Use `make dashboard` to run the dashboard.
 - The root `run.py` and `dashboard.py` files are compatibility wrappers that forward to the active `src` implementation.
 
 The `stock_analysis/` directory is a documented legacy scaffold kept for reference only. It is not the active pipeline.
@@ -694,10 +694,10 @@ The normalizer writes/upserts only to `data/imports/prices.csv` using `date + ti
 ## Run the dashboard
 
 ```bash
-streamlit run src/dashboard.py
+make dashboard
 ```
 
-If your shell is not already at the repository root, either `cd` there first or use the absolute dashboard path:
+If your shell is not already at the repository root, either `cd` there first or use the lower-level Streamlit command directly:
 
 ```bash
 streamlit run "/Users/yjian070/Documents/New project/src/dashboard.py"

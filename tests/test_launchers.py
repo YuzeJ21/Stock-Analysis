@@ -127,6 +127,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     readme = Path("README.md").read_text(encoding="utf-8")
 
     assert "- Use `make pipeline` to generate the core local outputs." in readme
+    assert "- Use `make dashboard` to run the dashboard." in readme
     for phrase in (
         'export SEC_USER_AGENT="Your Name your.email@example.com"',
         "make sec-stage TICKERS=NVDA,MSFT",
@@ -152,6 +153,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "Run a local-only source check:\n\n```bash\nmake data-sources-check" in readme
     assert "If you intentionally want lower-level CLI control against a fixture or alternate local dataset, the raw module commands remain available:\n\n```bash\npython3 -m src.stock_report --project-root \"/Users/yjian070/Documents/New project\" --validate-local-data" in readme
     assert "```bash\nmake validate-data\nmake pipeline\nmake monthly" in readme
+    assert "## Run the dashboard\n\n```bash\nmake dashboard" in readme
     assert "```bash\nmake coverage\nmake data-wizard\nmake command-bundles\nmake templates" in readme
     assert "Generate it with:\n\n```bash\nmake status\nmake data-wizard" in readme
     assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
