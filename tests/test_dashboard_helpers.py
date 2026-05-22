@@ -6302,6 +6302,35 @@ def test_data_health_overview_cards_handle_empty_validation_rows():
     assert "sell" not in rendered
 
 
+def test_data_health_overview_cards_surface_top_staged_action_follow_through():
+    validation = pd.DataFrame({"validation_status": ["valid", "valid_with_warnings"]})
+    price_status = pd.DataFrame({"status": ["fetched"]})
+    action_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    coverage = pd.DataFrame({"usable_for_momentum": [True], "dcf_ready": [False], "peer_ready": [False]})
+
+    cards = dashboard.data_health_overview_cards(validation, price_status, action_queue, coverage)
+    action_card = next(card for card in cards if card["kicker"] == "NEXT ACTIONS")
+
+    assert action_card["command"] == "make imports-validate"
+    assert "make imports-preview" in action_card["body"].lower()
+    assert "make imports-apply" in action_card["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in action_card["body"].lower()
+
+
 def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     validation = pd.DataFrame({"validation_status": ["valid", "missing_file"]})
     coverage = pd.DataFrame(

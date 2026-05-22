@@ -2584,6 +2584,23 @@ def data_health_overview_cards(
     action_body = f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority remediation rows are queued."
     action_badges = ["make action-queue-check TOP_N=10", "read-only dashboard"]
     action_command = "make action-queue-check TOP_N=10"
+    signal_ready = (
+        action_queue_frame is not None
+        and not action_queue_frame.empty
+        and {"priority", "action_type"}.issubset(set(action_queue_frame.columns))
+    )
+    top_signal = top_priority_signals(action_queue_frame, limit=1) if signal_ready else []
+    if top_signal:
+        signal = top_signal[0]
+        signal_body = compact_reason(signal.get("body"), max_sentences=2, max_chars=220)
+        signal_command = format_missing(signal.get("command"), "")
+        if signal_body and signal_body != "Not available":
+            action_body = (
+                f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority remediation rows are queued. "
+                f"Top next step: {signal_body}"
+            )
+        if signal_command and signal_command != "Not available":
+            action_command = signal_command
 
     coverage_summary = summarize_ticker_coverage(coverage_frame)
     coverage_title = f"{coverage_summary['usable_price_tickers']} price-ready tickers"
