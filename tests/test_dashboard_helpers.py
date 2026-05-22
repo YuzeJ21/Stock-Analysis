@@ -3973,6 +3973,27 @@ def test_overview_workflow_reason_card_falls_back_to_status_snapshot():
     assert "buy" not in rendered
 
 
+def test_overview_workflow_reason_card_uses_bundle_fallback_when_structured_summary_is_thin():
+    payload = {
+        "summary": {"data_gaps": 0, "critical_actions": 0},
+        "recommended_next_command_rows": [
+            {
+                "Step": "Run highest-leverage price bundle",
+                "Command": "make bundle-prices",
+                "Reason": "",
+            }
+        ],
+    }
+
+    card = dashboard.overview_workflow_reason_card(payload, None)
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert card["title"] == "make bundle-prices"
+    assert "bundle first" in [badge.lower() for badge in card["badges"]]
+    assert "highest-leverage local bundle first" in rendered
+    assert "not available" not in rendered
+
+
 def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
     cards = dashboard.overview_handoff_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

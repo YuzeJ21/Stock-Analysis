@@ -5784,7 +5784,8 @@ def overview_workflow_reason_card(
     project_status_payload: dict[str, Any] | None,
     action_queue: pd.DataFrame | None,
 ) -> dict[str, object]:
-    first_command = overview_workflow_path_cards(project_status_payload, action_queue)[0]["title"]
+    first_card = overview_workflow_path_cards(project_status_payload, action_queue)[0]
+    first_command = first_card["title"]
     reason = "Start with local blocker triage before verification and UI review."
     badges = ["why now", "research only"]
 
@@ -5808,11 +5809,23 @@ def overview_workflow_reason_card(
         critical_actions = int(summary.get("critical_actions") or 0)
         if first_command == "make status":
             first_command = "make status-check TOP_N=5"
-        reason = (
-            f"{critical_actions} critical actions and {data_gaps} visible data gaps are in the current read-only status snapshot, "
-            "so the workflow starts with local coverage before interpretation."
-        )
-        badges = ["status snapshot", "data first"]
+        if project_status_payload.get("recommended_next_command_rows") and critical_actions == 0 and data_gaps == 0:
+            structured_reason = compact_reason(first_card.get("body"), max_sentences=2, max_chars=240)
+            if structured_reason and structured_reason != "Not available":
+                reason = structured_reason
+                badges = [str(item) for item in first_card.get("badges", [])][:2] or ["workflow", "command"]
+            else:
+                reason = (
+                    f"{critical_actions} critical actions and {data_gaps} visible data gaps are in the current read-only status snapshot, "
+                    "so the workflow starts with local coverage before interpretation."
+                )
+                badges = ["status snapshot", "data first"]
+        else:
+            reason = (
+                f"{critical_actions} critical actions and {data_gaps} visible data gaps are in the current read-only status snapshot, "
+                "so the workflow starts with local coverage before interpretation."
+            )
+            badges = ["status snapshot", "data first"]
 
     return {
         "kicker": "WHY THIS STEP NOW",
