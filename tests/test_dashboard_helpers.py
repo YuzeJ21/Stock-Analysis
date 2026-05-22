@@ -3815,3 +3815,91 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     assert "meta" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+                "primary_command": "make templates",
+                "follow_up_command": "data/imports/peers.csv",
+                "target_file": "data/imports/peers.csv",
+                "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
+                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",
+            }
+        ]
+    )
+    details = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "ticker": "META",
+                "is_holding": True,
+                "theme": "AI Platforms",
+                "sector_etf": "QQQ",
+                "current_unlock_stage": "peers",
+            }
+        ]
+    )
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "make templates",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+                "target_file": "data/imports/peers.csv",
+                "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
+                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",
+            },
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Fill peer mappings manually",
+                "command": "data/imports/peers.csv",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+                "target_file": "data/imports/peers.csv",
+                "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
+                "safe_next_step": "Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",
+            },
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 3,
+                "step_label": "Refresh status outputs",
+                "command": "make status",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+                "target_file": "data/imports/peers.csv",
+                "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
+                "safe_next_step": "Refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
+            },
+        ]
+    )
+
+    cards = dashboard.overview_bundle_handoff_cards(bundles, details, runbook)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "PEERS HANDOFF"
+    assert cards[1]["command"] == "data/imports/peers.csv"
+    assert cards[2]["command"] == "make status"
+    assert "make templates" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "make status" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered

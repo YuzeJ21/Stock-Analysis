@@ -1757,7 +1757,7 @@ def build_command_bundles(
                 detail_shortcut_command=bundle_shortcut_for_scope("peers", scope, "detail"),
                 runbook_shortcut_command=bundle_shortcut_for_scope("peers", scope, "runbook"),
                 primary_command="make templates",
-                follow_up_command="make status",
+                follow_up_command="data/imports/peers.csv",
                 target_file="data/imports/peers.csv",
                 why_it_matters=why_it_matters,
                 safe_next_step="Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",

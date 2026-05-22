@@ -4563,7 +4563,7 @@ def overview_bundle_handoff_cards(
     lane = format_missing(top_bundle.get("lane"), "bundle").replace("_", " ")
     ticker_text = format_missing(top_bundle.get("tickers"), "No tickers")
     refresh_command = "make status"
-    refresh_step_label = "Refresh onboarding outputs"
+    refresh_step_label = "Refresh status outputs"
 
     first_ticker = "Not available"
     if bundle_detail_frame is not None and not bundle_detail_frame.empty:
@@ -4581,8 +4581,9 @@ def overview_bundle_handoff_cards(
             if "step_order" in matches.columns:
                 matches["step_order"] = pd.to_numeric(matches["step_order"], errors="coerce")
                 matches = matches.sort_values("step_order")
+            refresh_labels = {"refresh status outputs", "refresh onboarding outputs"}
             refresh_matches = matches.loc[
-                matches.get("step_label", pd.Series(dtype=str)).astype(str).str.lower().eq("refresh onboarding outputs")
+                matches.get("step_label", pd.Series(dtype=str)).astype(str).str.lower().isin(refresh_labels)
             ]
             target_row = refresh_matches.iloc[0] if not refresh_matches.empty else matches.iloc[-1]
             refresh_command = format_missing(target_row.get("command"), refresh_command)
