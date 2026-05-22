@@ -91,8 +91,8 @@ def test_makefile_help_documents_key_workflows():
         "make local-tickers",
         "make coverage [TICKERS=NVDA,MSFT]",
         "make data-wizard [TICKERS=NVDA,MSFT]",
-        "make unlock-ladder",
-        "make unlock-summary",
+        "make unlock-ladder [TICKERS=NVDA,MSFT]",
+        "make unlock-summary [TICKERS=NVDA,MSFT]",
         "make command-bundles [TICKERS=NVDA,MSFT]",
         "make command-bundle-details [TICKERS=NVDA,MSFT]",
         "make command-bundle-runbook [TICKERS=NVDA,MSFT]",
@@ -172,7 +172,9 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want a narrower targeted coverage pass without leaving the make-based operator path, use:\n\n```bash\nmake coverage TICKERS=NVDA,MSFT,AMD,AVGO\nmake data-wizard TICKERS=NVDA,MSFT,AMD,AVGO" in readme
     assert "Generate it with:\n\n```bash\nmake status\nmake data-wizard" in readme
     assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
+    assert "To narrow that unlock ladder to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake unlock-ladder TICKERS=NVDA,MSFT" in readme
     assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
+    assert "To focus that grouped unlock summary on a smaller local ticker slice, use:\n\n```bash\nmake unlock-summary TICKERS=NVDA,MSFT" in readme
     assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
     assert "If you want to narrow those bundle views to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake command-bundles TICKERS=NVDA,MSFT\nmake command-bundle-details TICKERS=NVDA,MSFT\nmake command-bundle-runbook TICKERS=NVDA,MSFT" in readme
     assert "If you only want one lane at a time, use:\n\n```bash\nmake bundle-prices\nmake bundle-fundamentals\nmake bundle-peers" in readme
@@ -272,6 +274,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
 
     assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "unlock-ladder:\n\tpython3 -m src.data_onboarding --unlock-ladder $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "unlock-summary:\n\tpython3 -m src.data_onboarding --unlock-summary $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "command-bundles:\n\tpython3 -m src.data_onboarding --command-bundles $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "command-bundle-details:\n\tpython3 -m src.data_onboarding --command-bundle-details $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "command-bundle-runbook:\n\tpython3 -m src.data_onboarding --command-bundle-runbook $(if $(TICKERS),--tickers $(TICKERS),)" in makefile

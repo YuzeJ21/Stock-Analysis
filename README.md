@@ -1226,6 +1226,12 @@ If you want one row per ticker instead of several queue outputs, use:
 make unlock-ladder
 ```
 
+To narrow that unlock ladder to a specific local ticker slice without leaving the make-based operator path, use:
+
+```bash
+make unlock-ladder TICKERS=NVDA,MSFT
+```
+
 This combines the current next-step stage for each ticker in order:
 
 1. prices
@@ -1239,6 +1245,12 @@ If you want to see where local data gaps are most concentrated by holdings, them
 
 ```bash
 make unlock-summary
+```
+
+To focus that grouped unlock summary on a smaller local ticker slice, use:
+
+```bash
+make unlock-summary TICKERS=NVDA,MSFT
 ```
 
 This grouped summary is useful when you want to decide whether the next best local work should focus on:

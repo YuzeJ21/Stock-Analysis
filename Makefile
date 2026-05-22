@@ -29,8 +29,8 @@ help:
 	@echo "  make onboarding       Write source status, coverage, research-health, action queue, and project status outputs"
 	@echo "  make coverage [TICKERS=NVDA,MSFT] Show ticker-level local data coverage"
 	@echo "  make data-wizard [TICKERS=NVDA,MSFT] Show prioritized data coverage unlocks"
-	@echo "  make unlock-ladder    Show one next-step unlock stage per ticker"
-	@echo "  make unlock-summary   Show grouped unlock priorities by holdings, theme, and sector ETF"
+	@echo "  make unlock-ladder [TICKERS=NVDA,MSFT] Show one next-step unlock stage per ticker"
+	@echo "  make unlock-summary [TICKERS=NVDA,MSFT] Show grouped unlock priorities by holdings, theme, and sector ETF"
 	@echo "  make command-bundles [TICKERS=NVDA,MSFT] Show holdings-first local command bundles for prices, SEC, and peers"
 	@echo "  make command-bundle-details [TICKERS=NVDA,MSFT] Show ticker-level rows for the current local command bundles"
 	@echo "  make command-bundle-runbook [TICKERS=NVDA,MSFT] Show ordered runbook rows for the current local command bundles"
@@ -133,10 +133,10 @@ data-wizard:
 	python3 -m src.data_onboarding --wizard $(if $(TICKERS),--tickers $(TICKERS),)
 
 unlock-ladder:
-	python3 -m src.data_onboarding --unlock-ladder
+	python3 -m src.data_onboarding --unlock-ladder $(if $(TICKERS),--tickers $(TICKERS),)
 
 unlock-summary:
-	python3 -m src.data_onboarding --unlock-summary
+	python3 -m src.data_onboarding --unlock-summary $(if $(TICKERS),--tickers $(TICKERS),)
 
 command-bundles:
 	python3 -m src.data_onboarding --command-bundles $(if $(TICKERS),--tickers $(TICKERS),)
