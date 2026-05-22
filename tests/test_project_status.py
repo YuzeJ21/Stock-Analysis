@@ -64,3 +64,32 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
     assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
     assert "run price coverage bundle: make runbook-prices" in output
+
+
+def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "date": "2026-01-01", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 1000},
+            {"ticker": "NVDA", "date": "2026-01-02", "open": 10, "high": 12, "low": 9, "close": 11, "volume": 1100},
+        ]
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+            {"ticker": "AMD", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "shares": 1, "primarypurpose": "Momentum Leader"}]).to_csv(
+        data_dir / "holdings.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "theme": "AI"}]).to_csv(data_dir / "fundamentals.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=5)
+
+    assert payload["top_onboarding_actions"][0]["ticker"] == "AMD"
+    assert payload["recommended_next_command_rows"][1]["Command"] == "make runbook-prices-broader"

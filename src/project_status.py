@@ -64,6 +64,45 @@ def _enrich_top_actions(onboarding_payload: dict[str, Any]) -> list[dict[str, An
     return enriched
 
 
+def _bundle_rank(bundle: dict[str, Any]) -> tuple[int, int, str]:
+    scope = str(bundle.get("scope") or "").strip().lower()
+    ticker_count = int(bundle.get("ticker_count") or 0)
+    scope_rank = 0 if scope == "broader_queue" else 1 if scope == "holdings_first" else 2
+    return (scope_rank, -ticker_count, str(bundle.get("bundle_name") or ""))
+
+
+def _select_top_bundle(actions: list[dict[str, Any]], bundles: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not bundles:
+        return None
+    if not actions:
+        return min(bundles, key=_bundle_rank)
+
+    top_action = actions[0]
+    dataset = str(top_action.get("dataset") or "").strip().lower()
+    ticker = str(top_action.get("ticker") or "").strip().upper()
+
+    lane_matches = [
+        bundle for bundle in bundles if str(bundle.get("lane") or "").strip().lower() == dataset
+    ]
+    if not lane_matches:
+        return min(bundles, key=_bundle_rank)
+
+    if ticker:
+        ticker_matches: list[dict[str, Any]] = []
+        for bundle in lane_matches:
+            tickers = {
+                part.strip().upper()
+                for part in str(bundle.get("tickers") or "").split(",")
+                if part.strip()
+            }
+            if ticker in tickers:
+                ticker_matches.append(bundle)
+        if ticker_matches:
+            return min(ticker_matches, key=_bundle_rank)
+
+    return min(lane_matches, key=_bundle_rank)
+
+
 def _recommended_next_command_rows(actions: list[dict[str, Any]], bundles: list[dict[str, Any]]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
@@ -77,8 +116,8 @@ def _recommended_next_command_rows(actions: list[dict[str, Any]], bundles: list[
             reason = _first_non_empty(top_action.get("reason"), top_action.get("recommended_action"))
             rows.append({"Step": step, "Command": command, "Reason": reason})
 
-    if bundles:
-        top_bundle = bundles[0]
+    top_bundle = _select_top_bundle(actions, bundles)
+    if top_bundle:
         command = _first_non_empty(
             top_bundle.get("runbook_shortcut_command"),
             top_bundle.get("detail_shortcut_command"),
