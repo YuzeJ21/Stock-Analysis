@@ -456,7 +456,7 @@ python -m src.stock_report --list-local-tickers
 To validate your local CSV datasets and see schema/freshness warnings:
 
 ```bash
-python -m src.stock_report --validate-local-data
+make validate-data
 ```
 
 For JSON-friendly validation output:
@@ -468,7 +468,7 @@ python -m src.stock_report --validate-local-data --json
 To scaffold header-only local enrichment templates without fabricating any production data:
 
 ```bash
-python -m src.stock_report --write-local-data-templates
+make templates
 ```
 
 For JSON-friendly template creation output:
@@ -515,11 +515,12 @@ The exported JSON includes:
 Example peer-aware workflow:
 
 ```bash
-python -m src.stock_report --write-local-data-templates
+make templates
 # fill data/imports/peers.csv or data/peers.csv with real peer mappings
-python -m src.stock_report --validate-imports
-python -m src.stock_report --preview-import-merge
-python -m src.stock_report --apply-import-merge
+make imports-validate
+make imports-preview
+make imports-apply
+make onboarding
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
 
@@ -966,8 +967,8 @@ If you want richer deterministic valuation coverage without relying on yfinance:
 4. Re-run:
 
 ```bash
-python -m src.stock_report --validate-local-data
-python -m src.stock_report --write-local-data-templates
+make validate-data
+make templates
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
 
@@ -996,19 +997,19 @@ The importer never fabricates values. You must provide real local data and, wher
 Validate staged files without mutating canonical data:
 
 ```bash
-python -m src.stock_report --validate-imports
+make imports-validate
 ```
 
 Preview what would change:
 
 ```bash
-python -m src.stock_report --preview-import-merge
+make imports-preview
 ```
 
 Apply the merge safely:
 
 ```bash
-python -m src.stock_report --apply-import-merge
+make imports-apply
 ```
 
 JSON output is also available:
@@ -1036,13 +1037,13 @@ python -m src.stock_report --apply-import-merge --json
 ### Example workflow
 
 ```bash
-python -m src.stock_report --write-local-data-templates
+make templates
 cp data/templates/fundamentals.csv data/imports/fundamentals.csv
 # fill in real local data manually
-python -m src.stock_report --validate-imports
-python -m src.stock_report --preview-import-merge
-python -m src.stock_report --apply-import-merge
-python -m src.stock_report --validate-local-data
+make imports-validate
+make imports-preview
+make imports-apply
+make validate-data
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
 
@@ -1461,8 +1462,8 @@ Final state-machine view combining purpose, momentum, and portfolio context into
 - `make status` refreshes ticker-level coverage, action, queue, source-status, research-health, and project-status artifacts for the Data Health dashboard
 - `make onboarding` refreshes the full source-status, onboarding, research-health, action-queue, and project-status artifact set after editing local files
 - `make templates` creates header-only onboarding templates under `data/templates/`
-- `python3 -m src.data_onboarding --write-output` is the lower-level writer behind the onboarding/status workflow
-- `python3 -m src.data_onboarding --write-templates` creates header-only onboarding templates under `data/templates/`
+- `python3 -m src.data_onboarding --write-output` remains available when you explicitly want the lower-level writer behind the onboarding/status workflow
+- `python3 -m src.data_onboarding --write-templates` remains available when you explicitly want the raw template writer
 - `--write-local-data-templates` creates header-only CSV templates under `data/templates/`
 - `--write-import-staging` creates header-only staging files under `data/imports/`
 - these templates are safe starting points for adding real local data later

@@ -154,6 +154,15 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
     assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
     assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
+    assert "To validate your local CSV datasets and see schema/freshness warnings:\n\n```bash\nmake validate-data" in readme
+    assert "To scaffold header-only local enrichment templates without fabricating any production data:\n\n```bash\nmake templates" in readme
+    assert "make imports-validate" in readme
+    assert "make imports-preview" in readme
+    assert "make imports-apply" in readme
+    assert "make onboarding" in readme
+    assert "Validate staged files without mutating canonical data:\n\n```bash\nmake imports-validate" in readme
+    assert "Preview what would change:\n\n```bash\nmake imports-preview" in readme
+    assert "Apply the merge safely:\n\n```bash\nmake imports-apply" in readme
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
 
 
