@@ -1100,7 +1100,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     target_file="data/imports/prices.csv",
                     focus_command=focus_command_for_ticker("prices", row.ticker),
                     example_command=f"make price-normalize INPUT=data/raw/prices/{row.ticker}.csv TICKER={row.ticker} SOURCE=yahoo_manual",
-                    safe_next_step="Add verified historical OHLCV rows locally; do not infer or backfill synthetic returns.",
+                    safe_next_step="Add verified historical OHLCV files locally; do not infer or backfill synthetic returns.",
                 )
             )
         if not row.usable_for_dcf:

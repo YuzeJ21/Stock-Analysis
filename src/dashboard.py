@@ -3225,7 +3225,7 @@ def status_legend_rows() -> list[dict[str, str]]:
         },
         {
             "Label": "Needs Price Data",
-            "Meaning": "Add or refresh verified OHLCV rows before relying on momentum or track-record context.",
+            "Meaning": "Add or refresh verified OHLCV files before relying on momentum or track-record context.",
         },
         {
             "Label": "Needs Enrichment",

@@ -4033,6 +4033,7 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert any(row["Command"] == "make validate-all" for row in workflow_rows)
     assert any(row["Command"] == "make dashboard-smoke" for row in workflow_rows)
     assert any(row["Command"] == "make daily" for row in workflow_rows)
+    assert "verified ohlcv files before relying on momentum or track-record context" in rendered
     assert "overview tab" in nav_rendered
     assert "monthly picks tab" in nav_rendered
     assert "data health tab" in nav_rendered
