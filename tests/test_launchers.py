@@ -113,7 +113,8 @@ def test_makefile_help_documents_key_workflows():
         "make sec-stage-queue",
         "make peer-mapping-queue",
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
-        "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA,MSFT",
+        "export SEC_USER_AGENT='Name email@example.com'",
+        "make sec-stage TICKERS=NVDA,MSFT",
         "make universe-preview",
     ):
         assert phrase in makefile
