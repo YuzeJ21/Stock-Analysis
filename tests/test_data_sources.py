@@ -6,6 +6,7 @@ import pandas as pd
 
 from src.data_sources import (
     DATA_SOURCE_REGISTRY,
+    _filter_data_source_payload,
     build_data_source_payload,
     main,
     write_data_source_outputs,
@@ -342,3 +343,19 @@ def test_data_sources_cli_check_json(tmp_path: Path, capsys):
     assert "target_file" in payload["data_gaps"][0]
     assert "focus_command" in payload["data_gaps"][0]
     assert "example_command" in payload["data_gaps"][0]
+
+
+def test_filter_data_source_payload_respects_ticker_slice():
+    payload = {
+        "data_sources": [{"dataset": "prices", "availability_status": "available", "row_count": 10, "source_name": "Local prices"}],
+        "data_gaps": [
+            {"dataset": "prices", "ticker": "AMD", "status": "partial", "recommended_action": "A"},
+            {"dataset": "fundamentals", "ticker": "NVDA", "status": "partial", "recommended_action": "B"},
+            {"dataset": "peers", "ticker": "", "status": "manual_only", "recommended_action": "C"},
+        ],
+    }
+
+    filtered = _filter_data_source_payload(payload, ["nvda"])
+
+    assert len(filtered["data_gaps"]) == 1
+    assert filtered["data_gaps"][0]["ticker"] == "NVDA"

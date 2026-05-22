@@ -15,7 +15,7 @@ help:
 	@echo "  make daily            Optional broader end-to-end local workflow refresh"
 	@echo "  make dashboard        Open the Streamlit dashboard"
 	@echo "  make dashboard-smoke  Start dashboard headless and check Streamlit health"
-	@echo "  make data-sources-check [TOP_N=10] Validate local source availability and gap status without rewriting outputs"
+	@echo "  make data-sources-check [TICKERS=NVDA,MSFT] [TOP_N=10] Validate local source availability and gap status without rewriting outputs"
 	@echo "  make data-sources    Refresh source status and gap report outputs only"
 	@echo "  make status now prints the top focus shortcut, top bundle/runbook shortcut, then verify/smoke steps"
 	@echo "  Use make status first, then the printed focus/runbook path, then verify/smoke, then dashboard review"
@@ -113,7 +113,7 @@ validate-data:
 	python3 -m src.stock_report --validate-local-data
 
 data-sources-check:
-	python3 -m src.data_sources --check --top-n $(or $(TOP_N),20)
+	python3 -m src.data_sources --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)
 
 data-sources:
 	python3 -m src.data_sources --write-output
