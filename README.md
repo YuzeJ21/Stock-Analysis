@@ -231,6 +231,8 @@ python3 -m src.data_sources --write-output
 - `outputs/data_source_status.csv`
 - `outputs/data_gap_report.csv`
 
+The gap report now includes structured next-step fields such as `focus_command` and `example_command`, so missing datasets and ticker-level gaps can point directly to the next local CLI path instead of only prose guidance.
+
 Important source boundaries:
 
 - SEC Companyfacts can stage candidate fundamentals only; it does not provide market prices, analyst estimates, earnings calendars, or peer mappings.

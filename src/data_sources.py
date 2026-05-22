@@ -75,11 +75,59 @@ class DataGap:
     reason: str
     required_for: str
     recommended_action: str
+    focus_command: str
+    example_command: str
     local_file: str
     source_name: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def _gap_focus_command(dataset: str, ticker: str) -> str:
+    ticker = str(ticker or "").strip().upper()
+    if dataset == "prices" and ticker:
+        return f"make focus-price TICKER={ticker}"
+    if dataset == "fundamentals" and ticker:
+        return f"make focus-fundamentals TICKER={ticker}"
+    if dataset == "peers" and ticker:
+        return f"make focus-peers TICKER={ticker}"
+    if dataset == "prices":
+        return "make status"
+    if dataset == "fundamentals":
+        return "make status"
+    if dataset == "peers":
+        return "make status"
+    if dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
+        return "make templates"
+    if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
+        return "make universe-preview"
+    return "make status"
+
+
+def _gap_example_command(dataset: str, ticker: str) -> str:
+    ticker = str(ticker or "").strip().upper()
+    if dataset == "prices" and ticker:
+        return f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+    if dataset == "fundamentals" and ticker:
+        return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+    if dataset == "peers" and ticker:
+        return "make templates"
+    if dataset == "prices":
+        return "make runbook-prices-broader"
+    if dataset == "fundamentals":
+        return "make runbook-fundamentals-broader"
+    if dataset == "peers":
+        return "make runbook-peers-broader"
+    if dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
+        return "make templates"
+    if dataset == "sp500_constituents":
+        return "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50"
+    if dataset == "nasdaq_symbols":
+        return "python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100"
+    if dataset == "universe":
+        return "make universe-preview"
+    return "make status"
 
 
 DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
@@ -414,6 +462,8 @@ def build_data_gap_report(
                 reason=row.validation_warnings or row.notes,
                 required_for=row.required_for,
                 recommended_action=row.fallback_action,
+                focus_command=_gap_focus_command(row.dataset, ""),
+                example_command=_gap_example_command(row.dataset, ""),
                 local_file=row.local_file,
                 source_name=row.source_name,
             )
@@ -434,6 +484,8 @@ def build_data_gap_report(
                     reason=f"No local price rows were found for {ticker}.",
                     required_for=price_status.required_for,
                     recommended_action=price_status.fallback_action,
+                    focus_command=_gap_focus_command("prices", ticker),
+                    example_command=_gap_example_command("prices", ticker),
                     local_file=price_status.local_file,
                     source_name=price_status.source_name,
                 )
@@ -447,6 +499,8 @@ def build_data_gap_report(
                     reason=f"No local fundamentals row was found for {ticker}.",
                     required_for=fundamentals_status.required_for,
                     recommended_action=fundamentals_status.fallback_action,
+                    focus_command=_gap_focus_command("fundamentals", ticker),
+                    example_command=_gap_example_command("fundamentals", ticker),
                     local_file=fundamentals_status.local_file,
                     source_name=fundamentals_status.source_name,
                 )
@@ -500,6 +554,10 @@ def _print_human(payload: dict[str, Any]) -> None:
     for row in payload["data_gaps"][:20]:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(f"- {row['dataset']}{ticker}: {row['status']} - {row['recommended_action']}")
+        if row.get("focus_command"):
+            print(f"  focus: {row['focus_command']}")
+        if row.get("example_command"):
+            print(f"  command: {row['example_command']}")
 
 
 def main() -> None:

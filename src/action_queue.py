@@ -485,24 +485,28 @@ def build_action_queue_rows(
                 priority = 5
             if dataset == "earnings":
                 priority = 4
-            focus_command = (
-                focus_command_for_ticker("prices", ticker)
-                if dataset == "prices" and ticker
-                else focus_command_for_ticker("fundamentals", ticker)
-                if dataset == "fundamentals" and ticker
-                else focus_command_for_ticker("peers", ticker)
-                if dataset == "peers" and ticker
-                else ""
-            )
-            if not ticker:
-                focus_command = _global_gap_command(dataset, command_bundles)
-            example_command = (
-                _global_gap_example_command(dataset, command_bundles)
-                if not ticker
-                else "make onboarding"
-                if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}
-                else "make daily"
-            )
+            focus_command = str(row.get("focus_command", "")).strip()
+            if not focus_command:
+                focus_command = (
+                    focus_command_for_ticker("prices", ticker)
+                    if dataset == "prices" and ticker
+                    else focus_command_for_ticker("fundamentals", ticker)
+                    if dataset == "fundamentals" and ticker
+                    else focus_command_for_ticker("peers", ticker)
+                    if dataset == "peers" and ticker
+                    else ""
+                )
+                if not ticker:
+                    focus_command = _global_gap_command(dataset, command_bundles)
+            example_command = str(row.get("example_command", "")).strip()
+            if not example_command:
+                example_command = (
+                    _global_gap_example_command(dataset, command_bundles)
+                    if not ticker
+                    else "make onboarding"
+                    if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}
+                    else "make daily"
+                )
             items.append(
                 ActionQueueItem(
                     priority=priority,

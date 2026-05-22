@@ -474,6 +474,36 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     assert nasdaq_row.example_command == "python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100"
 
 
+def test_action_queue_prefers_explicit_data_gap_commands_when_present():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(
+            [
+                {
+                    "dataset": "fundamentals",
+                    "ticker": "NVDA",
+                    "status": "partial",
+                    "reason": "No local fundamentals row was found for NVDA.",
+                    "required_for": "valuation",
+                    "recommended_action": "Start with make status, then follow the printed fundamentals focus or runbook path.",
+                    "focus_command": "make focus-fundamentals TICKER=NVDA",
+                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "local_file": "data/fundamentals.csv",
+                    "source_name": "Local fundamentals CSV / SEC Companyfacts staging",
+                }
+            ]
+        ),
+        data_quality=pd.DataFrame(),
+        command_bundles=pd.DataFrame(),
+    )
+
+    row = rows[0]
+    assert row.focus_command == "make focus-fundamentals TICKER=NVDA"
+    assert row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+
+
 def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):
     outputs_dir = tmp_path / "outputs"
     data_dir = tmp_path / "data"
