@@ -1351,7 +1351,7 @@ make sec-stage TICKERS=NVDA,MSFT
 make imports-validate
 make imports-preview
 make imports-apply
-python -m src.stock_report --validate-local-data
+make validate-data
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
 
