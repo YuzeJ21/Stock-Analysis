@@ -12,6 +12,7 @@ def test_makefile_contains_convenience_targets():
         "monthly",
         "track-record",
         "validate-data",
+        "data-sources-check",
         "research-health",
         "action-queue",
         "verify",
@@ -80,6 +81,7 @@ def test_makefile_help_documents_key_workflows():
         "make validate-all",
         "make daily",
         "make dashboard-smoke",
+        "make data-sources-check",
         "make data-wizard",
         "make unlock-ladder",
         "make unlock-summary",
@@ -157,5 +159,26 @@ def test_validate_all_reuses_current_verification_targets():
     script = Path("scripts/validate_all.sh").read_text(encoding="utf-8")
 
     assert "make verify" in script
+    assert "make data-sources-check" in script
+    assert "make monthly" in script
+    assert "make track-record" in script
     assert "make dashboard-smoke" in script
     assert "python3 -m pytest tests -q" not in script
+    assert "python3 -m src.data_sources --check" not in script
+
+
+def test_daily_launcher_reuses_current_make_targets():
+    script = Path("scripts/daily.sh").read_text(encoding="utf-8")
+
+    for command in (
+        "make price-refresh",
+        "make pipeline",
+        "make monthly",
+        "make track-record",
+        "make validate-data",
+        "make onboarding",
+    ):
+        assert command in script
+
+    assert "python3 -m src.data_update --universe-file data/universe.csv" not in script
+    assert "python3 -m src.report_generator" not in script

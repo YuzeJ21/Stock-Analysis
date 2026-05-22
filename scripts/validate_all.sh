@@ -8,7 +8,7 @@ echo "Repo root: ${REPO_ROOT}"
 cd "${REPO_ROOT}"
 
 make verify
-python3 -m src.data_sources --check
-python3 -m src.monthly_picks --generate --top-n 5
-python3 -m src.track_record --monthly-picks
+make data-sources-check
+make monthly
+make track-record
 make dashboard-smoke

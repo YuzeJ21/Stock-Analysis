@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data data-sources-check research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -12,6 +12,7 @@ help:
 	@echo "  make daily            Optional broader end-to-end local workflow refresh"
 	@echo "  make dashboard        Open the Streamlit dashboard"
 	@echo "  make dashboard-smoke  Start dashboard headless and check Streamlit health"
+	@echo "  make data-sources-check Validate local source availability and gap status without rewriting outputs"
 	@echo "  make status now prints the top focus shortcut, top bundle/runbook shortcut, then verify/smoke steps"
 	@echo "  Use make status first, then the printed focus/runbook path, then verify/smoke, then dashboard review"
 	@echo ""
@@ -90,6 +91,9 @@ track-record:
 
 validate-data:
 	python3 -m src.stock_report --validate-local-data
+
+data-sources-check:
+	python3 -m src.data_sources --check
 
 research-health:
 	python3 -m src.research_health --write-output
