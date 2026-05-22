@@ -9,7 +9,7 @@ import pandas as pd
 
 from src.data_onboarding import build_onboarding_payload
 from src.data_onboarding import write_onboarding_outputs
-from src.data_update import refresh_price_update_status_output
+from src.data_update import enrich_price_update_status_frame, refresh_price_update_status_output
 from src.data_sources import build_data_source_payload, write_data_source_outputs
 from src.action_queue import write_action_queue_output
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
@@ -39,7 +39,7 @@ def _load_price_status_lookup(output_path: Path) -> dict[str, dict[str, Any]]:
     path = output_path / "price_update_status.csv"
     if not path.exists():
         return {}
-    frame = pd.read_csv(path)
+    frame = enrich_price_update_status_frame(pd.read_csv(path))
     if frame.empty or "ticker" not in frame.columns:
         return {}
     lookup: dict[str, dict[str, Any]] = {}

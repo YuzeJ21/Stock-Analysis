@@ -262,6 +262,32 @@ def _categorize_price_error(messages: list[str]) -> tuple[str, str]:
     return "failed", message
 
 
+def _normalized_error_message(status: str, ticker: str, error_message: object) -> str:
+    message = " ".join(str(error_message or "").split()).strip()
+    if not message:
+        return ""
+
+    if status != "parse_error":
+        return message
+
+    lowered = message.lower()
+    if "error tokenizing data" in lowered:
+        detail = message
+        if ": update failed" in detail:
+            detail = detail.split(": update failed", 1)[1].strip()
+        if detail.startswith("(") and detail.endswith(")"):
+            detail = detail[1:-1].strip()
+        if detail.lower().startswith("error tokenizing data."):
+            detail = detail[len("Error tokenizing data.") :].strip()
+        if detail.lower().startswith("c error:"):
+            detail = detail[len("C error:") :].strip()
+        if detail:
+            return f"{ticker}: provider rows could not be parsed cleanly ({detail})"
+        return f"{ticker}: provider rows could not be parsed cleanly"
+
+    return message
+
+
 def _price_recommended_action(status: str, ticker: str, has_local_data: bool) -> str:
     normalize_action = f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and normalize verified downloaded OHLCV rows into data/imports/prices.csv."
     if status == "fetched":
@@ -316,6 +342,24 @@ def _recommended_action_needs_refresh(status: str, recommended_action: str, tick
     return False
 
 
+def _error_message_needs_refresh(status: str, error_message: str, ticker: str) -> bool:
+    normalized = str(error_message or "").strip()
+    if not normalized:
+        return False
+    if status != "parse_error":
+        return "\n" in normalized
+    lowered = normalized.lower()
+    if "\n" in normalized:
+        return True
+    if "error tokenizing data" in lowered:
+        return True
+    if ": update failed" in lowered:
+        return True
+    if ticker and ticker not in normalized:
+        return True
+    return False
+
+
 def enrich_price_update_status_frame(frame: pd.DataFrame) -> pd.DataFrame:
     enriched = frame.copy()
     if "ticker" not in enriched.columns or "status" not in enriched.columns:
@@ -332,9 +376,12 @@ def enrich_price_update_status_frame(frame: pd.DataFrame) -> pd.DataFrame:
     for index, row in enriched.iterrows():
         status = str(row.get("status", "")).strip().lower()
         ticker = str(row.get("ticker", "")).strip().upper()
+        error_message = str(row.get("error_message", "")).strip()
         recommended_action = str(row.get("recommended_action", "")).strip()
         rows_merged = pd.to_numeric(pd.Series([row.get("rows_merged")]), errors="coerce").fillna(0).iloc[0]
         has_local_data = bool(str(row.get("requested_start", "")).strip()) or bool(rows_merged)
+        if _error_message_needs_refresh(status, error_message, ticker):
+            enriched.at[index, "error_message"] = _normalized_error_message(status, ticker, error_message)
         if _recommended_action_needs_refresh(status, recommended_action, ticker):
             enriched.at[index, "recommended_action"] = _price_recommended_action(status, ticker, has_local_data)
         if not str(row.get("focus_command", "")).strip():
@@ -370,7 +417,7 @@ def _price_status_row(
         "rows_fetched": rows_fetched,
         "rows_merged": rows_merged,
         "error_category": "" if status in {"fetched", "skipped_fresh"} else status,
-        "error_message": error_message,
+        "error_message": _normalized_error_message(status, ticker, error_message),
         "fallback_used": fallback_used,
         "recommended_action": _price_recommended_action(status, ticker, has_local_data),
         "focus_command": _price_focus_command(status, ticker),

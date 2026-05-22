@@ -81,6 +81,32 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
     assert payload["recommended_next_command_rows"][0]["Reason"] == "NVDA: parse failed"
 
 
+def test_project_status_normalizes_legacy_parse_error_reason_from_price_status(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+    pd.DataFrame(
+        [
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "NVDA",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "parse_error",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "parse_error",
+                "error_message": "NVDA: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)",
+                "fallback_used": True,
+                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=3)
+
+    assert payload["recommended_next_command_rows"][0]["Reason"] == "NVDA: provider rows could not be parsed cleanly (Expected 1 fields in line 6, saw 2)"
+
+
 def test_project_status_write_output_persists_machine_readable_files(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
 

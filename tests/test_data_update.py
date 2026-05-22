@@ -277,6 +277,23 @@ def test_enrich_price_update_status_frame_refreshes_stale_price_actions():
     assert "normalize verified downloaded OHLCV rows into data/imports/prices.csv" in enriched.iloc[0]["recommended_action"]
 
 
+def test_enrich_price_update_status_frame_normalizes_parse_error_messages():
+    frame = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "status": "parse_error",
+                "error_message": "META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)",
+                "recommended_action": "Run make focus-price TICKER=META, or run python3 -m src.data_update --tickers META and normalize verified downloaded OHLCV rows into data/imports/prices.csv.",
+            }
+        ]
+    )
+
+    enriched = enrich_price_update_status_frame(frame)
+
+    assert enriched.iloc[0]["error_message"] == "META: provider rows could not be parsed cleanly (Expected 1 fields in line 6, saw 2)"
+
+
 def test_refresh_price_update_status_output_rewrites_legacy_file(tmp_path: Path):
     (tmp_path / "outputs").mkdir()
     path = tmp_path / "outputs" / "price_update_status.csv"
@@ -307,6 +324,34 @@ def test_refresh_price_update_status_output_rewrites_legacy_file(tmp_path: Path)
     assert refreshed.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
     assert refreshed.iloc[0]["target_file"] == "data/imports/prices.csv"
     assert refreshed.iloc[0]["recommended_action"].startswith("Run make focus-price TICKER=AMD")
+
+
+def test_refresh_price_update_status_output_rewrites_legacy_parse_error_message(tmp_path: Path):
+    (tmp_path / "outputs").mkdir()
+    path = tmp_path / "outputs" / "price_update_status.csv"
+    pd.DataFrame(
+        [
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "META",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "parse_error",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "parse_error",
+                "error_message": "META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)",
+                "fallback_used": True,
+                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+            }
+        ]
+    ).to_csv(path, index=False)
+
+    refresh_price_update_status_output(tmp_path)
+
+    refreshed = pd.read_csv(path)
+    assert refreshed.iloc[0]["error_message"] == "META: provider rows could not be parsed cleanly (Expected 1 fields in line 6, saw 2)"
 
 
 class FlakyPriceSource(FakePriceSource):
