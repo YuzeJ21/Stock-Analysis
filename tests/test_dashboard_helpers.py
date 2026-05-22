@@ -5284,6 +5284,10 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "overview tab" in nav_rendered
     assert "monthly picks tab" in nav_rendered
     assert "make status-check top_n=5" in rendered
+    fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Needs SEC enrichment")
+    peers_row = next(row for row in missing_rows if row["Dashboard Label"] == "Needs peers.csv")
+    assert "make status-check TOP_N=5" in fundamentals_row["What to do"]
+    assert "make status-check TOP_N=5" in peers_row["What to do"]
     assert "make data-wizard top_n=5" in rendered
     assert "data health tab" in nav_rendered
     assert "make runbook-prices-broader" in empty_rendered
