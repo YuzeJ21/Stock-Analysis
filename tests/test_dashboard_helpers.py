@@ -731,6 +731,78 @@ def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tm
     assert "data/imports/fundamentals.csv" in str(staged_rows.iloc[0]["reason"])
 
 
+def test_load_action_queue_refreshes_stale_staged_peer_queue_artifact(tmp_path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    imports_dir = data_dir / "imports"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    imports_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    (data_dir / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,NVDA,100,1000\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,theme,sector,pe_ratio,revenue_growth,profit_margin,debt_to_equity\n"
+        "NVDA,AI,Semis,30,0.2,0.3,0.4\n",
+        encoding="utf-8",
+    )
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
+        "NVDA,AI,SMH,Momentum Leader,Large,fixture\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text(
+        "ticker,primarypurpose\n"
+        "NVDA,Momentum Leader\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group,source,as_of_date\n"
+        "NVDA,AMD,ai_semis,manual,2026-05-22\n",
+        encoding="utf-8",
+    )
+    pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "urgency": "high",
+                "action_type": "peers",
+                "ticker": "",
+                "title": "Resolve peers gap",
+                "status": "partial",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local peer inputs.",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/peers.csv",
+                "source_file": "data/imports/peers.csv",
+                "source_artifact": "outputs/data_gap_report.csv",
+                "reason": "as_of_date column is unavailable, so freshness is file-based only.",
+            }
+        ]
+    ).to_csv(outputs_dir / "research_action_queue.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = tmp_path
+        frame, message = dashboard.load_action_queue(outputs_dir)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    assert message is None
+    assert frame is not None
+    staged_rows = frame.loc[
+        frame["focus_command"].astype(str).str.strip().eq("make imports-validate")
+        & frame["action_type"].astype(str).str.strip().eq("peers")
+    ]
+    assert not staged_rows.empty
+    assert staged_rows.iloc[0]["title"] == "Advance staged peer import"
+    assert staged_rows.iloc[0]["target_file"] == "data/imports/peers.csv"
+    assert "staged import rows are present" in str(staged_rows.iloc[0]["reason"]).lower()
+
+
 def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
     pd.DataFrame(
         [

@@ -323,14 +323,15 @@ def load_action_queue(
             if not normalized_actions.str.contains("make focus-price").all():
                 needs_refresh = True
     if not needs_refresh and {"focus_command", "title", "reason"}.issubset(frame.columns):
-        staged_fundamentals_rows = frame.loc[
+        staged_import_rows = frame.loc[
             frame["focus_command"].astype(str).str.strip().str.lower().eq("make imports-validate")
         ]
-        if not staged_fundamentals_rows.empty:
-            normalized_titles = staged_fundamentals_rows["title"].astype(str).str.strip().str.lower()
-            normalized_reasons = staged_fundamentals_rows["reason"].astype(str).str.strip().str.lower()
+        if not staged_import_rows.empty:
+            normalized_titles = staged_import_rows["title"].astype(str).str.strip().str.lower()
+            normalized_reasons = staged_import_rows["reason"].astype(str).str.strip().str.lower()
             if (
                 normalized_titles.str.contains(r"resolve fundamentals gap").any()
+                or normalized_titles.str.contains(r"resolve peers gap").any()
                 or normalized_reasons.str.contains("freshness is file-based only").any()
             ):
                 needs_refresh = True
