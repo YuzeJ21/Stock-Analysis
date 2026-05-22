@@ -570,6 +570,7 @@ def main() -> None:
     parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    parser.add_argument("--top-n", type=int, default=20, help="Number of warnings to print in human-readable mode.")
     args = parser.parse_args()
 
     result = run(
@@ -595,7 +596,7 @@ def main() -> None:
         print(f"- {name}: {count}")
     if result["warnings"]:
         print("Warnings:")
-        for warning in result["warnings"]:
+        for warning in result["warnings"][: max(args.top_n, 0)]:
             print(f"- {warning}")
 
 

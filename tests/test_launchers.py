@@ -91,7 +91,7 @@ def test_makefile_help_documents_key_workflows():
         "make dashboard-smoke",
         "make data-sources-check",
         "make data-sources",
-        "make research-health-check",
+        "make research-health-check [TOP_N=10]",
         "make action-queue-check [TOP_N=10]",
         "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json]",
         "make local-tickers",
@@ -217,6 +217,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "The local track-record module uses only local historical prices:\n\n```bash\nmake track-record" in readme
     assert "If you want the current project-status summary without first refreshing those supporting artifacts, use:\n\n```bash\nmake status-check" in readme
     assert "Generate them through the normal workflow or directly:\n\n```bash\nmake status\nmake verify\nmake research-health-check\nmake research-health" in readme
+    assert "If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`." in readme
     assert "Generate it with:\n\n```bash\nmake status\nmake action-queue-check\nmake action-queue" in readme
     assert "If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`." in readme
 
@@ -308,7 +309,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile
     assert "data-sources:\n\tpython3 -m src.data_sources --write-output" in makefile
-    assert "research-health-check:\n\tpython3 -m src.research_health" in makefile
+    assert "research-health-check:\n\tpython3 -m src.research_health --top-n $(or $(TOP_N),20)" in makefile
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20)" in makefile
     assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
