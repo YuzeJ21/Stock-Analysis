@@ -3200,24 +3200,28 @@ def data_health_tab_summary_cards(
                 "title": str(coverage_summary["usable_price_tickers"]),
                 "body": "Tickers with enough local price history for momentum and monthly research surfaces.",
                 "badges": ["local prices"],
+                "command": "make runbook-prices-broader",
             },
             {
                 "kicker": "DCF READY",
                 "title": str(coverage_summary["dcf_ready_tickers"]),
                 "body": "Tickers with sufficient local valuation fields for DCF calculations.",
                 "badges": ["fundamentals"],
+                "command": "make runbook-fundamentals-broader",
             },
             {
                 "kicker": "PEER READY",
                 "title": str(coverage_summary["peer_ready_tickers"]),
                 "body": "Tickers with manual peer mapping plus enough peer context for relative valuation.",
                 "badges": ["peers.csv"],
+                "command": "make runbook-peers-broader",
             },
             {
                 "kicker": "OPTIONAL ONLY",
                 "title": str(coverage_summary["optional_only_missing_tickers"]),
                 "body": "Tickers missing only optional earnings or analyst-estimate files rather than core research inputs.",
                 "badges": ["safe partials"],
+                "command": "make onboarding",
             },
         ]
     if tab_name == "Sources":
@@ -3233,12 +3237,14 @@ def data_health_tab_summary_cards(
                 "title": str(available),
                 "body": "Local or source-backed datasets that currently look usable in the status registry.",
                 "badges": ["registry"],
+                "command": "make data-sources",
             },
             {
                 "kicker": "PARTIAL",
                 "title": str(partial),
                 "body": "Datasets where the project can proceed, but freshness or completeness is still limited.",
                 "badges": ["transparent gaps"],
+                "command": "make data-sources",
             },
         ]
     if tab_name == "Price Refresh":
@@ -3250,12 +3256,14 @@ def data_health_tab_summary_cards(
                 "title": str(counts.get("fetched", 0)),
                 "body": "Rows fetched in the last machine-readable price refresh run.",
                 "badges": ["remote attempt"],
+                "command": "make price-status TOP_N=10",
             },
             {
                 "kicker": "SKIPPED",
                 "title": str(counts.get("skipped_fresh", 0)),
                 "body": "Tickers skipped because local rows already looked fresh enough.",
                 "badges": ["fresh local data"],
+                "command": "make price-status TOP_N=10",
             },
             {
                 "kicker": "ISSUES",
@@ -3266,6 +3274,7 @@ def data_health_tab_summary_cards(
                     "make price-preview, and make price-apply."
                 ),
                 "badges": ["make price-status TOP_N=10", "manual fallback"],
+                "command": "make price-status TOP_N=10",
             },
         ]
     if tab_name == "Staged Imports":
@@ -3276,6 +3285,7 @@ def data_health_tab_summary_cards(
                 "title": str(file_count),
                 "body": "Local staged imports waiting for review before any canonical CSV apply step.",
                 "badges": ["preview first"],
+                "command": "make imports-preview",
             }
         ]
     valid_count = int(validation_rows.get("validation_status", pd.Series(dtype=object)).astype(str).isin({"valid", "valid_with_warnings"}).sum()) if not validation_rows.empty else 0
@@ -3286,12 +3296,14 @@ def data_health_tab_summary_cards(
             "title": str(valid_count),
             "body": "Datasets that loaded cleanly or with visible warnings in the local validator.",
             "badges": ["schema checks"],
+            "command": "make validate-data",
         },
         {
             "kicker": "OPTIONAL MISSING",
             "title": str(missing_count),
             "body": "Optional files can stay missing without breaking the research pipeline.",
             "badges": ["partial safe"],
+            "command": "make validate-data",
         },
     ]
 

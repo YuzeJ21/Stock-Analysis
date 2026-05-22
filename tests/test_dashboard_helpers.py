@@ -5713,6 +5713,14 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
         for value in card.values()
     ).lower()
 
+    assert coverage_cards[0]["command"] == "make runbook-prices-broader"
+    assert coverage_cards[1]["command"] == "make runbook-fundamentals-broader"
+    assert coverage_cards[2]["command"] == "make runbook-peers-broader"
+    assert coverage_cards[3]["command"] == "make onboarding"
+    assert price_cards[0]["command"] == "make price-status TOP_N=10"
+    assert price_cards[1]["command"] == "make price-status TOP_N=10"
+    assert price_cards[2]["command"] == "make price-status TOP_N=10"
+    assert staged_cards[0]["command"] == "make imports-preview"
     assert "1" in rendered
     assert "make price-status top_n=10" in rendered
     assert "manual fallback" in rendered
