@@ -176,6 +176,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "make data-sources" in readme
     assert "If you want a shorter source and gap summary in the terminal, use `make data-sources-check TOP_N=10`." in readme
     assert "If you want to inspect only a smaller local ticker slice of the gap list, use `make data-sources-check TICKERS=NVDA,MSFT`." in readme
+    assert "The raw read-only CLI path is `python3 -m src.data_sources --check`." in readme
     assert "If you intentionally want lower-level CLI control against a fixture or alternate local dataset, the raw module commands remain available:\n\n```bash\npython3 -m src.stock_report --project-root \"/Users/yjian070/Documents/New project\" --validate-local-data" in readme
     assert "```bash\nmake validate-data\nmake pipeline\nmake monthly" in readme
     assert "## Run the dashboard\n\n```bash\nmake dashboard" in readme
@@ -239,6 +240,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "Generate it with:\n\n```bash\nmake status\nmake action-queue-check\nmake action-queue" in readme
     assert "If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`." in readme
     assert "If you want to inspect only a smaller local ticker slice, use `make action-queue-check TICKERS=NVDA,MSFT`." in readme
+    assert "The raw read-only CLI path is `python3 -m src.action_queue --check`." in readme
 
 
 def test_readme_distinguishes_verify_from_broader_daily_workflow():

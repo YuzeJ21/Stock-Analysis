@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.action_queue import (
     _filter_action_queue_payload,
     _data_quality_needs_refresh,
     build_action_queue_payload,
     build_action_queue_rows,
+    main,
     write_action_queue_output,
 )
 
@@ -81,6 +84,18 @@ def test_action_queue_uses_status_first_fallback_for_price_failures_without_tick
     assert "run make status" in row.recommended_action.lower()
     assert "data/imports/prices.csv" in row.recommended_action
     assert "ohlcv files" in row.recommended_action.lower()
+
+
+def test_action_queue_cli_rejects_check_with_write_output(tmp_path: Path, capsys):
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--write-output"]
+    try:
+        with pytest.raises(SystemExit):
+            main()
+    finally:
+        sys.argv = previous_argv
+
+    assert "--check cannot be combined with --write-output" in capsys.readouterr().err
 
 
 def test_action_queue_uses_research_health_when_price_data_is_missing():

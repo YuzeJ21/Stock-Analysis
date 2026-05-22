@@ -921,6 +921,8 @@ def main() -> None:
     parser.add_argument("--tickers", help="Optional comma-separated ticker filter for read-only summary views.")
     parser.add_argument("--top-n", type=int, default=20, help="Number of action rows to print in human-readable mode.")
     args = parser.parse_args()
+    if args.check and args.write_output:
+        parser.error("--check cannot be combined with --write-output")
     explicit_tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
     if args.write_output and explicit_tickers:
         parser.error("--tickers is only supported for read-only action queue views")

@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.data_sources import (
     DATA_SOURCE_REGISTRY,
@@ -343,6 +344,19 @@ def test_data_sources_cli_check_json(tmp_path: Path, capsys):
     assert "target_file" in payload["data_gaps"][0]
     assert "focus_command" in payload["data_gaps"][0]
     assert "example_command" in payload["data_gaps"][0]
+
+
+def test_data_sources_cli_rejects_check_with_write_output(tmp_path: Path, capsys):
+    _write_minimal_local_data(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--write-output"]
+    try:
+        with pytest.raises(SystemExit):
+            main()
+    finally:
+        sys.argv = previous_argv
+
+    assert "--check cannot be combined with --write-output" in capsys.readouterr().err
 
 
 def test_filter_data_source_payload_respects_ticker_slice():

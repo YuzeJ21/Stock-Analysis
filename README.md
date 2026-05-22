@@ -235,7 +235,7 @@ python3 -m src.data_sources --check --json
 make data-sources
 ```
 
-Use `make data-sources-check` for the standard read-only operator path and `make data-sources` when you explicitly want to refresh just the source diagnostics without running the broader onboarding workflow. If you want a shorter source and gap summary in the terminal, use `make data-sources-check TOP_N=10`. If you want to inspect only a smaller local ticker slice of the gap list, use `make data-sources-check TICKERS=NVDA,MSFT`. Keep the raw `--json` / `--write-output` CLI forms for machine-readable inspection or lower-level scripting control.
+Use `make data-sources-check` for the standard read-only operator path and `make data-sources` when you explicitly want to refresh just the source diagnostics without running the broader onboarding workflow. If you want a shorter source and gap summary in the terminal, use `make data-sources-check TOP_N=10`. If you want to inspect only a smaller local ticker slice of the gap list, use `make data-sources-check TICKERS=NVDA,MSFT`. Keep the raw `--json` / `--write-output` CLI forms for machine-readable inspection or lower-level scripting control. The raw read-only CLI path is `python3 -m src.data_sources --check`.
 
 `--write-output` creates:
 
@@ -1209,7 +1209,7 @@ make action-queue-check
 make action-queue
 ```
 
-Use `make action-queue-check` for the current read-only summary view and `make action-queue` when you explicitly want to refresh `outputs/research_action_queue.csv`. If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`. If you want to inspect only a smaller local ticker slice, use `make action-queue-check TICKERS=NVDA,MSFT`. The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
+Use `make action-queue-check` for the current read-only summary view and `make action-queue` when you explicitly want to refresh `outputs/research_action_queue.csv`. If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`. If you want to inspect only a smaller local ticker slice, use `make action-queue-check TICKERS=NVDA,MSFT`. The raw read-only CLI path is `python3 -m src.action_queue --check`. The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
 
 ## Data coverage wizard
 
