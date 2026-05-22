@@ -4031,6 +4031,32 @@ def test_overview_workflow_reason_card_uses_review_fallback_when_queue_copy_is_m
     assert "not available" not in rendered
 
 
+def test_overview_workflow_reason_card_uses_runbook_fallback_when_queue_copy_is_missing():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "peers",
+                "ticker": "TSLA",
+                "title": "Open peer runbook",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+                "example_command": "",
+            }
+        ]
+    )
+
+    card = dashboard.overview_workflow_reason_card(None, queue)
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert card["title"] == "make runbook-peers"
+    assert "tsla" in rendered
+    assert "staged local workflow next" in rendered
+    assert "not available" not in rendered
+
+
 def test_overview_workflow_reason_card_falls_back_to_status_snapshot():
     payload = {"summary": {"data_gaps": 12, "critical_actions": 4}}
 
