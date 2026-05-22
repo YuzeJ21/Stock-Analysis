@@ -3842,10 +3842,10 @@ def test_data_health_onboarding_fallback_cards_use_status_refresh():
         for value in card.values()
     ).lower()
 
-    assert bundle_cards[0]["command"] == "make status"
-    assert runbook_cards[0]["command"] == "make status"
-    assert target_cards[0]["command"] == "make status"
-    assert "run make status to refresh the onboarding outputs" in rendered
+    assert bundle_cards[0]["command"] == "make onboarding"
+    assert runbook_cards[0]["command"] == "make onboarding"
+    assert target_cards[0]["command"] == "make onboarding"
+    assert "run make onboarding to refresh the onboarding outputs" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4856,10 +4856,10 @@ def test_overview_onboarding_fallback_cards_use_status_refresh():
         for value in card.values()
     ).lower()
 
-    assert bundle_cards[0]["command"] == "make status"
-    assert handoff_cards[0]["command"] == "make status"
-    assert runbook_cards[0]["command"] == "make status"
-    assert "run make status" in rendered
+    assert bundle_cards[0]["command"] == "make onboarding"
+    assert handoff_cards[0]["command"] == "make onboarding"
+    assert runbook_cards[0]["command"] == "make onboarding"
+    assert "run make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

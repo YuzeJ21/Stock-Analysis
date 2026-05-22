@@ -2610,9 +2610,9 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
             {
                 "kicker": "COMMAND BUNDLES",
                 "title": "No bundles yet",
-                "body": "Run make status to refresh the onboarding outputs and surface holdings-first local command bundles for prices, SEC staging, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local command bundles for prices, SEC staging, and peer mapping.",
                 "badges": ["read-only"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -2655,9 +2655,9 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             {
                 "kicker": "RUNBOOK",
                 "title": "No bundle runbook yet",
-                "body": "Run make status to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
                 "badges": ["read-only"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -2710,9 +2710,9 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         {
             "kicker": "RUNBOOK",
             "title": "No bundle runbook yet",
-            "body": "Run make status to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
+            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
             "badges": ["read-only"],
-            "command": "make status",
+            "command": "make onboarding",
         }
     ]
 
@@ -2723,9 +2723,9 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
             {
                 "kicker": "PRICE TARGETS",
                 "title": "No price targets yet",
-                "body": "Run make status to refresh the onboarding outputs and surface exact history targets for Monthly Picks, track record, and fuller 1Y local coverage.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface exact history targets for Monthly Picks, track record, and fuller 1Y local coverage.",
                 "badges": ["read-only"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -4998,9 +4998,9 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
             {
                 "kicker": "DATA BUNDLE",
                 "title": "Generate command bundles",
-                "body": "Run make status to refresh the onboarding outputs and surface holdings-first local bundles for prices, SEC staging, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local bundles for prices, SEC staging, and peer mapping.",
                 "badges": ["read-only", "data moat"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -5046,9 +5046,9 @@ def overview_bundle_handoff_cards(
             {
                 "kicker": "BUNDLE HANDOFF",
                 "title": "Generate bundle guidance",
-                "body": "Run make status first, then use Data Health to inspect the current local bundle workflow.",
+                "body": "Run make onboarding first, then use Data Health to inspect the current local bundle workflow.",
                 "badges": ["read-only", "data moat"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -5069,8 +5069,8 @@ def overview_bundle_handoff_cards(
         hint_text = f" ({'; '.join(parts)})"
     lane = format_missing(top_bundle.get("lane"), "bundle").replace("_", " ")
     ticker_text = format_missing(top_bundle.get("tickers"), "No tickers")
-    refresh_command = "make status"
-    refresh_step_label = "Refresh status outputs"
+    refresh_command = "make onboarding"
+    refresh_step_label = "Refresh onboarding outputs"
 
     first_ticker = "Not available"
     if bundle_detail_frame is not None and not bundle_detail_frame.empty:
@@ -5135,9 +5135,9 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             {
                 "kicker": "BUNDLE RUNBOOK",
                 "title": "Generate bundle runbook",
-                "body": "Run make status to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
                 "badges": ["read-only", "data moat"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -5189,9 +5189,9 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         {
             "kicker": "BUNDLE RUNBOOK",
             "title": "Generate bundle runbook",
-            "body": "Run make status to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
+            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
             "badges": ["read-only", "data moat"],
-            "command": "make status",
+            "command": "make onboarding",
         }
     ]
 
