@@ -339,7 +339,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="outputs/*.csv",
-        fallback_action="Run python3 -m src.report_generator.",
+        fallback_action=(
+            "Run make verify to regenerate the core local research outputs and "
+            "supporting operator artifacts before reopening the dashboard."
+        ),
         notes="Generated CSVs are explainable local research outputs, not trading instructions.",
     ),
 )

@@ -72,6 +72,8 @@ def test_data_source_registry_contains_required_datasets():
     smh_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "smh_holdings")
     assert "make templates" in smh_entry.fallback_action
     assert "data/custom_universe.csv" in smh_entry.fallback_action
+    local_outputs_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "local_outputs")
+    assert "make verify" in local_outputs_entry.fallback_action
 
 
 def test_data_source_check_handles_missing_optional_files_without_network(tmp_path: Path):
@@ -94,6 +96,10 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert source_lookup["sp500_constituents"]["target_file"] == "data/imports/universe.csv"
     assert any(gap["dataset"] == "prices" and gap["ticker"] == "MSFT" for gap in payload["data_gaps"])
     gap_lookup = {gap["dataset"]: gap for gap in payload["data_gaps"] if not gap["ticker"]}
+    assert "make verify" in gap_lookup["local_outputs"]["recommended_action"]
+    assert gap_lookup["local_outputs"]["focus_command"] == "make status"
+    assert gap_lookup["local_outputs"]["example_command"] == "make status"
+    assert gap_lookup["local_outputs"]["target_file"] == "outputs/"
     assert "make status" in gap_lookup["fundamentals"]["recommended_action"]
     assert gap_lookup["fundamentals"]["focus_command"] == "make status"
     assert gap_lookup["fundamentals"]["example_command"] == "make runbook-fundamentals-broader"
