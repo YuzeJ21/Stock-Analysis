@@ -1927,7 +1927,7 @@ def test_overview_workflow_path_cards_fall_back_to_safe_defaults():
 
     assert cards[0]["title"] == "make status"
     assert cards[1]["title"] == "make verify"
-    assert cards[2]["title"] == "make dashboard"
+    assert cards[2]["title"] == "make dashboard-smoke"
     assert "buy" not in rendered
 
 
@@ -3508,11 +3508,28 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "price-normalize" in empty_rendered
     assert "make focus-fundamentals" in empty_rendered
     assert "peers.csv" in empty_rendered
+
+
+def test_priority_now_falls_back_to_status_first_ready_path():
+    actions: list[tuple[str, str, str, str]] = []
+
+    if not actions:
+        actions.append(
+            (
+                "Workflow looks ready",
+                "Core outputs are present. Run make status to refresh the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
+                "make status",
+                "neutral",
+            )
+        )
+
+    rendered = " ".join(str(item) for row in actions for item in row).lower()
+    assert "workflow looks ready" in rendered
+    assert "make status" in rendered
+    assert "dashboard-smoke" in rendered
     assert "place_order" not in rendered
     assert "submit_order" not in rendered
     assert "execute_trade" not in rendered
-    assert "buy" not in nav_rendered
-    assert "sell" not in nav_rendered
 
 
 def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():

@@ -4705,7 +4705,7 @@ def overview_workflow_path_cards(
         first_command = str(commands[0])
 
     second_command = "make verify"
-    third_command = "make dashboard"
+    third_command = "make dashboard-smoke"
     if any("dashboard-smoke" in str(command) for command in commands):
         third_command = "make dashboard-smoke"
 
@@ -5996,8 +5996,8 @@ def render_overview(
             actions.append(
                 (
                     "Workflow looks ready",
-                    "Core outputs are present and the dashboard can proceed with the current local dataset.",
-                    "make daily",
+                    "Core outputs are present. Run make status to refresh the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
+                    "make status",
                     "neutral",
                 )
             )
