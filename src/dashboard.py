@@ -3246,11 +3246,11 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
         },
         {
             "Dashboard Label": "Needs SEC enrichment",
-            "What to do": "Use `make focus-fundamentals TICKER=...` or the fundamentals runbook path from `make status`, then validate and preview before applying.",
+            "What to do": "Use `make focus-fundamentals TICKER=...` or the fundamentals runbook path from `make status`, then run `make sec-validate`, `make sec-preview`, `make sec-apply`, and `make status`.",
         },
         {
             "Dashboard Label": "Needs peers.csv",
-            "What to do": "Use `make focus-peers TICKER=...` or the peer runbook path from `make status`, then add manually researched mappings through `data/imports/peers.csv`. If mappings already exist, finish the staged peer fundamentals or peer price follow-through the queue points to.",
+            "What to do": "Use `make focus-peers TICKER=...` or the peer runbook path from `make status`, then add manually researched mappings through `data/imports/peers.csv`, run `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make status`. If mappings already exist, finish the staged peer fundamentals or peer price follow-through the queue points to.",
         },
         {
             "Dashboard Label": "Needs earnings.csv",

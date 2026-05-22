@@ -4040,7 +4040,13 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make focus-price" in empty_rendered
     assert "price-normalize" in empty_rendered
     assert "make focus-fundamentals" in empty_rendered
+    assert "make sec-validate" in rendered
+    assert "make sec-preview" in rendered
+    assert "make sec-apply" in rendered
     assert "peers.csv" in empty_rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "staged peer fundamentals or price blocker" in empty_rendered
     assert "staged peer fundamentals or peer price follow-through" in rendered
 
