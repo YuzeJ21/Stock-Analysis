@@ -4655,8 +4655,7 @@ def theme_deep_research_cards(
                 ),
             )
             fallback_action = (
-                f"Top staged {dataset_badge.lower()} import is waiting in {target_file}. "
-                "Run make imports-validate, then make imports-preview, then make imports-apply."
+                f"Staged {dataset_badge.lower()} import in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
                 if staged_import
                 else command_family_fallback(
                     command,

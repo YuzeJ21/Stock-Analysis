@@ -2808,9 +2808,13 @@ def test_theme_deep_research_cards_keep_staged_import_front_doors_when_commands_
     assert fundamentals_card["title"] == "Advance staged fundamentals import"
     assert fundamentals_card["command"] == "make imports-validate"
     assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert "make imports-preview" in fundamentals_card["body"].lower()
+    assert "make imports-apply" in fundamentals_card["body"].lower()
     assert peer_card["title"] == "Advance staged peer import"
     assert peer_card["command"] == "make imports-validate"
     assert "staged peers import" in peer_card["body"].lower()
+    assert "make imports-preview" in peer_card["body"].lower()
+    assert "make imports-apply" in peer_card["body"].lower()
 
 
 def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers():
