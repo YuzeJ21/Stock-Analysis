@@ -182,3 +182,12 @@ def test_daily_launcher_reuses_current_make_targets():
 
     assert "python3 -m src.data_update --universe-file data/universe.csv" not in script
     assert "python3 -m src.report_generator" not in script
+
+
+def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
+    assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
+    assert "verify:\n\tpython3 -m pytest tests -q" not in makefile
+    assert "daily:\n\tpython3 -m src.data_update --universe-file data/universe.csv" not in makefile

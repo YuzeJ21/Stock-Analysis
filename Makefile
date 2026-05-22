@@ -102,14 +102,10 @@ action-queue:
 	python3 -m src.action_queue --write-output
 
 verify:
-	python3 -m pytest tests -q
-	python3 -m src.report_generator
-	python3 -m src.stock_report --validate-local-data
-	python3 -m src.data_sources --write-output
-	python3 -m src.data_onboarding --write-output
-	python3 -m src.research_health --write-output
-	python3 -m src.action_queue --write-output
-	python3 -m src.project_status --write-output
+	$(MAKE) test
+	$(MAKE) pipeline
+	$(MAKE) validate-data
+	$(MAKE) onboarding
 
 validate-all:
 	scripts/validate_all.sh
@@ -262,14 +258,12 @@ else
 endif
 
 daily:
-	python3 -m src.data_update --universe-file data/universe.csv
-	python3 -m src.report_generator
-	python3 -m src.monthly_picks --generate --top-n 5
-	python3 -m src.track_record --monthly-picks
-	python3 -m src.stock_report --validate-local-data
-	python3 -m src.data_sources --write-output
-	python3 -m src.data_onboarding --write-output
-	python3 -m src.research_health --write-output
+	$(MAKE) price-refresh
+	$(MAKE) pipeline
+	$(MAKE) monthly
+	$(MAKE) track-record
+	$(MAKE) validate-data
+	$(MAKE) onboarding
 	python3 -m src.action_queue --write-output
 	python3 -m src.project_status --write-output
 
