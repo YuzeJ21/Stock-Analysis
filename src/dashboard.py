@@ -3414,7 +3414,7 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
                 else f"{staged_rows} staged ticker rows are already visible in the dashboard; apply only after reviewing the staged CSV and diagnostics."
             ),
             "badges": ["preview first", "read-only"],
-            "command": "make universe-preview" if not staged_exists else "python3 -m src.universe_builder --apply-import",
+            "command": "make universe-preview" if not staged_exists else "make universe-apply",
         },
         {
             "kicker": "CURRENT FILE",
@@ -3430,7 +3430,7 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
             "title": "Apply stays CLI-only",
             "body": "Write a staged universe import first, inspect the CSV and staged diagnostics, then apply only after review.",
             "badges": ["backup on apply", "csv-first"],
-            "command": "python3 -m src.universe_builder --apply-import",
+            "command": "make universe-apply",
         },
     ]
     return cards
@@ -7732,7 +7732,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
                 "title": "Staged file present" if staged.get("exists") else "No staged universe",
                 "body": "Preview staged universe changes before applying. Dashboard stays read-only for safety.",
                 "badges": ["data/imports/universe.csv"],
-                "command": "python3 -m src.universe_builder --apply-import",
+                "command": "make universe-apply",
             },
             {
                 "kicker": "WORKFLOW",
@@ -7791,10 +7791,8 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     st.code(
         "\n".join(
             [
-                "python3 -m src.universe_builder --validate-sources",
-                "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50",
-                "python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50",
-                "python3 -m src.universe_builder --apply-import",
+                "make universe-preview",
+                "make universe-apply",
             ]
         ),
         language="bash",

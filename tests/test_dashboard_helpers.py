@@ -4210,7 +4210,8 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "Apply staged universe"
-    assert cards[0]["command"] == "python3 -m src.universe_builder --apply-import"
+    assert cards[0]["command"] == "make universe-apply"
+    assert cards[2]["command"] == "make universe-apply"
     assert "12 current rows" in rendered
     assert "apply stays cli-only" in rendered
     assert "buy" not in rendered
