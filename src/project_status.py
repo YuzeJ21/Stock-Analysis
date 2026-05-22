@@ -9,6 +9,7 @@ import pandas as pd
 
 from src.data_onboarding import build_onboarding_payload
 from src.data_onboarding import write_onboarding_outputs
+from src.data_update import refresh_price_update_status_output
 from src.data_sources import build_data_source_payload, write_data_source_outputs
 from src.action_queue import write_action_queue_output
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
@@ -249,6 +250,7 @@ def write_project_status_output(
     data_path = resolve_data_dir(data_dir, root)
     output_path = resolve_outputs_dir(output_dir, root)
     if refresh_supporting_outputs:
+        refresh_price_update_status_output(root, output_dir=output_path)
         write_data_source_outputs(root, data_dir=data_path, output_dir=output_path)
         write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path)
         run_research_health(root, data_dir=data_path, output_dir=output_path)

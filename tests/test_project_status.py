@@ -116,6 +116,24 @@ def test_project_status_human_write_output_reports_written_files(tmp_path: Path,
 
 def test_project_status_refresh_artifacts_writes_supporting_operator_outputs(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
+    pd.DataFrame(
+        [
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "AMD",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "parse_error",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "parse_error",
+                "error_message": "AMD: parse failed",
+                "fallback_used": True,
+                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
 
     payload = write_project_status_output(tmp_path, top_n=2, refresh_supporting_outputs=True)
     outputs_dir = tmp_path / "outputs"
@@ -129,6 +147,9 @@ def test_project_status_refresh_artifacts_writes_supporting_operator_outputs(tmp
     assert (outputs_dir / "correlation_risk.csv").exists()
     assert (outputs_dir / "research_action_queue.csv").exists()
     assert (outputs_dir / "project_status.json").exists()
+    refreshed_price_status = pd.read_csv(outputs_dir / "price_update_status.csv")
+    assert refreshed_price_status.iloc[0]["focus_command"] == "make focus-price TICKER=AMD"
+    assert refreshed_price_status.iloc[0]["target_file"] == "data/imports/prices.csv"
     assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=NVDA"
 
 

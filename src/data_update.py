@@ -386,6 +386,22 @@ def write_price_update_status(rows: list[dict[str, Any]], output_dir: Path) -> P
     return path
 
 
+def refresh_price_update_status_output(
+    base_dir: Path | str | None = None,
+    *,
+    output_dir: Path | str | None = None,
+) -> Path | None:
+    root = resolve_project_root(base_dir)
+    output_path = resolve_outputs_dir(output_dir, root)
+    path = output_path / "price_update_status.csv"
+    if not path.exists():
+        return None
+    frame = pd.read_csv(path)
+    enriched = enrich_price_update_status_frame(frame)
+    enriched.to_csv(path, index=False)
+    return path
+
+
 def update_local_price_data(
     base_dir: Path | None = None,
     source: PriceHistorySource | None = None,
