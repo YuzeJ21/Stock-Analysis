@@ -2688,7 +2688,22 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
     for _, row in ordered.head(limit).iterrows():
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = review_path_fallback(row.get("lane"))
-        body_summary = goal_summary if goal_summary != "Not available" else compact_reason(row.get("why_it_matters") or lane_summary, max_sentences=1, max_chars=150)
+        target_file = format_missing(row.get("target_file"), "")
+        staged_summary = ""
+        if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
+            staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=150)
+            if staged_summary == "Not available":
+                if target_file == "data/imports/fundamentals.csv":
+                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+                elif target_file == "data/imports/peers.csv":
+                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+                else:
+                    staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+        body_summary = (
+            goal_summary
+            if goal_summary != "Not available"
+            else compact_reason(row.get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
+        )
         target_history_rows = _target_rows_hint(row.get("target_history_rows"))
         suggested_start_date = format_missing(row.get("suggested_start_date"), "")
         hints: list[str] = []
