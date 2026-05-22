@@ -2001,7 +2001,7 @@ def build_command_bundles(
                 detail_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "detail"),
                 runbook_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "runbook"),
                 primary_command=f"make sec-stage TICKERS={tickers}",
-                follow_up_command="make sec-validate",
+                follow_up_command="make imports-validate",
                 target_file="data/imports/fundamentals.csv",
                 why_it_matters=why_it_matters,
                 safe_next_step="Keep SEC enrichment staged and review-only until validate/preview/apply confirms the merge.",
@@ -2214,17 +2214,17 @@ def build_command_bundle_runbook(
                 ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
                 (
                     "Validate staged fundamentals",
-                    "make sec-validate",
+                    "make imports-validate",
                     "Validate staged SEC fundamentals before preview so import issues surface before merge.",
                 ),
                 (
                     "Preview fundamentals merge",
-                    "make sec-preview",
+                    "make imports-preview",
                     "Preview the staged fundamentals merge and confirm the DCF input rows before apply.",
                 ),
                 (
                     "Apply fundamentals merge",
-                    "make sec-apply",
+                    "make imports-apply",
                     "Apply the staged fundamentals merge only after validation and preview are clean.",
                 ),
                 (

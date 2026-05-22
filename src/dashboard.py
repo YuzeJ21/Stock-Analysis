@@ -3538,7 +3538,7 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
         },
         {
             "Dashboard Label": "Needs SEC enrichment",
-            "What to do": "Use `make focus-fundamentals TICKER=...` or the fundamentals runbook path from `make status`, then run `make sec-validate`, `make sec-preview`, `make sec-apply`, and `make status`.",
+            "What to do": "Use `make focus-fundamentals TICKER=...` or the fundamentals runbook path from `make status`, then run `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make status`.",
         },
         {
             "Dashboard Label": "Needs peers.csv",

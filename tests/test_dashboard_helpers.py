@@ -1365,7 +1365,7 @@ def test_load_data_onboarding_tables_refreshes_env_prefixed_sec_bundle_commands(
                     "detail_shortcut_command": "make detail-fundamentals",
                     "runbook_shortcut_command": "make runbook-fundamentals",
                     "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
-                    "follow_up_command": "make sec-validate",
+                    "follow_up_command": "make imports-validate",
                     "target_file": "data/imports/fundamentals.csv",
                     "why_it_matters": "old",
                     "safe_next_step": "old",
@@ -3793,7 +3793,7 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "detail_shortcut_command": "make detail-fundamentals",
                 "runbook_shortcut_command": "make runbook-fundamentals",
                 "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
-                "follow_up_command": "make sec-validate",
+                "follow_up_command": "make imports-validate",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "This holding is the best next candidate for explicit local DCF inputs.",
                 "safe_next_step": "Keep SEC staging review-only until preview is clean.",
@@ -4575,9 +4575,9 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make focus-price" in empty_rendered
     assert "price-normalize" in empty_rendered
     assert "make focus-fundamentals" in empty_rendered
-    assert "make sec-validate" in rendered
-    assert "make sec-preview" in rendered
-    assert "make sec-apply" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "peers.csv" in empty_rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
@@ -4898,7 +4898,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
-                "follow_up_command": "make sec-validate",
+                "follow_up_command": "make imports-validate",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
                 "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
@@ -4939,7 +4939,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "scope": "holdings_first",
                 "step_order": 2,
                 "step_label": "Review follow-up output",
-                "command": "make sec-validate",
+                "command": "make imports-validate",
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
@@ -4968,7 +4968,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     assert cards[0]["kicker"] == "FUNDAMENTALS HANDOFF"
     assert "dcf readiness" in rendered
     assert "make sec-stage" in rendered
-    assert "make sec-validate" in rendered
+    assert "make imports-validate" in rendered
     assert "make status" in rendered
     assert "meta" in rendered
     assert "buy" not in rendered
