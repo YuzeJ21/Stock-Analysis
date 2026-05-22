@@ -2290,6 +2290,9 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "target_history_rows": 21,
                 "suggested_start_date": "2025-12-01",
+                "bundle_shortcut_command": "make bundle-prices",
+                "detail_shortcut_command": "make detail-prices",
+                "runbook_shortcut_command": "make runbook-prices",
                 "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
                 "follow_up_command": "make price-status",
@@ -2304,6 +2307,9 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "ticker_count": 1,
                 "tickers": "NVDA",
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
+                "bundle_shortcut_command": "make bundle-fundamentals",
+                "detail_shortcut_command": "make detail-fundamentals",
+                "runbook_shortcut_command": "make runbook-fundamentals",
                 "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
                 "follow_up_command": "make sec-preview",
                 "target_file": "data/imports/fundamentals.csv",
@@ -2321,8 +2327,8 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
     assert "unlock monthly picks" in rendered
     assert "21 target rows" in rendered
     assert "start by 2025-12-01" in rendered
-    assert "src.data_update --tickers amd,avgo" in rendered
-    assert "make sec-stage tickers=nvda" in rendered
+    assert "make bundle-prices" in rendered
+    assert "make bundle-fundamentals" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -3054,6 +3060,9 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; Unlock Track Record for 1 ticker; 57 verified rows still needed across this bundle",
                 "target_history_rows": 63,
                 "suggested_start_date": "2025-10-01",
+                "bundle_shortcut_command": "make bundle-prices",
+                "detail_shortcut_command": "make detail-prices",
+                "runbook_shortcut_command": "make runbook-prices",
                 "primary_command": "python3 -m src.data_update --tickers META,NVDA,TSLA",
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
@@ -3071,7 +3080,7 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     assert "unlock monthly picks" in rendered
     assert "63 target rows" in rendered
     assert "start by 2025-10-01" in rendered
-    assert "src.data_update --tickers meta,nvda,tsla" in rendered
+    assert "make bundle-prices" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

@@ -1193,6 +1193,17 @@ def preferred_row_command(row: pd.Series | dict[str, object], fallback: str = ""
     return focus_command or format_missing(row.get("example_command") if hasattr(row, "get") else "", fallback)
 
 
+def preferred_bundle_command(row: pd.Series | dict[str, object], fallback: str = "") -> str:
+    if hasattr(row, "get"):
+        shortcut = format_missing(row.get("bundle_shortcut_command"), fallback="")
+        if shortcut:
+            return shortcut
+        primary = format_missing(row.get("primary_command"), fallback="")
+        if primary:
+            return primary
+    return fallback
+
+
 def format_value(value: object, fallback: str = "Not available") -> str:
     text = format_missing(value, fallback=fallback)
     if text == fallback:
@@ -2070,7 +2081,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
                     format_missing(row.get("scope"), "scope").replace("_", " "),
                     f"{format_value(row.get('ticker_count'), fallback='0')} tickers",
                 ],
-                "command": format_missing(row.get("primary_command"), ""),
+                "command": preferred_bundle_command(row, ""),
             }
         )
     return cards
@@ -4281,7 +4292,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
                     f"{' (' + '; '.join(hints) + ')' if hints else ''}"
                 ),
                 "badges": [scope, f"{format_value(row.get('ticker_count'), fallback='0')} tickers"],
-                "command": format_missing(row.get("primary_command"), ""),
+                "command": preferred_bundle_command(row, ""),
             }
         )
     return cards
@@ -4305,7 +4316,7 @@ def overview_bundle_handoff_cards(
 
     top_bundle = bundle_frame.iloc[0]
     bundle_name = format_missing(top_bundle.get("bundle_name"), "Local bundle")
-    primary_command = format_missing(top_bundle.get("primary_command"), "")
+    primary_command = preferred_bundle_command(top_bundle, "")
     follow_up_command = format_missing(top_bundle.get("follow_up_command"), "")
     goal_summary = compact_reason(top_bundle.get("goal_summary"), max_sentences=1, max_chars=120)
     target_history_rows = _target_rows_hint(top_bundle.get("target_history_rows"))

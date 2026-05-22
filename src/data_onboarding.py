@@ -174,6 +174,9 @@ COMMAND_BUNDLE_COLUMNS = [
     "goal_summary",
     "target_history_rows",
     "suggested_start_date",
+    "bundle_shortcut_command",
+    "detail_shortcut_command",
+    "runbook_shortcut_command",
     "primary_command",
     "follow_up_command",
     "target_file",
@@ -248,6 +251,21 @@ def focus_command_for_ticker(lane: str, ticker: str) -> str:
     if lane_key == "peers":
         return f"make focus-peers TICKER={ticker_text}"
     return ""
+
+
+def bundle_shortcut_for_scope(lane: str, scope: str, view: str) -> str:
+    lane_key = str(lane or "").strip().lower()
+    scope_key = str(scope or "").strip().lower()
+    view_key = str(view or "").strip().lower()
+    if lane_key not in {"prices", "fundamentals", "peers"}:
+        return ""
+    if view_key not in {"bundle", "detail", "runbook"}:
+        return ""
+    prefix = {"bundle": "bundle", "detail": "detail", "runbook": "runbook"}[view_key]
+    suffix = {"holdings_first": "", "broader_queue": "-broader"}.get(scope_key)
+    if suffix is None:
+        return ""
+    return f"make {prefix}-{lane_key}{suffix}"
 PRICE_TEMPLATE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume", "adjusted_close", "source", "as_of_date", "notes"]
 
 
@@ -285,6 +303,9 @@ class CommandBundleRow:
     goal_summary: str
     target_history_rows: int
     suggested_start_date: str
+    bundle_shortcut_command: str
+    detail_shortcut_command: str
+    runbook_shortcut_command: str
     primary_command: str
     follow_up_command: str
     target_file: str
@@ -1514,6 +1535,9 @@ def build_command_bundles(
                 goal_summary=goal_summary,
                 target_history_rows=target_history_rows,
                 suggested_start_date=suggested_start_date,
+                bundle_shortcut_command=bundle_shortcut_for_scope("prices", scope, "bundle"),
+                detail_shortcut_command=bundle_shortcut_for_scope("prices", scope, "detail"),
+                runbook_shortcut_command=bundle_shortcut_for_scope("prices", scope, "runbook"),
                 primary_command=f"python3 -m src.data_update --tickers {tickers}",
                 follow_up_command="make price-status",
                 target_file="data/imports/prices.csv",
@@ -1541,6 +1565,9 @@ def build_command_bundles(
                 goal_summary="Advance explicit local DCF readiness for the listed tickers",
                 target_history_rows=0,
                 suggested_start_date="",
+                bundle_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "bundle"),
+                detail_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "detail"),
+                runbook_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "runbook"),
                 primary_command=f"SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS={tickers}",
                 follow_up_command="make sec-preview",
                 target_file="data/imports/fundamentals.csv",
@@ -1568,6 +1595,9 @@ def build_command_bundles(
                 goal_summary="Advance transparent peer-relative readiness for the listed tickers",
                 target_history_rows=0,
                 suggested_start_date="",
+                bundle_shortcut_command=bundle_shortcut_for_scope("peers", scope, "bundle"),
+                detail_shortcut_command=bundle_shortcut_for_scope("peers", scope, "detail"),
+                runbook_shortcut_command=bundle_shortcut_for_scope("peers", scope, "runbook"),
                 primary_command="make templates",
                 follow_up_command="make onboarding",
                 target_file="data/imports/peers.csv",
@@ -2114,6 +2144,12 @@ def _print_command_bundles(payload: dict[str, Any]) -> None:
                 f"  target_history_rows: {row['target_history_rows']} "
                 f"suggested_start_date: {row.get('suggested_start_date') or '-'}"
             )
+        if row.get("bundle_shortcut_command"):
+            print(f"  shortcut: {row['bundle_shortcut_command']}")
+        if row.get("detail_shortcut_command"):
+            print(f"  detail: {row['detail_shortcut_command']}")
+        if row.get("runbook_shortcut_command"):
+            print(f"  runbook: {row['runbook_shortcut_command']}")
         print(f"  command: {row['primary_command']}")
         print(f"  follow-up: {row['follow_up_command']}")
     print(f"Command bundle rows: {len(payload['command_bundles'])}")
