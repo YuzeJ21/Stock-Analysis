@@ -138,6 +138,14 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
         assert phrase in readme
 
 
+def test_readme_distinguishes_verify_from_broader_daily_workflow():
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "run deterministic local verification for core outputs, local-data validation, and read-only status artifacts" in readme
+    assert "If you also want monthly picks, track record output, and the broader end-to-end refresh path, use `make daily` or `make validate-all`" in readme
+    assert "run deterministic local verification for core outputs, diagnostics, monthly layers, and read-only status artifacts" not in readme
+
+
 def test_shell_launchers_anchor_to_repo_root():
     for script_name in ("daily.sh", "dashboard.sh", "validate_all.sh", "smoke_dashboard.sh"):
         script = (Path("scripts") / script_name).read_text(encoding="utf-8")

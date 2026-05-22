@@ -794,11 +794,13 @@ make dashboard
 This keeps the project on its local research path:
 
 - refresh the operator snapshot and print the highest-priority local blocker path
-- run deterministic local verification for core outputs, diagnostics, monthly layers, and read-only status artifacts
+- run deterministic local verification for core outputs, local-data validation, and read-only status artifacts
 - smoke-check the dashboard before deeper review
 - review everything through the dashboard without any broker or trade execution features
 
-If you still want the fully explicit lower-level sequence, use the underlying commands behind `make daily`, `make verify`, and `make status`.
+If you also want monthly picks, track record output, and the broader end-to-end refresh path, use `make daily` or `make validate-all` after the blocker-first flow above.
+
+If you still want fully explicit lower-level commands for a specific subsystem, use the CLI examples in the focused sections below. `make status`, `make verify`, `make onboarding`, and `make daily` remain the preferred repo-native front doors.
 
 ## Monthly Research Picks
 
@@ -1471,7 +1473,7 @@ Final state-machine view combining purpose, momentum, and portfolio context into
 ## Local data onboarding tips
 
 - `make status` refreshes ticker-level coverage, action, queue, source-status, research-health, and project-status artifacts for the Data Health dashboard
-- `make onboarding` reruns the underlying onboarding/status writers directly when you want a full manual refresh after editing local files
+- `make onboarding` refreshes the full source-status, onboarding, research-health, action-queue, and project-status artifact set after editing local files
 - `make templates` creates header-only onboarding templates under `data/templates/`
 - `python3 -m src.data_onboarding --write-output` is the lower-level writer behind the onboarding/status workflow
 - `python3 -m src.data_onboarding --write-templates` creates header-only onboarding templates under `data/templates/`
