@@ -50,6 +50,32 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
     assert rows[-1].focus_command == "make templates"
 
 
+def test_action_queue_uses_status_first_fallback_for_price_failures_without_ticker():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(
+            [
+                {
+                    "ticker": "",
+                    "status": "parse_error",
+                    "recommended_action": "Use staged manual prices.",
+                    "error_message": "Generic provider failure.",
+                }
+            ]
+        ),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(),
+    )
+
+    row = rows[0]
+    assert row.action_type == "prices"
+    assert row.focus_command == "make status"
+    assert row.example_command == "make status"
+    assert "run make status" in row.recommended_action.lower()
+    assert "data/imports/prices.csv" in row.recommended_action
+
+
 def test_action_queue_uses_research_health_when_price_data_is_missing():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(),

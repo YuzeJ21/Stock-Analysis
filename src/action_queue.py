@@ -216,7 +216,10 @@ def _price_normalize_command(ticker: str) -> str:
 def _price_focus_recommended_action(ticker: str) -> str:
     ticker = _normalized_ticker(ticker)
     if not ticker:
-        return "Run make status, then follow the printed price focus or runbook path."
+        return (
+            "Run make status, then follow the printed price focus or runbook path. "
+            "If you are using downloaded files, normalize verified OHLCV rows into data/imports/prices.csv."
+        )
     return (
         f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and "
         "normalize verified downloaded OHLCV files into data/imports/prices.csv."
@@ -355,11 +358,7 @@ def build_action_queue_rows(
                 continue
             ticker = _normalized_ticker(row.get("ticker"))
             worklist_row = _worklist_lookup(price_worklist, ticker)
-            fallback_recommended_action = (
-                _price_focus_recommended_action(ticker)
-                if ticker
-                else "Use staged manual prices in data/imports/prices.csv."
-            )
+            fallback_recommended_action = _price_focus_recommended_action(ticker)
             row_recommended_action = str(row.get("recommended_action", "")).strip()
             if row_recommended_action.lower() in STALE_PRICE_RECOMMENDED_ACTIONS:
                 row_recommended_action = ""
@@ -379,6 +378,7 @@ def build_action_queue_rows(
             focus_command = (
                 str(row.get("focus_command", "")).strip()
                 or focus_command_for_ticker("prices", ticker)
+                or "make status"
             )
             target_file = (
                 str(row.get("target_file", "")).strip()
