@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -1020,6 +1020,41 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
     return sorted(rows, key=lambda item: (item.priority, item.unlock_goal, item.ticker, item.blocking_dataset))
 
 
+def enrich_onboarding_actions(
+    actions: list[OnboardingAction],
+    *,
+    price_worklist: list[PriceWorklistRow] | None = None,
+    sec_stage_queue: list[SecStageQueueRow] | None = None,
+    peer_mapping_queue: list[PeerMappingQueueRow] | None = None,
+) -> list[OnboardingAction]:
+    price_lookup = {row.ticker.upper(): row for row in (price_worklist or [])}
+    sec_lookup = {row.ticker.upper(): row for row in (sec_stage_queue or [])}
+    peer_lookup = {row.ticker.upper(): row for row in (peer_mapping_queue or [])}
+
+    enriched: list[OnboardingAction] = []
+    for action in actions:
+        source_row: PriceWorklistRow | SecStageQueueRow | PeerMappingQueueRow | None = None
+        ticker = action.ticker.upper()
+        if action.dataset == "prices":
+            source_row = price_lookup.get(ticker)
+        elif action.dataset == "fundamentals":
+            source_row = sec_lookup.get(ticker)
+        elif action.dataset == "peers":
+            source_row = peer_lookup.get(ticker)
+
+        if source_row is None:
+            enriched.append(action)
+            continue
+
+        updates: dict[str, object] = {}
+        for field in ("reason", "recommended_action", "focus_command", "example_command"):
+            value = getattr(source_row, field, "")
+            if str(value or "").strip():
+                updates[field] = value
+        enriched.append(replace(action, **updates) if updates else action)
+    return enriched
+
+
 def build_price_import_worklist(
     coverage_rows: list[TickerCoverage],
     project_root: Path | str | None = None,
@@ -1895,6 +1930,12 @@ def build_onboarding_payload(
     optional_context_worklist = build_optional_context_worklist(coverage)
     sec_stage_queue = build_sec_stage_queue(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
     peer_mapping_queue = build_peer_mapping_queue(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
+    actions = enrich_onboarding_actions(
+        actions,
+        price_worklist=price_worklist,
+        sec_stage_queue=sec_stage_queue,
+        peer_mapping_queue=peer_mapping_queue,
+    )
     ticker_unlock_ladder = build_ticker_unlock_ladder(coverage)
     unlock_priority_summary = build_unlock_priority_summary(
         coverage,

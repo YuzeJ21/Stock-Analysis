@@ -111,6 +111,16 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
         )
         for row in amd_actions
     )
+    assert any(
+        row["dataset"] == "prices"
+        and row["recommended_action"] == "Run python3 -m src.data_update --tickers AMD, or normalize verified downloaded OHLCV files into data/imports/prices.csv."
+        for row in amd_actions
+    )
+    assert any(
+        row["dataset"] == "prices"
+        and row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+        for row in amd_actions
+    )
     assert any(row["dataset"] == "fundamentals" and row["priority"] == 2 for row in amd_actions)
     assert any(row["dataset"] == "fundamentals" and row["focus_command"] == "make focus-fundamentals TICKER=AMD" for row in amd_actions)
     assert any(row["dataset"] == "peers" and row["priority"] == 3 for row in amd_actions)
