@@ -223,9 +223,11 @@ def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path)
     assert price_rows
     assert any("at least 21 are needed" in row["reason"].lower() for row in price_rows)
     coverage_rows = [row for row in payload["action_queue"] if row["action_type"] == "coverage" and row["ticker"] == "NVDA"]
-    assert coverage_rows
-    assert coverage_rows[0]["focus_command"] == "make focus-fundamentals TICKER=NVDA"
-    assert coverage_rows[0]["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert not coverage_rows
+    fundamentals_rows = [row for row in payload["action_queue"] if row["action_type"] == "fundamentals" and row["ticker"] == "NVDA"]
+    assert fundamentals_rows
+    assert fundamentals_rows[0]["focus_command"] == "make focus-fundamentals TICKER=NVDA"
+    assert fundamentals_rows[0]["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
 
 
 def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_rows():
@@ -266,6 +268,48 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
     assert fundamentals_row.title == "Stage fundamentals for AMD"
     assert fundamentals_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
     assert fundamentals_row.source_artifact == "outputs/data_onboarding_actions.csv"
+
+
+def test_action_queue_drops_redundant_coverage_rows_when_specific_action_matches():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(
+            [
+                {
+                    "priority": 2,
+                    "ticker": "NVDA",
+                    "dataset": "fundamentals",
+                    "status": "missing_or_incomplete",
+                    "reason": "DCF inputs are still incomplete: shares_outstanding.",
+                    "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+                    "target_file": "data/imports/fundamentals.csv",
+                    "focus_command": "make focus-fundamentals TICKER=NVDA",
+                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                }
+            ]
+        ),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(
+            [
+                {
+                    "Ticker": "NVDA",
+                    "ReadinessStatus": "Needs Enrichment",
+                    "NextBestAction": (
+                        "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
+                        "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                    ),
+                    "MissingDataFields": "DCF inputs, peer mapping",
+                    "Reason": "Missing DCF and peer coverage.",
+                }
+            ]
+        ),
+    )
+
+    nvda_rows = [row for row in rows if row.ticker == "NVDA"]
+    assert len(nvda_rows) == 1
+    assert nvda_rows[0].action_type == "fundamentals"
+    assert nvda_rows[0].focus_command == "make focus-fundamentals TICKER=NVDA"
 
 
 def test_action_queue_merges_price_status_with_price_worklist_guidance():

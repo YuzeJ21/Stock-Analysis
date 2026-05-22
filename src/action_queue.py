@@ -197,7 +197,24 @@ def _dedupe(items: list[ActionQueueItem]) -> list[ActionQueueItem]:
         current_rank = None if current is None else (current.priority, _source_rank(current), _example_command_rank(current), current.urgency, current.title)
         if current is None or item_rank < current_rank:
             best_by_key[key] = item
-    return sorted(best_by_key.values(), key=lambda item: (item.priority, item.ticker or "ZZZ", item.action_type, item.title))
+    deduped_items = list(best_by_key.values())
+    explicit_by_ticker: dict[str, set[tuple[str, str]]] = {}
+    for item in deduped_items:
+        if item.action_type == "coverage" or not item.ticker:
+            continue
+        explicit_by_ticker.setdefault(item.ticker, set()).add(
+            ((item.focus_command or "").strip(), (item.example_command or "").strip())
+        )
+
+    filtered_items: list[ActionQueueItem] = []
+    for item in deduped_items:
+        if item.action_type == "coverage" and item.ticker:
+            item_key = ((item.focus_command or "").strip(), (item.example_command or "").strip())
+            if item_key in explicit_by_ticker.get(item.ticker, set()):
+                continue
+        filtered_items.append(item)
+
+    return sorted(filtered_items, key=lambda item: (item.priority, item.ticker or "ZZZ", item.action_type, item.title))
 
 
 def build_action_queue_rows(
