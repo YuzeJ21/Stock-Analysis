@@ -4692,6 +4692,7 @@ def overview_research_pressure_cards(
                 f"{theme_price_led} grouped themes are still price-led."
             ),
             "badges": ["prices", "highest leverage" if price_priority else "monitor"],
+            "command": "make runbook-prices-broader",
         }
     )
 
@@ -4705,6 +4706,7 @@ def overview_research_pressure_cards(
                 f"{sec_summary.get('missing_fundamentals', 0)} tickers still lack a local fundamentals row."
             ),
             "badges": ["fundamentals", "sec queue"],
+            "command": "make runbook-fundamentals-broader",
         }
     )
 
@@ -4734,6 +4736,7 @@ def overview_research_pressure_cards(
                 )
             ),
             "badges": ["peers", "staged follow-through" if staged_peer_imports else "manual research" if peer_missing else "peer support data"],
+            "command": "make runbook-peers-broader",
         }
     )
 

@@ -2742,6 +2742,9 @@ def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers()
     assert cards[0]["kicker"] == "PRICE PRESSURE"
     assert cards[1]["kicker"] == "DCF PRESSURE"
     assert cards[2]["kicker"] == "PEER PRESSURE"
+    assert cards[0]["command"] == "make runbook-prices-broader"
+    assert cards[1]["command"] == "make runbook-fundamentals-broader"
+    assert cards[2]["command"] == "make runbook-peers-broader"
     assert "2 urgent price gaps" in rendered
     assert "1 holdings-first dcf unlocks" in rendered
     assert "2 missing peer mappings" in rendered
