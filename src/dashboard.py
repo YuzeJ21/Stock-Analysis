@@ -2490,11 +2490,11 @@ def data_health_overview_cards(
     if price_status_frame is None:
         price_title = "Price status not generated"
         price_body = (
-            "Start with make status, then use the first price focus or runbook path it prints. "
+            "Use make runbook-prices-broader or make focus-price TICKER=... first. "
             "For downloaded files, run make price-normalize, make price-validate, "
             "make price-preview, and make price-apply."
         )
-        price_badges = ["make status", "manual fallback"]
+        price_badges = ["make runbook-prices-broader", "manual fallback"]
     elif price_problem_count:
         price_title = f"{price_problem_count} price issue{'s' if price_problem_count != 1 else ''}"
         price_body = (

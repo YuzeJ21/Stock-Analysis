@@ -3800,7 +3800,7 @@ def test_data_health_overview_cards_prioritize_price_and_actions():
     assert "1 price-ready tickers" in rendered
 
 
-def test_data_health_overview_cards_without_price_status_use_status_first_guidance():
+def test_data_health_overview_cards_without_price_status_use_runbook_first_guidance():
     validation = pd.DataFrame({"validation_status": ["valid", "missing_file"]})
     action_queue = pd.DataFrame({"urgency": ["critical"]})
     coverage = pd.DataFrame({"usable_for_momentum": [False]})
@@ -3809,7 +3809,8 @@ def test_data_health_overview_cards_without_price_status_use_status_first_guidan
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "price status not generated" in rendered
-    assert "make status" in rendered
+    assert "make runbook-prices-broader" in rendered
+    assert "make focus-price" in rendered
     assert "manual fallback" in rendered
     assert "make price-normalize" in rendered
     assert "make price-validate" in rendered
