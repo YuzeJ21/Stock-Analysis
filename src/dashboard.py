@@ -325,6 +325,14 @@ def load_research_health_tables(
         required_columns = {"FocusCommand", "ExampleCommand"}
         if not required_columns.issubset(set(wizard_frame.columns)):
             needs_refresh = True
+        elif {"ReadinessStatus", "NextBestAction"}.issubset(set(wizard_frame.columns)):
+            stale_price_rows = wizard_frame.loc[
+                wizard_frame["ReadinessStatus"].astype(str).str.strip().eq("Needs Price Data")
+            ]
+            if not stale_price_rows.empty:
+                normalized_actions = stale_price_rows["NextBestAction"].astype(str).str.strip().str.lower()
+                if not normalized_actions.str.contains("make focus-price").all():
+                    needs_refresh = True
     if needs_refresh:
         run_research_health(BASE_DIR, output_dir=outputs_dir)
         tables["data_quality_wizard.csv"] = load_output(outputs_dir / "data_quality_wizard.csv")

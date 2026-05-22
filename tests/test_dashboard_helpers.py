@@ -886,6 +886,8 @@ def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
     amd_row = frame.loc[frame["Ticker"] == "AMD"].iloc[0]
     assert amd_row["FocusCommand"] == "make focus-price TICKER=AMD"
     assert "make price-normalize" in amd_row["ExampleCommand"]
+    assert "make focus-price TICKER=AMD" in amd_row["NextBestAction"]
+    assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in amd_row["NextBestAction"]
 
 
 def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path):
