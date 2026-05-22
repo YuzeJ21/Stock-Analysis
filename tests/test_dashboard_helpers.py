@@ -2477,6 +2477,48 @@ def test_overview_price_target_cards_surface_exact_history_targets_safely():
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_target_cards_surface_dcf_and_peer_targets_safely():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "is_holding": True,
+                "theme": "AI Semis",
+                "price_history_days": 63,
+                "missing_required_for_dcf": "fundamentals row",
+                "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
+                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "is_holding": True,
+                "theme": "EV",
+                "dcf_ready": True,
+                "missing_required_for_peer_relative": "peer mapping",
+                "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                "example_command": "python3 -m src.data_onboarding --write-templates",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_target_cards(sec_queue, peer_queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "UNLOCK DCF"
+    assert "unlock peers" in rendered
+    assert "fundamentals row" in rendered
+    assert "peer mapping" in rendered
+    assert "sec-stage-fundamentals" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
     wizard = pd.DataFrame(
         [

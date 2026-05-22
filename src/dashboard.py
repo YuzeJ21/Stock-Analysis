@@ -2192,6 +2192,70 @@ def data_health_deep_research_target_cards(
     ]
 
 
+def overview_deep_research_target_cards(
+    sec_stage_queue_frame: pd.DataFrame | None,
+    peer_mapping_queue_frame: pd.DataFrame | None,
+    limit_per_lane: int = 2,
+) -> list[dict[str, object]]:
+    cards: list[dict[str, object]] = []
+
+    if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
+        sec_rows = sec_stage_queue_frame.copy()
+        if "priority" in sec_rows.columns:
+            sec_rows["priority"] = pd.to_numeric(sec_rows["priority"], errors="coerce")
+            sec_rows = sec_rows.sort_values(["priority", "price_history_days", "ticker"], ascending=[True, False, True], kind="stable")
+        for _, row in sec_rows.head(limit_per_lane).iterrows():
+            cards.append(
+                {
+                    "kicker": "UNLOCK DCF",
+                    "title": format_missing(row.get("ticker"), "Ticker"),
+                    "body": (
+                        f"{format_missing(row.get('missing_required_for_dcf'), 'Not specified')}. "
+                        f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=140)}"
+                    ),
+                    "badges": [
+                        "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
+                        f"P{format_value(row.get('priority'), fallback='-')}",
+                    ],
+                    "command": format_missing(row.get("example_command"), ""),
+                }
+            )
+
+    if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
+        peer_rows = peer_mapping_queue_frame.copy()
+        if "priority" in peer_rows.columns:
+            peer_rows["priority"] = pd.to_numeric(peer_rows["priority"], errors="coerce")
+            peer_rows = peer_rows.sort_values(["priority", "ticker"], kind="stable")
+        for _, row in peer_rows.head(limit_per_lane).iterrows():
+            cards.append(
+                {
+                    "kicker": "UNLOCK PEERS",
+                    "title": format_missing(row.get("ticker"), "Ticker"),
+                    "body": (
+                        f"{format_missing(row.get('missing_required_for_peer_relative'), 'Not specified')}. "
+                        f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=140)}"
+                    ),
+                    "badges": [
+                        "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
+                        "dcf ready" if str(row.get("dcf_ready", "")).lower() in {"true", "1"} else "dcf blocked",
+                    ],
+                    "command": format_missing(row.get("example_command"), ""),
+                }
+            )
+
+    if cards:
+        return cards
+    return [
+        {
+            "kicker": "DEEP TARGETS",
+            "title": "Generate DCF and peer targets",
+            "body": "Write the onboarding outputs to surface the next exact fundamentals and peer-relative targets.",
+            "badges": ["read-only", "data moat"],
+            "command": "python3 -m src.data_onboarding --write-output",
+        }
+    ]
+
+
 def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if price_worklist_frame is None or price_worklist_frame.empty:
         return [
@@ -5388,6 +5452,8 @@ def render_overview(
     )
     render_section_header("Price Targets", "The next exact local history targets for Monthly Picks, track record, or fuller 1Y research coverage.")
     render_signal_cards(overview_price_target_cards(price_worklist_frame))
+    render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
+    render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
     render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
     render_signal_cards(
         overview_deep_research_priority_bridge_cards(
