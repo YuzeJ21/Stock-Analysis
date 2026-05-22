@@ -345,6 +345,8 @@ def _recommended_action_needs_refresh(status: str, recommended_action: str, tick
         return True
     if ticker and "make focus-price" not in normalized_action:
         return True
+    if ticker and f"make price-refresh tickers={ticker.lower()}" not in normalized_action:
+        return True
     return False
 
 

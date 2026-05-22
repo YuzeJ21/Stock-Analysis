@@ -277,6 +277,25 @@ def test_enrich_price_update_status_frame_refreshes_stale_price_actions():
     assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in enriched.iloc[0]["recommended_action"]
 
 
+def test_enrich_price_update_status_frame_refreshes_legacy_raw_price_action_text():
+    frame = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "status": "parse_error",
+                "requested_start": "2026-03-15",
+                "rows_merged": 0,
+                "recommended_action": "Run make focus-price TICKER=QQQ, or run python3 -m src.data_update --tickers QQQ and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+            }
+        ]
+    )
+
+    enriched = enrich_price_update_status_frame(frame)
+
+    assert "make price-refresh TICKERS=QQQ" in enriched.iloc[0]["recommended_action"]
+    assert "python3 -m src.data_update --tickers QQQ" not in enriched.iloc[0]["recommended_action"]
+
+
 def test_enrich_price_update_status_frame_normalizes_parse_error_messages():
     frame = pd.DataFrame(
         [
