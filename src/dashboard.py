@@ -1553,6 +1553,18 @@ def normalize_operator_command(command: object) -> str:
         return "make status"
     if command_text == "make dashboard":
         return "make dashboard-smoke"
+    sec_stage_match = re.fullmatch(
+        r"SEC_USER_AGENT=(?:'[^']*'|\"[^\"]*\"|\S+)\s+make sec-stage TICKERS=(.+)",
+        command_text,
+    )
+    if sec_stage_match:
+        tickers = ",".join(
+            part.strip().upper()
+            for part in sec_stage_match.group(1).split(",")
+            if part.strip()
+        )
+        if tickers:
+            return f"make sec-stage TICKERS={tickers}"
     price_match = re.fullmatch(r"python3 -m src\.data_update --tickers (.+)", command_text)
     if price_match:
         tickers = ",".join(

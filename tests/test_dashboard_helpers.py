@@ -4497,6 +4497,10 @@ def test_priority_now_falls_back_to_status_first_ready_path():
 
 def test_normalize_operator_command_rewrites_legacy_price_and_universe_commands():
     assert (
+        dashboard.normalize_operator_command("SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=nvda, msft")
+        == "make sec-stage TICKERS=NVDA,MSFT"
+    )
+    assert (
         dashboard.normalize_operator_command("python3 -m src.data_update --tickers amd, nvda")
         == "make price-refresh TICKERS=AMD,NVDA"
     )
@@ -4513,6 +4517,15 @@ def test_preferred_row_command_rewrites_legacy_price_refresh_example_command():
     }
 
     assert dashboard.preferred_row_command(row) == "make price-refresh TICKERS=AMD,NVDA"
+
+
+def test_preferred_bundle_command_rewrites_legacy_sec_user_agent_command():
+    row = {
+        "bundle_shortcut_command": "",
+        "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=nvda, msft",
+    }
+
+    assert dashboard.preferred_bundle_command(row) == "make sec-stage TICKERS=NVDA,MSFT"
 
 
 def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
