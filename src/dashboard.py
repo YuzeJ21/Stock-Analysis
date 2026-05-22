@@ -583,7 +583,7 @@ def load_price_update_status(
     if not path.exists():
         return None, (
             "`price_update_status.csv` has not been generated yet. Run "
-            "`make status` first, then follow the printed price focus or runbook path. "
+            "`make runbook-prices-broader` or `make focus-price TICKER=...` first. "
             "For downloaded files, use `make price-normalize`, then run `make price-validate`, "
             "`make price-preview`, and `make price-apply`."
         )

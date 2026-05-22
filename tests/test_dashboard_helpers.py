@@ -715,7 +715,8 @@ def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
 
     assert frame is None
     assert "price_update_status.csv" in message
-    assert "make status" in message
+    assert "make runbook-prices-broader" in message
+    assert "make focus-price" in message
     assert "make price-normalize" in message
     assert "make price-validate" in message
     assert "make price-preview" in message
