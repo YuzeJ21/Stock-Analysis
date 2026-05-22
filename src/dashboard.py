@@ -3429,6 +3429,7 @@ def holdings_unlock_cards(
                         f"Representative names: {format_missing(row.get('representative_tickers'), 'Not available')}."
                     ),
                     "badges": [format_missing(row.get("top_priority_stage"), "stage"), "portfolio"],
+                    "command": format_missing(row.get("example_command"), format_missing(row.get("focus_command"), "")),
                 }
             )
 
@@ -3454,7 +3455,7 @@ def holdings_unlock_cards(
                     f"Next action: {compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
                 ),
                 "badges": [stage, format_missing(row.get("price_stage_status"), "prices")],
-                "command": format_missing(row.get("example_command"), ""),
+                "command": format_missing(row.get("focus_command"), format_missing(row.get("example_command"), "")),
             }
         )
     return cards
@@ -3597,6 +3598,10 @@ def theme_unlock_cards(
                 f"Start where the highest-priority stage is still {format_missing(theme_rows.iloc[0].get('top_priority_stage'), 'coverage')}."
             ),
             "badges": ["theme lens", "research only"],
+            "command": format_missing(
+                theme_rows.iloc[0].get("example_command"),
+                format_missing(theme_rows.iloc[0].get("focus_command"), ""),
+            ),
         }
     ]
 
@@ -3615,6 +3620,7 @@ def theme_unlock_cards(
                     format_missing(row.get("top_priority_stage"), "stage"),
                     format_missing(row.get("group_type"), "group"),
                 ],
+                "command": format_missing(row.get("example_command"), format_missing(row.get("focus_command"), "")),
             }
         )
     return cards

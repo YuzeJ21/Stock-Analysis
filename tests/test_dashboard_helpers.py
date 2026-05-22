@@ -724,6 +724,7 @@ def test_holdings_unlock_cards_surface_portfolio_blockers():
                 "current_unlock_stage": "fundamentals",
                 "next_unlock_goal": "Unlock DCF",
                 "recommended_action": "Stage verified fundamentals.",
+                "focus_command": "make focus-fundamentals TICKER=NVDA",
                 "example_command": "make sec-stage TICKERS=NVDA",
                 "price_stage_status": "momentum_ready_short_history",
             },
@@ -732,6 +733,7 @@ def test_holdings_unlock_cards_surface_portfolio_blockers():
                 "current_unlock_stage": "prices",
                 "next_unlock_goal": "Unlock Monthly Picks",
                 "recommended_action": "Add more verified local price history.",
+                "focus_command": "make focus-price TICKER=TSLA",
                 "example_command": "make price-refresh",
                 "price_stage_status": "partial_price_history",
             },
@@ -747,6 +749,8 @@ def test_holdings_unlock_cards_surface_portfolio_blockers():
                 "top_priority_stage": "prices",
                 "next_unlock_goal": "Unlock Monthly Picks",
                 "representative_tickers": "TSLA, NVDA",
+                "focus_command": "make status",
+                "example_command": "make runbook-prices",
             }
         ]
     )
@@ -758,6 +762,8 @@ def test_holdings_unlock_cards_surface_portfolio_blockers():
     assert "unlock monthly picks" in rendered
     assert "nvda" in rendered
     assert "tsla" in rendered
+    assert cards[0]["command"] == "make runbook-prices"
+    assert any(card.get("command") == "make focus-price TICKER=TSLA" for card in cards)
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -831,6 +837,8 @@ def test_theme_unlock_cards_surface_grouped_theme_priorities():
                 "top_priority_stage": "prices",
                 "next_unlock_goal": "Unlock Monthly Picks",
                 "recommended_action": "Fill verified local price history first.",
+                "focus_command": "make status",
+                "example_command": "make runbook-prices",
             },
             {
                 "group_type": "sector_etf",
@@ -840,6 +848,8 @@ def test_theme_unlock_cards_surface_grouped_theme_priorities():
                 "top_priority_stage": "fundamentals",
                 "next_unlock_goal": "Unlock DCF",
                 "recommended_action": "Stage or add verified fundamentals.",
+                "focus_command": "make status",
+                "example_command": "make runbook-fundamentals",
             },
         ]
     )
@@ -851,6 +861,8 @@ def test_theme_unlock_cards_surface_grouped_theme_priorities():
     assert "ai semiconductors" in rendered
     assert "smh" in rendered
     assert "unlock monthly picks" in rendered
+    assert cards[0]["command"] == "make runbook-prices"
+    assert any(card.get("command") == "make runbook-fundamentals" for card in cards)
     assert "buy" not in rendered
     assert "sell" not in rendered
 
