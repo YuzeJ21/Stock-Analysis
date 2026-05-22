@@ -2227,6 +2227,42 @@ def test_overview_deep_research_leverage_cards_rank_sec_and_peer_lanes():
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_leverage_cards_use_lane_front_doors_when_commands_are_missing():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "TSLA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_leverage_cards(holdings, sec_queue, peer_queue)
+    dcf_card = next(card for card in cards if card["kicker"] == "DCF LEVERAGE")
+    peer_card = next(card for card in cards if card["kicker"] == "PEER LEVERAGE")
+
+    assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
+    assert dcf_card["command"] == "make focus-fundamentals TICKER=NVDA"
+    assert peer_card["command"] == "make focus-peers TICKER=TSLA"
+
+
 def test_overview_deep_research_leverage_cards_use_staged_peer_import_title_when_queue_is_staged():
     holdings = pd.DataFrame([{"Ticker": "TSLA"}])
     sec_queue = pd.DataFrame(

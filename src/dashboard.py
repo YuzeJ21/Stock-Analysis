@@ -4464,9 +4464,14 @@ def overview_deep_research_leverage_cards(
         leverage_score = holdings_count * 3 + len(themes) * 2 + min(unique_tickers, 5)
         card_title = title
         card_badges = [badge, f"leverage {leverage_score}"]
+        lane_fallback = "make onboarding"
+        if lane_name == "DCF LEVERAGE":
+            lane_fallback = ticker_focus_command("fundamentals", top_row.get("ticker"), "make onboarding")
+        elif lane_name == "PEER LEVERAGE":
+            lane_fallback = ticker_focus_command("peers", top_row.get("ticker"), "make onboarding")
+        command = preferred_row_command(top_row, lane_fallback)
         if lane_name == "PEER LEVERAGE":
             card_title = _peer_lane_title(top_row)
-            command = preferred_row_command(top_row, "")
             if command == "make imports-validate":
                 card_badges = ["staged import", f"leverage {leverage_score}"]
             elif format_missing(top_row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}:
@@ -4480,6 +4485,7 @@ def overview_deep_research_leverage_cards(
                 f"Next action: {compact_reason(top_row.get('recommended_action'), max_sentences=1, max_chars=140)}"
             ),
             "badges": card_badges,
+            "command": command,
             "_score": leverage_score,
         }
 
@@ -4508,6 +4514,7 @@ def overview_deep_research_leverage_cards(
                 "when you weigh holdings impact, grouped theme breadth, and queued ticker count."
             ),
             "badges": [str(item) for item in best_lane.get("badges", [])][:2] or ["research only"],
+            "command": str(best_lane.get("command", "make onboarding")),
         }
     ]
     output_cards.extend({key: value for key, value in card.items() if key != "_score"} for card in candidate_cards)
