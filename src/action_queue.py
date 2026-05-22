@@ -889,9 +889,9 @@ def write_action_queue_output(
     }
 
 
-def _print_human(payload: dict[str, Any]) -> None:
+def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
     print(f"Action queue rows: {payload['action_count']}")
-    for row in payload["action_queue"][:20]:
+    for row in payload["action_queue"][:top_n]:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(f"- P{row['priority']} {row['action_type']}{ticker}: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
@@ -906,6 +906,7 @@ def main() -> None:
     parser.add_argument("--project-root", help="Project root for default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    parser.add_argument("--top-n", type=int, default=20, help="Number of action rows to print in human-readable mode.")
     args = parser.parse_args()
 
     root = resolve_project_root(args.project_root)
@@ -922,7 +923,7 @@ def main() -> None:
         return
 
     print(format_path_context(root, data_path, output_path))
-    _print_human(payload)
+    _print_human(payload, top_n=max(args.top_n, 0))
     if args.write_output:
         print(f"Wrote: {payload['queue_path']}")
 
