@@ -2686,7 +2686,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
         return [
             {
                 "kicker": "COMMAND BUNDLES",
-                "title": "No bundles yet",
+                "title": "No command bundles yet",
                 "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local command bundles for prices, SEC staging, and peer mapping.",
                 "badges": ["read-only"],
                 "command": "make onboarding",

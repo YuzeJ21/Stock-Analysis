@@ -6092,8 +6092,11 @@ def test_data_health_onboarding_fallback_cards_use_status_refresh():
     ).lower()
 
     assert bundle_cards[0]["command"] == "make onboarding"
+    assert bundle_cards[0]["title"] == "No command bundles yet"
     assert runbook_cards[0]["command"] == "make onboarding"
+    assert runbook_cards[0]["title"] == "No bundle runbook yet"
     assert target_cards[0]["command"] == "make onboarding"
+    assert target_cards[0]["title"] == "No price targets yet"
     assert "run make onboarding to refresh the onboarding outputs" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
