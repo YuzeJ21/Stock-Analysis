@@ -5142,6 +5142,12 @@ def overview_current_top_surfaces_cards(
     blocked_name = format_missing(deep_cards[0].get("title"), "Not available")
     command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
     next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
+    blocked_summary = compact_reason(deep_cards[0].get("body"), max_sentences=2, max_chars=220)
+    blocked_follow_through = compact_reason(deep_cards[1].get("body"), max_sentences=2, max_chars=220) if len(deep_cards) > 1 else ""
+    blocked_reason = blocked_summary
+    if blocked_follow_through and blocked_follow_through != blocked_summary:
+        blocked_reason = f"{blocked_summary} {blocked_follow_through}".strip()
+    next_tab_reason = compact_reason(ready_cards[2].get("body"), max_sentences=2, max_chars=220)
     command_reason = (
         compact_reason(command_cards[0].get("body"), max_sentences=2, max_chars=220)
         if command_cards
@@ -5175,7 +5181,9 @@ def overview_current_top_surfaces_cards(
             "kicker": "BEST BLOCKED NAME",
             "title": blocked_name,
             "body": (
-                "Top deeper-research blocker from the SEC and peer queues."
+                f"Top deeper-research blocker from the SEC and peer queues. {blocked_reason}".strip()
+                if blocked_reason
+                else "Top deeper-research blocker from the SEC and peer queues."
             ),
             "badges": [str(item) for item in deep_cards[0].get("badges", [])][:2] or ["coverage", "read-only"],
         },
@@ -5189,9 +5197,7 @@ def overview_current_top_surfaces_cards(
         {
             "kicker": "BEST NEXT TAB",
             "title": next_tab,
-            "body": (
-                "Best follow-up surface after the next command for the current daily research pass."
-            ),
+            "body": next_tab_reason or "Best follow-up surface after the next command for the current daily research pass.",
             "badges": [str(item) for item in ready_cards[2].get("badges", [])][:2] or ["guided", "read-only"],
         },
     ]

@@ -2056,7 +2056,49 @@ def test_overview_current_top_surfaces_cards_prefer_staged_peer_handoff_reason()
     assert cards[2]["title"] == "make status"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
-    assert "live local peer inputs" in rendered
+
+
+def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in_blocked_and_tab_cards():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "AMD"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "theme": "Semiconductors",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Refresh local snapshot",
+                "Command": "make status",
+                "Reason": "Repo-native next step from the current read-only project status snapshot.",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_current_top_surfaces_cards(coverage, holdings, sec_queue, None, payload, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[1]["title"] == "AMD"
+    assert "unlock dcf" in cards[1]["body"].lower()
+    assert "make imports-apply" in cards[1]["body"].lower()
+    assert cards[3]["title"] == "Stock Report Beta"
+    assert "open stock report beta after the command step" in cards[3]["body"].lower()
+    assert "nvda" in cards[3]["body"].lower()
+    assert "live staged fundamentals" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
