@@ -5676,7 +5676,7 @@ def test_data_health_fix_first_cards_fall_back_to_onboarding_refresh():
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
     assert len(cards) == 1
-    assert cards[0][0] == "Generate onboarding actions"
+    assert cards[0][0] == "No fix-first actions yet"
     assert cards[0][2] == "make onboarding"
     assert "make onboarding" in rendered
     assert "buy" not in rendered
