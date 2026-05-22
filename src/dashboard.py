@@ -2614,11 +2614,43 @@ def data_health_action_path_cards(
         )
         reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
+        target_file = format_missing(row.get("target_file"), "")
         body_source = command_family_fallback(command, review_path_fallback(row.get("dataset")))
         if reason and reason != "Not available":
             body_source = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
         elif recommended_action and recommended_action != "Not available":
             body_source = recommended_action
+        staged_follow_through = ""
+        if target_file == "data/imports/fundamentals.csv":
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+        elif target_file == "data/imports/peers.csv":
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+        elif target_file == "data/imports/prices.csv":
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
+        if staged_follow_through:
+            normalized_body = body_source.lower()
+            if target_file == "data/imports/prices.csv":
+                if (
+                    "make price-validate" not in normalized_body
+                    or "make price-preview" not in normalized_body
+                    or "make price-apply" not in normalized_body
+                ):
+                    body_source = (
+                        f"{reason} {staged_follow_through}".strip()
+                        if reason and reason != "Not available"
+                        else staged_follow_through
+                    )
+            else:
+                if (
+                    "make imports-validate" not in normalized_body
+                    or "make imports-preview" not in normalized_body
+                    or "make imports-apply" not in normalized_body
+                ):
+                    body_source = (
+                        f"{reason} {staged_follow_through}".strip()
+                        if reason and reason != "Not available"
+                        else staged_follow_through
+                    )
         return compact_reason(body_source, max_sentences=2, max_chars=220)
 
     def _fallback_card() -> list[dict[str, object]]:

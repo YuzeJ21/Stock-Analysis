@@ -6755,6 +6755,68 @@ def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_cop
     assert "not available" not in " ".join(str(value) for card in cards for value in card.values()).lower()
 
 
+def test_data_health_action_path_cards_keep_staged_follow_through_visible_when_target_files_are_present():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            },
+            {
+                "priority": 3,
+                "dataset": "peers",
+                "ticker": "TSLA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            },
+            {
+                "priority": 4,
+                "dataset": "prices",
+                "ticker": "AMD",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make price-validate",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+            },
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "title": "Advance staged fundamentals",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_action_path_cards(actions, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "make imports-validate"
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert any(card.get("command") == "make imports-validate" and "make imports-preview" in str(card.get("body", "")).lower() for card in cards[1:3])
+    assert any(card.get("command") == "make price-validate" and "make price-preview" in str(card.get("body", "")).lower() for card in cards)
+    assert "use staged local imports if the free refresh fails" not in rendered
+
+
 def test_data_health_command_bundle_cards_surface_holdings_first_commands():
     bundles = pd.DataFrame(
         [
