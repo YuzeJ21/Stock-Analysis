@@ -4040,6 +4040,15 @@ def overview_deep_research_leverage_cards(
         if ticker_col:
             holding_tickers = set(holdings[ticker_col].dropna().astype(str).str.upper().str.strip())
 
+    def _peer_lane_title(row: pd.Series) -> str:
+        command = preferred_row_command(row, "")
+        if command == "make imports-validate" and format_missing(row.get("target_file"), "") == "data/imports/peers.csv":
+            return "Staged peer import path"
+        has_peer_mapping = format_missing(row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}
+        if has_peer_mapping:
+            return "Peer support follow-through path"
+        return "Manual peer path"
+
     def _lane_card(frame: pd.DataFrame | None, lane_name: str, title: str, badge: str) -> dict[str, object] | None:
         if frame is None or frame.empty or "ticker" not in frame.columns:
             return None
@@ -4060,15 +4069,24 @@ def overview_deep_research_leverage_cards(
         lead_theme = themes[0] if themes else "Unclassified"
         lead_names = ", ".join(sorted_rows["ticker"].head(3).tolist()) or "Not available"
         leverage_score = holdings_count * 3 + len(themes) * 2 + min(unique_tickers, 5)
+        card_title = title
+        card_badges = [badge, f"leverage {leverage_score}"]
+        if lane_name == "PEER LEVERAGE":
+            card_title = _peer_lane_title(top_row)
+            command = preferred_row_command(top_row, "")
+            if command == "make imports-validate":
+                card_badges = ["staged import", f"leverage {leverage_score}"]
+            elif format_missing(top_row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}:
+                card_badges = ["peer support data", f"leverage {leverage_score}"]
         return {
             "kicker": lane_name,
-            "title": title,
+            "title": card_title,
             "body": (
                 f"{holdings_count} holdings, {len(themes)} themes, and {unique_tickers} queued tickers are currently gated here. "
                 f"Lead theme: {lead_theme}. Start with: {lead_names}. "
                 f"Next action: {compact_reason(top_row.get('recommended_action'), max_sentences=1, max_chars=140)}"
             ),
-            "badges": [badge, f"leverage {leverage_score}"],
+            "badges": card_badges,
             "_score": leverage_score,
         }
 

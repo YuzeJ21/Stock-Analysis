@@ -1566,6 +1566,44 @@ def test_overview_deep_research_leverage_cards_rank_sec_and_peer_lanes():
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_leverage_cards_use_staged_peer_import_title_when_queue_is_staged():
+    holdings = pd.DataFrame([{"Ticker": "TSLA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "has_peer_mapping": True,
+                "peer_ready": False,
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local peer inputs.",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_leverage_cards(holdings, sec_queue, peer_queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "staged peer import path" in rendered
+    assert "make imports-validate" in rendered
+    assert "staged import" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_deep_research_leverage_cards_handle_missing_inputs_gracefully():
     cards = dashboard.overview_deep_research_leverage_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
