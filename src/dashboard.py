@@ -4902,6 +4902,8 @@ def theme_deep_research_cards(
                     "Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path.",
                 )
             )
+            if not staged_import and "runbook-" in command.lower():
+                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
             next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
             if staged_import and (
                 "make imports-validate" not in next_action_summary
@@ -5116,6 +5118,8 @@ def overview_deep_research_leverage_cards(
                 command,
                 "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path.",
             )
+            if "runbook-" in command.lower():
+                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=140)
         if (staged_fundamentals_import or staged_peer_import) and (
             "make imports-validate" not in next_action_summary
@@ -5222,6 +5226,8 @@ def overview_deep_research_priority_bridge_cards(
                     command,
                     "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path.",
                 )
+                if "runbook-" in command.lower():
+                    fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
             next_action_summary = compact_reason(
                 row.get("recommended_action") or fallback_action,
                 max_sentences=1,

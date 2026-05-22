@@ -2984,7 +2984,7 @@ def test_theme_deep_research_cards_use_runbook_fallback_when_action_is_missing()
 
     assert cards[0]["kicker"] == "Semis"
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -3026,7 +3026,7 @@ def test_theme_deep_research_cards_use_peer_runbook_fallback_when_action_is_miss
 
     assert cards[0]["kicker"] == "Semiconductor ETF"
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -3381,7 +3381,7 @@ def test_overview_deep_research_leverage_cards_use_peer_runbook_fallback_when_ac
     peer_card = next(card for card in cards if card["kicker"] == "PEER LEVERAGE")
 
     assert peer_card["command"] == "make runbook-peers"
-    assert "staged local workflow next" in peer_card["body"].lower()
+    assert "ordered lane runbook" in peer_card["body"].lower()
     assert "not available" not in peer_card["body"].lower()
 
 
@@ -3584,8 +3584,8 @@ def test_overview_deep_research_priority_bridge_cards_use_runbook_fallback_when_
 
     assert cards[0]["kicker"] == "AMD"
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "staged local workflow next" in cards[0]["body"].lower()
-    assert "staged local workflow next" in cards[0]["command_reason"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["command_reason"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -3628,8 +3628,8 @@ def test_overview_deep_research_priority_bridge_cards_use_peer_runbook_fallback_
 
     assert cards[0]["kicker"] == "TSLA"
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
-    assert "staged local workflow next" in cards[0]["command_reason"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["command_reason"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
