@@ -717,6 +717,9 @@ def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
     assert "price_update_status.csv" in message
     assert "make status" in message
     assert "make price-normalize" in message
+    assert "make price-validate" in message
+    assert "make price-preview" in message
+    assert "make price-apply" in message
 
     counts = dashboard.summarize_price_update_status(
         pd.DataFrame({"status": ["fetched", "parse_error", "parse_error", "source_unavailable"]})

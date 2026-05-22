@@ -272,7 +272,13 @@ def _data_source_action_needs_refresh(row: pd.Series) -> bool:
     if focus_command == "make imports-validate":
         return "make imports-validate" not in normalized_action or "make imports-preview" not in normalized_action
     if dataset == "prices":
-        return "make status" not in normalized_action or "normalize verified local ohlcv files" not in normalized_action
+        return (
+            "make status" not in normalized_action
+            or "normalize verified local ohlcv files" not in normalized_action
+            or "make price-validate" not in normalized_action
+            or "make price-preview" not in normalized_action
+            or "make price-apply" not in normalized_action
+        )
     if dataset == "fundamentals":
         return "make status" not in normalized_action or "validate/preview/apply" not in normalized_action
     if dataset == "peers":
@@ -573,7 +579,8 @@ def load_price_update_status(
         return None, (
             "`price_update_status.csv` has not been generated yet. Run "
             "`make status` first, then follow the printed price focus or runbook path. "
-            "For downloaded files, use `make price-normalize` before validate/preview/apply."
+            "For downloaded files, use `make price-normalize`, then run `make price-validate`, "
+            "`make price-preview`, and `make price-apply`."
         )
     frame, message = load_output(path)
     if frame is None:
@@ -3534,7 +3541,7 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
     return [
         {
             "Dashboard Label": "Not enough price history",
-            "What to do": "Start with `make status`, then use the first `make focus-price TICKER=...` or `make runbook-prices-broader` path it prints. For downloaded files, use `make price-normalize` before validate/preview/apply.",
+            "What to do": "Start with `make status`, then use the first `make focus-price TICKER=...` or `make runbook-prices-broader` path it prints. For downloaded files, use `make price-normalize`, then run `make price-validate`, `make price-preview`, and `make price-apply`.",
         },
         {
             "Dashboard Label": "Needs SEC enrichment",

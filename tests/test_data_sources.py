@@ -58,7 +58,9 @@ def test_data_source_registry_contains_required_datasets():
 
     prices_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "prices")
     assert "make status" in prices_entry.fallback_action
-    assert "validate/preview/apply" in prices_entry.fallback_action
+    assert "make price-validate" in prices_entry.fallback_action
+    assert "make price-preview" in prices_entry.fallback_action
+    assert "make price-apply" in prices_entry.fallback_action
     assert "ohlcv files" in prices_entry.fallback_action.lower()
     fundamentals_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "fundamentals")
     assert "make status" in fundamentals_entry.fallback_action

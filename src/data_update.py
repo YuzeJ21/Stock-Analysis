@@ -974,7 +974,7 @@ def show_price_update_status(base_dir: Path | None = None, *, output_dir: Path |
             "path": str(path),
             "rows": [],
             "warnings": [
-                "Price update status has not been generated yet. Start with make status, then follow the printed price focus or runbook path. For downloaded files, use make price-normalize before validate/preview/apply."
+                "Price update status has not been generated yet. Start with make status, then follow the printed price focus or runbook path. For downloaded files, use make price-normalize, then run make price-validate, make price-preview, and make price-apply."
             ],
         }
     frame = pd.read_csv(path)

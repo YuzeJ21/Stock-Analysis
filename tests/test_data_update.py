@@ -223,6 +223,9 @@ def test_show_price_update_status_missing_file_uses_status_flow_guidance(tmp_pat
     assert payload["status"] == "missing_file"
     assert "make status" in payload["warnings"][0]
     assert "make price-normalize" in payload["warnings"][0]
+    assert "make price-validate" in payload["warnings"][0]
+    assert "make price-preview" in payload["warnings"][0]
+    assert "make price-apply" in payload["warnings"][0]
 
 
 def test_show_price_update_status_enriches_legacy_rows_with_commands(tmp_path: Path):
