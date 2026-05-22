@@ -63,6 +63,9 @@ def test_data_source_registry_contains_required_datasets():
     fundamentals_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "fundamentals")
     assert "make status" in fundamentals_entry.fallback_action
     assert "runbook path" in fundamentals_entry.fallback_action
+    assert "make imports-validate" in fundamentals_entry.fallback_action
+    assert "make imports-preview" in fundamentals_entry.fallback_action
+    assert "make imports-apply" in fundamentals_entry.fallback_action
     peers_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "peers")
     assert "make templates" in peers_entry.fallback_action
     assert "make status" in peers_entry.fallback_action

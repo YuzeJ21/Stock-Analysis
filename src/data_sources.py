@@ -258,7 +258,8 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/fundamentals.csv",
         fallback_action=(
             "Start with make status, then follow the printed fundamentals focus or runbook path. "
-            "Keep SEC staging staged and review-only through validate/preview/apply."
+            "Keep SEC staging staged and review-only through make imports-validate, "
+            "make imports-preview, and make imports-apply."
         ),
         notes="SEC staging only provides candidate fundamentals; it does not provide prices, peers, earnings, or analyst estimates.",
     ),

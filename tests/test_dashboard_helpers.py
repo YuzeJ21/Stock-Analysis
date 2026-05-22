@@ -4576,6 +4576,9 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "run make templates, then fill data/imports/peers.csv" in empty_rendered
     assert "price-normalize" in empty_rendered
     assert "make focus-fundamentals" in empty_rendered
+    assert "make imports-validate" in empty_rendered
+    assert "make imports-preview" in empty_rendered
+    assert "make imports-apply" in empty_rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
