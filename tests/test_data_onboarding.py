@@ -853,11 +853,12 @@ def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Pa
     assert "Unlock Monthly Picks" in price_bundle["goal_summary"]
     assert price_bundle["target_history_rows"] >= 21
     assert price_bundle["suggested_start_date"]
-    assert "src.data_update --tickers AMD" in price_bundle["primary_command"]
+    assert price_bundle["primary_command"].startswith("make price-refresh TICKERS=")
+    assert "AMD" in price_bundle["primary_command"]
     assert fundamentals_bundle["scope"] == "broader_queue"
     assert "AMD" in fundamentals_bundle["tickers"]
     assert "DCF readiness" in fundamentals_bundle["goal_summary"]
-    assert "make sec-stage" in fundamentals_bundle["primary_command"]
+    assert fundamentals_bundle["primary_command"].startswith("make sec-stage TICKERS=")
     assert peer_bundle["scope"] == "holdings_first"
     assert "NVDA" in peer_bundle["tickers"]
     assert "peer-relative readiness" in peer_bundle["goal_summary"]
@@ -1031,14 +1032,15 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
     assert price_detail["rows_needed"] >= 1
     assert price_detail["target_history_rows"] >= 21
     assert price_detail["suggested_start_date"]
-    assert price_detail["exact_next_command"] == "python3 -m src.data_update --tickers AMD"
+    assert price_detail["exact_next_command"] == "make focus-price TICKER=AMD"
     assert "make price-normalize" in price_detail["fallback_manual_command"]
-    assert "src.data_update --tickers AMD" in price_detail["primary_command"]
+    assert price_detail["primary_command"].startswith("make price-refresh TICKERS=")
     assert "make focus-fundamentals TICKER=AMD" in fundamentals_detail["recommended_action"]
+    assert fundamentals_detail["exact_next_command"] == "make focus-fundamentals TICKER=AMD"
     assert peer_detail["is_holding"] is True
     assert peer_detail["current_unlock_stage"] == "peers"
     assert peer_detail["target_goal"] == "Unlock Peer Relative"
-    assert peer_detail["exact_next_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
+    assert peer_detail["exact_next_command"] == "make focus-fundamentals TICKER=AMD"
     assert "make focus-fundamentals TICKER=AMD" in peer_detail["recommended_action"]
 
 
@@ -1055,7 +1057,7 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert "Unlock Monthly Picks" in price_steps[0]["goal_summary"]
     assert price_steps[0]["target_history_rows"] >= 21
     assert price_steps[0]["suggested_start_date"]
-    assert "src.data_update --tickers" in price_steps[0]["command"]
+    assert price_steps[0]["command"].startswith("make price-refresh TICKERS=")
     assert price_steps[1]["step_label"] == "If refresh fails, normalize first CSV"
     assert "make price-normalize" in price_steps[1]["command"]
     assert "make price-normalize" in price_steps[1]["fallback_manual_command"]

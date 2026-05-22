@@ -243,7 +243,11 @@ price-apply:
 	python3 -m src.data_update --apply-price-import-merge
 
 price-refresh:
+ifdef TICKERS
+	python3 -m src.data_update --tickers $(TICKERS)
+else
 	python3 -m src.data_update --universe-file data/universe.csv
+endif
 
 price-normalize:
 ifdef TICKER

@@ -1808,7 +1808,7 @@ def build_command_bundles(
                 bundle_shortcut_command=bundle_shortcut_for_scope("prices", scope, "bundle"),
                 detail_shortcut_command=bundle_shortcut_for_scope("prices", scope, "detail"),
                 runbook_shortcut_command=bundle_shortcut_for_scope("prices", scope, "runbook"),
-                primary_command=f"python3 -m src.data_update --tickers {tickers}",
+                primary_command=f"make price-refresh TICKERS={tickers}",
                 follow_up_command="make price-status",
                 target_file="data/imports/prices.csv",
                 why_it_matters=why_it_matters,
@@ -1838,7 +1838,7 @@ def build_command_bundles(
                 bundle_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "bundle"),
                 detail_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "detail"),
                 runbook_shortcut_command=bundle_shortcut_for_scope("fundamentals", scope, "runbook"),
-                primary_command=f"SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS={tickers}",
+                primary_command=f"make sec-stage TICKERS={tickers}",
                 follow_up_command="make sec-preview",
                 target_file="data/imports/fundamentals.csv",
                 why_it_matters=why_it_matters,
@@ -1926,7 +1926,7 @@ def build_command_bundle_details(
             if coverage is not None:
                 if bundle.lane == "prices":
                     recommended_action = coverage.next_best_action
-                    exact_next_command = f"python3 -m src.data_update --tickers {ticker}"
+                    exact_next_command = focus_command_for_ticker("prices", ticker)
                     price_target = price_worklist_map.get(ticker)
                     if price_target is not None:
                         target_goal = price_target.next_price_goal
@@ -1943,14 +1943,14 @@ def build_command_bundle_details(
                     target_history_rows = 0
                     suggested_start_date = ""
                     fallback_manual_command = ""
-                    exact_next_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+                    exact_next_command = focus_command_for_ticker("fundamentals", ticker)
                 elif bundle.lane == "peers":
                     recommended_action = coverage.next_best_action
                     target_goal = "Unlock Peer Relative"
                     target_history_rows = 0
                     suggested_start_date = ""
                     fallback_manual_command = ""
-                    exact_next_command = str(coverage.example_command or "")
+                    exact_next_command = str(coverage.focus_command or focus_command_for_ticker("peers", ticker) or "")
                 else:
                     target_history_rows = 0
                     suggested_start_date = ""
