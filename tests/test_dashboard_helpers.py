@@ -365,6 +365,72 @@ def test_data_source_status_tables_handle_missing_outputs(tmp_path):
     assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"
 
 
+def test_data_source_status_tables_refresh_stale_gap_report_columns(tmp_path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (data_dir / "prices.csv").write_text("date,ticker,adj_close,volume\n2026-01-02,NVDA,100,1000\n", encoding="utf-8")
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
+        "NVDA,AI,SMH,Momentum Leader,Large,fixture\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text("ticker,primarypurpose\nNVDA,Momentum Leader\n", encoding="utf-8")
+    pd.DataFrame(
+        [
+            {
+                "dataset": "fundamentals",
+                "ticker": "",
+                "status": "partial",
+                "reason": "stale",
+                "required_for": "valuation",
+                "recommended_action": "old",
+                "local_file": "data/fundamentals.csv",
+                "source_name": "fixture",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_gap_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "dataset": "prices",
+                "source_name": "fixture",
+                "source_type": "local_csv",
+                "availability_status": "available",
+                "required_for": "momentum",
+                "is_required": True,
+                "is_optional": False,
+                "is_manual_only": False,
+                "is_unofficial": False,
+                "requires_network": False,
+                "requires_user_agent": False,
+                "requires_api_key": False,
+                "expected_local_file": "data/prices.csv",
+                "fallback_action": "old",
+                "notes": "old",
+                "local_file": "data/prices.csv",
+                "row_count": 1,
+                "available_columns": "date,ticker,adj_close,volume",
+                "validation_warnings": "",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_source_status.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = tmp_path
+        tables = dashboard.load_data_source_status_tables(outputs_dir)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    gap_frame, _ = tables["data_gap_report.csv"]
+    assert gap_frame is not None
+    assert "focus_command" in gap_frame.columns
+    assert "example_command" in gap_frame.columns
+    assert gap_frame.loc[gap_frame["dataset"] == "fundamentals", "example_command"].iloc[0] == "make runbook-fundamentals-broader"
+
+
 def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
     frame, message = dashboard.load_price_update_status(tmp_path)
 

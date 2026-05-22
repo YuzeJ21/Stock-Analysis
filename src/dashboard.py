@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from src.data_sources import write_data_source_outputs
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.monthly_picks import MonthlyPickConfig
@@ -212,7 +213,15 @@ def load_pipeline_outputs() -> dict[str, tuple[pd.DataFrame | None, str | None]]
 def load_data_source_status_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
-    return {filename: load_output(outputs_dir / filename) for filename in DATA_SOURCE_FILES}
+    tables = {filename: load_output(outputs_dir / filename) for filename in DATA_SOURCE_FILES}
+    gap_frame, _ = tables["data_gap_report.csv"]
+    if gap_frame is not None and not gap_frame.empty:
+        required_columns = {"focus_command", "example_command"}
+        if not required_columns.issubset(set(gap_frame.columns)):
+            payload = write_data_source_outputs(BASE_DIR, output_dir=outputs_dir)
+            tables["data_source_status.csv"] = (pd.DataFrame(payload["data_sources"]), None)
+            tables["data_gap_report.csv"] = (pd.DataFrame(payload["data_gaps"]), None)
+    return tables
 
 
 def load_data_onboarding_tables(
@@ -6947,7 +6956,24 @@ def render_data_health(provider) -> None:
                     display_gaps = gap_frame.copy()
                     if "status" in display_gaps.columns:
                         display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
-                    st.dataframe(clean_display_frame(display_gaps), width="stretch", hide_index=True)
+                    gap_columns = [
+                        column
+                        for column in [
+                            "dataset",
+                            "ticker",
+                            "status",
+                            "required_for",
+                            "recommended_action",
+                            "focus_command",
+                            "example_command",
+                            "local_file",
+                            "reason",
+                            "source_name",
+                        ]
+                        if column in display_gaps.columns
+                    ]
+                    display_frame = display_gaps[gap_columns] if gap_columns else display_gaps
+                    st.dataframe(clean_display_frame(display_frame), width="stretch", hide_index=True)
             else:
                 render_notice_card(
                     "No data gaps were reported",
