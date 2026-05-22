@@ -1852,6 +1852,7 @@ def test_overview_next_command_cards_normalize_legacy_dashboard_command_rows():
 
     assert cards[0]["title"] == "make dashboard-smoke"
     assert "dashboard-smoke" in rendered
+    assert "smoke-check" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -2244,6 +2245,8 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     equity = pd.DataFrame([{"Month": "2026-04", "PicksEquity": 1.0, "BenchmarkEquity": 1.0}])
     cards = dashboard.monthly_picks_next_step_cards(full_picks, track, equity, 5, queue)
     assert cards[0]["title"] == "Review current candidates"
+    assert cards[0]["command"] == "make dashboard-smoke"
+    assert "dashboard-smoke" in cards[0]["body"]
 
 
 def test_stock_report_brief_html_summarizes_readiness_without_advice():

@@ -4445,8 +4445,11 @@ def overview_next_command_cards(
             elif "verify" in lowered:
                 body = "Run deterministic local verification before trusting the current dashboard and CSV outputs."
                 badges = ["verification", "command"]
+            elif "dashboard-smoke" in lowered:
+                body = "Smoke-check the Streamlit surface after local outputs and operator artifacts are refreshed."
+                badges = ["ui check", "command"]
             elif "dashboard" in lowered:
-                body = "Open the Streamlit surface after local outputs and onboarding artifacts are refreshed."
+                body = "Open the Streamlit surface after the smoke check confirms the local dashboard still boots cleanly."
                 badges = ["ui", "command"]
             cards.append(
                 {
@@ -5137,9 +5140,9 @@ def monthly_picks_next_step_cards(
         primary = {
             "kicker": "NEXT STEP",
             "title": "Review current candidates",
-            "body": "The current monthly list and track record are both present. Move through the candidate cards, score context, and archive together.",
+            "body": "The current monthly list and track record are both present. Run make dashboard-smoke first, then move through the candidate cards, score context, and archive together.",
             "badges": ["ready", "research only"],
-            "command": "make dashboard",
+            "command": "make dashboard-smoke",
         }
 
     gap_count = 0
