@@ -64,6 +64,7 @@ PRICE_WORKLIST_COLUMNS = [
     "missing_for_preferred_history",
     "recommended_action",
     "target_file",
+    "focus_command",
     "example_command",
     "safe_next_step",
 ]
@@ -109,6 +110,7 @@ SEC_STAGE_QUEUE_COLUMNS = [
     "missing_required_for_dcf",
     "recommended_action",
     "target_file",
+    "focus_command",
     "example_command",
     "safe_next_step",
 ]
@@ -125,6 +127,7 @@ PEER_MAPPING_QUEUE_COLUMNS = [
     "missing_required_for_peer_relative",
     "recommended_action",
     "target_file",
+    "focus_command",
     "example_command",
     "safe_next_step",
 ]
@@ -228,6 +231,20 @@ WIZARD_COLUMNS = [
 ]
 
 TEMPLATE_DATASETS = ("prices", "peers", "fundamentals", "earnings", "analyst_estimates", "custom_universe")
+
+
+def focus_command_for_ticker(lane: str, ticker: str) -> str:
+    ticker_text = str(ticker or "").strip().upper()
+    if not ticker_text:
+        return ""
+    lane_key = str(lane or "").strip().lower()
+    if lane_key == "prices":
+        return f"make focus-price TICKER={ticker_text}"
+    if lane_key == "fundamentals":
+        return f"make focus-fundamentals TICKER={ticker_text}"
+    if lane_key == "peers":
+        return f"make focus-peers TICKER={ticker_text}"
+    return ""
 PRICE_TEMPLATE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume", "adjusted_close", "source", "as_of_date", "notes"]
 
 
@@ -356,6 +373,7 @@ class PriceWorklistRow:
     missing_for_preferred_history: str
     recommended_action: str
     target_file: str
+    focus_command: str
     example_command: str
     safe_next_step: str
 
@@ -413,6 +431,7 @@ class SecStageQueueRow:
     missing_required_for_dcf: str
     recommended_action: str
     target_file: str
+    focus_command: str
     example_command: str
     safe_next_step: str
 
@@ -433,6 +452,7 @@ class PeerMappingQueueRow:
     missing_required_for_peer_relative: str
     recommended_action: str
     target_file: str
+    focus_command: str
     example_command: str
     safe_next_step: str
 
@@ -1001,6 +1021,7 @@ def build_price_import_worklist(
                     f"Run python3 -m src.data_update --tickers {coverage.ticker}, or normalize verified downloaded OHLCV files into data/imports/prices.csv."
                 ),
                 target_file="data/imports/prices.csv",
+                focus_command=focus_command_for_ticker("prices", coverage.ticker),
                 example_command=f"make price-normalize INPUT=data/raw/prices/{coverage.ticker}.csv TICKER={coverage.ticker} SOURCE=yahoo_manual",
                 safe_next_step="Run make price-validate and make price-preview before make price-apply; do not fabricate missing history.",
             )
@@ -1143,6 +1164,7 @@ def build_sec_stage_queue(
                 missing_required_for_dcf=coverage.missing_required_for_dcf,
                 recommended_action=recommended_action,
                 target_file="data/imports/fundamentals.csv",
+                focus_command=focus_command_for_ticker("fundamentals", coverage.ticker),
                 example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}",
                 safe_next_step="Validate and preview staged fundamentals before apply; keep unavailable valuation fields blank.",
             )
@@ -1192,6 +1214,7 @@ def build_peer_mapping_queue(
                 missing_required_for_peer_relative=coverage.missing_required_for_peer_relative,
                 recommended_action=recommended_action,
                 target_file="data/imports/peers.csv",
+                focus_command=focus_command_for_ticker("peers", coverage.ticker),
                 example_command="python3 -m src.data_onboarding --write-templates",
                 safe_next_step="Use only manually researched peers, then validate and preview before apply; do not guess peer sets.",
             )
@@ -1936,6 +1959,7 @@ def _print_price_worklist(payload: dict[str, Any]) -> None:
             f"rows_needed={row['rows_needed_for_next_goal']} start={row.get('suggested_start_date') or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
     print(f"Price worklist rows: {len(payload['price_import_worklist'])}")
 
@@ -1972,6 +1996,7 @@ def _print_sec_stage_queue(payload: dict[str, Any]) -> None:
             f"missing_dcf={row['missing_required_for_dcf'] or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
         print(f"  target_file: {row['target_file']}")
     print(f"SEC stage queue rows: {len(payload['sec_stage_queue'])}")
@@ -1986,6 +2011,7 @@ def _print_peer_mapping_queue(payload: dict[str, Any]) -> None:
             f"missing_peer={row['missing_required_for_peer_relative'] or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
         print(f"  target_file: {row['target_file']}")
     print(f"Peer mapping queue rows: {len(payload['peer_mapping_queue'])}")

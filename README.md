@@ -1228,6 +1228,8 @@ make focus-fundamentals TICKER=NVDA
 make focus-peers TICKER=NVDA
 ```
 
+The price worklist, SEC stage queue, and peer-mapping queue now also carry these single-name `focus_command` shortcuts in their JSON/CSV/text outputs so the operator path stays consistent between CLI views and the dashboard.
+
 ## SEC Companyfacts staging workflow
 
 The project now includes a read-only SEC Companyfacts adapter that can stage candidate fundamentals into:

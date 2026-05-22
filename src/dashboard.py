@@ -188,6 +188,7 @@ COLUMN_LABELS = {
     "SuggestedStartDate": "Suggested Start Date",
     "FallbackManualCommand": "Fallback Manual Command",
     "ExactNextCommand": "Exact Next Command",
+    "FocusCommand": "Focus Command",
 }
 
 
@@ -6621,6 +6622,7 @@ def render_data_health(provider) -> None:
                             "missing_for_momentum",
                             "missing_for_track_record",
                             "missing_for_preferred_history",
+                            "focus_command",
                             "example_command",
                         ]
                         if column in price_worklist_frame.columns
@@ -6674,6 +6676,7 @@ def render_data_health(provider) -> None:
                             "has_fundamentals",
                             "missing_required_for_dcf",
                             "recommended_action",
+                            "focus_command",
                             "example_command",
                         ]
                         if column in sec_stage_queue_frame.columns
@@ -6695,6 +6698,7 @@ def render_data_health(provider) -> None:
                             "dcf_ready",
                             "missing_required_for_peer_relative",
                             "recommended_action",
+                            "focus_command",
                             "example_command",
                         ]
                         if column in peer_mapping_queue_frame.columns

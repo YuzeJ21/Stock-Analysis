@@ -252,6 +252,7 @@ def test_data_onboarding_cli_price_worklist_json(tmp_path: Path, capsys):
     assert "price_import_worklist" in payload
     assert payload["price_import_worklist"][0]["ticker"] == "AMD"
     assert "price_history_days" in payload["price_import_worklist"][0]
+    assert payload["price_import_worklist"][0]["focus_command"] == "make focus-price TICKER=AMD"
 
 
 def test_data_onboarding_cli_price_worklist_text_surfaces_goal_and_command(tmp_path: Path, capsys):
@@ -268,6 +269,7 @@ def test_data_onboarding_cli_price_worklist_text_surfaces_goal_and_command(tmp_p
     assert "goal=unlock monthly picks" in output
     assert "target_rows=21" in output
     assert "rows_needed=" in output
+    assert "focus: make focus-price ticker=amd" in output
     assert "command:" in output
     assert "make price-normalize" in output
 
@@ -284,6 +286,7 @@ def test_price_worklist_prioritizes_sparse_price_history(tmp_path: Path):
     assert worklist["AMD"]["next_target_history_rows"] == 21
     assert worklist["AMD"]["rows_needed_for_next_goal"] == 20
     assert worklist["AMD"]["suggested_start_date"]
+    assert worklist["AMD"]["focus_command"] == "make focus-price TICKER=AMD"
     assert "more verified rows needed" in worklist["AMD"]["missing_for_momentum"]
     assert worklist["NVDA"]["track_record_ready"] is False
     assert worklist["NVDA"]["next_price_goal"] == "Unlock Track Record"
@@ -347,6 +350,7 @@ def test_data_onboarding_cli_sec_stage_queue_json(tmp_path: Path, capsys):
     assert "sec_stage_queue" in payload
     assert payload["sec_stage_queue"][0]["ticker"] == "AMD"
     assert "missing_required_for_dcf" in payload["sec_stage_queue"][0]
+    assert payload["sec_stage_queue"][0]["focus_command"] == "make focus-fundamentals TICKER=AMD"
 
 
 def test_data_onboarding_cli_sec_stage_queue_text_surfaces_command_and_target_file(tmp_path: Path, capsys):
@@ -360,6 +364,7 @@ def test_data_onboarding_cli_sec_stage_queue_text_surfaces_command_and_target_fi
         sys.argv = previous_argv
 
     assert "sec stage queue" in output
+    assert "focus: make focus-fundamentals ticker=amd" in output
     assert "command:" in output
     assert "sec-stage-fundamentals --tickers amd" in output
     assert "target_file: data/imports/fundamentals.csv" in output
@@ -373,6 +378,7 @@ def test_sec_stage_queue_prioritizes_holdings_and_price_ready_names(tmp_path: Pa
 
     assert queue["AMD"]["priority"] == 4
     assert queue["AMD"]["has_fundamentals"] is False
+    assert queue["AMD"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
     assert "Run SEC staging for fundamentals" in queue["AMD"]["recommended_action"]
 
 
@@ -389,6 +395,7 @@ def test_data_onboarding_cli_peer_mapping_queue_json(tmp_path: Path, capsys):
     assert "peer_mapping_queue" in payload
     assert payload["peer_mapping_queue"][0]["ticker"] == "NVDA"
     assert "missing_required_for_peer_relative" in payload["peer_mapping_queue"][0]
+    assert payload["peer_mapping_queue"][0]["focus_command"] == "make focus-peers TICKER=NVDA"
 
 
 def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target_file(tmp_path: Path, capsys):
@@ -402,6 +409,7 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
         sys.argv = previous_argv
 
     assert "peer mapping queue" in output
+    assert "focus: make focus-peers ticker=amd" in output
     assert "command:" in output
     assert "write-templates" in output
     assert "target_file: data/imports/peers.csv" in output
@@ -416,6 +424,7 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert queue["NVDA"]["priority"] == 1
     assert queue["NVDA"]["is_holding"] is True
     assert queue["NVDA"]["dcf_ready"] is True
+    assert queue["NVDA"]["focus_command"] == "make focus-peers TICKER=NVDA"
     assert "peer mappings exist" in queue["NVDA"]["recommended_action"].lower()
 
 

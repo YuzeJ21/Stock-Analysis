@@ -3029,6 +3029,7 @@ def test_dashboard_column_labels_cover_bundle_goal_fields():
     assert dashboard.COLUMN_LABELS["SuggestedStartDate"] == "Suggested Start Date"
     assert dashboard.COLUMN_LABELS["FallbackManualCommand"] == "Fallback Manual Command"
     assert dashboard.COLUMN_LABELS["ExactNextCommand"] == "Exact Next Command"
+    assert dashboard.COLUMN_LABELS["FocusCommand"] == "Focus Command"
 
 
 def test_overview_command_bundle_cards_surface_bundle_commands_safely():
