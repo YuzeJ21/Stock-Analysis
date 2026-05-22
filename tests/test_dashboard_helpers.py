@@ -3608,6 +3608,31 @@ def test_overview_workflow_reason_card_uses_action_queue_context():
     assert "sell" not in rendered
 
 
+def test_overview_workflow_reason_card_uses_review_fallback_when_queue_copy_is_missing():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "peers",
+                "ticker": "TSLA",
+                "title": "Research peers",
+                "reason": "",
+                "recommended_action": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    card = dashboard.overview_workflow_reason_card(None, queue)
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert card["title"] == "make focus-peers TICKER=TSLA"
+    assert "tsla" in rendered
+    assert "review peer path." in rendered
+    assert "not available" not in rendered
+
+
 def test_overview_workflow_reason_card_falls_back_to_status_snapshot():
     payload = {"summary": {"data_gaps": 12, "critical_actions": 4}}
 

@@ -5524,6 +5524,8 @@ def overview_workflow_reason_card(
         signal = top_priority_signals(action_queue, limit=1)
         row_reason = compact_reason(top_row.get("reason"), max_sentences=1, max_chars=170)
         signal_reason = compact_reason(signal[0].get("body"), max_sentences=2, max_chars=240) if signal else row_reason
+        if not signal_reason or signal_reason == "Not available":
+            signal_reason = review_path_fallback(top_row.get("action_type"))
         if ticker and ticker != "Not available":
             reason = f"{dataset.title()} pressure is currently led by {ticker}. {signal_reason}"
         else:
