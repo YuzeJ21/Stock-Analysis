@@ -35,7 +35,22 @@ def _first_non_empty(*values: object) -> str:
     return ""
 
 
-def _enrich_top_actions(onboarding_payload: dict[str, Any]) -> list[dict[str, Any]]:
+def _load_price_status_lookup(output_path: Path) -> dict[str, dict[str, Any]]:
+    path = output_path / "price_update_status.csv"
+    if not path.exists():
+        return {}
+    frame = pd.read_csv(path)
+    if frame.empty or "ticker" not in frame.columns:
+        return {}
+    lookup: dict[str, dict[str, Any]] = {}
+    for _, row in frame.iterrows():
+        ticker = str(row.get("ticker") or "").strip().upper()
+        if ticker:
+            lookup[ticker] = row.to_dict()
+    return lookup
+
+
+def _enrich_top_actions(onboarding_payload: dict[str, Any], price_status_lookup: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     actions = [dict(row) for row in onboarding_payload.get("onboarding_actions", [])]
     price_worklist = {
         str(row.get("ticker") or "").strip().upper(): row
@@ -89,6 +104,15 @@ def _enrich_top_actions(onboarding_payload: dict[str, Any]) -> list[dict[str, An
                 row["is_holding"] = bool(source_row.get("is_holding"))
         elif dataset == "prices" and ticker:
             row["is_holding"] = ticker in holdings_first_price_tickers
+
+        if dataset == "prices" and ticker:
+            price_status_row = price_status_lookup.get(ticker)
+            if price_status_row:
+                for field in ("status", "recommended_action", "focus_command", "example_command", "target_file"):
+                    value = _first_non_empty(price_status_row.get(field), row.get(field))
+                    if value:
+                        row[field] = value
+                row["reason"] = _first_non_empty(price_status_row.get("error_message"), row.get("reason"))
         enriched.append(row)
     return enriched
 
@@ -205,10 +229,11 @@ def build_project_status_payload(
     output_path = resolve_outputs_dir(output_dir, root)
     source_payload = build_data_source_payload(root, data_dir=data_path, output_dir=output_path)
     onboarding_payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path)
+    price_status_lookup = _load_price_status_lookup(output_path)
     sources = source_payload["data_sources"]
     gaps = source_payload["data_gaps"]
     coverage = onboarding_payload["ticker_coverage"]
-    enriched_actions = _enrich_top_actions(onboarding_payload)
+    enriched_actions = _enrich_top_actions(onboarding_payload, price_status_lookup)
     actions = sorted(enriched_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     summary = {
