@@ -199,6 +199,8 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake price-worklist TICKERS=NVDA,MSFT" in readme
     assert "If you want to narrow those blocker queues to a specific local ticker slice, use:\n\n```bash\nmake fundamentals-peer-worklist TICKERS=NVDA,MSFT\nmake sec-stage-queue TICKERS=NVDA,MSFT\nmake peer-mapping-queue TICKERS=NVDA,MSFT" in readme
     assert "To focus that optional-context pass on a smaller local ticker slice, use:\n\n```bash\nmake optional-context-worklist TICKERS=NVDA,MSFT" in readme
+    assert "Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:\n\n```bash\nmake price-normalize INPUT=data/raw/prices/prices.csv SOURCE=generic_manual" in readme
+    assert "If you explicitly need lower-level CLI control for unusual exports, map columns directly:" in readme
     assert "If you want a larger CLI-only smoke run:\n\n```bash\nmake universe-preview\nmake universe-apply" in readme
     assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" not in readme
     assert "If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data" in readme

@@ -696,13 +696,10 @@ This keeps non-blocking enrichment explicit without treating it like a core pipe
 Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:
 
 ```bash
-python3 -m src.price_import_normalizer \
-  --input data/raw/prices/prices.csv \
-  --source generic_manual \
-  --output data/imports/prices.csv
+make price-normalize INPUT=data/raw/prices/prices.csv SOURCE=generic_manual
 ```
 
-For unusual exports, map columns explicitly:
+If you explicitly need lower-level CLI control for unusual exports, map columns directly:
 
 ```bash
 python3 -m src.price_import_normalizer \
