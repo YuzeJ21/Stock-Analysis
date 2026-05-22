@@ -10,6 +10,7 @@ def test_makefile_contains_convenience_targets():
         "test",
         "pipeline",
         "stock-report",
+        "local-tickers",
         "monthly",
         "track-record",
         "validate-data",
@@ -85,6 +86,7 @@ def test_makefile_help_documents_key_workflows():
         "make dashboard-smoke",
         "make data-sources-check",
         "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json]",
+        "make local-tickers",
         "make data-wizard",
         "make unlock-ladder",
         "make unlock-summary",
@@ -135,6 +137,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "## Run the pipeline\n\nGenerate all active outputs:\n\n```bash\nmake pipeline" in readme
     assert "Use the repo-native front door to generate a structured local stock report:\n\n```bash\nmake stock-report TICKER=NVDA" in readme
     assert "If you want to write JSON to a file through the same front door:\n\n```bash\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
+    assert "To discover locally available tickers first:\n\n```bash\nmake local-tickers" in readme
     for phrase in (
         'export SEC_USER_AGENT="Your Name your.email@example.com"',
         "make sec-stage TICKERS=NVDA,MSFT",
@@ -171,7 +174,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:\n\n```bash\nmake bundle-prices-broader\nmake detail-prices-broader\nmake runbook-prices-broader" in readme
     assert "To validate your local CSV datasets and see schema/freshness warnings:\n\n```bash\nmake validate-data" in readme
     assert "If you explicitly want machine-readable validation output:\n\n```bash\npython -m src.stock_report --validate-local-data --json" in readme
-    assert "If you intentionally want lower-level CLI control for ticker discovery, provider selection, or direct JSON output, the raw module commands remain available:\n\n```bash\npython -m src.stock_report --list-local-tickers" in readme
+    assert "If you intentionally want lower-level CLI control for provider selection or direct JSON output, the raw module commands remain available:\n\n```bash\npython -m src.stock_report --ticker AAPL --provider mock" in readme
     assert "To scaffold header-only local enrichment templates without fabricating any production data:\n\n```bash\nmake templates" in readme
     assert "To scaffold header-only staging files directly under `data/imports/`:\n\n```bash\nmake import-staging" in readme
     assert "make imports-validate" in readme
@@ -258,6 +261,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
+    assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile
     assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile

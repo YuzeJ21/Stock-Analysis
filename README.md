@@ -493,10 +493,15 @@ make import-staging
 
 For a demo/smoke workflow:
 
-If you intentionally want lower-level CLI control for ticker discovery, provider selection, or direct JSON output, the raw module commands remain available:
+To discover locally available tickers first:
 
 ```bash
-python -m src.stock_report --list-local-tickers
+make local-tickers
+```
+
+If you intentionally want lower-level CLI control for provider selection or direct JSON output, the raw module commands remain available:
+
+```bash
 python -m src.stock_report --ticker AAPL --provider mock
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
