@@ -623,6 +623,8 @@ Price update diagnostics are written to:
 
 The dashboard `Data Health` tab surfaces this status file and gives the manual fallback commands. Price imports are still research-only local data management; no broker, order routing, or trade-execution integration is added.
 
+Use `make price-status` for the current read-only diagnostics view, or `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows.
+
 ### Normalize manually downloaded price CSVs
 
 If you download historical OHLCV CSVs from a trusted source, place the raw files under:

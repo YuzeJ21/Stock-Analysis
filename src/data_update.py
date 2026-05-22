@@ -964,7 +964,12 @@ def _print_price_import_summary(summary: dict[str, Any]) -> None:
         print(f"{key}: {value}")
 
 
-def show_price_update_status(base_dir: Path | None = None, *, output_dir: Path | None = None) -> dict[str, Any]:
+def show_price_update_status(
+    base_dir: Path | None = None,
+    *,
+    output_dir: Path | None = None,
+    top_n: int | None = None,
+) -> dict[str, Any]:
     base_dir = resolve_project_root(base_dir)
     output_dir = resolve_outputs_dir(output_dir, base_dir)
     path = output_dir / "price_update_status.csv"
@@ -979,6 +984,8 @@ def show_price_update_status(base_dir: Path | None = None, *, output_dir: Path |
         }
     frame = pd.read_csv(path)
     frame = enrich_price_update_status_frame(frame)
+    if top_n is not None:
+        frame = frame.head(max(top_n, 0))
     return {
         "status": "available",
         "path": str(path),
@@ -1004,8 +1011,11 @@ def main() -> None:
     parser.add_argument("--preview-price-import-merge", action="store_true", help="Preview staged price import changes without mutating data/prices.csv.")
     parser.add_argument("--apply-price-import-merge", action="store_true", help="Apply staged price imports into data/prices.csv with a backup.")
     parser.add_argument("--price-status", action="store_true", help="Display outputs/price_update_status.csv if present.")
+    parser.add_argument("--top-n", type=int, help="Optional cap for human-readable price status rows.")
     parser.add_argument("--json", action="store_true", help="Print JSON for import/status commands.")
     args = parser.parse_args()
+    if args.top_n is not None and args.top_n <= 0:
+        parser.error("--top-n must be a positive integer")
 
     explicit_tickers = [ticker.strip() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
     project_root = resolve_project_root(args.project_root)
@@ -1040,7 +1050,7 @@ def main() -> None:
         return
 
     if args.price_status:
-        summary = show_price_update_status(project_root, output_dir=output_dir)
+        summary = show_price_update_status(project_root, output_dir=output_dir, top_n=args.top_n)
         if args.json:
             print(json.dumps(summary, indent=2))
         else:
