@@ -2889,6 +2889,13 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
         staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=140)
         follow_through = ""
         if target_file == "data/imports/prices.csv":
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+            if staged_summary in {"", "Not available"} or (
+                "make price-validate" not in staged_summary
+                or "make price-preview" not in staged_summary
+                or "make price-apply" not in staged_summary
+            ):
+                staged_summary = default_staged_summary
             follow_through = (
                 f" Local fallback: {manual_command}. {staged_summary}"
                 if manual_command and staged_summary not in {"", "Not available"}
@@ -3160,6 +3167,13 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
         staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=140)
         follow_through = ""
         if target_file == "data/imports/prices.csv":
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+            if staged_summary in {"", "Not available"} or (
+                "make price-validate" not in staged_summary
+                or "make price-preview" not in staged_summary
+                or "make price-apply" not in staged_summary
+            ):
+                staged_summary = default_staged_summary
             follow_through = (
                 f" Local fallback: {manual_command}. {staged_summary}"
                 if manual_command and staged_summary not in {"", "Not available"}

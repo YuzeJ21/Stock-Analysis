@@ -6887,6 +6887,35 @@ def test_data_health_price_target_cards_keep_staged_price_follow_through_visible
     assert "do not fabricate missing history" in rendered
 
 
+def test_data_health_price_target_cards_upgrade_generic_staged_note_to_explicit_follow_through():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "price_history_days": 0,
+                "next_price_goal": "Unlock Monthly Picks",
+                "next_target_history_rows": 21,
+                "rows_needed_for_next_goal": 21,
+                "suggested_start_date": "2026-01-01",
+                "focus_command": "make focus-price TICKER=META",
+                "example_command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
+                "target_file": "data/imports/prices.csv",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_price_target_cards(worklist)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make focus-price TICKER=META"
+    assert "price-normalize" in rendered
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
+
+
 def test_price_target_cards_use_price_front_doors_when_commands_are_missing():
     worklist = pd.DataFrame(
         [
@@ -7192,6 +7221,35 @@ def test_overview_price_target_cards_keep_staged_price_follow_through_visible():
     assert "make price-preview" in rendered
     assert "make price-apply" in rendered
     assert "do not fabricate missing history" in rendered
+
+
+def test_overview_price_target_cards_upgrade_generic_staged_note_to_explicit_follow_through():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "price_history_days": 0,
+                "next_price_goal": "Unlock Monthly Picks",
+                "next_target_history_rows": 21,
+                "rows_needed_for_next_goal": 21,
+                "suggested_start_date": "2026-01-01",
+                "focus_command": "make focus-price TICKER=META",
+                "example_command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
+                "target_file": "data/imports/prices.csv",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_price_target_cards(worklist)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make focus-price TICKER=META"
+    assert "price-normalize" in rendered
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
 
 
 def test_overview_deep_research_target_cards_surface_dcf_and_peer_targets_safely():
