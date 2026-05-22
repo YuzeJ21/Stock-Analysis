@@ -2085,7 +2085,8 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                 parts.append(f"start by {suggested_start_date}")
             hint_text = f" ({'; '.join(parts)})"
         steps = []
-        for _, row in lane_rows.head(4).iterrows():
+        max_steps = 7 if lane == "prices" else 5
+        for _, row in lane_rows.head(max_steps).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
             command = format_missing(row.get("command"), "")
             if command:

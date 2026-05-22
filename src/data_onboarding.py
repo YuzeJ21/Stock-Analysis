@@ -1629,19 +1629,69 @@ def build_command_bundle_runbook(
                     fallback_command = candidate
                     break
 
-        step_specs: list[tuple[str, str, str]] = [
-            ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
-        ]
-        if bundle.lane == "prices" and fallback_command:
-            step_specs.append(
-                (
-                    "If refresh fails, normalize first CSV",
-                    fallback_command,
-                    "Use the staged manual import path for the first blocked ticker, then repeat for the remaining bundle names before validate/preview/apply.",
+        step_specs: list[tuple[str, str, str]]
+        if bundle.lane == "prices":
+            step_specs = [("Run bundle command", bundle.primary_command, bundle.safe_next_step)]
+            if fallback_command:
+                step_specs.append(
+                    (
+                        "If refresh fails, normalize first CSV",
+                        fallback_command,
+                        "Use the staged manual import path for the first blocked ticker, then repeat for the remaining bundle names before validate/preview/apply.",
+                    )
                 )
+            step_specs.extend(
+                [
+                    (
+                        "If staged imports were used, validate prices",
+                        "make price-validate",
+                        "Validate normalized staged prices before preview so schema and duplicate issues surface early.",
+                    ),
+                    (
+                        "If staged imports were used, preview merge",
+                        "make price-preview",
+                        "Preview the staged price merge before apply and confirm the affected tickers and row counts look correct.",
+                    ),
+                    (
+                        "If staged imports were used, apply merge",
+                        "make price-apply",
+                        "Apply the staged price merge only after validation and preview look correct.",
+                    ),
+                    ("Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
+                    (
+                        "Refresh onboarding outputs",
+                        "make onboarding",
+                        "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
+                    ),
+                ]
             )
-        step_specs.extend(
-            [
+        elif bundle.lane == "fundamentals":
+            step_specs = [
+                ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
+                (
+                    "Validate staged fundamentals",
+                    "make sec-validate",
+                    "Validate staged SEC fundamentals before preview so import issues surface before merge.",
+                ),
+                (
+                    "Preview fundamentals merge",
+                    bundle.follow_up_command,
+                    "Preview the staged fundamentals merge and confirm the DCF input rows before apply.",
+                ),
+                (
+                    "Apply fundamentals merge",
+                    "make sec-apply",
+                    "Apply the staged fundamentals merge only after validation and preview are clean.",
+                ),
+                (
+                    "Refresh onboarding outputs",
+                    "make onboarding",
+                    "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
+                ),
+            ]
+        else:
+            step_specs = [
+                ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
                 ("Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
                 (
                     "Refresh onboarding outputs",
@@ -1649,7 +1699,6 @@ def build_command_bundle_runbook(
                     "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
                 ),
             ]
-        )
         for step_order, (step_label, command, safe_next_step) in enumerate(step_specs, start=1):
             runbook.append(
                 CommandBundleRunbookRow(

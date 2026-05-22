@@ -2355,6 +2355,54 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 3,
+                "step_label": "If staged imports were used, validate prices",
+                "command": "make price-validate",
+                "target_file": "data/imports/prices.csv",
+                "tickers": "AMD,AVGO",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
+                "safe_next_step": "Validate normalized staged prices before preview so schema and duplicate issues surface early.",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 4,
+                "step_label": "If staged imports were used, preview merge",
+                "command": "make price-preview",
+                "target_file": "data/imports/prices.csv",
+                "tickers": "AMD,AVGO",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
+                "safe_next_step": "Preview the staged price merge before apply and confirm the affected tickers and row counts look correct.",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 5,
+                "step_label": "If staged imports were used, apply merge",
+                "command": "make price-apply",
+                "target_file": "data/imports/prices.csv",
+                "tickers": "AMD,AVGO",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
+                "safe_next_step": "Apply the staged price merge only after validation and preview look correct.",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 6,
                 "step_label": "Review follow-up output",
                 "command": "make price-status",
                 "target_file": "data/imports/prices.csv",
@@ -2370,7 +2418,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "bundle_name": "Price Coverage Bundle",
                 "lane": "prices",
                 "scope": "holdings_first",
-                "step_order": 4,
+                "step_order": 7,
                 "step_label": "Refresh onboarding outputs",
                 "command": "make onboarding",
                 "target_file": "data/imports/prices.csv",
@@ -2394,6 +2442,9 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
     assert "21 target rows" in rendered
     assert "start by 2025-12-01" in rendered
     assert "make price-normalize input=data/raw/prices/amd.csv ticker=amd source=yahoo_manual" in rendered
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
     assert "make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

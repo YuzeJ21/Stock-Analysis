@@ -600,6 +600,10 @@ def test_data_onboarding_cli_command_bundle_runbook_text_surfaces_goal_summary(t
     assert "unlock monthly picks" in output
     assert "if refresh fails, normalize first csv" in output
     assert "fallback:" in output
+    assert "if staged imports were used, validate prices" in output
+    assert "make price-validate" in output
+    assert "make price-preview" in output
+    assert "make price-apply" in output
 
 
 def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_path: Path):
@@ -631,7 +635,7 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     price_steps = [row for row in runbook if row["lane"] == "prices"]
 
     assert list(runbook[0].keys()) == COMMAND_BUNDLE_RUNBOOK_COLUMNS
-    assert [row["step_order"] for row in price_steps] == [1, 2, 3, 4]
+    assert [row["step_order"] for row in price_steps] == [1, 2, 3, 4, 5, 6, 7]
     assert price_steps[0]["step_label"] == "Run bundle command"
     assert "Unlock Monthly Picks" in price_steps[0]["goal_summary"]
     assert price_steps[0]["target_history_rows"] >= 21
@@ -640,6 +644,11 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert price_steps[1]["step_label"] == "If refresh fails, normalize first CSV"
     assert "make price-normalize" in price_steps[1]["command"]
     assert "make price-normalize" in price_steps[1]["fallback_manual_command"]
+    assert price_steps[2]["step_label"] == "If staged imports were used, validate prices"
+    assert price_steps[2]["command"] == "make price-validate"
+    assert price_steps[3]["command"] == "make price-preview"
+    assert price_steps[4]["command"] == "make price-apply"
+    assert price_steps[5]["command"] == "make price-status"
     assert price_steps[-1]["command"] == "make onboarding"
 
 
