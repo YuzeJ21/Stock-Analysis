@@ -2798,15 +2798,6 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             fallback_first_command = "make imports-validate"
         elif target_file == "data/imports/prices.csv":
             fallback_first_command = "make price-validate"
-        lane_summary = command_family_fallback(
-            normalize_operator_command(format_missing(lane_rows.iloc[0].get("command"), "")) or fallback_first_command,
-            review_path_fallback(lane),
-        )
-        body_summary = (
-            goal_summary
-            if goal_summary not in {"", "Not available"}
-            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
-        )
         max_steps = 7 if lane == "prices" else 5
         for _, row in lane_rows.head(max_steps).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
@@ -2818,6 +2809,13 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             if step_command:
                 first_command = first_command or step_command
                 steps.append(f"{step_label}: {step_command}")
+        surfaced_command = first_command or fallback_first_command
+        lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
+        body_summary = (
+            goal_summary
+            if goal_summary not in {"", "Not available"}
+            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
+        )
         cards.append(
             {
                 "kicker": f"{lane.upper()} RUNBOOK",
@@ -5679,15 +5677,6 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             fallback_first_command = "make imports-validate"
         elif target_file == "data/imports/prices.csv":
             fallback_first_command = "make price-validate"
-        lane_summary = command_family_fallback(
-            normalize_operator_command(format_missing(lane_rows.iloc[0].get("command"), "")) or fallback_first_command,
-            review_path_fallback(lane),
-        )
-        body_summary = (
-            goal_summary
-            if goal_summary not in {"", "Not available"}
-            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
-        )
         for _, row in lane_rows.head(2).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
             command = format_missing(row.get("command"), "")
@@ -5698,6 +5687,13 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             if step_command:
                 first_command = first_command or step_command
                 steps.append(f"{step_label}: {step_command}")
+        surfaced_command = first_command or fallback_first_command
+        lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
+        body_summary = (
+            goal_summary
+            if goal_summary not in {"", "Not available"}
+            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
+        )
         cards.append(
             {
                 "kicker": f"{lane.upper()} LANE",

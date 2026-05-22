@@ -7159,6 +7159,44 @@ def test_bundle_runbook_cards_use_first_usable_step_command_when_lead_row_is_bla
     assert overview_cards[0]["command"] == "make templates"
 
 
+def test_bundle_runbook_cards_use_first_usable_step_command_for_fallback_copy():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Explain lane",
+                "command": "",
+                "tickers": "NVDA",
+                "goal_summary": "",
+                "why_it_matters": "",
+            },
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Open peer runbook",
+                "command": "make runbook-peers",
+                "tickers": "NVDA",
+                "goal_summary": "",
+                "why_it_matters": "",
+            },
+        ]
+    )
+
+    data_health_cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
+    overview_cards = dashboard.overview_bundle_runbook_cards(runbook)
+
+    assert data_health_cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in data_health_cards[0]["body"].lower()
+    assert overview_cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in overview_cards[0]["body"].lower()
+    assert "not available" not in " ".join(str(value) for card in data_health_cards + overview_cards for value in card.values()).lower()
+
+
 def test_bundle_runbook_cards_normalize_top_level_command_from_first_usable_step():
     runbook = pd.DataFrame(
         [
