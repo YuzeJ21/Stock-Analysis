@@ -181,6 +181,9 @@ COLUMN_LABELS = {
     "DCFReady": "DCF Ready",
     "PeerReady": "Peer Ready",
     "PriceHistoryDays": "Price History Days",
+    "GoalSummary": "Goal Summary",
+    "TargetGoal": "Target Goal",
+    "RowsNeeded": "Rows Needed",
 }
 
 
@@ -6218,6 +6221,8 @@ def render_data_health(provider) -> None:
                     "theme",
                     "sector_etf",
                     "current_unlock_stage",
+                    "target_goal",
+                    "rows_needed",
                     "recommended_action",
                     "primary_command",
                     "follow_up_command",
@@ -6243,6 +6248,7 @@ def render_data_health(provider) -> None:
                     "step_label",
                     "command",
                     "tickers",
+                    "goal_summary",
                     "target_file",
                 ]
                 if column in command_bundle_runbook_frame.columns

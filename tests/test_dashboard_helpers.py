@@ -2879,6 +2879,12 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Data Health tab" in navigation
 
 
+def test_dashboard_column_labels_cover_bundle_goal_fields():
+    assert dashboard.COLUMN_LABELS["GoalSummary"] == "Goal Summary"
+    assert dashboard.COLUMN_LABELS["TargetGoal"] == "Target Goal"
+    assert dashboard.COLUMN_LABELS["RowsNeeded"] == "Rows Needed"
+
+
 def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     bundles = pd.DataFrame(
         [
