@@ -8290,7 +8290,8 @@ def test_data_coverage_wizard_cards_use_staged_flow_fallback_when_row_copy_is_mi
 
     assert valuation_card["title"] == "1 blocker"
     assert valuation_card["command"] == "make imports-validate"
-    assert "staged local workflow next" in valuation_card["body"].lower()
+    assert "make imports-preview" in valuation_card["body"].lower()
+    assert "make imports-apply" in valuation_card["body"].lower()
     assert "not available" not in valuation_card["body"].lower()
 
 
@@ -8316,7 +8317,7 @@ def test_data_coverage_wizard_cards_use_runbook_fallback_when_row_copy_is_missin
 
     assert peer_card["title"] == "1 blocker"
     assert peer_card["command"] == "make runbook-peers"
-    assert "staged local workflow next" in peer_card["body"].lower()
+    assert "ordered lane runbook" in peer_card["body"].lower()
     assert "not available" not in peer_card["body"].lower()
 
 

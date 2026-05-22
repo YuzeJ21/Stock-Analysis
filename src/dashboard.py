@@ -3542,6 +3542,17 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
                     or "make imports-apply" not in normalized_action
                 ):
                     recommended_action = staged_follow_through
+        lowered_command = command.lower()
+        if "runbook-" in lowered_command:
+            recommended_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+        elif lowered_command == "make imports-validate":
+            normalized_action = recommended_action.lower()
+            if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
+                recommended_action = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+        elif lowered_command == "make price-validate":
+            normalized_action = recommended_action.lower()
+            if "make price-preview" not in normalized_action or "make price-apply" not in normalized_action:
+                recommended_action = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
         body_parts = [f"Start with {ticker}."]
         if current_status and current_status != "Not available":
             body_parts.append(f"Current blocker: {current_status}.")
