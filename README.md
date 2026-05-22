@@ -916,8 +916,8 @@ Warnings:
 - the S&P 500 source is not the official paid S&P feed
 - SMH holdings can change and should not be treated as recommendations
 - the VanEck SMH web surface may redirect through cookie or location flows in automated runtimes; if that source is
-  unavailable, use `data/custom_universe.csv` or stage `data/imports/universe.csv` manually with tickers you verified
-  yourself
+  unavailable, run `make templates`, then fill `data/custom_universe.csv` with tickers you verified yourself before
+  any staged universe apply step
 
 ### `data/custom_universe.csv`
 

@@ -2877,6 +2877,7 @@ def test_universe_workflow_cards_explain_preview_first_and_manual_fallback():
     assert "4 staged ticker rows" in rendered
     assert "preview" in rendered
     assert "custom_universe.csv" in rendered
+    assert "make templates" in rendered
 
 
 def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
@@ -2894,7 +2895,8 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 3
-    assert cards[0]["title"] == "Review staged universe"
+    assert cards[0]["title"] == "Apply staged universe"
+    assert cards[0]["command"] == "python3 -m src.universe_builder --apply-import"
     assert "12 current rows" in rendered
     assert "apply stays cli-only" in rendered
     assert "buy" not in rendered

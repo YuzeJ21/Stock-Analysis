@@ -2658,7 +2658,7 @@ def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str,
         ),
         (
             "Manual fallback",
-            "If SMH or remote sources degrade, add verified rows through data/custom_universe.csv or data/imports/universe.csv.",
+            "If SMH or remote sources degrade, run make templates, then fill data/custom_universe.csv with verified tickers only before any staged universe apply step.",
             "make templates",
             "neutral",
         ),
@@ -2976,14 +2976,14 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
     cards = [
         {
             "kicker": "BEST NEXT",
-            "title": "Preview universe update" if not staged_exists else "Review staged universe",
+            "title": "Preview universe update" if not staged_exists else "Apply staged universe",
             "body": (
                 "Start with a preview-first universe command so larger source-driven changes stay reviewable before any apply step."
                 if not staged_exists
-                else f"{staged_rows} staged ticker rows are waiting for review before any CLI-only apply step."
+                else f"{staged_rows} staged ticker rows are already visible in the dashboard; apply only after reviewing the staged CSV and diagnostics."
             ),
             "badges": ["preview first", "read-only"],
-            "command": "make universe-preview" if not staged_exists else "python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50",
+            "command": "make universe-preview" if not staged_exists else "python3 -m src.universe_builder --apply-import",
         },
         {
             "kicker": "CURRENT FILE",
