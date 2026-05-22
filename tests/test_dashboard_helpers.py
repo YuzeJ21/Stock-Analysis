@@ -3531,6 +3531,7 @@ def test_overview_ready_name_handoff_cards_route_stock_report_names_to_verify_th
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
+    assert cards[0]["command"] == "make verify"
     assert cards[1]["title"] == "make verify"
     assert cards[2]["title"] == "Stock Report Beta"
     assert "strongest currently usable local name" in rendered
@@ -3565,6 +3566,7 @@ def test_overview_ready_name_handoff_cards_route_partial_names_to_monthly_picks(
 
     assert len(cards) == 3
     assert cards[0]["title"] == "TSLA"
+    assert cards[0]["command"] == "make monthly"
     assert cards[1]["title"] == "make monthly"
     assert cards[2]["title"] == "Monthly Picks"
     assert "monthly picks" in rendered
@@ -3583,6 +3585,7 @@ def test_overview_ready_name_handoff_cards_use_monthly_front_door_without_queue_
     cards = dashboard.overview_ready_name_handoff_cards(coverage, None, None, None)
 
     assert cards[0]["title"] == "TSLA"
+    assert cards[0]["command"] == "make monthly"
     assert cards[1]["title"] == "make monthly"
     assert cards[2]["title"] == "Monthly Picks"
 
@@ -4769,6 +4772,7 @@ def test_overview_best_local_research_path_cards_fall_back_gracefully():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "No current ready names yet"
+    assert cards[0]["command"] == "make onboarding"
     assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
     assert "no locally ready name yet" in cards[0]["body"].lower()
@@ -4799,6 +4803,7 @@ def test_overview_best_local_research_path_cards_use_runbook_fallback_when_no_re
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "No current ready names yet"
+    assert cards[0]["command"] == "make runbook-peers"
     assert cards[1]["title"] == "make runbook-peers"
     assert cards[2]["title"] == "Data Health"
     assert "ordered lane runbook" in rendered

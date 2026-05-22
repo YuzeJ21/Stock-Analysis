@@ -6040,6 +6040,7 @@ def overview_best_local_research_path_cards(
                 )
             ),
             "badges": [str(item) for item in best_name.get("badges", [])][:2] or ["local coverage"],
+            "command": command_text,
         },
         {
             "kicker": "NEXT COMMAND",
