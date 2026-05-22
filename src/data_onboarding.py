@@ -662,8 +662,8 @@ def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
             "with transparent peer mappings."
         )
     return (
-        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices locally so peer-relative valuation "
-        "can calculate transparently."
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the staged local import "
+        "workflows so peer-relative valuation can calculate transparently."
     )
 
 
@@ -862,7 +862,11 @@ def build_ticker_coverage(
                 f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {provisional.ticker}"
             )
         elif not provisional.has_peer_mapping or not provisional.peer_ready:
-            provisional.target_file = "data/imports/peers.csv" if not provisional.has_peer_mapping else "data/fundamentals.csv, data/prices.csv"
+            provisional.target_file = (
+                "data/imports/peers.csv"
+                if not provisional.has_peer_mapping
+                else "data/imports/fundamentals.csv, data/imports/prices.csv"
+            )
             provisional.focus_command = focus_command_for_ticker("peers", provisional.ticker)
             provisional.example_command = "make templates" if not provisional.has_peer_mapping else "python3 -m src.stock_report --validate-local-data"
         elif not provisional.has_earnings:
@@ -931,7 +935,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     status="partial",
                     reason=_peer_onboarding_reason(row),
                     recommended_action=_peer_action_text(row.ticker, missing_mapping=False),
-                    target_file="data/fundamentals.csv, data/prices.csv",
+                    target_file="data/imports/fundamentals.csv, data/imports/prices.csv",
                     focus_command=focus_command_for_ticker("peers", row.ticker),
                     example_command="python3 -m src.stock_report --validate-local-data",
                 )

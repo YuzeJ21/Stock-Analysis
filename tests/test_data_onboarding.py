@@ -164,8 +164,9 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert amd["target_file"] == "data/imports/prices.csv"
     assert "make price-normalize" in amd["example_command"]
     assert nvda["focus_command"] == "make focus-peers TICKER=NVDA"
-    assert nvda["target_file"] == "data/fundamentals.csv, data/prices.csv"
+    assert nvda["target_file"] == "data/imports/fundamentals.csv, data/imports/prices.csv"
     assert "validate-local-data" in nvda["example_command"]
+    assert "staged local import workflows" in nvda["next_best_action"]
 
 
 def test_optional_context_worklist_surfaces_template_focus_command(tmp_path: Path):
