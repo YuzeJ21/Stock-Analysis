@@ -5543,9 +5543,9 @@ def overview_best_local_research_path_cards(
     command_text = format_missing(next_command.get("title"), "make status")
     tab_text = format_missing(next_tab.get("title"), "Data Health")
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
-    if tab_text == "Stock Report Beta" and command_text in {"make status", "make onboarding"} and ready_command_text:
+    if tab_text == "Stock Report Beta" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"} and ready_command_text:
         command_text = ready_command_text
-    if tab_text == "Monthly Picks" and command_text in {"make status", "make onboarding"}:
+    if tab_text == "Monthly Picks" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"}:
         command_text = "make monthly"
     if command_text == ready_command_text:
         command_reason = compact_reason(ready_cards[1].get("command_reason"), max_sentences=2, max_chars=220)
@@ -5618,7 +5618,7 @@ def overview_ready_name_handoff_cards(
     elif surface == "Monthly Picks":
         fallback = next_command[0] if next_command else {"title": "make status", "badges": ["data moat", "command"]}
         command_text = format_missing(fallback.get("title"), "make status")
-        if command_text in {"make status", "make onboarding"}:
+        if command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"}:
             command_text = "make monthly"
         badges = [str(item) for item in fallback.get("badges", [])][:2] or ["data moat", "command"]
         body = (
@@ -5688,9 +5688,9 @@ def overview_current_top_surfaces_cards(
     command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
     next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
-    if next_tab == "Stock Report Beta" and command_text in {"make status", "make onboarding"} and ready_command_text:
+    if next_tab == "Stock Report Beta" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"} and ready_command_text:
         command_text = ready_command_text
-    if next_tab == "Monthly Picks" and command_text in {"make status", "make onboarding"}:
+    if next_tab == "Monthly Picks" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"}:
         command_text = "make monthly"
     blocked_summary = compact_reason(deep_cards[0].get("body"), max_sentences=2, max_chars=220)
     blocked_follow_through = compact_reason(deep_cards[1].get("body"), max_sentences=2, max_chars=220) if len(deep_cards) > 1 else ""

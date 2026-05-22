@@ -2698,6 +2698,21 @@ def test_overview_ready_name_handoff_cards_route_partial_names_to_monthly_picks(
     assert "sell" not in rendered
 
 
+def test_overview_ready_name_handoff_cards_use_monthly_front_door_without_queue_guidance():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+
+    cards = dashboard.overview_ready_name_handoff_cards(coverage, None, None, None)
+
+    assert cards[0]["title"] == "TSLA"
+    assert cards[1]["title"] == "make monthly"
+    assert cards[2]["title"] == "Monthly Picks"
+
+
 def test_overview_ready_name_handoff_cards_handle_missing_inputs_gracefully():
     cards = dashboard.overview_ready_name_handoff_cards(None, None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -2814,6 +2829,21 @@ def test_overview_current_top_surfaces_cards_use_monthly_front_door_for_monthly_
     assert "make monthly" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_current_top_surfaces_cards_use_monthly_front_door_without_queue_guidance():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+
+    cards = dashboard.overview_current_top_surfaces_cards(coverage, None, None, None, None, None)
+
+    assert cards[0]["title"] == "TSLA"
+    assert cards[2]["title"] == "make monthly"
+    assert cards[3]["title"] == "Monthly Picks"
 
 
 def test_overview_current_top_surfaces_cards_prefer_staged_peer_handoff_reason():
@@ -3341,6 +3371,21 @@ def test_overview_best_local_research_path_cards_use_monthly_front_door_for_mont
     assert "make monthly" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_best_local_research_path_cards_use_monthly_front_door_without_queue_guidance():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+
+    cards = dashboard.overview_best_local_research_path_cards(coverage, None, None, None)
+
+    assert cards[0]["title"] == "TSLA"
+    assert cards[1]["title"] == "make monthly"
+    assert cards[2]["title"] == "Monthly Picks"
 
 
 def test_overview_best_local_research_path_cards_fall_back_gracefully():
