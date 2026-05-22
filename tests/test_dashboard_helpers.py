@@ -4682,8 +4682,11 @@ def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "Data Health"
+    assert cards[0]["command"] == "make onboarding"
     assert cards[1]["title"] == "Stock Report Beta"
+    assert cards[1]["command"] == "make verify"
     assert cards[2]["title"] == "Monthly Picks"
+    assert cards[2]["command"] == "make monthly"
     assert "blocking the local research workflow" in rendered
     assert "single-name deep dive" in rendered
     assert "track-record readiness" in rendered

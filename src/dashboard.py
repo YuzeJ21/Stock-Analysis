@@ -5989,18 +5989,21 @@ def overview_handoff_cards() -> list[dict[str, object]]:
             "title": "Data Health",
             "body": "Use this when prices, fundamentals, peers, or staged imports are still blocking the local research workflow. It is the best place to inspect blockers before interpreting deeper outputs.",
             "badges": ["coverage", "read-only"],
+            "command": "make onboarding",
         },
         {
             "kicker": "NEXT DEEPER TAB",
             "title": "Stock Report Beta",
             "body": "Use this for a single-name deep dive after local coverage is good enough to support price, valuation, peer, and missing-assumption context in one place.",
             "badges": ["single name", "deep dive"],
+            "command": "make verify",
         },
         {
             "kicker": "NEXT DEEPER TAB",
             "title": "Monthly Picks",
             "body": "Use this after core coverage is in place to compare the current local candidate set, visible data gaps, and track-record readiness without turning the workflow into trade advice.",
             "badges": ["candidate view", "research only"],
+            "command": "make monthly",
         },
     ]
 
