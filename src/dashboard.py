@@ -1650,6 +1650,9 @@ def preferred_bundle_command(row: pd.Series | dict[str, object], fallback: str =
         detail = normalize_operator_command(format_missing(row.get("detail_shortcut_command"), fallback=""))
         if detail:
             return detail
+        lane_fallback = unlock_stage_command(format_missing(row.get("lane"), ""), "")
+        if lane_fallback:
+            return lane_fallback
     return normalize_operator_command(fallback)
 
 

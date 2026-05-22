@@ -5362,6 +5362,12 @@ def test_preferred_bundle_command_falls_back_to_runbook_and_detail_shortcuts():
     assert dashboard.preferred_bundle_command(detail_only) == "make detail-prices"
 
 
+def test_preferred_bundle_command_falls_back_to_lane_runbooks_when_bundle_commands_are_missing():
+    assert dashboard.preferred_bundle_command({"lane": "prices"}) == "make runbook-prices-broader"
+    assert dashboard.preferred_bundle_command({"lane": "fundamentals"}) == "make runbook-fundamentals-broader"
+    assert dashboard.preferred_bundle_command({"lane": "peers"}) == "make runbook-peers-broader"
+
+
 def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.DASHBOARD_TAB_TITLES[0] == "Overview"
     assert dashboard.DASHBOARD_TAB_TITLES[1] == "Monthly Picks"
@@ -5545,6 +5551,32 @@ def test_overview_command_bundle_cards_use_bundle_native_shortcuts_when_primary_
     cards = dashboard.overview_command_bundle_cards(bundles)
 
     assert cards[0]["command"] == "make runbook-prices"
+
+
+def test_bundle_cards_and_handoff_use_lane_runbooks_when_bundle_commands_are_missing():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+                "bundle_shortcut_command": "",
+                "detail_shortcut_command": "",
+                "runbook_shortcut_command": "",
+                "primary_command": "",
+                "follow_up_command": "",
+            }
+        ]
+    )
+
+    bundle_cards = dashboard.overview_command_bundle_cards(bundles)
+    handoff_cards = dashboard.overview_bundle_handoff_cards(bundles, None, None)
+
+    assert bundle_cards[0]["command"] == "make runbook-peers-broader"
+    assert handoff_cards[0]["command"] == "make runbook-peers-broader"
 
 
 def test_overview_onboarding_fallback_cards_use_status_refresh():
