@@ -4255,6 +4255,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
 
     assert len(cards) == 4
     assert cards[0]["kicker"] == "BEST NEXT"
+    assert cards[0]["title"] == "make focus-price TICKER=NVDA"
     assert cards[0]["command"] == "make focus-price TICKER=NVDA"
     assert "price path" in rendered
     assert "fundamentals path" in rendered
@@ -4307,9 +4308,10 @@ def test_data_health_action_path_cards_use_lane_and_queue_front_doors_when_comma
     cards = dashboard.data_health_action_path_cards(actions, queue)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[0]["command"] == "make action-queue-check TOP_N=10"
+    assert cards[0]["title"] == "make focus-price TICKER=NVDA"
+    assert cards[0]["command"] == "make focus-price TICKER=NVDA"
     assert any(card.get("command") == "make focus-fundamentals TICKER=AMD" for card in cards)
-    assert "make action-queue-check top_n=10" in rendered
+    assert "make focus-price ticker=nvda" in rendered
     assert "make focus-fundamentals ticker=amd" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

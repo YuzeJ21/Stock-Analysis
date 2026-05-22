@@ -2617,14 +2617,15 @@ def data_health_action_path_cards(
         top_signal = top_priority_signals(action_queue_frame, limit=1)
         if top_signal:
             signal = top_signal[0]
+            command = format_missing(signal.get("command"), "make action-queue-check TOP_N=10")
             cards.insert(
                 0,
                 {
                     "kicker": "BEST NEXT",
-                    "title": format_missing(signal.get("title"), "Priority action"),
+                    "title": command,
                     "body": compact_reason(signal.get("body"), max_sentences=2, max_chars=220),
                     "badges": [str(item) for item in signal.get("badges", [])][:2] or ["priority"],
-                    "command": format_missing(signal.get("command"), "make action-queue-check TOP_N=10"),
+                    "command": command,
                 },
             )
 
