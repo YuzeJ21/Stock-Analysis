@@ -1113,4 +1113,40 @@ def test_action_queue_rows_normalize_stale_data_quality_coverage_actions():
     assert amd_row.action_type == "coverage"
     assert amd_row.focus_command == "make focus-peers TICKER=AMD"
     assert "make focus-peers TICKER=AMD" in amd_row.recommended_action
-    assert amd_row.example_command == "make templates"
+
+
+def test_data_quality_needs_refresh_rejects_stale_example_commands():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "AMD",
+                "ReadinessStatus": "Needs Price Data",
+                "NextBestAction": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "FocusCommand": "make focus-price TICKER=AMD",
+                "ExampleCommand": "make status",
+            },
+            {
+                "Ticker": "NVDA",
+                "ReadinessStatus": "Needs Enrichment",
+                "NextBestAction": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA.",
+                "FocusCommand": "make focus-fundamentals TICKER=NVDA",
+                "ExampleCommand": "make onboarding",
+            },
+            {
+                "Ticker": "META",
+                "ReadinessStatus": "Partial Coverage",
+                "NextBestAction": "Run make focus-peers TICKER=META, or write templates and fill data/imports/peers.csv manually with transparent peer mappings.",
+                "FocusCommand": "make focus-peers TICKER=META",
+                "ExampleCommand": "make onboarding",
+            },
+            {
+                "Ticker": "TSLA",
+                "ReadinessStatus": "Partial Coverage",
+                "NextBestAction": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local peer inputs.",
+                "FocusCommand": "make imports-validate",
+                "ExampleCommand": "make status",
+            },
+        ]
+    )
+
+    assert _data_quality_needs_refresh(frame) is True

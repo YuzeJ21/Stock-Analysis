@@ -143,14 +143,41 @@ def _data_quality_needs_refresh(frame: pd.DataFrame) -> bool:
     if not stale_price_rows.empty:
         if not stale_price_rows["NextBestAction"].astype(str).str.contains(r"make focus-price\s+TICKER=", regex=True).all():
             return True
+        if {"Ticker", "ExampleCommand"}.issubset(set(stale_price_rows.columns)):
+            for _, row in stale_price_rows.iterrows():
+                ticker = _normalized_ticker(row.get("Ticker"))
+                if not ticker:
+                    continue
+                expected_example = _price_normalize_command(ticker)
+                example_command = str(row.get("ExampleCommand", "")).strip()
+                if expected_example and example_command != expected_example:
+                    return True
 
     enrichment_rows = frame.loc[frame["ReadinessStatus"].astype(str).str.strip().isin({"Needs Enrichment", "Partial Coverage"})]
     if enrichment_rows.empty:
         return False
-    return not enrichment_rows["NextBestAction"].astype(str).str.contains(
+    if not enrichment_rows["NextBestAction"].astype(str).str.contains(
         r"make focus-(?:fundamentals|peers|price)\s+TICKER=|make imports-validate",
         regex=True,
-    ).all()
+    ).all():
+        return True
+    if {"Ticker", "FocusCommand", "ExampleCommand"}.issubset(set(enrichment_rows.columns)):
+        for _, row in enrichment_rows.iterrows():
+            ticker = _normalized_ticker(row.get("Ticker"))
+            focus_command = str(row.get("FocusCommand", "")).strip()
+            example_command = str(row.get("ExampleCommand", "")).strip()
+            expected_example = ""
+            if focus_command == "make imports-validate":
+                expected_example = "make imports-preview"
+            elif focus_command.startswith("make focus-fundamentals") and ticker:
+                expected_example = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+            elif focus_command.startswith("make focus-peers"):
+                expected_example = "make templates"
+            elif focus_command.startswith("make focus-price") and ticker:
+                expected_example = _price_normalize_command(ticker)
+            if expected_example and example_command != expected_example:
+                return True
+    return False
 
 
 def _data_gaps_need_refresh(frame: pd.DataFrame) -> bool:
