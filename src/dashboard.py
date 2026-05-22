@@ -4967,13 +4967,20 @@ def overview_deep_research_leverage_cards(
                 command,
                 "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path.",
             )
+        next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=140)
+        if (staged_fundamentals_import or staged_peer_import) and (
+            "make imports-validate" not in next_action_summary
+            or "make imports-preview" not in next_action_summary
+            or "make imports-apply" not in next_action_summary
+        ):
+            next_action_summary = compact_reason(fallback_action, max_sentences=1, max_chars=140)
         return {
             "kicker": lane_name,
             "title": card_title,
             "body": (
                 f"{holdings_count} holdings, {len(themes)} themes, and {unique_tickers} queued tickers are currently gated here. "
                 f"Lead theme: {lead_theme}. Start with: {lead_names}. "
-                f"Next action: {compact_reason(top_row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=140)}"
+                f"Next action: {next_action_summary}"
             ),
             "badges": card_badges,
             "command": command,
@@ -5066,6 +5073,17 @@ def overview_deep_research_priority_bridge_cards(
                     command,
                     "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path.",
                 )
+            next_action_summary = compact_reason(
+                row.get("recommended_action") or fallback_action,
+                max_sentences=1,
+                max_chars=140,
+            )
+            if (staged_fundamentals_import or staged_peer_import) and (
+                "make imports-validate" not in next_action_summary
+                or "make imports-preview" not in next_action_summary
+                or "make imports-apply" not in next_action_summary
+            ):
+                next_action_summary = compact_reason(fallback_action, max_sentences=1, max_chars=140)
             priority_rows.append(
                 {
                     "ticker": ticker,
@@ -5080,11 +5098,7 @@ def overview_deep_research_priority_bridge_cards(
                     "is_holding": bool(row.get("is_holding")),
                     "priority": float(row.get("priority", 999)),
                     "next_surface": next_surface,
-                    "recommended_action": compact_reason(
-                        row.get("recommended_action") or fallback_action,
-                        max_sentences=1,
-                        max_chars=140,
-                    ),
+                    "recommended_action": next_action_summary,
                     "command": command,
                 }
             )
