@@ -5246,6 +5246,7 @@ def overview_market_context_cards(
                 "title": "Insufficient local theme performance",
                 "body": "Themes stay out of this strip until local benchmark-relative data is available.",
                 "badges": ["no guessing"],
+                "command": "make pipeline",
             }
         ]
 
@@ -5261,6 +5262,7 @@ def overview_market_context_cards(
                 f"vs benchmark context."
             ),
             "badges": ["local benchmark context", "research only"],
+            "command": "make pipeline",
         }
     ]
     for _, row in top_rows.iterrows():
@@ -5274,6 +5276,7 @@ def overview_market_context_cards(
                     f"vs QQQ {report_display_value(row.get('RelativeReturnVsQQQ'), 'percent')}."
                 ),
                 "badges": [format_missing(row.get("ETF"), "ETF"), "theme lens"],
+                "command": "make pipeline",
             }
         )
     return cards

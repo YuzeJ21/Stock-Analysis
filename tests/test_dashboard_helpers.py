@@ -3945,6 +3945,8 @@ def test_overview_market_context_cards_surface_local_theme_strength():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["kicker"] == "MARKET CONTEXT"
+    assert cards[0]["command"] == "make pipeline"
+    assert cards[1]["command"] == "make pipeline"
     assert "strong rotation" in rendered
     assert "ai semiconductors" in rendered
     assert "vs spy 9.0%" in rendered
@@ -3960,6 +3962,28 @@ def test_overview_market_context_cards_handle_missing_inputs_gracefully():
     assert cards[0]["command"] == "make pipeline"
     assert "make pipeline" in rendered
     assert "buy" not in rendered
+
+
+def test_overview_market_context_cards_keep_pipeline_visible_when_theme_rows_are_unusable():
+    market_direction = pd.DataFrame(
+        [
+            {
+                "Theme": "AI Semiconductors",
+                "ETF": "SMH",
+                "ThemeStatus": "Strong Rotation",
+                "Return1M": None,
+                "RelativeReturnVsSPY": None,
+                "RelativeReturnVsQQQ": None,
+            }
+        ]
+    )
+
+    cards = dashboard.overview_market_context_cards(market_direction)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Insufficient local theme performance"
+    assert cards[0]["command"] == "make pipeline"
+    assert "make pipeline" in rendered
 
 
 def test_overview_benchmark_pressure_cards_surface_price_gap_and_spy_context():
