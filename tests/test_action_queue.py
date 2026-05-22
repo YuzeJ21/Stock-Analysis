@@ -863,8 +863,8 @@ def test_action_queue_uses_validate_first_fundamentals_global_gap_fallback_witho
     )
 
     row = rows[0]
-    assert row.focus_command == "make sec-validate"
-    assert row.example_command == "make sec-validate"
+    assert row.focus_command == "make imports-validate"
+    assert row.example_command == "make imports-validate"
 
 
 def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):

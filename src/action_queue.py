@@ -448,7 +448,7 @@ def _normalize_data_quality_coverage_action(
         if not normalized_focus:
             normalized_focus = focus_command_for_ticker("fundamentals", ticker)
         if not normalized_example or normalized_example in {"make onboarding", "make status"}:
-            normalized_example = _example_command_for_focus_command(normalized_focus, ticker) or "make sec-validate"
+            normalized_example = _example_command_for_focus_command(normalized_focus, ticker) or "make imports-validate"
         return normalized_recommended, normalized_focus, normalized_example
 
     if lane == "peers":
@@ -491,7 +491,7 @@ def _bundle_runbook_shortcut(command_bundles: pd.DataFrame, lane: str) -> str:
 
 def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
     if dataset == "fundamentals":
-        return _bundle_runbook_shortcut(command_bundles, "fundamentals") or "make sec-validate"
+        return _bundle_runbook_shortcut(command_bundles, "fundamentals") or "make imports-validate"
     if dataset == "peers":
         return _bundle_runbook_shortcut(command_bundles, "peers") or "make templates"
     if dataset == "smh_holdings":
