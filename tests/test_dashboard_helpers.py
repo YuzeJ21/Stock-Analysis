@@ -5736,6 +5736,30 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     assert "sell" not in rendered
 
 
+def test_data_health_tab_summary_cards_cover_sources_and_validation_fallbacks():
+    validation = pd.DataFrame({"validation_status": ["valid", "valid_with_warnings", "missing_file"]})
+    status = pd.DataFrame({"availability_status": ["available", "partial", "manual_only"]})
+
+    source_cards = dashboard.data_health_tab_summary_cards("Sources", validation, None, status, None, {})
+    validation_cards = dashboard.data_health_tab_summary_cards("Validation", validation, None, status, None, {})
+    rendered = " ".join(
+        str(value)
+        for group in [source_cards, validation_cards]
+        for card in group
+        for value in card.values()
+    ).lower()
+
+    assert source_cards[0]["command"] == "make data-sources"
+    assert source_cards[1]["command"] == "make data-sources"
+    assert validation_cards[0]["command"] == "make validate-data"
+    assert validation_cards[1]["command"] == "make validate-data"
+    assert "status registry" in rendered
+    assert "schema checks" in rendered
+    assert "partial safe" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_fix_first_cards_prioritize_actions():
     actions = pd.DataFrame(
         [
