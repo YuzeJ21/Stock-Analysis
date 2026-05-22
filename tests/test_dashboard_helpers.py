@@ -3686,7 +3686,9 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
 
     assert len(cards) == 4
     assert cards[0]["title"] == "NVDA"
+    assert cards[0]["command"] == "make verify"
     assert cards[1]["title"] == "NVDA"
+    assert cards[1]["command"] == "make sec-stage TICKERS=NVDA"
     assert cards[2]["title"] == "make verify"
     assert cards[3]["title"] == "Stock Report Beta"
     assert "normalize verified downloaded ohlcv rows" in rendered
@@ -3702,7 +3704,9 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
 
     assert len(cards) == 4
     assert cards[0]["title"] == "No current ready names yet"
+    assert cards[0]["command"] == "make onboarding"
     assert cards[1]["title"] == "No deep-research shortlist yet"
+    assert cards[1]["command"] == "make onboarding"
     assert cards[2]["title"] == "make onboarding"
     assert cards[3]["title"] == "Data Health"
     assert "no locally ready name yet" in cards[0]["body"].lower()
@@ -3740,6 +3744,7 @@ def test_overview_current_top_surfaces_cards_use_monthly_front_door_for_monthly_
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "TSLA"
+    assert cards[0]["command"] == "make monthly"
     assert cards[2]["title"] == "make monthly"
     assert cards[3]["title"] == "Monthly Picks"
     assert "make monthly" in rendered
@@ -3758,6 +3763,7 @@ def test_overview_current_top_surfaces_cards_use_monthly_front_door_without_queu
     cards = dashboard.overview_current_top_surfaces_cards(coverage, None, None, None, None, None)
 
     assert cards[0]["title"] == "TSLA"
+    assert cards[0]["command"] == "make monthly"
     assert cards[2]["title"] == "make monthly"
     assert cards[3]["title"] == "Monthly Picks"
 
@@ -3799,6 +3805,7 @@ def test_overview_current_top_surfaces_cards_prefer_staged_peer_handoff_reason()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[2]["title"] == "make verify"
+    assert cards[1]["command"] == "make imports-validate"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "make status-check top_n=5" in rendered
@@ -3839,6 +3846,7 @@ def test_overview_current_top_surfaces_cards_prefer_ready_name_reason_without_qu
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[2]["title"] == "make verify"
+    assert cards[0]["command"] == "make verify"
     assert "run deterministic verification first" in cards[2]["body"].lower()
     assert "stock report beta" in cards[2]["body"].lower()
     assert "make imports-apply" in rendered
@@ -3881,6 +3889,7 @@ def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[1]["title"] == "AMD"
+    assert cards[1]["command"] == "make imports-validate"
     assert "advance staged fundamentals import" in cards[1]["body"].lower()
     assert "make imports-apply" in cards[1]["body"].lower()
     assert "make status-check top_n=5" in rendered
@@ -3913,6 +3922,8 @@ def test_overview_current_top_surfaces_cards_use_runbook_fallback_when_no_ready_
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "No current ready names yet"
+    assert cards[0]["command"] == "make onboarding"
+    assert cards[1]["command"] == "make runbook-peers"
     assert cards[2]["title"] == "make runbook-peers"
     assert cards[3]["title"] == "Data Health"
     assert "ordered lane runbook" in rendered

@@ -6167,6 +6167,8 @@ def overview_current_top_surfaces_cards(
 
     ready_name = format_missing(ready_cards[0].get("title"), "Not available")
     blocked_name = format_missing(deep_cards[0].get("title"), "Not available")
+    ready_surface_command = format_missing(ready_cards[1].get("title"), "make onboarding")
+    blocked_surface_command = format_missing(deep_cards[1].get("title"), "make onboarding") if len(deep_cards) > 1 else "make onboarding"
     base_command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
     command_text = base_command_text
     next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
@@ -6211,6 +6213,8 @@ def overview_current_top_surfaces_cards(
             command_reason = deep_reason
     if not command_reason or command_reason == "Not available":
         command_reason = "Highest-value repo-native command from the current local workflow state."
+    if blocked_name == "No deep-research shortlist yet" and blocked_surface_command in {"", "Not available", "make onboarding"}:
+        blocked_surface_command = command_text
 
     return [
         {
@@ -6224,6 +6228,7 @@ def overview_current_top_surfaces_cards(
                 else f"Best currently usable local name. Next surface: {next_tab}."
             ),
             "badges": [str(item) for item in ready_cards[0].get("badges", [])][:2] or ["local coverage"],
+            "command": ready_surface_command,
         },
         {
             "kicker": "BEST BLOCKED NAME",
@@ -6240,6 +6245,7 @@ def overview_current_top_surfaces_cards(
                 )
             ),
             "badges": [str(item) for item in deep_cards[0].get("badges", [])][:2] or ["coverage", "read-only"],
+            "command": blocked_surface_command,
         },
         {
             "kicker": "BEST NEXT COMMAND",
