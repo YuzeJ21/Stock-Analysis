@@ -1142,12 +1142,13 @@ Generate it with:
 ```bash
 make status
 make data-wizard
-python3 -m src.data_onboarding --wizard
 python3 -m src.data_onboarding --wizard --json
-python3 -m src.data_onboarding --write-output
+make onboarding
 ```
 
-`python3 -m src.data_onboarding --write-output` writes:
+Use the raw `--wizard --json` form only when you want a machine-readable snapshot of the ladder itself. Use `make onboarding` when you want to refresh the full local operator artifact set.
+
+`make onboarding` refreshes:
 
 - `outputs/ticker_data_coverage.csv`
 - `outputs/data_onboarding_actions.csv`
@@ -1156,19 +1157,6 @@ python3 -m src.data_onboarding --write-output
 - `outputs/peer_mapping_queue.csv`
 - `outputs/ticker_unlock_ladder.csv`
 - `outputs/command_bundles.csv`
-
-`make onboarding` now also refreshes:
-
-- `outputs/data_source_status.csv`
-- `outputs/data_gap_report.csv`
-- `outputs/data_quality_wizard.csv`
-- `outputs/liquidity_risk.csv`
-- `outputs/correlation_risk.csv`
-- `outputs/research_action_queue.csv`
-- `outputs/project_status.json`
-- `outputs/project_status_summary.csv`
-- `outputs/project_status_top_actions.csv`
-- `outputs/project_status_next_steps.csv`
 
 The `project_status` files are generated local operator artifacts. They stay ignored in git so `make status`, `make onboarding`, and `make daily` can refresh them without dirtying the repo.
 
@@ -1181,7 +1169,6 @@ The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use
 If you want one row per ticker instead of several queue outputs, use:
 
 ```bash
-python3 -m src.data_onboarding --unlock-ladder
 make unlock-ladder
 ```
 
@@ -1197,7 +1184,6 @@ The unlock ladder is also read-only and never fabricates missing data.
 If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:
 
 ```bash
-python3 -m src.data_onboarding --unlock-summary
 make unlock-summary
 ```
 
@@ -1207,17 +1193,15 @@ This grouped summary is useful when you want to decide whether the next best loc
 - a theme such as AI / semiconductors
 - a sector ETF cluster such as `SMH`
 
-It is also written to `outputs/unlock_priority_summary.csv` when you run `python3 -m src.data_onboarding --write-output`.
+It is also written to `outputs/unlock_priority_summary.csv` when you run `make onboarding`.
 
 If you want a smaller, holdings-first command view instead of the full ticker queues, use:
 
 ```bash
-python3 -m src.data_onboarding --command-bundles
-python3 -m src.data_onboarding --command-bundles --json
-python3 -m src.data_onboarding --command-bundle-details
-python3 -m src.data_onboarding --command-bundle-runbook
 make command-bundles
+make command-bundle-details
 make command-bundle-runbook
+python3 -m src.data_onboarding --command-bundles --json
 ```
 
 This read-only bundle output groups the next practical local passes into:
@@ -1234,9 +1218,9 @@ Each bundle keeps the workflow explicit by showing:
 - the target local file
 - the safe next step if the remote path is unreliable
 
-If you want one row per ticker inside the current bundles, use `python3 -m src.data_onboarding --command-bundle-details` or `make command-bundle-details`. That output is also written to `outputs/command_bundle_details.csv` during `--write-output`.
+If you want one row per ticker inside the current bundles, use `make command-bundle-details`. That output is also written to `outputs/command_bundle_details.csv` during `make onboarding`, and the raw CLI remains available if you explicitly need JSON or narrow scripting control.
 
-If you want an ordered bundle follow-through view, use `python3 -m src.data_onboarding --command-bundle-runbook` or `make command-bundle-runbook`. That runbook is also written to `outputs/command_bundle_runbook.csv` during `--write-output`.
+If you want an ordered bundle follow-through view, use `make command-bundle-runbook`. That runbook is also written to `outputs/command_bundle_runbook.csv` during `make onboarding`.
 
 If you only want one lane at a time, use:
 

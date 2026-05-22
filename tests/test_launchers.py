@@ -135,8 +135,13 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
         "make data-sources-check",
         "make coverage",
         "make data-wizard",
+        "make unlock-ladder",
+        "make unlock-summary",
         "make command-bundles",
+        "make command-bundle-details",
+        "make command-bundle-runbook",
         "make templates",
+        "make onboarding",
         "make universe-preview",
         "make universe-apply",
         "make price-refresh",
@@ -145,6 +150,10 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
 
     assert "Run a local-only source check:\n\n```bash\nmake data-sources-check" in readme
     assert "```bash\nmake coverage\nmake data-wizard\nmake command-bundles\nmake templates" in readme
+    assert "Generate it with:\n\n```bash\nmake status\nmake data-wizard" in readme
+    assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
+    assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
+    assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
 
 
