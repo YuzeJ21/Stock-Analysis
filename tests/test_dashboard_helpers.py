@@ -2581,6 +2581,29 @@ def test_overview_deep_research_leverage_cards_use_review_fallback_when_action_i
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_leverage_cards_use_peer_review_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "TSLA"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_leverage_cards(holdings, None, peer_queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    peer_card = next(card for card in cards if card["kicker"] == "PEER LEVERAGE")
+
+    assert "review peer path." in peer_card["body"].lower()
+    assert "not available" not in peer_card["body"].lower()
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortlist():
     holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "TSLA"}])
     sec_queue = pd.DataFrame(
@@ -2670,6 +2693,27 @@ def test_overview_deep_research_priority_bridge_cards_use_review_fallback_when_a
     assert cards[0]["kicker"] == "AMD"
     assert "review fundamentals path." in cards[0]["body"].lower()
     assert cards[0]["command_reason"].lower() == "review fundamentals path."
+    assert "not available" not in cards[0]["body"].lower()
+
+
+def test_overview_deep_research_priority_bridge_cards_use_peer_review_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "TSLA"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_priority_bridge_cards(holdings, None, peer_queue, limit=1)
+
+    assert cards[0]["kicker"] == "TSLA"
+    assert "review peer path." in cards[0]["body"].lower()
+    assert cards[0]["command_reason"].lower() == "review peer path."
     assert "not available" not in cards[0]["body"].lower()
 
 
