@@ -4859,13 +4859,11 @@ def overview_deep_research_leverage_cards(
                 card_badges = ["peer support data", f"leverage {leverage_score}"]
         if staged_fundamentals_import:
             fallback_action = (
-                f"Top staged fundamentals import is waiting in {target_file}. "
-                "Run make imports-validate, then make imports-preview, then make imports-apply."
+                f"Staged fundamentals import in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
             )
         elif staged_peer_import:
             fallback_action = (
-                f"Top staged peer import is waiting in {target_file}. "
-                "Run make imports-validate, then make imports-preview, then make imports-apply."
+                f"Staged peer import in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
             )
         else:
             fallback_action = command_family_fallback(
@@ -4960,13 +4958,11 @@ def overview_deep_research_priority_bridge_cards(
             command = preferred_row_command(row, fallback_command or "Not available")
             if staged_fundamentals_import:
                 fallback_action = (
-                    "Run make imports-validate, then make imports-preview, then make imports-apply "
-                    "for the staged fundamentals import."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
                 )
             elif staged_peer_import:
                 fallback_action = (
-                    "Run make imports-validate, then make imports-preview, then make imports-apply "
-                    "for the staged peer import."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
                 )
             else:
                 fallback_action = command_family_fallback(

@@ -3116,9 +3116,13 @@ def test_overview_deep_research_leverage_cards_keep_staged_import_paths_when_com
     assert fundamentals_card["title"] == "Staged fundamentals import path"
     assert fundamentals_card["command"] == "make imports-validate"
     assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert "make imports-preview" in fundamentals_card["body"].lower()
+    assert "make imports-apply" in fundamentals_card["body"].lower()
     assert peer_card["title"] == "Staged peer import path"
     assert peer_card["command"] == "make imports-validate"
     assert "staged peer import" in peer_card["body"].lower()
+    assert "make imports-preview" in peer_card["body"].lower()
+    assert "make imports-apply" in peer_card["body"].lower()
 
 
 def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortlist():
@@ -3189,6 +3193,8 @@ def test_overview_deep_research_priority_bridge_cards_keep_staged_peer_command_w
     assert cards[0]["title"] == "Advance staged peer import"
     assert cards[0]["command"] == "make imports-validate"
     assert "advance staged peer import" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
