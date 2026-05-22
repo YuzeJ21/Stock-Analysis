@@ -4910,6 +4910,18 @@ def test_overview_workflow_path_cards_use_imports_and_bundle_fallbacks_when_acti
     assert "not available" not in " ".join(str(value) for card in imports_cards + bundle_cards for value in card.values()).lower()
 
 
+def test_overview_workflow_path_cards_use_explicit_import_follow_through_when_imports_drive_step_one_without_queue():
+    payload = {"recommended_next_commands": ["make imports-validate", "make verify", "make dashboard-smoke"]}
+
+    cards = dashboard.overview_workflow_path_cards(payload, None)
+
+    assert cards[0]["title"] == "make imports-validate"
+    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert "make imports-apply" in cards[0]["body"].lower()
+    assert "not available" not in " ".join(str(value) for card in cards for value in card.values()).lower()
+
+
 def test_overview_workflow_path_cards_surface_top_staged_follow_through_when_queue_row_has_target_file():
     fundamentals_queue = pd.DataFrame(
         [

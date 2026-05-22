@@ -6234,7 +6234,7 @@ def overview_workflow_path_cards(
         first_body = "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
         first_badges = ["today", "bundle first"]
     elif "imports-" in lowered_first:
-        first_body = "Use the staged local workflow next so validation and preview safeguards stay in place."
+        first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
         first_badges = ["today", "staged flow"]
     elif "runbook-" in lowered_first:
         first_body = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
