@@ -3442,6 +3442,24 @@ def test_overview_next_command_cards_use_structured_project_status_rows():
     assert "sell" not in rendered
 
 
+def test_overview_next_command_cards_use_command_family_fallback_when_reason_is_missing():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Fix top peers blocker (TSLA)",
+                "Command": "make focus-peers TICKER=TSLA",
+                "Reason": "",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_next_command_cards(payload, None, limit=1)
+
+    assert cards[0]["title"] == "make focus-peers TICKER=TSLA"
+    assert "single-name shortcut" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_next_command_cards_fall_back_to_action_queue():
     queue = pd.DataFrame(
         [
@@ -3549,6 +3567,25 @@ def test_overview_workflow_path_cards_use_structured_project_status_steps():
     assert "data/imports/fundamentals.csv" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_workflow_path_cards_use_command_family_fallback_when_reason_is_missing():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Advance staged peers import",
+                "Command": "make imports-validate",
+                "Reason": "",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_workflow_path_cards(payload, None)
+
+    assert cards[0]["title"] == "make imports-validate"
+    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "use the staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
 
 
 def test_overview_workflow_path_cards_use_status_check_when_structured_command_is_missing():

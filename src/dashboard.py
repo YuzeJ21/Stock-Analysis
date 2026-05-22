@@ -5126,6 +5126,7 @@ def overview_next_command_cards(
             command = format_missing(row.get("Command"), "")
             title = command if command else "Recommended command"
             reason = compact_reason(row.get("Reason"), max_sentences=1, max_chars=160)
+            has_reason = bool(reason and reason != "Not available")
             body = (
                 "Repo-native next step from the current read-only project status snapshot."
                 if command
@@ -5134,10 +5135,10 @@ def overview_next_command_cards(
             badges = ["command", "research only"]
             lowered = command.lower()
             if "focus-" in lowered:
-                body = reason or "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
+                body = reason if has_reason else "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
                 badges = ["single name", "command"]
             elif "runbook-" in lowered:
-                body = reason or "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                body = reason if has_reason else "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
                 badges = ["runbook", "command"]
             elif "onboarding" in lowered:
                 body = "Refresh local data coverage, onboarding outputs, and action guidance before broader research work."
@@ -5441,21 +5442,22 @@ def overview_workflow_path_cards(
         for index, row in enumerate(command_rows[:3], start=1):
             command = format_missing(row.get("Command"), "make status-check TOP_N=5")
             reason = compact_reason(row.get("Reason"), max_sentences=2, max_chars=220)
+            has_reason = bool(reason and reason != "Not available")
             body = reason or "Repo-native next step from the current local workflow snapshot."
-            badges = ["workflow", "command"]
+            badges = ["today", "data first"] if index == 1 else ["workflow", "command"]
             lowered = command.lower()
-            if index == 1:
-                badges = ["today", "data first"]
-            elif "verify" in lowered:
+            if "verify" in lowered:
                 badges = ["verify", "safe"]
-                body = reason or "Run deterministic verification so the current CSV outputs and dashboard state are trustworthy."
+                body = reason if has_reason else "Run deterministic verification so the current CSV outputs and dashboard state are trustworthy."
             elif "dashboard-smoke" in lowered:
                 badges = ["ui", "workflow"]
-                body = reason or "Open or smoke-check the dashboard after the data and verification steps are complete."
+                body = reason if has_reason else "Open or smoke-check the dashboard after the data and verification steps are complete."
             elif "focus-" in lowered:
-                badges = ["single name", "workflow"]
+                badges = ["today", "single name"] if index == 1 else ["single name", "workflow"]
+                body = reason if has_reason else "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
             elif "runbook-" in lowered or "imports-" in lowered:
-                badges = ["staged flow", "workflow"]
+                badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
+                body = reason if has_reason else "Use the staged local workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": f"STEP {index}",
