@@ -562,6 +562,16 @@ def _load_frame(catalog: LocalDataCatalog, dataset_name: str) -> pd.DataFrame:
     return frame.copy() if frame is not None else pd.DataFrame()
 
 
+def _load_staged_import_frame(data_path: Path, filename: str) -> pd.DataFrame:
+    path = data_path / "imports" / filename
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        return pd.DataFrame()
+
+
 def _ticker_set(frame: pd.DataFrame, column: str = "ticker") -> set[str]:
     if frame.empty or column not in frame.columns:
         return set()
@@ -667,6 +677,13 @@ def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
     )
 
 
+def _staged_peer_import_action_text() -> str:
+    return (
+        "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+        "to confirm the live local peer mappings."
+    )
+
+
 def _peer_support_follow_through(
     ticker: str,
     peers: pd.DataFrame,
@@ -758,6 +775,8 @@ def _fundamentals_onboarding_reason(row: TickerCoverage) -> str:
 def _peer_onboarding_reason(row: TickerCoverage) -> str:
     if not row.has_peer_mapping:
         return "No local peer mapping is configured for this ticker."
+    if row.focus_command == "make imports-validate":
+        return "Staged peer mappings are present but still need validate/preview/apply before peer-relative context is live."
     if row.missing_required_for_peer_relative:
         return f"Peer-relative inputs are still incomplete: {row.missing_required_for_peer_relative}."
     return "Peer-relative inputs are still incomplete."
@@ -822,6 +841,7 @@ def build_ticker_coverage(
     prices = _load_frame(catalog, "prices")
     fundamentals = _load_frame(catalog, "fundamentals")
     peers = _load_frame(catalog, "peers")
+    staged_peers = _load_staged_import_frame(data_path, "peers.csv")
     earnings = _load_frame(catalog, "earnings")
     estimates = _load_frame(catalog, "analyst_estimates")
     final_watchlist = _load_frame(catalog, "final_watchlist")
@@ -832,6 +852,7 @@ def build_ticker_coverage(
     earnings_tickers = _ticker_set(earnings)
     estimate_tickers = _ticker_set(estimates)
     peer_subject_tickers = _ticker_set(peers)
+    staged_peer_subject_tickers = _ticker_set(staged_peers)
     output_tickers = _ticker_set(final_watchlist) | _ticker_set(momentum)
 
     rows: list[TickerCoverage] = []
@@ -841,7 +862,9 @@ def build_ticker_coverage(
         has_fundamentals = ticker in fundamental_tickers
         financial_row = _select_row(fundamentals, ticker)
         dcf_ready = _dcf_ready(financial_row)
-        has_peer_mapping = ticker in peer_subject_tickers
+        has_canonical_peer_mapping = ticker in peer_subject_tickers
+        has_staged_peer_mapping = ticker in staged_peer_subject_tickers and not has_canonical_peer_mapping
+        has_peer_mapping = has_canonical_peer_mapping or has_staged_peer_mapping
         peer_ready = _peer_ready(ticker, peers, fundamentals, prices)
         has_earnings = ticker in earnings_tickers
         has_estimates = ticker in estimate_tickers
@@ -867,8 +890,11 @@ def build_ticker_coverage(
         missing_peer = []
         if not has_peer_mapping:
             missing_peer.append("peer mapping")
+        elif has_staged_peer_mapping:
+            missing_peer.append("staged peer mappings still need validate/preview/apply")
         if has_peer_mapping and not peer_ready:
-            missing_peer.append("peer fundamentals or peer price/market-cap context")
+            if not has_staged_peer_mapping:
+                missing_peer.append("peer fundamentals or peer price/market-cap context")
 
         provisional = TickerCoverage(
             ticker=ticker,
@@ -911,6 +937,11 @@ def build_ticker_coverage(
                 provisional.target_file = "data/imports/peers.csv"
                 provisional.focus_command = focus_command_for_ticker("peers", provisional.ticker)
                 provisional.example_command = "make templates"
+            elif has_staged_peer_mapping:
+                provisional.next_best_action = _staged_peer_import_action_text()
+                provisional.target_file = "data/imports/peers.csv"
+                provisional.focus_command = "make imports-validate"
+                provisional.example_command = "make imports-preview"
             else:
                 (
                     provisional.next_best_action,
@@ -1089,6 +1120,20 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                 )
             )
         if not row.usable_for_peer_relative:
+            recommended_action = _peer_action_text(row.ticker, missing_mapping=not row.has_peer_mapping)
+            target_file = "data/imports/peers.csv"
+            focus_command = focus_command_for_ticker("peers", row.ticker)
+            example_command = "make templates"
+            safe_next_step = "Use data/imports/peers.csv for mappings; never fabricate peer relationships."
+            if row.has_peer_mapping:
+                recommended_action = row.next_best_action or recommended_action
+                target_file = row.target_file or target_file
+                focus_command = row.focus_command or focus_command
+                example_command = row.example_command or example_command
+            if focus_command == "make imports-validate":
+                safe_next_step = "Validate staged peer mappings before preview so schema and duplicate-key issues surface before merge."
+            elif row.has_peer_mapping:
+                safe_next_step = "Finish the staged peer-data follow-through without guessing missing peer context."
             rows.append(
                 DataCoverageWizardRow(
                     priority=3,
@@ -1097,11 +1142,11 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     blocking_dataset="peers",
                     current_status=row.missing_required_for_peer_relative or "Peer-relative inputs incomplete",
                     why_it_matters="Peer-relative valuation needs manual peer mappings plus peer fundamentals and price or market-cap context.",
-                    recommended_action=_peer_action_text(row.ticker, missing_mapping=not row.has_peer_mapping),
-                    target_file="data/imports/peers.csv",
-                    focus_command=focus_command_for_ticker("peers", row.ticker),
-                    example_command="make templates",
-                    safe_next_step="Use data/imports/peers.csv for mappings; never fabricate peer relationships.",
+                    recommended_action=recommended_action,
+                    target_file=target_file,
+                    focus_command=focus_command,
+                    example_command=example_command,
+                    safe_next_step=safe_next_step,
                 )
             )
         if not row.has_earnings:

@@ -169,6 +169,48 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert "missing peer fundamentals needed for NVDA" in nvda["next_best_action"]
 
 
+def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_path: Path):
+    _write_fixture(tmp_path)
+    (tmp_path / "data" / "peers.csv").unlink()
+    imports_dir = tmp_path / "data" / "imports"
+    imports_dir.mkdir()
+    (imports_dir / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group,source,as_of_date\n"
+        "NVDA,AMD,semis,manual,2026-01-02\n",
+        encoding="utf-8",
+    )
+
+    payload = build_onboarding_payload(tmp_path)
+    coverage = {row["ticker"]: row for row in payload["ticker_coverage"]}
+    peer_actions = {
+        row["ticker"]: row
+        for row in payload["onboarding_actions"]
+        if row["dataset"] == "peers"
+    }
+    peer_wizard_rows = [
+        row for row in payload["data_coverage_wizard"] if row["ticker"] == "NVDA" and row["blocking_dataset"] == "peers"
+    ]
+
+    nvda = coverage["NVDA"]
+    assert nvda["has_peer_mapping"] is True
+    assert nvda["peer_ready"] is False
+    assert nvda["focus_command"] == "make imports-validate"
+    assert nvda["example_command"] == "make imports-preview"
+    assert nvda["target_file"] == "data/imports/peers.csv"
+    assert "make imports-apply" in nvda["next_best_action"]
+    assert "validate/preview/apply" in nvda["missing_required_for_peer_relative"]
+
+    nvda_peer_action = peer_actions["NVDA"]
+    assert nvda_peer_action["focus_command"] == "make imports-validate"
+    assert nvda_peer_action["example_command"] == "make imports-preview"
+    assert "staged peer mappings are present" in nvda_peer_action["reason"].lower()
+
+    assert peer_wizard_rows
+    assert peer_wizard_rows[0]["focus_command"] == "make imports-validate"
+    assert peer_wizard_rows[0]["example_command"] == "make imports-preview"
+    assert "make imports-apply" in peer_wizard_rows[0]["recommended_action"]
+
+
 def test_optional_context_worklist_surfaces_template_focus_command(tmp_path: Path):
     _write_fixture(tmp_path)
 
