@@ -2491,8 +2491,8 @@ def data_health_overview_cards(
         price_title = "Price status not generated"
         price_body = (
             "Start with make status, then use the first price focus or runbook path it prints. "
-            "For downloaded files, use manual staged OHLCV import through make price-normalize, "
-            "make price-validate, make price-preview, and make price-apply."
+            "For downloaded files, run make price-normalize, make price-validate, "
+            "make price-preview, and make price-apply."
         )
         price_badges = ["make status", "manual fallback"]
     elif price_problem_count:
@@ -3626,7 +3626,7 @@ def empty_state_command_rows() -> list[dict[str, str]]:
         {"Scenario": "No local fundamentals for valuation", "Next step": "make status, then use make focus-fundamentals TICKER=... or make runbook-fundamentals-broader, then run make imports-validate, make imports-preview, and make imports-apply"},
         {"Scenario": "No peer-relative context", "Next step": "make status, then use make focus-peers TICKER=... or make runbook-peers-broader. If mappings are missing, run make templates, then fill data/imports/peers.csv; if mappings already exist, follow the staged peer fundamentals or price blocker the queue prints."},
         {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
-        {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then come back to make imports-preview, make imports-apply, or the staged price follow-through commands."},
+        {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then run make imports-validate, make imports-preview, and make imports-apply for staged local datasets, or use make price-validate, make price-preview, and make price-apply for staged price rows."},
     ]
 
 

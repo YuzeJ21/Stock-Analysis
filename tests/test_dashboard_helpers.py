@@ -4590,6 +4590,9 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make imports-validate" in empty_rendered
     assert "make imports-preview" in empty_rendered
     assert "make imports-apply" in empty_rendered
+    assert "make price-validate" in empty_rendered
+    assert "make price-preview" in empty_rendered
+    assert "make price-apply" in empty_rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
