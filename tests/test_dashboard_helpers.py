@@ -5203,6 +5203,85 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     assert "sell" not in rendered
 
 
+def test_overview_bundle_handoff_cards_use_monthly_front_door_for_price_bundle_refresh():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 57 verified rows still needed across this bundle",
+                "primary_command": "make bundle-prices",
+                "follow_up_command": "make price-status",
+                "target_file": "data/imports/prices.csv",
+                "why_it_matters": "These tickers still block broader local research because price history is missing or too short.",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            }
+        ]
+    )
+    details = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "ticker": "META",
+                "is_holding": True,
+                "theme": "AI Platforms",
+                "sector_etf": "QQQ",
+                "current_unlock_stage": "prices",
+            }
+        ]
+    )
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "make bundle-prices",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 57 verified rows still needed across this bundle",
+                "target_file": "data/imports/prices.csv",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Review follow-up output",
+                "command": "make price-status",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 57 verified rows still needed across this bundle",
+                "target_file": "data/imports/prices.csv",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 3,
+                "step_label": "Refresh status outputs",
+                "command": "make status",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 57 verified rows still needed across this bundle",
+                "target_file": "data/imports/prices.csv",
+            },
+        ]
+    )
+
+    cards = dashboard.overview_bundle_handoff_cards(bundles, details, runbook)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[2]["title"] == "Refresh monthly context"
+    assert cards[2]["command"] == "make monthly"
+    assert "make monthly" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
     bundles = pd.DataFrame(
         [

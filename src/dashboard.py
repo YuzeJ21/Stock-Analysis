@@ -5150,6 +5150,14 @@ def overview_bundle_handoff_cards(
             refresh_command = format_missing(target_row.get("command"), refresh_command)
             refresh_step_label = format_missing(target_row.get("step_label"), refresh_step_label)
 
+    if (
+        str(top_bundle.get("lane", "")).strip().lower() == "prices"
+        and "unlock monthly picks" in goal_summary.lower()
+        and refresh_command in {"make status", "make onboarding"}
+    ):
+        refresh_command = "make monthly"
+        refresh_step_label = "Refresh monthly context"
+
     return [
         {
             "kicker": f"{lane.upper()} HANDOFF",
