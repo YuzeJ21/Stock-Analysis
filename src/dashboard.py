@@ -2549,13 +2549,26 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         ordered = subset.sort_values(["priority", "ticker", "blocking_dataset"], na_position="last")
         first = ordered.iloc[0]
         ticker = format_missing(first.get("ticker"), "portfolio")
-        command = preferred_row_command(first, "make onboarding")
+        command = format_missing(first.get("focus_command"), "")
+        if not command or command == "Not available":
+            command = preferred_row_command(first, "make onboarding")
+        current_status = format_missing(first.get("current_status"), "")
+        why_it_matters = compact_reason(first.get("why_it_matters"), max_sentences=1, max_chars=140)
+        recommended_action = compact_reason(first.get("recommended_action"), max_sentences=1, max_chars=150)
+        body_parts = [f"Start with {ticker}."]
+        if current_status and current_status != "Not available":
+            body_parts.append(f"Current blocker: {current_status}.")
+        if why_it_matters and why_it_matters != "Not available":
+            body_parts.append(why_it_matters)
+        if recommended_action and recommended_action != "Not available":
+            body_parts.append(recommended_action)
         cards.append(
             {
                 "kicker": kicker,
                 "title": f"{len(subset)} blocker{'s' if len(subset) != 1 else ''}",
-                "body": f"Start with {ticker}: {compact_reason(first.get('why_it_matters'), max_sentences=1, max_chars=150)}",
+                "body": " ".join(body_parts),
                 "badges": [format_missing(first.get("blocking_dataset"), "data"), command],
+                "command": command,
             }
         )
     return cards

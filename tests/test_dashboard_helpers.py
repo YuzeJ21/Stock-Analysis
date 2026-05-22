@@ -2768,7 +2768,10 @@ def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values
                 "ticker": "NVDA",
                 "unlock_goal": "Unlock Monthly Picks",
                 "blocking_dataset": "prices",
+                "current_status": "0 local price rows",
                 "why_it_matters": "Monthly ranking needs verified local price history.",
+                "recommended_action": "Refresh NVDA prices, or normalize verified downloaded OHLCV rows into data/imports/prices.csv before validate/preview/apply.",
+                "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "python3 -m src.data_update --tickers NVDA",
             },
             {
@@ -2776,7 +2779,10 @@ def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values
                 "ticker": "NVDA",
                 "unlock_goal": "Unlock DCF",
                 "blocking_dataset": "fundamentals",
+                "current_status": "free_cash_flow, shares_outstanding",
                 "why_it_matters": "DCF needs cash-flow inputs.",
+                "recommended_action": "Run SEC staging for candidate fundamentals, then validate and preview before applying.",
+                "focus_command": "make focus-fundamentals TICKER=NVDA",
                 "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
             },
         ]
@@ -2788,6 +2794,9 @@ def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values
     assert "monthly" in rendered
     assert "valuation" in rendered
     assert "not blocking" in rendered
+    assert "current blocker: 0 local price rows" in rendered
+    assert "normalize verified downloaded ohlcv rows" in rendered
+    assert "make focus-price ticker=nvda" in rendered
     assert "nan" not in rendered
     assert "none" not in rendered
     assert "buy" not in rendered
