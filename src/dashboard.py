@@ -2031,7 +2031,7 @@ def data_health_action_path_cards(
                 {
                     "kicker": "BEST NEXT",
                     "title": format_missing(signal.get("title"), "Priority action"),
-                    "body": compact_reason(signal.get("body"), max_sentences=1, max_chars=150),
+                    "body": compact_reason(signal.get("body"), max_sentences=2, max_chars=220),
                     "badges": [str(item) for item in signal.get("badges", [])][:2] or ["priority"],
                     "command": format_missing(signal.get("command"), "make onboarding"),
                 },
@@ -4541,11 +4541,13 @@ def overview_workflow_reason_card(
         top_row = action_queue.sort_values(["priority", "ticker", "action_type"], na_position="last").iloc[0]
         dataset = format_missing(top_row.get("action_type"), "data")
         ticker = format_missing(top_row.get("ticker"), "")
+        signal = top_priority_signals(action_queue, limit=1)
         row_reason = compact_reason(top_row.get("reason"), max_sentences=1, max_chars=170)
+        signal_reason = compact_reason(signal[0].get("body"), max_sentences=2, max_chars=240) if signal else row_reason
         if ticker and ticker != "Not available":
-            reason = f"{dataset.title()} pressure is currently led by {ticker}. {row_reason}"
+            reason = f"{dataset.title()} pressure is currently led by {ticker}. {signal_reason}"
         else:
-            reason = f"{dataset.title()} pressure is currently the top local blocker. {row_reason}"
+            reason = f"{dataset.title()} pressure is currently the top local blocker. {signal_reason}"
         badges = [f"P{format_missing(top_row.get('priority'), '-')}", dataset]
     elif project_status_payload:
         summary = project_status_payload.get("summary", {})

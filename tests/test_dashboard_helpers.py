@@ -1543,7 +1543,8 @@ def test_overview_workflow_reason_card_uses_action_queue_context():
                 "action_type": "prices",
                 "ticker": "NVDA",
                 "title": "Repair prices",
-                "reason": "Need more local rows.",
+                "reason": "NVDA update failed during remote refresh.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
                 "example_command": "make price-worklist",
             }
         ]
@@ -1554,7 +1555,8 @@ def test_overview_workflow_reason_card_uses_action_queue_context():
 
     assert card["title"] == "make price-worklist"
     assert "nvda" in rendered
-    assert "need more local rows" in rendered
+    assert "normalize verified downloaded ohlcv rows" in rendered
+    assert "validate/preview/apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -2308,7 +2310,8 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "action_type": "prices",
                 "ticker": "NVDA",
                 "title": "Repair prices",
-                "reason": "Need more local rows.",
+                "reason": "NVDA update failed during remote refresh.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-worklist",
             }
@@ -2324,6 +2327,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
     assert "price path" in rendered
     assert "fundamentals path" in rendered
     assert "peer path" in rendered
+    assert "normalize verified downloaded ohlcv rows" in rendered
     assert "make focus-fundamentals ticker=amd" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
