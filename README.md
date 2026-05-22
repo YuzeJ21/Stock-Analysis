@@ -488,7 +488,7 @@ python -m src.stock_report --write-local-data-templates --json
 To scaffold header-only staging files directly under `data/imports/`:
 
 ```bash
-python -m src.stock_report --write-import-staging
+make import-staging
 ```
 
 For a demo/smoke workflow:
@@ -1472,10 +1472,11 @@ Final state-machine view combining purpose, momentum, and portfolio context into
 - `make status` refreshes ticker-level coverage, action, queue, source-status, research-health, and project-status artifacts for the Data Health dashboard
 - `make onboarding` refreshes the full source-status, onboarding, research-health, action-queue, and project-status artifact set after editing local files
 - `make templates` creates header-only onboarding templates under `data/templates/`
+- `make import-staging` creates header-only staging files under `data/imports/`
 - `python3 -m src.data_onboarding --write-output` remains available when you explicitly want the lower-level writer behind the onboarding/status workflow
 - `python3 -m src.data_onboarding --write-templates` remains available when you explicitly want the raw template writer
 - `--write-local-data-templates` creates header-only CSV templates under `data/templates/`
-- `--write-import-staging` creates header-only staging files under `data/imports/`
+- `python -m src.stock_report --write-import-staging` remains available when you explicitly want the raw staging writer
 - these templates are safe starting points for adding real local data later
 - they do not fabricate fundamentals, earnings, analyst estimates, or peer mappings
 - the Stock Report Beta now includes valuation-readiness diagnostics so you can see exactly which inputs are still missing for:
