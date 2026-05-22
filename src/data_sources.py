@@ -272,7 +272,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/universe.csv",
-        fallback_action="Use python3 -m src.universe_builder --write-import only after previewing a source-driven universe.",
+        fallback_action=(
+            "Run make universe-preview first, then apply the staged universe only "
+            "after previewing the source-driven build."
+        ),
         notes="Missing theme/sector metadata is labeled Unclassified rather than fabricated.",
     ),
     DataSourceRegistryEntry(

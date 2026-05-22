@@ -72,6 +72,8 @@ def test_data_source_registry_contains_required_datasets():
     smh_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "smh_holdings")
     assert "make templates" in smh_entry.fallback_action
     assert "data/custom_universe.csv" in smh_entry.fallback_action
+    universe_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "universe")
+    assert "make universe-preview" in universe_entry.fallback_action
     local_outputs_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "local_outputs")
     assert "make verify" in local_outputs_entry.fallback_action
 
@@ -152,6 +154,29 @@ def test_write_data_source_outputs_creates_csvs(tmp_path: Path):
     assert "target_file" in pd.read_csv(gap_path).columns
     assert "focus_command" in pd.read_csv(gap_path).columns
     assert "example_command" in pd.read_csv(gap_path).columns
+
+
+def test_missing_universe_gap_uses_preview_first_flow(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (data_dir / "holdings.csv").write_text(
+        "ticker,primarypurpose\n"
+        "NVDA,Momentum Leader\n",
+        encoding="utf-8",
+    )
+
+    payload = build_data_source_payload(tmp_path)
+
+    universe_status = next(row for row in payload["data_sources"] if row["dataset"] == "universe")
+    assert universe_status["availability_status"] == "missing_file"
+    assert "make universe-preview" in universe_status["fallback_action"]
+    universe_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "universe" and not gap["ticker"])
+    assert "make universe-preview" in universe_gap["recommended_action"]
+    assert universe_gap["focus_command"] == "make universe-preview"
+    assert universe_gap["example_command"] == "make universe-preview"
+    assert universe_gap["target_file"] == "data/imports/universe.csv"
 
 
 def test_data_sources_cli_check_json(tmp_path: Path, capsys):
