@@ -102,8 +102,11 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
 
     assert priorities == sorted(priorities)
     assert priorities[0] == 1
+    assert any(row["dataset"] == "prices" and row["focus_command"] == "make focus-price TICKER=AMD" for row in amd_actions)
     assert any(row["dataset"] == "fundamentals" and row["priority"] == 2 for row in amd_actions)
+    assert any(row["dataset"] == "fundamentals" and row["focus_command"] == "make focus-fundamentals TICKER=AMD" for row in amd_actions)
     assert any(row["dataset"] == "peers" and row["priority"] == 3 for row in amd_actions)
+    assert any(row["dataset"] == "peers" and row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_actions)
     assert any(row["dataset"] == "analyst_estimates" and row["priority"] == 5 for row in amd_actions)
 
 

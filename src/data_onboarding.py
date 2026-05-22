@@ -42,6 +42,7 @@ ACTION_COLUMNS = [
     "reason",
     "recommended_action",
     "target_file",
+    "focus_command",
     "example_command",
 ]
 
@@ -349,6 +350,7 @@ class OnboardingAction:
     reason: str
     recommended_action: str
     target_file: str
+    focus_command: str
     example_command: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -775,6 +777,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                         "data/imports/prices.csv and run validate/preview/apply."
                     ),
                     target_file="data/imports/prices.csv",
+                    focus_command=focus_command_for_ticker("prices", row.ticker),
                     example_command=f"python3 -m src.data_update --tickers {row.ticker}",
                 )
             )
@@ -788,6 +791,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     reason=row.missing_required_for_dcf or "DCF inputs are incomplete.",
                     recommended_action="Run SEC staging for fundamentals, then validate and preview before applying.",
                     target_file="data/imports/fundamentals.csv",
+                    focus_command=focus_command_for_ticker("fundamentals", row.ticker),
                     example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
                 )
             )
@@ -801,6 +805,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     reason="No local peer mapping is configured for this ticker.",
                     recommended_action="Add peer mappings manually to data/imports/peers.csv.",
                     target_file="data/imports/peers.csv",
+                    focus_command=focus_command_for_ticker("peers", row.ticker),
                     example_command="python3 -m src.stock_report --write-import-staging",
                 )
             )
@@ -814,6 +819,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     reason=row.missing_required_for_peer_relative or "Peer mappings exist but peer valuation inputs are incomplete.",
                     recommended_action="Add local fundamentals and prices or market-cap context for mapped peers.",
                     target_file="data/fundamentals.csv, data/prices.csv",
+                    focus_command=focus_command_for_ticker("peers", row.ticker),
                     example_command="python3 -m src.stock_report --validate-local-data",
                 )
             )
@@ -827,6 +833,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     reason="No local earnings row is configured.",
                     recommended_action="Add earnings manually only from a trusted source.",
                     target_file="data/imports/earnings.csv",
+                    focus_command="",
                     example_command="python3 -m src.data_onboarding --write-templates",
                 )
             )
@@ -840,6 +847,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     reason="No local analyst-estimate row is configured.",
                     recommended_action="Leave analyst_estimates missing unless a trusted source exists.",
                     target_file="data/imports/analyst_estimates.csv",
+                    focus_command="",
                     example_command="python3 -m src.data_onboarding --write-templates",
                 )
             )
@@ -852,6 +860,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
             reason="SMH remote holdings can be unavailable because of redirect/cookie/location handling.",
             recommended_action="Use data/custom_universe.csv if the SMH source is unavailable.",
             target_file="data/custom_universe.csv",
+            focus_command="",
             example_command="python3 -m src.data_onboarding --write-templates",
         )
     )
@@ -1950,6 +1959,8 @@ def _print_coverage(payload: dict[str, Any]) -> None:
     for row in payload["onboarding_actions"][:20]:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(f"- P{row['priority']} {row['dataset']}{ticker}: {row['recommended_action']}")
+        print(f"  focus: {row.get('focus_command') or '-'}")
+        print(f"  command: {row['example_command']}")
 
 
 def _print_wizard(payload: dict[str, Any]) -> None:

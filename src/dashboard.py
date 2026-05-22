@@ -6579,7 +6579,7 @@ def render_data_health(provider) -> None:
                     top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
                     action_columns = [
                         column
-                        for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "target_file"]
+                        for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "focus_command", "target_file"]
                         if column in top_actions.columns
                     ]
                     st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)

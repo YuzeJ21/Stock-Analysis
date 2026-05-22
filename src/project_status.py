@@ -82,6 +82,10 @@ def _print_human(payload: dict[str, Any]) -> None:
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
         print(f"- P{row['priority']} {row['dataset']}{ticker}: {row['recommended_action']}")
+        if row.get("focus_command"):
+            print(f"  focus: {row['focus_command']}")
+        if row.get("example_command"):
+            print(f"  command: {row['example_command']}")
     print("Recommended next commands:")
     for command in payload["recommended_next_commands"]:
         print(f"- {command}")
