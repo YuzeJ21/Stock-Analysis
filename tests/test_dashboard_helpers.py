@@ -802,7 +802,7 @@ def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
                 "ticker": "TSLA",
                 "theme": "EV",
                 "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
-                "example_command": "python3 -m src.data_onboarding --write-templates",
+                "example_command": "make templates",
             }
         ]
     )
@@ -1093,7 +1093,7 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
                 "ticker": "TSLA",
                 "theme": "EV",
                 "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
-                "example_command": "python3 -m src.data_onboarding --write-templates",
+                "example_command": "make templates",
             }
         ]
     )
@@ -1315,7 +1315,7 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
                 "ticker": "TSLA",
                 "theme": "EV",
                 "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
-                "example_command": "python3 -m src.data_onboarding --write-templates",
+                "example_command": "make templates",
             }
         ]
     )
@@ -2698,7 +2698,7 @@ def test_data_health_deep_research_target_cards_surface_dcf_and_peer_targets_saf
                 "dcf_ready": True,
                 "missing_required_for_peer_relative": "peer mapping",
                 "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
-                "example_command": "python3 -m src.data_onboarding --write-templates",
+                "example_command": "make templates",
             }
         ]
     )
@@ -2779,7 +2779,7 @@ def test_overview_deep_research_target_cards_surface_dcf_and_peer_targets_safely
                 "dcf_ready": True,
                 "missing_required_for_peer_relative": "peer mapping",
                 "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
-                "example_command": "python3 -m src.data_onboarding --write-templates",
+                "example_command": "make templates",
             }
         ]
     )

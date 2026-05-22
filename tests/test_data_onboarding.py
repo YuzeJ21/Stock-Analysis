@@ -466,7 +466,7 @@ def test_onboarding_actions_use_peer_templates_and_transparent_wording(tmp_path:
         if row["dataset"] == "peers"
     }
 
-    assert peer_actions["AMD"]["example_command"] == "python3 -m src.data_onboarding --write-templates"
+    assert peer_actions["AMD"]["example_command"] == "make templates"
     assert "make focus-peers TICKER=AMD" in peer_actions["AMD"]["recommended_action"]
 
 
@@ -499,7 +499,7 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
     assert "peer mapping queue" in output
     assert "focus: make focus-peers ticker=amd" in output
     assert "command:" in output
-    assert "write-templates" in output
+    assert "make templates" in output
     assert "target_file: data/imports/peers.csv" in output
 
 
@@ -898,7 +898,7 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
     assert peer_detail["is_holding"] is True
     assert peer_detail["current_unlock_stage"] == "peers"
     assert peer_detail["target_goal"] == "Unlock Peer Relative"
-    assert peer_detail["exact_next_command"] == "python3 -m src.data_onboarding --write-templates"
+    assert peer_detail["exact_next_command"] == "make templates"
 
 
 def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path: Path):

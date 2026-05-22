@@ -1767,7 +1767,7 @@ def stock_report_next_step_cards(
                     "Add manually researched peers if this name matters for deeper relative work."
                 ),
                 "badges": ["peers", "manual research"],
-                "command": ticker_focus_command("peers", ticker, fallback="python3 -m src.data_onboarding --write-templates"),
+                "command": ticker_focus_command("peers", ticker, fallback="make templates"),
             }
         )
     else:

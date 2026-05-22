@@ -883,7 +883,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     recommended_action=_peer_action_text(row.ticker, missing_mapping=True),
                     target_file="data/imports/peers.csv",
                     focus_command=focus_command_for_ticker("peers", row.ticker),
-                    example_command="python3 -m src.data_onboarding --write-templates",
+                    example_command="make templates",
                 )
             )
         elif not row.peer_ready:
@@ -1008,7 +1008,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     recommended_action=_peer_action_text(row.ticker, missing_mapping=not row.has_peer_mapping),
                     target_file="data/imports/peers.csv",
                     focus_command=focus_command_for_ticker("peers", row.ticker),
-                    example_command="python3 -m src.data_onboarding --write-templates",
+                    example_command="make templates",
                     safe_next_step="Use data/imports/peers.csv for mappings; never fabricate peer relationships.",
                 )
             )
@@ -1174,7 +1174,7 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
         example_command = (
             f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
             if not coverage.dcf_ready
-            else "python3 -m src.data_onboarding --write-templates"
+            else "make templates"
         )
         safe_next_step = (
             "Review staged SEC-derived fundamentals before import merge; keep unavailable fields blank."
@@ -1340,7 +1340,7 @@ def build_peer_mapping_queue(
                 recommended_action=recommended_action,
                 target_file="data/imports/peers.csv",
                 focus_command=focus_command_for_ticker("peers", coverage.ticker),
-                example_command="python3 -m src.data_onboarding --write-templates",
+                example_command="make templates",
                 safe_next_step="Use only manually researched peers, then validate and preview before apply; do not guess peer sets.",
             )
         )
@@ -1801,7 +1801,7 @@ def build_command_bundle_details(
                     target_history_rows = 0
                     suggested_start_date = ""
                     fallback_manual_command = ""
-                    exact_next_command = "python3 -m src.data_onboarding --write-templates"
+                    exact_next_command = "make templates"
                 else:
                     target_history_rows = 0
                     suggested_start_date = ""

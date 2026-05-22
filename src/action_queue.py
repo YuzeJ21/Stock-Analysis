@@ -222,7 +222,7 @@ def _example_command_for_focus_command(focus_command: str, ticker: str) -> str:
     if normalized_focus.startswith("make focus-fundamentals") and ticker:
         return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
     if normalized_focus.startswith("make focus-peers"):
-        return "python3 -m src.data_onboarding --write-templates"
+        return "make templates"
     return ""
 
 
