@@ -6975,6 +6975,19 @@ def test_deep_research_target_fallback_cards_use_onboarding_refresh():
     assert "sell" not in rendered
 
 
+def test_overview_bundle_empty_states_use_operator_facing_titles():
+    bundle_cards = dashboard.overview_command_bundle_cards(None)
+    handoff_cards = dashboard.overview_bundle_handoff_cards(None, None, None)
+    runbook_cards = dashboard.overview_bundle_runbook_cards(None)
+
+    assert bundle_cards[0]["title"] == "No command bundles yet"
+    assert handoff_cards[0]["title"] == "No bundle guidance yet"
+    assert runbook_cards[0]["title"] == "No bundle runbook yet"
+    assert bundle_cards[0]["command"] == "make onboarding"
+    assert handoff_cards[0]["command"] == "make onboarding"
+    assert runbook_cards[0]["command"] == "make onboarding"
+
+
 def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
     wizard = pd.DataFrame(
         [
