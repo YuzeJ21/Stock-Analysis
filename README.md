@@ -1226,21 +1226,12 @@ If you want an ordered bundle follow-through view, use `make command-bundle-runb
 If you only want one lane at a time, use:
 
 ```bash
-python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only
-python3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only
-python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only
-python3 -m src.data_onboarding --command-bundle-details --lane prices --holdings-only
-python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --holdings-only
-python3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only
 make bundle-prices
 make bundle-fundamentals
 make bundle-peers
 make detail-prices
 make detail-fundamentals
 make detail-peers
-python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only
-python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --holdings-only
-python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only
 make runbook-prices
 make runbook-fundamentals
 make runbook-peers
@@ -1249,20 +1240,17 @@ make focus-fundamentals TICKER=NVDA
 make focus-peers TICKER=NVDA
 ```
 
-These lane-specific views stay read-only and help you focus on one pass at a time without scanning the broader bundle output first.
+These lane-specific views stay read-only and help you focus on one pass at a time without scanning the broader bundle output first. The raw `python3 -m src.data_onboarding --command-bundles --lane ...` / `--command-bundle-details --lane ...` / `--command-bundle-runbook --lane ...` forms remain available when you explicitly want lower-level scripting control.
 
 If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:
 
 ```bash
-python3 -m src.data_onboarding --command-bundles --lane prices --scope broader_queue
-python3 -m src.data_onboarding --command-bundle-details --lane prices --scope broader_queue
-python3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue
 make bundle-prices-broader
 make detail-prices-broader
 make runbook-prices-broader
 ```
 
-The same `-broader` pattern is available for `fundamentals` and `peers`.
+The same `-broader` pattern is available for `fundamentals` and `peers`. The raw `--scope broader_queue` CLI forms remain available when you explicitly want the lower-level path.
 
 If you want a single-name follow-through instead of a holdings-first lane view, use the `focus-*` shortcuts. Each one prints both the ticker-level bundle detail row and the matching runbook for that ticker:
 

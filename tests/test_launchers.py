@@ -154,6 +154,9 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
     assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
     assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
+    assert "If you only want one lane at a time, use:\n\n```bash\nmake bundle-prices\nmake bundle-fundamentals\nmake bundle-peers" in readme
+    assert "make runbook-prices\nmake runbook-fundamentals\nmake runbook-peers" in readme
+    assert "If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:\n\n```bash\nmake bundle-prices-broader\nmake detail-prices-broader\nmake runbook-prices-broader" in readme
     assert "To validate your local CSV datasets and see schema/freshness warnings:\n\n```bash\nmake validate-data" in readme
     assert "To scaffold header-only local enrichment templates without fabricating any production data:\n\n```bash\nmake templates" in readme
     assert "make imports-validate" in readme
