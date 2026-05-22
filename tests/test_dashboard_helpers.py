@@ -2503,6 +2503,27 @@ def test_overview_deep_research_priority_bridge_cards_keep_staged_peer_command_w
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_priority_bridge_cards_use_review_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "AMD"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "theme": "Semis",
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_priority_bridge_cards(holdings, sec_queue, None, limit=1)
+
+    assert cards[0]["kicker"] == "AMD"
+    assert "review fundamentals path." in cards[0]["body"].lower()
+    assert cards[0]["command_reason"].lower() == "review fundamentals path."
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_deep_research_priority_bridge_cards_handle_missing_inputs_gracefully():
     cards = dashboard.overview_deep_research_priority_bridge_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -2594,7 +2615,7 @@ def test_overview_deep_research_handoff_cards_keep_staged_peer_reason_and_comman
     assert cards[1]["title"] == "make imports-validate"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
-    assert "live local peer inputs" in rendered
+    assert "make status-check top_n=5" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

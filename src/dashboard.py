@@ -4633,6 +4633,7 @@ def overview_deep_research_priority_bridge_cards(
         for _, row in rows.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True]).iterrows():
             ticker = format_missing(row.get("ticker"), "Ticker")
             fallback_command = ticker_focus_command(lane_fallback, ticker, fallback="") if lane_fallback else ""
+            fallback_action = "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path."
             priority_rows.append(
                 {
                     "ticker": ticker,
@@ -4641,7 +4642,11 @@ def overview_deep_research_priority_bridge_cards(
                     "is_holding": bool(row.get("is_holding")),
                     "priority": float(row.get("priority", 999)),
                     "next_surface": next_surface,
-                    "recommended_action": compact_reason(row.get("recommended_action"), max_sentences=1, max_chars=140),
+                    "recommended_action": compact_reason(
+                        row.get("recommended_action") or fallback_action,
+                        max_sentences=1,
+                        max_chars=140,
+                    ),
                     "command": preferred_row_command(row, fallback_command or "Not available"),
                 }
             )
