@@ -2981,15 +2981,15 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
     return [
         {
             "Dashboard Label": "Not enough price history",
-            "What to do": "Run `make price-refresh`, or normalize verified downloaded OHLCV files before validate/preview/apply.",
+            "What to do": "Start with `make status`, then use the first `make focus-price TICKER=...` or `make runbook-prices-broader` path it prints. For downloaded files, use `make price-normalize` before validate/preview/apply.",
         },
         {
             "Dashboard Label": "Needs SEC enrichment",
-            "What to do": "Use SEC staging for fundamentals, then validate and preview before applying.",
+            "What to do": "Use `make focus-fundamentals TICKER=...` or the fundamentals runbook path from `make status`, then validate and preview before applying.",
         },
         {
             "Dashboard Label": "Needs peers.csv",
-            "What to do": "Add manually researched peer mappings through `data/imports/peers.csv`.",
+            "What to do": "Use `make focus-peers TICKER=...` or the peer runbook path from `make status`, then add manually researched mappings through `data/imports/peers.csv`.",
         },
         {
             "Dashboard Label": "Needs earnings.csv",
@@ -3006,6 +3006,10 @@ def workflow_command_rows() -> list[dict[str, str]]:
     return [
         {"Step": "Command menu", "Command": "make help"},
         {"Step": "Read-only status", "Command": "make status"},
+        {"Step": "Single-name price fix", "Command": "make focus-price TICKER=NVDA"},
+        {"Step": "Single-name fundamentals fix", "Command": "make focus-fundamentals TICKER=NVDA"},
+        {"Step": "Single-name peers fix", "Command": "make focus-peers TICKER=NVDA"},
+        {"Step": "Broader price runbook", "Command": "make runbook-prices-broader"},
         {"Step": "Deterministic verification", "Command": "make verify"},
         {"Step": "Extended validation", "Command": "make validate-all"},
         {"Step": "Dashboard smoke check", "Command": "make dashboard-smoke"},
@@ -3049,9 +3053,9 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
 
 def empty_state_command_rows() -> list[dict[str, str]]:
     return [
-        {"Scenario": "No local prices or short history", "Next step": "make price-refresh or make price-normalize INPUT=... TICKER=... SOURCE=..."},
-        {"Scenario": "No local fundamentals for valuation", "Next step": "make sec-stage TICKERS=NVDA,MSFT then make sec-preview"},
-        {"Scenario": "No peer-relative context", "Next step": "make templates, fill peers.csv locally, then validate/preview/apply"},
+        {"Scenario": "No local prices or short history", "Next step": "make status, then use the first make focus-price TICKER=... or make runbook-prices-broader path. For downloaded files, use make price-normalize INPUT=... TICKER=... SOURCE=..."},
+        {"Scenario": "No local fundamentals for valuation", "Next step": "make status, then use make focus-fundamentals TICKER=... or make runbook-fundamentals-broader, then validate/preview/apply"},
+        {"Scenario": "No peer-relative context", "Next step": "make status, then use make focus-peers TICKER=... or make runbook-peers-broader, or run make templates and fill peers.csv locally"},
         {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
         {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then come back to preview/apply"},
     ]

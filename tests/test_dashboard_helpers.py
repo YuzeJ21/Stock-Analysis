@@ -3094,6 +3094,10 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert any("price history" in row["Dashboard Label"].lower() for row in missing_rows)
     assert any(row["Command"] == "make help" for row in workflow_rows)
     assert any(row["Command"] == "make status" for row in workflow_rows)
+    assert any(row["Command"] == "make focus-price TICKER=NVDA" for row in workflow_rows)
+    assert any(row["Command"] == "make focus-fundamentals TICKER=NVDA" for row in workflow_rows)
+    assert any(row["Command"] == "make focus-peers TICKER=NVDA" for row in workflow_rows)
+    assert any(row["Command"] == "make runbook-prices-broader" for row in workflow_rows)
     assert any(row["Command"] == "make verify" for row in workflow_rows)
     assert any(row["Command"] == "make validate-all" for row in workflow_rows)
     assert any(row["Command"] == "make dashboard-smoke" for row in workflow_rows)
@@ -3101,8 +3105,10 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "overview tab" in nav_rendered
     assert "monthly picks tab" in nav_rendered
     assert "data health tab" in nav_rendered
+    assert "make status" in empty_rendered
+    assert "make focus-price" in empty_rendered
     assert "price-normalize" in empty_rendered
-    assert "sec-stage" in empty_rendered
+    assert "make focus-fundamentals" in empty_rendered
     assert "peers.csv" in empty_rendered
     assert "place_order" not in rendered
     assert "submit_order" not in rendered
