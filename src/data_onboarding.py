@@ -667,6 +667,51 @@ def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
     )
 
 
+def _peer_support_follow_through(
+    ticker: str,
+    peers: pd.DataFrame,
+    fundamentals: pd.DataFrame,
+    prices: pd.DataFrame,
+) -> tuple[str, str, str, str]:
+    if peers.empty or "ticker" not in peers.columns or "peer_ticker" not in peers.columns:
+        return (
+            _peer_action_text(ticker, missing_mapping=False),
+            "data/imports/fundamentals.csv, data/imports/prices.csv",
+            focus_command_for_ticker("peers", ticker),
+            "make status",
+        )
+
+    peer_rows = peers.loc[peers["ticker"].astype(str).str.upper().str.strip() == ticker].copy()
+    peer_tickers = sorted(set(peer_rows.get("peer_ticker", pd.Series(dtype=object)).dropna().astype(str).str.upper().str.strip()) - {ticker})
+    fundamental_tickers = _ticker_set(fundamentals)
+    price_tickers = _ticker_set(prices)
+
+    for peer in peer_tickers:
+        peer_row = _select_row(fundamentals, peer)
+        if peer not in fundamental_tickers:
+            return (
+                f"Run make focus-fundamentals TICKER={peer} to stage missing peer fundamentals needed for {ticker}'s peer-relative context.",
+                "data/imports/fundamentals.csv",
+                focus_command_for_ticker("fundamentals", peer),
+                f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {peer}",
+            )
+        has_peer_market_context = peer in price_tickers or _has_number(peer_row, "market_cap")
+        if not has_peer_market_context:
+            return (
+                f"Run make focus-price TICKER={peer} to add missing peer price history needed for {ticker}'s peer-relative context.",
+                "data/imports/prices.csv",
+                focus_command_for_ticker("prices", peer),
+                f"make price-normalize INPUT=data/raw/prices/{peer}.csv TICKER={peer} SOURCE=yahoo_manual",
+            )
+
+    return (
+        _peer_action_text(ticker, missing_mapping=False),
+        "data/imports/fundamentals.csv, data/imports/prices.csv",
+        focus_command_for_ticker("peers", ticker),
+        "make status",
+    )
+
+
 def _earnings_action_text() -> str:
     return "Run make templates, then fill data/imports/earnings.csv manually only if you have a trusted source."
 
@@ -862,13 +907,17 @@ def build_ticker_coverage(
                 f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {provisional.ticker}"
             )
         elif not provisional.has_peer_mapping or not provisional.peer_ready:
-            provisional.target_file = (
-                "data/imports/peers.csv"
-                if not provisional.has_peer_mapping
-                else "data/imports/fundamentals.csv, data/imports/prices.csv"
-            )
-            provisional.focus_command = focus_command_for_ticker("peers", provisional.ticker)
-            provisional.example_command = "make templates" if not provisional.has_peer_mapping else "python3 -m src.stock_report --validate-local-data"
+            if not provisional.has_peer_mapping:
+                provisional.target_file = "data/imports/peers.csv"
+                provisional.focus_command = focus_command_for_ticker("peers", provisional.ticker)
+                provisional.example_command = "make templates"
+            else:
+                (
+                    provisional.next_best_action,
+                    provisional.target_file,
+                    provisional.focus_command,
+                    provisional.example_command,
+                ) = _peer_support_follow_through(provisional.ticker, peers, fundamentals, prices)
         elif not provisional.has_earnings:
             provisional.target_file = "data/imports/earnings.csv"
             provisional.focus_command = "make templates"
@@ -934,10 +983,10 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="peers",
                     status="partial",
                     reason=_peer_onboarding_reason(row),
-                    recommended_action=_peer_action_text(row.ticker, missing_mapping=False),
-                    target_file="data/imports/fundamentals.csv, data/imports/prices.csv",
-                    focus_command=focus_command_for_ticker("peers", row.ticker),
-                    example_command="python3 -m src.stock_report --validate-local-data",
+                    recommended_action=row.next_best_action,
+                    target_file=row.target_file,
+                    focus_command=row.focus_command,
+                    example_command=row.example_command,
                 )
             )
         if not row.has_earnings:
@@ -1208,21 +1257,23 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
             recommended_action = _fundamentals_action_text(coverage.ticker)
         elif not coverage.has_peer_mapping or not coverage.peer_ready:
             priority = 2
-            recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
+            recommended_action = coverage.next_best_action
         else:
             priority = 3
             recommended_action = "Review local fundamentals and peer inputs for completeness."
 
-        target_file = "data/imports/fundamentals.csv" if not coverage.dcf_ready else "data/imports/peers.csv"
+        target_file = coverage.target_file if coverage.dcf_ready else "data/imports/fundamentals.csv"
         example_command = (
             f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
             if not coverage.dcf_ready
-            else "make templates"
+            else coverage.example_command
         )
         safe_next_step = (
             "Review staged SEC-derived fundamentals before import merge; keep unavailable fields blank."
             if not coverage.dcf_ready
-            else "Use data/imports/peers.csv for manual peer mappings and keep peer-relative gaps explicit."
+            else (
+                "Use data/imports/peers.csv for manual peer mappings; when mappings already exist, finish the staged peer-data follow-through without guessing missing context."
+            )
         )
         rows.append(
             FundamentalsPeerWorklistRow(
@@ -1239,7 +1290,7 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
                 focus_command=(
                     focus_command_for_ticker("fundamentals", coverage.ticker)
                     if not coverage.dcf_ready
-                    else focus_command_for_ticker("peers", coverage.ticker)
+                    else coverage.focus_command
                 ),
                 example_command=example_command,
                 safe_next_step=safe_next_step,
@@ -1372,6 +1423,16 @@ def build_peer_mapping_queue(
         else:
             priority = 4
         recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
+        target_file = "data/imports/peers.csv"
+        focus_command = focus_command_for_ticker("peers", coverage.ticker)
+        example_command = "make templates"
+        safe_next_step = "Use only manually researched peers, then validate and preview before apply; do not guess peer sets."
+        if coverage.has_peer_mapping:
+            recommended_action = coverage.next_best_action
+            target_file = coverage.target_file
+            focus_command = coverage.focus_command
+            example_command = coverage.example_command
+            safe_next_step = "Finish the staged peer-data follow-through for this mapped peer set before relying on peer-relative valuation."
         rows.append(
             PeerMappingQueueRow(
                 priority=priority,
@@ -1384,10 +1445,10 @@ def build_peer_mapping_queue(
                 peer_ready=coverage.peer_ready,
                 missing_required_for_peer_relative=coverage.missing_required_for_peer_relative,
                 recommended_action=recommended_action,
-                target_file="data/imports/peers.csv",
-                focus_command=focus_command_for_ticker("peers", coverage.ticker),
-                example_command="make templates",
-                safe_next_step="Use only manually researched peers, then validate and preview before apply; do not guess peer sets.",
+                target_file=target_file,
+                focus_command=focus_command,
+                example_command=example_command,
+                safe_next_step=safe_next_step,
             )
         )
     return sorted(rows, key=lambda item: (item.priority, not item.is_holding, item.ticker))
@@ -1439,11 +1500,13 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
         elif not coverage.peer_ready:
             current_unlock_stage = "peers"
             next_unlock_goal = "Unlock Peer Relative"
-            recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
-            target_file = "data/imports/peers.csv"
-            focus_command = focus_command_for_ticker("peers", coverage.ticker)
-            example_command = "make templates"
-            safe_next_step = "Use manually researched peers only; missing peer context should stay explicit."
+            recommended_action = coverage.next_best_action
+            target_file = coverage.target_file
+            focus_command = coverage.focus_command
+            example_command = coverage.example_command
+            safe_next_step = (
+                "Use manually researched peers only; when mappings already exist, finish the staged peer-data follow-through and keep missing peer context explicit."
+            )
         elif not coverage.has_earnings or not coverage.has_analyst_estimates:
             current_unlock_stage = "optional_context"
             next_unlock_goal = "Add Optional Context"
@@ -1834,12 +1897,12 @@ def build_command_bundle_details(
                     fallback_manual_command = ""
                     exact_next_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
                 elif bundle.lane == "peers":
-                    recommended_action = _peer_action_text(ticker, missing_mapping=not coverage.has_peer_mapping)
+                    recommended_action = coverage.next_best_action
                     target_goal = "Unlock Peer Relative"
                     target_history_rows = 0
                     suggested_start_date = ""
                     fallback_manual_command = ""
-                    exact_next_command = "make templates"
+                    exact_next_command = str(coverage.example_command or "")
                 else:
                     target_history_rows = 0
                     suggested_start_date = ""

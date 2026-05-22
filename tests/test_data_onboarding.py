@@ -101,8 +101,8 @@ def test_data_onboarding_coverage_works_with_local_fixtures(tmp_path: Path):
         "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize "
         "verified downloaded OHLCV files into data/imports/prices.csv."
     )
-    assert "make focus-peers TICKER=NVDA" in coverage["NVDA"]["next_best_action"]
-    assert "peer-relative valuation" in coverage["NVDA"]["next_best_action"]
+    assert "make focus-fundamentals TICKER=AMD" in coverage["NVDA"]["next_best_action"]
+    assert "peer-relative context" in coverage["NVDA"]["next_best_action"]
 
 
 def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimates(tmp_path: Path):
@@ -163,10 +163,10 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert amd["focus_command"] == "make focus-price TICKER=AMD"
     assert amd["target_file"] == "data/imports/prices.csv"
     assert "make price-normalize" in amd["example_command"]
-    assert nvda["focus_command"] == "make focus-peers TICKER=NVDA"
-    assert nvda["target_file"] == "data/imports/fundamentals.csv, data/imports/prices.csv"
-    assert "validate-local-data" in nvda["example_command"]
-    assert "staged local import workflows" in nvda["next_best_action"]
+    assert nvda["focus_command"] == "make focus-fundamentals TICKER=AMD"
+    assert nvda["target_file"] == "data/imports/fundamentals.csv"
+    assert nvda["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
+    assert "missing peer fundamentals needed for NVDA" in nvda["next_best_action"]
 
 
 def test_optional_context_worklist_surfaces_template_focus_command(tmp_path: Path):
@@ -421,7 +421,8 @@ def test_fundamentals_peer_worklist_prioritizes_dcf_then_peer_gaps(tmp_path: Pat
     assert worklist["NVDA"]["priority"] == 2
     assert worklist["NVDA"]["dcf_ready"] is True
     assert worklist["NVDA"]["peer_ready"] is False
-    assert worklist["NVDA"]["focus_command"] == "make focus-peers TICKER=NVDA"
+    assert worklist["NVDA"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
+    assert worklist["NVDA"]["target_file"] == "data/imports/fundamentals.csv"
 
 
 def test_data_onboarding_cli_optional_context_worklist_json(tmp_path: Path, capsys):
@@ -491,7 +492,7 @@ def test_fundamentals_peer_worklist_uses_richer_operator_wording(tmp_path: Path)
     worklist = {row["ticker"]: row for row in payload["fundamentals_peer_worklist"]}
 
     assert "make focus-fundamentals TICKER=AMD" in worklist["AMD"]["recommended_action"]
-    assert "make focus-peers TICKER=NVDA" in worklist["NVDA"]["recommended_action"]
+    assert "make focus-fundamentals TICKER=AMD" in worklist["NVDA"]["recommended_action"]
 
 
 def test_onboarding_actions_use_peer_templates_and_transparent_wording(tmp_path: Path):
@@ -521,7 +522,7 @@ def test_data_onboarding_cli_peer_mapping_queue_json(tmp_path: Path, capsys):
     assert "peer_mapping_queue" in payload
     assert payload["peer_mapping_queue"][0]["ticker"] == "NVDA"
     assert "missing_required_for_peer_relative" in payload["peer_mapping_queue"][0]
-    assert payload["peer_mapping_queue"][0]["focus_command"] == "make focus-peers TICKER=NVDA"
+    assert payload["peer_mapping_queue"][0]["focus_command"] == "make focus-fundamentals TICKER=AMD"
 
 
 def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target_file(tmp_path: Path, capsys):
@@ -537,7 +538,7 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
     assert "peer mapping queue" in output
     assert "focus: make focus-peers ticker=amd" in output
     assert "command:" in output
-    assert "make templates" in output
+    assert "sec-stage-fundamentals --tickers amd" in output
     assert "target_file: data/imports/peers.csv" in output
 
 
@@ -550,8 +551,9 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert queue["NVDA"]["priority"] == 1
     assert queue["NVDA"]["is_holding"] is True
     assert queue["NVDA"]["dcf_ready"] is True
-    assert queue["NVDA"]["focus_command"] == "make focus-peers TICKER=NVDA"
-    assert "make focus-peers TICKER=NVDA" in queue["NVDA"]["recommended_action"]
+    assert queue["NVDA"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
+    assert queue["NVDA"]["target_file"] == "data/imports/fundamentals.csv"
+    assert "make focus-fundamentals TICKER=AMD" in queue["NVDA"]["recommended_action"]
 
 
 def test_optional_context_worklist_keeps_optional_gaps_lower_priority(tmp_path: Path):
@@ -599,9 +601,9 @@ def test_ticker_unlock_ladder_orders_price_then_peer_then_optional(tmp_path: Pat
     assert ladder["AMD"]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
     assert ladder["NVDA"]["current_unlock_stage"] == "peers"
     assert ladder["NVDA"]["next_unlock_goal"] == "Unlock Peer Relative"
-    assert ladder["NVDA"]["focus_command"] == "make focus-peers TICKER=NVDA"
-    assert "make focus-peers TICKER=NVDA" in ladder["NVDA"]["recommended_action"]
-    assert ladder["NVDA"]["example_command"] == "make templates"
+    assert ladder["NVDA"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
+    assert "make focus-fundamentals TICKER=AMD" in ladder["NVDA"]["recommended_action"]
+    assert ladder["NVDA"]["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
 
 
 def test_data_onboarding_cli_unlock_summary_json(tmp_path: Path, capsys):
@@ -991,8 +993,8 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
     assert peer_detail["is_holding"] is True
     assert peer_detail["current_unlock_stage"] == "peers"
     assert peer_detail["target_goal"] == "Unlock Peer Relative"
-    assert peer_detail["exact_next_command"] == "make templates"
-    assert "make focus-peers TICKER=NVDA" in peer_detail["recommended_action"]
+    assert peer_detail["exact_next_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
+    assert "make focus-fundamentals TICKER=AMD" in peer_detail["recommended_action"]
 
 
 def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path: Path):
