@@ -1650,6 +1650,30 @@ def test_top_priority_signals_use_lane_front_doors_when_commands_are_missing():
     assert signals[1]["command"] == "make action-queue-check TOP_N=10"
 
 
+def test_top_priority_signals_use_review_fallback_when_row_copy_is_missing():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "AMD",
+                "title": "Repair prices",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    signals = dashboard.top_priority_signals(queue, limit=1)
+
+    assert signals[0]["title"] == "make focus-price TICKER=AMD"
+    assert "review price path." in signals[0]["body"].lower()
+    assert "not available" not in signals[0]["body"].lower()
+
+
 def test_operator_summary_helpers_normalize_legacy_status_copy():
     queue = pd.DataFrame(
         [
@@ -4686,6 +4710,41 @@ def test_data_health_action_path_cards_use_lane_and_queue_front_doors_when_comma
     assert "make focus-fundamentals ticker=amd" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_action_path_cards_use_review_fallback_when_row_copy_is_missing():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "dataset": "peers",
+                "ticker": "AMD",
+                "reason": "",
+                "recommended_action": "",
+            }
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "",
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_action_path_cards(actions, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "make focus-price TICKER=NVDA"
+    assert "review price path." in cards[0]["body"].lower()
+    assert any("review peer path." in str(card.get("body", "")).lower() for card in cards)
+    assert "not available" not in rendered
 
 
 def test_data_health_command_bundle_cards_surface_holdings_first_commands():

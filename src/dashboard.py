@@ -1756,6 +1756,19 @@ def normalize_operator_copy(text: object) -> str:
     return re.sub(r"\bmake status\b(?!-check)", "make status-check TOP_N=5", normalized)
 
 
+def review_path_fallback(dataset: object) -> str:
+    lowered = format_missing(dataset, fallback="").strip().lower()
+    if lowered in {"fundamentals", "dcf", "sec"}:
+        return "Review fundamentals path."
+    if lowered in {"peers", "peer", "peer_relative"}:
+        return "Review peer path."
+    if lowered in {"prices", "price", "price_history"}:
+        return "Review price path."
+    if lowered in {"optional_context", "context"}:
+        return "Review optional context path."
+    return "Review local data coverage."
+
+
 def _badge(text: object, tone: str = "neutral") -> str:
     foreground, background = BADGE_COLORS.get(tone, BADGE_COLORS["neutral"])
     label = format_missing(text)
@@ -2571,9 +2584,11 @@ def data_health_action_path_cards(
     def _action_path_body(row: pd.Series) -> str:
         reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
-        body_source = recommended_action
+        body_source = review_path_fallback(row.get("dataset"))
         if reason and reason != "Not available":
             body_source = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
+        elif recommended_action and recommended_action != "Not available":
+            body_source = recommended_action
         return compact_reason(body_source, max_sentences=2, max_chars=220)
 
     def _fallback_card() -> list[dict[str, object]]:
@@ -6010,9 +6025,11 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
     for _, row in ordered.iterrows():
         reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
-        body_source = reason
+        body_source = review_path_fallback(row.get("action_type"))
         if recommended_action and recommended_action != reason:
             body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
+        elif reason and reason != "Not available":
+            body_source = reason
         rows.append(
             {
                 "kicker": str(row.get("urgency", "Action")).upper(),
