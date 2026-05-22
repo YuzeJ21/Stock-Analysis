@@ -157,6 +157,45 @@ def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path)
     assert any("at least 21 are needed" in row["reason"].lower() for row in price_rows)
 
 
+def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_rows():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(
+            [
+                {
+                    "priority": 2,
+                    "ticker": "AMD",
+                    "dataset": "fundamentals",
+                    "status": "missing_or_incomplete",
+                    "reason": "No local fundamentals row is present for this ticker yet.",
+                    "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
+                    "target_file": "data/imports/fundamentals.csv",
+                    "focus_command": "make focus-fundamentals TICKER=AMD",
+                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD",
+                }
+            ]
+        ),
+        data_gaps=pd.DataFrame(
+            [
+                {
+                    "dataset": "fundamentals",
+                    "ticker": "AMD",
+                    "status": "partial",
+                    "reason": "No local fundamentals row was found for AMD.",
+                    "recommended_action": "Run SEC staging for fundamentals, then validate, preview, and apply the staged import.",
+                    "local_file": "data/fundamentals.csv",
+                }
+            ]
+        ),
+        data_quality=pd.DataFrame(),
+    )
+
+    fundamentals_row = next(row for row in rows if row.action_type == "fundamentals" and row.ticker == "AMD")
+    assert fundamentals_row.title == "Stage fundamentals for AMD"
+    assert fundamentals_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
+    assert fundamentals_row.source_artifact == "outputs/data_onboarding_actions.csv"
+
+
 def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: Path):
     outputs_dir = tmp_path / "outputs"
     data_dir = tmp_path / "data"

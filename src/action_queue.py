@@ -94,12 +94,35 @@ def _onboarding_title(dataset: str, ticker: str, status: str) -> str:
     return f"Improve {dataset} coverage{ticker_suffix}".strip()
 
 
+def _source_rank(item: ActionQueueItem) -> int:
+    source_order = {
+        "outputs/price_update_status.csv": 0,
+        "outputs/data_onboarding_actions.csv": 1,
+        "outputs/data_quality_wizard.csv": 2,
+        "outputs/data_gap_report.csv": 3,
+    }
+    return source_order.get(item.source_artifact, 9)
+
+
+def _example_command_rank(item: ActionQueueItem) -> int:
+    command = (item.example_command or "").strip().lower()
+    if not command:
+        return 9
+    if command == "make onboarding":
+        return 4
+    if command == "make daily":
+        return 5
+    return 0
+
+
 def _dedupe(items: list[ActionQueueItem]) -> list[ActionQueueItem]:
     best_by_key: dict[tuple[str, str], ActionQueueItem] = {}
     for item in items:
         key = (item.action_type, item.ticker or item.title)
         current = best_by_key.get(key)
-        if current is None or (item.priority, item.urgency, item.title) < (current.priority, current.urgency, current.title):
+        item_rank = (item.priority, _source_rank(item), _example_command_rank(item), item.urgency, item.title)
+        current_rank = None if current is None else (current.priority, _source_rank(current), _example_command_rank(current), current.urgency, current.title)
+        if current is None or item_rank < current_rank:
             best_by_key[key] = item
     return sorted(best_by_key.values(), key=lambda item: (item.priority, item.ticker or "ZZZ", item.action_type, item.title))
 
