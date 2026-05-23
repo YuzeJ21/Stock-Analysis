@@ -9049,7 +9049,7 @@ def test_overview_command_bundle_cards_use_review_fallback_when_summaries_are_mi
     cards = dashboard.overview_command_bundle_cards(bundles)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -9252,9 +9252,9 @@ def test_bundle_runbook_cards_use_first_usable_step_command_for_fallback_copy():
     overview_cards = dashboard.overview_bundle_runbook_cards(runbook)
 
     assert data_health_cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in data_health_cards[0]["body"].lower()
+    assert "ordered lane runbook" in data_health_cards[0]["body"].lower()
     assert overview_cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in overview_cards[0]["body"].lower()
+    assert "ordered lane runbook" in overview_cards[0]["body"].lower()
     assert "not available" not in " ".join(str(value) for card in data_health_cards + overview_cards for value in card.values()).lower()
 
 
