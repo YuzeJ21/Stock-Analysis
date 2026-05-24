@@ -163,6 +163,9 @@ def _normalize_operator_example_command(command: object) -> str:
 LIQUIDITY_COLUMNS = [
     "Ticker",
     "LiquidityStatus",
+    "LiquidityScore",
+    "LiquidityInputsUsed",
+    "LiquidityBlindSpots",
     "AvgVolume20D",
     "AvgDollarVolume20D",
     "LatestClose",
@@ -176,6 +179,8 @@ LIQUIDITY_COLUMNS = [
 CORRELATION_COLUMNS = [
     "Ticker",
     "CorrelationStatus",
+    "CorrelationMethod",
+    "ReturnType",
     "MostCorrelatedTicker",
     "Correlation",
     "OverlapDays",
@@ -216,6 +221,40 @@ def _normalize_prices(prices: pd.DataFrame) -> pd.DataFrame:
     frame = frame.dropna(subset=["date", "ticker", "close", "volume"])
     frame = frame.loc[(frame["ticker"] != "") & frame["close"].gt(0) & frame["volume"].ge(0)].copy()
     return frame.sort_values(["ticker", "date"]).drop_duplicates(["date", "ticker"], keep="last")
+
+
+def _liquidity_score(
+    *,
+    history_rows: int,
+    avg_dollar_volume: float,
+    volume_trend: float,
+    volatility: float,
+) -> int:
+    if history_rows <= 0:
+        return 0
+    if history_rows < 20 or pd.isna(avg_dollar_volume):
+        return 20
+
+    if avg_dollar_volume >= 50_000_000:
+        score = 80
+    elif avg_dollar_volume >= 5_000_000:
+        score = 55
+    else:
+        score = 30
+
+    if pd.notna(volume_trend):
+        if volume_trend >= 0.25:
+            score += 8
+        elif volume_trend <= -0.35:
+            score -= 8
+
+    if pd.notna(volatility):
+        if volatility >= 0.06:
+            score -= 10
+        elif volatility <= 0.02:
+            score += 5
+
+    return max(0, min(100, int(round(score))))
 
 
 def _universe_tickers(universe: pd.DataFrame, holdings: pd.DataFrame | None = None) -> list[str]:
@@ -368,6 +407,9 @@ def build_liquidity_risk(prices: pd.DataFrame, tickers: list[str] | None = None)
                 {
                     "Ticker": ticker,
                     "LiquidityStatus": "Insufficient Price Data",
+                    "LiquidityScore": 0,
+                    "LiquidityInputsUsed": "local close and volume",
+                    "LiquidityBlindSpots": "bid-ask spread, order book depth, float turnover, market-impact estimate",
                     "AvgVolume20D": float("nan"),
                     "AvgDollarVolume20D": float("nan"),
                     "LatestClose": float("nan"),
@@ -389,6 +431,12 @@ def build_liquidity_risk(prices: pd.DataFrame, tickers: list[str] | None = None)
         five_day_avg = float(frame.tail(5)["volume"].mean()) if len(frame) >= 5 else float("nan")
         volume_trend = five_day_avg / avg_volume - 1 if avg_volume and pd.notna(five_day_avg) and pd.notna(avg_volume) else float("nan")
         volatility = float(frame["close"].pct_change().dropna().tail(20).std(ddof=0)) if len(frame) >= 2 else float("nan")
+        liquidity_score = _liquidity_score(
+            history_rows=len(window),
+            avg_dollar_volume=avg_dollar_volume,
+            volume_trend=volume_trend,
+            volatility=volatility,
+        )
 
         if len(window) < 20:
             status = "Insufficient Price Data"
@@ -403,6 +451,9 @@ def build_liquidity_risk(prices: pd.DataFrame, tickers: list[str] | None = None)
             {
                 "Ticker": ticker,
                 "LiquidityStatus": status,
+                "LiquidityScore": liquidity_score,
+                "LiquidityInputsUsed": "local close and volume",
+                "LiquidityBlindSpots": "bid-ask spread, order book depth, float turnover, market-impact estimate",
                 "AvgVolume20D": avg_volume,
                 "AvgDollarVolume20D": avg_dollar_volume,
                 "LatestClose": float(latest["close"]),
@@ -433,6 +484,8 @@ def build_correlation_risk(
                 {
                     "Ticker": ticker,
                     "CorrelationStatus": "Insufficient Data",
+                    "CorrelationMethod": "Pearson",
+                    "ReturnType": "daily_pct_return",
                     "MostCorrelatedTicker": "",
                     "Correlation": float("nan"),
                     "OverlapDays": 0,
@@ -454,6 +507,8 @@ def build_correlation_risk(
                 {
                     "Ticker": ticker,
                     "CorrelationStatus": "Insufficient Data",
+                    "CorrelationMethod": "Pearson",
+                    "ReturnType": "daily_pct_return",
                     "MostCorrelatedTicker": "",
                     "Correlation": float("nan"),
                     "OverlapDays": 0,
@@ -503,6 +558,8 @@ def build_correlation_risk(
             {
                 "Ticker": ticker,
                 "CorrelationStatus": status,
+                "CorrelationMethod": "Pearson",
+                "ReturnType": "daily_pct_return",
                 "MostCorrelatedTicker": best_peer,
                 "Correlation": best_corr,
                 "OverlapDays": best_overlap,

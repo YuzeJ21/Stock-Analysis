@@ -31,6 +31,7 @@ OUTPUT_COLUMNS = [
     "RelativeReturnVsQQQ",
     "DistanceFrom50SMA",
     "ThemeStatus",
+    "MacroNarrativeCaution",
     "MissingDataFields",
     "Reason",
 ]
@@ -43,6 +44,11 @@ STATUS_SORT_ORDER = {
     "Broken": 4,
     "Insufficient Data": 5,
 }
+
+MACRO_NARRATIVE_CAUTION = (
+    "Do not treat headline yield moves as a fixed-causality explanation for equities; "
+    "identify the upstream growth, inflation, policy, liquidity, or positioning driver first."
+)
 
 
 def _empty_output() -> pd.DataFrame:
@@ -255,6 +261,7 @@ def run(
                 "RelativeReturnVsQQQ": rs_qqq,
                 "DistanceFrom50SMA": distance_from_50sma,
                 "ThemeStatus": status,
+                "MacroNarrativeCaution": MACRO_NARRATIVE_CAUTION,
                 "MissingDataFields": ", ".join(unique_missing),
                 "Reason": " ".join(reason_parts),
             }

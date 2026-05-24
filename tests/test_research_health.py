@@ -377,6 +377,9 @@ def test_liquidity_risk_calculates_context_without_recommendations():
     assert nvda["LiquidityStatus"] == "Liquid"
     assert thin["LiquidityStatus"] == "Thin / Needs Review"
     assert missing["LiquidityStatus"] == "Insufficient Price Data"
+    assert nvda["LiquidityScore"] >= thin["LiquidityScore"]
+    assert "local close and volume" in nvda["LiquidityInputsUsed"]
+    assert "bid-ask spread" in nvda["LiquidityBlindSpots"]
     assert frame["Reason"].str.contains("trade", case=False).sum() == 0
 
 
@@ -387,6 +390,8 @@ def test_correlation_risk_reports_high_comovement_and_insufficient_overlap():
     missing = frame.loc[frame["Ticker"] == "MISSING"].iloc[0]
 
     assert nvda["CorrelationStatus"] == "High Co-movement"
+    assert nvda["CorrelationMethod"] == "Pearson"
+    assert nvda["ReturnType"] == "daily_pct_return"
     assert nvda["MostCorrelatedTicker"] == "MSFT"
     assert nvda["OverlapDays"] >= 20
     assert missing["CorrelationStatus"] == "Insufficient Data"

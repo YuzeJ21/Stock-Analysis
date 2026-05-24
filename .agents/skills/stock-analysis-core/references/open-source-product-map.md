@@ -241,3 +241,10 @@ Mapping into this repo:
 - Attribute material inspiration in docs.
 - Do not add order execution, broker integration, or direct recommendation language.
 - Do not fabricate track records or performance claims.
+
+## Upstream Refresh Notes
+
+Last checked: 2026-05-24.
+
+- `himself65/finance-skills` was active in May 2026 and now gives more explicit structure around stock liquidity, stock correlation, SEPA, ETF premium, and SaaS valuation compression workflows. This repo integrated only the local, source-transparent liquidity and correlation concepts into `src/research_health.py`.
+- `himself65/trade-skills` was active in May 2026 and added macro/narrative pitfalls, including the warning that bond yields and equities are downstream of shared macro drivers rather than a fixed one-way causal rule. This repo integrated that as a Market Direction caution only; options structures, strike selection, and execution guidance remain excluded.

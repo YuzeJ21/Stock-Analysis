@@ -82,6 +82,8 @@ def test_report_generator_creates_outputs():
     conflict_rows = purpose.loc[purpose["ConflictFlag"].fillna(False).astype(bool)]
     assert conflict_rows["ConflictReasons"].fillna("").str.len().gt(0).all()
     assert "MissingDataFields" in market.columns
+    assert "MacroNarrativeCaution" in market.columns
+    assert market["MacroNarrativeCaution"].fillna("").str.contains("upstream", case=False).all()
     assert set(market["ThemeStatus"].dropna()) <= allowed_market_states
     assert set(momentum["SetupStatus"].dropna()) <= allowed_momentum_states
     assert set(portfolio["ReviewState"].dropna()) <= allowed_portfolio_states

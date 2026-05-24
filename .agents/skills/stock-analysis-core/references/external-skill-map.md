@@ -42,13 +42,17 @@ Relevant market-analysis concepts listed upstream:
   - partially covered through local CSV schemas, stock-report assembly, and structured earnings summaries
 - `estimate-analysis`
   - partially covered through analyst-estimate schemas and stock-report summaries
+- `stock-liquidity`
+  - covered through `src/research_health.py` as local close/volume liquidity context
+  - explicitly lists missing bid-ask spread, order book depth, float turnover, and market-impact inputs instead of guessing
+- `stock-correlation`
+  - covered through `src/research_health.py` as Pearson daily-return co-movement context
+  - remains concentration/risk context only, not pair-trading advice
 - `generative-ui`
   - partially reflected as dashboard/UI inspiration only
 
 ### Not implemented yet
 
-- `stock-correlation`
-- `stock-liquidity`
 - `options-payoff`
 - `sepa-strategy`
 - `etf-premium`
@@ -56,10 +60,10 @@ Relevant market-analysis concepts listed upstream:
 
 ### Safe future enhancements
 
-- `stock-correlation`
-  - research-only correlation and co-movement analysis
-- `stock-liquidity`
-  - research-only volume/spread/market-impact analysis
+- richer `stock-correlation`
+  - rolling/conditional correlations when enough local history exists
+- richer `stock-liquidity`
+  - spread, float-turnover, and market-impact estimates only when source-backed inputs exist
 - `options-payoff`
   - education-only payoff visualization
   - must require user-supplied legs or clearly labeled examples
@@ -101,6 +105,7 @@ Upstream positioning:
 - volatility-regime awareness as education
 - common options pitfalls
 - case-study style warnings
+- macro narrative discipline, such as treating yield/equity moves as shared-driver context rather than fixed causality
 
 ### Explicitly rejected for this project
 
