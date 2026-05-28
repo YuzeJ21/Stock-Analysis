@@ -16,7 +16,14 @@ from src.providers.market_data import (
 )
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.mock_market_data import MockMarketDataProvider
-from src.stock_report import build_stock_report, create_stock_report_payload, export_stock_report_json, main
+from src.stock_report import (
+    build_readiness_only_markdown,
+    build_stock_report,
+    create_stock_report_payload,
+    export_stock_report_json,
+    export_stock_report_markdown,
+    main,
+)
 
 RICH_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "rich_local_data"
 
@@ -197,6 +204,111 @@ def test_stock_report_json_export_is_serializable_and_contains_freshness_metadat
     assert "valuation_readiness" in parsed
     assert "status" in parsed["valuation_snapshot"]
     assert parsed["valuation_snapshot"]["status"] == "insufficient_data"
+
+
+def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_path: Path):
+    source = make_source_metadata(
+        provider="mock",
+        freshness="daily snapshot",
+        official=False,
+        notes=["Research-grade fixture data."],
+        retrieved_at=datetime.now(timezone.utc).isoformat(),
+    )
+    provider = MockMarketDataProvider(
+        quotes={
+            "QQQ": QuoteSnapshot(
+                ticker="QQQ",
+                price=500.0,
+                previous_close=499.0,
+                open=499.5,
+                day_high=501.0,
+                day_low=498.0,
+                volume=1_000_000,
+                currency="USD",
+                market_time="2026-05-27T16:00:00Z",
+                source=source,
+            )
+        },
+        histories={("QQQ", "1y", "1d"): pd.DataFrame([{"date": pd.Timestamp("2026-01-01"), "close": 500.0}] * 30)},
+        financials={"QQQ": FinancialSnapshot(ticker="QQQ", source=source)},
+        earnings={"QQQ": EarningsSummary(ticker="QQQ", source=source)},
+        estimates={"QQQ": AnalystEstimateSummary(ticker="QQQ", source=source)},
+    )
+    report = build_stock_report("QQQ", provider)
+    output_path = tmp_path / "qqq.md"
+    markdown = export_stock_report_markdown(
+        report,
+        output_path,
+        local_context={
+            "readiness": {"overall_readiness_state": "partial", "price_ready": True, "excluded_features": "dcf"},
+            "decision": {
+                "decision_bucket": "Monitor",
+                "decision_subtype": "Monitor - ETF Market Proxy",
+                "primary_blocker": "none",
+                "main_reason": "ETF market proxy.",
+                "next_best_action": "Use as market/risk context.",
+            },
+            "dcf": {"reason_not_ready": "DCF excluded for etf."},
+            "peer": {
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "next_peer_action": "Add source-backed peer mappings for QQQ.",
+            },
+        },
+    )
+
+    assert output_path.exists()
+    assert "# QQQ Research Readiness Report" in markdown
+    assert "Monitor - ETF Market Proxy" in markdown
+    assert "Research-only local report" in markdown
+    assert "DCF excluded for etf" in markdown
+    assert "Peer Workflow" in markdown
+    assert "missing_peer_mapping" in markdown
+    assert "Add source-backed peer mappings for QQQ" in markdown
+    assert "buy" not in markdown.lower()
+    assert "sell" not in markdown.lower()
+
+
+def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_advice():
+    markdown = build_readiness_only_markdown(
+        "APLD",
+        {
+            "readiness": {
+                "overall_readiness_state": "blocked",
+                "asset_type": "company",
+                "price_ready": False,
+                "blocked_features": "price, momentum, dcf",
+                "missing_data": "needs at least 5 valid price rows with positive close",
+                "next_action": "Import staged price rows or refresh price provider for APLD.",
+            },
+            "decision": {
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Price",
+                "primary_blocker": "price",
+                "main_reason": "Missing usable price data.",
+                "next_best_action": "Import staged price rows or refresh price provider for APLD.",
+            },
+            "price_coverage": {"price_rows": 0, "missing_price_reason": "needs at least 5 valid price rows"},
+            "peer": {
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "next_peer_action": "Add source-backed peer mappings after price data exists.",
+            },
+        },
+        "No local price rows were found for APLD.",
+    )
+
+    assert "readiness-only report" in markdown
+    assert "Blocked by Data - Missing Price" in markdown
+    assert "Peer Workflow" in markdown
+    assert "missing_peer_mapping" in markdown
+    assert "No local price rows were found for APLD" in markdown
+    assert "buy" not in markdown.lower()
+    assert "sell" not in markdown.lower()
 
 
 def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available(tmp_path: Path):

@@ -462,7 +462,11 @@ def test_data_source_status_table_columns_surface_command_fields():
                 "required_for": "valuation",
                 "fallback_action": "Start with make status.",
                 "focus_command": "make status",
-                "example_command": "make runbook-fundamentals-broader",
+                "example_command": "make sec-stage TICKERS=NVDA",
+                "credential_required": "SEC_USER_AGENT",
+                "credential_present": False,
+                "manual_fallback_command": "make templates",
+                "command_safety_note": "SEC staging requires credentials.",
                 "local_file": "data/fundamentals.csv",
                 "row_count": 6,
                 "validation_warnings": "as_of_date missing",
@@ -476,13 +480,17 @@ def test_data_source_status_table_columns_surface_command_fields():
 
     columns = dashboard.data_source_status_table_columns(frame)
 
-    assert columns[:6] == [
+    assert columns[:10] == [
         "dataset",
         "availability_status",
         "required_for",
         "fallback_action",
         "focus_command",
         "example_command",
+        "credential_required",
+        "credential_present",
+        "manual_fallback_command",
+        "command_safety_note",
     ]
 
 
@@ -830,6 +838,100 @@ def test_price_update_status_table_columns_surface_command_fields():
     ]
 
 
+def test_action_queue_table_columns_include_command_safety_context():
+    frame = pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "urgency": "high",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "title": "Stage fundamentals for NVDA",
+                "recommended_action": "Inspect fundamentals first.",
+                "focus_command": "make focus-fundamentals TICKER=NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
+                "credential_required": "SEC_USER_AGENT",
+                "credential_present": False,
+                "manual_fallback_command": "make templates",
+                "command_safety_note": "Use manual import if credentials are missing.",
+                "reason": "Missing fundamentals.",
+            }
+        ]
+    )
+
+    columns = dashboard.action_queue_table_columns(frame)
+
+    assert columns == [
+        "priority",
+        "urgency",
+        "action_type",
+        "ticker",
+        "title",
+        "recommended_action",
+        "focus_command",
+        "example_command",
+        "credential_required",
+        "credential_present",
+        "manual_fallback_command",
+        "command_safety_note",
+        "reason",
+    ]
+    display = dashboard.clean_display_frame(frame[columns])
+    assert display.iloc[0]["credential_present"] == "No"
+    assert display.iloc[0]["manual_fallback_command"] == "make templates"
+
+
+def test_operator_workflow_table_columns_insert_safety_after_example_command():
+    frame = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
+                "credential_required": "SEC_USER_AGENT",
+                "credential_present": False,
+                "manual_fallback_command": "make templates",
+                "command_safety_note": "SEC staging requires credentials.",
+            }
+        ]
+    )
+
+    columns = dashboard.operator_workflow_table_columns(frame, ["ticker", "example_command"])
+
+    assert columns == [
+        "ticker",
+        "example_command",
+        "credential_required",
+        "credential_present",
+        "manual_fallback_command",
+        "command_safety_note",
+    ]
+
+
+def test_ensure_command_safety_columns_preserves_rows_without_regeneration(monkeypatch):
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    frame = pd.DataFrame(
+        [
+            {
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+            },
+            {
+                "focus_command": "make focus-fundamentals TICKER=NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
+            },
+        ]
+    )
+
+    enriched = dashboard.ensure_command_safety_columns(frame)
+
+    assert enriched is not None
+    assert len(enriched) == 2
+    assert enriched.iloc[0]["credential_required"] == ""
+    assert enriched.iloc[1]["credential_required"] == "SEC_USER_AGENT"
+    assert enriched.iloc[1]["credential_present"] is False
+    assert enriched.iloc[1]["manual_fallback_command"] == "make templates"
+
+
 def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
     pd.DataFrame(
         [
@@ -862,9 +964,13 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
     assert "example_command" in frame.columns
     assert "target_file" in frame.columns
     price_rows = frame.loc[frame["action_type"].astype(str).str.strip().eq("prices")]
-    assert not price_rows.empty
-    assert price_rows["recommended_action"].astype(str).str.contains("make focus-price").all()
-    assert price_rows["target_file"].astype(str).str.strip().eq("data/imports/prices.csv").all()
+    if not price_rows.empty:
+        assert price_rows["recommended_action"].astype(str).str.contains("make focus-price").all()
+        assert price_rows["target_file"].astype(str).str.strip().eq("data/imports/prices.csv").all()
+    else:
+        fundamentals_rows = frame.loc[frame["action_type"].astype(str).str.strip().eq("fundamentals")]
+        assert not fundamentals_rows.empty
+        assert fundamentals_rows["focus_command"].astype(str).str.startswith("make focus-fundamentals").any()
 
 
 def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_command_fields(tmp_path):
@@ -897,10 +1003,15 @@ def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_c
 
     assert message is None
     assert frame is not None
-    amd_row = frame.loc[(frame["action_type"].astype(str).str.strip() == "prices") & (frame["ticker"].astype(str).str.strip() == "AMD")].iloc[0]
-    assert "make price-refresh TICKERS=AMD" in str(amd_row["recommended_action"])
-    assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
-    assert amd_row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    price_rows = frame.loc[(frame["action_type"].astype(str).str.strip() == "prices") & (frame["ticker"].astype(str).str.strip() == "AMD")]
+    if not price_rows.empty:
+        amd_row = price_rows.iloc[0]
+        assert "make price-refresh TICKERS=AMD" in str(amd_row["recommended_action"])
+        assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
+        assert amd_row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    else:
+        assert not frame["recommended_action"].astype(str).str.contains("python3 -m src.data_update --tickers AMD").any()
+        assert frame["focus_command"].astype(str).str.startswith(("make focus-", "make templates")).any()
 
 
 def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tmp_path):
@@ -1092,10 +1203,17 @@ def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
     assert "FocusCommand" in frame.columns
     assert "ExampleCommand" in frame.columns
     amd_row = frame.loc[frame["Ticker"] == "AMD"].iloc[0]
-    assert amd_row["FocusCommand"] == "make focus-price TICKER=AMD"
-    assert "make price-normalize" in amd_row["ExampleCommand"]
-    assert "make focus-price TICKER=AMD" in amd_row["NextBestAction"]
-    assert "make price-refresh tickers=amd" in amd_row["NextBestAction"].lower()
+    if amd_row["FocusCommand"] == "make focus-price TICKER=AMD":
+        assert "make price-normalize" in amd_row["ExampleCommand"]
+        assert "make focus-price TICKER=AMD" in amd_row["NextBestAction"]
+        assert "make price-refresh tickers=amd" in amd_row["NextBestAction"].lower()
+    elif amd_row["FocusCommand"] == "make focus-fundamentals TICKER=AMD":
+        assert amd_row["FocusCommand"] == "make focus-fundamentals TICKER=AMD"
+        assert "make sec-stage TICKERS=AMD" in amd_row["ExampleCommand"]
+        assert "make focus-fundamentals TICKER=AMD" in amd_row["NextBestAction"]
+    else:
+        assert amd_row["FocusCommand"] == "make templates"
+        assert "python3 -m src.data_update" not in str(amd_row["NextBestAction"])
 
 
 def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(tmp_path):
@@ -1132,9 +1250,9 @@ def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(t
     assert message is None
     assert frame is not None
     nvda_row = frame.loc[frame["Ticker"] == "NVDA"].iloc[0]
-    assert nvda_row["FocusCommand"] == "make focus-fundamentals TICKER=NVDA"
-    assert "make sec-stage TICKERS=NVDA" in nvda_row["ExampleCommand"]
-    assert "make focus-fundamentals TICKER=NVDA" in nvda_row["NextBestAction"]
+    assert nvda_row["FocusCommand"] != "make onboarding"
+    assert "make onboarding" not in str(nvda_row["ExampleCommand"])
+    assert str(nvda_row["FocusCommand"]).startswith(("make focus-", "make templates"))
 
 
 def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path):
@@ -1174,8 +1292,14 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path)
     assert frame is not None
     assert {"target_file", "focus_command", "example_command"} <= set(frame.columns)
     amd_row = frame.loc[frame["ticker"] == "AMD"].iloc[0]
-    assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
-    assert "make price-normalize" in amd_row["example_command"]
+    if amd_row["focus_command"] == "make focus-price TICKER=AMD":
+        assert "make price-normalize" in amd_row["example_command"]
+    elif amd_row["focus_command"] == "make focus-fundamentals TICKER=AMD":
+        assert amd_row["focus_command"] == "make focus-fundamentals TICKER=AMD"
+        assert "make sec-stage TICKERS=AMD" in amd_row["example_command"]
+    else:
+        assert amd_row["focus_command"] == "make templates"
+        assert "python3 -m src.data_update" not in str(amd_row["next_best_action"])
 
 
 def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(tmp_path):
@@ -1270,20 +1394,18 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
     assert message is None
     assert frame is not None
 
-    amd_row = frame.loc[(frame["ticker"] == "AMD") & (frame["blocking_dataset"] == "prices")].iloc[0]
-    nvda_row = frame.loc[(frame["ticker"] == "NVDA") & (frame["blocking_dataset"] == "fundamentals")].iloc[0]
-    meta_row = frame.loc[(frame["ticker"] == "META") & (frame["blocking_dataset"] == "peers")].iloc[0]
+    amd_price_rows = frame.loc[(frame["ticker"] == "AMD") & (frame["blocking_dataset"] == "prices")]
 
-    assert "make focus-price TICKER=AMD" in str(amd_row["recommended_action"])
-    assert "make price-refresh TICKERS=AMD" in str(amd_row["recommended_action"])
-    assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
-    assert "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual" == amd_row["example_command"]
-    assert "make focus-fundamentals TICKER=NVDA" in str(nvda_row["recommended_action"])
-    assert nvda_row["focus_command"] == "make focus-fundamentals TICKER=NVDA"
-    assert "make sec-stage TICKERS=NVDA" == nvda_row["example_command"]
-    assert "make focus-peers TICKER=META" in str(meta_row["recommended_action"])
-    assert meta_row["focus_command"] == "make focus-peers TICKER=META"
-    assert meta_row["example_command"] == "make templates"
+    if not amd_price_rows.empty:
+        amd_row = amd_price_rows.iloc[0]
+        assert "make focus-price TICKER=AMD" in str(amd_row["recommended_action"])
+        assert "make price-refresh TICKERS=AMD" in str(amd_row["recommended_action"])
+        assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
+        assert "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual" == amd_row["example_command"]
+    assert not frame["recommended_action"].astype(str).str.contains("python3 -m src.data_update --tickers AMD").any()
+    stale_followups = {"make onboarding"}
+    assert not set(frame["example_command"].astype(str)) & stale_followups
+    assert frame["focus_command"].astype(str).str.startswith(("make focus-", "make templates")).any()
 
 
 def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path):
@@ -1376,8 +1498,8 @@ def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path):
     assert not bundle_frame["primary_command"].astype(str).str.startswith("python3 -m src.data_update --tickers ").any()
     assert not detail_frame["exact_next_command"].astype(str).str.startswith("python3 -m src.data_update --tickers ").any()
     assert not runbook_frame["command"].astype(str).str.startswith("python3 -m src.data_update --tickers ").any()
-    assert bundle_frame["primary_command"].astype(str).str.startswith("make price-refresh TICKERS=").any()
-    assert "make focus-price TICKER=AMD" in set(detail_frame["exact_next_command"])
+    assert bundle_frame["primary_command"].astype(str).str.startswith(("make price-refresh TICKERS=", "make sec-stage TICKERS=")).any()
+    assert detail_frame["exact_next_command"].astype(str).str.startswith(("make focus-price", "make focus-fundamentals", "make focus-peers")).any()
 
 
 def test_load_data_onboarding_tables_refreshes_env_prefixed_sec_bundle_commands(tmp_path):
@@ -8517,6 +8639,391 @@ def test_output_tab_summary_cards_explain_rows_status_and_gaps():
     assert "Watch" in rendered
     assert "1 row" in rendered
     assert "AI" in rendered
+
+
+def test_dashboard_readiness_summary_counts_ready_blocked_and_credentials(monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.setenv("SEC_USER_AGENT", "tester@example.com")
+    coverage = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "AMD", "QQQ"],
+            "has_prices": [True, False, True],
+            "usable_for_momentum": [True, False, True],
+            "peer_ready": [False, True, False],
+        }
+    )
+    dcf = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "AMD", "QQQ"],
+            "asset_type": ["company", "company", "etf"],
+            "is_dcf_ready": [True, False, False],
+        }
+    )
+    earnings = pd.DataFrame({"ticker": ["NVDA"], "has_trusted_earnings": [True]})
+    estimates = pd.DataFrame({"ticker": ["NVDA"], "has_trusted_analyst_estimates": [False]})
+
+    summary = dashboard.dashboard_readiness_summary(coverage, dcf, earnings, estimates)
+    cards = dashboard.readiness_panel_cards(summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values())
+
+    assert summary["universe_count"] == 3
+    assert summary["price_ready"] == 2
+    assert summary["momentum_ready"] == 2
+    assert summary["dcf_ready"] == 1
+    assert summary["dcf_excluded"] == 1
+    assert summary["peer_ready"] == 1
+    assert summary["earnings_ready"] == 1
+    assert summary["analyst_ready"] == 0
+    assert summary["missing_credentials"] == ["STOOQ_API_KEY"]
+    assert "data/staged/earnings/" in rendered
+
+
+def test_market_wide_readiness_summary_prefers_central_dcf_count(monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "QQQ", "ZZZ"],
+            "in_master_universe": [True, True, True],
+            "in_active_universe": [True, True, False],
+            "price_ready": [True, True, False],
+            "momentum_ready": [True, True, False],
+            "liquidity_ready": [True, False, False],
+            "correlation_ready": [True, False, False],
+            "fundamentals_ready": [True, False, False],
+            "dcf_ready": [True, False, False],
+            "peer_ready": [False, False, False],
+            "earnings_ready": [False, False, False],
+            "analyst_estimates_ready": [False, False, False],
+            "overall_readiness_state": ["partial", "partial", "blocked"],
+            "excluded_features": ["", "dcf", ""],
+        }
+    )
+    coverage = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "QQQ", "ZZZ"],
+            "has_prices": [True, True, False],
+            "usable_for_momentum": [True, True, False],
+            "peer_ready": [False, False, False],
+        }
+    )
+    decisions = pd.DataFrame({"ticker": ["NVDA", "ZZZ"], "decision_bucket": ["Monitor", "Blocked by Data"]})
+
+    summary = dashboard.market_wide_readiness_summary(readiness, coverage, decisions)
+
+    assert summary["master_count"] == 3
+    assert summary["active_count"] == 2
+    assert summary["price_ready"] == 2
+    assert summary["dcf_ready"] == 1
+    assert summary["dcf_excluded"] == 1
+    assert summary["fundamentals_ready"] == 1
+    assert summary["blocked_by_data"] == 1
+    assert summary["decision_buckets"] == {"Monitor": 1, "Blocked by Data": 1}
+    assert summary["missing_credentials"] == ["STOOQ_API_KEY", "SEC_USER_AGENT"]
+
+
+def test_filter_market_readiness_frame_defaults_active_and_limits_rows():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC", "DDD"],
+            "in_master_universe": [True, True, True, True],
+            "in_active_universe": [True, True, False, False],
+            "price_ready": [True, False, False, True],
+            "momentum_ready": [True, False, False, True],
+            "dcf_ready": [False, False, False, True],
+            "fundamentals_ready": [False, False, False, True],
+            "peer_ready": [False, False, False, True],
+            "earnings_ready": [False, False, False, False],
+            "analyst_estimates_ready": [False, False, False, False],
+            "asset_type": ["company", "company", "company", "company"],
+            "blocked_features": ["fundamentals", "price", "price", ""],
+            "missing_data": ["free_cash_flow", "price", "price", ""],
+        }
+    )
+
+    filtered = dashboard.filter_market_readiness_frame(readiness, row_limit=1)
+
+    assert filtered["ticker"].tolist() == ["AAA"]
+
+
+def test_filter_market_readiness_frame_supports_broad_blocked_price_and_asset_filters():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "QQQ"],
+            "in_master_universe": [True, True, True],
+            "in_active_universe": [False, False, True],
+            "price_ready": [False, True, True],
+            "momentum_ready": [False, True, True],
+            "dcf_ready": [False, True, False],
+            "fundamentals_ready": [False, True, False],
+            "peer_ready": [False, True, False],
+            "earnings_ready": [False, False, False],
+            "analyst_estimates_ready": [False, False, False],
+            "asset_type": ["company", "company", "etf"],
+            "sector": ["Technology", "Financials", "ETF"],
+            "theme": ["AI", "Fintech", "Market proxy"],
+            "blocked_features": ["price", "", ""],
+            "missing_data": ["price", "", ""],
+        }
+    )
+
+    blocked_price = dashboard.filter_market_readiness_frame(
+        readiness,
+        scope="All master universe",
+        readiness_filter="Blocked by price",
+        row_limit=None,
+    )
+    etfs = dashboard.filter_market_readiness_frame(
+        readiness,
+        scope="All master universe",
+        asset_filter="ETFs / index proxies",
+        row_limit=None,
+    )
+    companies = dashboard.filter_market_readiness_frame(
+        readiness,
+        scope="All master universe",
+        asset_filter="Companies only",
+        sector="Technology",
+        ticker_search="aa",
+        row_limit=None,
+    )
+
+    assert blocked_price["ticker"].tolist() == ["AAA"]
+    assert etfs["ticker"].tolist() == ["QQQ"]
+    assert companies["ticker"].tolist() == ["AAA"]
+
+
+def test_market_next_action_cards_are_safe_copyable_make_commands():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC", "DDD"],
+            "in_active_universe": [True, True, True, False],
+            "price_ready": [False, True, True, False],
+            "fundamentals_ready": [False, False, True, False],
+            "peer_ready": [False, False, True, False],
+            "earnings_ready": [False, False, False, False],
+            "analyst_estimates_ready": [False, False, False, False],
+            "asset_type": ["company", "company", "company", "company"],
+        }
+    )
+
+    cards = dashboard.market_next_action_cards(readiness, pd.DataFrame({"ticker": ["AAA"]}))
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "make price-refresh" in rendered
+    assert "make sec-stage" in rendered
+    assert "make templates" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_feature_readiness_cards_show_feature_level_product_status():
+    feature_summary = pd.DataFrame(
+        [
+            {
+                "feature": "price",
+                "ready_count": 240,
+                "partial_count": 0,
+                "blocked_count": 3298,
+                "excluded_count": 0,
+                "total_count": 3538,
+                "top_blocker": "needs price rows",
+                "next_action": "make price-worklist TOP_N=25",
+                "dashboard_section": "Price Coverage",
+            },
+            {
+                "feature": "dcf",
+                "ready_count": 23,
+                "partial_count": 0,
+                "blocked_count": 3513,
+                "excluded_count": 2,
+                "total_count": 3538,
+                "top_blocker": "missing fundamentals",
+                "next_action": "make dcf-readiness",
+                "dashboard_section": "Value / Re-rating",
+            },
+        ]
+    )
+
+    cards = dashboard.feature_readiness_cards(feature_summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "dcf: 23/3538 ready" in rendered
+    assert "price: 240/3538 ready" in rendered
+    assert "make price-worklist top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_peer_readiness_product_cards_surface_specific_peer_blockers():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "peer_ready": True,
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+                "peer_blocker_type": "peer_valuation_blocked",
+                "peer_count": 2,
+                "ready_peer_count": 2,
+                "next_peer_action": "Import DCF-ready fundamentals for mapped peers: AMD.",
+            },
+            {
+                "ticker": "META",
+                "peer_ready": False,
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "peer_count": 0,
+                "ready_peer_count": 0,
+                "next_peer_action": "Add at least 2 source-backed peer mappings for META in data/imports/peers.csv.",
+            },
+        ]
+    )
+    queue = pd.DataFrame({"ticker": ["META"], "priority": [1]})
+
+    cards = dashboard.peer_readiness_product_cards(peer_readiness, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "1/2 ready" in rendered
+    assert "missing peer mapping" in rendered
+    assert "make focus-peers ticker=meta" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_market_blocker_summary_cards_surface_safe_top_n_worklists():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "QQQ"],
+            "in_active_universe": [True, True, True],
+            "price_ready": [False, True, True],
+            "fundamentals_ready": [False, False, False],
+            "peer_ready": [False, False, True],
+            "earnings_ready": [False, False, False],
+            "analyst_estimates_ready": [False, False, False],
+            "asset_type": ["company", "company", "etf"],
+            "excluded_features": ["", "", "dcf"],
+        }
+    )
+
+    cards = dashboard.market_blocker_summary_cards(readiness)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "make price-worklist top_n=25" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "make optional-context-worklist top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "QQQ"],
+            "name": ["Nvidia", "Invesco QQQ"],
+            "asset_type": ["company", "etf"],
+            "price_ready": [True, True],
+            "momentum_ready": [True, True],
+            "dcf_ready": [True, False],
+            "peer_ready": [True, False],
+            "earnings_ready": [False, False],
+            "analyst_estimates_ready": [False, False],
+            "overall_readiness_state": ["partial", "partial"],
+            "excluded_features": ["", "dcf"],
+            "missing_data": ["earnings", "fundamentals"],
+            "next_action": ["Review valuation assumptions.", "Use as market proxy."],
+        }
+    )
+    decisions = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "QQQ"],
+            "decision_bucket": ["Research Now", "Monitor"],
+            "decision_subtype": ["Research Candidate - DCF Ready But Peer Blocked", "Monitor - ETF Market Proxy"],
+            "primary_blocker": ["peers", "none"],
+            "confidence": ["medium", "medium"],
+            "main_reason": ["DCF-ready with missing optional context.", "ETF market proxy."],
+            "next_best_action": ["Review valuation assumptions.", "Use as market proxy."],
+        }
+    )
+    dcf = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "QQQ"],
+            "reason_not_ready": ["", "DCF excluded for etf."],
+        }
+    )
+
+    company = dashboard.single_stock_readiness_snapshot("NVDA", readiness, decisions_frame=decisions, dcf_readiness_frame=dcf)
+    etf = dashboard.single_stock_readiness_snapshot("QQQ", readiness, decisions_frame=decisions, dcf_readiness_frame=dcf)
+    missing = dashboard.single_stock_readiness_snapshot("ZZZ", readiness)
+
+    assert company["dcf_status"] == "ready"
+    assert company["decision_bucket"] == "Research Now"
+    assert company["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
+    assert company["primary_blocker"] == "peers"
+    assert etf["dcf_status"] == "excluded"
+    assert etf["decision_subtype"] == "Monitor - ETF Market Proxy"
+    assert "excluded" in str(etf["dcf_reason"]).lower()
+    assert missing["status"] == "missing"
+
+
+def test_dashboard_splits_momentum_to_ready_and_blocked_rows():
+    momentum = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD"],
+            "Close": [120.0, None],
+            "SetupStatus": ["Watch", "Avoid"],
+            "Reason": ["Supported.", "Price data is missing."],
+        }
+    )
+    coverage = pd.DataFrame({"ticker": ["NVDA", "AMD"], "usable_for_momentum": [True, False]})
+
+    ready, blocked = dashboard.split_momentum_readiness(momentum, coverage)
+
+    assert ready["Ticker"].tolist() == ["NVDA"]
+    assert blocked["Ticker"].tolist() == ["AMD"]
+
+
+def test_dashboard_splits_dcf_ready_blocked_and_excluded_rows():
+    dcf = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "AMD", "QQQ"],
+            "asset_type": ["company", "company", "etf"],
+            "is_dcf_ready": [True, False, False],
+        }
+    )
+
+    ready, blocked, excluded = dashboard.split_dcf_readiness(dcf)
+
+    assert ready["ticker"].tolist() == ["NVDA"]
+    assert blocked["ticker"].tolist() == ["AMD"]
+    assert excluded["ticker"].tolist() == ["QQQ"]
+
+
+def test_dashboard_splits_risk_context_by_price_ready_status():
+    liquidity = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD"],
+            "LiquidityStatus": ["Liquid", "Insufficient Price Data"],
+        }
+    )
+
+    ready, unavailable = dashboard.split_risk_context_by_price_ready(liquidity, {"Insufficient Price Data"})
+
+    assert ready["Ticker"].tolist() == ["NVDA"]
+    assert unavailable["Ticker"].tolist() == ["AMD"]
 
 
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():

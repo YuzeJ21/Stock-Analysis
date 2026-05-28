@@ -167,6 +167,8 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert nvda["target_file"] == "data/imports/fundamentals.csv"
     assert nvda["example_command"] == "make sec-stage TICKERS=AMD"
     assert "missing peer fundamentals needed for NVDA" in nvda["next_best_action"]
+    assert "If SEC_USER_AGENT is configured" in nvda["next_best_action"]
+    assert "stage trusted manual fundamentals" in nvda["next_best_action"]
 
 
 def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_path: Path):
@@ -252,8 +254,8 @@ def test_staged_fundamentals_surface_validate_flow_in_coverage_and_wizard(tmp_pa
         encoding="utf-8",
     )
     (imports_dir / "fundamentals.csv").write_text(
-        "ticker,revenue,fcf_margin,shares_outstanding,source,as_of_date\n"
-        "AMD,1000,0.2,10,sec_companyfacts,2026-01-02\n",
+        "ticker,revenue,free_cash_flow,fcf_margin,shares_outstanding,source,as_of_date\n"
+        "AMD,1000,200,0.2,10,sec_companyfacts,2026-01-02\n",
         encoding="utf-8",
     )
     (data_dir / "universe.csv").write_text(

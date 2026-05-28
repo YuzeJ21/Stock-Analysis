@@ -583,7 +583,20 @@ Use `make price-refresh` for the standard operator path. Keep the raw `src.data_
 
 Remote price refresh can fail because the default source is free, unofficial, and outside this repo's control. In some environments Stooq returns an API-key instruction page instead of CSV rows; set `STOOQ_API_KEY` before running `make price-refresh`, or use the staged manual import path below. The app keeps using local CSV fallback data instead of fabricating prices.
 
-When remote refresh fails, use the staged manual import path:
+When remote refresh fails and you already have verified local CSV exports, use the direct staged folder path:
+
+```bash
+make price-coverage
+# Place verified CSV files under data/staged/prices/.
+make import-prices
+make pipeline
+make onboarding
+make research-health
+```
+
+`make import-prices` reads `data/staged/prices/*.csv`, validates tickers against `data/universe.csv`, writes rejected rows to `data/price_import_rejected.csv`, writes coverage details to `data/price_coverage_report.csv`, and merges valid rows into `data/prices.csv` without deleting existing valid prices. It accepts `ticker,date,open,high,low,close,volume,source` and common variants such as `symbol`, `Date`, and `adj_close`. Existing `data/prices.csv` rows are preserved, duplicate `ticker + date` rows keep the last staged row deterministically, and missing or invalid rows are reported instead of silently applied.
+
+If you need to normalize downloaded raw files into the older preview/apply staging file first, use the existing lower-level staged import path:
 
 ```bash
 make status
@@ -598,7 +611,7 @@ make daily
 make dashboard
 ```
 
-Manual staged prices live at `data/imports/prices.csv`.
+Direct manual staged prices live as one or more CSV files under `data/staged/prices/`. The lower-level preview/apply staging file is still `data/imports/prices.csv`.
 
 Required columns:
 
@@ -1395,6 +1408,62 @@ The project now includes a read-only SEC Companyfacts adapter that can stage can
 - `data/imports/fundamentals.csv`
 
 It never writes directly to `data/fundamentals.csv`. You must still review staged data and run the explicit import workflow.
+
+DCF readiness is tracked explicitly in `data/dcf_readiness.csv`:
+
+```bash
+make dcf-readiness
+```
+
+That file reports `has_free_cash_flow`, `has_shares_outstanding`, `has_revenue`, `has_fcf_margin`, `has_price`, `is_dcf_ready`, and exact missing fields per universe ticker. ETFs such as QQQ and SMH are marked as not applicable for operating-company DCF instead of being treated as failed company valuations.
+
+When SEC staging is unavailable or you already have verified local fundamentals, place CSV files under `data/staged/fundamentals/` and run:
+
+```bash
+make import-fundamentals
+make imports-validate
+make imports-preview
+make imports-apply
+make dcf-readiness
+```
+
+The manual staged fundamentals importer accepts `ticker,period,revenue,net_income,free_cash_flow,shares_outstanding,source,updated_at`, rejects invalid rows to `data/fundamentals_import_rejected.csv`, and stages valid rows into `data/imports/fundamentals.csv` for the existing validate/preview/apply workflow. It never fabricates unavailable fundamentals.
+
+## Trusted earnings and analyst estimate CSVs
+
+Earnings and analyst estimates are manual-only optional context. They should stay visibly unavailable until trusted local rows exist in canonical CSVs.
+
+Use staged raw files first:
+
+```bash
+data/staged/earnings/
+data/staged/analyst_estimates/
+```
+
+Supported staged earnings schema:
+
+```csv
+ticker,fiscal_period,report_date,eps_actual,eps_estimate,revenue_actual,revenue_estimate,source,updated_at
+```
+
+Supported staged analyst-estimate schema:
+
+```csv
+ticker,period,eps_estimate,revenue_estimate,price_target_mean,price_target_high,price_target_low,rating_consensus,source,updated_at
+```
+
+Then run:
+
+```bash
+make import-earnings
+make import-analyst-estimates
+make imports-validate
+make imports-preview
+make imports-apply
+make optional-context-readiness
+```
+
+Invalid rows are rejected to `data/earnings_import_rejected.csv` or `data/analyst_estimates_import_rejected.csv`. Readiness is written to `data/earnings_readiness.csv` and `data/analyst_estimates_readiness.csv`. Until trusted canonical rows exist, the dashboard shows `Not available: missing trusted local CSV input` instead of empty charts or weak conclusions.
 
 ### User-Agent requirement
 
