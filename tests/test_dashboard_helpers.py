@@ -8819,6 +8819,63 @@ def test_market_next_action_cards_are_safe_copyable_make_commands():
     assert "sell" not in rendered
 
 
+def test_next_action_console_groups_feature_actions_with_source_notes():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC", "QQQ"],
+            "in_active_universe": [True, True, True, True],
+            "price_ready": [False, True, True, True],
+            "fundamentals_ready": [False, False, True, False],
+            "dcf_ready": [False, False, True, False],
+            "peer_ready": [False, False, False, False],
+            "earnings_ready": [False, False, False, False],
+            "analyst_estimates_ready": [False, False, False, False],
+            "asset_type": ["company", "company", "company", "etf"],
+        }
+    )
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Refresh next capped missing-price batch",
+                "Command": "make price-refresh TOP_N=25 PROVIDER=yahoo",
+                "Reason": "Advance the broad-universe price frontier safely.",
+            }
+        ]
+    }
+
+    console = dashboard.build_next_action_console_frame(readiness, None, payload, limit=8)
+    cards = dashboard.next_action_console_cards(console)
+    rendered = " ".join(str(value) for value in list(console.to_dict("records")) + cards for value in value.values()).lower()
+
+    assert set(console["action_category"]).issuperset(
+        {
+            "Price Coverage Batch",
+            "Fundamentals / DCF Unlock",
+            "Peer Mapping Unlock",
+            "Earnings Import Setup",
+            "Analyst Estimates Import Setup",
+            "Single-Stock Review",
+        }
+    )
+    assert "make price-refresh top_n=25 provider=yahoo" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "source_freshness_note" in " ".join(console.columns)
+    assert "dashboard does not execute" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_next_action_console_sanitizes_uncapped_batch_commands():
+    assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh") == "make price-refresh TOP_N=25 PROVIDER=yahoo"
+    assert dashboard.safe_action_console_command("Fundamentals / DCF Unlock", "make sec-stage") == "make sec-stage-queue TOP_N=25"
+    assert dashboard.safe_action_console_command("Peer Mapping Unlock", "make templates") == "make peer-mapping-queue TOP_N=25"
+    assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report") == "make stock-report TICKER=META"
+
+
 def test_feature_readiness_cards_show_feature_level_product_status():
     feature_summary = pd.DataFrame(
         [

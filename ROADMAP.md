@@ -6,11 +6,11 @@ This roadmap reflects the current direction of the local Python/Streamlit stock 
 2. Analysis second.
 3. Recommendation last.
 
-The next phase is not to add more indicators or AI-generated summaries. The next phase is to unlock decision-useful research by importing, validating, and reporting trusted fundamentals, peer metrics, earnings, and analyst estimates.
+The next phase is not to add more indicators or AI-generated summaries. The next phase is to make the product page operational for a broad market universe while continuing to unlock decision-useful research through trusted fundamentals, peer metrics, earnings, and analyst estimates.
 
 ## 1. Completed Milestones
 
-The following milestones are completed or mostly completed for the current 12-ticker active universe:
+The following milestones are completed or mostly completed across the active-universe workflow and the broad-universe command-center foundation:
 
 - [x] Readiness-first architecture.
 - [x] CSV-first workflow.
@@ -18,6 +18,7 @@ The following milestones are completed or mostly completed for the current 12-ti
 - [x] Data-source status reporting.
 - [x] Staged/manual import paths.
 - [x] Price readiness for the current active universe.
+- [x] Master-vs-active universe separation.
 - [x] DCF gating.
 - [x] ETF and index-proxy exclusion from operating-company DCF.
 - [x] Final watchlist blocking when valuation is not ready.
@@ -27,6 +28,7 @@ The following milestones are completed or mostly completed for the current 12-ti
 - [x] Broad-universe command center visibility for the current 3,538-ticker master universe.
 - [x] Product-page readiness filters, row limits, and single-stock drilldown.
 - [x] Peer Mapping Studio V1 with peer blocker filters and safe command cards.
+- [x] Feature readiness summary and readiness-gated decision subtype reporting.
 
 ## 2. Current Product State
 
@@ -50,9 +52,26 @@ Current verified readiness baseline:
 - Overall readiness: 3,298 blocked, 240 partial.
 - Decision buckets: 3,513 Blocked by Data, 23 Research Now, 2 Monitor.
 
-The product correctly avoids fake conclusions. The next improvement is trusted data ingestion, not more indicators.
+The product correctly avoids fake conclusions. The next improvement is product-page workflow clarity plus trusted data ingestion, not more indicators.
 
-## 3. P0 Roadmap
+## 3. Product-Page Roadmap
+
+Goal: make the Streamlit page feel like a research command center instead of a collection of CSV tables.
+
+- Keep the top-level page focused on readiness, blockers, next actions, and single-stock drilldowns.
+- Group next actions by feature:
+  - Price Coverage Batch
+  - Fundamentals / DCF Unlock
+  - Peer Mapping Unlock
+  - Earnings Import Setup
+  - Analyst Estimates Import Setup
+  - Single-Stock Review
+- Keep dashboard commands copyable only; do not execute actions from the product page.
+- Keep broad-universe tables row-limited by default.
+- Add source/freshness notes wherever an action depends on local CSVs, staged imports, Yahoo price refresh, SEC staging, or manual trusted inputs.
+- Make active-universe vs master-universe language visible wherever counts differ.
+
+## 4. Data-Unlock Roadmap
 
 ### A. Trusted Fundamentals Ingestion
 
@@ -67,7 +86,7 @@ Goal: unlock fundamentals readiness without fabricating company data.
   - `fcf_margin`
   - `shares_outstanding`
 - Generate or update `fundamentals_coverage_report.csv`.
-- Improve `fundamentals_ready` from 0/12.
+- Improve `fundamentals_ready` from the current broad baseline of 23/3,538.
 
 Acceptance notes:
 
@@ -131,14 +150,14 @@ Rules:
 - Company tickers with missing fundamentals or DCF inputs should not be treated as generic monitor candidates.
 - ETFs can remain monitor candidates for market/risk use while staying excluded from company DCF.
 
-## 4. P1 Roadmap
+## 5. P1 Roadmap
 
 ### A. Portfolio/Risk Completeness
 
 Goal: make risk readiness clearer and reduce avoidable warnings.
 
 - Fix the `ARKF` OHLCV missing warning or classify it as optional missing context.
-- Improve liquidity/correlation readiness from 9/12 where appropriate.
+- Improve liquidity/correlation readiness from the current broad baseline of 232/3,538 where appropriate.
 - Make ATR proxy usage explicit for `NVDA` and `TSLA`.
 - Keep proxy-based risk notes clearly labeled as approximations.
 
@@ -182,7 +201,7 @@ Goal: support broader universe management without forcing expensive full-market 
 - Support lazy/scoped analysis.
 - Support active-universe, ticker-list, sector/theme, ready-only, and missing-data scopes.
 
-## 5. P2 Roadmap
+## 6. P2 Roadmap
 
 Goal: add trusted optional context workflows after fundamentals/DCF/peer readiness is no longer the main blocker.
 
@@ -198,7 +217,7 @@ Rules:
 - Empty trusted rows should render as unavailable, not as weak conclusions.
 - Analyst consensus must not be treated as a recommendation.
 
-## 6. Deprioritized Items
+## 7. Deprioritized Items
 
 The following are intentionally deprioritized:
 
@@ -211,15 +230,18 @@ The following are intentionally deprioritized:
 
 Reason: the blocker is not the lack of indicators. The blocker is missing trusted data for fundamentals, peers, earnings, and analyst estimates.
 
-## 7. Acceptance Criteria For The Next Roadmap Milestone
+## 8. Acceptance Criteria For The Next Roadmap Milestone
 
 The next roadmap milestone is complete when:
 
+- The product page clearly separates the 3,538-ticker master universe, 12-ticker active universe, and analysis-ready subset.
+- The product page includes a grouped next-action console with safe capped or ticker-targeted commands.
+- Next-action rows include source/freshness context and make clear that dashboard commands are copyable only.
 - `SEC_USER_AGENT` is configured or manual fundamentals import is working.
-- `fundamentals_ready` improves from 0/12.
-- At least some active company tickers become DCF-ready.
-- Peer readiness improves from 0/12.
-- Decision buckets become more informative than generic monitor rows.
+- `fundamentals_ready` improves beyond 23/3,538 with trusted data only.
+- `dcf_ready` improves beyond 23/3,538 with trusted data only.
+- Peer readiness improves beyond 3/3,538 or peer blockers become more specific and actionable.
+- Decision buckets remain more informative than generic monitor rows.
 - `ARKF` and risk warnings are resolved or clearly classified.
 - Single-stock research mode can generate a data-honest report.
 - `make pipeline` passes.
