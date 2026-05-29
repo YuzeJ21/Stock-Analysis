@@ -134,6 +134,9 @@ PEER_UNLOCK_WORKLIST_COLUMNS = [
     "ticker",
     "peer_blocker_type",
     "unlock_stage",
+    "workflow_group",
+    "workflow_scope",
+    "next_action_summary",
     "peer_trend_status",
     "peer_valuation_status",
     "peer_count",
@@ -152,6 +155,7 @@ PEER_UNLOCK_WORKLIST_COLUMNS = [
     "copy_only_note",
     "updated_at",
 ]
+READINESS_SNAPSHOT_FILENAME = "ticker_readiness_report.previous.csv"
 
 
 def _now() -> str:
@@ -176,6 +180,37 @@ def _write(frame: pd.DataFrame, path: Path, columns: list[str] | None = None) ->
                 frame[column] = pd.NA
         frame = frame.reindex(columns=columns)
     frame.to_csv(path, index=False)
+
+
+def save_previous_ticker_readiness_snapshot(
+    base_dir: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+) -> dict[str, Any]:
+    """Copy the current ticker readiness report to the deterministic prior snapshot path."""
+    root = resolve_project_root(base_dir)
+    data_path = resolve_data_dir(data_dir, root)
+    reports_path = data_path / "reports"
+    source_path = reports_path / "ticker_readiness_report.csv"
+    snapshot_path = reports_path / READINESS_SNAPSHOT_FILENAME
+    if not source_path.exists():
+        return {
+            "status": "missing_current_report",
+            "source_path": str(source_path),
+            "snapshot_path": str(snapshot_path),
+            "rows": 0,
+            "message": "Run make readiness before saving a prior readiness snapshot.",
+        }
+    frame = pd.read_csv(source_path)
+    reports_path.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source_path, snapshot_path)
+    return {
+        "status": "written",
+        "source_path": str(source_path),
+        "snapshot_path": str(snapshot_path),
+        "rows": int(len(frame)),
+        "message": "Saved current readiness report as the prior snapshot for the next comparison.",
+    }
 
 
 def _load_thresholds(root: Path) -> dict[str, Any]:
@@ -684,26 +719,36 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
             continue
         dcf_ready = bool(readiness_row.get("dcf_ready", False))
         price_ready = bool(readiness_row.get("price_ready", False))
+        active_universe = bool(readiness_row.get("in_active_universe", False))
         priority = 1 if dcf_ready else 2 if price_ready else 3
         blocker_type = _text_value(peer_row.get("peer_blocker_type")) or "peer_blocked"
         peer_trend_ready = bool(peer_row.get("peer_trend_comparison_ready", False))
         peer_valuation_ready = bool(peer_row.get("peer_valuation_comparison_ready", False))
         peer_trend_status = "peer_trend_possible" if peer_trend_ready else "peer_trend_blocked"
         peer_valuation_status = "peer_valuation_ready" if peer_valuation_ready else "peer_valuation_blocked"
+        workflow_scope = "active_universe" if active_universe else "master_universe"
         if blocker_type == "missing_peer_mapping":
             unlock_stage = "add_source_backed_peer_mappings"
+            workflow_group = "dcf_ready_peer_mapping" if dcf_ready else "price_ready_peer_mapping" if price_ready else "peer_mapping_after_price"
+            next_action_summary = "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data."
             next_input_file = "data/imports/peers.csv"
             validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
         elif blocker_type in {"peer_price_missing", "peer_momentum_missing"}:
             unlock_stage = "add_peer_price_history"
+            workflow_group = "peer_trend_unlock"
+            next_action_summary = "Add verified peer OHLCV history before treating peer trend comparison as ready."
             next_input_file = "data/imports/prices.csv or data/staged/prices/"
             validation_sequence = "make focus-price TICKER=<peer> -> make price-refresh TICKERS=<peer> or stage trusted OHLCV -> make imports-validate"
         elif blocker_type in {"peer_fundamentals_missing", "peer_valuation_blocked"}:
             unlock_stage = "add_peer_fundamentals"
+            workflow_group = "peer_valuation_unlock"
+            next_action_summary = "Add trusted peer fundamentals before showing peer valuation conclusions."
             next_input_file = "data/imports/fundamentals.csv or data/staged/fundamentals/"
             validation_sequence = "make focus-fundamentals TICKER=<peer> -> make sec-stage TICKERS=<peer> or stage trusted fundamentals -> make imports-validate"
         else:
             unlock_stage = "review_peer_context"
+            workflow_group = "peer_context_review"
+            next_action_summary = "Review peer readiness details and keep valuation blocked until required peer inputs are present."
             next_input_file = "data/peers.csv"
             validation_sequence = "make readiness -> make stock-report TICKER=<ticker>"
         rows.append(
@@ -712,6 +757,9 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
                 "ticker": ticker,
                 "peer_blocker_type": blocker_type,
                 "unlock_stage": unlock_stage,
+                "workflow_group": workflow_group,
+                "workflow_scope": workflow_scope,
+                "next_action_summary": next_action_summary,
                 "peer_trend_status": peer_trend_status,
                 "peer_valuation_status": peer_valuation_status,
                 "peer_count": int(peer_row.get("peer_count") or 0),
@@ -734,7 +782,9 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
     frame = pd.DataFrame(rows, columns=PEER_UNLOCK_WORKLIST_COLUMNS)
     if frame.empty:
         return frame
-    return frame.sort_values(["priority", "ticker"], kind="stable").reset_index(drop=True)
+    frame["workflow_scope_rank"] = frame["workflow_scope"].map({"active_universe": 0, "master_universe": 1}).fillna(2).astype(int)
+    frame = frame.sort_values(["priority", "workflow_scope_rank", "workflow_group", "ticker"], kind="stable").reset_index(drop=True)
+    return frame.drop(columns=["workflow_scope_rank"])
 
 
 def build_ticker_readiness_report(
@@ -911,22 +961,47 @@ def main() -> None:
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    parser.add_argument(
+        "--save-previous",
+        action="store_true",
+        help="Copy the current ticker readiness report to data/reports/ticker_readiness_report.previous.csv before regenerating.",
+    )
+    parser.add_argument(
+        "--snapshot-only",
+        action="store_true",
+        help="Only save the current ticker readiness report as the prior snapshot; do not regenerate readiness.",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
     output_path = resolve_outputs_dir(args.output_dir, root)
+    snapshot_payload = None
+    if args.save_previous or args.snapshot_only:
+        snapshot_payload = save_previous_ticker_readiness_snapshot(root, data_dir=data_path)
+        if args.snapshot_only:
+            if args.json:
+                print(json.dumps(snapshot_payload, indent=2))
+                return
+            print(format_path_context(root, data_path, output_path))
+            for key, value in snapshot_payload.items():
+                print(f"{key}: {value}")
+            return
     reports = build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path)
     readiness = reports["ticker_readiness_report"]
     payload = {
         "status": "written",
         "report_path": str(data_path / "reports" / "ticker_readiness_report.csv"),
+        "previous_snapshot_path": str(data_path / "reports" / READINESS_SNAPSHOT_FILENAME),
         "rows": len(readiness),
         "ready": int(readiness["overall_readiness_state"].eq("ready").sum()) if not readiness.empty else 0,
         "partial": int(readiness["overall_readiness_state"].eq("partial").sum()) if not readiness.empty else 0,
         "blocked": int(readiness["overall_readiness_state"].eq("blocked").sum()) if not readiness.empty else 0,
         "excluded": int(readiness["overall_readiness_state"].eq("excluded").sum()) if not readiness.empty else 0,
     }
+    if snapshot_payload is not None:
+        payload["snapshot_status"] = snapshot_payload.get("status")
+        payload["snapshot_rows"] = snapshot_payload.get("rows")
     if args.json:
         print(json.dumps(payload, indent=2))
         return

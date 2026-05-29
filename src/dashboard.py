@@ -2398,6 +2398,7 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "body": (
                 "Schema: ticker, fiscal_period, report_date, eps_actual, eps_estimate, "
                 "revenue_actual, revenue_estimate, source, updated_at. "
+                "Stage raw trusted files under data/staged/earnings/ or canonical rows in data/imports/earnings.csv. "
                 "Rejected rows: data/rejected/earnings_import_rejected.csv."
             ),
             "badges": ["data/staged/earnings/", "missing trusted local CSV input"],
@@ -2409,6 +2410,7 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "body": (
                 "Schema: ticker, period, eps_estimate, revenue_estimate, price_target_mean, "
                 "price_target_high, price_target_low, rating_consensus, source, updated_at. "
+                "Stage raw trusted files under data/staged/analyst_estimates/ or canonical rows in data/imports/analyst_estimates.csv. "
                 "Rejected rows: data/rejected/analyst_estimates_import_rejected.csv."
             ),
             "badges": ["data/staged/analyst_estimates/", "missing trusted local CSV input"],
@@ -2418,7 +2420,8 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "kicker": "VALIDATION",
             "title": "Validate and preview",
             "body": (
-                "Use templates first, then run make imports-validate, make imports-preview, and make imports-apply. Invalid rows stay visible in rejected CSV reports."
+                "Use make templates first, then run make import-earnings or make import-analyst-estimates for staged files, "
+                "then make imports-validate, make imports-preview, and make imports-apply. Invalid rows stay visible in rejected CSV reports."
             ),
             "badges": ["csv-first", "no fabrication"],
             "command": "make templates",
@@ -4193,10 +4196,10 @@ def readiness_recent_progress_cards(
                 "title": "Current-only baseline",
                 "body": (
                     "No prior readiness snapshot was found, so the dashboard shows current counts without pretending a delta exists. "
-                    "Save a future data/reports/ticker_readiness_report.previous.csv if you want before/after comparisons."
+                    "Run make readiness-snapshot before the next refresh to save data/reports/ticker_readiness_report.previous.csv for real before/after comparisons."
                 ),
                 "badges": ["no prior snapshot", "data-honest"],
-                "command": "make project-status",
+                "command": "make readiness-snapshot",
             }
         )
 
@@ -4672,6 +4675,9 @@ def build_peer_mapping_studio_frame(
                 "ticker",
                 "priority",
                 "unlock_stage",
+                "workflow_group",
+                "workflow_scope",
+                "next_action_summary",
                 "peer_trend_status",
                 "peer_valuation_status",
                 "next_input_file",
@@ -4760,6 +4766,9 @@ def peer_mapping_studio_table_columns(frame: pd.DataFrame) -> list[str]:
         "peer_ready",
         "peer_blocker_type",
         "unlock_stage",
+        "workflow_group",
+        "workflow_scope",
+        "next_action_summary",
         "peer_trend_status",
         "peer_valuation_status",
         "mapping_status",

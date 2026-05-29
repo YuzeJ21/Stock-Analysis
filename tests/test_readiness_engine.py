@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.readiness_engine import build_ticker_readiness_report
+from src.readiness_engine import build_ticker_readiness_report, save_previous_ticker_readiness_snapshot
 
 
 def _price_rows(ticker: str, periods: int) -> list[dict[str, object]]:
@@ -19,6 +19,36 @@ def _price_rows(ticker: str, periods: int) -> list[dict[str, object]]:
         }
         for index, date in enumerate(pd.date_range("2026-01-01", periods=periods, freq="D"))
     ]
+
+
+def test_save_previous_ticker_readiness_snapshot_uses_deterministic_prior_path(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    reports_dir = data_dir / "reports"
+    reports_dir.mkdir(parents=True)
+    current = reports_dir / "ticker_readiness_report.csv"
+    pd.DataFrame(
+        [
+            {"ticker": "AAA", "price_ready": True, "updated_at": "2026-05-29T00:00:00+00:00"},
+            {"ticker": "BBB", "price_ready": False, "updated_at": "2026-05-29T00:00:00+00:00"},
+        ]
+    ).to_csv(current, index=False)
+
+    payload = save_previous_ticker_readiness_snapshot(tmp_path, data_dir=data_dir)
+    snapshot = reports_dir / "ticker_readiness_report.previous.csv"
+
+    assert payload["status"] == "written"
+    assert payload["rows"] == 2
+    assert payload["snapshot_path"] == str(snapshot)
+    assert snapshot.exists()
+    assert pd.read_csv(snapshot).to_dict("records") == pd.read_csv(current).to_dict("records")
+
+
+def test_save_previous_ticker_readiness_snapshot_is_honest_when_current_report_missing(tmp_path: Path):
+    payload = save_previous_ticker_readiness_snapshot(tmp_path, data_dir=tmp_path / "data")
+
+    assert payload["status"] == "missing_current_report"
+    assert payload["rows"] == 0
+    assert "make readiness" in payload["message"]
 
 
 def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_path: Path, monkeypatch):
@@ -88,6 +118,9 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     assert feature_summary.loc["dcf", "unlock_command"] == "make dcf-readiness"
     assert feature_summary.loc["price", "next_action"] == "make price-worklist TOP_N=25"
     assert peer_unlock.loc["NVDA", "unlock_stage"] == "add_source_backed_peer_mappings"
+    assert peer_unlock.loc["NVDA", "workflow_group"] == "dcf_ready_peer_mapping"
+    assert peer_unlock.loc["NVDA", "workflow_scope"] == "active_universe"
+    assert "source-backed peer rows" in peer_unlock.loc["NVDA", "next_action_summary"]
     assert peer_unlock.loc["NVDA", "peer_trend_status"] == "peer_trend_blocked"
     assert peer_unlock.loc["NVDA", "peer_valuation_status"] == "peer_valuation_blocked"
     assert peer_unlock.loc["NVDA", "next_input_file"] == "data/imports/peers.csv"

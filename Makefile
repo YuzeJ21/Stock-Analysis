@@ -1,4 +1,4 @@
-.PHONY: help status status-check test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness research-decisions
+.PHONY: help status status-check test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -68,6 +68,7 @@ help:
 	@echo "  make templates        Write local CSV templates for peers, earnings, estimates, and manual fallbacks"
 	@echo "  make import-staging   Write header-only staging CSV files under data/imports"
 	@echo "  make validate-data    Validate local CSV datasets"
+	@echo "  make readiness-snapshot Save current ticker readiness as data/reports/ticker_readiness_report.previous.csv before a refresh"
 	@echo "  make readiness        Write central data/reports/ticker_readiness_report.csv"
 	@echo ""
 	@echo "Price fallback:"
@@ -377,6 +378,9 @@ import-analyst-estimates:
 
 readiness:
 	python3 -m src.readiness_engine
+
+readiness-snapshot:
+	python3 -m src.readiness_engine --snapshot-only
 
 research-decisions:
 	python3 -m src.research_decisions

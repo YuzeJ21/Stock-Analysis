@@ -8948,6 +8948,8 @@ def test_readiness_recent_progress_cards_show_current_only_baseline_without_prio
     assert "2/3 price-ready" in rendered
     assert "current-only baseline" in rendered
     assert "no prior snapshot" in rendered
+    assert "make readiness-snapshot" in rendered
+    assert "ticker_readiness_report.previous.csv" in rendered
     assert "peer: 2" in rendered
     assert "copyable commands only" in rendered
     assert "external actions" in rendered
@@ -9088,6 +9090,9 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
                 "ticker": "A",
                 "priority": 1,
                 "unlock_stage": "add_source_backed_peer_mappings",
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "master_universe",
+                "next_action_summary": "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data.",
                 "peer_trend_status": "peer_trend_blocked",
                 "peer_valuation_status": "peer_valuation_blocked",
                 "next_input_file": "data/imports/peers.csv",
@@ -9100,6 +9105,9 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
                 "ticker": "META",
                 "priority": 1,
                 "unlock_stage": "add_peer_fundamentals",
+                "workflow_group": "peer_valuation_unlock",
+                "workflow_scope": "active_universe",
+                "next_action_summary": "Add trusted peer fundamentals before showing peer valuation conclusions.",
                 "peer_trend_status": "peer_trend_possible",
                 "peer_valuation_status": "peer_valuation_blocked",
                 "next_input_file": "data/imports/fundamentals.csv or data/staged/fundamentals/",
@@ -9148,6 +9156,9 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
     columns = dashboard.peer_mapping_studio_table_columns(studio)
     rendered = " ".join(str(value) for value in studio[columns].to_numpy().ravel()).lower()
     assert "unlock_stage" in columns
+    assert "workflow_group" in columns
+    assert "workflow_scope" in columns
+    assert "next_action_summary" in columns
     assert "peer_trend_status" in columns
     assert "peer_valuation_status" in columns
     assert "next_input_file" in columns
@@ -9155,6 +9166,8 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
     assert "copy_only_note" in columns
     assert "peer_trend_possible" in rendered
     assert "peer_valuation_blocked" in rendered
+    assert "fallback sector/industry context is not trusted peer data" in rendered
+    assert "showing peer valuation conclusions" in rendered
     assert "data/imports/fundamentals.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
@@ -9276,6 +9289,10 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "ticker, period, eps_estimate" in rendered
     assert "make import-earnings" in rendered
     assert "make import-analyst-estimates" in rendered
+    assert "data/imports/earnings.csv" in rendered
+    assert "data/imports/analyst_estimates.csv" in rendered
+    assert "data/staged/earnings/" in rendered
+    assert "data/staged/analyst_estimates/" in rendered
     assert "make templates" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
