@@ -9311,6 +9311,41 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
     assert "sell" not in rendered
 
 
+def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_commands(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "Research Tester tester@example.com")
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    snapshot = {
+        "ticker": "NVDA",
+        "price_ready": True,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "dcf_status": "ready",
+        "dcf_reason": "DCF inputs are present.",
+        "peer_ready": False,
+        "peer_blocker_type": "missing_peer_mapping",
+        "next_peer_action": "Add source-backed peers.",
+        "price_first_date": "2025-01-01",
+        "price_last_date": "2026-05-22",
+        "price_rows": 300,
+    }
+
+    audit = dashboard.single_stock_source_audit_frame(snapshot)
+    cards = dashboard.single_stock_source_audit_cards(snapshot)
+    rendered = " ".join(audit.astype(str).stack().tolist() + [str(value) for card in cards for value in card.values()]).lower()
+
+    assert "data/prices.csv" in rendered
+    assert "data/staged/earnings/" in rendered
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "sec_user_agent=present" in rendered.replace(" ", "")
+    assert "stooq_api_key=missing" in rendered.replace(" ", "")
+    assert "make stock-report ticker=nvda" in rendered
+    assert "make import-earnings" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_dashboard_splits_momentum_to_ready_and_blocked_rows():
     momentum = pd.DataFrame(
         {

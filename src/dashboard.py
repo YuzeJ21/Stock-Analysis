@@ -5248,6 +5248,105 @@ def single_stock_one_minute_summary(snapshot: dict[str, object]) -> str:
     return " ".join(part for part in parts if part and part != "Not available")
 
 
+def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame:
+    ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
+    price_ready = bool(snapshot.get("price_ready"))
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_blocker = format_missing(snapshot.get("peer_blocker_type"), "Not available")
+    sec_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
+    stooq_present = bool(os.environ.get("STOOQ_API_KEY", "").strip() or os.environ.get("STOQ_API_KEY", "").strip())
+    if dcf_status == "ready":
+        dcf_command = f"make stock-report TICKER={ticker}"
+    elif dcf_status == "excluded":
+        dcf_command = "make readiness"
+    elif sec_present:
+        dcf_command = f"make sec-stage TICKERS={ticker}"
+    else:
+        dcf_command = "make imports-validate"
+    peer_command = f"make stock-report TICKER={ticker}" if peer_ready else f"make focus-peers TICKER={ticker}"
+
+    rows = [
+        {
+            "Area": "Prices",
+            "Status": "ready" if price_ready else "blocked",
+            "Freshness": f"{format_missing(snapshot.get('price_first_date'), 'unknown')} to {format_missing(snapshot.get('price_last_date'), 'unknown')}; rows/days={format_missing(snapshot.get('price_rows'))}",
+            "Local source": "data/prices.csv",
+            "Manual path": "data/imports/prices.csv or data/staged/prices/",
+            "Rejected rows": "data/rejected/price_import_rejected.csv",
+            "Next command": f"make stock-report TICKER={ticker}" if price_ready else f"make price-refresh TICKERS={ticker}",
+        },
+        {
+            "Area": "Fundamentals / DCF",
+            "Status": dcf_status,
+            "Freshness": compact_reason(snapshot.get("dcf_reason"), max_sentences=1, max_chars=140),
+            "Local source": "data/fundamentals.csv",
+            "Manual path": "data/imports/fundamentals.csv or data/staged/fundamentals/",
+            "Rejected rows": "data/rejected/fundamentals_import_rejected.csv",
+            "Next command": dcf_command,
+        },
+        {
+            "Area": "Peers",
+            "Status": "ready" if peer_ready else peer_blocker,
+            "Freshness": compact_reason(snapshot.get("next_peer_action"), max_sentences=1, max_chars=140),
+            "Local source": "data/peers.csv",
+            "Manual path": "data/imports/peers.csv",
+            "Rejected rows": "data/rejected/peers_import_rejected.csv",
+            "Next command": peer_command,
+        },
+        {
+            "Area": "Earnings",
+            "Status": "ready" if earnings_ready else "missing trusted local CSV input",
+            "Freshness": "Trusted local rows only; no conclusion is shown while empty.",
+            "Local source": "data/earnings.csv",
+            "Manual path": "data/staged/earnings/",
+            "Rejected rows": "data/rejected/earnings_import_rejected.csv",
+            "Next command": "make import-earnings",
+        },
+        {
+            "Area": "Analyst estimates",
+            "Status": "ready" if estimates_ready else "missing trusted local CSV input",
+            "Freshness": "Trusted local rows only; no consensus context is shown while empty.",
+            "Local source": "data/analyst_estimates.csv",
+            "Manual path": "data/staged/analyst_estimates/",
+            "Rejected rows": "data/rejected/analyst_estimates_import_rejected.csv",
+            "Next command": "make import-analyst-estimates",
+        },
+        {
+            "Area": "Credentials",
+            "Status": f"SEC_USER_AGENT={'present' if sec_present else 'missing'}; STOOQ_API_KEY={'present' if stooq_present else 'missing'}",
+            "Freshness": "Missing credentials should block only the remote workflow, not local CSV reports.",
+            "Local source": ".zshrc or shell environment",
+            "Manual path": "staged CSV import folders remain available",
+            "Rejected rows": "not applicable",
+            "Next command": "make project-status",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    audit = single_stock_source_audit_frame(snapshot)
+    cards: list[dict[str, object]] = []
+    for area in ["Prices", "Fundamentals / DCF", "Peers", "Earnings"]:
+        row = audit.loc[audit["Area"].eq(area)]
+        if row.empty:
+            continue
+        item = row.iloc[0]
+        cards.append(
+            {
+                "kicker": str(item["Area"]).upper(),
+                "title": format_missing(item["Status"]),
+                "body": compact_reason(item["Freshness"], max_sentences=1, max_chars=150),
+                "badges": ["source audit", "local CSV"],
+                "command": format_missing(item["Next command"]),
+            }
+        )
+    return cards
+
+
 def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     if not snapshot or snapshot.get("status") == "missing":
         return [
@@ -10400,6 +10499,9 @@ def render_market_command_center(
     metric_cols[3].metric("DCF", format_missing(snapshot.get("dcf_status")))
     metric_cols[4].metric("Confidence", format_missing(snapshot.get("confidence")))
     render_signal_cards(single_stock_status_cards(snapshot))
+    render_section_header("Single-Stock Source/Freshness Audit", "Local source paths, staged import paths, credential state, and rejected-row reports for the selected ticker.")
+    render_signal_cards(single_stock_source_audit_cards(snapshot))
+    st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)
     detail_frame = pd.DataFrame(
         [
             {"Field": "Asset type", "Value": snapshot.get("asset_type")},

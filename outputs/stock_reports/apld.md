@@ -6,7 +6,7 @@ This is a readiness-only report because the full stock-report provider could not
 Provider blocker: No local price rows were found for APLD.
 
 ## One-Minute Status
-APLD state: blocked. Decision: Blocked by Data - Missing Price. Primary blocker: price. DCF: blocked. Peer workflow: missing_peer_mapping. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import staged price rows or refresh price provider for APLD..
+APLD state: blocked. Decision: Blocked by Data - Missing Price. Primary blocker: price. DCF: blocked. Peer workflow: missing_peer_mapping. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import staged price rows or refresh price provider for APLD.
 
 ## Decision
 - Bucket: Blocked by Data
@@ -46,4 +46,13 @@ APLD state: blocked. Decision: Blocked by Data - Missing Price. Primary blocker:
 
 ## Missing Data
 - needs at least 5 valid price rows with positive close; dcf: free_cash_flow, shares_outstanding, revenue, fcf_margin, price; peers: needs at least 2 source-backed peer mappings; earnings: trusted local CSV input; analyst_estimates: trusted local CSV input
+
+## Source/Freshness Audit
+- Prices: False; local source `data/prices.csv`; coverage unknown to unknown; rows=0; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
+- Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing free_cash_flow, shares_outstanding, revenue, fcf_margin, price; SEC_USER_AGENT present; staged path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
+- Peers: missing_peer_mapping; local source `data/peers.csv`; staged path `data/imports/peers.csv`; next peer action Add at least 2 source-backed peer mappings for APLD in data/imports/peers.csv.
+- Earnings: False; trusted local CSV only; staged path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
+- Analyst estimates: False; trusted local CSV only; staged path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
+- Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or staged import workflows.
+- Report command: `make stock-report TICKER=APLD`. Research-only output; no transaction execution.
 

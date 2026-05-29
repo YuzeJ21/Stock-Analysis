@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -370,6 +371,40 @@ def _display_value(value: Any, fallback: str = "Not available") -> str:
     return fallback if not text or text.lower() in {"nan", "none", "nat", "null"} else text
 
 
+def _sentence_value(value: Any, fallback: str = "Not available") -> str:
+    return _display_value(value, fallback).rstrip(".")
+
+
+def _stock_report_source_audit_lines(
+    *,
+    ticker: str,
+    readiness: dict[str, Any],
+    coverage: dict[str, Any],
+    dcf: dict[str, Any],
+    peer: dict[str, Any],
+    earnings_ready: Any,
+    estimates_ready: Any,
+    dcf_status_text: str,
+) -> list[str]:
+    sec_status = "present" if os.environ.get("SEC_USER_AGENT", "").strip() else "missing"
+    stooq_status = "present" if (os.environ.get("STOOQ_API_KEY", "").strip() or os.environ.get("STOQ_API_KEY", "").strip()) else "missing"
+    price_window = (
+        f"{_display_value(coverage.get('first_price_date'), 'unknown')} to "
+        f"{_display_value(coverage.get('last_price_date'), 'unknown')}; "
+        f"rows={_display_value(coverage.get('price_rows'))}"
+    )
+    peer_status = _display_value(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "ready")
+    return [
+        f"- Prices: {_display_value(readiness.get('price_ready'))}; local source `data/prices.csv`; coverage {price_window}; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.",
+        f"- Fundamentals / DCF: {dcf_status_text}; local source `data/fundamentals.csv`; reason {_display_value(dcf.get('reason_not_ready') or dcf.get('missing_dcf_fields'))}; SEC_USER_AGENT {sec_status}; staged path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.",
+        f"- Peers: {peer_status}; local source `data/peers.csv`; staged path `data/imports/peers.csv`; next peer action {_sentence_value(peer.get('next_peer_action') or peer.get('missing_peer_reason'))}.",
+        f"- Earnings: {_display_value(earnings_ready)}; trusted local CSV only; staged path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
+        f"- Analyst estimates: {_display_value(estimates_ready)}; trusted local CSV only; staged path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
+        f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; missing remote credentials should not break local CSV reports or staged import workflows.",
+        f"- Report command: `make stock-report TICKER={ticker}`. Research-only output; no transaction execution.",
+    ]
+
+
 def _load_local_context(ticker: str, output_dir: Path, data_dir: Path) -> dict[str, Any]:
     symbol = ticker.upper().strip()
 
@@ -447,8 +482,18 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         one_minute_parts.append("Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.")
     one_minute_next = decision.get("next_best_action") or decision.get("next_action") or readiness.get("next_action")
     if one_minute_next:
-        one_minute_parts.append(f"Next: {_display_value(one_minute_next)}.")
+        one_minute_parts.append(f"Next: {_sentence_value(one_minute_next)}.")
     one_minute_summary = " ".join(part for part in one_minute_parts if part)
+    source_audit_lines = _stock_report_source_audit_lines(
+        ticker=report.ticker,
+        readiness=readiness,
+        coverage=coverage,
+        dcf=dcf,
+        peer=peer,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        dcf_status_text=dcf_status_text,
+    )
 
     report_lines = [
         f"# {report.ticker} Research Readiness Report",
@@ -506,6 +551,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Sources And Freshness",
         *source_lines,
         "",
+        "## Source/Freshness Audit",
+        *source_audit_lines,
+        "",
     ]
     return "\n".join(report_lines)
 
@@ -521,6 +569,8 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         raise LookupError(f"No readiness row was found for {symbol}.")
     asset_type = _display_value(readiness.get("asset_type"))
     dcf_status_text = "excluded" if "dcf" in str(readiness.get("excluded_features", "")).lower() or asset_type.lower() in {"etf", "index_proxy", "fund"} else "ready" if readiness.get("dcf_ready") else "blocked"
+    earnings_ready = readiness.get("earnings_ready")
+    estimates_ready = readiness.get("analyst_estimates_ready")
     one_minute_summary = " ".join(
         part
         for part in [
@@ -530,7 +580,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
             f"DCF: {dcf_status_text}.",
             f"Peer workflow: {_display_value(peer.get('peer_blocker_type') or peer.get('missing_peer_reason'))}.",
             "Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.",
-            f"Next: {_display_value(decision.get('next_best_action') or decision.get('next_action') or readiness.get('next_action'))}.",
+            f"Next: {_sentence_value(decision.get('next_best_action') or decision.get('next_action') or readiness.get('next_action'))}.",
         ]
         if part and "Not available" not in part
     )
@@ -583,6 +633,18 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## Missing Data",
         f"- {_display_value(readiness.get('missing_data'))}",
+        "",
+        "## Source/Freshness Audit",
+        *_stock_report_source_audit_lines(
+            ticker=symbol,
+            readiness=readiness,
+            coverage=coverage,
+            dcf=dcf,
+            peer=peer,
+            earnings_ready=earnings_ready,
+            estimates_ready=estimates_ready,
+            dcf_status_text=dcf_status_text,
+        ),
         "",
     ]
     return "\n".join(lines)

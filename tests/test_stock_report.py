@@ -268,6 +268,10 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Research-only local report" in markdown
     assert "DCF: excluded" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
+    assert "## Source/Freshness Audit" in markdown
+    assert "data/staged/earnings/" in markdown
+    assert "make import-analyst-estimates" in markdown
+    assert "STOOQ_API_KEY" in markdown
     assert "DCF excluded for etf" in markdown
     assert "Peer Workflow" in markdown
     assert "missing_peer_mapping" in markdown
@@ -312,6 +316,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Primary blocker: price" in markdown
     assert "Blocked by Data - Missing Price" in markdown
     assert "DCF: blocked" in markdown
+    assert "## Source/Freshness Audit" in markdown
+    assert "data/staged/prices/" in markdown
+    assert "data/rejected/price_import_rejected.csv" in markdown
     assert "Peer Workflow" in markdown
     assert "missing_peer_mapping" in markdown
     assert "No local price rows were found for APLD" in markdown

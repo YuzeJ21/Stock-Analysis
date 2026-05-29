@@ -3,7 +3,7 @@
 Research-only local report. This is not a trade instruction and cannot execute transactions.
 
 ## One-Minute Status
-META state: partial. Decision: Blocked by Data - Missing Fundamentals. Primary blocker: fundamentals. DCF: blocked. Peer workflow: missing_peer_mapping. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for META. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow..
+META state: partial. Decision: Blocked by Data - Missing Fundamentals. Primary blocker: fundamentals. DCF: blocked. Peer workflow: missing_peer_mapping. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for META. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## Decision
 - Bucket: Blocked by Data
@@ -68,6 +68,15 @@ META state: partial. Decision: Blocked by Data - Missing Fundamentals. Primary b
 ## Sources And Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-05-27T21:34:28.109158039+00:00; Local CSV-backed research data.
 - local:fundamentals.csv: research-grade / local, retrieved 2026-05-27T21:34:35.086026430+00:00; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local, retrieved 2026-05-28T18:35:48+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-05-28T18:35:48+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local, retrieved 2026-05-29T02:03:15+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-05-29T02:03:15+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+
+## Source/Freshness Audit
+- Prices: True; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=616; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
+- Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing shares_outstanding; SEC_USER_AGENT present; staged path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
+- Peers: missing_peer_mapping; local source `data/peers.csv`; staged path `data/imports/peers.csv`; next peer action Add at least 2 source-backed peer mappings for META in data/imports/peers.csv.
+- Earnings: False; trusted local CSV only; staged path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
+- Analyst estimates: False; trusted local CSV only; staged path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
+- Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or staged import workflows.
+- Report command: `make stock-report TICKER=META`. Research-only output; no transaction execution.
 
