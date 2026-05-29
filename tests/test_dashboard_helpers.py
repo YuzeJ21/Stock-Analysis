@@ -8920,6 +8920,86 @@ def test_feature_readiness_cards_show_feature_level_product_status():
     assert "sell" not in rendered
 
 
+def test_readiness_recent_progress_cards_show_current_only_baseline_without_prior_snapshot():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "QQQ"],
+            "in_active_universe": [True, False, True],
+            "price_ready": [True, False, True],
+            "dcf_ready": [True, False, False],
+            "peer_ready": [False, False, True],
+            "earnings_ready": [False, False, False],
+            "analyst_estimates_ready": [False, False, False],
+            "blocked_features": ["peer, earnings, analyst_estimates", "price, dcf, peer", "earnings, analyst_estimates"],
+            "overall_readiness_state": ["partial", "blocked", "partial"],
+            "updated_at": ["2026-05-28T00:00:00+00:00", "2026-05-28T00:00:00+00:00", "2026-05-28T00:00:00+00:00"],
+        }
+    )
+    feature_summary = pd.DataFrame(
+        {
+            "feature": ["price", "peer"],
+            "blocked_count": [1, 2],
+        }
+    )
+
+    cards = dashboard.readiness_recent_progress_cards(readiness, feature_summary_frame=feature_summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "2/3 price-ready" in rendered
+    assert "current-only baseline" in rendered
+    assert "no prior snapshot" in rendered
+    assert "peer: 2" in rendered
+    assert "copyable commands only" in rendered
+    assert "external actions" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_readiness_recent_progress_cards_compare_prior_snapshot_and_newly_ready_tickers():
+    current = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC"],
+            "in_active_universe": [True, True, False],
+            "price_ready": [True, True, False],
+            "dcf_ready": [False, True, False],
+            "peer_ready": [False, False, False],
+            "earnings_ready": [False, False, False],
+            "analyst_estimates_ready": [False, False, False],
+            "blocked_features": ["dcf, peer", "peer", "price, dcf, peer"],
+            "overall_readiness_state": ["partial", "partial", "blocked"],
+            "updated_at": ["2026-05-29T00:00:00+00:00", "2026-05-29T00:00:00+00:00", "2026-05-29T00:00:00+00:00"],
+        }
+    )
+    previous = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC"],
+            "price_ready": [True, False, False],
+            "dcf_ready": [False, False, False],
+            "peer_ready": [False, False, False],
+            "earnings_ready": [False, False, False],
+            "analyst_estimates_ready": [False, False, False],
+        }
+    )
+
+    change_frame = dashboard.build_readiness_change_frame(current, previous)
+    cards = dashboard.readiness_recent_progress_cards(current, previous)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    price_row = change_frame.loc[change_frame["feature"].eq("Price")].iloc[0]
+    dcf_row = change_frame.loc[change_frame["feature"].eq("DCF")].iloc[0]
+
+    assert int(price_row["delta_ready"]) == 1
+    assert price_row["newly_ready_tickers"] == "BBB"
+    assert int(dcf_row["delta_ready"]) == 1
+    assert "price +1" in rendered
+    assert "dcf +1" in rendered
+    assert "newly ready tickers: bbb" in rendered
+    assert "previous vs current" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_peer_readiness_product_cards_surface_specific_peer_blockers():
     peer_readiness = pd.DataFrame(
         [
@@ -9004,8 +9084,30 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
     )
     unlock = pd.DataFrame(
         [
-            {"ticker": "A", "priority": 1, "focus_command": "make focus-peers TICKER=A", "example_command": "make peer-mapping-queue TOP_N=25"},
-            {"ticker": "META", "priority": 1, "focus_command": "make focus-peers TICKER=META", "example_command": "make peer-mapping-queue TOP_N=25"},
+            {
+                "ticker": "A",
+                "priority": 1,
+                "unlock_stage": "add_source_backed_peer_mappings",
+                "peer_trend_status": "peer_trend_blocked",
+                "peer_valuation_status": "peer_valuation_blocked",
+                "next_input_file": "data/imports/peers.csv",
+                "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
+                "focus_command": "make focus-peers TICKER=A",
+                "example_command": "make peer-mapping-queue TOP_N=25",
+                "copy_only_note": "Copy commands only; review staged rows before applying local CSV changes.",
+            },
+            {
+                "ticker": "META",
+                "priority": 1,
+                "unlock_stage": "add_peer_fundamentals",
+                "peer_trend_status": "peer_trend_possible",
+                "peer_valuation_status": "peer_valuation_blocked",
+                "next_input_file": "data/imports/fundamentals.csv or data/staged/fundamentals/",
+                "validation_sequence": "make focus-fundamentals TICKER=<peer> -> make imports-validate",
+                "focus_command": "make focus-peers TICKER=META",
+                "example_command": "make peer-mapping-queue TOP_N=25",
+                "copy_only_note": "Copy commands only; review staged rows before applying local CSV changes.",
+            },
         ]
     )
 
@@ -9045,6 +9147,15 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
     assert list(trend_ready["ticker"]) == ["NVDA"]
     columns = dashboard.peer_mapping_studio_table_columns(studio)
     rendered = " ".join(str(value) for value in studio[columns].to_numpy().ravel()).lower()
+    assert "unlock_stage" in columns
+    assert "peer_trend_status" in columns
+    assert "peer_valuation_status" in columns
+    assert "next_input_file" in columns
+    assert "validation_sequence" in columns
+    assert "copy_only_note" in columns
+    assert "peer_trend_possible" in rendered
+    assert "peer_valuation_blocked" in rendered
+    assert "data/imports/fundamentals.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "broker" not in rendered
@@ -9169,6 +9280,8 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "templates are not data" in rendered
+    assert "schema only" in rendered
     assert "data/rejected/earnings_import_rejected.csv" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "missing trusted local csv input" in rendered

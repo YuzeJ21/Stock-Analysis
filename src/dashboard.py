@@ -2423,6 +2423,16 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "badges": ["csv-first", "no fabrication"],
             "command": "make templates",
         },
+        {
+            "kicker": "SCHEMA-ONLY EXAMPLES",
+            "title": "Templates are not data",
+            "body": (
+                "Generated templates and example schemas are blank operator aids, not synthetic earnings or estimate coverage. "
+                "Keep optional context unavailable until trusted rows are staged, validated, previewed, and applied."
+            ),
+            "badges": ["schema only", "trusted rows required"],
+            "command": "make imports-preview",
+        },
     ]
 
 
@@ -3990,6 +4000,246 @@ def ticker_set_from_bool(frame: pd.DataFrame | None, column: str) -> set[str]:
     return set(frame.loc[mask, "ticker"].dropna().astype(str).str.upper().str.strip())
 
 
+READINESS_PROGRESS_FEATURES = [
+    ("price_ready", "Price"),
+    ("momentum_ready", "Momentum"),
+    ("market_direction_ready", "Market direction"),
+    ("liquidity_ready", "Liquidity"),
+    ("correlation_ready", "Correlation"),
+    ("fundamentals_ready", "Fundamentals"),
+    ("dcf_ready", "DCF"),
+    ("peer_ready", "Peers"),
+    ("earnings_ready", "Earnings"),
+    ("analyst_estimates_ready", "Analyst estimates"),
+]
+PRIOR_READINESS_FILENAMES = [
+    "ticker_readiness_report.previous.csv",
+    "previous_ticker_readiness_report.csv",
+    "ticker_readiness_report_prior.csv",
+    "ticker_readiness_baseline.csv",
+]
+
+
+def _frame_bool_series(frame: pd.DataFrame, column: str) -> pd.Series:
+    values = bool_series(frame, column)
+    if values.empty:
+        return pd.Series(False, index=frame.index)
+    return values.reindex(frame.index, fill_value=False)
+
+
+def _latest_frame_timestamp(frame: pd.DataFrame | None) -> str:
+    if frame is None or frame.empty:
+        return ""
+    for column in ("updated_at", "generated_at", "last_success_at", "last_attempted_at"):
+        if column not in frame.columns:
+            continue
+        values = frame[column].dropna().astype(str).str.strip()
+        values = values.loc[~values.str.lower().isin({"", "nan", "none", "null", "not available"})]
+        if not values.empty:
+            return str(values.max())
+    return ""
+
+
+def load_prior_ticker_readiness_report(data_dir: Path = DATA_DIR) -> tuple[pd.DataFrame | None, str]:
+    reports_dir = data_dir / "reports"
+    for filename in PRIOR_READINESS_FILENAMES:
+        path = reports_dir / filename
+        if path.exists():
+            frame, message = load_output(path)
+            return frame, str(path) if frame is not None else (message or str(path))
+    return None, "No prior ticker readiness snapshot found in data/reports."
+
+
+def build_readiness_change_frame(
+    current_frame: pd.DataFrame | None,
+    previous_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = [
+        "feature",
+        "current_ready",
+        "previous_ready",
+        "delta_ready",
+        "current_blocked",
+        "newly_ready_tickers",
+    ]
+    if current_frame is None or current_frame.empty:
+        return pd.DataFrame(columns=columns)
+
+    current = current_frame.copy()
+    previous = previous_frame.copy() if previous_frame is not None else pd.DataFrame()
+    if "ticker" in current.columns:
+        current["ticker"] = current["ticker"].astype(str).str.upper().str.strip()
+    if not previous.empty and "ticker" in previous.columns:
+        previous["ticker"] = previous["ticker"].astype(str).str.upper().str.strip()
+
+    rows: list[dict[str, object]] = []
+    for column, label in READINESS_PROGRESS_FEATURES:
+        current_ready = _frame_bool_series(current, column)
+        current_ready_count = int(current_ready.sum())
+        previous_ready_count: int | None = None
+        delta_ready: int | None = None
+        newly_ready = ""
+        if not previous.empty and column in previous.columns:
+            previous_ready = _frame_bool_series(previous, column)
+            previous_ready_count = int(previous_ready.sum())
+            delta_ready = current_ready_count - previous_ready_count
+            if "ticker" in current.columns and "ticker" in previous.columns:
+                previous_ready_tickers = set(previous.loc[previous_ready, "ticker"].dropna().astype(str).str.upper().str.strip())
+                current_ready_tickers = current.loc[current_ready, "ticker"].dropna().astype(str).str.upper().str.strip()
+                newly_ready = ", ".join([ticker for ticker in current_ready_tickers if ticker not in previous_ready_tickers][:8])
+
+        blocked_count = 0
+        blocker_name = column.removesuffix("_ready")
+        if "blocked_features" in current.columns:
+            blocked_count = int(
+                current["blocked_features"]
+                .fillna("")
+                .astype(str)
+                .str.contains(rf"(?:^|,\s*){re.escape(blocker_name)}(?:$|,)", case=False, regex=True)
+                .sum()
+            )
+        rows.append(
+            {
+                "feature": label,
+                "current_ready": current_ready_count,
+                "previous_ready": previous_ready_count,
+                "delta_ready": delta_ready,
+                "current_blocked": blocked_count,
+                "newly_ready_tickers": newly_ready,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def readiness_recent_progress_cards(
+    current_frame: pd.DataFrame | None,
+    previous_frame: pd.DataFrame | None = None,
+    feature_summary_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    if current_frame is None or current_frame.empty:
+        return [
+            {
+                "kicker": "WHAT CHANGED",
+                "title": "Readiness report missing",
+                "body": "Run make readiness before comparing current and prior product status.",
+                "badges": ["blocked"],
+                "command": "make readiness",
+            }
+        ]
+
+    current = current_frame.copy()
+    total = int(len(current))
+    active = int(_frame_bool_series(current, "in_active_universe").sum()) if "in_active_universe" in current.columns else 0
+    state_counts = (
+        current.get("overall_readiness_state", pd.Series(dtype=object))
+        .fillna("unknown")
+        .astype(str)
+        .str.lower()
+        .value_counts()
+    )
+    change_frame = build_readiness_change_frame(current, previous_frame)
+    latest = _latest_frame_timestamp(current)
+    price_ready = int(change_frame.loc[change_frame["feature"].eq("Price"), "current_ready"].max() or 0)
+    dcf_ready = int(change_frame.loc[change_frame["feature"].eq("DCF"), "current_ready"].max() or 0)
+    peer_ready = int(change_frame.loc[change_frame["feature"].eq("Peers"), "current_ready"].max() or 0)
+    cards = [
+        {
+            "kicker": "READINESS NOW",
+            "title": f"{price_ready}/{total} price-ready",
+            "body": (
+                f"Active universe: {active}. DCF-ready: {dcf_ready}. Peer-ready: {peer_ready}. "
+                f"Blocked: {int(state_counts.get('blocked', 0))}. Partial: {int(state_counts.get('partial', 0))}. "
+                f"Latest generated: {format_missing(latest)}."
+            ),
+            "badges": ["current counts", "readiness first"],
+            "command": "make readiness",
+        }
+    ]
+
+    has_previous = previous_frame is not None and not previous_frame.empty
+    if has_previous:
+        changed = change_frame.dropna(subset=["delta_ready"]).copy()
+        changed["abs_delta"] = pd.to_numeric(changed["delta_ready"], errors="coerce").abs()
+        changed = changed.sort_values(["abs_delta", "feature"], ascending=[False, True], kind="stable")
+        top_changed = changed.loc[changed["abs_delta"].gt(0)].head(4)
+        changed_text = ", ".join(
+            f"{row.feature} {'+' if int(row.delta_ready) >= 0 else ''}{int(row.delta_ready)}"
+            for row in top_changed.itertuples(index=False)
+        )
+        newly_ready = next(
+            (
+                str(value)
+                for value in changed["newly_ready_tickers"].dropna().astype(str)
+                if value.strip()
+            ),
+            "",
+        )
+        cards.append(
+            {
+                "kicker": "WHAT CHANGED",
+                "title": changed_text or "No ready-count change",
+                "body": (
+                    f"Compared with the prior local readiness snapshot. Newly ready tickers: {newly_ready or 'none detected'}. "
+                    "This is a count comparison only; review source/freshness before interpreting analysis."
+                ),
+                "badges": ["previous vs current", "no fabricated deltas"],
+                "command": "make project-status",
+            }
+        )
+    else:
+        cards.append(
+            {
+                "kicker": "WHAT CHANGED",
+                "title": "Current-only baseline",
+                "body": (
+                    "No prior readiness snapshot was found, so the dashboard shows current counts without pretending a delta exists. "
+                    "Save a future data/reports/ticker_readiness_report.previous.csv if you want before/after comparisons."
+                ),
+                "badges": ["no prior snapshot", "data-honest"],
+                "command": "make project-status",
+            }
+        )
+
+    blocked_rows: list[str] = []
+    if feature_summary_frame is not None and not feature_summary_frame.empty:
+        summary = feature_summary_frame.copy()
+        if "blocked_count" in summary.columns:
+            summary["blocked_count"] = pd.to_numeric(summary["blocked_count"], errors="coerce").fillna(0).astype(int)
+            summary = summary.sort_values(["blocked_count", "feature"], ascending=[False, True], kind="stable")
+            for row in summary.head(4).itertuples(index=False):
+                feature = format_missing(getattr(row, "feature", ""), "feature")
+                blocked = int(getattr(row, "blocked_count", 0) or 0)
+                blocked_rows.append(f"{feature}: {blocked}")
+    if not blocked_rows and not change_frame.empty:
+        blocked = change_frame.sort_values(["current_blocked", "feature"], ascending=[False, True], kind="stable").head(4)
+        blocked_rows = [f"{row.feature}: {int(row.current_blocked)}" for row in blocked.itertuples(index=False)]
+    cards.append(
+        {
+            "kicker": "STILL BLOCKED",
+            "title": ", ".join(blocked_rows[:2]) or "No blockers reported",
+            "body": (
+                (", ".join(blocked_rows) if blocked_rows else "No current blocker summary is available.")
+                + " Use capped, feature-specific worklists instead of rendering or refreshing all master rows."
+            ),
+            "badges": ["top blocked features", "row-limited"],
+            "command": "make onboarding TOP_N=10",
+        }
+    )
+    cards.append(
+        {
+            "kicker": "SOURCE / FRESHNESS",
+            "title": "Copyable commands only",
+            "body": (
+                "Dashboard cards display local commands and paths only; they do not execute imports, refreshes, or external actions. "
+                "Earnings and analyst estimates remain unavailable until trusted local CSV rows validate."
+            ),
+            "badges": ["copy only", "research-only"],
+            "command": "make imports-validate",
+        }
+    )
+    return cards
+
+
 def dashboard_readiness_summary(
     coverage_frame: pd.DataFrame | None,
     dcf_readiness_frame: pd.DataFrame | None,
@@ -4418,7 +4668,18 @@ def build_peer_mapping_studio_frame(
     if peer_unlock_worklist_frame is not None and not peer_unlock_worklist_frame.empty and "ticker" in peer_unlock_worklist_frame.columns:
         unlock_columns = [
             column
-            for column in ["ticker", "priority", "focus_command", "example_command"]
+            for column in [
+                "ticker",
+                "priority",
+                "unlock_stage",
+                "peer_trend_status",
+                "peer_valuation_status",
+                "next_input_file",
+                "validation_sequence",
+                "focus_command",
+                "example_command",
+                "copy_only_note",
+            ]
             if column in peer_unlock_worklist_frame.columns
         ]
         unlock = peer_unlock_worklist_frame[unlock_columns].copy()
@@ -4498,6 +4759,9 @@ def peer_mapping_studio_table_columns(frame: pd.DataFrame) -> list[str]:
         "dcf_ready",
         "peer_ready",
         "peer_blocker_type",
+        "unlock_stage",
+        "peer_trend_status",
+        "peer_valuation_status",
         "mapping_status",
         "peer_count",
         "ready_peer_count",
@@ -4511,8 +4775,11 @@ def peer_mapping_studio_table_columns(frame: pd.DataFrame) -> list[str]:
         "peer_missing_valuation_tickers",
         "missing_peer_reason",
         "next_peer_action",
+        "next_input_file",
+        "validation_sequence",
         "focus_command",
         "example_command",
+        "copy_only_note",
     ]
     return [column for column in preferred if column in frame.columns]
 
@@ -9537,6 +9804,8 @@ def render_overview(
     earnings_readiness_frame, _ = optional_readiness_tables["earnings_readiness"]
     analyst_readiness_frame, _ = optional_readiness_tables["analyst_estimates_readiness"]
     ticker_readiness_frame, _ = load_ticker_readiness_report()
+    prior_ticker_readiness_frame, _ = load_prior_ticker_readiness_report()
+    feature_summary_frame, _ = load_feature_readiness_summary()
     latest_price = _latest_local_price_date(catalog)
     watchlist_count = 0 if final_watchlist_frame is None else len(final_watchlist_frame)
     monthly_frame, _ = monthly_tables["monthly_research_picks.csv"]
@@ -9557,6 +9826,17 @@ def render_overview(
                 analyst_readiness_frame,
                 ticker_readiness_frame,
             )
+        )
+    )
+    render_section_header(
+        "What Changed Recently",
+        "Current readiness counts, latest generated timestamp, and prior/current deltas when a prior snapshot exists.",
+    )
+    render_signal_cards(
+        readiness_recent_progress_cards(
+            ticker_readiness_frame,
+            prior_ticker_readiness_frame,
+            feature_summary_frame,
         )
     )
     render_signal_cards(
@@ -10313,6 +10593,12 @@ def render_market_command_center(
     )
     summary = market_wide_readiness_summary(ticker_readiness_frame, coverage_frame, decisions_frame)
     render_signal_cards(readiness_panel_cards(summary))
+    prior_ticker_readiness_frame, _ = load_prior_ticker_readiness_report()
+    render_section_header(
+        "What Changed Recently",
+        "Current market-wide readiness, top blocked features, and prior/current comparison when a prior local snapshot exists.",
+    )
+    render_signal_cards(readiness_recent_progress_cards(ticker_readiness_frame, prior_ticker_readiness_frame, feature_summary_frame))
     render_section_header("Feature Readiness", "Which product modules are usable today, partially usable, blocked, or excluded.")
     render_signal_cards(feature_readiness_cards(feature_summary_frame))
     render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without unsupported recommendations.")

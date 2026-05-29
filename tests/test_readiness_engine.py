@@ -64,6 +64,7 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     readiness = reports["ticker_readiness_report"].set_index("ticker")
     feature_summary = reports["feature_readiness_summary"].set_index("feature")
     source_status = reports["data_source_status"].set_index("source_name")
+    peer_unlock = reports["peer_unlock_worklist"].set_index("ticker")
 
     assert bool(readiness.loc["NVDA", "price_ready"]) is True
     assert bool(readiness.loc["NVDA", "momentum_ready"]) is True
@@ -86,6 +87,12 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     assert "NVDA" in feature_summary.loc["dcf", "sample_ready_tickers"]
     assert feature_summary.loc["dcf", "unlock_command"] == "make dcf-readiness"
     assert feature_summary.loc["price", "next_action"] == "make price-worklist TOP_N=25"
+    assert peer_unlock.loc["NVDA", "unlock_stage"] == "add_source_backed_peer_mappings"
+    assert peer_unlock.loc["NVDA", "peer_trend_status"] == "peer_trend_blocked"
+    assert peer_unlock.loc["NVDA", "peer_valuation_status"] == "peer_valuation_blocked"
+    assert peer_unlock.loc["NVDA", "next_input_file"] == "data/imports/peers.csv"
+    assert "imports-preview" in peer_unlock.loc["NVDA", "validation_sequence"]
+    assert "Copy commands only" in peer_unlock.loc["NVDA", "copy_only_note"]
     assert (data_dir / "reports" / "ticker_readiness_report.csv").exists()
     assert (data_dir / "reports" / "feature_readiness_summary.csv").exists()
     assert (data_dir / "reports" / "peer_unlock_worklist.csv").exists()

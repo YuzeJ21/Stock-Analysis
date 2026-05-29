@@ -133,6 +133,9 @@ PEER_UNLOCK_WORKLIST_COLUMNS = [
     "priority",
     "ticker",
     "peer_blocker_type",
+    "unlock_stage",
+    "peer_trend_status",
+    "peer_valuation_status",
     "peer_count",
     "ready_peer_count",
     "peer_price_ready_count",
@@ -142,8 +145,11 @@ PEER_UNLOCK_WORKLIST_COLUMNS = [
     "sample_peers",
     "missing_peer_reason",
     "next_peer_action",
+    "next_input_file",
+    "validation_sequence",
     "focus_command",
     "example_command",
+    "copy_only_note",
     "updated_at",
 ]
 
@@ -680,11 +686,34 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
         price_ready = bool(readiness_row.get("price_ready", False))
         priority = 1 if dcf_ready else 2 if price_ready else 3
         blocker_type = _text_value(peer_row.get("peer_blocker_type")) or "peer_blocked"
+        peer_trend_ready = bool(peer_row.get("peer_trend_comparison_ready", False))
+        peer_valuation_ready = bool(peer_row.get("peer_valuation_comparison_ready", False))
+        peer_trend_status = "peer_trend_possible" if peer_trend_ready else "peer_trend_blocked"
+        peer_valuation_status = "peer_valuation_ready" if peer_valuation_ready else "peer_valuation_blocked"
+        if blocker_type == "missing_peer_mapping":
+            unlock_stage = "add_source_backed_peer_mappings"
+            next_input_file = "data/imports/peers.csv"
+            validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+        elif blocker_type in {"peer_price_missing", "peer_momentum_missing"}:
+            unlock_stage = "add_peer_price_history"
+            next_input_file = "data/imports/prices.csv or data/staged/prices/"
+            validation_sequence = "make focus-price TICKER=<peer> -> make price-refresh TICKERS=<peer> or stage trusted OHLCV -> make imports-validate"
+        elif blocker_type in {"peer_fundamentals_missing", "peer_valuation_blocked"}:
+            unlock_stage = "add_peer_fundamentals"
+            next_input_file = "data/imports/fundamentals.csv or data/staged/fundamentals/"
+            validation_sequence = "make focus-fundamentals TICKER=<peer> -> make sec-stage TICKERS=<peer> or stage trusted fundamentals -> make imports-validate"
+        else:
+            unlock_stage = "review_peer_context"
+            next_input_file = "data/peers.csv"
+            validation_sequence = "make readiness -> make stock-report TICKER=<ticker>"
         rows.append(
             {
                 "priority": priority,
                 "ticker": ticker,
                 "peer_blocker_type": blocker_type,
+                "unlock_stage": unlock_stage,
+                "peer_trend_status": peer_trend_status,
+                "peer_valuation_status": peer_valuation_status,
                 "peer_count": int(peer_row.get("peer_count") or 0),
                 "ready_peer_count": int(peer_row.get("ready_peer_count") or 0),
                 "peer_price_ready_count": int(peer_row.get("peer_price_ready_count") or 0),
@@ -694,8 +723,11 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
                 "sample_peers": peer_row.get("sample_peers", ""),
                 "missing_peer_reason": peer_row.get("missing_peer_reason", ""),
                 "next_peer_action": peer_row.get("next_peer_action", ""),
+                "next_input_file": next_input_file,
+                "validation_sequence": validation_sequence,
                 "focus_command": f"make focus-peers TICKER={ticker}",
                 "example_command": "make peer-mapping-queue TOP_N=25",
+                "copy_only_note": "Copy commands only; review staged rows before applying local CSV changes.",
                 "updated_at": _now(),
             }
         )
