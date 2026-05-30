@@ -134,6 +134,43 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     assert (data_dir / "reports" / "data_source_status.csv").exists()
 
 
+def test_peer_unlock_worklist_sorts_active_dcf_ready_rows_before_master_rows(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "A", "name": "Agilent", "asset_type": "company", "source": "fixture"},
+            {"ticker": "META", "name": "Meta", "asset_type": "company", "source": "fixture"},
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame([{"ticker": "META", "scope": "active_research", "theme": "Platforms"}]).to_csv(
+        data_dir / "universe_active.csv",
+        index=False,
+    )
+    pd.DataFrame(_price_rows("A", 60) + _price_rows("META", 60)).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "A", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10, "source": "fixture"},
+            {"ticker": "META", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10, "source": "fixture"},
+        ]
+    ).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(columns=["ticker", "peer_ticker", "peer_group", "source"]).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
+
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    worklist = reports["peer_unlock_worklist"]
+
+    assert list(worklist["ticker"].head(2)) == ["META", "A"]
+    assert list(worklist["workflow_scope"].head(2)) == ["active_universe", "master_universe"]
+    assert set(worklist["workflow_group"]) == {"dcf_ready_peer_mapping"}
+
+
 def test_readiness_requires_source_and_minimum_ready_peer_metrics(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)

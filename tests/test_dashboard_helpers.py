@@ -8950,6 +8950,8 @@ def test_readiness_recent_progress_cards_show_current_only_baseline_without_prio
     assert "no prior snapshot" in rendered
     assert "make readiness-snapshot" in rendered
     assert "ticker_readiness_report.previous.csv" in rendered
+    assert "snapshot -> targeted update -> compare" in rendered
+    assert "targeted refresh or import" in rendered
     assert "peer: 2" in rendered
     assert "copyable commands only" in rendered
     assert "external actions" in rendered
@@ -8986,7 +8988,11 @@ def test_readiness_recent_progress_cards_compare_prior_snapshot_and_newly_ready_
     )
 
     change_frame = dashboard.build_readiness_change_frame(current, previous)
-    cards = dashboard.readiness_recent_progress_cards(current, previous)
+    cards = dashboard.readiness_recent_progress_cards(
+        current,
+        previous,
+        previous_snapshot_label="data/reports/ticker_readiness_report.previous.csv",
+    )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
     price_row = change_frame.loc[change_frame["feature"].eq("Price")].iloc[0]
     dcf_row = change_frame.loc[change_frame["feature"].eq("DCF")].iloc[0]
@@ -8998,6 +9004,8 @@ def test_readiness_recent_progress_cards_compare_prior_snapshot_and_newly_ready_
     assert "dcf +1" in rendered
     assert "newly ready tickers: bbb" in rendered
     assert "previous vs current" in rendered
+    assert "data/reports/ticker_readiness_report.previous.csv" in rendered
+    assert "snapshot -> targeted update -> compare" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -9149,7 +9157,7 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
         row_limit=10,
     )
 
-    assert list(studio["ticker"]) == ["A", "META"]
+    assert list(studio["ticker"]) == ["META", "A"]
     assert list(missing_mapping["ticker"]) == ["A"]
     assert list(fundamentals["ticker"]) == ["META"]
     assert list(trend_ready["ticker"]) == ["NVDA"]
@@ -9171,6 +9179,59 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
     assert "data/imports/fundamentals.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
+    worklist = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "priority": 1,
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "master_universe",
+                "next_action_summary": "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data.",
+                "next_input_file": "data/imports/peers.csv",
+                "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
+                "focus_command": "make focus-peers TICKER=A",
+            },
+            {
+                "ticker": "META",
+                "priority": 1,
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "active_universe",
+                "next_action_summary": "Add source-backed peers for active universe DCF workflow.",
+                "next_input_file": "data/imports/peers.csv",
+                "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
+                "focus_command": "make focus-peers TICKER=META",
+            },
+            {
+                "ticker": "APLD",
+                "priority": 3,
+                "workflow_group": "peer_mapping_after_price",
+                "workflow_scope": "master_universe",
+                "next_action_summary": "Add prices first, then peer mappings.",
+                "next_input_file": "data/imports/peers.csv",
+                "validation_sequence": "make templates -> make imports-validate",
+                "focus_command": "make focus-peers TICKER=APLD",
+            },
+        ]
+    )
+
+    cards = dashboard.peer_unlock_operator_cards(worklist)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "p1: 2" in rendered
+    assert "p3: 1" in rendered
+    assert "active universe: 1" in rendered
+    assert "master universe: 2" in rendered
+    assert "meta" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "make imports-preview" in rendered
+    assert "dcf ready peer mapping" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered

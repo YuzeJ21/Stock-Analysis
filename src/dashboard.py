@@ -4118,6 +4118,7 @@ def readiness_recent_progress_cards(
     current_frame: pd.DataFrame | None,
     previous_frame: pd.DataFrame | None = None,
     feature_summary_frame: pd.DataFrame | None = None,
+    previous_snapshot_label: str = "",
 ) -> list[dict[str, object]]:
     if current_frame is None or current_frame.empty:
         return [
@@ -4142,6 +4143,8 @@ def readiness_recent_progress_cards(
     )
     change_frame = build_readiness_change_frame(current, previous_frame)
     latest = _latest_frame_timestamp(current)
+    prior_latest = _latest_frame_timestamp(previous_frame)
+    prior_label = format_missing(previous_snapshot_label, "data/reports/ticker_readiness_report.previous.csv")
     price_ready = int(change_frame.loc[change_frame["feature"].eq("Price"), "current_ready"].max() or 0)
     dcf_ready = int(change_frame.loc[change_frame["feature"].eq("DCF"), "current_ready"].max() or 0)
     peer_ready = int(change_frame.loc[change_frame["feature"].eq("Peers"), "current_ready"].max() or 0)
@@ -4182,11 +4185,12 @@ def readiness_recent_progress_cards(
                 "kicker": "WHAT CHANGED",
                 "title": changed_text or "No ready-count change",
                 "body": (
-                    f"Compared with the prior local readiness snapshot. Newly ready tickers: {newly_ready or 'none detected'}. "
+                    f"Compared with prior snapshot {prior_label}; prior generated: {format_missing(prior_latest)}. "
+                    f"Newly ready tickers: {newly_ready or 'none detected'}. "
                     "This is a count comparison only; review source/freshness before interpreting analysis."
                 ),
                 "badges": ["previous vs current", "no fabricated deltas"],
-                "command": "make project-status",
+                "command": "make readiness",
             }
         )
     else:
@@ -4196,12 +4200,25 @@ def readiness_recent_progress_cards(
                 "title": "Current-only baseline",
                 "body": (
                     "No prior readiness snapshot was found, so the dashboard shows current counts without pretending a delta exists. "
-                    "Run make readiness-snapshot before the next refresh to save data/reports/ticker_readiness_report.previous.csv for real before/after comparisons."
+                    "Run make readiness-snapshot before the next targeted refresh or import, then run make readiness to compare real before/after counts from data/reports/ticker_readiness_report.previous.csv."
                 ),
                 "badges": ["no prior snapshot", "data-honest"],
                 "command": "make readiness-snapshot",
             }
         )
+
+    cards.append(
+        {
+            "kicker": "SNAPSHOT WORKFLOW",
+            "title": "Snapshot -> targeted update -> compare",
+            "body": (
+                "Use make readiness-snapshot, then one targeted refresh/import workflow, then make readiness. "
+                "The dashboard compares only saved local CSV snapshots and never invents progress."
+            ),
+            "badges": ["operator workflow", "copy only"],
+            "command": "make readiness-snapshot",
+        }
+    )
 
     blocked_rows: list[str] = []
     if feature_summary_frame is not None and not feature_summary_frame.empty:
@@ -4617,6 +4634,75 @@ def peer_mapping_studio_summary_cards(
     ]
 
 
+def peer_unlock_operator_cards(peer_unlock_worklist_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty:
+        return [
+            {
+                "kicker": "PEER UNLOCK QUEUE",
+                "title": "No unlock worklist",
+                "body": "Run make readiness to generate outputs/peer_unlock_worklist.csv before editing trusted peer rows.",
+                "badges": ["blocked"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = peer_unlock_worklist_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if "priority" in frame.columns:
+        frame["priority"] = pd.to_numeric(frame["priority"], errors="coerce").fillna(999).astype(int)
+    else:
+        frame["priority"] = 999
+    if "workflow_group" not in frame.columns:
+        frame["workflow_group"] = "peer_workflow"
+    if "workflow_scope" not in frame.columns:
+        frame["workflow_scope"] = "unknown_scope"
+    workflow_counts = frame.get("workflow_group", pd.Series("peer_workflow", index=frame.index)).fillna("peer_workflow").astype(str).value_counts()
+    scope_counts = frame.get("workflow_scope", pd.Series("unknown_scope", index=frame.index)).fillna("unknown_scope").astype(str).value_counts()
+    priority_counts = frame["priority"].value_counts().sort_index()
+    ordered = frame.sort_values(
+        [
+            "priority",
+            "workflow_scope",
+            "workflow_group",
+            "ticker",
+        ],
+        ascending=[True, True, True, True],
+        kind="stable",
+    )
+    top_row = ordered.iloc[0]
+    top_ticker = format_missing(top_row.get("ticker"), "Ticker")
+    top_summary = compact_reason(top_row.get("next_action_summary") or top_row.get("next_peer_action"), max_sentences=1, max_chars=180)
+    input_file = format_missing(top_row.get("next_input_file"), "data/imports/peers.csv")
+    validation = format_missing(top_row.get("validation_sequence"), "make templates -> make imports-validate -> make imports-preview -> make imports-apply")
+    priority_text = ", ".join(f"P{int(key)}: {int(value)}" for key, value in priority_counts.head(4).items())
+    workflow_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in workflow_counts.head(3).items())
+    scope_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in scope_counts.head(3).items())
+    return [
+        {
+            "kicker": "PEER UNLOCK QUEUE",
+            "title": priority_text or f"{len(frame)} queued",
+            "body": f"{len(frame)} peer unlock row(s). Scope mix: {scope_text or 'not available'}.",
+            "badges": ["priority grouped", "row-limited"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "NEXT PEER ROW",
+            "title": top_ticker,
+            "body": f"{top_summary} Input file: {input_file}. Validate with: {validation}.",
+            "badges": ["source-backed", "preview before apply"],
+            "command": str(top_row.get("focus_command") or f"make focus-peers TICKER={top_ticker}"),
+        },
+        {
+            "kicker": "WORKFLOW GROUPS",
+            "title": "What kind of peer data?",
+            "body": workflow_text or "No workflow grouping is available yet.",
+            "badges": ["mapping vs metrics", "no fallback peers"],
+            "command": "make templates",
+        },
+    ]
+
+
 PEER_STUDIO_FILTERS = [
     "DCF-ready but peer-blocked",
     "Missing peer mapping",
@@ -4747,8 +4833,15 @@ def build_peer_mapping_studio_frame(
         frame["priority"] = pd.to_numeric(frame["priority"], errors="coerce").fillna(999).astype(int)
     else:
         frame["priority"] = 999
+    if "workflow_scope" in frame.columns:
+        frame["workflow_scope_rank"] = frame["workflow_scope"].map({"active_universe": 0, "master_universe": 1}).fillna(2).astype(int)
+    else:
+        frame["workflow_scope_rank"] = 2
+    if "workflow_group" not in frame.columns:
+        frame["workflow_group"] = ""
     if "ticker" in frame.columns:
-        frame = frame.sort_values(["priority", "ticker"], kind="stable").copy()
+        frame = frame.sort_values(["priority", "workflow_scope_rank", "workflow_group", "ticker"], kind="stable").copy()
+    frame = frame.drop(columns=["workflow_scope_rank"], errors="ignore")
     if row_limit is not None and row_limit > 0:
         frame = frame.head(row_limit).copy()
     return frame
@@ -9813,7 +9906,7 @@ def render_overview(
     earnings_readiness_frame, _ = optional_readiness_tables["earnings_readiness"]
     analyst_readiness_frame, _ = optional_readiness_tables["analyst_estimates_readiness"]
     ticker_readiness_frame, _ = load_ticker_readiness_report()
-    prior_ticker_readiness_frame, _ = load_prior_ticker_readiness_report()
+    prior_ticker_readiness_frame, prior_ticker_readiness_message = load_prior_ticker_readiness_report()
     feature_summary_frame, _ = load_feature_readiness_summary()
     latest_price = _latest_local_price_date(catalog)
     watchlist_count = 0 if final_watchlist_frame is None else len(final_watchlist_frame)
@@ -9846,6 +9939,7 @@ def render_overview(
             ticker_readiness_frame,
             prior_ticker_readiness_frame,
             feature_summary_frame,
+            previous_snapshot_label=prior_ticker_readiness_message,
         )
     )
     render_signal_cards(
@@ -10602,12 +10696,19 @@ def render_market_command_center(
     )
     summary = market_wide_readiness_summary(ticker_readiness_frame, coverage_frame, decisions_frame)
     render_signal_cards(readiness_panel_cards(summary))
-    prior_ticker_readiness_frame, _ = load_prior_ticker_readiness_report()
+    prior_ticker_readiness_frame, prior_ticker_readiness_message = load_prior_ticker_readiness_report()
     render_section_header(
         "What Changed Recently",
         "Current market-wide readiness, top blocked features, and prior/current comparison when a prior local snapshot exists.",
     )
-    render_signal_cards(readiness_recent_progress_cards(ticker_readiness_frame, prior_ticker_readiness_frame, feature_summary_frame))
+    render_signal_cards(
+        readiness_recent_progress_cards(
+            ticker_readiness_frame,
+            prior_ticker_readiness_frame,
+            feature_summary_frame,
+            previous_snapshot_label=prior_ticker_readiness_message,
+        )
+    )
     render_section_header("Feature Readiness", "Which product modules are usable today, partially usable, blocked, or excluded.")
     render_signal_cards(feature_readiness_cards(feature_summary_frame))
     render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without unsupported recommendations.")
@@ -10616,6 +10717,7 @@ def render_market_command_center(
     render_signal_cards(peer_readiness_product_cards(peer_readiness_frame, peer_mapping_queue_frame))
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
     render_signal_cards(peer_mapping_studio_summary_cards(peer_readiness_frame, ticker_readiness_frame))
+    render_signal_cards(peer_unlock_operator_cards(peer_unlock_worklist_frame))
     peer_cols = st.columns([1.7, 1.5, 1, 1, 1])
     peer_filter = peer_cols[0].selectbox(
         "Peer workflow filter",
