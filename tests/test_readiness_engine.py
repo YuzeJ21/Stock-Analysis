@@ -242,3 +242,50 @@ def test_readiness_requires_source_and_minimum_ready_peer_metrics(tmp_path: Path
     assert "fundamentals" in peers.loc["AAA", "next_peer_action"].lower()
     assert bool(peers.loc["AAA", "peer_ready"]) is True
     assert bool(readiness.loc["AAA", "peer_ready"]) is True
+
+
+def test_peer_valuation_comparison_requires_dcf_ready_peer_inputs(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "AAA", "name": "A Corp", "asset_type": "company", "source": "fixture"},
+            {"ticker": "BBB", "name": "B Corp", "asset_type": "company", "source": "fixture"},
+            {"ticker": "CCC", "name": "C Corp", "asset_type": "company", "source": "fixture"},
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame([{"ticker": "AAA", "scope": "active_research", "theme": "Test"}]).to_csv(data_dir / "universe_active.csv", index=False)
+    pd.DataFrame(_price_rows("AAA", 60) + _price_rows("BBB", 60) + _price_rows("CCC", 60)).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "AAA", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10, "source": "fixture"},
+            {"ticker": "BBB", "revenue": 100, "source": "fixture"},
+            {"ticker": "CCC", "revenue": 100, "source": "fixture"},
+        ]
+    ).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "AAA", "peer_ticker": "BBB", "peer_group": "Test", "source": "fixture"},
+            {"ticker": "AAA", "peer_ticker": "CCC", "peer_group": "Test", "source": "fixture"},
+        ]
+    ).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
+
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    peers = reports["peer_readiness_report"].set_index("ticker")
+    worklist = reports["peer_unlock_worklist"].set_index("ticker")
+
+    assert bool(peers.loc["AAA", "peer_trend_comparison_ready"]) is True
+    assert bool(peers.loc["AAA", "peer_fundamentals_ready"]) is True
+    assert bool(peers.loc["AAA", "peer_valuation_ready"]) is False
+    assert bool(peers.loc["AAA", "peer_valuation_comparison_ready"]) is False
+    assert peers.loc["AAA", "peer_blocker_type"] == "peer_valuation_blocked"
+    assert worklist.loc["AAA", "workflow_group"] == "peer_valuation_unlock"
+    assert worklist.loc["AAA", "peer_trend_status"] == "peer_trend_possible"
+    assert worklist.loc["AAA", "peer_valuation_status"] == "peer_valuation_blocked"

@@ -59,6 +59,73 @@ DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
 }
+IMPORT_HEALTH_DATASETS = [
+    {
+        "dataset": "prices",
+        "source_file": "data/prices.csv",
+        "staged_folder": "data/staged/prices/",
+        "canonical_import_file": "data/imports/prices.csv",
+        "rejected_report": "data/rejected/price_import_rejected.csv",
+        "next_command": "make imports-validate",
+    },
+    {
+        "dataset": "fundamentals",
+        "source_file": "data/fundamentals.csv",
+        "staged_folder": "data/staged/fundamentals/",
+        "canonical_import_file": "data/imports/fundamentals.csv",
+        "rejected_report": "data/rejected/fundamentals_import_rejected.csv",
+        "next_command": "make imports-validate",
+    },
+    {
+        "dataset": "peers",
+        "source_file": "data/peers.csv",
+        "staged_folder": "",
+        "canonical_import_file": "data/imports/peers.csv",
+        "rejected_report": "data/rejected/peers_import_rejected.csv",
+        "next_command": "make imports-validate",
+    },
+    {
+        "dataset": "earnings",
+        "source_file": "data/earnings.csv",
+        "staged_folder": "data/staged/earnings/",
+        "canonical_import_file": "data/imports/earnings.csv",
+        "rejected_report": "data/rejected/earnings_import_rejected.csv",
+        "next_command": "make import-earnings",
+    },
+    {
+        "dataset": "analyst_estimates",
+        "source_file": "data/analyst_estimates.csv",
+        "staged_folder": "data/staged/analyst_estimates/",
+        "canonical_import_file": "data/imports/analyst_estimates.csv",
+        "rejected_report": "data/rejected/analyst_estimates_import_rejected.csv",
+        "next_command": "make import-analyst-estimates",
+    },
+    {
+        "dataset": "universe",
+        "source_file": "data/universe.csv",
+        "staged_folder": "data/staged/universe/",
+        "canonical_import_file": "data/imports/universe.csv",
+        "rejected_report": "data/rejected/universe_rejected.csv",
+        "next_command": "make universe-preview",
+    },
+]
+IMPORT_HEALTH_COLUMNS = [
+    "dataset",
+    "source_file",
+    "source_exists",
+    "canonical_import_file",
+    "canonical_import_rows",
+    "staged_folder",
+    "staged_file_count",
+    "rejected_report",
+    "rejected_row_count",
+    "rejected_status",
+    "next_command",
+    "validation_command",
+    "preview_command",
+    "apply_command",
+    "copy_only_note",
+]
 DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
@@ -2440,20 +2507,94 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
     ]
 
 
-def import_validation_rejected_row_cards() -> list[dict[str, object]]:
-    rejected_paths = (
-        "data/rejected/price_import_rejected.csv, "
-        "data/rejected/fundamentals_import_rejected.csv, "
-        "data/rejected/peers_import_rejected.csv, "
-        "data/rejected/earnings_import_rejected.csv, "
-        "data/rejected/analyst_estimates_import_rejected.csv"
+def _csv_row_count(path: Path) -> int:
+    if not path.exists() or path.is_dir():
+        return 0
+    try:
+        return int(len(pd.read_csv(path)))
+    except pd.errors.EmptyDataError:
+        return 0
+    except Exception:
+        return 0
+
+
+def rejected_report_status(path: Path) -> tuple[str, int]:
+    if not path.exists():
+        return "missing report", 0
+    if path.stat().st_size == 0:
+        return "empty file", 0
+    row_count = _csv_row_count(path)
+    if row_count == 0:
+        return "clean/header-only", 0
+    return "has rejected rows", row_count
+
+
+def staged_file_count(path: Path) -> int:
+    if not path.exists() or not path.is_dir():
+        return 0
+    return sum(1 for child in path.iterdir() if child.is_file() and not child.name.startswith("."))
+
+
+def import_health_frame(base_dir: Path = BASE_DIR) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    for item in IMPORT_HEALTH_DATASETS:
+        source_path = base_dir / item["source_file"]
+        import_path = base_dir / item["canonical_import_file"]
+        staged_text = str(item["staged_folder"])
+        staged_path = base_dir / staged_text if staged_text else None
+        rejected_path = base_dir / item["rejected_report"]
+        rejected_status, rejected_count = rejected_report_status(rejected_path)
+        rows.append(
+            {
+                "dataset": item["dataset"],
+                "source_file": item["source_file"],
+                "source_exists": source_path.exists(),
+                "canonical_import_file": item["canonical_import_file"],
+                "canonical_import_rows": _csv_row_count(import_path),
+                "staged_folder": staged_text or "not applicable",
+                "staged_file_count": staged_file_count(staged_path) if staged_path is not None else 0,
+                "rejected_report": item["rejected_report"],
+                "rejected_row_count": rejected_count,
+                "rejected_status": rejected_status,
+                "next_command": item["next_command"],
+                "validation_command": "make imports-validate",
+                "preview_command": "make imports-preview",
+                "apply_command": "make imports-apply",
+                "copy_only_note": "Dashboard displays copyable commands only and does not run imports.",
+            }
+        )
+    return pd.DataFrame(rows, columns=IMPORT_HEALTH_COLUMNS)
+
+
+def import_health_summary(frame: pd.DataFrame | None) -> dict[str, int]:
+    if frame is None or frame.empty:
+        return {"datasets": 0, "rejected_rows": 0, "clean_reports": 0, "missing_reports": 0, "staged_files": 0}
+    rejected_status = frame.get("rejected_status", pd.Series("", index=frame.index)).fillna("").astype(str)
+    return {
+        "datasets": int(len(frame)),
+        "rejected_rows": int(pd.to_numeric(frame.get("rejected_row_count", pd.Series(0, index=frame.index)), errors="coerce").fillna(0).sum()),
+        "clean_reports": int(rejected_status.eq("clean/header-only").sum()),
+        "missing_reports": int(rejected_status.eq("missing report").sum()),
+        "staged_files": int(pd.to_numeric(frame.get("staged_file_count", pd.Series(0, index=frame.index)), errors="coerce").fillna(0).sum()),
+    }
+
+
+def import_validation_rejected_row_cards(import_frame: pd.DataFrame | None = None) -> list[dict[str, object]]:
+    frame = import_health_frame() if import_frame is None else import_frame
+    summary = import_health_summary(frame)
+    rejected_paths = ", ".join(frame.get("rejected_report", pd.Series(dtype=str)).dropna().astype(str).tolist())
+    rejected_title = (
+        f"{summary['rejected_rows']} rejected row(s)"
+        if summary["rejected_rows"]
+        else f"{summary['clean_reports']} clean/header-only report(s)"
     )
     return [
         {
             "kicker": "IMPORT GUARDRAIL",
             "title": "Validate staged CSVs first",
             "body": (
-                "Use make templates, then stage trusted rows under data/staged/ or data/imports/. "
+                f"Use make templates, then stage trusted rows under data/staged/ or data/imports/. "
+                f"Current staged file count: {summary['staged_files']}. "
                 "Validation checks schemas and required fields before any local dataset is trusted."
             ),
             "badges": ["copy only", "csv-first"],
@@ -2481,7 +2622,7 @@ def import_validation_rejected_row_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "REJECTED ROWS",
-            "title": "Inspect rejected-row reports",
+            "title": rejected_title,
             "body": f"Rejected-row report paths: {rejected_paths}. Fix source rows, then rerun validate and preview.",
             "badges": ["source audit", "row-level"],
             "command": "make imports-validate",
@@ -10946,7 +11087,9 @@ def render_market_command_center(
         "Import Validation / Rejected Rows",
         "Manual CSV unlock flow for trusted local rows. The dashboard displays copyable commands only and does not run imports.",
     )
-    render_signal_cards(import_validation_rejected_row_cards())
+    import_health = import_health_frame()
+    render_signal_cards(import_validation_rejected_row_cards(import_health))
+    st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
     render_section_header("Top Blocker Queues", "Small, safe worklist entry points for turning known tickers into analysis-ready tickers.")
     render_signal_cards(market_blocker_summary_cards(ticker_readiness_frame))
     render_section_header("Next Best Actions", "Practical command cards for the next local data unlock. These are copyable CLI commands only; the dashboard does not execute them.")
@@ -12010,6 +12153,13 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 staged_imports,
             )
         )
+        render_section_header(
+            "Import Validation / Rejected Rows",
+            "Trusted local CSV cockpit for staged folders, canonical import files, validation commands, and rejected-row reports.",
+        )
+        import_health = import_health_frame()
+        render_signal_cards(import_validation_rejected_row_cards(import_health))
+        st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
         if staged_imports["status"] == "no_staged_files":
             render_notice_card(
                 "No staged imports to review",

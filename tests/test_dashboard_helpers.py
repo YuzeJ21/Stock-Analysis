@@ -8898,12 +8898,46 @@ def test_import_validation_rejected_row_cards_show_safe_manual_workflow():
     assert "data/rejected/peers_import_rejected.csv" in rendered
     assert "data/rejected/earnings_import_rejected.csv" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "data/rejected/universe_rejected.csv" in rendered
+    assert "clean/header-only" in rendered
     assert "dashboard displays this command for copying" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_import_health_frame_counts_header_only_and_rejected_rows(tmp_path: Path):
+    for folder in [
+        "data/rejected",
+        "data/imports",
+        "data/staged/prices",
+        "data/staged/fundamentals",
+        "data/staged/earnings",
+        "data/staged/analyst_estimates",
+        "data/staged/universe",
+    ]:
+        (tmp_path / folder).mkdir(parents=True, exist_ok=True)
+
+    (tmp_path / "data/imports/prices.csv").write_text("ticker,date,close\nAAA,2026-01-01,10\n", encoding="utf-8")
+    (tmp_path / "data/staged/prices/manual.csv").write_text("ticker,date,close\nBBB,2026-01-01,20\n", encoding="utf-8")
+    (tmp_path / "data/rejected/price_import_rejected.csv").write_text("ticker,error\n", encoding="utf-8")
+    (tmp_path / "data/rejected/fundamentals_import_rejected.csv").write_text("ticker,error\nBAD,missing source\n", encoding="utf-8")
+
+    frame = dashboard.import_health_frame(tmp_path)
+    by_dataset = frame.set_index("dataset")
+
+    assert by_dataset.loc["prices", "canonical_import_rows"] == 1
+    assert by_dataset.loc["prices", "staged_file_count"] == 1
+    assert by_dataset.loc["prices", "rejected_status"] == "clean/header-only"
+    assert by_dataset.loc["fundamentals", "rejected_status"] == "has rejected rows"
+    assert by_dataset.loc["fundamentals", "rejected_row_count"] == 1
+    assert by_dataset.loc["peers", "rejected_status"] == "missing report"
+    assert by_dataset.loc["prices", "copy_only_note"] == "Dashboard displays copyable commands only and does not run imports."
+    assert set(["make imports-validate", "make imports-preview", "make imports-apply"]).issubset(
+        set(frame[["validation_command", "preview_command", "apply_command"]].stack().tolist())
+    )
 
 
 def test_feature_readiness_cards_show_feature_level_product_status():

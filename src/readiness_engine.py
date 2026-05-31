@@ -509,7 +509,7 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
                 "peer_fundamentals_ready": peer_fundamentals_ready,
                 "peer_valuation_ready": peer_valuation_ready,
                 "peer_trend_comparison_ready": peer_momentum_ready,
-                "peer_valuation_comparison_ready": peer_fundamentals_ready,
+                "peer_valuation_comparison_ready": peer_valuation_ready,
                 "peer_dcf_comparison_ready": peer_valuation_ready,
                 "peer_price_ready_count": len(price_ready_peers),
                 "peer_momentum_ready_count": len(momentum_ready_peers),
@@ -711,19 +711,21 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
     rows: list[dict[str, Any]] = []
     for _, peer_row in peer_report.iterrows():
         ticker = str(peer_row.get("ticker", "")).upper().strip()
-        if not ticker or bool(peer_row.get("peer_ready", False)):
+        if not ticker:
+            continue
+        peer_trend_ready = bool(peer_row.get("peer_trend_comparison_ready", False))
+        peer_valuation_ready = bool(peer_row.get("peer_valuation_ready", peer_row.get("peer_valuation_comparison_ready", False)))
+        if bool(peer_row.get("peer_ready", False)) and peer_valuation_ready:
             continue
         readiness_row = readiness.loc[ticker] if ticker in readiness.index else pd.Series(dtype=object)
         blocked_features = str(readiness_row.get("blocked_features", "") or "")
-        if "peer" not in blocked_features.lower():
+        if "peer" not in blocked_features.lower() and not (peer_trend_ready and not peer_valuation_ready):
             continue
         dcf_ready = bool(readiness_row.get("dcf_ready", False))
         price_ready = bool(readiness_row.get("price_ready", False))
         active_universe = bool(readiness_row.get("in_active_universe", False))
         priority = 1 if dcf_ready else 2 if price_ready else 3
         blocker_type = _text_value(peer_row.get("peer_blocker_type")) or "peer_blocked"
-        peer_trend_ready = bool(peer_row.get("peer_trend_comparison_ready", False))
-        peer_valuation_ready = bool(peer_row.get("peer_valuation_comparison_ready", False))
         peer_trend_status = "peer_trend_possible" if peer_trend_ready else "peer_trend_blocked"
         peer_valuation_status = "peer_valuation_ready" if peer_valuation_ready else "peer_valuation_blocked"
         workflow_scope = "active_universe" if active_universe else "master_universe"
