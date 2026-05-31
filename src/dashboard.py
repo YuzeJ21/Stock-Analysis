@@ -2440,6 +2440,55 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
     ]
 
 
+def import_validation_rejected_row_cards() -> list[dict[str, object]]:
+    rejected_paths = (
+        "data/rejected/price_import_rejected.csv, "
+        "data/rejected/fundamentals_import_rejected.csv, "
+        "data/rejected/peers_import_rejected.csv, "
+        "data/rejected/earnings_import_rejected.csv, "
+        "data/rejected/analyst_estimates_import_rejected.csv"
+    )
+    return [
+        {
+            "kicker": "IMPORT GUARDRAIL",
+            "title": "Validate staged CSVs first",
+            "body": (
+                "Use make templates, then stage trusted rows under data/staged/ or data/imports/. "
+                "Validation checks schemas and required fields before any local dataset is trusted."
+            ),
+            "badges": ["copy only", "csv-first"],
+            "command": "make imports-validate",
+        },
+        {
+            "kicker": "IMPORT PREVIEW",
+            "title": "Preview before apply",
+            "body": (
+                "Preview the local merge impact after validation. Keep optional or valuation context locked "
+                "when preview output still has missing or rejected rows."
+            ),
+            "badges": ["copy only", "data-honest"],
+            "command": "make imports-preview",
+        },
+        {
+            "kicker": "IMPORT APPLY",
+            "title": "Apply only after clean preview",
+            "body": (
+                "Apply trusted local CSV changes only after reviewing validation and preview output. "
+                "The dashboard displays this command for copying and never runs imports itself."
+            ),
+            "badges": ["copy only", "manual"],
+            "command": "make imports-apply",
+        },
+        {
+            "kicker": "REJECTED ROWS",
+            "title": "Inspect rejected-row reports",
+            "body": f"Rejected-row report paths: {rejected_paths}. Fix source rows, then rerun validate and preview.",
+            "badges": ["source audit", "row-level"],
+            "command": "make imports-validate",
+        },
+    ]
+
+
 def stock_report_readiness_badges(readiness: dict[str, object]) -> list[str]:
     definitions = [
         ("dcf_ready", "DCF ready", "DCF needs data"),
@@ -5208,6 +5257,8 @@ def safe_action_console_command(category: str, command: object = "") -> str:
         return command_text if lowered in {"make import-earnings", "make templates", "make imports-validate"} else "make import-earnings"
     if category_key == "analyst estimates import setup":
         return command_text if lowered in {"make import-analyst-estimates", "make templates", "make imports-validate"} else "make import-analyst-estimates"
+    if category_key == "import validation / rejected rows":
+        return command_text if lowered in {"make imports-validate", "make imports-preview", "make imports-apply", "make templates"} else "make imports-validate"
     if category_key == "single-stock review":
         return command_text if "ticker=" in lowered else "make stock-report TICKER=META"
     return command_text or "make project-status"
@@ -5220,6 +5271,7 @@ def next_action_console_source_note(category: str) -> str:
         "Peer Mapping Unlock": "Uses source-backed manual peer mappings or clearly labeled fallback context; no peer relationship is inferred as trusted.",
         "Earnings Import Setup": "Manual trusted local CSV only; feature stays unavailable until rows validate.",
         "Analyst Estimates Import Setup": "Manual trusted local CSV only; consensus context stays unavailable until rows validate.",
+        "Import Validation / Rejected Rows": "Uses staged local CSV validation, preview/apply, and rejected-row reports before any local dataset is trusted.",
         "Single-Stock Review": "Reads current readiness, decisions, coverage, DCF, peer, and optional-context outputs for one ticker.",
     }
     return notes.get(category, "Uses generated local CSV reports; run make readiness and make project-status after data changes.")
@@ -5232,7 +5284,7 @@ def next_action_console_safety_note(command: object) -> str:
         return "Capped batch; copy into a terminal when ready. The dashboard does not execute it."
     if "ticker=" in lowered or "tickers=" in lowered:
         return "Ticker-targeted command; copy into a terminal when ready. The dashboard does not execute it."
-    if "imports-validate" in lowered or "import-" in lowered or "templates" in lowered:
+    if "imports-validate" in lowered or "imports-preview" in lowered or "imports-apply" in lowered or "import-" in lowered or "templates" in lowered:
         return "Preview or import workflow; validate before apply. The dashboard does not execute it."
     return "Copyable local command only; the dashboard does not execute it."
 
@@ -5297,6 +5349,14 @@ def build_next_action_console_frame(
                 analyst_missing,
                 "Analyst-estimate context should stay locked until trusted local rows exist and validate cleanly.",
                 "make import-analyst-estimates",
+            ),
+            (
+                6,
+                "Import Validation / Rejected Rows",
+                "staged_imports",
+                frame,
+                "Use validation, preview, apply, and rejected-row reports before trusting any staged local CSV changes.",
+                "make imports-validate",
             ),
         ]
         for priority, category, feature, subset, why, command in feature_rows:
@@ -10882,6 +10942,11 @@ def render_market_command_center(
     else:
         st.caption("Commands are capped, ticker-targeted, or preview/import oriented. Copy them into a terminal only after reviewing the source and safety notes.")
         st.dataframe(clean_display_frame(action_console), width="stretch", hide_index=True)
+    render_section_header(
+        "Import Validation / Rejected Rows",
+        "Manual CSV unlock flow for trusted local rows. The dashboard displays copyable commands only and does not run imports.",
+    )
+    render_signal_cards(import_validation_rejected_row_cards())
     render_section_header("Top Blocker Queues", "Small, safe worklist entry points for turning known tickers into analysis-ready tickers.")
     render_signal_cards(market_blocker_summary_cards(ticker_readiness_frame))
     render_section_header("Next Best Actions", "Practical command cards for the next local data unlock. These are copyable CLI commands only; the dashboard does not execute them.")

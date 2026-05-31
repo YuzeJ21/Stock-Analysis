@@ -895,6 +895,9 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
         sys.argv = previous_argv
 
     assert "peer mapping queue" in output
+    assert "group=" in output
+    assert "scope=" in output
+    assert "validation:" in output
     assert "focus: make focus-peers ticker=amd" in output
     assert "command:" in output
     assert "make sec-stage tickers=amd" in output
@@ -910,10 +913,16 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert queue["NVDA"]["priority"] == 1
     assert queue["NVDA"]["is_holding"] is True
     assert queue["NVDA"]["dcf_ready"] is True
+    assert queue["NVDA"]["workflow_group"] == "peer_valuation_unlock"
+    assert queue["NVDA"]["workflow_scope"] == "master_universe"
+    assert "peer fundamentals" in queue["NVDA"]["next_action_summary"].lower()
+    assert "make imports-preview" in queue["NVDA"]["validation_sequence"]
     assert queue["NVDA"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
     assert queue["NVDA"]["target_file"] == "data/imports/fundamentals.csv"
     assert "make focus-fundamentals TICKER=AMD" in queue["NVDA"]["recommended_action"]
     assert queue["AMD"]["focus_command"] == "make focus-peers TICKER=AMD"
+    assert queue["AMD"]["workflow_group"] == "price_ready_peer_mapping"
+    assert queue["AMD"]["next_input_file"] == "data/imports/peers.csv"
     assert "make templates" in queue["AMD"]["safe_next_step"]
     assert "make imports-validate" in queue["AMD"]["safe_next_step"]
     assert "make imports-preview" in queue["AMD"]["safe_next_step"]

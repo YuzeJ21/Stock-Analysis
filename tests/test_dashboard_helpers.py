@@ -8854,12 +8854,15 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
             "Peer Mapping Unlock",
             "Earnings Import Setup",
             "Analyst Estimates Import Setup",
+            "Import Validation / Rejected Rows",
             "Single-Stock Review",
         }
     )
     assert "make price-refresh top_n=25 provider=yahoo" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "make imports-validate" in rendered
+    assert "rejected-row reports" in rendered
     assert "broad universe" in rendered
     assert "active universe" in rendered
     assert "analysis-ready subset" in rendered
@@ -8877,7 +8880,30 @@ def test_next_action_console_sanitizes_uncapped_batch_commands():
     assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh") == "make price-refresh TOP_N=25 PROVIDER=yahoo"
     assert dashboard.safe_action_console_command("Fundamentals / DCF Unlock", "make sec-stage") == "make sec-stage-queue TOP_N=25"
     assert dashboard.safe_action_console_command("Peer Mapping Unlock", "make templates") == "make peer-mapping-queue TOP_N=25"
+    assert dashboard.safe_action_console_command("Import Validation / Rejected Rows", "make imports-apply") == "make imports-apply"
     assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report") == "make stock-report TICKER=META"
+
+
+def test_import_validation_rejected_row_cards_show_safe_manual_workflow():
+    cards = dashboard.import_validation_rejected_row_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "data/staged/" in rendered
+    assert "data/imports/" in rendered
+    assert "data/rejected/price_import_rejected.csv" in rendered
+    assert "data/rejected/fundamentals_import_rejected.csv" in rendered
+    assert "data/rejected/peers_import_rejected.csv" in rendered
+    assert "data/rejected/earnings_import_rejected.csv" in rendered
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "dashboard displays this command for copying" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_feature_readiness_cards_show_feature_level_product_status():

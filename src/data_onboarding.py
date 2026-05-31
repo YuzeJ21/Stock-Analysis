@@ -155,6 +155,11 @@ PEER_MAPPING_QUEUE_COLUMNS = [
     "dcf_ready",
     "peer_ready",
     "missing_required_for_peer_relative",
+    "workflow_group",
+    "workflow_scope",
+    "next_action_summary",
+    "next_input_file",
+    "validation_sequence",
     "recommended_action",
     "target_file",
     "focus_command",
@@ -556,6 +561,11 @@ class PeerMappingQueueRow:
     dcf_ready: bool
     peer_ready: bool
     missing_required_for_peer_relative: str
+    workflow_group: str
+    workflow_scope: str
+    next_action_summary: str
+    next_input_file: str
+    validation_sequence: str
     recommended_action: str
     target_file: str
     focus_command: str
@@ -1770,6 +1780,9 @@ def build_peer_mapping_queue(
     peers = _load_frame(catalog, "peers")
     fundamentals = _load_frame(catalog, "fundamentals")
     prices = _load_frame(catalog, "prices")
+    active_path = data_path / "universe_active.csv"
+    active_universe = pd.read_csv(active_path) if active_path.exists() else pd.DataFrame()
+    active_tickers = _ticker_set(active_universe)
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
     rows: list[PeerMappingQueueRow] = []
     for coverage in coverage_rows:
@@ -1777,9 +1790,10 @@ def build_peer_mapping_queue(
             continue
         context = context_lookup.get(coverage.ticker, {})
         is_holding = bool(context.get("is_holding", False))
+        workflow_scope = "active_universe" if coverage.ticker in active_tickers else "master_universe"
         theme = str(context.get("theme", "") or "Unclassified")
         sector_etf = str(context.get("sector_etf", "") or "Unclassified")
-        if coverage.dcf_ready and is_holding:
+        if coverage.dcf_ready and (is_holding or workflow_scope == "active_universe"):
             priority = 1
         elif coverage.dcf_ready:
             priority = 2
@@ -1787,6 +1801,16 @@ def build_peer_mapping_queue(
             priority = 3
         else:
             priority = 4
+        if not coverage.has_peer_mapping:
+            workflow_group = "dcf_ready_peer_mapping" if coverage.dcf_ready else "price_ready_peer_mapping" if coverage.has_prices else "peer_mapping_after_price"
+            next_action_summary = "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data."
+            next_input_file = "data/imports/peers.csv"
+            validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+        else:
+            workflow_group = "peer_valuation_unlock" if coverage.dcf_ready else "peer_metric_follow_through"
+            next_action_summary = "Complete trusted peer fundamentals or peer price history before treating peer-relative context as ready."
+            next_input_file = "data/imports/fundamentals.csv, data/imports/prices.csv"
+            validation_sequence = "make focus-peers TICKER=<ticker> -> add verified peer metrics -> make imports-validate -> make imports-preview -> make imports-apply"
         recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
         target_file = "data/imports/peers.csv"
         focus_command = focus_command_for_ticker("peers", coverage.ticker)
@@ -1802,6 +1826,8 @@ def build_peer_mapping_queue(
                 focus_command = coverage.focus_command
                 example_command = coverage.example_command
                 safe_next_step = "Finish the staged peer-data follow-through for this mapped peer set before relying on peer-relative valuation."
+                next_input_file = target_file
+                validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make status"
             else:
                 recommended_action, target_file, focus_command, example_command = _peer_support_follow_through(
                     coverage.ticker,
@@ -1810,6 +1836,7 @@ def build_peer_mapping_queue(
                     prices,
                 )
                 safe_next_step = "Add only verified peer metrics; do not infer peer-relative context from incomplete data."
+                next_input_file = target_file
         rows.append(
             PeerMappingQueueRow(
                 priority=priority,
@@ -1821,6 +1848,11 @@ def build_peer_mapping_queue(
                 dcf_ready=coverage.dcf_ready,
                 peer_ready=coverage.peer_ready,
                 missing_required_for_peer_relative=coverage.missing_required_for_peer_relative,
+                workflow_group=workflow_group,
+                workflow_scope=workflow_scope,
+                next_action_summary=next_action_summary,
+                next_input_file=next_input_file,
+                validation_sequence=validation_sequence,
                 recommended_action=recommended_action,
                 target_file=target_file,
                 focus_command=focus_command,
@@ -1828,7 +1860,8 @@ def build_peer_mapping_queue(
                 safe_next_step=safe_next_step,
             )
         )
-    return sorted(rows, key=lambda item: (item.priority, not item.is_holding, item.ticker))
+    scope_rank = {"active_universe": 0, "master_universe": 1}
+    return sorted(rows, key=lambda item: (item.priority, scope_rank.get(item.workflow_scope, 2), not item.is_holding, item.workflow_group, item.ticker))
 
 
 def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[TickerUnlockLadderRow]:
@@ -2753,8 +2786,13 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         print(
             f"- P{row['priority']} {row['ticker']}: holding={row['is_holding']} "
             f"dcf_ready={row['dcf_ready']} has_peer_mapping={row['has_peer_mapping']} "
+            f"group={row.get('workflow_group') or '-'} scope={row.get('workflow_scope') or '-'} "
             f"missing_peer={row['missing_required_for_peer_relative'] or '-'}"
         )
+        if row.get("next_action_summary"):
+            print(f"  action_summary: {row['next_action_summary']}")
+        if row.get("validation_sequence"):
+            print(f"  validation: {row['validation_sequence']}")
         print(f"  next: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
