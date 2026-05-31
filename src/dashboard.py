@@ -126,6 +126,30 @@ IMPORT_HEALTH_COLUMNS = [
     "apply_command",
     "copy_only_note",
 ]
+ACTIVE_UNLOCK_COCKPIT_COLUMNS = [
+    "priority",
+    "ticker",
+    "asset_type",
+    "readiness_state",
+    "price_ready",
+    "fundamentals_ready",
+    "dcf_ready",
+    "peer_ready",
+    "earnings_ready",
+    "analyst_estimates_ready",
+    "decision_bucket",
+    "decision_subtype",
+    "primary_blocker",
+    "next_best_action",
+    "exact_command",
+    "import_dataset",
+    "canonical_import_file",
+    "rejected_report",
+    "rejected_status",
+    "rejected_row_count",
+    "source_freshness_note",
+    "copy_only_note",
+]
 DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
@@ -2625,6 +2649,201 @@ def import_validation_rejected_row_cards(import_frame: pd.DataFrame | None = Non
             "title": rejected_title,
             "body": f"Rejected-row report paths: {rejected_paths}. Fix source rows, then rerun validate and preview.",
             "badges": ["source audit", "row-level"],
+            "command": "make imports-validate",
+        },
+    ]
+
+
+def _import_health_lookup(import_frame: pd.DataFrame | None) -> dict[str, dict[str, object]]:
+    frame = import_health_frame() if import_frame is None else import_frame
+    if frame.empty or "dataset" not in frame.columns:
+        return {}
+    return {format_missing(row.get("dataset"), "").lower(): row.to_dict() for _, row in frame.iterrows()}
+
+
+def active_unlock_dataset_for_blocker(blocker: object, blocked_features: object = "") -> str:
+    primary_text = format_missing(blocker, "").lower()
+    text = f"{primary_text} {format_missing(blocked_features, '')}".lower()
+    if "price" in primary_text:
+        return "prices"
+    if "fundamental" in primary_text or "dcf" in primary_text:
+        return "fundamentals"
+    if "peer" in primary_text:
+        return "peers"
+    if "earning" in primary_text:
+        return "earnings"
+    if "analyst" in primary_text or "estimate" in primary_text:
+        return "analyst_estimates"
+    if "optional" in primary_text:
+        return "earnings"
+    if "price" in text:
+        return "prices"
+    if "fundamental" in text or "dcf" in text:
+        return "fundamentals"
+    if "peer" in text:
+        return "peers"
+    if "optional" in text:
+        return "earnings"
+    if "earning" in text:
+        return "earnings"
+    if "analyst" in text or "estimate" in text:
+        return "analyst_estimates"
+    return "prices"
+
+
+def active_unlock_command(ticker: object, dataset: str, asset_type: object = "") -> str:
+    ticker_text = format_missing(ticker, "META").upper()
+    asset_text = format_missing(asset_type, "").lower()
+    if dataset == "prices":
+        return f"make focus-price TICKER={ticker_text}"
+    if dataset == "fundamentals":
+        return "make readiness" if asset_text in {"etf", "fund", "index"} else f"make focus-fundamentals TICKER={ticker_text}"
+    if dataset == "peers":
+        return f"make focus-peers TICKER={ticker_text}"
+    if dataset == "earnings":
+        return "make import-earnings"
+    if dataset == "analyst_estimates":
+        return "make import-analyst-estimates"
+    return f"make stock-report TICKER={ticker_text}"
+
+
+def active_unlock_priority(dataset: str, readiness_state: object, asset_type: object = "") -> int:
+    state_text = format_missing(readiness_state, "").lower()
+    asset_text = format_missing(asset_type, "").lower()
+    if dataset == "prices":
+        return 1
+    if dataset == "fundamentals" and asset_text not in {"etf", "fund", "index"}:
+        return 2
+    if dataset == "peers":
+        return 3
+    if dataset in {"earnings", "analyst_estimates"}:
+        return 5
+    return 4 if state_text == "partial" else 6
+
+
+def build_active_universe_unlock_frame(
+    ticker_readiness_frame: pd.DataFrame | None,
+    decisions_frame: pd.DataFrame | None = None,
+    import_frame: pd.DataFrame | None = None,
+    *,
+    limit: int = 25,
+) -> pd.DataFrame:
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty or "ticker" not in ticker_readiness_frame.columns:
+        return pd.DataFrame(columns=ACTIVE_UNLOCK_COCKPIT_COLUMNS)
+
+    frame = ticker_readiness_frame.copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if "in_active_universe" in frame.columns:
+        frame = frame.loc[bool_series(frame, "in_active_universe")].copy()
+    else:
+        frame = frame.head(0).copy()
+    if frame.empty:
+        return pd.DataFrame(columns=ACTIVE_UNLOCK_COCKPIT_COLUMNS)
+
+    if decisions_frame is not None and not decisions_frame.empty and "ticker" in decisions_frame.columns:
+        decision_columns = [
+            column
+            for column in ["ticker", "decision_bucket", "decision_subtype", "primary_blocker", "next_best_action", "data_confidence"]
+            if column in decisions_frame.columns
+        ]
+        decisions = decisions_frame[decision_columns].copy()
+        decisions["ticker"] = decisions["ticker"].astype(str).str.upper().str.strip()
+        frame = frame.merge(decisions, on="ticker", how="left", suffixes=("", "_decision"))
+
+    import_lookup = _import_health_lookup(import_frame)
+    rows: list[dict[str, object]] = []
+    for _, row in frame.iterrows():
+        ticker = format_missing(row.get("ticker"), "")
+        blocked_features = format_missing(row.get("blocked_features"), "")
+        primary_blocker = format_missing(row.get("primary_blocker"), "")
+        if primary_blocker == "Not available":
+            first_blocker = first_blocker_from_text(blocked_features)
+            optional_missing = not bool(row.get("earnings_ready", False)) or not bool(row.get("analyst_estimates_ready", False))
+            primary_blocker = first_blocker or ("optional_context" if optional_missing else "none")
+        dataset = active_unlock_dataset_for_blocker(primary_blocker, blocked_features)
+        import_row = import_lookup.get(dataset, {})
+        next_action = format_missing(row.get("next_best_action") or row.get("next_action"), "")
+        if next_action == "Not available":
+            next_action = "Review the active-universe readiness row and run the exact command before changing trusted local CSVs."
+        if dataset == "peers" and "optional context" in next_action.lower():
+            next_action = f"Complete source-backed peer mappings or peer valuation inputs for {ticker}; optional context remains locked until trusted CSV rows exist."
+        command = active_unlock_command(ticker, dataset, row.get("asset_type"))
+        rows.append(
+            {
+                "priority": active_unlock_priority(dataset, row.get("overall_readiness_state"), row.get("asset_type")),
+                "ticker": ticker,
+                "asset_type": format_missing(row.get("asset_type"), "unknown"),
+                "readiness_state": format_missing(row.get("overall_readiness_state"), "unknown"),
+                "price_ready": bool(row.get("price_ready", False)),
+                "fundamentals_ready": bool(row.get("fundamentals_ready", False)),
+                "dcf_ready": bool(row.get("dcf_ready", False)),
+                "peer_ready": bool(row.get("peer_ready", False)),
+                "earnings_ready": bool(row.get("earnings_ready", False)),
+                "analyst_estimates_ready": bool(row.get("analyst_estimates_ready", False)),
+                "decision_bucket": format_missing(row.get("decision_bucket"), "Not available"),
+                "decision_subtype": format_missing(row.get("decision_subtype"), "Not available"),
+                "primary_blocker": primary_blocker,
+                "next_best_action": next_action,
+                "exact_command": command,
+                "import_dataset": dataset,
+                "canonical_import_file": format_missing(import_row.get("canonical_import_file"), "Not available"),
+                "rejected_report": format_missing(import_row.get("rejected_report"), "Not available"),
+                "rejected_status": format_missing(import_row.get("rejected_status"), "Not available"),
+                "rejected_row_count": int(import_row.get("rejected_row_count") or 0),
+                "source_freshness_note": f"Uses local readiness outputs plus {format_missing(import_row.get('rejected_report'), 'rejected-row report status')}.",
+                "copy_only_note": "Copy-only command; the dashboard does not execute imports or refreshes.",
+            }
+        )
+
+    cockpit = pd.DataFrame(rows, columns=ACTIVE_UNLOCK_COCKPIT_COLUMNS)
+    if cockpit.empty:
+        return cockpit
+    cockpit["priority"] = pd.to_numeric(cockpit["priority"], errors="coerce").fillna(999).astype(int)
+    return cockpit.sort_values(["priority", "ticker"], kind="stable").head(limit).reset_index(drop=True)
+
+
+def first_blocker_from_text(text: object) -> str:
+    parts = [part.strip() for part in format_missing(text, "").split(",") if part.strip()]
+    return parts[0] if parts else ""
+
+
+def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if cockpit_frame is None or cockpit_frame.empty:
+        return [
+            {
+                "kicker": "ACTIVE UNIVERSE",
+                "title": "No active rows",
+                "body": "Run make readiness and confirm data/universe_active.csv before using the active-universe unlock cockpit.",
+                "badges": ["active only"],
+                "command": "make readiness",
+            }
+        ]
+    frame = cockpit_frame.copy()
+    dataset_counts = frame.get("import_dataset", pd.Series("", index=frame.index)).fillna("").astype(str).value_counts()
+    blocked = frame.get("readiness_state", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower().eq("blocked")
+    partial = frame.get("readiness_state", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower().eq("partial")
+    top_row = frame.sort_values(["priority", "ticker"], kind="stable").iloc[0]
+    dataset_text = ", ".join(f"{key}: {int(value)}" for key, value in dataset_counts.head(4).items())
+    return [
+        {
+            "kicker": "ACTIVE UNLOCK",
+            "title": f"{len(frame)} active ticker(s)",
+            "body": f"{int(blocked.sum())} blocked and {int(partial.sum())} partial rows shown. Dataset lanes: {dataset_text}.",
+            "badges": ["active universe", "row-limited"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "NEXT ACTIVE ACTION",
+            "title": format_missing(top_row.get("ticker"), "Ticker"),
+            "body": f"{format_missing(top_row.get('primary_blocker'), 'blocker')}: {compact_reason(top_row.get('next_best_action'), max_sentences=1, max_chars=160)}",
+            "badges": [format_missing(top_row.get("import_dataset"), "dataset"), format_missing(top_row.get("rejected_status"), "rejected status")],
+            "command": format_missing(top_row.get("exact_command"), "make readiness"),
+        },
+        {
+            "kicker": "IMPORT STATUS",
+            "title": "Rejected-row aware",
+            "body": "Each active-universe row carries the relevant canonical import file, rejected report, and clean/header-only or missing-report status.",
+            "badges": ["copy only", "data-honest"],
             "command": "make imports-validate",
         },
     ]
@@ -11010,6 +11229,18 @@ def render_market_command_center(
             previous_snapshot_label=prior_ticker_readiness_message,
         )
     )
+    render_section_header(
+        "Active-Universe Unlock Cockpit",
+        "The 12-ticker active research list with readiness blockers, import/rejected-row context, and exact copy-only next commands.",
+    )
+    import_health = import_health_frame()
+    active_unlock = build_active_universe_unlock_frame(ticker_readiness_frame, decisions_frame, import_health)
+    render_signal_cards(active_universe_unlock_cards(active_unlock))
+    if active_unlock.empty:
+        st.info("No active-universe unlock rows are available. Run make readiness and confirm data/universe_active.csv.")
+    else:
+        st.caption("Active-universe commands are copy-only. Review validation, preview, and rejected-row status before applying trusted local CSV changes.")
+        st.dataframe(clean_display_frame(active_unlock), width="stretch", hide_index=True)
     render_section_header("Feature Readiness", "Which product modules are usable today, partially usable, blocked, or excluded.")
     render_signal_cards(feature_readiness_cards(feature_summary_frame))
     render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without unsupported recommendations.")
@@ -11087,7 +11318,6 @@ def render_market_command_center(
         "Import Validation / Rejected Rows",
         "Manual CSV unlock flow for trusted local rows. The dashboard displays copyable commands only and does not run imports.",
     )
-    import_health = import_health_frame()
     render_signal_cards(import_validation_rejected_row_cards(import_health))
     st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
     render_section_header("Top Blocker Queues", "Small, safe worklist entry points for turning known tickers into analysis-ready tickers.")

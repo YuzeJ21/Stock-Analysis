@@ -8940,6 +8940,142 @@ def test_import_health_frame_counts_header_only_and_rejected_rows(tmp_path: Path
     )
 
 
+def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_commands():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "in_active_universe": True,
+                "overall_readiness_state": "partial",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "blocked_features": "fundamentals, dcf, peer, earnings, analyst_estimates",
+                "next_action": "Complete trusted fundamentals for META.",
+            },
+            {
+                "ticker": "APLD",
+                "asset_type": "company",
+                "in_active_universe": True,
+                "overall_readiness_state": "blocked",
+                "price_ready": False,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "blocked_features": "price, fundamentals, dcf, peer",
+                "next_action": "Import staged price rows or refresh price provider for APLD.",
+            },
+            {
+                "ticker": "BROAD",
+                "asset_type": "company",
+                "in_active_universe": False,
+                "overall_readiness_state": "blocked",
+                "price_ready": False,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "blocked_features": "price",
+                "next_action": "Should not render.",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "in_active_universe": True,
+                "overall_readiness_state": "partial",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "blocked_features": "fundamentals, dcf, peer, earnings, analyst_estimates",
+                "next_action": "Add source-backed peer mappings and peer metrics for QQQ.",
+            },
+        ]
+    )
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Fundamentals",
+                "primary_blocker": "fundamentals",
+                "next_best_action": "Run make focus-fundamentals TICKER=META.",
+            },
+            {
+                "ticker": "APLD",
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Price",
+                "primary_blocker": "price",
+                "next_best_action": "Run make focus-price TICKER=APLD.",
+            },
+            {
+                "ticker": "QQQ",
+                "decision_bucket": "Monitor",
+                "decision_subtype": "ETF / Index Proxy - Peer Inputs Missing",
+                "primary_blocker": "peers",
+                "next_best_action": "Add source-backed peer mappings and peer metrics for QQQ.",
+            },
+        ]
+    )
+    import_health = pd.DataFrame(
+        [
+            {
+                "dataset": "prices",
+                "canonical_import_file": "data/imports/prices.csv",
+                "rejected_report": "data/rejected/price_import_rejected.csv",
+                "rejected_status": "clean/header-only",
+                "rejected_row_count": 0,
+            },
+            {
+                "dataset": "fundamentals",
+                "canonical_import_file": "data/imports/fundamentals.csv",
+                "rejected_report": "data/rejected/fundamentals_import_rejected.csv",
+                "rejected_status": "has rejected rows",
+                "rejected_row_count": 2,
+            },
+            {
+                "dataset": "peers",
+                "canonical_import_file": "data/imports/peers.csv",
+                "rejected_report": "data/rejected/peers_import_rejected.csv",
+                "rejected_status": "missing report",
+                "rejected_row_count": 0,
+            },
+        ]
+    )
+
+    cockpit = dashboard.build_active_universe_unlock_frame(readiness, decisions, import_health)
+    cards = dashboard.active_universe_unlock_cards(cockpit)
+    rendered = " ".join(str(value) for value in cockpit.astype(str).to_numpy().ravel().tolist() + [str(value) for card in cards for value in card.values()]).lower()
+
+    assert list(cockpit["ticker"]) == ["APLD", "META", "QQQ"]
+    assert "BROAD" not in set(cockpit["ticker"])
+    assert cockpit.loc[cockpit["ticker"].eq("APLD"), "exact_command"].iloc[0] == "make focus-price TICKER=APLD"
+    assert cockpit.loc[cockpit["ticker"].eq("META"), "exact_command"].iloc[0] == "make focus-fundamentals TICKER=META"
+    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "exact_command"].iloc[0] == "make focus-peers TICKER=QQQ"
+    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "import_dataset"].iloc[0] == "peers"
+    assert "data/rejected/price_import_rejected.csv" in rendered
+    assert "data/rejected/fundamentals_import_rejected.csv" in rendered
+    assert "data/rejected/peers_import_rejected.csv" in rendered
+    assert "clean/header-only" in rendered
+    assert "has rejected rows" in rendered
+    assert "copy-only command" in rendered
+    assert "active universe" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_feature_readiness_cards_show_feature_level_product_status():
     feature_summary = pd.DataFrame(
         [
