@@ -11658,6 +11658,96 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "sell" not in rendered_cards
 
 
+def test_active_evaluation_lane_detail_groups_runbook_without_overclaiming():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "evaluation_lane": "Review standalone thesis, then unlock peers",
+                "exact_command": "make stock-report TICKER=META",
+                "review_command": "make stock-report TICKER=META",
+                "data_unlock_command": "make focus-peers TICKER=META",
+                "validation_sequence": "make templates -> fill data/imports/peers.csv with source-backed rows -> make imports-validate -> make imports-preview -> make imports-apply",
+                "withheld_conclusion": "Peer-relative valuation is withheld until source-backed peer mappings and metrics are ready.",
+                "next_operator_step": "Open META's stock report first; then add source-backed peer rows.",
+                "reason": "Core data is ready, but peer-relative context is limiting valuation interpretation.",
+                "copy_only_note": "Copy-only command.",
+            },
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "evaluation_lane": "Review standalone thesis, then unlock peers",
+                "exact_command": "make stock-report TICKER=TSLA",
+                "review_command": "make stock-report TICKER=TSLA",
+                "data_unlock_command": "make focus-peers TICKER=TSLA",
+                "validation_sequence": "make templates -> fill data/imports/peers.csv with source-backed rows -> make imports-validate -> make imports-preview -> make imports-apply",
+                "withheld_conclusion": "Peer-relative valuation is withheld until source-backed peer mappings and metrics are ready.",
+                "next_operator_step": "Open TSLA's stock report first; then add source-backed peer rows.",
+                "reason": "Core data is ready, but peer-relative context is limiting valuation interpretation.",
+                "copy_only_note": "Copy-only command.",
+            },
+            {
+                "priority": 2,
+                "ticker": "AMD",
+                "evaluation_lane": "Review supported thesis; optional context locked",
+                "exact_command": "make stock-report TICKER=AMD",
+                "review_command": "make stock-report TICKER=AMD",
+                "data_unlock_command": "make templates",
+                "validation_sequence": "make templates -> fill trusted earnings or analyst estimates CSV -> make imports-validate -> make imports-preview -> make imports-apply",
+                "withheld_conclusion": "Earnings and analyst-estimate context is withheld; core supported analysis may still be reviewed.",
+                "next_operator_step": "Open AMD's stock report now; optional context stays withheld.",
+                "reason": "Core data is ready.",
+                "copy_only_note": "Copy-only command.",
+            },
+            {
+                "priority": 4,
+                "ticker": "QQQ",
+                "evaluation_lane": "Monitor ETF / market proxy",
+                "exact_command": "make stock-report TICKER=QQQ",
+                "review_command": "make stock-report TICKER=QQQ",
+                "data_unlock_command": "",
+                "validation_sequence": "make stock-report TICKER=<ticker> -> compare purpose, supported analysis, unsupported analysis, and source/freshness notes",
+                "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
+                "next_operator_step": "Open QQQ's stock report and compare market-proxy context.",
+                "reason": "ETF monitor context.",
+                "copy_only_note": "Copy-only command.",
+            },
+        ]
+    )
+
+    detail = dashboard.build_active_evaluation_lane_detail_frame(queue)
+    cards = dashboard.active_evaluation_lane_detail_cards(detail)
+    rendered = " ".join(str(value) for value in detail.to_numpy().ravel()).lower()
+    rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert list(detail["evaluation_lane"]) == [
+        "Review standalone thesis, then unlock peers",
+        "Review supported thesis; optional context locked",
+        "Monitor ETF / market proxy",
+    ]
+    assert detail.iloc[0]["ticker_count"] == 2
+    assert detail.iloc[0]["sample_tickers"] == "META, TSLA"
+    assert detail.iloc[0]["primary_command"] == "make stock-report TICKER=META"
+    assert detail.iloc[0]["data_unlock_command"] == "make focus-peers TICKER=META"
+    assert detail.iloc[2]["data_unlock_command"] == ""
+    assert "make imports-validate" in rendered
+    assert "peer-relative valuation is withheld" in rendered
+    assert "operating-company dcf is excluded" in rendered
+    assert "3 lane(s), 4 ticker(s)" in rendered_cards
+    assert "no overclaiming" in rendered_cards
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered_cards
+    assert "order" not in rendered_cards
+    assert "trading" not in rendered_cards
+    assert "buy" not in rendered_cards
+    assert "sell" not in rendered_cards
+
+
 def test_active_evaluation_queue_ranks_active_next_steps_without_execution_language():
     active_briefs = pd.DataFrame(
         [

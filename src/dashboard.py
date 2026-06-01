@@ -5743,6 +5743,19 @@ ACTIVE_EVALUATION_QUEUE_COLUMNS = [
     "reason",
 ]
 
+ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS = [
+    "priority",
+    "evaluation_lane",
+    "ticker_count",
+    "sample_tickers",
+    "primary_command",
+    "data_unlock_command",
+    "validation_sequence",
+    "withheld_conclusion",
+    "operator_summary",
+    "copy_only_note",
+]
+
 
 def active_research_brief_frame(
     ticker_readiness_frame: pd.DataFrame | None,
@@ -6162,6 +6175,97 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
             "body": "Commands are displayed for copying into a terminal after reviewing source/freshness notes; the dashboard does not run refreshes or imports.",
             "badges": ["research-only", "local CSV"],
             "command": "make project-status",
+        },
+    ]
+
+
+def build_active_evaluation_lane_detail_frame(queue_frame: pd.DataFrame | None, *, limit: int = 8) -> pd.DataFrame:
+    if queue_frame is None or queue_frame.empty or "evaluation_lane" not in queue_frame.columns:
+        return pd.DataFrame(columns=ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS)
+
+    frame = queue_frame.copy()
+    for column in ACTIVE_EVALUATION_QUEUE_COLUMNS:
+        if column not in frame.columns:
+            frame[column] = ""
+    frame["priority"] = pd.to_numeric(frame.get("priority"), errors="coerce").fillna(999).astype(int)
+    rows: list[dict[str, object]] = []
+    for lane, group in frame.sort_values(["priority", "ticker"], kind="stable").groupby("evaluation_lane", sort=False):
+        first = group.iloc[0]
+        unlock_commands = [
+            format_missing(value, "")
+            for value in group.get("data_unlock_command", pd.Series(dtype=object)).fillna("").astype(str)
+            if format_missing(value, "")
+        ]
+        primary_command = format_missing(first.get("exact_command"), first.get("review_command", "make project-status"))
+        rows.append(
+            {
+                "priority": int(pd.to_numeric(group["priority"], errors="coerce").fillna(999).min()),
+                "evaluation_lane": format_missing(lane, "Active evaluation"),
+                "ticker_count": int(len(group)),
+                "sample_tickers": ", ".join(
+                    group["ticker"].dropna().astype(str).str.upper().str.strip().loc[lambda values: values.ne("")].head(6).tolist()
+                ),
+                "primary_command": primary_command,
+                "data_unlock_command": unlock_commands[0] if unlock_commands else "",
+                "validation_sequence": format_missing(first.get("validation_sequence"), "make project-status"),
+                "withheld_conclusion": format_missing(
+                    first.get("withheld_conclusion"),
+                    "Unsupported conclusions remain withheld until the relevant readiness inputs are available.",
+                ),
+                "operator_summary": compact_reason(
+                    first_meaningful_text(
+                        first.get("next_operator_step"),
+                        first.get("reason"),
+                        fallback="Review current local readiness before drawing conclusions.",
+                    ),
+                    max_sentences=1,
+                    max_chars=220,
+                ),
+                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes, imports, or external account actions.",
+            }
+        )
+    detail = pd.DataFrame(rows, columns=ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS)
+    if detail.empty:
+        return pd.DataFrame(columns=ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS)
+    detail = detail.sort_values(["priority", "evaluation_lane"], kind="stable")
+    return detail.head(limit).reset_index(drop=True)
+
+
+def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if detail_frame is None or detail_frame.empty:
+        return [
+            {
+                "kicker": "QUEUE DETAILS",
+                "title": "No lane detail",
+                "body": "Run make pipeline and make readiness to rebuild the active evaluation queue lane guide.",
+                "badges": ["readiness first", "copy only"],
+                "command": "make pipeline",
+            }
+        ]
+    frame = detail_frame.copy()
+    total_tickers = int(pd.to_numeric(frame.get("ticker_count"), errors="coerce").fillna(0).sum())
+    first = frame.iloc[0]
+    return [
+        {
+            "kicker": "QUEUE DETAILS",
+            "title": f"{len(frame)} lane(s), {total_tickers} ticker(s)",
+            "body": "Lane details group the active queue into review, monitor, and data-unlock workflows so the operator can act without reading every ticker row.",
+            "badges": ["grouped workflow", "row-limited"],
+            "command": "make project-status",
+        },
+        {
+            "kicker": "FIRST LANE",
+            "title": format_missing(first.get("evaluation_lane"), "Active evaluation"),
+            "body": compact_reason(first.get("operator_summary"), max_sentences=1, max_chars=180),
+            "badges": ["copy only", f"{int(first.get('ticker_count', 0))} ticker(s)"],
+            "command": format_missing(first.get("primary_command"), "make project-status"),
+        },
+        {
+            "kicker": "WITHHELD",
+            "title": "No overclaiming",
+            "body": compact_reason(first.get("withheld_conclusion"), max_sentences=1, max_chars=180),
+            "badges": ["data-honest", "research-only"],
+            "command": format_missing(first.get("data_unlock_command"), first.get("primary_command", "make project-status")),
         },
     ]
 
@@ -12132,6 +12236,13 @@ def render_market_command_center(
             "One row per active ticker, capped for readability. Commands are copy-only and sourced from current local readiness and decision outputs."
         )
         st.dataframe(clean_display_frame(active_evaluation_queue), width="stretch", hide_index=True)
+        active_queue_detail = build_active_evaluation_lane_detail_frame(active_evaluation_queue)
+        with st.expander("Active queue detail: grouped lane runbook", expanded=False):
+            render_signal_cards(active_evaluation_lane_detail_cards(active_queue_detail))
+            st.caption(
+                "Grouped lane guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual terminal workflows."
+            )
+            st.dataframe(clean_display_frame(active_queue_detail), width="stretch", hide_index=True)
     render_section_header(
         "Purpose Evaluation Summary",
         "Purpose-family and decision-bucket counts generated from current local decisions and readiness. This summarizes analysis status, not transaction guidance.",
