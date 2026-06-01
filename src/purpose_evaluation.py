@@ -31,6 +31,33 @@ PURPOSE_EVALUATION_COLUMNS = [
     "Reason",
 ]
 
+PURPOSE_EVALUATION_DRILLDOWN_COLUMNS = [
+    "priority",
+    "ticker",
+    "is_active_universe",
+    "purpose_family",
+    "decision_bucket",
+    "decision_subtype",
+    "primary_blocker",
+    "purpose_status",
+    "purpose_alignment",
+    "supported_analysis",
+    "unsupported_analysis",
+    "next_research_question",
+    "risk_watchpoint",
+    "invalidation_condition",
+    "confidence_explanation",
+    "data_confidence",
+    "readiness_score",
+    "peer_trend_status",
+    "peer_valuation_status",
+    "exact_command",
+    "unlock_command",
+    "source_freshness_note",
+    "copy_only_note",
+    "Reason",
+]
+
 
 def text_value(value: Any, fallback: str = "") -> str:
     if value is None:
@@ -100,6 +127,25 @@ def purpose_unlock_command(ticker: object, primary_blocker: object, exact_comman
     if blocker in {"earnings", "analyst_estimates"}:
         return "make templates"
     return text_value(exact_command, f"make stock-report TICKER={symbol}")
+
+
+def purpose_drilldown_priority(row: pd.Series) -> int:
+    active_rank = 0 if bool(row.get("in_active_universe")) else 10
+    bucket = text_value(row.get("decision_bucket")).lower()
+    blocker = text_value(row.get("primary_blocker")).lower()
+    if bucket == "research now" and blocker in {"peers", "peer"}:
+        return active_rank + 1
+    if bucket == "research now":
+        return active_rank + 2
+    if bucket == "monitor":
+        return active_rank + 3
+    if blocker in {"fundamentals", "dcf"}:
+        return active_rank + 4
+    if blocker == "price":
+        return active_rank + 5
+    if bucket == "blocked by data":
+        return active_rank + 6
+    return active_rank + 9
 
 
 def _read_csv(path: Path) -> pd.DataFrame:
@@ -185,8 +231,9 @@ def enrich_purpose_evaluation_rows_with_purpose(
         if "ticker" in ready.columns:
             ready["ticker"] = ready["ticker"].astype("string").str.upper().str.strip()
             active_cols = ["ticker"]
-            if "in_active_universe" in ready.columns:
-                active_cols.append("in_active_universe")
+            for column in ("in_active_universe", "overall_readiness_state", "updated_at", "ready_features", "partial_features"):
+                if column in ready.columns:
+                    active_cols.append(column)
             frame = frame.merge(ready[active_cols].drop_duplicates("ticker"), on="ticker", how="left")
     if purpose_classification is not None and not purpose_classification.empty:
         purpose = purpose_classification.copy()
@@ -223,6 +270,101 @@ def enrich_purpose_evaluation_rows_with_purpose(
         axis=1,
     )
     return frame
+
+
+def build_purpose_evaluation_drilldown(
+    decisions: pd.DataFrame | None,
+    readiness: pd.DataFrame | None = None,
+    purpose_classification: pd.DataFrame | None = None,
+    peer_readiness: pd.DataFrame | None = None,
+    *,
+    active_only: bool = True,
+    purpose_family: str = "All",
+    decision_bucket: str = "All",
+    primary_blocker: str = "All",
+    limit: int = 25,
+) -> pd.DataFrame:
+    if decisions is None or decisions.empty:
+        return pd.DataFrame(columns=PURPOSE_EVALUATION_DRILLDOWN_COLUMNS)
+    frame = enrich_purpose_evaluation_rows_with_purpose(decisions, readiness, purpose_classification)
+    if frame.empty:
+        return pd.DataFrame(columns=PURPOSE_EVALUATION_DRILLDOWN_COLUMNS)
+
+    if peer_readiness is not None and not peer_readiness.empty:
+        peers = peer_readiness.copy()
+        peers.columns = normalize_columns(list(peers.columns))
+        if "ticker" in peers.columns:
+            peers["ticker"] = peers["ticker"].astype("string").str.upper().str.strip()
+            peer_cols = ["ticker"]
+            for column in ("peer_trend_comparison_ready", "peer_valuation_comparison_ready"):
+                if column in peers.columns:
+                    peer_cols.append(column)
+            frame = frame.merge(peers[peer_cols].drop_duplicates("ticker"), on="ticker", how="left")
+
+    if active_only:
+        frame = frame.loc[_bool_series(frame, "in_active_universe")].copy()
+    if purpose_family != "All":
+        frame = frame.loc[frame["purpose_family"].fillna("").astype(str).eq(purpose_family)].copy()
+    if decision_bucket != "All":
+        frame = frame.loc[frame["decision_bucket"].fillna("").astype(str).eq(decision_bucket)].copy()
+    if primary_blocker != "All":
+        frame = frame.loc[frame["primary_blocker"].fillna("").astype(str).eq(primary_blocker)].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=PURPOSE_EVALUATION_DRILLDOWN_COLUMNS)
+
+    for column in [
+        "decision_subtype",
+        "purpose_alignment",
+        "supported_analysis",
+        "unsupported_analysis",
+        "next_research_question",
+        "risk_watchpoint",
+        "invalidation_condition",
+        "confidence_explanation",
+        "data_confidence",
+        "readiness_score",
+        "overall_readiness_state",
+        "updated_at",
+        "Reason",
+    ]:
+        if column not in frame.columns:
+            frame[column] = ""
+    for column in ("peer_trend_comparison_ready", "peer_valuation_comparison_ready"):
+        if column not in frame.columns:
+            frame[column] = False
+
+    frame["priority"] = frame.apply(purpose_drilldown_priority, axis=1)
+    frame["exact_command"] = frame["ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+    frame["unlock_command"] = frame.apply(
+        lambda row: purpose_unlock_command(row.get("ticker"), row.get("primary_blocker"), row.get("exact_command")),
+        axis=1,
+    )
+    frame["peer_trend_status"] = frame["peer_trend_comparison_ready"].apply(
+        lambda value: "peer trend possible" if str(value).strip().lower() in {"true", "1", "yes"} else "peer trend blocked"
+    )
+    frame["peer_valuation_status"] = frame["peer_valuation_comparison_ready"].apply(
+        lambda value: "peer valuation ready" if str(value).strip().lower() in {"true", "1", "yes"} else "peer valuation blocked"
+    )
+    frame["source_freshness_note"] = frame.apply(
+        lambda row: (
+            f"Readiness state {text_value(row.get('overall_readiness_state'), 'unknown')} "
+            f"from local CSV outputs updated {text_value(row.get('updated_at'), 'not available')}."
+        ),
+        axis=1,
+    )
+    frame["copy_only_note"] = "Copy-only command; the dashboard does not execute imports, refreshes, or external account actions."
+    frame["Reason"] = frame.apply(
+        lambda row: text_value(
+            row.get("Reason"),
+            f"{text_value(row.get('purpose_family'), 'Purpose')} / {text_value(row.get('decision_bucket'), 'decision')} drilldown is based on current local readiness and decision outputs.",
+        ),
+        axis=1,
+    )
+    frame["is_active_universe"] = _bool_series(frame, "in_active_universe")
+
+    return frame.sort_values(["priority", "ticker"], kind="stable")[
+        PURPOSE_EVALUATION_DRILLDOWN_COLUMNS
+    ].head(limit).reset_index(drop=True)
 
 
 def build_purpose_evaluation_summary(

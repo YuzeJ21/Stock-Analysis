@@ -11712,3 +11712,47 @@ def test_purpose_evaluation_summary_cards_are_copy_only_and_data_honest():
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_purpose_evaluation_drilldown_cards_surface_next_row_without_execution_language():
+    drilldown = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "is_active_universe": True,
+                "purpose_family": "Compounder",
+                "decision_bucket": "Research Now",
+                "primary_blocker": "peers",
+                "next_research_question": "Which source-backed peers should be added?",
+                "purpose_alignment": "Purpose alignment needs review.",
+                "unsupported_analysis": "Unsupported analysis: peer-relative valuation.",
+                "exact_command": "make stock-report TICKER=META",
+                "unlock_command": "make focus-peers TICKER=META",
+            },
+            {
+                "ticker": "NVDA",
+                "is_active_universe": True,
+                "purpose_family": "Momentum",
+                "decision_bucket": "Research Now",
+                "primary_blocker": "earnings",
+                "next_research_question": "Does relative strength still support the momentum purpose?",
+                "unsupported_analysis": "Unsupported analysis: earnings and analyst estimate trend context.",
+                "exact_command": "make stock-report TICKER=NVDA",
+                "unlock_command": "make templates",
+            },
+        ]
+    )
+
+    cards = dashboard.purpose_evaluation_drilldown_cards(drilldown)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "2 row(s), 2 active"
+    assert "which source-backed peers should be added" in rendered
+    assert "make focus-peers ticker=meta" in rendered
+    assert "peer valuation remains blocked" in rendered
+    assert "trusted csv rows" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered

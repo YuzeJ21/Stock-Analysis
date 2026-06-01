@@ -21,7 +21,7 @@ from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.paths import path_context
 from src.project_status import build_project_status_payload
-from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV
+from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
@@ -5727,6 +5727,7 @@ ACTIVE_RESEARCH_BRIEF_COLUMNS = [
 def active_research_brief_frame(
     ticker_readiness_frame: pd.DataFrame | None,
     decisions_frame: pd.DataFrame | None,
+    purpose_classification_frame: pd.DataFrame | None = None,
     *,
     limit: int = 12,
 ) -> pd.DataFrame:
@@ -5749,12 +5750,36 @@ def active_research_brief_frame(
     decisions = decisions_frame.copy()
     decisions["ticker"] = decisions["ticker"].astype(str).str.upper().str.strip()
     frame = active.merge(decisions, on="ticker", how="left")
+    if purpose_classification_frame is not None and not purpose_classification_frame.empty and "Ticker" in purpose_classification_frame.columns:
+        purposes = purpose_classification_frame.copy()
+        purposes["Ticker"] = purposes["Ticker"].astype(str).str.upper().str.strip()
+        purpose_columns = [
+            column
+            for column in ["Ticker", "FinalPrimaryPurpose", "DeclaredPrimaryPurpose", "DefaultPurpose"]
+            if column in purposes.columns
+        ]
+        frame = frame.merge(
+            purposes[purpose_columns].drop_duplicates("Ticker"),
+            left_on="ticker",
+            right_on="Ticker",
+            how="left",
+        )
     for column in ACTIVE_RESEARCH_BRIEF_COLUMNS:
         if column not in frame.columns and column not in {"exact_command", "purpose_family", "purpose_status", "unlock_command"}:
             frame[column] = "Not available"
     frame["exact_command"] = frame["ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
     frame["purpose_family"] = frame.apply(
-        lambda row: purpose_family_label(row.get("asset_type"), row.get("purpose_thesis"), row.get("purpose_alignment")),
+        lambda row: purpose_family_label(
+            row.get("asset_type"),
+            first_meaningful_text(
+                row.get("purpose_thesis"),
+                row.get("FinalPrimaryPurpose"),
+                row.get("DeclaredPrimaryPurpose"),
+                row.get("DefaultPurpose"),
+                fallback="",
+            ),
+            row.get("purpose_alignment"),
+        ),
         axis=1,
     )
     frame["purpose_status"] = frame.apply(
@@ -5940,6 +5965,72 @@ def purpose_evaluation_summary_cards(summary_frame: pd.DataFrame | None) -> list
             "title": f"{optional_locked} optional-context lock(s)",
             "body": "Earnings and analyst-estimate context stays locked until trusted local rows are imported, validated, previewed, and applied.",
             "badges": ["schema-only until trusted rows", "copy-only"],
+            "command": "make templates",
+        },
+    ]
+
+
+def purpose_evaluation_drilldown_cards(drilldown_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if drilldown_frame is None or drilldown_frame.empty:
+        return [
+            {
+                "kicker": "PURPOSE DRILLDOWN",
+                "title": "No rows match",
+                "body": "Adjust the filters or run make pipeline and make readiness to rebuild local decision and readiness outputs.",
+                "badges": ["row-limited", "copy-only"],
+                "command": "make pipeline",
+            }
+        ]
+    frame = drilldown_frame.copy()
+    top_row = frame.iloc[0]
+    active_count = int(frame.get("is_active_universe", pd.Series(False, index=frame.index)).fillna(False).astype(bool).sum())
+    peer_limited = int(
+        frame.get("primary_blocker", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .str.contains("^peers?$", case=False, na=False)
+        .sum()
+    )
+    optional_locked = int(
+        frame.get("unsupported_analysis", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .str.contains("earnings|analyst", case=False, na=False)
+        .sum()
+    )
+    top_command = format_missing(top_row.get("unlock_command"), top_row.get("exact_command", "make project-status"))
+    return [
+        {
+            "kicker": "PURPOSE DRILLDOWN",
+            "title": f"{len(frame)} row(s), {active_count} active",
+            "body": "Filtered ticker-level purpose, supported analysis, blocked analysis, confidence, and next research question.",
+            "badges": ["ticker-level", "row-limited"],
+            "command": "make project-status",
+        },
+        {
+            "kicker": "NEXT PURPOSE ROW",
+            "title": format_missing(top_row.get("ticker"), "Ticker"),
+            "body": compact_reason(
+                first_meaningful_text(
+                    top_row.get("next_research_question"),
+                    top_row.get("purpose_alignment"),
+                    top_row.get("unsupported_analysis"),
+                    fallback="Open the ticker report and inspect current local evidence before changing any trusted inputs.",
+                ),
+                max_sentences=1,
+                max_chars=180,
+            ),
+            "badges": [
+                format_missing(top_row.get("purpose_family"), "purpose"),
+                format_missing(top_row.get("decision_bucket"), "decision"),
+            ],
+            "command": top_command,
+        },
+        {
+            "kicker": "PEER / OPTIONAL LIMITS",
+            "title": f"{peer_limited} peer-limited, {optional_locked} optional-context-limited",
+            "body": "Peer valuation remains blocked until source-backed peer mappings and valuation inputs exist; earnings and estimates remain locked until trusted CSV rows are imported.",
+            "badges": ["no fabricated peers", "no weak conclusions"],
             "command": "make templates",
         },
     ]
@@ -11703,6 +11794,7 @@ def render_market_command_center(
     earnings_readiness_frame: pd.DataFrame | None,
     analyst_readiness_frame: pd.DataFrame | None,
     purpose_evaluation_summary_frame: pd.DataFrame | None,
+    purpose_classification_frame: pd.DataFrame | None,
 ) -> None:
     render_section_header(
         "Market-Wide Command Center",
@@ -11755,7 +11847,7 @@ def render_market_command_center(
     render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without unsupported recommendations.")
     render_signal_cards(decision_workflow_summary_cards(decisions_frame))
     render_section_header("Active Universe Research Briefs", "Purpose, setup, valuation, risk, invalidation, and next research questions for active tickers using current trusted outputs.")
-    active_briefs = active_research_brief_frame(ticker_readiness_frame, decisions_frame)
+    active_briefs = active_research_brief_frame(ticker_readiness_frame, decisions_frame, purpose_classification_frame)
     render_signal_cards(active_research_brief_cards(active_briefs))
     if active_briefs.empty:
         st.info("Active-universe research briefs are unavailable. Run make pipeline and make readiness first.")
@@ -11772,6 +11864,82 @@ def render_market_command_center(
     else:
         st.caption("Summary rows are capped for readability and reflect only current trusted local CSV outputs.")
         st.dataframe(clean_display_frame(purpose_evaluation_summary_frame.head(25)), width="stretch", hide_index=True)
+    render_section_header(
+        "Purpose Evaluation Drilldown",
+        "Ticker-level purpose, supported analysis, blocked analysis, source/freshness, and exact copy-only unlock commands.",
+    )
+    drilldown_filter_cols = st.columns([1.3, 1.3, 1.3, 1, 1])
+    purpose_family_options = ["All"]
+    if purpose_evaluation_summary_frame is not None and not purpose_evaluation_summary_frame.empty and "purpose_family" in purpose_evaluation_summary_frame.columns:
+        purpose_family_options += sorted(
+            value
+            for value in purpose_evaluation_summary_frame["purpose_family"].dropna().astype(str).str.strip().unique().tolist()
+            if value and value.lower() not in {"nan", "none", "not available"}
+        )
+    decision_options = ["All"]
+    if decisions_frame is not None and not decisions_frame.empty and "decision_bucket" in decisions_frame.columns:
+        decision_options += sorted(
+            value
+            for value in decisions_frame["decision_bucket"].dropna().astype(str).str.strip().unique().tolist()
+            if value and value.lower() not in {"nan", "none", "not available"}
+        )
+    blocker_options = ["All"]
+    if decisions_frame is not None and not decisions_frame.empty and "primary_blocker" in decisions_frame.columns:
+        blocker_options += sorted(
+            value
+            for value in decisions_frame["primary_blocker"].dropna().astype(str).str.strip().unique().tolist()
+            if value and value.lower() not in {"nan", "none", "not available"}
+        )
+    purpose_family_filter = drilldown_filter_cols[0].selectbox(
+        "Purpose family",
+        purpose_family_options[:100],
+        index=0,
+        key="market-command-purpose-family-filter",
+    )
+    purpose_decision_filter = drilldown_filter_cols[1].selectbox(
+        "Decision bucket",
+        decision_options[:100],
+        index=0,
+        key="market-command-purpose-decision-filter",
+    )
+    purpose_blocker_filter = drilldown_filter_cols[2].selectbox(
+        "Primary blocker",
+        blocker_options[:100],
+        index=0,
+        key="market-command-purpose-blocker-filter",
+    )
+    purpose_active_only = drilldown_filter_cols[3].checkbox(
+        "Active only",
+        value=True,
+        key="market-command-purpose-active-only",
+    )
+    purpose_limit = int(
+        drilldown_filter_cols[4].selectbox(
+            "Drilldown limit",
+            [12, 25, 50, 100],
+            index=1,
+            key="market-command-purpose-limit",
+        )
+    )
+    purpose_drilldown = build_purpose_evaluation_drilldown(
+        decisions_frame,
+        ticker_readiness_frame,
+        purpose_classification_frame,
+        peer_readiness=peer_readiness_frame,
+        active_only=purpose_active_only,
+        purpose_family=purpose_family_filter,
+        decision_bucket=purpose_decision_filter,
+        primary_blocker=purpose_blocker_filter,
+        limit=purpose_limit,
+    )
+    render_signal_cards(purpose_evaluation_drilldown_cards(purpose_drilldown))
+    if purpose_drilldown.empty:
+        st.info("No purpose drilldown rows match the current filters. Try All filters or run make pipeline and make readiness.")
+    else:
+        st.caption(
+            "Purpose drilldown rows are generated from current local CSV outputs. Commands are copy-only; this dashboard does not execute refreshes, imports, or external account actions."
+        )
+        st.dataframe(clean_display_frame(purpose_drilldown), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
     render_signal_cards(peer_readiness_product_cards(peer_readiness_frame, peer_mapping_queue_frame))
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
@@ -12036,6 +12204,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     peer_readiness_frame, peer_readiness_message = load_peer_readiness_report()
     peer_unlock_worklist_frame, peer_unlock_worklist_message = load_peer_unlock_worklist()
     decisions_frame, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
+    purpose_classification_frame, purpose_classification_message = load_output(OUTPUTS_DIR / "purpose_classification.csv")
     purpose_evaluation_summary_frame, purpose_evaluation_summary_message = load_output(
         OUTPUTS_DIR / PURPOSE_EVALUATION_SUMMARY_CSV
     )
@@ -12068,6 +12237,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         earnings_readiness_frame,
         analyst_readiness_frame,
         purpose_evaluation_summary_frame,
+        purpose_classification_frame,
     )
     if feature_summary_frame is None and feature_summary_message:
         render_notice_card(

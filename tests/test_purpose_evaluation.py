@@ -1,6 +1,10 @@
 import pandas as pd
 
-from src.purpose_evaluation import build_purpose_evaluation_summary, enrich_purpose_evaluation_rows
+from src.purpose_evaluation import (
+    build_purpose_evaluation_drilldown,
+    build_purpose_evaluation_summary,
+    enrich_purpose_evaluation_rows,
+)
 
 
 def test_purpose_evaluation_summary_groups_current_decisions_without_fabricated_context():
@@ -109,3 +113,94 @@ def test_purpose_evaluation_uses_purpose_classification_when_decisions_are_schem
     assert summary.iloc[0]["purpose_family"] == "Momentum"
     assert summary.iloc[0]["optional_context_locked_count"] == 1
     assert summary.iloc[0]["top_unlock_command"] == "make templates"
+
+
+def test_purpose_evaluation_drilldown_prioritizes_active_rows_and_separates_peer_status():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "purpose_thesis": "Purpose: Core Compounder. Test fundamentals and DCF.",
+                "purpose_alignment": "Purpose alignment needs review: peer-relative context is incomplete.",
+                "supported_analysis": "Supported analysis: standalone DCF scenario analysis.",
+                "unsupported_analysis": "Unsupported analysis: peer-relative valuation or opportunity-cost comparison.",
+                "next_research_question": "Which source-backed peers should be added?",
+                "risk_watchpoint": "Risk watchpoint: peer valuation is unavailable.",
+                "invalidation_condition": "Invalidate only if local evidence no longer supports the thesis.",
+                "confidence_explanation": "Confidence is medium because peer context is missing.",
+                "data_confidence": "medium",
+                "readiness_score": 0.61,
+            },
+            {
+                "ticker": "BROAD",
+                "asset_type": "company",
+                "decision_bucket": "Blocked by Data",
+                "primary_blocker": "price",
+                "purpose_thesis": "Purpose: Core Compounder.",
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "META", "in_active_universe": True, "overall_readiness_state": "partial", "updated_at": "2026-06-01"},
+            {"ticker": "BROAD", "in_active_universe": False, "overall_readiness_state": "blocked", "updated_at": "2026-06-01"},
+        ]
+    )
+    peers = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+            }
+        ]
+    )
+
+    drilldown = build_purpose_evaluation_drilldown(decisions, readiness, peer_readiness=peers, active_only=True)
+    rendered = " ".join(str(value) for value in drilldown.to_numpy().ravel()).lower()
+
+    assert list(drilldown["ticker"]) == ["META"]
+    assert drilldown.iloc[0]["purpose_family"] == "Compounder"
+    assert drilldown.iloc[0]["unlock_command"] == "make focus-peers TICKER=META"
+    assert drilldown.iloc[0]["peer_trend_status"] == "peer trend possible"
+    assert drilldown.iloc[0]["peer_valuation_status"] == "peer valuation blocked"
+    assert "source-backed peers" in rendered
+    assert "copy-only command" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_purpose_evaluation_drilldown_filters_and_limits_rows():
+    decisions = pd.DataFrame(
+        [
+            {"ticker": "META", "asset_type": "company", "decision_bucket": "Research Now", "primary_blocker": "peers", "purpose_thesis": "Purpose: Core Compounder."},
+            {"ticker": "NVDA", "asset_type": "company", "decision_bucket": "Research Now", "primary_blocker": "earnings", "purpose_thesis": "Purpose: Momentum Leader."},
+            {"ticker": "QQQ", "asset_type": "etf", "decision_bucket": "Monitor", "primary_blocker": "none", "purpose_thesis": "Purpose: ETF / Defensive / Hedge."},
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "META", "in_active_universe": True},
+            {"ticker": "NVDA", "in_active_universe": True},
+            {"ticker": "QQQ", "in_active_universe": True},
+        ]
+    )
+
+    drilldown = build_purpose_evaluation_drilldown(
+        decisions,
+        readiness,
+        active_only=True,
+        purpose_family="Momentum",
+        limit=1,
+    )
+
+    assert list(drilldown["ticker"]) == ["NVDA"]
+    assert len(drilldown) == 1
+    assert drilldown.iloc[0]["unlock_command"] == "make templates"
