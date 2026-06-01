@@ -37,11 +37,15 @@ DECISION_COLUMNS = [
     "analysis_score",
     "decision_score",
     "purpose_thesis",
+    "purpose_alignment",
     "setup_evaluation",
     "valuation_evaluation",
+    "supported_analysis",
+    "unsupported_analysis",
     "risk_watchpoint",
     "invalidation_condition",
     "next_research_question",
+    "review_priority_reason",
     "confidence_explanation",
     "feature_summary",
     "updated_at",
@@ -66,8 +70,15 @@ def _read_csv(path: Path) -> pd.DataFrame:
 
 
 def _split_features(value: Any) -> list[str]:
+    if value is None:
+        return []
+    try:
+        if pd.isna(value):
+            return []
+    except (TypeError, ValueError):
+        pass
     text = str(value or "").strip()
-    if not text:
+    if not text or text.lower() in {"nan", "none", "null", "<na>"}:
         return []
     return [part.strip() for part in text.split(",") if part.strip()]
 
@@ -182,6 +193,27 @@ def _purpose_thesis(asset_type: str, watch_row: pd.Series, ready: list[str], blo
     return f"Purpose: {purpose}. Current setup is {final_state}; interpretation is limited to ready local features."
 
 
+def _purpose_alignment(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
+    purpose = _text_value(watch_row.get("primarypurpose"), "ETF / Defensive / Hedge" if asset_type in {"etf", "index_proxy", "fund"} else "Research candidate")
+    final_state = _text_value(watch_row.get("finalstate"), "")
+    review_state = _text_value(watch_row.get("reviewstate"), "")
+    setup = _text_value(watch_row.get("setupstatus"), "")
+    reason = _text_value(watch_row.get("reason"), "")
+    reason_lower = reason.lower()
+    if "price" in blocked:
+        return f"Purpose alignment for {purpose} cannot be checked until usable price history exists."
+    if asset_type in {"etf", "index_proxy", "fund"}:
+        return f"Purpose alignment: {purpose} is evaluated as market/risk context when price, liquidity, and correlation data are ready; operating-company valuation is not applicable."
+    if final_state in {"Broken", "Review Thesis", "Risk Reduce"} or review_state in {"Broken", "Review Thesis", "Risk Reduce"}:
+        context = reason if reason != "Not available" else f"final state is {final_state or review_state}"
+        return f"Purpose alignment needs review: current local outputs show `{final_state or review_state}` for {purpose}. {context}"
+    if "marked as" in reason_lower or "conflict" in reason_lower or "but trend" in reason_lower:
+        return f"Purpose alignment needs review: {reason}"
+    if setup and setup != "Not available":
+        return f"Purpose alignment appears consistent with current setup `{setup}` for {purpose}, subject to the missing-data limits below."
+    return f"Purpose alignment is not fully testable yet for {purpose}; use the ready features and blocker list before interpreting thesis quality."
+
+
 def _setup_evaluation(watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
     setup = _text_value(watch_row.get("setupstatus"), "Not available")
     final_state = _text_value(watch_row.get("finalstate"), "Not available")
@@ -209,6 +241,53 @@ def _valuation_evaluation(asset_type: str, watch_row: pd.Series, ready: list[str
     if "dcf" in blocked or "fundamentals" in blocked:
         return "Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete."
     return "Valuation interpretation is not supported by the current local outputs."
+
+
+def _supported_analysis(bucket: str, asset_type: str, ready: list[str], partial: list[str], excluded: list[str]) -> str:
+    supported: list[str] = []
+    if "price" in ready:
+        supported.append("price history")
+    if "momentum" in ready:
+        supported.append("setup and momentum context")
+    if "market_direction" in ready:
+        supported.append("market/theme context")
+    if "liquidity" in ready:
+        supported.append("liquidity context")
+    if "correlation" in ready:
+        supported.append("correlation/risk context")
+    if asset_type not in {"etf", "index_proxy", "fund"} and "fundamentals" in ready:
+        supported.append("fundamental context")
+    if asset_type not in {"etf", "index_proxy", "fund"} and "dcf" in ready:
+        supported.append("standalone DCF scenario analysis")
+    if "peer" in ready:
+        supported.append("peer-relative comparison")
+    if asset_type in {"etf", "index_proxy", "fund"} or "dcf" in excluded:
+        supported.append("ETF/index monitoring, not operating-company valuation")
+    if not supported:
+        return "Supported analysis: none yet; this row is an unlock checklist until core inputs are available."
+    partial_text = f" Partial inputs present: {', '.join(partial)}." if partial else ""
+    return f"Supported analysis: {', '.join(supported)}.{partial_text}"
+
+
+def _unsupported_analysis(asset_type: str, blocked: list[str], excluded: list[str]) -> str:
+    unsupported: list[str] = []
+    if "price" in blocked:
+        unsupported.append("trend, setup, liquidity, volatility, and relative strength")
+    if "fundamentals" in blocked:
+        unsupported.append("fundamental quality and operating-company valuation")
+    if "dcf" in blocked:
+        unsupported.append("DCF interpretation")
+    if "peer" in blocked:
+        unsupported.append("peer-relative valuation or opportunity-cost comparison")
+    if "earnings" in blocked:
+        unsupported.append("earnings timing or surprise context")
+    if "analyst_estimates" in blocked:
+        unsupported.append("analyst estimate trend context")
+    if asset_type in {"etf", "index_proxy", "fund"} or "dcf" in excluded:
+        unsupported.append("operating-company DCF conclusions")
+    if not unsupported:
+        return "Unsupported analysis: no major blocked analysis areas are listed, but conclusions still depend on source freshness and assumptions."
+    return f"Unsupported analysis: {', '.join(dict.fromkeys(unsupported))}."
 
 
 def _risk_watchpoint(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
@@ -269,6 +348,35 @@ def _next_research_question(
     return "Which missing input most improves the next supported research read?"
 
 
+def _review_priority_reason(
+    bucket: str,
+    subtype: str,
+    primary_blocker: str,
+    asset_type: str,
+    watch_row: pd.Series,
+    ready: list[str],
+    partial: list[str],
+    blocked: list[str],
+) -> str:
+    purpose = _text_value(watch_row.get("primarypurpose"), "ETF / Defensive / Hedge" if asset_type in {"etf", "index_proxy", "fund"} else "Research candidate")
+    final_state = _text_value(watch_row.get("finalstate"), "")
+    score = _text_value(watch_row.get("watchlistscore"), "")
+    if bucket == "Research Now" and ("peer" in blocked or "peer" in partial):
+        return "High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation."
+    if bucket == "Research Now":
+        return f"High review priority: core data supports a research brief for {purpose}; confirm assumptions, setup, and risk notes manually."
+    if bucket == "Monitor" and asset_type in {"etf", "index_proxy", "fund"}:
+        return "Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation."
+    if bucket == "Blocked by Data" and "price" not in blocked and "price" in ready:
+        return f"Unlock priority: price context exists, but {primary_blocker} blocks deeper analysis."
+    if bucket == "Blocked by Data":
+        return f"Unlock priority: {primary_blocker} is the first blocker before setup, valuation, or risk interpretation should be trusted."
+    if final_state != "Not available":
+        suffix = f" with watchlist score {score}" if score != "Not available" else ""
+        return f"Review priority is current-state driven: final state `{final_state}`{suffix}; use readiness before drawing conclusions."
+    return f"Review priority follows `{subtype}` and the current readiness blockers."
+
+
 def _confidence_explanation(bucket: str, data_label: str, primary_blocker: str, ready: list[str], blocked: list[str], excluded: list[str]) -> str:
     if bucket == "Research Now":
         return f"Confidence is {data_label}: core price, fundamentals, and DCF are ready; blockers still reduce breadth: {', '.join(blocked) or 'none'}."
@@ -283,7 +391,11 @@ def _confidence_explanation(bucket: str, data_label: str, primary_blocker: str, 
 
 def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.DataFrame | None = None) -> pd.DataFrame:
     final_watchlist = final_watchlist if final_watchlist is not None else pd.DataFrame()
+    if not final_watchlist.empty:
+        final_watchlist = final_watchlist.copy()
+        final_watchlist.columns = normalize_columns(list(final_watchlist.columns))
     if not final_watchlist.empty and "ticker" in final_watchlist.columns:
+        final_watchlist["ticker"] = final_watchlist["ticker"].astype("string").str.upper().str.strip()
         watch_lookup = final_watchlist.set_index("ticker", drop=False)
     else:
         watch_lookup = pd.DataFrame()
@@ -380,11 +492,15 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
                 "analysis_score": round(float(analysis_score_normalized), 3),
                 "decision_score": decision_score,
                 "purpose_thesis": _purpose_thesis(asset_type, watch_row, ready, blocked),
+                "purpose_alignment": _purpose_alignment(asset_type, watch_row, ready, blocked),
                 "setup_evaluation": _setup_evaluation(watch_row, ready, blocked),
                 "valuation_evaluation": _valuation_evaluation(asset_type, watch_row, ready, blocked, excluded),
+                "supported_analysis": _supported_analysis(bucket, asset_type, ready, partial, excluded),
+                "unsupported_analysis": _unsupported_analysis(asset_type, blocked, excluded),
                 "risk_watchpoint": _risk_watchpoint(asset_type, watch_row, ready, blocked),
                 "invalidation_condition": _invalidation_condition(asset_type, watch_row, ready, blocked),
                 "next_research_question": _next_research_question(bucket, asset_type, primary_blocker, ready, partial, blocked),
+                "review_priority_reason": _review_priority_reason(bucket, subtype, primary_blocker, asset_type, watch_row, ready, partial, blocked),
                 "confidence_explanation": _confidence_explanation(bucket, data_confidence, primary_blocker, ready, blocked, excluded),
                 "feature_summary": _feature_summary(ready, partial, blocked, excluded),
                 "updated_at": _now(),

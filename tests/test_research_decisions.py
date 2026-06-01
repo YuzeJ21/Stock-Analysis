@@ -119,7 +119,7 @@ def test_research_decisions_only_research_now_when_core_data_is_ready():
                 "asset_type": "company",
                 "ready_features": "price, momentum, fundamentals, dcf",
                 "partial_features": "peer",
-                "blocked_features": "",
+                "blocked_features": "earnings, analyst_estimates",
                 "excluded_features": "portfolio",
                 "missing_data": "",
                 "next_action": "Review ready analysis outputs for NVDA.",
@@ -137,9 +137,13 @@ def test_research_decisions_only_research_now_when_core_data_is_ready():
     assert row["analysis_score"] == 0.8
     assert "ready: price, momentum, fundamentals, dcf" in row["feature_summary"]
     assert "research brief" in row["purpose_thesis"]
+    assert "Purpose alignment" in row["purpose_alignment"]
     assert "Valuation" in row["valuation_evaluation"] or "DCF inputs are ready" in row["valuation_evaluation"]
+    assert "standalone DCF scenario analysis" in row["supported_analysis"]
+    assert "earnings timing" in row["unsupported_analysis"]
     assert "Invalidate" in row["invalidation_condition"]
     assert "Which source-backed peers" in row["next_research_question"]
+    assert "peer-relative context is still limiting" in row["review_priority_reason"]
     assert "core price, fundamentals, and DCF are ready" in row["confidence_explanation"]
 
 
@@ -191,13 +195,103 @@ def test_research_decisions_add_evaluation_fields_without_recommendation_languag
     rendered = " ".join(decisions.astype(str).to_numpy().ravel()).lower()
 
     assert "market, theme, liquidity, or risk context" in qqq["purpose_thesis"]
+    assert "operating-company valuation is not applicable" in qqq["purpose_alignment"]
     assert "operating-company dcf is excluded" in qqq["valuation_evaluation"].lower()
+    assert "ETF/index monitoring" in qqq["supported_analysis"]
+    assert "operating-company DCF conclusions" in qqq["unsupported_analysis"]
     assert "market-proxy usefulness" in qqq["invalidation_condition"]
     assert "source-backed peer mappings" in qqq["next_research_question"]
+    assert "Monitor priority" in qqq["review_priority_reason"]
     assert "analytical blindness" in apld["risk_watchpoint"]
+    assert "none yet" in apld["supported_analysis"]
+    assert "trend, setup, liquidity" in apld["unsupported_analysis"]
     assert "price history is available" in apld["invalidation_condition"]
     assert "primary blocker is price" in apld["confidence_explanation"]
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+
+
+def test_research_decisions_surface_purpose_conflict_as_review_context_not_recommendation():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "name": "Meta Platforms",
+                "asset_type": "company",
+                "ready_features": "price, momentum, market_direction, liquidity, correlation",
+                "partial_features": "",
+                "blocked_features": "fundamentals, dcf, peer, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "dcf: shares_outstanding",
+                "next_action": "Import trusted fundamentals for META.",
+            }
+        ]
+    )
+    watchlist = pd.DataFrame(
+        {
+            "ticker": ["META"],
+            "primarypurpose": ["Core Compounder"],
+            "setupstatus": ["Broken"],
+            "reviewstate": ["Broken"],
+            "finalstate": ["Broken"],
+            "watchlistscore": [13],
+            "rankreason": ["Base score from final state Broken."],
+            "reason": ["Marked as Core Compounder but trend is below the 50SMA. Holding trend is broken."],
+        }
+    )
+
+    row = build_research_decisions_frame(readiness, watchlist).iloc[0]
+    rendered = " ".join(str(value) for value in row.to_numpy()).lower()
+
+    assert row["decision_bucket"] == "Blocked by Data"
+    assert row["primary_blocker"] == "fundamentals"
+    assert "Purpose alignment needs review" in row["purpose_alignment"]
+    assert "Core Compounder" in row["purpose_alignment"]
+    assert "fundamental quality" in row["unsupported_analysis"]
+    assert "price context exists" in row["review_priority_reason"]
+    assert "fundamentals or DCF fields are missing" in row["next_research_question"]
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+
+
+def test_research_decisions_normalize_watchlist_columns_for_evaluation_fields():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "name": "Agilent",
+                "asset_type": "company",
+                "ready_features": "price, momentum, fundamentals, dcf",
+                "partial_features": float("nan"),
+                "blocked_features": "peer, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "peers: source-backed mappings required",
+                "next_action": "Review ready analysis outputs for A.",
+            }
+        ]
+    )
+    watchlist = pd.DataFrame(
+        {
+            "Ticker": ["A"],
+            "PrimaryPurpose": ["Core Compounder"],
+            "SetupStatus": ["Setup Forming"],
+            "FinalState": ["Setup Forming"],
+            "ValuationStatus": ["ready"],
+            "FinalValueCategory": ["Insufficient Data"],
+            "PeerRelativeStatus": ["Insufficient Peer Data"],
+            "WatchlistScore": [68],
+            "RankReason": ["Base score from final state Setup Forming."],
+            "Reason": ["Purpose is aligned with available data."],
+        }
+    )
+
+    row = build_research_decisions_frame(readiness, watchlist).iloc[0]
+
+    assert "Core Compounder" in row["purpose_thesis"]
+    assert "Setup Forming" in row["purpose_alignment"]
+    assert "Partial inputs present: nan" not in row["supported_analysis"]
+    assert row["analysis_score"] == 0.68

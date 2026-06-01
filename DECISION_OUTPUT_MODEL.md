@@ -46,6 +46,24 @@ Each ticker-level decision row should include:
 - `decision_score`
 - `updated_at`
 
+## Evaluation Brief Columns
+
+The command center may add interpretation fields that summarize the decision row for
+dashboard and stock-report use. These fields must remain research-only and must not
+turn missing data into recommendations.
+
+- `purpose_thesis`: the current purpose read for the ticker.
+- `purpose_alignment`: whether available local evidence still matches that purpose.
+- `setup_evaluation`: what setup state is supported by current price/momentum outputs.
+- `valuation_evaluation`: valuation interpretation, including DCF exclusion or peer limits.
+- `supported_analysis`: analysis areas currently supported by trusted local data.
+- `unsupported_analysis`: analysis areas intentionally withheld because inputs are missing or excluded.
+- `risk_watchpoint`: the main analysis risk or limitation to monitor.
+- `invalidation_condition`: a research invalidation condition, not a transaction instruction.
+- `next_research_question`: the next manual research question or data-unlock question.
+- `review_priority_reason`: why the row deserves review, monitoring, or data unlock next.
+- `confidence_explanation`: why confidence is high, medium, low, or blocked.
+
 ## Decision Rules
 
 - A ticker must not be classified as `Research Now` when required data is insufficient.

@@ -5640,11 +5640,15 @@ ACTIVE_RESEARCH_BRIEF_COLUMNS = [
     "decision_bucket",
     "decision_subtype",
     "purpose_thesis",
+    "purpose_alignment",
     "setup_evaluation",
     "valuation_evaluation",
+    "supported_analysis",
+    "unsupported_analysis",
     "risk_watchpoint",
     "invalidation_condition",
     "next_research_question",
+    "review_priority_reason",
     "confidence_explanation",
     "exact_command",
 ]
@@ -5699,23 +5703,41 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
     research_now = int(bucket_counts.get("Research Now", 0))
     monitor = int(bucket_counts.get("Monitor", 0))
     blocked = int(bucket_counts.get("Blocked by Data", 0))
+    purpose_review_count = int(
+        frame.get("purpose_alignment", pd.Series(dtype=object))
+        .fillna("")
+        .astype(str)
+        .str.contains("needs review|cannot be checked", case=False, na=False)
+        .sum()
+    )
+    peer_limited_count = int(
+        frame.get("review_priority_reason", pd.Series(dtype=object))
+        .fillna("")
+        .astype(str)
+        .str.contains("peer-relative context", case=False, na=False)
+        .sum()
+    )
     return [
         {
             "kicker": "ACTIVE BRIEFS",
             "title": f"{len(frame)} active ticker(s)",
-            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs explain purpose, setup, valuation, risk, and next research question.",
+            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs explain purpose, setup, valuation, supported and unsupported analysis, risk, and next research question.",
             "badges": ["analysis layer", "row-limited"],
             "command": "make stock-report TICKER=META",
         },
         {
-            "kicker": "FIRST BRIEF",
-            "title": format_missing(top_row.get("ticker"), "Ticker"),
-            "body": compact_reason(top_row.get("purpose_thesis"), max_sentences=1, max_chars=180),
-            "badges": [
-                format_missing(top_row.get("decision_bucket"), "bucket"),
-                format_missing(top_row.get("decision_subtype"), "subtype"),
-            ],
+            "kicker": "PURPOSE CHECK",
+            "title": f"{purpose_review_count} need alignment review",
+            "body": compact_reason(top_row.get("purpose_alignment") or top_row.get("purpose_thesis"), max_sentences=1, max_chars=180),
+            "badges": ["purpose alignment", format_missing(top_row.get("decision_bucket"), "bucket")],
             "command": format_missing(top_row.get("exact_command"), "make stock-report TICKER=META"),
+        },
+        {
+            "kicker": "PEER-LIMITED",
+            "title": f"{peer_limited_count} peer-limited brief(s)",
+            "body": "Standalone company analysis and ETF monitoring stay separate from peer-relative valuation until source-backed peer data is sufficient.",
+            "badges": ["valuation boundary", "no fabricated peers"],
+            "command": "make project-status",
         },
         {
             "kicker": "RISK / INVALIDATION",

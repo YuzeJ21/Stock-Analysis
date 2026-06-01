@@ -11580,11 +11580,15 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
                 "decision_bucket": "Research Now",
                 "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
                 "purpose_thesis": "Purpose: Core Compounder. Available data supports a research brief, not a recommendation.",
+                "purpose_alignment": "Purpose alignment needs review: current local outputs show `Review Thesis` for Core Compounder.",
                 "setup_evaluation": "Setup status: Watch; final state: Watch.",
                 "valuation_evaluation": "DCF inputs are ready, but interpretation is constrained by insufficient peer context.",
+                "supported_analysis": "Supported analysis: price history, setup and momentum context, standalone DCF scenario analysis.",
+                "unsupported_analysis": "Unsupported analysis: peer-relative valuation or opportunity-cost comparison.",
                 "risk_watchpoint": "Risk watchpoint: peer-relative context is incomplete.",
                 "invalidation_condition": "Invalidate the research brief if fundamentals or DCF inputs no longer pass readiness checks.",
                 "next_research_question": "Which source-backed peers should be added to test valuation comparison?",
+                "review_priority_reason": "High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation.",
                 "confidence_explanation": "Confidence is medium-high because core price, fundamentals, and DCF are ready.",
             },
             {
@@ -11592,11 +11596,15 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
                 "decision_bucket": "Monitor",
                 "decision_subtype": "Monitor - ETF Market Proxy",
                 "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market, theme, liquidity, or risk context.",
+                "purpose_alignment": "Purpose alignment: ETF / Defensive / Hedge is evaluated as market/risk context.",
                 "setup_evaluation": "Setup status: Setup Forming; final state: Setup Forming.",
                 "valuation_evaluation": "Operating-company DCF is excluded for this asset type.",
+                "supported_analysis": "Supported analysis: price history, ETF/index monitoring, not operating-company valuation.",
+                "unsupported_analysis": "Unsupported analysis: operating-company DCF conclusions.",
                 "risk_watchpoint": "Risk watchpoint: monitor liquidity, correlation, and theme exposure.",
                 "invalidation_condition": "Invalidate market-proxy usefulness if liquidity or theme trend no longer supports the intended monitoring role.",
                 "next_research_question": "What market signal is this proxy intended to monitor?",
+                "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context.",
                 "confidence_explanation": "Confidence is medium because monitoring uses ready market data.",
             },
             {
@@ -11617,10 +11625,15 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "BROAD" not in set(brief["ticker"])
     assert brief.loc[brief["ticker"].eq("META"), "exact_command"].iloc[0] == "make stock-report TICKER=META"
     assert "research brief" in rendered
+    assert "purpose alignment needs review" in rendered
+    assert "supported analysis" in rendered
+    assert "unsupported analysis" in rendered
     assert "peer-relative context is incomplete" in rendered
     assert "operating-company dcf is excluded" in rendered
     assert cards[0]["title"] == "2 active ticker(s)"
-    assert "purpose, setup, valuation, risk" in rendered_cards
+    assert "purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
+    assert "purpose check" in rendered_cards
+    assert "peer-limited" in rendered_cards
     assert "make stock-report ticker=meta" in rendered_cards
     assert "broker" not in rendered
     assert "order" not in rendered
