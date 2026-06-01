@@ -181,11 +181,50 @@ def _text_value(value: Any, fallback: str = "Not available") -> str:
     return text
 
 
+def _purpose_value(asset_type: str, watch_row: pd.Series) -> str:
+    return _text_value(
+        watch_row.get("primarypurpose"),
+        "ETF / Defensive / Hedge" if asset_type in {"etf", "index_proxy", "fund"} else "Research candidate",
+    )
+
+
+def _purpose_family(purpose: str, asset_type: str) -> str:
+    normalized = purpose.lower()
+    if asset_type in {"etf", "index_proxy", "fund"} or "etf" in normalized or "hedge" in normalized or "defensive" in normalized:
+        return "etf_hedge"
+    if "momentum" in normalized:
+        return "momentum"
+    if "pullback" in normalized:
+        return "pullback"
+    if "compounder" in normalized or "core" in normalized:
+        return "compounder"
+    if "re-rating" in normalized or "undervalued" in normalized or "value" in normalized:
+        return "rerating"
+    if "speculative" in normalized or "optionality" in normalized:
+        return "speculative"
+    if "broken" in normalized or "avoid" in normalized:
+        return "broken"
+    return "general"
+
+
 def _purpose_thesis(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
-    purpose = _text_value(watch_row.get("primarypurpose"), "ETF / Defensive / Hedge" if asset_type in {"etf", "index_proxy", "fund"} else "Research candidate")
+    purpose = _purpose_value(asset_type, watch_row)
+    family = _purpose_family(purpose, asset_type)
     final_state = _text_value(watch_row.get("finalstate"), "readiness gated")
     if asset_type in {"etf", "index_proxy", "fund"}:
-        return f"Purpose: {purpose}. Use as market, theme, liquidity, or risk context; operating-company valuation remains excluded."
+        return f"Purpose: {purpose}. Evaluate as market, theme, liquidity, or risk context; operating-company valuation remains excluded."
+    if family == "momentum":
+        return f"Purpose: {purpose}. Judge the brief through trend, relative strength, extension risk, and setup quality; current state is {final_state}."
+    if family == "compounder":
+        return f"Purpose: {purpose}. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is {final_state}."
+    if family == "speculative":
+        return f"Purpose: {purpose}. Treat the brief as high-uncertainty research; price, volatility, and data gaps matter before thesis quality."
+    if family == "rerating":
+        return f"Purpose: {purpose}. Require fundamentals, DCF, and peer context before any re-rating interpretation is supported."
+    if family == "pullback":
+        return f"Purpose: {purpose}. Evaluate pullback quality only when price and momentum data support setup context; current state is {final_state}."
+    if family == "broken":
+        return f"Purpose: {purpose}. Treat the row as thesis-review context and data triage, not a transaction instruction."
     if "dcf" in ready and "fundamentals" in ready:
         return f"Purpose: {purpose}. Current setup is {final_state}; available data supports a research brief, not a recommendation."
     if {"fundamentals", "dcf"} & set(blocked):
@@ -194,7 +233,8 @@ def _purpose_thesis(asset_type: str, watch_row: pd.Series, ready: list[str], blo
 
 
 def _purpose_alignment(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
-    purpose = _text_value(watch_row.get("primarypurpose"), "ETF / Defensive / Hedge" if asset_type in {"etf", "index_proxy", "fund"} else "Research candidate")
+    purpose = _purpose_value(asset_type, watch_row)
+    family = _purpose_family(purpose, asset_type)
     final_state = _text_value(watch_row.get("finalstate"), "")
     review_state = _text_value(watch_row.get("reviewstate"), "")
     setup = _text_value(watch_row.get("setupstatus"), "")
@@ -204,6 +244,14 @@ def _purpose_alignment(asset_type: str, watch_row: pd.Series, ready: list[str], 
         return f"Purpose alignment for {purpose} cannot be checked until usable price history exists."
     if asset_type in {"etf", "index_proxy", "fund"}:
         return f"Purpose alignment: {purpose} is evaluated as market/risk context when price, liquidity, and correlation data are ready; operating-company valuation is not applicable."
+    if family == "momentum" and ("weak rs" in reason_lower or "relative strength is weak" in reason_lower):
+        return f"Purpose alignment needs review: {purpose} requires relative strength support, but current local outputs flag weak relative strength."
+    if family == "compounder" and ("broken" in final_state.lower() or "trend is broken" in reason_lower or "below the 50sma" in reason_lower):
+        return f"Purpose alignment needs review: {purpose} depends on durable thesis support, but current local outputs flag trend/thesis conflict. {reason}"
+    if family == "rerating" and ("dcf" in blocked or "fundamentals" in blocked or "peer" in blocked):
+        return f"Purpose alignment is blocked: {purpose} requires valuation inputs, but missing fundamentals, DCF, or peer context prevents a supported re-rating read."
+    if family == "speculative" and "price" not in ready:
+        return f"Purpose alignment for {purpose} is not testable until price, liquidity, and volatility context are available."
     if final_state in {"Broken", "Review Thesis", "Risk Reduce"} or review_state in {"Broken", "Review Thesis", "Risk Reduce"}:
         context = reason if reason != "Not available" else f"final state is {final_state or review_state}"
         return f"Purpose alignment needs review: current local outputs show `{final_state or review_state}` for {purpose}. {context}"
@@ -215,6 +263,8 @@ def _purpose_alignment(asset_type: str, watch_row: pd.Series, ready: list[str], 
 
 
 def _setup_evaluation(watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
+    purpose = _purpose_value("company", watch_row)
+    family = _purpose_family(purpose, "company")
     setup = _text_value(watch_row.get("setupstatus"), "Not available")
     final_state = _text_value(watch_row.get("finalstate"), "Not available")
     rank_reason = _text_value(watch_row.get("rankreason"), "")
@@ -222,6 +272,14 @@ def _setup_evaluation(watch_row: pd.Series, ready: list[str], blocked: list[str]
         return "Setup cannot be evaluated because usable price history is missing."
     if setup != "Not available":
         suffix = f" {rank_reason}" if rank_reason else ""
+        if family == "momentum":
+            return f"Momentum setup: {setup}; final state: {final_state}. Check relative strength, trend, volume context, and extension risk before deeper research.{suffix}".strip()
+        if family == "pullback":
+            return f"Pullback setup: {setup}; final state: {final_state}. Confirm price support and momentum stabilization before treating the setup as research-ready.{suffix}".strip()
+        if family == "compounder":
+            if final_state in {"Broken", "Review Thesis", "Risk Reduce"}:
+                return f"Compounder setup: {setup}; final state: {final_state}. Trend conflict matters because it can challenge the stated long-duration purpose.{suffix}".strip()
+            return f"Compounder setup: {setup}; final state: {final_state}. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported.{suffix}".strip()
         return f"Setup status: {setup}; final state: {final_state}.{suffix}".strip()
     if "momentum" in ready:
         return "Momentum is ready, but setup detail is not available in the current watchlist output."
@@ -269,7 +327,29 @@ def _supported_analysis(bucket: str, asset_type: str, ready: list[str], partial:
     return f"Supported analysis: {', '.join(supported)}.{partial_text}"
 
 
-def _unsupported_analysis(asset_type: str, blocked: list[str], excluded: list[str]) -> str:
+def _purpose_supported_analysis(asset_type: str, watch_row: pd.Series, ready: list[str]) -> str:
+    purpose = _purpose_value(asset_type, watch_row)
+    family = _purpose_family(purpose, asset_type)
+    if family == "momentum" and {"price", "momentum"} <= set(ready):
+        return "Purpose-specific support: momentum review can use trend, setup, and relative-strength context, while valuation remains secondary."
+    if family == "compounder" and "fundamentals" in ready and "dcf" in ready:
+        return "Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source freshness."
+    if family == "etf_hedge" and "price" in ready:
+        return "Purpose-specific support: ETF/hedge review can use market, theme, liquidity, and correlation context; company valuation is excluded."
+    if family == "speculative" and "price" in ready:
+        return "Purpose-specific support: speculative review can use price and volatility context, but missing fundamentals keep thesis quality uncertain."
+    if family == "rerating" and "dcf" in ready and "fundamentals" in ready:
+        return "Purpose-specific support: re-rating review can use standalone DCF/fundamentals, but peer and optional context still constrain interpretation."
+    if family == "pullback" and {"price", "momentum"} <= set(ready):
+        return "Purpose-specific support: pullback review can use setup, price support, and momentum stabilization context."
+    if family == "broken":
+        return "Purpose-specific support: broken/avoid rows support thesis review and blocker diagnosis only."
+    return ""
+
+
+def _unsupported_analysis(asset_type: str, watch_row: pd.Series, blocked: list[str], excluded: list[str]) -> str:
+    purpose = _purpose_value(asset_type, watch_row)
+    family = _purpose_family(purpose, asset_type)
     unsupported: list[str] = []
     if "price" in blocked:
         unsupported.append("trend, setup, liquidity, volatility, and relative strength")
@@ -285,17 +365,41 @@ def _unsupported_analysis(asset_type: str, blocked: list[str], excluded: list[st
         unsupported.append("analyst estimate trend context")
     if asset_type in {"etf", "index_proxy", "fund"} or "dcf" in excluded:
         unsupported.append("operating-company DCF conclusions")
+    if family == "momentum" and ("price" in blocked or "momentum" in blocked):
+        unsupported.append("momentum leadership assessment")
+    if family == "compounder" and ("fundamentals" in blocked or "dcf" in blocked):
+        unsupported.append("compounder thesis confirmation")
+    if family == "rerating" and ("fundamentals" in blocked or "dcf" in blocked or "peer" in blocked):
+        unsupported.append("re-rating or undervaluation conclusion")
+    if family == "pullback" and ("price" in blocked or "momentum" in blocked):
+        unsupported.append("pullback setup quality")
+    if family == "speculative" and "price" in blocked:
+        unsupported.append("speculative setup and volatility read")
     if not unsupported:
         return "Unsupported analysis: no major blocked analysis areas are listed, but conclusions still depend on source freshness and assumptions."
     return f"Unsupported analysis: {', '.join(dict.fromkeys(unsupported))}."
 
 
 def _risk_watchpoint(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
+    purpose = _purpose_value(asset_type, watch_row)
+    family = _purpose_family(purpose, asset_type)
     final_state = _text_value(watch_row.get("finalstate"), "")
     setup = _text_value(watch_row.get("setupstatus"), "")
     reason = _text_value(watch_row.get("reason"), "")
     if "price" in blocked:
         return "Primary risk is analytical blindness from missing price history; do not interpret trend or volatility yet."
+    if family == "momentum":
+        return "Risk watchpoint: momentum purpose is sensitive to relative-strength deterioration, extension risk, and trend breaks."
+    if family == "compounder" and final_state in {"Broken", "Review Thesis", "Risk Reduce"}:
+        return f"Risk watchpoint: compounder purpose is under thesis review because final state is `{final_state}`. {reason}".strip()
+    if family == "speculative":
+        return "Risk watchpoint: speculative optionality has high uncertainty; missing fundamentals, volatility context, or liquidity gaps reduce interpretability."
+    if family == "rerating":
+        return "Risk watchpoint: re-rating analysis can overclaim when DCF, peer, or optional context is incomplete."
+    if family == "pullback":
+        return "Risk watchpoint: pullback purpose depends on support holding and momentum stabilizing; unsupported setup reads should stay locked."
+    if family == "broken":
+        return "Risk watchpoint: broken/avoid purpose is a thesis-review label, not a transaction instruction."
     if final_state in {"Broken", "Risk Reduce", "Review Thesis"}:
         return f"Risk watchpoint: final state is `{final_state}`. {reason}".strip()
     if setup == "Extended / No Chase":
@@ -308,6 +412,8 @@ def _risk_watchpoint(asset_type: str, watch_row: pd.Series, ready: list[str], bl
 
 
 def _invalidation_condition(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
+    purpose = _purpose_value(asset_type, watch_row)
+    family = _purpose_family(purpose, asset_type)
     final_state = _text_value(watch_row.get("finalstate"), "")
     if "price" in blocked:
         return "Invalidation cannot be defined from local price data until price history is available."
@@ -315,12 +421,25 @@ def _invalidation_condition(asset_type: str, watch_row: pd.Series, ready: list[s
         return "Already invalidated for trend/purpose review in the current local setup state."
     if asset_type in {"etf", "index_proxy", "fund"}:
         return "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role."
+    if family == "momentum":
+        return "Invalidate the momentum research setup if relative strength weakens, trend support fails, or extension risk dominates the setup."
+    if family == "compounder":
+        return "Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose."
+    if family == "speculative":
+        return "Invalidate speculative research framing if price/liquidity context is missing or the setup cannot be distinguished from data noise."
+    if family == "rerating":
+        return "Invalidate any re-rating interpretation until fundamentals, DCF assumptions, and peer context are complete enough to support it."
+    if family == "pullback":
+        return "Invalidate pullback setup framing if price support fails or momentum does not stabilize after the pullback."
+    if family == "broken":
+        return "Keep broken/avoid rows in thesis-review mode until data and setup evidence justify a different research classification."
     if "momentum" in ready:
         return "Invalidate the current setup if price support fails, relative strength deteriorates, or the watchlist final state turns Broken."
     return "Invalidate only after the missing core inputs are available; current data is insufficient for a setup-level condition."
 
 
 def _next_research_question(
+    watch_row: pd.Series,
     bucket: str,
     asset_type: str,
     primary_blocker: str,
@@ -328,8 +447,16 @@ def _next_research_question(
     partial: list[str],
     blocked: list[str],
 ) -> str:
+    purpose = _purpose_value(asset_type, watch_row)
+    family = _purpose_family(purpose, asset_type)
     peer_limited = "peer" in blocked or "peer" in partial or primary_blocker == "peers"
     if bucket == "Research Now":
+        if family == "momentum":
+            return "Does relative strength, trend quality, and extension risk still support the momentum purpose after reviewing the latest local price context?"
+        if family == "compounder":
+            return "Do trend, fundamentals, DCF assumptions, and thesis conflict notes still support the compounder purpose?"
+        if family == "rerating":
+            return "Are DCF assumptions, peer context, and missing valuation fields sufficient before considering a re-rating thesis?"
         if peer_limited:
             return "Which source-backed peers and peer metrics would confirm or challenge the standalone DCF and setup read?"
         return "Do purpose, setup, valuation assumptions, and risk watchpoints agree enough to justify deeper manual research?"
@@ -338,8 +465,14 @@ def _next_research_question(
             return "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy?"
         return "What market, sector, or hedge signal is this proxy intended to monitor, and is that signal still supported by local price/risk data?"
     if primary_blocker == "price":
+        if family == "speculative":
+            return "Can trusted price rows be added so speculative optionality can be separated from missing-data noise?"
         return "Can trusted local price rows be added before interpreting setup, risk, or relative strength?"
     if primary_blocker == "fundamentals":
+        if family == "compounder":
+            return "Which trusted fundamentals or DCF fields are needed to confirm whether the compounder thesis remains supported?"
+        if family == "rerating":
+            return "Which trusted fundamentals, DCF fields, or peer inputs are missing before a re-rating read is supportable?"
         return "Which trusted fundamentals or DCF fields are missing, and can SEC staging or manual import fill them?"
     if primary_blocker == "peers":
         return "Which source-backed peer mappings or peer metrics are needed before peer-relative analysis is shown?"
@@ -358,9 +491,22 @@ def _review_priority_reason(
     partial: list[str],
     blocked: list[str],
 ) -> str:
-    purpose = _text_value(watch_row.get("primarypurpose"), "ETF / Defensive / Hedge" if asset_type in {"etf", "index_proxy", "fund"} else "Research candidate")
+    purpose = _purpose_value(asset_type, watch_row)
+    family = _purpose_family(purpose, asset_type)
     final_state = _text_value(watch_row.get("finalstate"), "")
     score = _text_value(watch_row.get("watchlistscore"), "")
+    if family == "momentum" and bucket == "Research Now":
+        return "High review priority: momentum purpose has enough core data for trend/relative-strength review, but confirm setup quality manually."
+    if family == "compounder" and final_state in {"Broken", "Review Thesis", "Risk Reduce"}:
+        return "High review priority: compounder purpose conflicts with current trend/thesis state and needs manual thesis review."
+    if family == "rerating" and ("peer" in blocked or "fundamentals" in blocked or "dcf" in blocked):
+        return "Unlock priority: re-rating purpose is valuation-gated until fundamentals, DCF, and peer context are sufficiently complete."
+    if family == "speculative" and "price" in blocked:
+        return "Unlock priority: speculative optionality cannot be evaluated until trusted price history exists."
+    if family == "pullback" and ("price" in blocked or "momentum" in blocked):
+        return "Unlock priority: pullback purpose requires price and momentum context before setup quality can be reviewed."
+    if family == "broken":
+        return "Review priority: broken/avoid purpose should remain thesis-review context until readiness supports a different classification."
     if bucket == "Research Now" and ("peer" in blocked or "peer" in partial):
         return "High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation."
     if bucket == "Research Now":
@@ -495,11 +641,18 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
                 "purpose_alignment": _purpose_alignment(asset_type, watch_row, ready, blocked),
                 "setup_evaluation": _setup_evaluation(watch_row, ready, blocked),
                 "valuation_evaluation": _valuation_evaluation(asset_type, watch_row, ready, blocked, excluded),
-                "supported_analysis": _supported_analysis(bucket, asset_type, ready, partial, excluded),
-                "unsupported_analysis": _unsupported_analysis(asset_type, blocked, excluded),
+                "supported_analysis": " ".join(
+                    part
+                    for part in [
+                        _supported_analysis(bucket, asset_type, ready, partial, excluded),
+                        _purpose_supported_analysis(asset_type, watch_row, ready),
+                    ]
+                    if part
+                ),
+                "unsupported_analysis": _unsupported_analysis(asset_type, watch_row, blocked, excluded),
                 "risk_watchpoint": _risk_watchpoint(asset_type, watch_row, ready, blocked),
                 "invalidation_condition": _invalidation_condition(asset_type, watch_row, ready, blocked),
-                "next_research_question": _next_research_question(bucket, asset_type, primary_blocker, ready, partial, blocked),
+                "next_research_question": _next_research_question(watch_row, bucket, asset_type, primary_blocker, ready, partial, blocked),
                 "review_priority_reason": _review_priority_reason(bucket, subtype, primary_blocker, asset_type, watch_row, ready, partial, blocked),
                 "confidence_explanation": _confidence_explanation(bucket, data_confidence, primary_blocker, ready, blocked, excluded),
                 "feature_summary": _feature_summary(ready, partial, blocked, excluded),

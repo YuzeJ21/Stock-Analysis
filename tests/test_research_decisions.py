@@ -250,8 +250,8 @@ def test_research_decisions_surface_purpose_conflict_as_review_context_not_recom
     assert "Purpose alignment needs review" in row["purpose_alignment"]
     assert "Core Compounder" in row["purpose_alignment"]
     assert "fundamental quality" in row["unsupported_analysis"]
-    assert "price context exists" in row["review_priority_reason"]
-    assert "fundamentals or DCF fields are missing" in row["next_research_question"]
+    assert "compounder purpose conflicts" in row["review_priority_reason"]
+    assert "confirm whether the compounder thesis remains supported" in row["next_research_question"]
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
@@ -295,3 +295,107 @@ def test_research_decisions_normalize_watchlist_columns_for_evaluation_fields():
     assert "Setup Forming" in row["purpose_alignment"]
     assert "Partial inputs present: nan" not in row["supported_analysis"]
     assert row["analysis_score"] == 0.68
+
+
+def test_research_decisions_tailor_momentum_leader_brief_without_recommendation_language():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "name": "NVIDIA",
+                "asset_type": "company",
+                "ready_features": "price, momentum, market_direction, liquidity, correlation, fundamentals, dcf",
+                "partial_features": "peer",
+                "blocked_features": "earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "analyst_estimates: trusted local CSV input",
+                "next_action": "Review ready analysis outputs for NVDA.",
+            }
+        ]
+    )
+    watchlist = pd.DataFrame(
+        {
+            "ticker": ["NVDA"],
+            "primarypurpose": ["Momentum Leader"],
+            "setupstatus": ["Setup Forming"],
+            "finalstate": ["Review Thesis"],
+            "reviewstate": ["Review Thesis"],
+            "watchlistscore": [48],
+            "reason": ["Marked as Momentum Leader but relative strength is weak."],
+        }
+    )
+
+    row = build_research_decisions_frame(readiness, watchlist).iloc[0]
+    rendered = " ".join(str(value) for value in row.to_numpy()).lower()
+
+    assert "trend, relative strength, extension risk" in row["purpose_thesis"]
+    assert "weak relative strength" in row["purpose_alignment"]
+    assert "Momentum setup" in row["setup_evaluation"]
+    assert "momentum review can use trend" in row["supported_analysis"]
+    assert "relative-strength deterioration" in row["risk_watchpoint"]
+    assert "extension risk" in row["invalidation_condition"]
+    assert "relative strength, trend quality" in row["next_research_question"]
+    assert "momentum purpose has enough core data" in row["review_priority_reason"]
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+
+
+def test_research_decisions_tailor_rerating_and_speculative_boundaries():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "VALUE",
+                "name": "Value Example",
+                "asset_type": "company",
+                "ready_features": "price, momentum",
+                "partial_features": "",
+                "blocked_features": "fundamentals, dcf, peer, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "dcf: free_cash_flow",
+                "next_action": "Import trusted fundamentals for VALUE.",
+            },
+            {
+                "ticker": "SPEC",
+                "name": "Spec Example",
+                "asset_type": "company",
+                "ready_features": "",
+                "partial_features": "",
+                "blocked_features": "price, momentum, fundamentals, dcf, peer",
+                "excluded_features": "portfolio",
+                "missing_data": "needs at least 5 valid price rows",
+                "next_action": "Import staged price rows for SPEC.",
+            },
+        ]
+    )
+    watchlist = pd.DataFrame(
+        {
+            "ticker": ["VALUE", "SPEC"],
+            "primarypurpose": ["Re-rating / Undervalued", "Speculative Optionality"],
+            "setupstatus": ["Watch", "Not available"],
+            "finalstate": ["Watch", "Ignore"],
+            "reason": ["Valuation inputs are incomplete.", "Price data is missing."],
+        }
+    )
+
+    decisions = build_research_decisions_frame(readiness, watchlist)
+    value = decisions.loc[decisions["ticker"].eq("VALUE")].iloc[0]
+    spec = decisions.loc[decisions["ticker"].eq("SPEC")].iloc[0]
+    rendered = " ".join(decisions.astype(str).to_numpy().ravel()).lower()
+
+    assert "fundamentals, DCF, and peer context" in value["purpose_thesis"]
+    assert "re-rating read" in value["purpose_alignment"]
+    assert "re-rating or undervaluation conclusion" in value["unsupported_analysis"]
+    assert "overclaim" in value["risk_watchpoint"]
+    assert "re-rating interpretation" in value["invalidation_condition"]
+    assert "re-rating read is supportable" in value["next_research_question"]
+    assert "valuation-gated" in value["review_priority_reason"]
+    assert "high-uncertainty research" in spec["purpose_thesis"]
+    assert "speculative setup and volatility read" in spec["unsupported_analysis"]
+    assert "trusted price rows" in spec["next_research_question"]
+    assert "speculative optionality cannot be evaluated" in spec["review_priority_reason"]
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
