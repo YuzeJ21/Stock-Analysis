@@ -11666,12 +11666,24 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
                 "decision_bucket": "Monitor",
                 "decision_subtype": "Monitor - ETF Market Proxy",
                 "purpose_family": "ETF / Hedge",
-                "primary_blocker": "none",
+                "primary_blocker": "peers",
                 "data_confidence": "medium",
                 "next_research_question": "What market signal is this proxy intended to monitor?",
                 "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context.",
                 "exact_command": "make stock-report TICKER=QQQ",
-                "unlock_command": "make stock-report TICKER=QQQ",
+                "unlock_command": "make focus-peers TICKER=QQQ",
+            },
+            {
+                "ticker": "AMD",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - Core Data Ready",
+                "purpose_family": "Compounder",
+                "primary_blocker": "earnings",
+                "data_confidence": "medium",
+                "next_research_question": "Does the supported local evidence still match the compounder purpose?",
+                "review_priority_reason": "Core company data is ready; optional earnings context is still unavailable.",
+                "exact_command": "make stock-report TICKER=AMD",
+                "unlock_command": "make templates",
             },
             {
                 "ticker": "META",
@@ -11702,6 +11714,7 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     readiness = pd.DataFrame(
         [
             {"ticker": "META", "overall_readiness_state": "partial", "updated_at": "2026-06-01T00:00:00Z"},
+            {"ticker": "AMD", "overall_readiness_state": "partial", "updated_at": "2026-06-01T00:00:00Z"},
             {"ticker": "QQQ", "overall_readiness_state": "partial", "updated_at": "2026-06-01T00:00:00Z"},
             {"ticker": "APLD", "overall_readiness_state": "blocked", "updated_at": "2026-06-01T00:00:00Z"},
         ]
@@ -11712,18 +11725,28 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     rendered = " ".join(str(value) for value in queue.to_numpy().ravel()).lower()
     rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert list(queue["ticker"]) == ["META", "QQQ", "APLD"]
+    assert list(queue["ticker"]) == ["META", "AMD", "QQQ", "APLD"]
     assert queue.iloc[0]["evaluation_lane"] == "Review standalone thesis, then unlock peers"
-    assert queue.iloc[0]["exact_command"] == "make focus-peers TICKER=META"
-    assert queue.iloc[1]["evaluation_lane"] == "Monitor ETF / market proxy"
-    assert queue.iloc[2]["evaluation_lane"] == "Unlock fundamentals / DCF"
+    assert queue.iloc[0]["exact_command"] == "make stock-report TICKER=META"
+    assert queue.iloc[0]["data_unlock_command"] == "make focus-peers TICKER=META"
+    assert queue.iloc[0]["review_command"] == "make stock-report TICKER=META"
+    assert queue.iloc[1]["evaluation_lane"] == "Review supported thesis; optional context locked"
+    assert queue.iloc[1]["exact_command"] == "make stock-report TICKER=AMD"
+    assert queue.iloc[1]["data_unlock_command"] == "make templates"
+    assert queue.iloc[2]["evaluation_lane"] == "Monitor ETF / market proxy"
+    assert queue.iloc[2]["exact_command"] == "make stock-report TICKER=QQQ"
+    assert queue.iloc[2]["data_unlock_command"] == ""
+    assert queue.iloc[3]["evaluation_lane"] == "Unlock fundamentals / DCF"
+    assert queue.iloc[3]["exact_command"] == "make focus-fundamentals TICKER=APLD"
     assert "data/imports/peers.csv" in rendered
-    assert "validate, preview" in rendered
+    assert "make imports-validate" in rendered
+    assert "earnings and analyst-estimate context is withheld" in rendered
+    assert "operating-company dcf is excluded" in rendered
     assert "readiness state partial" in rendered
-    assert cards[0]["title"] == "3 active ticker(s) ranked"
+    assert cards[0]["title"] == "4 active ticker(s) ranked"
     assert "not a recommendation list" in rendered_cards
     assert "no dashboard execution" in rendered_cards
-    assert "make focus-peers ticker=meta" in rendered_cards
+    assert "make stock-report ticker=meta" in rendered_cards
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

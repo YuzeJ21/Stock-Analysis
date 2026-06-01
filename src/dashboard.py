@@ -5733,7 +5733,11 @@ ACTIVE_EVALUATION_QUEUE_COLUMNS = [
     "data_confidence",
     "next_research_question",
     "next_operator_step",
+    "review_command",
+    "data_unlock_command",
     "exact_command",
+    "validation_sequence",
+    "withheld_conclusion",
     "source_freshness_note",
     "copy_only_note",
     "reason",
@@ -5921,12 +5925,14 @@ def active_evaluation_lane(row: pd.Series) -> str:
     bucket = format_missing(row.get("decision_bucket"), "").lower()
     blocker = format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
     family = format_missing(row.get("purpose_family"), "").lower()
-    if bucket == "research now" and blocker in {"peers", "peer"}:
-        return "Review standalone thesis, then unlock peers"
-    if bucket == "research now":
-        return "Review now with supported local evidence"
     if bucket == "monitor" and ("etf" in family or "hedge" in family):
         return "Monitor ETF / market proxy"
+    if bucket == "research now" and blocker in {"peers", "peer"}:
+        return "Review standalone thesis, then unlock peers"
+    if bucket == "research now" and blocker in {"earnings", "analyst_estimates", "analyst"}:
+        return "Review supported thesis; optional context locked"
+    if bucket == "research now":
+        return "Review now with supported local evidence"
     if blocker in {"fundamentals", "dcf"}:
         return "Unlock fundamentals / DCF"
     if blocker == "price":
@@ -5945,21 +5951,23 @@ def active_evaluation_priority(row: pd.Series) -> int:
     bucket = format_missing(row.get("decision_bucket"), "").lower()
     if "standalone thesis" in lane:
         return 1
-    if bucket == "research now":
+    if "optional context" in lane:
         return 2
-    if "monitor etf" in lane:
+    if bucket == "research now":
         return 3
-    if "fundamentals" in lane or "dcf" in lane:
+    if "monitor etf" in lane:
         return 4
-    if "price" in lane:
+    if "fundamentals" in lane or "dcf" in lane:
         return 5
-    if "peer" in lane:
+    if "price" in lane:
         return 6
-    if "optional" in lane:
+    if "peer" in lane:
         return 7
-    if bucket == "blocked by data":
+    if "optional" in lane:
         return 8
-    return 9
+    if bucket == "blocked by data":
+        return 9
+    return 10
 
 
 def active_evaluation_next_step(row: pd.Series) -> str:
@@ -5967,6 +5975,8 @@ def active_evaluation_next_step(row: pd.Series) -> str:
     lane = active_evaluation_lane(row).lower()
     if "standalone thesis" in lane:
         return f"Open {ticker}'s stock report first; then add source-backed peer rows in data/imports/peers.csv if the thesis still needs peer context."
+    if "optional context" in lane:
+        return f"Open {ticker}'s stock report now; earnings and analyst-estimate context stay withheld until trusted local rows are validated."
     if "review now" in lane or "monitor etf" in lane or "single-stock" in lane:
         return f"Open {ticker}'s stock report and compare purpose, setup, valuation limits, risk watchpoint, and invalidation condition."
     if "fundamentals" in lane or "dcf" in lane:
@@ -5978,6 +5988,61 @@ def active_evaluation_next_step(row: pd.Series) -> str:
     if "optional" in lane:
         return "Use schema-only templates for earnings or analyst estimates, then validate trusted local rows before applying them."
     return f"Open {ticker}'s stock report and follow the primary blocker before drawing conclusions."
+
+
+def active_evaluation_review_command(row: pd.Series) -> str:
+    ticker = format_missing(row.get("ticker"), "TICKER").upper()
+    return f"make stock-report TICKER={ticker}"
+
+
+def active_evaluation_unlock_command(row: pd.Series) -> str:
+    ticker = format_missing(row.get("ticker"), "TICKER").upper()
+    lane = active_evaluation_lane(row).lower()
+    blocker = format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
+    if "peer" in lane and "monitor etf" not in lane:
+        return f"make focus-peers TICKER={ticker}"
+    if "fundamentals" in lane or "dcf" in lane or blocker in {"fundamentals", "dcf"}:
+        return f"make focus-fundamentals TICKER={ticker}"
+    if "price" in lane or blocker == "price":
+        return f"make focus-price TICKER={ticker}"
+    if "optional" in lane or blocker in {"earnings", "analyst_estimates", "analyst"}:
+        return "make templates"
+    return ""
+
+
+def active_evaluation_primary_command(row: pd.Series) -> str:
+    lane = active_evaluation_lane(row).lower()
+    if "fundamentals" in lane or "dcf" in lane or "price" in lane:
+        return active_evaluation_unlock_command(row)
+    return active_evaluation_review_command(row)
+
+
+def active_evaluation_validation_sequence(row: pd.Series) -> str:
+    lane = active_evaluation_lane(row).lower()
+    if "peer" in lane and "monitor etf" not in lane:
+        return "make templates -> fill data/imports/peers.csv with source-backed rows -> make imports-validate -> make imports-preview -> make imports-apply"
+    if "fundamentals" in lane or "dcf" in lane:
+        return "make focus-fundamentals TICKER=<ticker> -> stage trusted fundamentals -> make imports-validate -> make imports-preview -> make imports-apply"
+    if "price" in lane:
+        return "make focus-price TICKER=<ticker> -> run capped refresh or stage OHLCV -> make imports-validate -> make imports-preview -> make imports-apply"
+    if "optional" in lane:
+        return "make templates -> fill trusted earnings or analyst estimates CSV -> make imports-validate -> make imports-preview -> make imports-apply"
+    return "make stock-report TICKER=<ticker> -> compare purpose, supported analysis, unsupported analysis, and source/freshness notes"
+
+
+def active_evaluation_withheld_conclusion(row: pd.Series) -> str:
+    lane = active_evaluation_lane(row).lower()
+    if "peer" in lane and "monitor etf" not in lane:
+        return "Peer-relative valuation is withheld until source-backed peer mappings and metrics are ready."
+    if "fundamentals" in lane or "dcf" in lane:
+        return "Undervaluation or overvaluation conclusions are withheld until trusted fundamentals and DCF inputs are ready."
+    if "price" in lane:
+        return "Momentum, liquidity, correlation, and setup conclusions are withheld until local price coverage is sufficient."
+    if "optional" in lane:
+        return "Earnings and analyst-estimate context is withheld; core supported analysis may still be reviewed."
+    if "monitor etf" in lane:
+        return "Operating-company DCF is excluded for ETF/index-proxy monitoring."
+    return "Unsupported conclusions remain withheld when the stock report lists missing or excluded inputs."
 
 
 def build_active_evaluation_queue_frame(
@@ -6024,10 +6089,11 @@ def build_active_evaluation_queue_frame(
     frame["evaluation_lane"] = frame.apply(active_evaluation_lane, axis=1)
     frame["priority"] = frame.apply(active_evaluation_priority, axis=1)
     frame["next_operator_step"] = frame.apply(active_evaluation_next_step, axis=1)
-    frame["exact_command"] = frame.apply(
-        lambda row: format_missing(row.get("unlock_command"), row.get("exact_command", f"make stock-report TICKER={row.get('ticker')}")),
-        axis=1,
-    )
+    frame["review_command"] = frame.apply(active_evaluation_review_command, axis=1)
+    frame["data_unlock_command"] = frame.apply(active_evaluation_unlock_command, axis=1)
+    frame["exact_command"] = frame.apply(active_evaluation_primary_command, axis=1)
+    frame["validation_sequence"] = frame.apply(active_evaluation_validation_sequence, axis=1)
+    frame["withheld_conclusion"] = frame.apply(active_evaluation_withheld_conclusion, axis=1)
     frame["source_freshness_note"] = frame.apply(
         lambda row: (
             f"Readiness state {format_missing(row.get('overall_readiness_state'), 'unknown')} "
