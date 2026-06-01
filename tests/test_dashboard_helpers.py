@@ -8721,6 +8721,12 @@ def test_market_wide_readiness_summary_prefers_central_dcf_count(monkeypatch):
     assert summary["decision_buckets"] == {"Monitor": 1, "Blocked by Data": 1}
     assert summary["missing_credentials"] == ["STOOQ_API_KEY", "SEC_USER_AGENT"]
 
+    readiness_only_summary = dashboard.market_wide_readiness_summary(readiness, None, decisions)
+    assert readiness_only_summary["universe_count"] == 3
+    assert readiness_only_summary["price_ready"] == 2
+    assert readiness_only_summary["momentum_ready"] == 2
+    assert readiness_only_summary["peer_ready"] == 0
+
 
 def test_filter_market_readiness_frame_defaults_active_and_limits_rows():
     readiness = pd.DataFrame(
@@ -11746,6 +11752,130 @@ def test_active_evaluation_lane_detail_groups_runbook_without_overclaiming():
     assert "trading" not in rendered_cards
     assert "buy" not in rendered_cards
     assert "sell" not in rendered_cards
+
+
+def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
+    summary = {
+        "blocked_by_data": 3298,
+        "price_ready": 240,
+    }
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "decision_bucket": "Blocked by Data",
+                "primary_blocker": "fundamentals",
+                "missing_data": "dcf: free_cash_flow",
+                "excluded_features": "",
+            },
+            {
+                "ticker": "NVDA",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "primary_blocker": "earnings",
+                "missing_data": "earnings: trusted local CSV input",
+                "excluded_features": "portfolio",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "decision_bucket": "Monitor",
+                "primary_blocker": "peers",
+                "missing_data": "peers: source-backed mappings",
+                "excluded_features": "dcf",
+            },
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "evaluation_lane": "Review supported thesis; optional context locked"},
+            {"ticker": "QQQ", "evaluation_lane": "Monitor ETF / market proxy"},
+        ]
+    )
+    detail = pd.DataFrame(
+        [
+            {
+                "evaluation_lane": "Review supported thesis; optional context locked",
+                "ticker_count": 1,
+                "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
+                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "withheld_conclusion": "Earnings and analyst-estimate context is withheld; core supported analysis may still be reviewed.",
+            },
+            {
+                "evaluation_lane": "Monitor ETF / market proxy",
+                "ticker_count": 1,
+                "validation_sequence": "make stock-report TICKER=<ticker> -> compare source/freshness notes",
+                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
+            },
+        ]
+    )
+
+    audit = dashboard.product_page_logic_audit_frame(summary, decisions, queue, detail)
+    cards = dashboard.product_page_logic_audit_cards(audit)
+    rendered = " ".join(str(value) for value in audit.to_numpy().ravel()).lower()
+    rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert set(audit["status"]) == {"pass"}
+    assert "readiness before conclusions" in rendered
+    assert "research now gating" in rendered
+    assert "etf / index dcf exclusion" in rendered
+    assert "active queue lane runbooks" in rendered
+    assert "unsupported conclusions withheld" in rendered
+    assert "row-limited active workflow" in rendered
+    assert cards[0]["title"] == "6 pass / 0 review"
+    assert "readiness-first" in rendered_cards
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered_cards
+    assert "order" not in rendered_cards
+    assert "trading" not in rendered_cards
+    assert "buy" not in rendered_cards
+    assert "sell" not in rendered_cards
+
+
+def test_product_page_logic_audit_flags_research_now_with_critical_blockers():
+    summary = {"blocked_by_data": 1, "price_ready": 1}
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "BAD",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "primary_blocker": "fundamentals",
+                "missing_data": "free_cash_flow",
+                "excluded_features": "",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "decision_bucket": "Monitor",
+                "primary_blocker": "none",
+                "missing_data": "",
+                "excluded_features": "",
+            },
+        ]
+    )
+
+    audit = dashboard.product_page_logic_audit_frame(summary, decisions, pd.DataFrame(), pd.DataFrame())
+    rendered = " ".join(str(value) for value in audit.to_numpy().ravel()).lower()
+
+    research_gate = audit.loc[audit["check"].eq("Research Now gating")].iloc[0]
+    etf_gate = audit.loc[audit["check"].eq("ETF / index DCF exclusion")].iloc[0]
+
+    assert research_gate["status"] == "review"
+    assert "1 research now row" in str(research_gate["evidence"]).lower()
+    assert etf_gate["status"] == "review"
+    assert "lack visible dcf exclusion" in str(etf_gate["evidence"]).lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_active_evaluation_queue_ranks_active_next_steps_without_execution_language():

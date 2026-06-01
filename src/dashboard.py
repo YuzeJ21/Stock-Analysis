@@ -4865,9 +4865,15 @@ def dashboard_readiness_summary(
     universe_count = 0 if coverage_frame is None or coverage_frame.empty else len(coverage_frame)
     master_count = 0 if ticker_readiness_frame is None or ticker_readiness_frame.empty else int(bool_series(ticker_readiness_frame, "in_master_universe").sum())
     active_count = 0 if ticker_readiness_frame is None or ticker_readiness_frame.empty else int(bool_series(ticker_readiness_frame, "in_active_universe").sum())
-    price_ready = len(ticker_set_from_bool(coverage_frame, "has_prices"))
-    momentum_ready = len(ticker_set_from_bool(coverage_frame, "usable_for_momentum"))
-    peer_ready = len(ticker_set_from_bool(coverage_frame, "peer_ready"))
+    if (coverage_frame is None or coverage_frame.empty) and ticker_readiness_frame is not None and not ticker_readiness_frame.empty:
+        universe_count = master_count
+        price_ready = int(bool_series(ticker_readiness_frame, "price_ready").sum())
+        momentum_ready = int(bool_series(ticker_readiness_frame, "momentum_ready").sum())
+        peer_ready = int(bool_series(ticker_readiness_frame, "peer_ready").sum())
+    else:
+        price_ready = len(ticker_set_from_bool(coverage_frame, "has_prices"))
+        momentum_ready = len(ticker_set_from_bool(coverage_frame, "usable_for_momentum"))
+        peer_ready = len(ticker_set_from_bool(coverage_frame, "peer_ready"))
     liquidity_ready = int(bool_series(ticker_readiness_frame, "liquidity_ready").sum()) if ticker_readiness_frame is not None else 0
     correlation_ready = int(bool_series(ticker_readiness_frame, "correlation_ready").sum()) if ticker_readiness_frame is not None else 0
     fundamentals_ready = int(bool_series(ticker_readiness_frame, "fundamentals_ready").sum()) if ticker_readiness_frame is not None else 0
@@ -5756,6 +5762,14 @@ ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS = [
     "copy_only_note",
 ]
 
+PRODUCT_PAGE_LOGIC_AUDIT_COLUMNS = [
+    "check",
+    "status",
+    "evidence",
+    "operator_action",
+    "source",
+]
+
 
 def active_research_brief_frame(
     ticker_readiness_frame: pd.DataFrame | None,
@@ -6266,6 +6280,151 @@ def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> li
             "body": compact_reason(first.get("withheld_conclusion"), max_sentences=1, max_chars=180),
             "badges": ["data-honest", "research-only"],
             "command": format_missing(first.get("data_unlock_command"), first.get("primary_command", "make project-status")),
+        },
+    ]
+
+
+def product_page_logic_audit_frame(
+    summary: dict[str, object] | None,
+    decisions_frame: pd.DataFrame | None,
+    active_queue_frame: pd.DataFrame | None,
+    lane_detail_frame: pd.DataFrame | None,
+) -> pd.DataFrame:
+    summary = summary or {}
+    rows: list[dict[str, object]] = []
+
+    blocked_count = int(summary.get("blocked_by_data") or 0)
+    partial_count = int(summary.get("price_ready") or 0)
+    rows.append(
+        {
+            "check": "Readiness before conclusions",
+            "status": "pass" if blocked_count or partial_count else "review",
+            "evidence": f"{blocked_count} blocked ticker(s) and {partial_count} price-covered ticker(s) are surfaced before decisions.",
+            "operator_action": "Review readiness and blocker cards before reading research decisions.",
+            "source": "data/reports/ticker_readiness_report.csv",
+        }
+    )
+
+    decisions = decisions_frame.copy() if decisions_frame is not None and not decisions_frame.empty else pd.DataFrame()
+    if not decisions.empty:
+        for column in ["decision_bucket", "primary_blocker", "missing_data", "excluded_features", "asset_type"]:
+            if column not in decisions.columns:
+                decisions[column] = ""
+        research_now = decisions["decision_bucket"].fillna("").astype(str).str.lower().eq("research now")
+        critical_blocker = decisions["primary_blocker"].fillna("").astype(str).str.lower().isin({"price", "fundamentals", "dcf"})
+        critical_missing = decisions["missing_data"].fillna("").astype(str).str.contains(
+            r"price:|fundamentals unavailable|free_cash_flow|shares_outstanding|revenue|fcf_margin",
+            case=False,
+            na=False,
+            regex=True,
+        )
+        research_now_conflicts = int((research_now & (critical_blocker | critical_missing)).sum())
+        etf_rows = decisions["asset_type"].fillna("").astype(str).str.lower().isin({"etf", "index_proxy", "fund"})
+        dcf_excluded = decisions["excluded_features"].fillna("").astype(str).str.contains("dcf", case=False, na=False)
+        etf_without_dcf_exclusion = int((etf_rows & ~dcf_excluded).sum())
+    else:
+        research_now_conflicts = 0
+        etf_without_dcf_exclusion = 0
+
+    rows.append(
+        {
+            "check": "Research Now gating",
+            "status": "pass" if research_now_conflicts == 0 else "review",
+            "evidence": f"{research_now_conflicts} Research Now row(s) still show critical price/fundamentals/DCF blockers.",
+            "operator_action": "Keep Research Now limited to rows with supported core evidence; otherwise show a data-unlock lane.",
+            "source": "outputs/research_decisions.csv",
+        }
+    )
+    rows.append(
+        {
+            "check": "ETF / index DCF exclusion",
+            "status": "pass" if etf_without_dcf_exclusion == 0 else "review",
+            "evidence": f"{etf_without_dcf_exclusion} ETF/index/fund decision row(s) lack visible DCF exclusion.",
+            "operator_action": "Show ETF/index proxies as monitor context, not failed operating-company valuation.",
+            "source": "outputs/research_decisions.csv",
+        }
+    )
+
+    detail = lane_detail_frame.copy() if lane_detail_frame is not None and not lane_detail_frame.empty else pd.DataFrame()
+    if not detail.empty:
+        for column in ["validation_sequence", "copy_only_note", "withheld_conclusion", "evaluation_lane"]:
+            if column not in detail.columns:
+                detail[column] = ""
+        has_validation = detail["validation_sequence"].fillna("").astype(str).str.contains("make ", case=False, na=False).all()
+        has_copy_only = detail["copy_only_note"].fillna("").astype(str).str.contains("copy-only|does not execute", case=False, na=False).all()
+        has_withheld = detail["withheld_conclusion"].fillna("").astype(str).str.contains("withheld|excluded|unsupported", case=False, na=False).all()
+        lane_count = len(detail)
+    else:
+        has_validation = False
+        has_copy_only = False
+        has_withheld = False
+        lane_count = 0
+
+    rows.append(
+        {
+            "check": "Active queue lane runbooks",
+            "status": "pass" if lane_count and has_validation and has_copy_only else "review",
+            "evidence": f"{lane_count} active lane(s) with validation sequences: {'yes' if has_validation else 'no'}; copy-only notes: {'yes' if has_copy_only else 'no'}.",
+            "operator_action": "Use grouped lane runbooks before opening broad ticker tables.",
+            "source": "dashboard active evaluation queue",
+        }
+    )
+    rows.append(
+        {
+            "check": "Unsupported conclusions withheld",
+            "status": "pass" if lane_count and has_withheld else "review",
+            "evidence": f"{lane_count} active lane(s) show withheld or excluded conclusion wording: {'yes' if has_withheld else 'no'}.",
+            "operator_action": "Do not show peer valuation, DCF, earnings, or estimate conclusions when inputs are unavailable.",
+            "source": "dashboard active evaluation queue",
+        }
+    )
+
+    queue = active_queue_frame.copy() if active_queue_frame is not None and not active_queue_frame.empty else pd.DataFrame()
+    queue_rows = len(queue)
+    rows.append(
+        {
+            "check": "Row-limited active workflow",
+            "status": "pass" if 0 < queue_rows <= 25 else "review",
+            "evidence": f"{queue_rows} active queue row(s) displayed; broad 3,538-row universe stays out of the default workflow.",
+            "operator_action": "Keep default product-page workflow focused on active tickers and grouped queues.",
+            "source": "dashboard active evaluation queue",
+        }
+    )
+
+    return pd.DataFrame(rows, columns=PRODUCT_PAGE_LOGIC_AUDIT_COLUMNS)
+
+
+def product_page_logic_audit_cards(audit_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if audit_frame is None or audit_frame.empty:
+        return [
+            {
+                "kicker": "LOGIC AUDIT",
+                "title": "Not available",
+                "body": "Run make pipeline and make readiness before auditing product-page logic.",
+                "badges": ["readiness first", "copy only"],
+                "command": "make pipeline",
+            }
+        ]
+    frame = audit_frame.copy()
+    statuses = frame.get("status", pd.Series(dtype=object)).fillna("review").astype(str).str.lower()
+    pass_count = int(statuses.eq("pass").sum())
+    review_count = int((~statuses.eq("pass")).sum())
+    first_review = frame.loc[~statuses.eq("pass")].head(1)
+    next_row = first_review.iloc[0] if not first_review.empty else frame.iloc[0]
+    return [
+        {
+            "kicker": "LOGIC AUDIT",
+            "title": f"{pass_count} pass / {review_count} review",
+            "body": "Audit checks readiness-first sequence, Research Now gating, ETF DCF exclusion, copy-only lane runbooks, withheld conclusions, and row limits.",
+            "badges": ["product logic", "data-honest"],
+            "command": "make project-status",
+        },
+        {
+            "kicker": "NEXT AUDIT ITEM",
+            "title": format_missing(next_row.get("check"), "Product-page check"),
+            "body": compact_reason(next_row.get("operator_action"), max_sentences=1, max_chars=180),
+            "badges": [format_missing(next_row.get("status"), "review"), "copy only"],
+            "command": "make readiness",
         },
     ]
 
@@ -12243,6 +12402,21 @@ def render_market_command_center(
                 "Grouped lane guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual terminal workflows."
             )
             st.dataframe(clean_display_frame(active_queue_detail), width="stretch", hide_index=True)
+        render_section_header(
+            "Product Page Logic Audit",
+            "A compact sanity check that the command center is still readiness-first, copy-only, row-limited, and data-honest.",
+        )
+        product_logic_audit = product_page_logic_audit_frame(
+            summary,
+            decisions_frame,
+            active_evaluation_queue,
+            active_queue_detail,
+        )
+        render_signal_cards(product_page_logic_audit_cards(product_logic_audit))
+        st.caption(
+            "Audit rows are generated from current local CSV outputs and dashboard queue helpers; they do not execute imports, refreshes, or account actions."
+        )
+        st.dataframe(clean_display_frame(product_logic_audit), width="stretch", hide_index=True)
     render_section_header(
         "Purpose Evaluation Summary",
         "Purpose-family and decision-bucket counts generated from current local decisions and readiness. This summarizes analysis status, not transaction guidance.",
