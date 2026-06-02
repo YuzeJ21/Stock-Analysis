@@ -10507,6 +10507,45 @@ def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     assert "sell" not in rendered
 
 
+def test_decision_workflow_summary_cards_surface_research_now_optional_context_lock():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - Core Data Ready",
+                "primary_blocker": "earnings",
+                "blocked_features": "earnings, analyst_estimates",
+                "next_best_action": "Optional context missing for AMD; leave unavailable unless trusted local CSVs exist.",
+            },
+            {
+                "ticker": "NVDA",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - Core Data Ready",
+                "primary_blocker": "earnings",
+                "blocked_features": "earnings, analyst_estimates",
+                "next_best_action": "Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.",
+            },
+        ]
+    )
+
+    cards = dashboard.decision_workflow_summary_cards(decisions)
+    optional_card = next(card for card in cards if card["kicker"] == "OPTIONAL CONTEXT LOCK")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert optional_card["title"] == "2 research row(s)"
+    assert optional_card["command"] == "make optional-context-worklist TOP_N=25"
+    assert "amd, nvda" in rendered
+    assert "2 core data ready row(s)" in rendered
+    assert "supported core or dcf context" in rendered
+    assert "earnings or analyst-estimate context remains unavailable" in rendered
+    assert "trusted local csv rows" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     cards = dashboard.optional_context_unlock_cards()
     empty_message = dashboard.optional_context_empty_state_message("earnings")

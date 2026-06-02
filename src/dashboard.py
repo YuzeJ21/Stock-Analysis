@@ -6013,7 +6013,27 @@ def decision_workflow_summary_cards(
     review_later = int(bucket_counts.get("Review Later", 0))
     top_blocker = str(blocker_counts.index[0]) if not blocker_counts.empty else "none"
     top_subtype = str(subtype_counts.index[0]) if not subtype_counts.empty else "Not available"
-    return [
+    optional_blocker_text = (
+        frame.get("blocked_features", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+        + " "
+        + frame.get("primary_blocker", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    )
+    research_now_optional_locked = frame.loc[
+        frame.get("decision_bucket", pd.Series("", index=frame.index)).fillna("").astype(str).eq("Research Now")
+        & optional_blocker_text.str.contains("earnings|analyst_estimates|optional_context", na=False)
+    ].copy()
+    core_ready_optional_locked = research_now_optional_locked.loc[
+        research_now_optional_locked.get("decision_subtype", pd.Series("", index=research_now_optional_locked.index))
+        .fillna("")
+        .astype(str)
+        .str.contains("Core Data Ready", case=False, na=False)
+    ].copy()
+    optional_tickers = (
+        core_ready_optional_locked.get("ticker", pd.Series(dtype=object)).dropna().astype(str).str.upper().str.strip().head(5).tolist()
+        if not core_ready_optional_locked.empty
+        else research_now_optional_locked.get("ticker", pd.Series(dtype=object)).dropna().astype(str).str.upper().str.strip().head(5).tolist()
+    )
+    cards = [
         {
             "kicker": "DECISION BUCKETS",
             "title": f"{research_now} research / {blocked} blocked",
@@ -6047,6 +6067,26 @@ def decision_workflow_summary_cards(
             ),
         },
     ]
+    if not research_now_optional_locked.empty:
+        ticker_text = ", ".join(optional_tickers) if optional_tickers else "Research Now rows"
+        core_ready_sentence = (
+            f"{len(core_ready_optional_locked)} Core Data Ready row(s): {ticker_text}. "
+            if not core_ready_optional_locked.empty
+            else ""
+        )
+        cards.append(
+            {
+                "kicker": "OPTIONAL CONTEXT LOCK",
+                "title": f"{len(research_now_optional_locked)} research row(s)",
+                "body": (
+                    f"{core_ready_sentence}Research Now rows have supported core or DCF context, but earnings or analyst-estimate context remains unavailable "
+                    "until trusted local CSV rows exist."
+                ),
+                "badges": ["core research ok", "optional locked"],
+                "command": "make optional-context-worklist TOP_N=25",
+            }
+        )
+    return cards
 
 
 def purpose_family_label(asset_type: object, purpose_text: object = "", alignment_text: object = "") -> str:
