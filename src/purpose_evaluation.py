@@ -113,11 +113,24 @@ def purpose_status_label(alignment_text: object, decision_bucket: object) -> str
     return "Purpose supported by current local data"
 
 
-def purpose_unlock_command(ticker: object, primary_blocker: object, exact_command: object = "") -> str:
+def purpose_unlock_command(
+    ticker: object,
+    primary_blocker: object,
+    exact_command: object = "",
+    asset_type: object = "",
+    decision_bucket: object = "",
+    decision_subtype: object = "",
+) -> str:
     symbol = text_value(ticker).upper()
     blocker = text_value(primary_blocker).lower().replace(" ", "_")
+    asset_kind = text_value(asset_type).lower()
+    bucket = text_value(decision_bucket).lower()
+    subtype = text_value(decision_subtype).lower()
     if not symbol:
         return text_value(exact_command, "make project-status")
+    fallback = text_value(exact_command, f"make stock-report TICKER={symbol}")
+    if "monitor" in bucket or "market proxy" in subtype or asset_kind in {"etf", "index_proxy", "fund"}:
+        return fallback
     if blocker == "price":
         return f"make focus-price TICKER={symbol}"
     if blocker in {"fundamentals", "dcf"}:
@@ -126,7 +139,7 @@ def purpose_unlock_command(ticker: object, primary_blocker: object, exact_comman
         return f"make focus-peers TICKER={symbol}"
     if blocker in {"earnings", "analyst_estimates"}:
         return "make templates"
-    return text_value(exact_command, f"make stock-report TICKER={symbol}")
+    return fallback
 
 
 def purpose_drilldown_priority(row: pd.Series) -> int:
@@ -266,7 +279,14 @@ def enrich_purpose_evaluation_rows_with_purpose(
         axis=1,
     )
     frame["unlock_command"] = frame.apply(
-        lambda row: purpose_unlock_command(row.get("ticker"), row.get("primary_blocker"), row.get("exact_command")),
+        lambda row: purpose_unlock_command(
+            row.get("ticker"),
+            row.get("primary_blocker"),
+            row.get("exact_command"),
+            row.get("asset_type"),
+            row.get("decision_bucket"),
+            row.get("decision_subtype"),
+        ),
         axis=1,
     )
     return frame
@@ -336,7 +356,14 @@ def build_purpose_evaluation_drilldown(
     frame["priority"] = frame.apply(purpose_drilldown_priority, axis=1)
     frame["exact_command"] = frame["ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
     frame["unlock_command"] = frame.apply(
-        lambda row: purpose_unlock_command(row.get("ticker"), row.get("primary_blocker"), row.get("exact_command")),
+        lambda row: purpose_unlock_command(
+            row.get("ticker"),
+            row.get("primary_blocker"),
+            row.get("exact_command"),
+            row.get("asset_type"),
+            row.get("decision_bucket"),
+            row.get("decision_subtype"),
+        ),
         axis=1,
     )
     frame["peer_trend_status"] = frame["peer_trend_comparison_ready"].apply(

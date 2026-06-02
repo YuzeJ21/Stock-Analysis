@@ -23,7 +23,34 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
             }
         )
     )
-    assert "make status-check TOP_N=5" in action_rows.iloc[0]["recommended_action"]
+    assert "make status-check TOP_N=5" in action_rows.iloc[0]["Recommended Action"]
+
+    workflow_rows = dashboard.clean_display_frame(
+        pd.DataFrame(
+            {
+                "workflow_group": ["dcf_ready_peer_mapping"],
+                "workflow_scope": ["active_universe"],
+                "peer_blocker_type": ["missing_peer_mapping"],
+                "peer_valuation_status": ["peer_valuation_blocked"],
+                "mapping_status": ["insufficient_mapping"],
+            }
+        )
+    )
+    rendered = " ".join(workflow_rows.astype(str).stack().tolist()).lower()
+    rendered_columns = " ".join(workflow_rows.columns).lower()
+    assert "dcf-ready peer mapping" in rendered
+    assert "active universe" in rendered
+    assert "missing peer mapping" in rendered
+    assert "peer valuation blocked" in rendered
+    assert "insufficient mapping" in rendered
+    assert "dcf_ready_peer_mapping" not in rendered
+    assert "active_universe" not in rendered
+    assert "missing_peer_mapping" not in rendered
+    assert "Workflow Group" in workflow_rows.columns
+    assert "Workflow Scope" in workflow_rows.columns
+    assert "Peer Blocker Type" in workflow_rows.columns
+    assert "workflow_group" not in rendered_columns
+    assert "workflow_scope" not in rendered_columns
 
 
 def test_dashboard_badges_use_high_contrast_html():
@@ -145,7 +172,7 @@ def test_track_record_status_message_explains_insufficient_history():
 def test_compact_reason_avoids_wall_of_text():
     reason = (
         "Composite score uses transparent local components. "
-        "This row is a research candidate, not a trade instruction. "
+        "This row is a research candidate, not execution guidance. "
         "Missing or incomplete fields reduced confidence."
     )
 
@@ -877,8 +904,8 @@ def test_action_queue_table_columns_include_command_safety_context():
         "reason",
     ]
     display = dashboard.clean_display_frame(frame[columns])
-    assert display.iloc[0]["credential_present"] == "No"
-    assert display.iloc[0]["manual_fallback_command"] == "make templates"
+    assert display.iloc[0]["Credential Present"] == "No"
+    assert display.iloc[0]["Manual Fallback Command"] == "make templates"
 
 
 def test_operator_workflow_table_columns_insert_safety_after_example_command():
@@ -4102,6 +4129,36 @@ def test_overview_ready_blocked_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_overview_ready_blocked_cards_tolerate_ladder_without_stage_columns():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "META", "price_ready": True, "momentum_ready": True},
+            {"ticker": "AIAI", "price_ready": True, "momentum_ready": False},
+            {"ticker": "APLD", "price_ready": False, "momentum_ready": False},
+        ]
+    )
+    ladder_like = pd.DataFrame(
+        [
+            {"ticker": "META", "decision_bucket": "Blocked by Data"},
+            {"ticker": "APLD", "decision_bucket": "Blocked by Data"},
+        ]
+    )
+    holdings = pd.DataFrame([{"Ticker": "META"}])
+
+    cards = dashboard.overview_ready_blocked_cards(coverage, ladder_like, holdings, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 2
+    assert cards[0]["title"] == "2 usable names"
+    assert cards[0]["command"] == "make monthly"
+    assert cards[1]["title"] == "1 names still blocked"
+    assert cards[1]["command"] == "make runbook-prices-broader"
+    assert "meta" in rendered
+    assert "apld" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_best_current_name_cards_route_ready_names_to_next_surface():
     coverage = pd.DataFrame(
         [
@@ -4118,11 +4175,12 @@ def test_overview_best_current_name_cards_route_ready_names_to_next_surface():
     assert len(cards) == 2
     assert cards[0]["kicker"] == "NVDA"
     assert cards[0]["title"] == "Stock Report Beta"
-    assert cards[0]["command"] == "make verify"
+    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
     assert cards[1]["title"] == "Monthly Picks"
     assert cards[1]["command"] == "make monthly"
     assert "holding" in rendered
     assert "deeper single-name review" in rendered
+    assert "make verify" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4136,6 +4194,47 @@ def test_overview_best_current_name_cards_handle_missing_inputs_gracefully():
     assert cards[0]["command"] == "make onboarding"
     assert "make onboarding" in rendered
     assert "buy" not in rendered
+
+
+def test_overview_best_current_name_cards_handle_metadata_only_coverage_gracefully():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "name": "Nvidia", "asset_type": "company", "metadata_ready": True},
+            {"ticker": "QQQ", "name": "Nasdaq 100 ETF", "asset_type": "etf", "metadata_ready": True},
+        ]
+    )
+
+    cards = dashboard.overview_best_current_name_cards(coverage, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert cards[0]["title"] == "No current ready names yet"
+    assert cards[0]["command"] == "make onboarding"
+    assert "refresh local coverage" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_best_current_name_cards_support_price_coverage_schema():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "AIAI", "price_ready": True, "momentum_ready": False},
+            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True},
+            {"ticker": "APLD", "price_ready": False, "momentum_ready": False},
+        ]
+    )
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+
+    cards = dashboard.overview_best_current_name_cards(coverage, holdings, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["NVDA", "AIAI"]
+    assert cards[0]["title"] == "Monthly Picks"
+    assert cards[0]["command"] == "make monthly"
+    assert "current momentum-style research" in rendered
+    assert "no current ready names yet" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_overview_best_current_name_cards_use_actionable_empty_state_when_no_names_are_ready():
@@ -4159,7 +4258,7 @@ def test_overview_best_current_name_cards_use_actionable_empty_state_when_no_nam
     assert "sell" not in rendered
 
 
-def test_overview_ready_name_handoff_cards_route_stock_report_names_to_verify_then_tab():
+def test_overview_ready_name_handoff_cards_route_stock_report_names_to_ticker_report_then_tab():
     coverage = pd.DataFrame(
         [
             {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
@@ -4187,11 +4286,12 @@ def test_overview_ready_name_handoff_cards_route_stock_report_names_to_verify_th
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
-    assert cards[0]["command"] == "make verify"
-    assert cards[1]["title"] == "make verify"
+    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
+    assert cards[1]["title"] == "make stock-report TICKER=NVDA"
     assert cards[2]["title"] == "Stock Report Beta"
     assert "strongest currently usable local name" in rendered
-    assert "deeper single-name read" in rendered
+    assert "ticker-targeted stock report" in rendered
+    assert "make verify" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4345,10 +4445,10 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
 
     assert len(cards) == 4
     assert cards[0]["title"] == "NVDA"
-    assert cards[0]["command"] == "make verify"
+    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
     assert cards[1]["title"] == "NVDA"
     assert cards[1]["command"] == "make sec-stage TICKERS=NVDA"
-    assert cards[2]["title"] == "make verify"
+    assert cards[2]["title"] == "make stock-report TICKER=NVDA"
     assert cards[3]["title"] == "Stock Report Beta"
     assert "normalize verified downloaded ohlcv rows" in rendered
     assert "best currently usable local name" in rendered
@@ -4358,7 +4458,21 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
 
 
 def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
-    cards = dashboard.overview_current_top_surfaces_cards(None, None, None, None, None, None)
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "AIAI",
+                "title": "Repair prices",
+                "reason": "Only 9 verified local price rows are present.",
+                "example_command": "make focus-price TICKER=AIAI",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_current_top_surfaces_cards(None, None, None, None, None, queue)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 4
@@ -4366,7 +4480,7 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
     assert cards[0]["command"] == "make onboarding"
     assert cards[1]["title"] == "No deep-research shortlist yet"
     assert cards[1]["command"] == "make onboarding"
-    assert cards[2]["title"] == "make onboarding"
+    assert cards[2]["title"] == "make focus-price TICKER=AIAI"
     assert cards[3]["title"] == "Data Health"
     assert "no locally ready name yet" in cards[0]["body"].lower()
     assert "no deep-research shortlist yet" in cards[1]["body"].lower()
@@ -4463,7 +4577,7 @@ def test_overview_current_top_surfaces_cards_prefer_staged_peer_handoff_reason()
     cards = dashboard.overview_current_top_surfaces_cards(coverage, holdings, None, peer_queue, payload, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[2]["title"] == "make verify"
+    assert cards[2]["title"] == "make stock-report TICKER=NVDA"
     assert cards[1]["command"] == "make imports-validate"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -4504,9 +4618,9 @@ def test_overview_current_top_surfaces_cards_prefer_ready_name_reason_without_qu
     cards = dashboard.overview_current_top_surfaces_cards(coverage, holdings, sec_queue, None, payload, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[2]["title"] == "make verify"
-    assert cards[0]["command"] == "make verify"
-    assert "run deterministic verification first" in cards[2]["body"].lower()
+    assert cards[2]["title"] == "make stock-report TICKER=NVDA"
+    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
+    assert "ticker-targeted stock report" in cards[2]["body"].lower()
     assert "stock report beta" in cards[2]["body"].lower()
     assert "make imports-apply" in rendered
     assert "buy" not in rendered
@@ -5473,7 +5587,7 @@ def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
     assert cards[0]["title"] == "Data Health"
     assert cards[0]["command"] == "make onboarding"
     assert cards[1]["title"] == "Stock Report Beta"
-    assert cards[1]["command"] == "make verify"
+    assert cards[1]["command"] == "make stock-report TICKER=NVDA"
     assert cards[2]["title"] == "Monthly Picks"
     assert cards[2]["command"] == "make monthly"
     assert "blocking the local research workflow" in rendered
@@ -5512,12 +5626,14 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
-    assert cards[1]["title"] == "make verify"
+    assert cards[1]["title"] == "make stock-report TICKER=NVDA"
+    assert cards[1]["badges"] == ["single name", "ready flow"]
     assert cards[2]["title"] == "Stock Report Beta"
     assert "best current name" in rendered
     assert "next command" in rendered
     assert "next tab" in rendered
-    assert "deterministic verification" in rendered or "verification first" in rendered
+    assert "ticker-targeted stock report" in rendered
+    assert "make verify" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -6235,6 +6351,90 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
     payload["valuation_readiness"]["peer_ready"] = True
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": True})
     assert cards[0]["title"] == "Review full report"
+    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
+
+
+def test_stock_report_next_step_cards_keep_etf_reports_in_monitor_context():
+    payload = {
+        "ticker": "QQQ",
+        "asset_type": "etf",
+        "valuation_snapshot": {"status": "excluded"},
+        "valuation_readiness": {
+            "dcf_ready": False,
+            "peer_ready": False,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": ["DCF excluded for ETF monitor context."],
+    }
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": True},
+            {"dataset": "fundamentals", "ticker_present": False},
+            {"dataset": "peers", "ticker_present": False},
+        ]
+    )
+
+    cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Review ETF / market proxy"
+    assert cards[0]["command"] == "make stock-report TICKER=QQQ"
+    assert "operating-company dcf and peer-relative valuation are excluded" in rendered
+    assert "stage fundamentals" not in rendered
+    assert "add peer mappings" not in rendered
+    assert "make focus-peers ticker=qqq" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_next_step_cards_use_payload_price_readiness_when_coverage_missing():
+    etf_payload = {
+        "ticker": "QQQ",
+        "asset_type": "etf",
+        "readiness": {"price_ready": True},
+        "valuation_snapshot": {"status": "excluded"},
+        "valuation_readiness": {
+            "dcf_ready": False,
+            "peer_ready": False,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": ["DCF excluded for ETF monitor context."],
+    }
+    company_payload = {
+        "ticker": "COHR",
+        "readiness": {"price_ready": True},
+        "valuation_snapshot": {"status": "ready"},
+        "valuation_readiness": {
+            "dcf_ready": True,
+            "peer_ready": False,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": ["peers: needs at least 2 source-backed peer mappings"],
+    }
+
+    etf_cards = dashboard.stock_report_next_step_cards(etf_payload, None, {"peer_dataset_present": False})
+    company_cards = dashboard.stock_report_next_step_cards(company_payload, None, {"peer_dataset_present": False})
+    rendered = " ".join(str(value) for card in etf_cards + company_cards for value in card.values()).lower()
+
+    assert etf_cards[0]["title"] == "Review ETF / market proxy"
+    assert etf_cards[0]["command"] == "make stock-report TICKER=QQQ"
+    assert etf_cards[1]["badges"] == ["DCF excluded", "monitor context"]
+    assert company_cards[0]["title"] == "Add peer mappings"
+    assert company_cards[0]["command"] == "make focus-peers TICKER=COHR"
+    assert "fix price coverage" not in rendered
+    assert "make focus-price ticker=qqq" not in rendered
+    assert "make focus-price ticker=cohr" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_stock_report_next_step_cards_use_staged_import_front_doors_when_commands_are_missing():
@@ -8667,6 +8867,8 @@ def test_dashboard_readiness_summary_counts_ready_blocked_and_credentials(monkey
     rendered = " ".join(str(value) for card in cards for value in card.values())
 
     assert summary["universe_count"] == 3
+    assert summary["master_universe"] == 3
+    assert summary["active_universe"] == 3
     assert summary["price_ready"] == 2
     assert summary["momentum_ready"] == 2
     assert summary["dcf_ready"] == 1
@@ -8674,7 +8876,13 @@ def test_dashboard_readiness_summary_counts_ready_blocked_and_credentials(monkey
     assert summary["peer_ready"] == 1
     assert summary["earnings_ready"] == 1
     assert summary["analyst_ready"] == 0
+    assert summary["analyst_estimates_ready"] == 0
     assert summary["missing_credentials"] == ["STOOQ_API_KEY"]
+    assert summary["configured_credentials"] == ["SEC_USER_AGENT"]
+    assert "Missing: STOOQ_API_KEY" in rendered
+    assert "Configured: SEC_USER_AGENT" in rendered
+    assert "Only workflows that require the missing credential are blocked" in rendered
+    assert "make price-coverage TOP_N=25" in rendered
     assert "data/staged/earnings/" in rendered
 
 
@@ -8688,6 +8896,7 @@ def test_market_wide_readiness_summary_prefers_central_dcf_count(monkeypatch):
             "in_active_universe": [True, True, False],
             "price_ready": [True, True, False],
             "momentum_ready": [True, True, False],
+            "market_direction_ready": [True, True, False],
             "liquidity_ready": [True, False, False],
             "correlation_ready": [True, False, False],
             "fundamentals_ready": [True, False, False],
@@ -8712,12 +8921,18 @@ def test_market_wide_readiness_summary_prefers_central_dcf_count(monkeypatch):
     summary = dashboard.market_wide_readiness_summary(readiness, coverage, decisions)
 
     assert summary["master_count"] == 3
+    assert summary["master_universe"] == 3
     assert summary["active_count"] == 2
+    assert summary["active_universe"] == 2
     assert summary["price_ready"] == 2
+    assert summary["market_direction_ready"] == 2
     assert summary["dcf_ready"] == 1
     assert summary["dcf_excluded"] == 1
     assert summary["fundamentals_ready"] == 1
     assert summary["blocked_by_data"] == 1
+    assert summary["blocked"] == 1
+    assert summary["partial"] == 2
+    assert summary["analyst_estimates_ready"] == 0
     assert summary["decision_buckets"] == {"Monitor": 1, "Blocked by Data": 1}
     assert summary["missing_credentials"] == ["STOOQ_API_KEY", "SEC_USER_AGENT"]
 
@@ -8726,6 +8941,57 @@ def test_market_wide_readiness_summary_prefers_central_dcf_count(monkeypatch):
     assert readiness_only_summary["price_ready"] == 2
     assert readiness_only_summary["momentum_ready"] == 2
     assert readiness_only_summary["peer_ready"] == 0
+
+
+def test_market_wide_readiness_summary_uses_current_report_ready_columns(monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC"],
+            "in_master_universe": [True, True, True],
+            "in_active_universe": [True, False, False],
+            "price_ready": [True, True, False],
+            "momentum_ready": [True, False, False],
+            "peer_ready": [True, False, False],
+            "overall_readiness_state": ["partial", "partial", "blocked"],
+        }
+    )
+    current_schema_coverage = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC"],
+            "price_ready": [False, False, False],
+            "momentum_ready": [False, False, False],
+        }
+    )
+
+    summary = dashboard.market_wide_readiness_summary(readiness, current_schema_coverage, pd.DataFrame())
+    audit = dashboard.product_page_logic_audit_frame(summary, pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
+    readiness_row = audit.loc[audit["check"].eq("Readiness before conclusions")].iloc[0]
+
+    assert summary["price_ready"] == 2
+    assert summary["momentum_ready"] == 1
+    assert summary["peer_ready"] == 1
+    assert "2 price-covered ticker(s)" in readiness_row["evidence"]
+
+
+def test_dashboard_readiness_summary_supports_current_coverage_schema_without_ticker_readiness(monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    coverage = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "CCC"],
+            "price_ready": [True, True, False],
+            "momentum_ready": [True, False, False],
+            "peer_ready": [False, True, False],
+        }
+    )
+
+    summary = dashboard.dashboard_readiness_summary(coverage, None, None, None)
+
+    assert summary["price_ready"] == 2
+    assert summary["momentum_ready"] == 1
+    assert summary["peer_ready"] == 1
 
 
 def test_filter_market_readiness_frame_defaults_active_and_limits_rows():
@@ -8750,6 +9016,29 @@ def test_filter_market_readiness_frame_defaults_active_and_limits_rows():
     filtered = dashboard.filter_market_readiness_frame(readiness, row_limit=1)
 
     assert filtered["ticker"].tolist() == ["AAA"]
+
+
+def test_filter_market_readiness_frame_default_limit_stays_operator_sized():
+    readiness = pd.DataFrame(
+        {
+            "ticker": [f"T{i:03d}" for i in range(75)],
+            "in_master_universe": [True] * 75,
+            "in_active_universe": [False] * 75,
+            "price_ready": [False] * 75,
+            "momentum_ready": [False] * 75,
+            "dcf_ready": [False] * 75,
+            "fundamentals_ready": [False] * 75,
+            "peer_ready": [False] * 75,
+            "earnings_ready": [False] * 75,
+            "analyst_estimates_ready": [False] * 75,
+            "asset_type": ["company"] * 75,
+        }
+    )
+
+    filtered = dashboard.filter_market_readiness_frame(readiness, scope="All master universe")
+
+    assert len(filtered) == dashboard.DEFAULT_MARKET_ROW_LIMIT == 50
+    assert filtered["ticker"].tolist() == [f"T{i:03d}" for i in range(50)]
 
 
 def test_filter_market_readiness_frame_supports_broad_blocked_price_and_asset_filters():
@@ -8816,9 +9105,12 @@ def test_market_next_action_cards_are_safe_copyable_make_commands():
     cards = dashboard.market_next_action_cards(readiness, pd.DataFrame({"ticker": ["AAA"]}))
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "make price-refresh" in rendered
-    assert "make sec-stage" in rendered
-    assert "make templates" in rendered
+    assert "make price-worklist top_n=25" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "make optional-context-worklist top_n=25" in rendered
+    assert "make onboarding top_n=10" in rendered
+    assert "make templates" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -8852,6 +9144,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     console = dashboard.build_next_action_console_frame(readiness, None, payload, limit=8)
     cards = dashboard.next_action_console_cards(console)
     rendered = " ".join(str(value) for value in list(console.to_dict("records")) + cards for value in value.values()).lower()
+    card_kickers = {str(card["kicker"]).title() for card in cards}
 
     assert set(console["action_category"]).issuperset(
         {
@@ -8864,16 +9157,66 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
             "Single-Stock Review",
         }
     )
+    assert card_kickers.issuperset(
+        {
+            "Price Coverage Batch",
+            "Fundamentals / Dcf Unlock",
+            "Peer Mapping Unlock",
+            "Earnings Import Setup",
+            "Analyst Estimates Import Setup",
+            "Import Validation / Rejected Rows",
+            "Single-Stock Review",
+        }
+    )
+    assert len(cards) <= 8
     assert "make price-refresh top_n=25 provider=yahoo" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "make imports-validate" in rendered
     assert "rejected-row reports" in rendered
-    assert "broad universe" in rendered
     assert "active universe" in rendered
-    assert "analysis-ready subset" in rendered
+    assert "scope" in console.columns
+    single_row = console.loc[console["action_category"].eq("Single-Stock Review")].iloc[0]
+    assert str(single_row["command"]).startswith("make stock-report TICKER=")
     assert "source_freshness_note" in " ".join(console.columns)
     assert "scope" in console.columns
+    assert "dashboard does not execute" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_next_action_console_prioritizes_active_samples_without_hiding_broad_counts():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "COHR", "LITE", "A", "QQQ"],
+            "in_active_universe": [False, True, True, False, True],
+            "price_ready": [True, True, True, True, True],
+            "fundamentals_ready": [False, True, True, True, True],
+            "dcf_ready": [False, True, True, True, False],
+            "peer_ready": [False, False, False, False, False],
+            "earnings_ready": [False, False, False, False, False],
+            "analyst_estimates_ready": [False, False, False, False, False],
+            "asset_type": ["company", "company", "company", "company", "etf"],
+            "decision_bucket": ["Blocked by Data", "Research Now", "Research Now", "Research Now", "Monitor"],
+        }
+    )
+
+    console = dashboard.build_next_action_console_frame(readiness, None, None, limit=8)
+    rendered = " ".join(str(value) for value in console.to_numpy().ravel()).lower()
+    peer_row = console.loc[console["action_category"].eq("Peer Mapping Unlock")].iloc[0]
+    fundamentals_row = console.loc[console["action_category"].eq("Fundamentals / DCF Unlock")].iloc[0]
+    single_row = console.loc[console["action_category"].eq("Single-Stock Review")].iloc[0]
+
+    assert peer_row["ticker_count"] == 3
+    assert peer_row["scope"] == "active first, then broad universe"
+    assert peer_row["sample_tickers"].split(",")[:2] == ["COHR", "LITE"]
+    assert fundamentals_row["ticker_count"] == 1
+    assert fundamentals_row["sample_tickers"] == "AAA"
+    assert single_row["command"] == "make stock-report TICKER=COHR"
+    assert single_row["sample_tickers"].split(",")[:3] == ["COHR", "LITE", "QQQ"]
     assert "dashboard does not execute" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -8906,6 +9249,8 @@ def test_import_validation_rejected_row_cards_show_safe_manual_workflow():
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "data/rejected/universe_rejected.csv" in rendered
     assert "clean/header-only" in rendered
+    assert "missing report" in rendered
+    assert "regenerate missing reports" in rendered
     assert "dashboard displays this command for copying" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -8944,6 +9289,41 @@ def test_import_health_frame_counts_header_only_and_rejected_rows(tmp_path: Path
     assert set(["make imports-validate", "make imports-preview", "make imports-apply"]).issubset(
         set(frame[["validation_command", "preview_command", "apply_command"]].stack().tolist())
     )
+
+
+def test_import_validation_rejected_row_cards_surface_missing_report_paths():
+    frame = pd.DataFrame(
+        [
+            {
+                "dataset": "prices",
+                "rejected_report": "data/rejected/price_import_rejected.csv",
+                "rejected_row_count": 0,
+                "rejected_status": "clean/header-only",
+                "staged_file_count": 0,
+            },
+            {
+                "dataset": "peers",
+                "rejected_report": "data/rejected/peers_import_rejected.csv",
+                "rejected_row_count": 0,
+                "rejected_status": "missing report",
+                "staged_file_count": 0,
+            },
+        ]
+    )
+
+    cards = dashboard.import_validation_rejected_row_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    rejected_card = next(card for card in cards if card["kicker"] == "REJECTED ROWS")
+
+    assert rejected_card["title"] == "1 clean/header-only, 1 missing report(s)"
+    assert "data/rejected/peers_import_rejected.csv" in rendered
+    assert "missing report path(s)" in rendered
+    assert "regenerate missing reports" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_commands():
@@ -9066,11 +9446,28 @@ def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_comman
     assert "BROAD" not in set(cockpit["ticker"])
     assert cockpit.loc[cockpit["ticker"].eq("APLD"), "exact_command"].iloc[0] == "make focus-price TICKER=APLD"
     assert cockpit.loc[cockpit["ticker"].eq("META"), "exact_command"].iloc[0] == "make focus-fundamentals TICKER=META"
-    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "exact_command"].iloc[0] == "make focus-peers TICKER=QQQ"
-    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "import_dataset"].iloc[0] == "peers"
+    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "exact_command"].iloc[0] == "make stock-report TICKER=QQQ"
+    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "import_dataset"].iloc[0] == "monitor_context"
+    assert cockpit.loc[cockpit["ticker"].eq("META"), "trusted_input_needed"].iloc[0].startswith(
+        "Trusted fundamentals for META"
+    )
+    assert cockpit.loc[cockpit["ticker"].eq("META"), "validation_sequence"].iloc[0].startswith(
+        "make focus-fundamentals TICKER=META"
+    )
+    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "trusted_input_needed"].iloc[0].startswith(
+        "No peer import is required"
+    )
+    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "validation_sequence"].iloc[0].startswith(
+        "make stock-report TICKER=QQQ"
+    )
+    assert "operating-company dcf and peer valuation stay excluded" in rendered
+    assert "monitor context: 1" in rendered
+    assert "monitor_context: 1" not in rendered
+    assert "monitor-context row(s) use stock-report review instead of import files" in rendered
+    assert "no import file is required for monitor context" in rendered
     assert "data/rejected/price_import_rejected.csv" in rendered
     assert "data/rejected/fundamentals_import_rejected.csv" in rendered
-    assert "data/rejected/peers_import_rejected.csv" in rendered
+    assert "data/rejected/peers_import_rejected.csv" not in rendered
     assert "clean/header-only" in rendered
     assert "has rejected rows" in rendered
     assert "copy-only command" in rendered
@@ -9222,10 +9619,11 @@ def test_active_universe_drilldown_surfaces_missing_fields_and_validation_paths(
     assert "data/staged/fundamentals/" in rendered
     assert "data/imports/fundamentals.csv" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
-    assert drilldown.loc[drilldown["ticker"].eq("QQQ"), "blocker_area"].iloc[0] == "peers"
-    assert "peer trend possible; peer valuation blocked" in rendered
-    assert "data/imports/peers.csv" in rendered
-    assert "make focus-peers ticker=qqq" in rendered
+    assert drilldown.loc[drilldown["ticker"].eq("QQQ"), "blocker_area"].iloc[0] == "monitor_context"
+    assert "operating-company dcf and peer-relative valuation are excluded" in rendered
+    assert "no peer import is required for etf/index/fund monitor context" in rendered
+    assert "make stock-report ticker=qqq" in rendered
+    assert "make focus-peers ticker=qqq" not in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -9273,6 +9671,57 @@ def test_feature_readiness_cards_show_feature_level_product_status():
     assert "make price-worklist top_n=25" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+    assert "trade" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_feature_readiness_cards_show_optional_context_as_locked_workflow():
+    feature_summary = pd.DataFrame(
+        [
+            {
+                "feature": "earnings",
+                "ready_count": 0,
+                "partial_count": 0,
+                "blocked_count": 3538,
+                "excluded_count": 0,
+                "total_count": 3538,
+                "top_blocker": "earnings: trusted local CSV input",
+                "next_action": "make import-earnings",
+                "dashboard_section": "Optional Context",
+            },
+            {
+                "feature": "analyst_estimates",
+                "ready_count": 0,
+                "partial_count": 0,
+                "blocked_count": 3538,
+                "excluded_count": 0,
+                "total_count": 3538,
+                "top_blocker": "analyst_estimates: trusted local CSV input",
+                "next_action": "make import-analyst-estimates",
+                "dashboard_section": "Optional Context",
+            },
+        ]
+    )
+
+    cards = dashboard.feature_readiness_cards(feature_summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "earnings: 0/3538 ready" in rendered
+    assert "analyst_estimates: 0/3538 ready" in rendered
+    assert "intentionally locked" in rendered
+    assert "schema-only templates" in rendered
+    assert "data/staged/earnings/" in rendered
+    assert "data/imports/earnings.csv" in rendered
+    assert "data/staged/analyst_estimates/" in rendered
+    assert "data/imports/analyst_estimates.csv" in rendered
+    assert "make templates" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trade" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -9542,6 +9991,74 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
     assert "sell" not in rendered
 
 
+def test_peer_mapping_studio_fills_missing_worklist_metadata_for_active_dcf_blockers():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "COHR",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "ready_peer_count": 0,
+                "next_peer_action": "Add at least 2 source-backed peer mappings for COHR in data/imports/peers.csv.",
+            },
+            {
+                "ticker": "A",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "ready_peer_count": 0,
+                "next_peer_action": "Add at least 2 source-backed peer mappings for A in data/imports/peers.csv.",
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "COHR", "name": "Coherent", "asset_type": "company", "dcf_ready": True, "price_ready": True, "in_active_universe": True},
+            {"ticker": "A", "name": "Agilent", "asset_type": "company", "dcf_ready": True, "price_ready": True, "in_active_universe": False},
+        ]
+    )
+    unlock = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "priority": 1,
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "master_universe",
+                "next_action_summary": "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data.",
+                "focus_command": "make focus-peers TICKER=A",
+            }
+        ]
+    )
+
+    studio = dashboard.build_peer_mapping_studio_frame(
+        peer_readiness,
+        readiness,
+        unlock,
+        filter_mode="DCF-ready but peer-blocked",
+        row_limit=10,
+    )
+    rendered = " ".join(str(value) for value in studio.to_numpy().ravel()).lower()
+
+    assert list(studio["ticker"]) == ["COHR", "A"]
+    assert studio.loc[studio["ticker"].eq("COHR"), "priority"].iloc[0] == 1
+    assert studio.loc[studio["ticker"].eq("COHR"), "workflow_scope"].iloc[0] == "active_universe"
+    assert studio.loc[studio["ticker"].eq("COHR"), "workflow_group"].iloc[0] == "dcf_ready_peer_mapping"
+    assert studio.loc[studio["ticker"].eq("COHR"), "focus_command"].iloc[0] == "make focus-peers TICKER=COHR"
+    assert "source-backed peer" in studio.loc[studio["ticker"].eq("COHR"), "next_action"].iloc[0]
+    assert "optional context" not in studio.loc[studio["ticker"].eq("COHR"), "next_action"].iloc[0].lower()
+    assert "data/imports/peers.csv" in rendered
+    assert "make imports-validate" in rendered
+    assert "fallback sector/industry context is not trusted peer data" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     worklist = pd.DataFrame(
         [
@@ -9591,6 +10108,115 @@ def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     assert "dcf ready peer mapping" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_peer_unlock_operator_cards_keep_etf_rows_in_monitor_context():
+    worklist = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "priority": 1,
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "active_universe",
+                "next_action_summary": "Add source-backed peers for QQQ.",
+                "next_input_file": "data/imports/peers.csv",
+                "validation_sequence": "make templates -> make imports-validate",
+                "focus_command": "make focus-peers TICKER=QQQ",
+            },
+            {
+                "ticker": "COHR",
+                "priority": 1,
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "active_universe",
+                "next_action_summary": "Add source-backed peers for COHR.",
+                "next_input_file": "data/imports/peers.csv",
+                "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
+                "focus_command": "make focus-peers TICKER=COHR",
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "QQQ", "asset_type": "etf", "in_active_universe": True},
+            {"ticker": "COHR", "asset_type": "company", "in_active_universe": True},
+        ]
+    )
+
+    cards = dashboard.peer_unlock_operator_cards(worklist, readiness)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "cohr" in rendered
+    assert "make focus-peers ticker=cohr" in rendered
+    assert "monitor proxy context" in rendered
+    assert "make stock-report ticker=qqq" in rendered
+    assert "make focus-peers ticker=qqq" not in rendered
+    assert "ticker=<ticker>" not in rendered
+    assert "peer valuation remains excluded" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trade" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_peer_mapping_studio_keeps_etf_missing_mappings_in_monitor_context():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "ready_peer_count": 0,
+            },
+            {
+                "ticker": "COHR",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "ready_peer_count": 0,
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "QQQ", "asset_type": "etf", "in_active_universe": True, "dcf_ready": False, "price_ready": True},
+            {"ticker": "COHR", "asset_type": "company", "in_active_universe": True, "dcf_ready": True, "price_ready": True},
+        ]
+    )
+    unlock = pd.DataFrame(
+        [
+            {"ticker": "QQQ", "priority": 1, "focus_command": "make focus-peers TICKER=QQQ"},
+            {"ticker": "COHR", "priority": 1, "focus_command": "make focus-peers TICKER=COHR"},
+        ]
+    )
+
+    studio = dashboard.build_peer_mapping_studio_frame(
+        peer_readiness,
+        readiness,
+        unlock,
+        filter_mode="Missing peer mapping",
+        row_limit=10,
+    )
+    qqq = studio.loc[studio["ticker"].eq("QQQ")].iloc[0]
+    rendered = " ".join(str(value) for value in studio.to_numpy().ravel()).lower()
+
+    assert qqq["workflow_group"] == "monitor_proxy_context"
+    assert qqq["focus_command"] == "make stock-report TICKER=QQQ"
+    assert qqq["validation_sequence"].startswith("make stock-report TICKER=QQQ")
+    assert qqq["next_action"] == "ETF/index/fund rows use stock-report monitoring context; fallback sector or peer context is not trusted peer data."
+    assert qqq["peer_valuation_status"] == "operating_company_dcf_excluded"
+    assert "make focus-peers ticker=cohr" in rendered
+    assert "make focus-peers ticker=qqq" not in rendered
+    assert "ticker=<ticker>" not in rendered
+    assert "fallback sector or peer context is not trusted peer data" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trade" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -9756,8 +10382,62 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
     assert "research candidate - dcf ready but peer blocked" in rendered
     assert "price: 1" in rendered
     assert "readiness-gated" in rendered
+    assert "not execution guidance" in rendered
+    assert "make focus-peers ticker=a" in rendered
+    assert "trade" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "next_best_action": "Add source-backed peer mappings for A.",
+            },
+            {
+                "ticker": "COHR",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "next_best_action": "Optional context missing for COHR; leave unavailable unless trusted local CSVs exist.",
+            },
+            {
+                "ticker": "NVDA",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - Core Data Ready",
+                "primary_blocker": "earnings",
+                "next_best_action": "Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.",
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "A", "in_active_universe": False, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "COHR", "in_active_universe": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "NVDA", "in_active_universe": True, "dcf_ready": True, "peer_ready": True},
+        ]
+    )
+
+    cards = dashboard.decision_workflow_summary_cards(decisions, readiness)
+    next_card = next(card for card in cards if card["kicker"] == "NEXT DECISION ACTION")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert next_card["title"] == "COHR"
+    assert next_card["command"] == "make focus-peers TICKER=COHR"
+    assert "data/imports/peers.csv" in str(next_card["body"])
+    assert "make imports-validate" in str(next_card["body"])
+    assert "make focus-peers ticker=cohr" in rendered
+    assert "optional context missing for cohr" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trade" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -9818,6 +10498,38 @@ def test_market_blocker_summary_cards_surface_safe_top_n_worklists():
     assert "make optional-context-worklist top_n=25" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_market_next_action_cards_use_capped_worklist_front_doors():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["AAA", "BBB", "COHR", "QQQ"],
+            "in_active_universe": [False, True, True, True],
+            "price_ready": [False, True, True, True],
+            "fundamentals_ready": [False, False, True, False],
+            "peer_ready": [False, False, False, False],
+            "earnings_ready": [False, False, False, False],
+            "analyst_estimates_ready": [False, False, False, False],
+            "asset_type": ["company", "company", "company", "etf"],
+        }
+    )
+    action_queue = pd.DataFrame({"ticker": ["AAA", "BBB"], "action": ["prices", "fundamentals"]})
+
+    cards = dashboard.market_next_action_cards(readiness, action_queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "make price-worklist top_n=25" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "make optional-context-worklist top_n=25" in rendered
+    assert "make onboarding top_n=10" in rendered
+    assert "tickers=aaa" not in rendered
+    assert "make templates" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -9883,10 +10595,15 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert company["ready_features"] == ""
     assert etf["dcf_status"] == "excluded"
     assert etf["decision_subtype"] == "Monitor - ETF Market Proxy"
-    assert etf["peer_blocker_type"] == "missing_peer_mapping"
-    assert "source-backed peers" in etf["next_peer_action"]
+    assert etf["peer_blocker_type"] == "monitor_context"
+    assert etf["peer_mapping_status"] == "monitor_context"
+    assert "no peer import is required" in etf["next_peer_action"].lower()
+    assert etf["next_action"] == "Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded."
     assert "excluded" in str(etf["dcf_reason"]).lower()
     assert "DCF is excluded" in etf["one_minute_summary"]
+    assert "source-backed peers" not in etf["one_minute_summary"].lower()
+    assert "primary blocker: peers" not in etf["one_minute_summary"].lower()
+    assert "peer workflow" not in etf["one_minute_summary"].lower()
     assert missing["status"] == "missing"
 
 
@@ -9902,6 +10619,9 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
         "blocked_features": "peer, earnings, analyst_estimates",
         "excluded_features": "portfolio",
         "missing_data": "peers: needs mappings",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
         "peer_blocker_type": "missing_peer_mapping",
         "next_peer_action": "Add at least 2 source-backed peer mappings for NVDA.",
         "peer_trend_comparison_ready": False,
@@ -9919,6 +10639,8 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
     assert "decision: research candidate - dcf ready but peer blocked" in rendered
     assert "ready: price, momentum, dcf" in rendered
     assert "missing_peer_mapping" in rendered
+    assert "make focus-peers ticker=nvda" in rendered
+    assert "add source-backed peer mappings and peer metrics for nvda." not in rendered
     assert "2025-01-01 to 2026-05-22" in rendered
     assert "trusted local csv input" in rendered
     assert "broker" not in rendered
@@ -9958,6 +10680,96 @@ def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_com
     assert "make import-earnings" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_peer_path_keeps_etf_monitor_context_on_stock_report(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "Research Tester tester@example.com")
+    snapshot = {
+        "ticker": "QQQ",
+        "asset_type": "etf",
+        "status": "partial",
+        "decision_subtype": "Monitor - ETF Market Proxy",
+        "confidence": "medium",
+        "main_reason": "ETF monitor context.",
+        "next_action": "Add source-backed peer mappings and peer metrics for QQQ.",
+        "ready_features": "price, momentum",
+        "blocked_features": "peer, earnings, analyst_estimates",
+        "excluded_features": "dcf",
+        "missing_data": "peers: needs mappings",
+        "price_ready": True,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "dcf_status": "excluded",
+        "dcf_reason": "DCF excluded for etf.",
+        "peer_ready": False,
+        "peer_blocker_type": "missing_peer_mapping",
+        "next_peer_action": "Add at least 2 source-backed peer mappings for QQQ.",
+    }
+
+    status_cards = dashboard.single_stock_status_cards(snapshot)
+    audit = dashboard.single_stock_source_audit_frame(snapshot)
+    audit_cards = dashboard.single_stock_source_audit_cards(snapshot)
+    rendered = " ".join(
+        [str(value) for card in status_cards + audit_cards for value in card.values()]
+        + audit.astype(str).stack().tolist()
+    ).lower()
+    peer_status_card = next(card for card in status_cards if card["kicker"] == "PEER PATH")
+    peer_audit_row = audit.loc[audit["Area"].eq("Peers")].iloc[0]
+
+    assert peer_status_card["title"] == "monitor context"
+    assert peer_status_card["command"] == "make stock-report TICKER=QQQ"
+    assert peer_audit_row["Status"] == "monitor context"
+    assert peer_audit_row["Next command"] == "make stock-report TICKER=QQQ"
+    assert "operating-company peer valuation is excluded" in rendered
+    assert "make focus-peers ticker=qqq" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_peer_path_waits_for_fundamentals_before_peer_unlock(monkeypatch):
+    monkeypatch.setenv("SEC_USER_AGENT", "Research Tester tester@example.com")
+    snapshot = {
+        "ticker": "CRDO",
+        "asset_type": "company",
+        "status": "partial",
+        "decision_subtype": "Blocked by Data - Missing Fundamentals",
+        "confidence": "low",
+        "main_reason": "Company research is blocked by missing DCF data.",
+        "next_action": "Import trusted fundamentals for CRDO.",
+        "ready_features": "price, momentum",
+        "blocked_features": "dcf, peer, earnings, analyst_estimates",
+        "excluded_features": "portfolio",
+        "missing_data": "dcf: revenue, fcf_margin; peers: needs mappings",
+        "price_ready": True,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "dcf_status": "blocked",
+        "dcf_reason": "missing revenue, fcf_margin.",
+        "peer_ready": False,
+        "peer_blocker_type": "missing_peer_mapping",
+        "next_peer_action": "Add at least 2 source-backed peer mappings for CRDO.",
+    }
+
+    status_cards = dashboard.single_stock_status_cards(snapshot)
+    audit = dashboard.single_stock_source_audit_frame(snapshot)
+    rendered = " ".join([str(value) for card in status_cards for value in card.values()] + audit.astype(str).stack().tolist()).lower()
+    peer_status_card = next(card for card in status_cards if card["kicker"] == "PEER PATH")
+    peer_audit_row = audit.loc[audit["Area"].eq("Peers")].iloc[0]
+
+    assert peer_status_card["title"] == "blocked until fundamentals / DCF"
+    assert peer_status_card["command"] == "make stock-report TICKER=CRDO"
+    assert peer_audit_row["Status"] == "blocked until fundamentals / DCF"
+    assert peer_audit_row["Next command"] == "make sec-stage TICKERS=CRDO"
+    assert "peer-relative valuation should wait" in rendered
+    assert "make focus-peers ticker=crdo" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -11664,6 +12476,118 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "sell" not in rendered_cards
 
 
+def test_active_research_brief_frame_builds_schema_light_fallbacks_without_overclaiming():
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "META", "in_active_universe": True},
+            {"ticker": "QQQ", "in_active_universe": True},
+            {"ticker": "AMD", "in_active_universe": True},
+            {"ticker": "BROAD", "in_active_universe": False},
+        ]
+    )
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "supporting_features": "price history; fundamentals; standalone dcf",
+                "blocked_features": "peer mapping",
+                "missing_data": "peers: needs at least 2 source-backed peer mappings; earnings: trusted local CSV input",
+                "next_best_action": "make focus-peers TICKER=META",
+                "data_confidence": "medium",
+                "readiness_score": 72,
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "decision_bucket": "Monitor",
+                "decision_subtype": "Monitor - ETF Market Proxy",
+                "primary_blocker": "peers",
+                "excluded_features": "operating-company dcf",
+                "data_confidence": "medium",
+            },
+            {
+                "ticker": "AMD",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - Optional Context Locked",
+                "primary_blocker": "earnings",
+                "supporting_features": "price history; fundamentals; standalone dcf",
+                "missing_data": "earnings; analyst estimates",
+                "next_action": "make templates",
+                "data_confidence": "medium",
+            },
+            {
+                "ticker": "BROAD",
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Inactive row",
+            },
+        ]
+    )
+    purposes = pd.DataFrame(
+        [
+            {"Ticker": "META", "FinalPrimaryPurpose": "Core Compounder"},
+            {"Ticker": "QQQ", "FinalPrimaryPurpose": "ETF / Defensive / Hedge"},
+            {"Ticker": "AMD", "FinalPrimaryPurpose": "Momentum Leader"},
+        ]
+    )
+
+    brief = dashboard.active_research_brief_frame(readiness, decisions, purposes, limit=12)
+    cards = dashboard.active_research_brief_cards(brief)
+    rendered = " ".join(str(value) for value in brief.to_numpy().ravel()).lower()
+    rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    rich_columns = [
+        "purpose_thesis",
+        "purpose_alignment",
+        "setup_evaluation",
+        "valuation_evaluation",
+        "supported_analysis",
+        "unsupported_analysis",
+        "risk_watchpoint",
+        "invalidation_condition",
+        "next_research_question",
+        "review_priority_reason",
+        "confidence_explanation",
+    ]
+
+    assert list(brief["ticker"]) == ["META", "QQQ", "AMD"]
+    assert "BROAD" not in set(brief["ticker"])
+    assert not brief[rich_columns].apply(lambda column: column.astype(str).str.lower().eq("not available")).any().any()
+    assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
+    assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
+    assert brief.loc[brief["ticker"].eq("META"), "data_confidence"].iloc[0] == "medium"
+    assert brief.loc[brief["ticker"].eq("QQQ"), "unlock_command"].iloc[0] == "make stock-report TICKER=QQQ"
+    assert (
+        brief.loc[brief["ticker"].eq("QQQ"), "next_research_question"].iloc[0]
+        == "What market, theme, liquidity, or risk signal should QQQ monitor, and what would invalidate that proxy role?"
+    )
+    assert "source-backed peers should be added for qqq" not in rendered
+    assert cards[0]["command"] == "make stock-report TICKER=META"
+    assert cards[3]["command"] == "make focus-peers TICKER=META"
+    assert cards[4]["title"] == "1 peer-limited brief(s)"
+    assert "peer-relative valuation is withheld" in rendered
+    assert "operating-company dcf is excluded" in rendered
+    assert "earnings and analyst-estimate context stays locked" in rendered
+    assert "peers: needs at least 2 source-backed peer mappings" in rendered
+    assert "trusted local csv input" in rendered
+    assert "only ready local inputs are used" in rendered
+    assert "which source-backed peers should be added for meta before peer-relative valuation is reviewed?" in rendered_cards
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered_cards
+    assert "order" not in rendered_cards
+    assert "trading" not in rendered_cards
+    assert "buy" not in rendered_cards
+    assert "sell" not in rendered_cards
+
+
 def test_active_evaluation_lane_detail_groups_runbook_without_overclaiming():
     queue = pd.DataFrame(
         [
@@ -11805,14 +12729,158 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
             {
                 "evaluation_lane": "Monitor ETF / market proxy",
                 "ticker_count": 1,
-                "validation_sequence": "make stock-report TICKER=<ticker> -> compare source/freshness notes",
+                "validation_sequence": "make stock-report TICKER=QQQ -> compare source/freshness notes",
                 "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
             },
         ]
     )
+    peer_studio = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "workflow_group": "dcf_ready_peer_mapping",
+                "next_action": "Add source-backed peer mappings for META in data/imports/peers.csv.",
+                "next_action_summary": "Add source-backed peer mappings for META.",
+                "focus_command": "make focus-peers TICKER=META",
+            },
+            {
+                "ticker": "QQQ",
+                "workflow_group": "monitor_proxy_context",
+                "next_action": "ETF/index/fund rows use stock-report monitoring context.",
+                "next_action_summary": "ETF/index/fund rows use stock-report monitoring context.",
+                "focus_command": "make stock-report TICKER=QQQ",
+            },
+        ]
+    )
+    active_unlock = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "exact_command": "make stock-report TICKER=QQQ",
+                "validation_sequence": "make stock-report TICKER=QQQ -> review monitor context",
+                "next_best_action": "Review QQQ as ETF/index/fund monitor context.",
+                "copy_only_note": "Copy-only command; the dashboard does not execute imports or refreshes.",
+            }
+        ]
+    )
+    purpose_drilldown = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "exact_command": "make stock-report TICKER=QQQ",
+                "unlock_command": "make stock-report TICKER=QQQ",
+                "next_research_question": "What market signal should QQQ monitor?",
+                "copy_only_note": "Copy-only command; the dashboard does not execute imports or refreshes.",
+            }
+        ]
+    )
+    next_action_console = pd.DataFrame(
+        [
+            {
+                "action_category": "Single-Stock Review",
+                "command": "make stock-report TICKER=QQQ",
+                "why_it_matters": "Use one ticker drilldown to verify readiness and source/freshness notes.",
+                "safety_note": "Ticker-targeted command; copy into a terminal when ready. The dashboard does not execute it.",
+            }
+        ]
+    )
+    readiness_explorer = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "price_ready": True,
+                "next_action": "Review monitor context.",
+            }
+        ]
+    )
+    additional_visible = {
+        "feature readiness cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "FEATURE READINESS",
+                    "body": "Optional context remains locked until trusted local rows exist.",
+                    "command": "make templates",
+                }
+            ]
+        ),
+        "decision workflow cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "DECISION BUCKETS",
+                    "body": "Buckets are readiness-gated research workflow labels.",
+                    "command": "make project-status",
+                }
+            ]
+        ),
+        "peer readiness cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "PEER READY",
+                    "body": "Peer blockers remain source-backed and specific.",
+                    "command": "make peer-mapping-queue TOP_N=25",
+                }
+            ]
+        ),
+        "fundamentals dcf cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "FUNDAMENTALS GAP",
+                    "body": "Trusted fundamentals are required before valuation interpretation.",
+                    "command": "make sec-stage-queue TOP_N=25",
+                }
+            ]
+        ),
+        "import validation cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "IMPORT GUARDRAIL",
+                    "body": "Validate trusted local CSV rows before applying them.",
+                    "command": "make imports-validate",
+                }
+            ]
+        ),
+        "next best action cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "REFRESH REPORTS",
+                    "body": "Regenerate readiness after imports.",
+                    "command": "make readiness",
+                }
+            ]
+        ),
+        "single stock status cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "TICKER STATUS",
+                    "body": "Review monitor context and source/freshness notes.",
+                    "command": "make stock-report TICKER=QQQ",
+                }
+            ]
+        ),
+        "single stock source table": pd.DataFrame(
+            [
+                {
+                    "Area": "Prices",
+                    "Freshness": "Local rows are available.",
+                    "Next command": "make stock-report TICKER=QQQ",
+                }
+            ]
+        ),
+    }
 
-    audit = dashboard.product_page_logic_audit_frame(summary, decisions, queue, detail)
+    audit = dashboard.product_page_logic_audit_frame(
+        summary,
+        decisions,
+        queue,
+        detail,
+        peer_studio,
+        active_unlock,
+        purpose_drilldown,
+        next_action_console,
+        readiness_explorer,
+        additional_visible,
+    )
     cards = dashboard.product_page_logic_audit_cards(audit)
     rendered = " ".join(str(value) for value in audit.to_numpy().ravel()).lower()
     rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -11823,8 +12891,24 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
     assert "etf / index dcf exclusion" in rendered
     assert "active queue lane runbooks" in rendered
     assert "unsupported conclusions withheld" in rendered
+    assert "peer action alignment" in rendered
+    assert "exact copyable commands" in rendered
+    assert "research-only language" in rendered
     assert "row-limited active workflow" in rendered
-    assert cards[0]["title"] == "6 pass / 0 review"
+    assert "readiness explorer default limit" in rendered
+    assert cards[0]["title"] == "10 pass / 0 review"
+    assert "exact copyable commands" in cards[0]["body"]
+    assert "research-only language" in cards[0]["body"]
+    assert "purpose drilldown" in cards[0]["body"]
+    assert "next action console" in cards[0]["body"]
+    assert "import validation" in cards[0]["body"]
+    assert "blocker queues" in cards[0]["body"]
+    assert "next-best-action cards" in cards[0]["body"]
+    assert "readiness explorer" in cards[0]["body"]
+    assert "single-stock drilldown" in cards[0]["body"]
+    assert "feature/decision/peer/fundamentals cards" in cards[0]["body"]
+    assert cards[1]["title"] == "No review items"
+    assert cards[1]["command"] == "make project-status"
     assert "readiness-first" in rendered_cards
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -11836,6 +12920,305 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
     assert "trading" not in rendered_cards
     assert "buy" not in rendered_cards
     assert "sell" not in rendered_cards
+
+
+def test_product_page_logic_audit_flags_placeholder_copyable_commands():
+    summary = {"blocked_by_data": 1, "price_ready": 1}
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "decision_bucket": "Monitor",
+                "primary_blocker": "peers",
+                "missing_data": "",
+                "excluded_features": "dcf",
+            }
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "evaluation_lane": "Monitor ETF / market proxy",
+                "exact_command": "make stock-report TICKER=QQQ",
+                "validation_sequence": "make stock-report TICKER=<ticker> -> compare source/freshness notes",
+            }
+        ]
+    )
+    detail = pd.DataFrame(
+        [
+            {
+                "evaluation_lane": "Monitor ETF / market proxy",
+                "validation_sequence": "make stock-report TICKER=<ticker> -> compare source/freshness notes",
+                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
+            }
+        ]
+    )
+    active_unlock = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "exact_command": "make stock-report TICKER=<ticker>",
+                "validation_sequence": "make stock-report TICKER=<ticker> -> review monitor context",
+            }
+        ]
+    )
+    purpose_drilldown = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "exact_command": "make stock-report TICKER=<ticker>",
+                "unlock_command": "make stock-report TICKER=<ticker>",
+            }
+        ]
+    )
+    next_action_console = pd.DataFrame(
+        [
+            {
+                "action_category": "Single-Stock Review",
+                "command": "make stock-report TICKER=<ticker>",
+                "why_it_matters": "Use one ticker drilldown.",
+            }
+        ]
+    )
+    additional_visible = {
+        "feature readiness cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "FEATURE READINESS",
+                    "command": "make focus-fundamentals TICKER=<ticker>",
+                    "body": "Open the row.",
+                }
+            ]
+        ),
+        "next best action cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "SINGLE STOCK",
+                    "command": "make stock-report TICKER=<ticker>",
+                    "body": "Open the ticker report.",
+                }
+            ]
+        ),
+        "single stock source table": pd.DataFrame(
+            [
+                {
+                    "Area": "Prices",
+                    "Next command": "make stock-report TICKER=<ticker>",
+                }
+            ]
+        ),
+    }
+
+    audit = dashboard.product_page_logic_audit_frame(
+        summary,
+        decisions,
+        queue,
+        detail,
+        active_unlock_frame=active_unlock,
+        purpose_drilldown_frame=purpose_drilldown,
+        next_action_console_frame=next_action_console,
+        additional_visible_frames=additional_visible,
+    )
+    placeholder_check = audit.loc[audit["check"].eq("Exact copyable commands")].iloc[0]
+    rendered = " ".join(str(value) for value in audit.to_numpy().ravel()).lower()
+
+    assert placeholder_check["status"] == "review"
+    assert "placeholder ticker commands" in str(placeholder_check["evidence"]).lower()
+    assert "exact ticker commands" in str(placeholder_check["operator_action"]).lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_product_page_logic_audit_flags_uncapped_readiness_explorer_default():
+    summary = {"blocked_by_data": 1, "price_ready": 1}
+    readiness_explorer = pd.DataFrame(
+        {
+            "ticker": [f"T{i:03d}" for i in range(dashboard.DEFAULT_MARKET_ROW_LIMIT + 1)],
+            "next_action": ["Review local readiness."] * (dashboard.DEFAULT_MARKET_ROW_LIMIT + 1),
+        }
+    )
+
+    audit = dashboard.product_page_logic_audit_frame(
+        summary,
+        pd.DataFrame(),
+        pd.DataFrame([{"ticker": "AAA"}]),
+        pd.DataFrame(),
+        readiness_explorer_frame=readiness_explorer,
+    )
+    explorer_check = audit.loc[audit["check"].eq("Readiness explorer default limit")].iloc[0]
+
+    assert explorer_check["status"] == "review"
+    assert "default cap" in str(explorer_check["evidence"]).lower()
+    assert "full-table dumps" in str(explorer_check["operator_action"]).lower()
+
+
+def test_product_page_logic_audit_flags_execution_or_direct_recommendation_language():
+    summary = {"blocked_by_data": 1, "price_ready": 1}
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "BAD",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "primary_blocker": "earnings",
+                "missing_data": "earnings: trusted local CSV input",
+                "excluded_features": "portfolio",
+                "next_action": "Open broker workflow to buy now.",
+            }
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "ticker": "BAD",
+                "evaluation_lane": "Review supported thesis; optional context locked",
+                "next_operator_step": "Open broker workflow to buy now.",
+                "exact_command": "make stock-report TICKER=BAD",
+            }
+        ]
+    )
+    detail = pd.DataFrame(
+        [
+            {
+                "evaluation_lane": "Review supported thesis; optional context locked",
+                "validation_sequence": "make stock-report TICKER=BAD -> compare source/freshness notes",
+                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "withheld_conclusion": "Earnings and analyst-estimate context is withheld.",
+            }
+        ]
+    )
+    active_unlock = pd.DataFrame(
+        [
+            {
+                "ticker": "BAD",
+                "next_best_action": "Open broker workflow to buy now.",
+                "exact_command": "make stock-report TICKER=BAD",
+            }
+        ]
+    )
+    purpose_drilldown = pd.DataFrame(
+        [
+            {
+                "ticker": "BAD",
+                "next_research_question": "Open broker workflow to buy now.",
+                "exact_command": "make stock-report TICKER=BAD",
+            }
+        ]
+    )
+    next_action_console = pd.DataFrame(
+        [
+            {
+                "action_category": "Single-Stock Review",
+                "command": "make stock-report TICKER=BAD",
+                "why_it_matters": "Open broker workflow to buy now.",
+            }
+        ]
+    )
+    additional_visible = {
+        "decision workflow cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "DECISION BUCKETS",
+                    "body": "Open broker workflow to buy now.",
+                    "command": "make project-status",
+                }
+            ]
+        ),
+        "blocker queue cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "PRICE",
+                    "body": "Open broker workflow to buy now.",
+                    "command": "make readiness",
+                }
+            ]
+        ),
+        "single stock status cards": pd.DataFrame(
+            [
+                {
+                    "kicker": "TICKER STATUS",
+                    "body": "Open broker workflow to buy now.",
+                    "command": "make stock-report TICKER=BAD",
+                }
+            ]
+        ),
+    }
+
+    audit = dashboard.product_page_logic_audit_frame(
+        summary,
+        decisions,
+        queue,
+        detail,
+        active_unlock_frame=active_unlock,
+        purpose_drilldown_frame=purpose_drilldown,
+        next_action_console_frame=next_action_console,
+        additional_visible_frames=additional_visible,
+    )
+    language_check = audit.loc[audit["check"].eq("Research-only language")].iloc[0]
+
+    assert language_check["status"] == "review"
+    assert "prohibited execution/recommendation language" in str(language_check["evidence"]).lower()
+    assert "direct recommendation wording" in str(language_check["operator_action"]).lower()
+
+
+def test_product_page_logic_audit_allows_company_names_with_restricted_words():
+    summary = {"blocked_by_data": 1, "price_ready": 1}
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "BBY",
+                "name": "Best Buy",
+                "asset_type": "company",
+                "decision_bucket": "Blocked by Data",
+                "primary_blocker": "fundamentals",
+                "missing_data": "dcf: free_cash_flow",
+                "excluded_features": "portfolio",
+                "next_action": "Import trusted fundamentals for BBY.",
+            },
+            {
+                "ticker": "JCTC",
+                "name": "Jewett-Cameron Trading Company - Common Shares",
+                "asset_type": "company",
+                "decision_bucket": "Blocked by Data",
+                "primary_blocker": "fundamentals",
+                "missing_data": "dcf: free_cash_flow",
+                "excluded_features": "portfolio",
+                "next_action": "Import trusted fundamentals for JCTC.",
+            },
+        ]
+    )
+    detail = pd.DataFrame(
+        [
+            {
+                "evaluation_lane": "Unlock fundamentals / DCF",
+                "validation_sequence": "make focus-fundamentals TICKER=BBY -> make imports-validate",
+                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "withheld_conclusion": "Valuation is withheld until trusted fundamentals are ready.",
+            }
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "ticker": "BBY",
+                "evaluation_lane": "Unlock fundamentals / DCF",
+                "next_operator_step": "Import trusted fundamentals for BBY.",
+                "exact_command": "make focus-fundamentals TICKER=BBY",
+            }
+        ]
+    )
+
+    audit = dashboard.product_page_logic_audit_frame(summary, decisions, queue, detail)
+    language_check = audit.loc[audit["check"].eq("Research-only language")].iloc[0]
+
+    assert language_check["status"] == "pass"
+    assert "0 row" in str(language_check["evidence"]).lower()
 
 
 def test_product_page_logic_audit_flags_research_now_with_critical_blockers():
@@ -11871,6 +13254,107 @@ def test_product_page_logic_audit_flags_research_now_with_critical_blockers():
     assert "1 research now row" in str(research_gate["evidence"]).lower()
     assert etf_gate["status"] == "review"
     assert "lack visible dcf exclusion" in str(etf_gate["evidence"]).lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_product_page_logic_audit_flags_stale_peer_action_text():
+    summary = {"blocked_by_data": 1, "price_ready": 1}
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "COHR",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "primary_blocker": "peers",
+                "missing_data": "peers: source-backed mappings",
+                "excluded_features": "",
+            }
+        ]
+    )
+    queue = pd.DataFrame([{"ticker": "COHR", "evaluation_lane": "Review standalone thesis, then unlock peers"}])
+    detail = pd.DataFrame(
+        [
+            {
+                "evaluation_lane": "Review standalone thesis, then unlock peers",
+                "validation_sequence": "make focus-peers TICKER=COHR -> make imports-validate -> make imports-preview -> make imports-apply",
+                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "withheld_conclusion": "Peer valuation context is withheld until source-backed peer rows exist.",
+            }
+        ]
+    )
+    stale_peer_studio = pd.DataFrame(
+        [
+            {
+                "ticker": "COHR",
+                "workflow_group": "dcf_ready_peer_mapping",
+                "next_action": "Optional context missing for COHR; leave unavailable unless trusted local CSVs exist.",
+                "next_action_summary": "Optional context missing for COHR.",
+                "focus_command": "make focus-peers TICKER=COHR",
+            }
+        ]
+    )
+
+    audit = dashboard.product_page_logic_audit_frame(summary, decisions, queue, detail, stale_peer_studio)
+    peer_alignment = audit.loc[audit["check"].eq("Peer action alignment")].iloc[0]
+    rendered = " ".join(str(value) for value in audit.to_numpy().ravel()).lower()
+
+    assert peer_alignment["status"] == "review"
+    assert "1 of 1 peer focus row" in str(peer_alignment["evidence"]).lower()
+    assert "source-backed peer mapping guidance" in str(peer_alignment["operator_action"]).lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_product_page_logic_audit_requires_visible_peer_action_text():
+    summary = {"blocked_by_data": 1, "price_ready": 1}
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "COHR",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "primary_blocker": "peers",
+                "missing_data": "peers: source-backed mappings",
+                "excluded_features": "",
+            }
+        ]
+    )
+    queue = pd.DataFrame([{"ticker": "COHR", "evaluation_lane": "Review standalone thesis, then unlock peers"}])
+    detail = pd.DataFrame(
+        [
+            {
+                "evaluation_lane": "Review standalone thesis, then unlock peers",
+                "validation_sequence": "make focus-peers TICKER=COHR -> make imports-validate -> make imports-preview -> make imports-apply",
+                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "withheld_conclusion": "Peer valuation context is withheld until source-backed peer rows exist.",
+            }
+        ]
+    )
+    blank_action_peer_studio = pd.DataFrame(
+        [
+            {
+                "ticker": "COHR",
+                "workflow_group": "dcf_ready_peer_mapping",
+                "next_action": "",
+                "next_action_summary": "",
+                "focus_command": "make focus-peers TICKER=COHR",
+            }
+        ]
+    )
+
+    audit = dashboard.product_page_logic_audit_frame(summary, decisions, queue, detail, blank_action_peer_studio)
+    peer_alignment = audit.loc[audit["check"].eq("Peer action alignment")].iloc[0]
+    rendered = " ".join(str(value) for value in audit.to_numpy().ravel()).lower()
+
+    assert peer_alignment["status"] == "review"
+    assert "1 of 1 peer focus row" in str(peer_alignment["evidence"]).lower()
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -11947,24 +13431,32 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
 
     assert list(queue["ticker"]) == ["META", "AMD", "QQQ", "APLD"]
     assert queue.iloc[0]["evaluation_lane"] == "Review standalone thesis, then unlock peers"
+    assert queue.iloc[0]["data_confidence"] == "medium"
     assert queue.iloc[0]["exact_command"] == "make stock-report TICKER=META"
     assert queue.iloc[0]["data_unlock_command"] == "make focus-peers TICKER=META"
     assert queue.iloc[0]["review_command"] == "make stock-report TICKER=META"
+    assert queue.iloc[0]["validation_sequence"].startswith("make focus-peers TICKER=META")
     assert queue.iloc[1]["evaluation_lane"] == "Review supported thesis; optional context locked"
     assert queue.iloc[1]["exact_command"] == "make stock-report TICKER=AMD"
     assert queue.iloc[1]["data_unlock_command"] == "make templates"
     assert queue.iloc[2]["evaluation_lane"] == "Monitor ETF / market proxy"
     assert queue.iloc[2]["exact_command"] == "make stock-report TICKER=QQQ"
     assert queue.iloc[2]["data_unlock_command"] == ""
+    assert queue.iloc[2]["validation_sequence"].startswith("make stock-report TICKER=QQQ")
     assert queue.iloc[3]["evaluation_lane"] == "Unlock fundamentals / DCF"
+    assert queue.iloc[3]["data_confidence"] == "low"
     assert queue.iloc[3]["exact_command"] == "make focus-fundamentals TICKER=APLD"
+    assert queue.iloc[3]["validation_sequence"].startswith("make focus-fundamentals TICKER=APLD")
+    assert "ticker=<ticker>" not in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make imports-validate" in rendered
     assert "earnings and analyst-estimate context is withheld" in rendered
     assert "operating-company dcf is excluded" in rendered
     assert "readiness state partial" in rendered
     assert cards[0]["title"] == "4 active ticker(s) ranked"
-    assert "not a recommendation list" in rendered_cards
+    assert "+1 more lane(s)" in cards[2]["title"]
+    assert "not an action list" in rendered_cards
+    assert "recommendation" not in rendered_cards
     assert "no dashboard execution" in rendered_cards
     assert "make stock-report ticker=meta" in rendered_cards
     assert "broker" not in rendered
@@ -12061,15 +13553,28 @@ def test_purpose_evaluation_drilldown_cards_surface_next_row_without_execution_l
                 "exact_command": "make stock-report TICKER=NVDA",
                 "unlock_command": "make templates",
             },
+            {
+                "ticker": "QQQ",
+                "is_active_universe": True,
+                "purpose_family": "ETF / Hedge",
+                "decision_bucket": "Monitor",
+                "primary_blocker": "peers",
+                "next_research_question": "What market signal is this proxy intended to monitor?",
+                "unsupported_analysis": "Unsupported analysis: operating-company DCF.",
+                "exact_command": "make stock-report TICKER=QQQ",
+                "unlock_command": "make stock-report TICKER=QQQ",
+            },
         ]
     )
 
     cards = dashboard.purpose_evaluation_drilldown_cards(drilldown)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[0]["title"] == "2 row(s), 2 active"
+    assert cards[0]["title"] == "3 row(s), 3 active"
+    assert cards[1]["command"] == "make stock-report TICKER=META"
+    assert cards[2]["title"] == "1 peer-limited, 1 optional-context-limited"
     assert "which source-backed peers should be added" in rendered
-    assert "make focus-peers ticker=meta" in rendered
+    assert "make stock-report ticker=meta" in rendered
     assert "peer valuation remains blocked" in rendered
     assert "trusted csv rows" in rendered
     assert "broker" not in rendered

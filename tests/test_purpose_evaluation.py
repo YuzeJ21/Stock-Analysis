@@ -204,3 +204,48 @@ def test_purpose_evaluation_drilldown_filters_and_limits_rows():
     assert list(drilldown["ticker"]) == ["NVDA"]
     assert len(drilldown) == 1
     assert drilldown.iloc[0]["unlock_command"] == "make templates"
+
+
+def test_purpose_evaluation_drilldown_keeps_etf_monitor_on_stock_report_when_peer_blocked():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "decision_bucket": "Monitor",
+                "decision_subtype": "Monitor - ETF Market Proxy",
+                "primary_blocker": "peers",
+                "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market context.",
+            },
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "purpose_thesis": "Purpose: Core Compounder.",
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "QQQ", "in_active_universe": True},
+            {"ticker": "META", "in_active_universe": True},
+        ]
+    )
+
+    drilldown = build_purpose_evaluation_drilldown(decisions, readiness, active_only=True)
+    rendered = " ".join(str(value) for value in drilldown.to_numpy().ravel()).lower()
+
+    qqq = drilldown.loc[drilldown["ticker"].eq("QQQ")].iloc[0]
+    meta = drilldown.loc[drilldown["ticker"].eq("META")].iloc[0]
+
+    assert qqq["purpose_family"] == "ETF / Hedge"
+    assert qqq["unlock_command"] == "make stock-report TICKER=QQQ"
+    assert meta["unlock_command"] == "make focus-peers TICKER=META"
+    assert "copy-only command" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
