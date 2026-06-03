@@ -9215,6 +9215,11 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "make imports-validate" in rendered
     assert "rejected-row reports" in rendered
+    assert "when to use" in rendered
+    assert "check after" in rendered
+    assert "output_to_check" in console.columns
+    assert "when_to_use" in console.columns
+    assert "single-stock report" in rendered
     assert "active universe" in rendered
     assert "scope" in console.columns
     single_row = console.loc[console["action_category"].eq("Single-Stock Review")].iloc[0]
@@ -9258,6 +9263,8 @@ def test_next_action_console_prioritizes_active_samples_without_hiding_broad_cou
     assert fundamentals_row["sample_tickers"] == "AAA"
     assert single_row["command"] == "make stock-report TICKER=COHR"
     assert single_row["sample_tickers"].split(",")[:3] == ["COHR", "LITE", "QQQ"]
+    assert "one ticker explained in plain language" in single_row["when_to_use"].lower()
+    assert "markdown report" in single_row["output_to_check"].lower()
     assert "dashboard does not execute" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

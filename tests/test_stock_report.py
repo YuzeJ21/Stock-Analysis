@@ -125,6 +125,10 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert report_dict["local_data_validation"] == []
     assert len(report_dict["data_freshness"]) >= 3
     assert any("research-grade" in " ".join(note["notes"]).lower() for note in report_dict["data_freshness"])
+    assert "## What We Can Analyze Now" in markdown
+    assert "Ready inputs:" in markdown
+    assert "Supported now:" in markdown
+    assert "Still locked or excluded:" in markdown
     assert "Base DCF fair value per share" in markdown
     assert "Base DCF assumptions" in markdown
     assert "Scenario coverage: bear, base, bull" in markdown

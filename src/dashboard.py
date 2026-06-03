@@ -7645,7 +7645,9 @@ NEXT_ACTION_CONSOLE_COLUMNS = [
     "scope",
     "ticker_count",
     "sample_tickers",
+    "when_to_use",
     "command",
+    "output_to_check",
     "why_it_matters",
     "source_freshness_note",
     "safety_note",
@@ -7677,6 +7679,32 @@ def safe_action_console_command(category: str, command: object = "") -> str:
     if category_key == "single-stock review":
         return command_text if "ticker=" in lowered else "make stock-report TICKER=META"
     return command_text or "make project-status"
+
+
+def next_action_console_when_to_use(category: str) -> str:
+    guidance = {
+        "Price Coverage Batch": "Use when many tickers are blocked before momentum, liquidity, or market-context review.",
+        "Fundamentals / DCF Unlock": "Use after prices exist and company-level valuation is blocked by missing fundamentals or DCF fields.",
+        "Peer Mapping Unlock": "Use when DCF-ready companies still need source-backed peers before relative valuation is shown.",
+        "Earnings Import Setup": "Use only when trusted earnings rows are available locally; otherwise leave the section locked.",
+        "Analyst Estimates Import Setup": "Use only when trusted estimate rows are available locally; consensus is context, not a conclusion.",
+        "Import Validation / Rejected Rows": "Use before trusting any staged local CSV rows or after a preview shows rejected records.",
+        "Single-Stock Review": "Use when you want one ticker explained in plain language before reading broad tables.",
+    }
+    return guidance.get(category, "Use when the local status page points to this workflow as the next safe research step.")
+
+
+def next_action_console_output_to_check(category: str) -> str:
+    outputs = {
+        "Price Coverage Batch": "Check price coverage, readiness, and Data Health after the capped run.",
+        "Fundamentals / DCF Unlock": "Check DCF readiness, fundamentals coverage, and a single-stock report for the target ticker.",
+        "Peer Mapping Unlock": "Check peer readiness, peer unlock worklist, and the Peer Mapping Studio table.",
+        "Earnings Import Setup": "Check earnings readiness and rejected-row reports after validate/preview/apply.",
+        "Analyst Estimates Import Setup": "Check analyst-estimate readiness and rejected-row reports after validate/preview/apply.",
+        "Import Validation / Rejected Rows": "Check rejected-row reports before applying any staged local rows.",
+        "Single-Stock Review": "Check the Markdown report and Sources & Gaps tab for the selected ticker.",
+    }
+    return outputs.get(category, "Check project status, readiness, and Data Health after the command finishes.")
 
 
 def next_action_console_source_note(category: str) -> str:
@@ -7788,7 +7816,9 @@ def build_next_action_console_frame(
                     "scope": scope_label,
                     "ticker_count": len(subset),
                     "sample_tickers": _join_tickers(ordered_subset["ticker"], 6),
+                    "when_to_use": next_action_console_when_to_use(category),
                     "command": safe_command,
+                    "output_to_check": next_action_console_output_to_check(category),
                     "why_it_matters": why,
                     "source_freshness_note": next_action_console_source_note(category),
                     "safety_note": next_action_console_safety_note(safe_command),
@@ -7808,7 +7838,9 @@ def build_next_action_console_frame(
                     "scope": action_console_scope_label("Single-Stock Review", single_stock_candidates),
                     "ticker_count": len(single_stock_candidates),
                     "sample_tickers": _join_tickers(single_stock_candidates["ticker"], 6),
+                    "when_to_use": next_action_console_when_to_use("Single-Stock Review"),
                     "command": command,
+                    "output_to_check": next_action_console_output_to_check("Single-Stock Review"),
                     "why_it_matters": "Use one ticker drilldown to verify that readiness, DCF, peer, optional context, and decision state all tell the same story.",
                     "source_freshness_note": next_action_console_source_note("Single-Stock Review"),
                     "safety_note": next_action_console_safety_note(command),
@@ -7847,7 +7879,9 @@ def build_next_action_console_frame(
                 "scope": "project status",
                 "ticker_count": "",
                 "sample_tickers": "",
+                "when_to_use": next_action_console_when_to_use(category),
                 "command": command,
+                "output_to_check": next_action_console_output_to_check(category),
                 "why_it_matters": compact_reason(row.get("Reason"), max_sentences=1, max_chars=180),
                 "source_freshness_note": next_action_console_source_note(category),
                 "safety_note": next_action_console_safety_note(command),
@@ -7868,7 +7902,9 @@ def build_next_action_console_frame(
                     "scope": "action queue",
                     "ticker_count": "",
                     "sample_tickers": "",
+                    "when_to_use": next_action_console_when_to_use(category),
                     "command": command,
+                    "output_to_check": next_action_console_output_to_check(category),
                     "why_it_matters": compact_reason(signal.get("body"), max_sentences=1, max_chars=180),
                     "source_freshness_note": next_action_console_source_note(category),
                     "safety_note": next_action_console_safety_note(command),
@@ -7902,11 +7938,17 @@ def next_action_console_cards(console_frame: pd.DataFrame | None, limit: int = 8
         scope = format_missing(row.get("scope"), "")
         sample = format_missing(row.get("sample_tickers"), "")
         body = compact_reason(row.get("why_it_matters"), max_sentences=1, max_chars=150)
+        when_to_use = compact_reason(row.get("when_to_use"), max_sentences=1, max_chars=120)
+        output_to_check = compact_reason(row.get("output_to_check"), max_sentences=1, max_chars=120)
         source_note = compact_reason(row.get("source_freshness_note"), max_sentences=1, max_chars=140)
         if scope and scope != "Not available":
             body = f"{scope}: {body}"
         if sample and sample != "Not available":
             body = f"{body} Sample: {sample}."
+        if when_to_use and when_to_use != "Not available":
+            body = f"{body} When to use: {when_to_use}"
+        if output_to_check and output_to_check != "Not available":
+            body = f"{body} Check after: {output_to_check}"
         if source_note and source_note != "Not available":
             body = f"{body} {source_note}"
         cards.append(
@@ -13019,15 +13061,15 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
     return [
         primary,
         {
-            "kicker": "WHAT TO TRUST",
-            "title": "Use ready sections first",
-            "body": "Review price-ready and research-ready names before reading blocked rows. Blocked rows explain what data is missing.",
-            "badges": ["review safely"],
+            "kicker": "START HERE",
+            "title": "Read the ready sections first",
+            "body": "Start with names that have enough local data for the view you opened. Blocked rows are useful, but they are a data-unlock queue, not a conclusion list.",
+            "badges": ["visitor friendly"],
         },
         {
-            "kicker": "WHAT TO IGNORE",
-            "title": "Do not force conclusions",
-            "body": "If a valuation, peer view, earnings view, or estimate view is missing, the right answer is to keep it locked until data exists.",
+            "kicker": "WHAT STAYS LOCKED",
+            "title": "No data, no conclusion",
+            "body": "If valuation, peers, earnings, or estimates are missing, the app keeps that analysis unavailable until trusted local rows exist.",
             "badges": ["research-only"],
         },
         {
@@ -13061,9 +13103,13 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "A plain-language view of what is ready, what is blocked, and what to review next.",
     )
     render_context_note(
-        "Trust rule.",
-        "This page shows research readiness, not investment advice. Missing data is shown openly instead of being guessed.",
+        "Start here.",
+        "This page answers three questions: what can I review now, what is blocked, and which safe local command should I copy next?",
         tone="success",
+    )
+    render_context_note(
+        "Research boundary.",
+        "The app shows local research readiness only. Missing data is shown openly instead of being guessed.",
     )
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
 
@@ -13088,7 +13134,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             (
                 "Improve missing data",
                 "Open the data page when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
-                "Data Coverage",
+                "Data Health",
                 "warning",
             ),
         ]
@@ -13118,6 +13164,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             ),
             language="bash",
         )
+        st.caption("Broad refresh churn should be inspected before it is committed or shared publicly.")
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:

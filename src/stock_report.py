@@ -796,6 +796,28 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
     )
+    ready_features = _display_value(readiness.get("ready_features"))
+    blocked_features = _display_value(readiness.get("blocked_features"))
+    excluded_features = _display_value(readiness.get("excluded_features"))
+    if monitor_context:
+        supported_now = (
+            "Monitor context is supported where local price, liquidity, correlation, and theme data are available. "
+            "Operating-company DCF and peer valuation are excluded rather than treated as failed inputs."
+        )
+    elif dcf_status_text == "ready":
+        supported_now = (
+            "Company-level review can use local price context, fundamentals, and standalone DCF assumptions. "
+            "Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready."
+        )
+    else:
+        supported_now = (
+            "Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, "
+            "free cash flow or margin inputs, share count, and DCF fields are ready."
+        )
+    locked_now = (
+        f"Blocked features: {blocked_features}. Excluded features: {excluded_features}. "
+        "Unavailable sections are intentionally locked; missing data is not inferred."
+    )
 
     report_lines = [
         f"# {report.ticker} Single-Stock Research Report",
@@ -807,6 +829,11 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## One-Minute Status",
         one_minute_summary,
+        "",
+        "## What We Can Analyze Now",
+        f"- Ready inputs: {ready_features}.",
+        f"- Supported now: {supported_now}",
+        f"- Still locked or excluded: {locked_now}",
         "",
         "## What This Stock Is",
         f"- Ticker: {report.ticker}",
@@ -969,6 +996,28 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
     )
+    ready_features = _display_value(readiness.get("ready_features"))
+    blocked_features = _display_value(readiness.get("blocked_features"))
+    excluded_features = _display_value(readiness.get("excluded_features"))
+    if monitor_context:
+        supported_now = (
+            "Monitor context is supported where local price, liquidity, correlation, and theme data are available. "
+            "Operating-company DCF and peer valuation are excluded rather than treated as failed inputs."
+        )
+    elif dcf_status_text == "ready":
+        supported_now = (
+            "Company-level review can use local price context, fundamentals, and standalone DCF assumptions. "
+            "Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready."
+        )
+    else:
+        supported_now = (
+            "Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, "
+            "free cash flow or margin inputs, share count, and DCF fields are ready."
+        )
+    locked_now = (
+        f"Blocked features: {blocked_features}. Excluded features: {excluded_features}. "
+        "Unavailable sections are intentionally locked; missing data is not inferred."
+    )
     lines = [
         f"# {symbol} Single-Stock Research Report",
         "",
@@ -982,6 +1031,11 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## One-Minute Status",
         one_minute_summary,
+        "",
+        "## What We Can Analyze Now",
+        f"- Ready inputs: {ready_features}.",
+        f"- Supported now: {supported_now}",
+        f"- Still locked or excluded: {locked_now}",
         "",
         "## What This Stock Is",
         f"- Ticker: {symbol}",

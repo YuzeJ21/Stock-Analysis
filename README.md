@@ -91,6 +91,8 @@ make stock-report TICKER=APLD   # partial-data blocker report
 make dashboard
 ```
 
+In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Technical file paths and update commands are intentionally tucked into advanced sections.
+
 Targeted data-unlock examples:
 
 ```bash

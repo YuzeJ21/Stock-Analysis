@@ -8,6 +8,11 @@ APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 ## One-Minute Status
 APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
+## What We Can Analyze Now
+- Ready inputs: price, momentum, market_direction, liquidity, correlation.
+- Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
+- Still locked or excluded: Blocked features: fundamentals, dcf, peer, earnings, analyst_estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+
 ## What This Stock Is
 - Ticker: APLD
 - Asset type: company
@@ -110,9 +115,9 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Source / Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-06-03T18:35:06.424153090+00:00; Local CSV-backed research data.
-- local:fundamentals.csv: research-grade / local, retrieved 2026-06-03T21:08:07+00:00; No local fundamentals row was found for this ticker.
-- local:earnings.csv: research-grade / local, retrieved 2026-06-03T21:08:07+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T21:08:07+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:fundamentals.csv: research-grade / local, retrieved 2026-06-03T21:31:05+00:00; No local fundamentals row was found for this ticker.
+- local:earnings.csv: research-grade / local, retrieved 2026-06-03T21:31:05+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T21:31:05+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Source/Freshness Audit
 - Prices: True; local source `data/prices.csv`; coverage 2023-12-15 to 2026-06-01; rows=615; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.

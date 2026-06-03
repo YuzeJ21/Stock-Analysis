@@ -8,6 +8,11 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 ## One-Minute Status
 NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready. Primary blocker: earnings. Peer workflow: Not available. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
+## What We Can Analyze Now
+- Ready inputs: price, momentum, market_direction, liquidity, correlation, fundamentals, dcf, peer, portfolio.
+- Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
+- Still locked or excluded: Blocked features: earnings, analyst_estimates. Excluded features: Not available. Unavailable sections are intentionally locked; missing data is not inferred.
+
 ## What This Stock Is
 - Ticker: NVDA
 - Asset type: company
@@ -105,8 +110,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source / Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-06-03T18:35:06.424153090+00:00; Local CSV-backed research data.
 - local:fundamentals.csv: research-grade / local, retrieved 2026-05-27T21:34:35.086026430+00:00; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local, retrieved 2026-06-03T21:08:03+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T21:08:03+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local, retrieved 2026-06-03T21:30:54+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T21:30:54+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Source/Freshness Audit
 - Prices: True; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=621; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
