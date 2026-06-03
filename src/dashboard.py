@@ -12914,6 +12914,10 @@ def render_overview(
             }
         )
     with st.expander("Generated output files", expanded=False):
+        render_context_note(
+            "Local generated files.",
+            "These CSVs are useful for review, but broad refresh churn should be inspected before it is committed or shared publicly.",
+        )
         st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
 
     if final_watchlist_frame is not None and not final_watchlist_frame.empty:
@@ -13099,11 +13103,12 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         )
 
     with st.expander("Advanced commands", expanded=False):
-        st.write("Use these only when you want to update local data or regenerate reports.")
+        st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
         st.code(
             "\n".join(
                 [
                     "make status-check TOP_N=5",
+                    "make price-refresh-loop DRY_RUN=1",
                     "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
                     "make readiness",
                     "make project-status",
@@ -15150,9 +15155,9 @@ def main() -> None:
         )
         render_action_cards(dashboard_navigation_cards())
         with st.expander("Advanced command help", expanded=False):
-            render_context_note("Safe local commands.", "These commands update local files only. The dashboard does not place trades or connect to brokers.")
+            render_context_note("Safe local commands.", "Preview capped refreshes first. The dashboard shows copyable commands only and never runs imports, refreshes, or account actions.")
             st.code(
-                "make help\nmake status-check TOP_N=5\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report TICKER=NVDA\nmake dashboard-smoke",
+                "make help\nmake status-check TOP_N=5\nmake price-refresh-loop DRY_RUN=1\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report TICKER=NVDA\nmake dashboard-smoke",
                 language="bash",
             )
         with st.expander("How to read status labels", expanded=False):

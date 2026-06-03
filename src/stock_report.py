@@ -463,7 +463,16 @@ def _stock_report_valuation_lines(
 
     relative_status = _display_value(relative.get("status") if isinstance(relative, dict) else None)
     peer_count = _display_value(relative.get("peer_count") if isinstance(relative, dict) else None)
-    lines.append(f"- Relative valuation: {relative_status}; peer count={peer_count}.")
+    peer_missing = []
+    if isinstance(relative, dict):
+        peer_missing = list(relative.get("missing_fields") or []) + list(relative.get("peer_missing_data_warnings") or [])
+    if relative_status.lower() in {"insufficient_data", "not available", "peer_data_unavailable"} or peer_count in {"0", "Not available"} or peer_missing:
+        lines.append(
+            f"- Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready; "
+            f"current status={relative_status}; peer count={peer_count}."
+        )
+    else:
+        lines.append(f"- Relative valuation: {relative_status}; peer count={peer_count}.")
     lines.append("- Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.")
     return lines
 
@@ -945,6 +954,21 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         ]
         if part and "Not available" not in part
     )
+    valuation_lines = _stock_report_valuation_lines(
+        valuation_snapshot={
+            "status": "insufficient_data" if dcf_status_text == "blocked" else dcf_status_text,
+            "dcf_result": {"status": "insufficient_data" if dcf_status_text == "blocked" else dcf_status_text},
+            "relative_valuation": {
+                "status": "insufficient_data",
+                "peer_count": peer.get("peer_count"),
+                "missing_fields": ["trusted_peer_inputs"],
+            },
+        },
+        valuation_readiness={"dcf_missing_fields": []},
+        dcf=dcf,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+    )
     lines = [
         f"# {symbol} Single-Stock Research Report",
         "",
@@ -1015,9 +1039,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Missing price reason: {_display_value(coverage.get('missing_price_reason'))}",
         "",
         "## Valuation Readiness",
-        f"- Missing fields: {_display_value(dcf.get('missing_dcf_fields'))}",
-        f"- Reason not ready: {_display_value(dcf.get('reason_not_ready'))}",
-        "- Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.",
+        *valuation_lines,
         "",
         "## Peer Workflow",
         f"- Peer blocker type: {peer_blocker_display}",

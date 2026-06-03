@@ -177,10 +177,15 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "![Dashboard preview](docs/assets/dashboard-preview.svg)" in readme
     assert "## Quick Start" in readme
     assert "## What You Can Analyze" in readme
+    assert "## Try This Demo Path" in readme
+    assert "## Generated Data Hygiene" in readme
     for phrase in (
         "make pipeline",
         "make readiness",
         "make stock-report TICKER=NVDA",
+        "make stock-report TICKER=QQQ",
+        "make stock-report TICKER=SMH",
+        "make stock-report TICKER=APLD",
         "make dashboard",
         "make dashboard-smoke",
         "make status-check TOP_N=5",
@@ -193,8 +198,18 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make optional-context-worklist TOP_N=10",
         "not investment advice",
         "Roadmap Snapshot",
+        "Review them before committing",
     ):
         assert phrase in readme
+
+
+def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
+    dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
+    dry_run_index = dashboard.index("make price-refresh-loop DRY_RUN=1")
+    refresh_index = dashboard.index("make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30")
+
+    assert dry_run_index < refresh_index
+    assert "broad refresh churn should be inspected before it is committed or shared publicly" in dashboard
 
 def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     readme = Path("README.md").read_text(encoding="utf-8")

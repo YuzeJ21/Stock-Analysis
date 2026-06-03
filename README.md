@@ -62,15 +62,8 @@ pip install -e .[dev]
 make pipeline
 make readiness
 make stock-report TICKER=NVDA
-make dashboard
-```
-
-For a quick local check:
-
-```bash
-make test
 make dashboard-smoke
-make stock-report TICKER=QQQ
+make dashboard
 ```
 
 ## Visitor-Friendly Commands
@@ -85,6 +78,16 @@ make readiness
 make project-status
 make research-health-check TOP_N=10
 make stock-report TICKER=NVDA
+make dashboard
+```
+
+## Try This Demo Path
+
+```bash
+make stock-report TICKER=NVDA   # company report with DCF assumptions
+make stock-report TICKER=QQQ    # ETF/index report with DCF excluded
+make stock-report TICKER=SMH    # sector ETF monitor report
+make stock-report TICKER=APLD   # partial-data blocker report
 make dashboard
 ```
 
@@ -121,6 +124,10 @@ make imports-validate
 make imports-preview
 make imports-apply
 ```
+
+## Generated Data Hygiene
+
+Small example outputs are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and generated report CSVs are local working data by default. Review them before committing; do not publish broad refresh churn unless intentionally selected.
 
 ## Core Outputs
 

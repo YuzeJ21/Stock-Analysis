@@ -130,6 +130,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Scenario coverage: bear, base, bull" in markdown
     assert "Sensitivity table:" in markdown
     assert "missing valuation inputs are not inferred" in markdown
+    assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown
 
 
 def test_build_stock_report_surfaces_missing_data_risks():
@@ -459,6 +460,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "## What This Stock Is" in markdown
     assert "## Data Readiness" in markdown
     assert "## Valuation Readiness" in markdown
+    assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown
     assert "## Risk Notes" in markdown
     assert "## Next Research Step" in markdown
     assert "allocation instructions" in markdown
