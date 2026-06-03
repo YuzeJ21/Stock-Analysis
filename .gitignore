@@ -3,6 +3,9 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+AGENTS.md
+.agents/
+docs/CODEX_SKILLS_OVERVIEW.md
 data/cache/
 !data/cache/sec/.gitkeep
 data/backups/

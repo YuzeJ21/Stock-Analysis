@@ -100,6 +100,11 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     assert bool(readiness.loc["NVDA", "momentum_ready"]) is True
     assert bool(readiness.loc["NVDA", "liquidity_ready"]) is True
     assert bool(readiness.loc["NVDA", "dcf_ready"]) is True
+    assert "data/imports/peers.csv" in readiness.loc["NVDA", "next_action"]
+    assert "make imports-validate" in readiness.loc["NVDA", "next_action"]
+    assert "make imports-preview" in readiness.loc["NVDA", "next_action"]
+    assert "make imports-apply" in readiness.loc["NVDA", "next_action"]
+    assert "Optional context" not in readiness.loc["NVDA", "next_action"]
     assert bool(readiness.loc["AMD", "price_ready"]) is False
     assert readiness.loc["AMD", "overall_readiness_state"] == "blocked"
     assert "price" in readiness.loc["AMD", "blocked_features"]
@@ -173,6 +178,49 @@ def test_peer_unlock_worklist_sorts_active_dcf_ready_rows_before_master_rows(tmp
     assert worklist["next_input_file"].eq("data/imports/peers.csv").all()
     assert worklist["validation_sequence"].str.contains("make imports-preview", regex=False).all()
     assert worklist["copy_only_note"].str.contains("Copy commands only", regex=False).all()
+
+
+def test_partial_peer_mapping_next_action_prioritizes_peer_unlock(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "COHR", "name": "Coherent", "asset_type": "company", "source": "fixture"},
+            {"ticker": "LITE", "name": "Lumentum", "asset_type": "company", "source": "fixture"},
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame([{"ticker": "COHR", "scope": "active_research", "theme": "Optical AI Infrastructure"}]).to_csv(
+        data_dir / "universe_active.csv",
+        index=False,
+    )
+    pd.DataFrame(_price_rows("COHR", 60) + _price_rows("LITE", 60)).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "COHR", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10, "source": "fixture"},
+            {"ticker": "LITE", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10, "source": "fixture"},
+        ]
+    ).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame([{"ticker": "COHR", "peer_ticker": "LITE", "peer_group": "Optical", "source": "fixture"}]).to_csv(
+        data_dir / "peers.csv",
+        index=False,
+    )
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
+    pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
+
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    readiness = reports["ticker_readiness_report"].set_index("ticker")
+
+    assert bool(readiness.loc["COHR", "dcf_ready"]) is True
+    assert bool(readiness.loc["COHR", "peer_ready"]) is False
+    assert "peer" in readiness.loc["COHR", "partial_features"]
+    assert "data/imports/peers.csv" in readiness.loc["COHR", "next_action"]
+    assert "make imports-validate" in readiness.loc["COHR", "next_action"]
+    assert "Optional context" not in readiness.loc["COHR", "next_action"]
 
 
 def test_readiness_requires_source_and_minimum_ready_peer_metrics(tmp_path: Path, monkeypatch):

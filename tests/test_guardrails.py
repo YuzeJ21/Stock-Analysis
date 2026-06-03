@@ -60,27 +60,33 @@ def test_gitignore_covers_local_runtime_artifacts():
         "outputs/project_status_top_actions.csv",
         "outputs/project_status_next_steps.csv",
         "local_artifacts_backup/",
+        "AGENTS.md",
+        ".agents/",
+        "docs/CODEX_SKILLS_OVERVIEW.md",
     )
     for entry in expected_entries:
         assert entry in gitignore
 
 
-def test_external_skill_reference_files_exist():
-    expected_paths = (
-        Path(".agents/skills/stock-analysis-core/references/external-skill-map.md"),
-        Path(".agents/skills/stock-analysis-core/references/open-source-product-map.md"),
-        Path(".agents/skills/stock-analysis-core/references/options-risk-education.md"),
+def test_internal_agent_reference_files_are_not_public_release_artifacts():
+    internal_paths = (
+        Path("AGENTS.md"),
+        Path(".agents"),
+        Path("docs/CODEX_SKILLS_OVERVIEW.md"),
     )
-    for path in expected_paths:
-        assert path.exists()
+    tracked_or_present = [path for path in internal_paths if path.exists()]
+    assert tracked_or_present == []
 
 
-def test_agents_instructions_include_research_only_trade_skill_guardrails():
-    agents_text = Path("AGENTS.md").read_text(encoding="utf-8").lower()
+def test_public_readme_contains_research_only_guardrails():
+    readme_text = Path("README.md").read_text(encoding="utf-8").lower()
     expected_phrases = (
-        "trade-skills concepts may only be used for education and risk explanation",
-        "must never recommend or execute option trades",
-        "must require user-supplied legs or clearly labeled examples",
+        "research-only guardrails",
+        "not a trading system",
+        "connect to brokers",
+        "recommend option trades",
+        "provide direct buy/sell instructions",
+        "fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations",
     )
     for phrase in expected_phrases:
-        assert phrase in agents_text
+        assert phrase in readme_text

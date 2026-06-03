@@ -3950,7 +3950,7 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
     assert "make sec-stage tickers=nvda" in rendered
     assert "stage or add richer verified fundamentals" in rendered
     assert cards[2]["title"] == "Data Health"
-    assert "stock report beta" in rendered
+    assert "single-stock report" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4174,7 +4174,7 @@ def test_overview_best_current_name_cards_route_ready_names_to_next_surface():
 
     assert len(cards) == 2
     assert cards[0]["kicker"] == "NVDA"
-    assert cards[0]["title"] == "Stock Report Beta"
+    assert cards[0]["title"] == "Single-Stock Report"
     assert cards[0]["command"] == "make stock-report TICKER=NVDA"
     assert cards[1]["title"] == "Monthly Picks"
     assert cards[1]["command"] == "make monthly"
@@ -4288,7 +4288,7 @@ def test_overview_ready_name_handoff_cards_route_stock_report_names_to_ticker_re
     assert cards[0]["title"] == "NVDA"
     assert cards[0]["command"] == "make stock-report TICKER=NVDA"
     assert cards[1]["title"] == "make stock-report TICKER=NVDA"
-    assert cards[2]["title"] == "Stock Report Beta"
+    assert cards[2]["title"] == "Single-Stock Report"
     assert "strongest currently usable local name" in rendered
     assert "ticker-targeted stock report" in rendered
     assert "make verify" not in rendered
@@ -4449,7 +4449,7 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
     assert cards[1]["title"] == "NVDA"
     assert cards[1]["command"] == "make sec-stage TICKERS=NVDA"
     assert cards[2]["title"] == "make stock-report TICKER=NVDA"
-    assert cards[3]["title"] == "Stock Report Beta"
+    assert cards[3]["title"] == "Single-Stock Report"
     assert "normalize verified downloaded ohlcv rows" in rendered
     assert "best currently usable local name" in rendered
     assert "top deeper-research blocker" in rendered
@@ -4621,7 +4621,7 @@ def test_overview_current_top_surfaces_cards_prefer_ready_name_reason_without_qu
     assert cards[2]["title"] == "make stock-report TICKER=NVDA"
     assert cards[0]["command"] == "make stock-report TICKER=NVDA"
     assert "ticker-targeted stock report" in cards[2]["body"].lower()
-    assert "stock report beta" in cards[2]["body"].lower()
+    assert "single-stock report" in cards[2]["body"].lower()
     assert "make imports-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -4666,8 +4666,8 @@ def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in
     assert "advance staged fundamentals import" in cards[1]["body"].lower()
     assert "make imports-apply" in cards[1]["body"].lower()
     assert "make status-check top_n=5" in rendered
-    assert cards[3]["title"] == "Stock Report Beta"
-    assert "open stock report beta after the command step" in cards[3]["body"].lower()
+    assert cards[3]["title"] == "Single-Stock Report"
+    assert "open single-stock report after the command step" in cards[3]["body"].lower()
     assert "nvda" in cards[3]["body"].lower()
     assert "live staged" in rendered
     assert "buy" not in rendered
@@ -5586,7 +5586,7 @@ def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
     assert len(cards) == 3
     assert cards[0]["title"] == "Data Health"
     assert cards[0]["command"] == "make onboarding"
-    assert cards[1]["title"] == "Stock Report Beta"
+    assert cards[1]["title"] == "Single-Stock Report"
     assert cards[1]["command"] == "make stock-report TICKER=NVDA"
     assert cards[2]["title"] == "Monthly Picks"
     assert cards[2]["command"] == "make monthly"
@@ -5628,7 +5628,7 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
     assert cards[0]["title"] == "NVDA"
     assert cards[1]["title"] == "make stock-report TICKER=NVDA"
     assert cards[1]["badges"] == ["single name", "ready flow"]
-    assert cards[2]["title"] == "Stock Report Beta"
+    assert cards[2]["title"] == "Single-Stock Report"
     assert "best current name" in rendered
     assert "next command" in rendered
     assert "next tab" in rendered
@@ -9018,6 +9018,47 @@ def test_filter_market_readiness_frame_defaults_active_and_limits_rows():
     assert filtered["ticker"].tolist() == ["AAA"]
 
 
+def test_filter_market_readiness_frame_normalizes_stale_peer_next_actions():
+    readiness = pd.DataFrame(
+        {
+            "ticker": ["COHR", "CRDO", "AMD"],
+            "in_master_universe": [True, True, True],
+            "in_active_universe": [True, True, True],
+            "price_ready": [True, True, True],
+            "fundamentals_ready": [True, False, True],
+            "dcf_ready": [True, False, True],
+            "peer_ready": [False, False, True],
+            "earnings_ready": [False, False, False],
+            "analyst_estimates_ready": [False, False, False],
+            "asset_type": ["company", "company", "company"],
+            "ready_features": ["price, fundamentals, dcf", "price", "price, fundamentals, dcf, peer"],
+            "partial_features": ["peer", "", ""],
+            "blocked_features": ["earnings, analyst_estimates", "fundamentals, dcf, peer", "earnings, analyst_estimates"],
+            "missing_data": [
+                "peers: needs at least 2 source-backed peer mappings; earnings: trusted local CSV input",
+                "dcf: revenue, fcf_margin; peers: needs at least 2 source-backed peer mappings",
+                "earnings: trusted local CSV input",
+            ],
+            "next_action": [
+                "Optional context missing for COHR; leave unavailable unless trusted local CSVs exist.",
+                "Import trusted fundamentals for CRDO.",
+                "Optional context missing for AMD; leave unavailable unless trusted local CSVs exist.",
+            ],
+        }
+    )
+
+    filtered = dashboard.filter_market_readiness_frame(readiness, row_limit=None)
+    cohr = filtered.loc[filtered["ticker"].eq("COHR"), "next_action"].iloc[0]
+    crdo = filtered.loc[filtered["ticker"].eq("CRDO"), "next_action"].iloc[0]
+    amd = filtered.loc[filtered["ticker"].eq("AMD"), "next_action"].iloc[0]
+
+    assert "data/imports/peers.csv" in cohr
+    assert "make imports-validate" in cohr
+    assert "optional context" not in cohr.lower()
+    assert crdo == "Import trusted fundamentals for CRDO."
+    assert amd == "Optional context missing for AMD; leave unavailable unless trusted local CSVs exist."
+
+
 def test_filter_market_readiness_frame_default_limit_stays_operator_sized():
     readiness = pd.DataFrame(
         {
@@ -10421,7 +10462,7 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
                 "decision_bucket": "Research Now",
                 "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
                 "primary_blocker": "peers",
-                "next_best_action": "Add source-backed peer mappings for A.",
+                "next_best_action": "Add source-backed peer mappings and peer metrics for A.",
             },
             {
                 "ticker": "APLD",
@@ -10449,6 +10490,8 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
     assert "readiness-gated" in rendered
     assert "not execution guidance" in rendered
     assert "make focus-peers ticker=a" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "peer mappings and peer metrics" not in rendered
     assert "trade" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -10665,6 +10708,18 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
             "confidence": ["medium", "medium"],
             "main_reason": ["DCF-ready with missing optional context.", "ETF market proxy."],
             "next_best_action": ["Review valuation assumptions.", "Use as market proxy."],
+            "purpose_alignment": [
+                "Purpose alignment: Core Compounder is reviewable from ready local inputs.",
+                "Purpose alignment: ETF / Defensive / Hedge is evaluated as market/risk context.",
+            ],
+            "unsupported_analysis": [
+                "Unsupported analysis: peer-relative valuation remains withheld until peer rows are ready.",
+                "Unsupported analysis: operating-company DCF and peer valuation are excluded.",
+            ],
+            "invalidation_condition": [
+                "Invalidate if peer mapping remains unresolved for the intended relative-valuation read.",
+                "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.",
+            ],
         }
     )
     dcf = pd.DataFrame(
@@ -10694,6 +10749,9 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert company["decision_bucket"] == "Research Now"
     assert company["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
     assert company["primary_blocker"] == "peers"
+    assert "Operator summary:" in company["operator_summary"]
+    assert "Next blocker: peers" in company["operator_summary"]
+    assert "peer-relative valuation remains withheld" in company["operator_summary"]
     assert company["peer_count"] == 2
     assert company["peer_trend_comparison_ready"] is True
     assert company["ready_features"] == ""
@@ -10703,6 +10761,8 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert etf["peer_mapping_status"] == "monitor_context"
     assert "no peer import is required" in etf["next_peer_action"].lower()
     assert etf["next_action"] == "Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded."
+    assert "Operator summary: Monitor context" in etf["operator_summary"]
+    assert "operating-company DCF and peer valuation are excluded" in etf["operator_summary"]
     assert "excluded" in str(etf["dcf_reason"]).lower()
     assert "DCF is excluded" in etf["one_minute_summary"]
     assert "source-backed peers" not in etf["one_minute_summary"].lower()
@@ -10736,9 +10796,11 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
     }
 
     cards = dashboard.single_stock_status_cards(snapshot)
+    detail = dashboard.single_stock_detail_frame(snapshot)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "nvda: partial" in rendered
+    assert "Operator summary" in detail["Field"].tolist()
     assert "one-minute read" in rendered
     assert "decision: research candidate - dcf ready but peer blocked" in rendered
     assert "ready: price, momentum, dcf" in rendered
@@ -11311,14 +11373,15 @@ def test_preferred_bundle_command_falls_back_to_lane_runbooks_when_bundle_comman
 def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.DASHBOARD_TAB_TITLES[0] == "Overview"
     assert dashboard.DASHBOARD_TAB_TITLES[1] == "Monthly Picks"
-    assert dashboard.DASHBOARD_TAB_TITLES[7] == "Stock Report Beta"
+    assert dashboard.DASHBOARD_TAB_TITLES[7] == "Single-Stock Report"
     assert dashboard.DASHBOARD_TAB_TITLES[8] == "Data Health"
+    assert dashboard.USER_PAGE_TITLES[0] == "Home"
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
-    assert "Overview tab" in navigation
-    assert "Monthly Picks tab" in navigation
-    assert "Stock Report Beta tab" in navigation
-    assert "Data Health tab" in navigation
+    assert "Home page" in navigation
+    assert "Monthly Picks page" in navigation
+    assert "Single-Stock Report page" in navigation
+    assert "Data Health page" in navigation
 
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():
@@ -12591,16 +12654,24 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert brief.loc[brief["ticker"].eq("META"), "exact_command"].iloc[0] == "make stock-report TICKER=META"
     assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
     assert brief.loc[brief["ticker"].eq("META"), "purpose_status"].iloc[0] == "Purpose review needed"
+    assert "Operator summary: Purpose review needed" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
+    assert "Next blocker: peers" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
+    assert "Invalidation:" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
     assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
     assert brief.loc[brief["ticker"].eq("QQQ"), "purpose_family"].iloc[0] == "ETF / Hedge"
+    qqq_summary = brief.loc[brief["ticker"].eq("QQQ"), "evaluation_summary"].iloc[0].lower()
+    assert "monitor role: market, theme, liquidity, or risk proxy" in qqq_summary
+    assert "operating-company dcf and peer valuation are excluded" in qqq_summary
+    assert "next blocker: peers" not in qqq_summary
     assert "research brief" in rendered
+    assert "operator summary" in rendered
     assert "purpose alignment needs review" in rendered
     assert "supported analysis" in rendered
     assert "unsupported analysis" in rendered
     assert "peer-relative context is incomplete" in rendered
     assert "operating-company dcf is excluded" in rendered
     assert cards[0]["title"] == "2 active ticker(s)"
-    assert "purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
+    assert "operator summary plus purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
     assert "purpose check" in rendered_cards
     assert "purpose groups" in rendered_cards
     assert "next question" in rendered_cards
@@ -12685,6 +12756,7 @@ def test_active_research_brief_frame_builds_schema_light_fallbacks_without_overc
 
     rich_columns = [
         "purpose_thesis",
+        "evaluation_summary",
         "purpose_alignment",
         "setup_evaluation",
         "valuation_evaluation",
@@ -12701,9 +12773,16 @@ def test_active_research_brief_frame_builds_schema_light_fallbacks_without_overc
     assert "BROAD" not in set(brief["ticker"])
     assert not brief[rich_columns].apply(lambda column: column.astype(str).str.lower().eq("not available")).any().any()
     assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
+    assert "operator summary" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
+    assert "next blocker: peers" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
+    assert "invalidation:" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
     assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
     assert brief.loc[brief["ticker"].eq("META"), "data_confidence"].iloc[0] == "medium"
     assert brief.loc[brief["ticker"].eq("QQQ"), "unlock_command"].iloc[0] == "make stock-report TICKER=QQQ"
+    qqq_summary = brief.loc[brief["ticker"].eq("QQQ"), "evaluation_summary"].iloc[0].lower()
+    assert "monitor role: market, theme, liquidity, or risk proxy" in qqq_summary
+    assert "operating-company dcf and peer valuation are excluded" in qqq_summary
+    assert "next blocker: peers" not in qqq_summary
     assert (
         brief.loc[brief["ticker"].eq("QQQ"), "next_research_question"].iloc[0]
         == "What market, theme, liquidity, or risk signal should QQQ monitor, and what would invalidate that proxy role?"
@@ -12803,11 +12882,14 @@ def test_active_evaluation_lane_detail_groups_runbook_without_overclaiming():
     assert detail.iloc[0]["sample_tickers"] == "META, TSLA"
     assert detail.iloc[0]["primary_command"] == "make stock-report TICKER=META"
     assert detail.iloc[0]["data_unlock_command"] == "make focus-peers TICKER=META"
+    assert "core data is ready" in detail.iloc[0]["operator_summary"].lower()
+    assert "peer-relative valuation is withheld" in detail.iloc[0]["operator_summary"].lower()
     assert detail.iloc[2]["data_unlock_command"] == ""
     assert "make imports-validate" in rendered
     assert "peer-relative valuation is withheld" in rendered
     assert "operating-company dcf is excluded" in rendered
     assert "3 lane(s), 4 ticker(s)" in rendered_cards
+    assert "peer-relative valuation is withheld" in rendered_cards
     assert "no overclaiming" in rendered_cards
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13035,11 +13117,12 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
     assert "active queue lane runbooks" in rendered
     assert "unsupported conclusions withheld" in rendered
     assert "peer action alignment" in rendered
+    assert "purpose drilldown actionability" in rendered
     assert "exact copyable commands" in rendered
     assert "research-only language" in rendered
     assert "row-limited active workflow" in rendered
     assert "readiness explorer default limit" in rendered
-    assert cards[0]["title"] == "10 pass / 0 review"
+    assert cards[0]["title"] == "11 pass / 0 review"
     assert "exact copyable commands" in cards[0]["body"]
     assert "research-only language" in cards[0]["body"]
     assert "purpose drilldown" in cards[0]["body"]
@@ -13171,6 +13254,52 @@ def test_product_page_logic_audit_flags_placeholder_copyable_commands():
     assert placeholder_check["status"] == "review"
     assert "placeholder ticker commands" in str(placeholder_check["evidence"]).lower()
     assert "exact ticker commands" in str(placeholder_check["operator_action"]).lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_product_page_logic_audit_flags_peer_limited_drilldown_without_unlock_command():
+    summary = {"blocked_by_data": 1, "price_ready": 1}
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "COHR",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "primary_blocker": "peers",
+                "missing_data": "peers: source-backed mappings",
+                "excluded_features": "",
+            }
+        ]
+    )
+    purpose_drilldown = pd.DataFrame(
+        [
+            {
+                "ticker": "COHR",
+                "purpose_family": "Compounder",
+                "primary_blocker": "peers",
+                "exact_command": "make stock-report TICKER=COHR",
+                "unlock_command": "make stock-report TICKER=COHR",
+            }
+        ]
+    )
+
+    audit = dashboard.product_page_logic_audit_frame(
+        summary,
+        decisions,
+        pd.DataFrame([{"ticker": "COHR"}]),
+        pd.DataFrame(),
+        purpose_drilldown_frame=purpose_drilldown,
+    )
+    drilldown_check = audit.loc[audit["check"].eq("Purpose drilldown actionability")].iloc[0]
+    rendered = " ".join(str(value) for value in audit.to_numpy().ravel()).lower()
+
+    assert drilldown_check["status"] == "review"
+    assert "1 of 1 peer-limited company drilldown row" in str(drilldown_check["evidence"]).lower()
+    assert "focus-peers unlock commands" in str(drilldown_check["operator_action"]).lower()
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -13579,6 +13708,8 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     assert queue.iloc[0]["data_unlock_command"] == "make focus-peers TICKER=META"
     assert queue.iloc[0]["review_command"] == "make stock-report TICKER=META"
     assert queue.iloc[0]["validation_sequence"].startswith("make focus-peers TICKER=META")
+    assert "priority rationale" in queue.iloc[0]["reason"].lower()
+    assert "core company evidence is reviewable" in queue.iloc[0]["reason"].lower()
     assert queue.iloc[1]["evaluation_lane"] == "Review supported thesis; optional context locked"
     assert queue.iloc[1]["exact_command"] == "make stock-report TICKER=AMD"
     assert queue.iloc[1]["data_unlock_command"] == "make templates"
@@ -13586,6 +13717,9 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     assert queue.iloc[2]["exact_command"] == "make stock-report TICKER=QQQ"
     assert queue.iloc[2]["data_unlock_command"] == ""
     assert queue.iloc[2]["validation_sequence"].startswith("make stock-report TICKER=QQQ")
+    assert "monitor context" in queue.iloc[2]["reason"].lower()
+    assert "peer valuation stay excluded" in queue.iloc[2]["reason"].lower()
+    assert "primary blocker: peers" not in queue.iloc[2]["reason"].lower()
     assert queue.iloc[3]["evaluation_lane"] == "Unlock fundamentals / DCF"
     assert queue.iloc[3]["data_confidence"] == "low"
     assert queue.iloc[3]["exact_command"] == "make focus-fundamentals TICKER=APLD"
@@ -13597,6 +13731,8 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     assert "operating-company dcf is excluded" in rendered
     assert "readiness state partial" in rendered
     assert cards[0]["title"] == "4 active ticker(s) ranked"
+    assert "priority rationale" in cards[1]["body"].lower()
+    assert "peer-relative valuation is withheld" in cards[1]["body"].lower()
     assert "+1 more lane(s)" in cards[2]["title"]
     assert "not an action list" in rendered_cards
     assert "recommendation" not in rendered_cards

@@ -74,6 +74,7 @@ def test_makefile_contains_convenience_targets():
         "price-preview",
         "price-apply",
         "price-refresh",
+        "price-refresh-loop",
         "price-normalize",
     ):
         assert f"{target}:" in makefile
@@ -83,7 +84,7 @@ def test_makefile_help_documents_key_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
     for phrase in (
-        "Stock Research Screener convenience commands",
+        "Stock Research Command Center convenience commands",
         "make status [TOP_N=5]",
         "make status-check [TICKERS=NVDA,MSFT] [TOP_N=5]",
         "make verify",
@@ -129,6 +130,7 @@ def test_makefile_help_documents_key_workflows():
         "make price-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo]",
         "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
+        "make price-refresh-loop [BATCHES=5] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
         "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make optional-context-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make sec-stage-queue [TICKERS=NVDA,MSFT] [TOP_N=10]",
@@ -150,125 +152,63 @@ def test_price_refresh_defaults_to_capped_broad_universe_batch():
     assert "python3 -m src.data_update --universe-file data/universe.csv --missing-only --max-tickers $(or $(TOP_N),25)" in makefile
 
 
-def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
+def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
+
+    assert "price-refresh-loop:" in makefile
+    assert "BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30)" in makefile
+    assert 'BATCHES="${BATCHES:-5}"' in script
+    assert 'TOP_N="${TOP_N:-100}"' in script
+    assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
+    assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
+    assert "make price-coverage TOP_N=25" in script
+    assert "make readiness" in script
+    assert "make project-status" in script
+
+
+def test_readme_public_landing_page_is_short_visual_and_command_focused():
     readme = Path("README.md").read_text(encoding="utf-8")
 
-    assert "- Use `make pipeline` to generate the core local outputs." in readme
-    assert "- Use `make dashboard` to run the dashboard." in readme
-    assert "## Run the pipeline\n\nGenerate all active outputs:\n\n```bash\nmake pipeline" in readme
-    assert "Use `make status` first when you want the read-only local project snapshot plus a refresh of the supporting operator artifacts, or `make status-check` when you only want the current summary without that refresh step. Both status paths accept `TOP_N=...` if you want a shorter terminal snapshot." in readme
-    assert "Use the repo-native front door to generate a structured local stock report:\n\n```bash\nmake stock-report TICKER=NVDA" in readme
-    assert "If you want to write JSON to a file through the same front door:\n\n```bash\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
-    assert "To discover locally available tickers first:\n\n```bash\nmake local-tickers" in readme
+    assert len(readme.splitlines()) < 180
+    assert "![Dashboard preview](docs/assets/dashboard-preview.svg)" in readme
+    assert "## Quick Start" in readme
     for phrase in (
-        'export SEC_USER_AGENT="Your Name your.email@example.com"',
-        "make sec-stage TICKERS=NVDA,MSFT",
-        "make imports-validate",
-        "make imports-preview",
-        "make imports-apply",
-        "make data-sources-check",
-        "make coverage",
-        "make data-wizard",
-        "make unlock-ladder",
-        "make unlock-summary",
-        "make command-bundles",
-        "make command-bundle-details",
-        "make command-bundle-runbook",
-        "make templates",
-        "make onboarding",
-        "make universe-preview",
-        "make universe-apply",
-        "make price-refresh",
+        "make pipeline",
+        "make readiness",
+        "make stock-report TICKER=NVDA",
+        "make dashboard",
+        "make dashboard-smoke",
+        "make status-check TOP_N=5",
+        "make research-health-check TOP_N=10",
+        "make price-worklist TOP_N=10",
+        "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "make focus-fundamentals TICKER=NVDA",
+        "make peer-mapping-queue TOP_N=10",
+        "make optional-context-worklist TOP_N=10",
+        "not investment advice",
+        "Roadmap Snapshot",
     ):
         assert phrase in readme
 
-    assert "Run a local-only source check:\n\n```bash\nmake data-sources-check" in readme
-    assert "make data-sources" in readme
-    assert "If you want a shorter source and gap summary in the terminal, use `make data-sources-check TOP_N=10`." in readme
-    assert "If you want to inspect only a smaller local ticker slice of the gap list, use `make data-sources-check TICKERS=NVDA,MSFT`." in readme
-    assert "The raw read-only CLI path is `python3 -m src.data_sources --check`." in readme
-    assert "If you intentionally want lower-level CLI control against a fixture or alternate local dataset, the raw module commands remain available:\n\n```bash\npython3 -m src.stock_report --project-root \"/Users/yjian070/Documents/New project\" --validate-local-data" in readme
-    assert "```bash\nmake validate-data\nmake pipeline\nmake monthly" in readme
-    assert "## Run the dashboard\n\n```bash\nmake dashboard" in readme
-    assert "```bash\nmake coverage\nmake data-wizard\nmake command-bundles\nmake templates" in readme
-    assert "If you want a narrower targeted coverage pass without leaving the make-based operator path, use:\n\n```bash\nmake coverage TICKERS=NVDA,MSFT,AMD,AVGO\nmake data-wizard TICKERS=NVDA,MSFT,AMD,AVGO" in readme
-    assert "If you want either read-only onboarding view to stay shorter in the terminal, add `TOP_N=...`, for example:\n\n```bash\nmake coverage TOP_N=5\nmake data-wizard TICKERS=NVDA,MSFT,AMD,AVGO TOP_N=5" in readme
-    assert "Generate it with:\n\n```bash\nmake status\nmake data-wizard" in readme
-    assert "Most of the read-only onboarding views also accept `TOP_N=...` when you want a shorter terminal summary without changing the underlying CSV outputs or JSON payloads." in readme
-    assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
-    assert "To narrow that unlock ladder to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake unlock-ladder TICKERS=NVDA,MSFT" in readme
-    assert "To keep that one-row-per-ticker ladder shorter in the terminal, add `TOP_N=...`, for example `make unlock-ladder TOP_N=5`." in readme
-    assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
-    assert "To focus that grouped unlock summary on a smaller local ticker slice, use:\n\n```bash\nmake unlock-summary TICKERS=NVDA,MSFT" in readme
-    assert "You can also cap the grouped summary with `make unlock-summary TOP_N=5` when you only want the first few holdings/theme/sector rows." in readme
-    assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
-    assert "If you want to narrow those bundle views to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake command-bundles TICKERS=NVDA,MSFT\nmake command-bundle-details TICKERS=NVDA,MSFT\nmake command-bundle-runbook TICKERS=NVDA,MSFT" in readme
-    assert "Those bundle views also accept `TOP_N=...`, so you can use `make command-bundles TOP_N=3` or `make command-bundle-runbook TICKERS=NVDA,MSFT TOP_N=6` when you want a shorter read-only pass." in readme
-    assert "If you only want one lane at a time, use:\n\n```bash\nmake bundle-prices\nmake bundle-fundamentals\nmake bundle-peers" in readme
-    assert "To narrow one of those lane-specific views to a smaller local ticker slice, use:\n\n```bash\nmake bundle-fundamentals TICKERS=NVDA,MSFT\nmake detail-peers TICKERS=NVDA,MSFT\nmake runbook-prices TICKERS=NVDA,MSFT" in readme
-    assert "make runbook-prices\nmake runbook-fundamentals\nmake runbook-peers" in readme
-    assert "If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:\n\n```bash\nmake bundle-prices-broader\nmake detail-prices-broader\nmake runbook-prices-broader" in readme
-    assert "The same `-broader` pattern is available for `fundamentals` and `peers`, and those broader queue lane views also accept `TICKERS=...`" in readme
-    assert "To validate your local CSV datasets and see schema/freshness warnings:\n\n```bash\nmake validate-data" in readme
-    assert "If you explicitly want machine-readable validation output:\n\n```bash\npython -m src.stock_report --validate-local-data --json" in readme
-    assert "If you intentionally want lower-level CLI control for provider selection or direct JSON output, the raw module commands remain available:\n\n```bash\npython -m src.stock_report --ticker AAPL --provider mock" in readme
-    assert "To scaffold header-only local enrichment templates without fabricating any production data:\n\n```bash\nmake templates" in readme
-    assert "To scaffold header-only staging files directly under `data/imports/`:\n\n```bash\nmake import-staging" in readme
-    assert "make imports-validate" in readme
-    assert "make imports-preview" in readme
-    assert "make imports-apply" in readme
-    assert "make onboarding" in readme
-    assert "Validate staged files without mutating canonical data:\n\n```bash\nmake imports-validate" in readme
-    assert "Preview what would change:\n\n```bash\nmake imports-preview" in readme
-    assert "Apply the merge safely:\n\n```bash\nmake imports-apply" in readme
-    assert "If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:\n\n```bash\nmake price-refresh" in readme
-    assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
-    assert "If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake price-worklist TICKERS=NVDA,MSFT" in readme
-    assert "Use `make price-status` for the current read-only diagnostics view, `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows, or `make price-status TICKERS=AMD,AVGO` when you want to inspect only a smaller local ticker slice." in readme
-    assert "The raw read-only CLI path is `python3 -m src.data_update --price-status`." in readme
-    assert "To keep that price gap list shorter in the terminal, add `TOP_N=...`, for example `make price-worklist TOP_N=5`." in readme
-    assert "If you want to narrow those blocker queues to a specific local ticker slice, use:\n\n```bash\nmake fundamentals-peer-worklist TICKERS=NVDA,MSFT\nmake sec-stage-queue TICKERS=NVDA,MSFT\nmake peer-mapping-queue TICKERS=NVDA,MSFT" in readme
-    assert "Those read-only blocker views also accept `TOP_N=...`, for example `make fundamentals-peer-worklist TOP_N=5` or `make sec-stage-queue TICKERS=NVDA,MSFT TOP_N=5`." in readme
-    assert "To focus that optional-context pass on a smaller local ticker slice, use:\n\n```bash\nmake optional-context-worklist TICKERS=NVDA,MSFT" in readme
-    assert "You can also keep that optional-context summary shorter with `make optional-context-worklist TOP_N=5`." in readme
-    assert "Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:\n\n```bash\nmake price-normalize INPUT=data/raw/prices/prices.csv SOURCE=generic_manual" in readme
-    assert "If you explicitly need lower-level CLI control for unusual exports, map columns directly:" in readme
-    assert "If you want a larger CLI-only smoke run:\n\n```bash\nmake universe-preview\nmake universe-apply" in readme
-    assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" not in readme
-    assert "If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data" in readme
-    assert "make imports-apply\nmake validate-data\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
-    assert "### SEC staging example\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
-    assert "If the current blocker path is already satisfied and you want the monthly layer directly, use:\n\n```bash\nmake monthly" in readme
-    assert "The local track-record module uses only local historical prices:\n\n```bash\nmake track-record" in readme
-    assert "If you want the current project-status summary without first refreshing those supporting artifacts, use:\n\n```bash\nmake status-check" in readme
-    assert "To keep either status view shorter in the terminal, add `TOP_N=...`, for example:\n\n```bash\nmake status-check TOP_N=2" in readme
-    assert "If you want to inspect only a smaller local ticker slice in the read-only status view, use `make status-check TICKERS=NVDA,MSFT`." in readme
-    assert "The raw read-only CLI path is `python3 -m src.project_status --check`." in readme
-    assert "Generate them through the normal workflow or directly:\n\n```bash\nmake status\nmake verify\nmake research-health-check\nmake research-health" in readme
-    assert "The raw read-only CLI path is `python3 -m src.research_health --check`." in readme
-    assert "If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`." in readme
-    assert "If you want to inspect only a smaller local ticker slice of the read-only diagnostics, use `make research-health-check TICKERS=NVDA,MSFT`." in readme
-    assert "Generate it with:\n\n```bash\nmake status\nmake action-queue-check\nmake action-queue" in readme
-    assert "If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`." in readme
-    assert "If you want to inspect only a smaller local ticker slice, use `make action-queue-check TICKERS=NVDA,MSFT`." in readme
-    assert "The raw read-only CLI path is `python3 -m src.action_queue --check`." in readme
-
-
-def test_readme_distinguishes_verify_from_broader_daily_workflow():
+def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     readme = Path("README.md").read_text(encoding="utf-8")
 
-    assert "run deterministic local verification for core outputs, local-data validation, and read-only status artifacts" in readme
-    assert "If you also want monthly picks, track record output, and the broader end-to-end refresh path, use `make daily` or `make validate-all`" in readme
-    assert "run deterministic local verification for core outputs, diagnostics, monthly layers, and read-only status artifacts" not in readme
-
-
-def test_readme_safe_data_change_ladders_use_explicit_repo_native_commands():
-    readme = Path("README.md").read_text(encoding="utf-8")
-
-    assert "- prices: `data/raw/prices/` -> `make price-normalize` -> `make price-validate` -> `make price-preview` -> `make price-apply`" in readme
-    assert "- fundamentals: `export SEC_USER_AGENT=...` -> `make sec-stage ...` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`" in readme
-    assert "- peers/earnings/estimates: fill trusted local CSVs under `data/imports/`, then `make imports-validate` -> `make imports-preview` -> `make imports-apply`" in readme
-    assert "- fundamentals: SEC staging -> validate -> preview -> apply" not in readme
+    assert "Research-Only Guardrails" in readme
+    assert "not a trading system" in readme
+    for phrase in (
+        "place orders",
+        "connect to brokers",
+        "auto-trade",
+        "recommend option trades",
+        "provide direct buy/sell instructions",
+        "fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations",
+        "make templates",
+        "make imports-validate",
+        "make imports-preview",
+        "make imports-apply",
+    ):
+        assert phrase in readme
 
 
 def test_shell_launchers_anchor_to_repo_root():

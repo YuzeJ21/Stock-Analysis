@@ -27,7 +27,7 @@ Avoid public wording like:
 - "All code is 100% original" if the repo includes third-party dependencies, copied snippets, or adapted code.
 - "Inspired by X" unless you intentionally want that connection visible.
 
-If internal reference notes are not part of the public product, consider moving them out of the public branch before sharing. In this repo, that means reviewing whether `.agents/`, `AGENTS.md`, and internal skill/reference docs should be public-facing or kept as private development workflow material.
+Internal agent/reference notes are not part of the public product surface. Keep `.agents/`, `AGENTS.md`, and internal Codex skill/reference docs out of the public branch unless you intentionally want to publish build-process notes.
 
 ## License And Legal Basics
 

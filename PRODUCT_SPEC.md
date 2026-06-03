@@ -33,7 +33,7 @@ The product order is:
 
 1. Data readiness first.
 2. Analysis second.
-3. Recommendation last.
+3. Research decision last.
 
 Operationally:
 

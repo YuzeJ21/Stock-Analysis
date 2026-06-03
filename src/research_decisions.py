@@ -34,6 +34,14 @@ DECISION_COLUMNS = [
     "data_readiness_score",
     "readiness_score",
     "data_confidence",
+    "evaluation_status",
+    "purpose_fit",
+    "setup_quality",
+    "valuation_view",
+    "risk_view",
+    "missing_data_summary",
+    "next_research_step",
+    "source_freshness_summary",
     "analysis_score",
     "decision_score",
     "purpose_thesis",
@@ -165,6 +173,16 @@ def _feature_summary(ready: list[str], partial: list[str], blocked: list[str], e
         f"excluded: {', '.join(excluded) or '-'}",
     ]
     return "; ".join(parts)
+
+
+def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -> str:
+    text = _text_value(next_action, "")
+    if primary_blocker == "peers":
+        return (
+            f"Add at least 2 source-backed peer mappings for {ticker} in data/imports/peers.csv; "
+            "then run make imports-validate, make imports-preview, and make imports-apply."
+        )
+    return text
 
 
 def _text_value(value: Any, fallback: str = "Not available") -> str:
@@ -535,6 +553,70 @@ def _confidence_explanation(bucket: str, data_label: str, primary_blocker: str, 
     return f"Confidence is {data_label}: current readiness does not support a stronger classification."
 
 
+def _evaluation_status(bucket: str, subtype: str, primary_blocker: str, asset_type: str) -> str:
+    if bucket == "Research Now":
+        return "Ready for a supported research brief; manual thesis review still required."
+    if bucket == "Monitor":
+        if asset_type in {"etf", "index_proxy", "fund"}:
+            return "Ready for market, theme, liquidity, or risk monitoring; operating-company valuation is excluded."
+        return "Price-supported monitoring is available; deeper research waits for the missing inputs."
+    if bucket == "Blocked by Data":
+        return f"Not ready for evaluation; unlock {primary_blocker} before drawing a thesis-level conclusion."
+    if bucket == "Excluded":
+        return f"Analysis is intentionally excluded for this ticker or asset type: {subtype}."
+    return "Review later; current local data does not support a stronger evaluation state."
+
+
+def _purpose_fit_view(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
+    alignment = _purpose_alignment(asset_type, watch_row, ready, blocked)
+    if "needs review" in alignment.lower():
+        return f"Purpose fit needs review: {alignment}"
+    if "blocked" in alignment.lower() or "cannot be checked" in alignment.lower() or "not testable" in alignment.lower():
+        return f"Purpose fit locked by data: {alignment}"
+    return f"Purpose fit: {alignment}"
+
+
+def _setup_quality_view(watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
+    setup = _setup_evaluation(watch_row, ready, blocked)
+    if "cannot be evaluated" in setup.lower() or "unavailable" in setup.lower():
+        return f"Setup quality unavailable: {setup}"
+    if "extended" in setup.lower() or "broken" in setup.lower() or "review thesis" in setup.lower():
+        return f"Setup quality needs review: {setup}"
+    return f"Setup quality: {setup}"
+
+
+def _valuation_view(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str], excluded: list[str]) -> str:
+    text = _valuation_evaluation(asset_type, watch_row, ready, blocked, excluded)
+    if asset_type in {"etf", "index_proxy", "fund"} or "dcf" in excluded:
+        return f"Valuation view: DCF excluded, not failed. {text}"
+    if "blocked" in text.lower() or "not supported" in text.lower():
+        return f"Valuation view: blocked until trusted inputs are ready. {text}"
+    if "constrained" in text.lower():
+        return f"Valuation view: partial. {text}"
+    return f"Valuation view: {text}"
+
+
+def _risk_view(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:
+    return _risk_watchpoint(asset_type, watch_row, ready, blocked)
+
+
+def _missing_data_summary(blocked: list[str], excluded: list[str], missing_data: Any) -> str:
+    missing = _text_value(missing_data, "")
+    if blocked:
+        detail = f"Blocked inputs: {', '.join(blocked)}."
+        if missing:
+            detail += f" Detail: {missing}."
+        return detail
+    if excluded:
+        return f"Excluded analyses: {', '.join(excluded)}. These are omitted intentionally, not inferred."
+    return "No major missing required inputs are listed by the current readiness report."
+
+
+def _source_freshness_summary(row: pd.Series) -> str:
+    updated = _text_value(row.get("updated_at"), "not available")
+    return f"Based on current local CSV readiness outputs; readiness row updated {updated}. Verify source/freshness before relying on stale imported data."
+
+
 def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.DataFrame | None = None) -> pd.DataFrame:
     final_watchlist = final_watchlist if final_watchlist is not None else pd.DataFrame()
     if not final_watchlist.empty:
@@ -610,8 +692,14 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
             confidence = min(0.55, 0.3 + 0.2 * data_score)
         decision_score = round(float(confidence) * 100, 1)
         subtype = _decision_subtype(bucket, asset_type, ready, partial, blocked, excluded, primary_blocker)
-        next_action = row.get("next_action", "")
+        raw_next_action = row.get("next_action", "")
+        next_action = _decision_next_action(ticker, primary_blocker, raw_next_action)
         data_confidence = _data_confidence_label(data_score)
+        purpose_fit = _purpose_fit_view(asset_type, watch_row, ready, blocked)
+        setup_quality = _setup_quality_view(watch_row, ready, blocked)
+        valuation_view = _valuation_view(asset_type, watch_row, ready, blocked, excluded)
+        risk_view = _risk_view(asset_type, watch_row, ready, blocked)
+        next_research_step = _next_research_question(watch_row, bucket, asset_type, primary_blocker, ready, partial, blocked)
         rows.append(
             {
                 "ticker": ticker,
@@ -635,6 +723,14 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
                 "data_readiness_score": data_score,
                 "readiness_score": data_score,
                 "data_confidence": data_confidence,
+                "evaluation_status": _evaluation_status(bucket, subtype, primary_blocker, asset_type),
+                "purpose_fit": purpose_fit,
+                "setup_quality": setup_quality,
+                "valuation_view": valuation_view,
+                "risk_view": risk_view,
+                "missing_data_summary": _missing_data_summary(blocked, excluded, row.get("missing_data", "")),
+                "next_research_step": next_research_step,
+                "source_freshness_summary": _source_freshness_summary(row),
                 "analysis_score": round(float(analysis_score_normalized), 3),
                 "decision_score": decision_score,
                 "purpose_thesis": _purpose_thesis(asset_type, watch_row, ready, blocked),
@@ -652,7 +748,7 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
                 "unsupported_analysis": _unsupported_analysis(asset_type, watch_row, blocked, excluded),
                 "risk_watchpoint": _risk_watchpoint(asset_type, watch_row, ready, blocked),
                 "invalidation_condition": _invalidation_condition(asset_type, watch_row, ready, blocked),
-                "next_research_question": _next_research_question(watch_row, bucket, asset_type, primary_blocker, ready, partial, blocked),
+                "next_research_question": next_research_step,
                 "review_priority_reason": _review_priority_reason(bucket, subtype, primary_blocker, asset_type, watch_row, ready, partial, blocked),
                 "confidence_explanation": _confidence_explanation(bucket, data_confidence, primary_blocker, ready, blocked, excluded),
                 "feature_summary": _feature_summary(ready, partial, blocked, excluded),

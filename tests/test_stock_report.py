@@ -272,20 +272,41 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     )
 
     assert output_path.exists()
-    assert "# QQQ Research Readiness Report" in markdown
+    assert "# QQQ Single-Stock Research Report" in markdown
+    for heading in (
+        "## Executive Summary",
+        "## What This Stock Is",
+        "## Data Readiness",
+        "## Supported Analysis",
+        "## Setup / Momentum",
+        "## Valuation Readiness",
+        "## Peer Workflow",
+        "## Risk Notes",
+        "## Source / Freshness",
+        "## Next Research Step",
+    ):
+        assert heading in markdown
     assert "## One-Minute Status" in markdown
     assert "Decision: Monitor - ETF Market Proxy" in markdown
     assert "Monitor - ETF Market Proxy" in markdown
     assert "Research-only local report" in markdown
+    assert "allocation instructions" in markdown
+    assert "trade instruction" not in markdown.lower()
+    assert "transaction execution" not in markdown.lower()
+    assert "execute transactions" not in markdown.lower()
     assert "DCF: excluded" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
     assert "## Purpose Evaluation" in markdown
     assert "Research-only purpose brief" in markdown
     assert "Thesis" in markdown
     assert "Alignment" in markdown
-    assert "### Supported Now" in markdown
-    assert "### Locked / Unsupported" in markdown
-    assert "### Risk, Invalidation, and Next Question" in markdown
+    assert "Operator summary: Monitor context" in markdown
+    assert "operating-company DCF and peer valuation are excluded" in markdown
+    assert "ETF / Defensive / Hedge" in markdown
+    assert "market/risk context" in markdown
+    assert "## Supported Analysis" in markdown
+    assert "## Blocked Analysis" in markdown
+    assert "## Risk Notes" in markdown
     assert "market, theme, liquidity, or risk context" in markdown
     assert "Operating-company DCF is excluded" in markdown
     assert "Supported analysis" in markdown
@@ -299,10 +320,87 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "STOOQ_API_KEY" in markdown
     assert "DCF excluded for etf" in markdown
     assert "Peer Workflow" in markdown
-    assert "missing_peer_mapping" in markdown
-    assert "Add source-backed peer mappings for QQQ" in markdown
+    assert "Primary blocker: monitor_context" in markdown
+    assert "Peer blocker type: monitor_context" in markdown
+    assert "No peer import is required" in markdown
+    assert "Add source-backed peer mappings for QQQ" not in markdown
     assert "buy" not in markdown.lower()
     assert "sell" not in markdown.lower()
+
+
+def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_peers(tmp_path: Path):
+    source = make_source_metadata(
+        provider="mock",
+        freshness="daily snapshot",
+        official=False,
+        notes=["Research-grade fixture data."],
+        retrieved_at=datetime.now(timezone.utc).isoformat(),
+    )
+    provider = MockMarketDataProvider(
+        quotes={
+            "COHR": QuoteSnapshot(
+                ticker="COHR",
+                price=80.0,
+                previous_close=79.0,
+                open=79.5,
+                day_high=81.0,
+                day_low=78.0,
+                volume=1_000_000,
+                currency="USD",
+                market_time="2026-05-27T16:00:00Z",
+                source=source,
+            )
+        },
+        histories={("COHR", "1y", "1d"): pd.DataFrame([{"date": pd.Timestamp("2026-01-01"), "close": 80.0}] * 30)},
+        financials={"COHR": FinancialSnapshot(ticker="COHR", source=source)},
+        earnings={"COHR": EarningsSummary(ticker="COHR", source=source)},
+        estimates={"COHR": AnalystEstimateSummary(ticker="COHR", source=source)},
+    )
+    report = build_stock_report("COHR", provider)
+    peer_action = "Add at least 2 source-backed peer mappings for COHR in data/imports/peers.csv."
+    optional_action = "Optional context missing for COHR; leave unavailable unless trusted local CSVs exist."
+    markdown = export_stock_report_markdown(
+        report,
+        tmp_path / "cohr.md",
+        local_context={
+            "readiness": {
+                "overall_readiness_state": "partial",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+            },
+            "decision": {
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "main_reason": "Core data is ready for a supported research pass.",
+                "next_best_action": optional_action,
+            },
+            "peer": {
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "insufficient_mapping",
+                "peer_count": 1,
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "next_peer_action": peer_action,
+            },
+        },
+    )
+
+    assert f"Next: {peer_action}" in markdown
+    assert f"- Next action: {peer_action}" in markdown
+    assert "Operator summary:" in markdown
+    assert "Next blocker: peers" in markdown
+    assert "Withheld:" in markdown
+    assert "Purpose status unavailable" not in markdown
+    assert "Which source-backed peers should be added for COHR" in markdown
+    assert optional_action not in markdown
+    assert "copyable command only" in markdown
+    assert "trade instruction" not in markdown.lower()
+    assert "transaction execution" not in markdown.lower()
 
 
 def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_advice():
@@ -347,6 +445,16 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     )
 
     assert "readiness-only report" in markdown
+    assert "# APLD Single-Stock Research Report" in markdown
+    assert "## Executive Summary" in markdown
+    assert "## What This Stock Is" in markdown
+    assert "## Data Readiness" in markdown
+    assert "## Valuation Readiness" in markdown
+    assert "## Risk Notes" in markdown
+    assert "## Next Research Step" in markdown
+    assert "allocation instructions" in markdown
+    assert "trade instruction" not in markdown.lower()
+    assert "transaction execution" not in markdown.lower()
     assert "## One-Minute Status" in markdown
     assert "Decision: Blocked by Data - Missing Price" in markdown
     assert "Primary blocker: price" in markdown
@@ -354,10 +462,13 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "DCF: blocked" in markdown
     assert "## Purpose Evaluation" in markdown
     assert "Research-only purpose brief" in markdown
+    assert "Operator summary:" in markdown
+    assert "Next blocker: price" in markdown
+    assert "Can trusted local price rows be staged for APLD" in markdown
     assert "Purpose alignment for Speculative Optionality cannot be checked" in markdown
     assert "Setup cannot be evaluated because usable price history is missing" in markdown
-    assert "### Supported Now" in markdown
-    assert "### Locked / Unsupported" in markdown
+    assert "## Supported Analysis" in markdown
+    assert "## Blocked Analysis" in markdown
     assert "Supported analysis: none yet" in markdown
     assert "Unsupported analysis: trend, setup, liquidity" in markdown
     assert "analytical blindness" in markdown
@@ -367,7 +478,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "data/staged/prices/" in markdown
     assert "data/rejected/price_import_rejected.csv" in markdown
     assert "Peer Workflow" in markdown
-    assert "missing_peer_mapping" in markdown
+    assert "blocked_until_fundamentals_dcf" in markdown
+    assert "Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown
+    assert "Add source-backed peer mappings after price data exists" not in markdown
     assert "No local price rows were found for APLD" in markdown
     assert "buy" not in markdown.lower()
     assert "sell" not in markdown.lower()

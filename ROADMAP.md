@@ -4,7 +4,7 @@ This roadmap reflects the current direction of the local Python/Streamlit stock 
 
 1. Data readiness first.
 2. Analysis second.
-3. Recommendation last.
+3. Research decision last.
 
 The next phase is not to add more indicators or AI-generated summaries. The next phase is to make the product page operational for a broad market universe while continuing to unlock decision-useful research through trusted fundamentals, peer metrics, earnings, and analyst estimates.
 

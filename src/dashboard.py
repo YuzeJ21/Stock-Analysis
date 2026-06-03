@@ -53,10 +53,11 @@ DASHBOARD_TAB_TITLES = [
     "Portfolio Review",
     "Value / Re-rating",
     "Final Watchlist",
-    "Stock Report Beta",
+    "Single-Stock Report",
     "Data Health",
     "Universe Manager",
 ]
+USER_PAGE_TITLES = ["Home"] + DASHBOARD_TAB_TITLES
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
@@ -2396,7 +2397,7 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
         f"""
         <div class="app-hero">
           <div class="hero-kicker">CSV-first research cockpit</div>
-          <div class="hero-title">Stock Research Screener</div>
+          <div class="hero-title">Stock Research Command Center</div>
           <div class="hero-subtitle">
             A local, explainable workflow for market direction, momentum leadership, portfolio review,
             valuation context, monthly research candidates, and data readiness. Research workflow only.
@@ -3528,7 +3529,7 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
             "kicker": "FLOW / VOLATILITY",
             "title": f"Volume {report_display_value(volume_ratio, 'number')}x",
             "body": f"ATR / volatility proxy {report_display_value(volatility_proxy, 'percent')}. Missing values stay visible instead of guessed.",
-            "badges": ["local screener"],
+            "badges": ["local pipeline"],
         },
     ]
 
@@ -5934,13 +5935,14 @@ def peer_mapping_studio_table_columns(frame: pd.DataFrame) -> list[str]:
 def decision_next_action_summary(row: pd.Series) -> str:
     ticker = format_missing(row.get("ticker"), "Ticker")
     blocker = format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
+    asset_type = format_missing(row.get("asset_type"), row.get("asset_type_readiness", "")).lower()
+    if asset_type in {"etf", "index_proxy", "fund"}:
+        return f"Review {ticker} as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded."
     dcf_ready = str(row.get("dcf_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
     peer_ready = str(row.get("peer_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
-    if blocker == "peers" and dcf_ready and not peer_ready:
-        return (
-            f"Add source-backed peer mappings for {ticker} in data/imports/peers.csv; "
-            "run make imports-validate -> make imports-preview -> make imports-apply before using peer valuation context."
-        )
+    stale_peer_action = "peer mappings and peer metrics" in format_missing(row.get("next_best_action"), "").lower()
+    if blocker in {"peer", "peers"} and (dcf_ready or not peer_ready or stale_peer_action):
+        return peer_mapping_unlock_action(ticker)
     if blocker == "fundamentals":
         return f"Import trusted fundamentals for {ticker}; use SEC staging when configured or data/imports/fundamentals.csv, then validate and preview."
     if blocker == "price":
@@ -6280,12 +6282,45 @@ def _active_brief_confidence_explanation(row: pd.Series) -> str:
     return f"Confidence is {confidence} because only ready local inputs are used.{score_text}{blocker_text}"
 
 
+def _active_brief_evaluation_summary(row: pd.Series) -> str:
+    status = first_meaningful_text(row.get("purpose_status"), row.get("purpose_alignment"), fallback="Purpose status unavailable")
+    subtype = first_meaningful_text(row.get("decision_subtype"), row.get("decision_bucket"), fallback="Decision not classified")
+    asset_type = format_missing(row.get("asset_type"), "").lower()
+    family = format_missing(row.get("purpose_family"), "").lower()
+    bucket = format_missing(row.get("decision_bucket"), "").lower()
+    if "monitor" in bucket or any(token in asset_type for token in ["etf", "fund", "index"]) or any(
+        token in family for token in ["etf", "hedge", "fund", "index"]
+    ):
+        return (
+            f"Operator summary: {status}; {subtype}. "
+            "Monitor role: market, theme, liquidity, or risk proxy. "
+            "Withheld: operating-company DCF and peer valuation are excluded. "
+            "Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring."
+        )
+    blocker = first_meaningful_text(row.get("primary_blocker"), row.get("missing_data"), fallback="none")
+    unsupported = compact_reason(
+        first_meaningful_text(row.get("unsupported_analysis"), row.get("valuation_evaluation"), fallback="Unsupported analysis remains withheld when inputs are missing."),
+        max_sentences=1,
+        max_chars=150,
+    )
+    invalidation = compact_reason(
+        first_meaningful_text(row.get("invalidation_condition"), fallback="Invalidation depends on current readiness staying valid."),
+        max_sentences=1,
+        max_chars=150,
+    )
+    return (
+        f"Operator summary: {status}; {subtype}. "
+        f"Next blocker: {blocker}. {unsupported} Invalidation: {invalidation}"
+    )
+
+
 ACTIVE_RESEARCH_BRIEF_COLUMNS = [
     "ticker",
     "decision_bucket",
     "decision_subtype",
     "purpose_family",
     "purpose_status",
+    "evaluation_summary",
     "purpose_thesis",
     "purpose_alignment",
     "setup_evaluation",
@@ -6429,6 +6464,7 @@ def active_research_brief_frame(
             lambda row, column=column, builder=builder: _active_brief_existing_or(row, column, builder(row)),
             axis=1,
         )
+    frame["evaluation_summary"] = frame.apply(_active_brief_evaluation_summary, axis=1)
     return frame[ACTIVE_RESEARCH_BRIEF_COLUMNS].head(limit).reset_index(drop=True)
 
 
@@ -6497,7 +6533,7 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
         {
             "kicker": "ACTIVE BRIEFS",
             "title": f"{len(frame)} active ticker(s)",
-            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs explain purpose, setup, valuation, supported and unsupported analysis, risk, and next research question.",
+            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs include an operator summary plus purpose, setup, valuation, supported and unsupported analysis, risk, invalidation, and next question.",
             "badges": ["analysis layer", "row-limited"],
             "command": top_command,
         },
@@ -6673,6 +6709,41 @@ def active_evaluation_withheld_conclusion(row: pd.Series) -> str:
     return "Unsupported conclusions remain withheld when the stock report lists missing or excluded inputs."
 
 
+def active_evaluation_reason(row: pd.Series) -> str:
+    lane = active_evaluation_lane(row).lower()
+    bucket = format_missing(row.get("decision_bucket"), "decision")
+    subtype = format_missing(row.get("decision_subtype"), "subtype")
+    blocker = format_missing(row.get("primary_blocker"), "none")
+    family = format_missing(row.get("purpose_family"), "purpose")
+    if "standalone thesis" in lane:
+        return f"Priority rationale: {bucket} / {subtype}; core company evidence is reviewable, but peer-relative valuation is withheld until source-backed peer rows are added."
+    if "optional context" in lane:
+        return f"Priority rationale: {bucket} / {subtype}; core analysis can be reviewed now while earnings and analyst-estimate context remains locked."
+    if "monitor etf" in lane:
+        return f"Priority rationale: {family} monitor context; review market, theme, liquidity, and risk signals while operating-company DCF and peer valuation stay excluded."
+    if "fundamentals" in lane or "dcf" in lane:
+        return f"Priority rationale: {bucket} / {subtype}; {blocker} is the first trusted-data unlock before valuation interpretation."
+    if "price" in lane:
+        return f"Priority rationale: {bucket} / {subtype}; price coverage must be repaired before setup, momentum, liquidity, or risk interpretation."
+    if "peer" in lane:
+        return f"Priority rationale: {bucket} / {subtype}; source-backed peer mappings are needed before peer-relative analysis is shown."
+    return f"Priority rationale: {bucket} / {subtype}; review current local readiness before drawing conclusions."
+
+
+def active_evaluation_operator_summary(row: pd.Series) -> str:
+    reason = first_meaningful_text(row.get("reason"), fallback=active_evaluation_reason(row))
+    next_step = first_meaningful_text(row.get("next_operator_step"), fallback="")
+    withheld = first_meaningful_text(row.get("withheld_conclusion"), fallback="")
+    parts = [reason, next_step]
+    if withheld and "withheld" not in reason.lower() and "excluded" not in reason.lower():
+        parts.append(withheld)
+    return compact_reason(
+        " ".join(part for part in parts if part),
+        max_sentences=3,
+        max_chars=360,
+    )
+
+
 def build_active_evaluation_queue_frame(
     active_brief_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
@@ -6730,19 +6801,7 @@ def build_active_evaluation_queue_frame(
         axis=1,
     )
     frame["copy_only_note"] = "Copy-only command; the dashboard does not execute refreshes, imports, or external account actions."
-    frame["reason"] = frame.apply(
-        lambda row: compact_reason(
-            first_meaningful_text(
-                row.get("review_priority_reason"),
-                row.get("next_research_question"),
-                row.get("purpose_status"),
-                fallback=f"{format_missing(row.get('ticker'), 'Ticker')} is queued by current local readiness and decision outputs.",
-            ),
-            max_sentences=1,
-            max_chars=180,
-        ),
-        axis=1,
-    )
+    frame["reason"] = frame.apply(active_evaluation_reason, axis=1)
     frame = frame.sort_values(["priority", "ticker"], kind="stable")
     return frame[ACTIVE_EVALUATION_QUEUE_COLUMNS].head(limit).reset_index(drop=True)
 
@@ -6778,7 +6837,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
         {
             "kicker": "NEXT EVALUATION",
             "title": f"{top_ticker}: {format_missing(top_row.get('evaluation_lane'), 'Review')}",
-            "body": compact_reason(top_row.get("next_operator_step"), max_sentences=1, max_chars=190),
+            "body": active_evaluation_operator_summary(top_row),
             "badges": [format_missing(top_row.get("decision_bucket"), "decision"), format_missing(top_row.get("data_confidence"), "confidence")],
             "command": format_missing(top_row.get("exact_command"), "make project-status"),
         },
@@ -6833,13 +6892,9 @@ def build_active_evaluation_lane_detail_frame(queue_frame: pd.DataFrame | None, 
                     "Unsupported conclusions remain withheld until the relevant readiness inputs are available.",
                 ),
                 "operator_summary": compact_reason(
-                    first_meaningful_text(
-                        first.get("next_operator_step"),
-                        first.get("reason"),
-                        fallback="Review current local readiness before drawing conclusions.",
-                    ),
-                    max_sentences=1,
-                    max_chars=220,
+                    active_evaluation_operator_summary(first),
+                    max_sentences=3,
+                    max_chars=360,
                 ),
                 "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes, imports, or external account actions.",
             }
@@ -7078,6 +7133,35 @@ def product_page_logic_audit_frame(
             "evidence": f"{placeholder_command_rows} row(s) still expose placeholder ticker commands; sources: {placeholder_source_text}.",
             "operator_action": "Replace row-level copyable command placeholders with exact ticker commands; keep schema-only examples clearly separate.",
             "source": "dashboard active queue and peer workflow",
+        }
+    )
+
+    if not purpose_drilldown.empty:
+        for column in ["purpose_family", "primary_blocker", "exact_command", "unlock_command"]:
+            if column not in purpose_drilldown.columns:
+                purpose_drilldown[column] = ""
+        purpose_family = purpose_drilldown["purpose_family"].fillna("").astype(str)
+        primary_blocker = purpose_drilldown["primary_blocker"].fillna("").astype(str).str.lower().str.strip()
+        review_command = purpose_drilldown["exact_command"].fillna("").astype(str)
+        unlock_command = purpose_drilldown["unlock_command"].fillna("").astype(str)
+        company_peer_limited = (
+            primary_blocker.isin({"peer", "peers"})
+            & ~purpose_family.str.contains("etf|hedge|fund|index", case=False, na=False)
+        )
+        review_visible = review_command.str.contains(r"make stock-report TICKER=[A-Z0-9.:-]+", case=False, regex=True, na=False)
+        peer_unlock_visible = unlock_command.str.contains(r"make focus-peers TICKER=[A-Z0-9.:-]+", case=False, regex=True, na=False)
+        purpose_drilldown_mismatches = int((company_peer_limited & ~(review_visible & peer_unlock_visible)).sum())
+        purpose_peer_rows = int(company_peer_limited.sum())
+    else:
+        purpose_drilldown_mismatches = 0
+        purpose_peer_rows = 0
+    rows.append(
+        {
+            "check": "Purpose drilldown actionability",
+            "status": "pass" if purpose_drilldown_mismatches == 0 else "review",
+            "evidence": f"{purpose_drilldown_mismatches} of {purpose_peer_rows} peer-limited company drilldown row(s) lack exact review and peer-unlock commands.",
+            "operator_action": "Purpose drilldown peer-limited company rows should show both stock-report review and focus-peers unlock commands.",
+            "source": "dashboard purpose evaluation drilldown",
         }
     )
 
@@ -7368,6 +7452,47 @@ def _readiness_search_mask(frame: pd.DataFrame, search_value: str) -> pd.Series:
     return search_frame.apply(lambda row: row.str.contains(search_value, case=False, na=False).any(), axis=1)
 
 
+def peer_mapping_unlock_action(ticker: object) -> str:
+    symbol = format_missing(ticker, "TICKER").upper()
+    return (
+        f"Add at least 2 source-backed peer mappings for {symbol} in data/imports/peers.csv; "
+        "then run make imports-validate, make imports-preview, and make imports-apply."
+    )
+
+
+def normalize_readiness_peer_next_actions(frame: pd.DataFrame | None) -> pd.DataFrame:
+    if frame is None or frame.empty:
+        return pd.DataFrame() if frame is None else frame.copy()
+    normalized = frame.copy()
+    if "next_action" not in normalized.columns:
+        normalized["next_action"] = ""
+    peer_gap = ~bool_series(normalized, "peer_ready") & (
+        _text_contains(normalized, "missing_data", "peer")
+        | _text_contains(normalized, "blocked_features", "peer")
+        | _text_contains(normalized, "partial_features", "peer")
+    )
+    price_blocked = ~bool_series(normalized, "price_ready") | _text_contains(normalized, "blocked_features", "price")
+    dcf_or_fundamentals_blocked = (
+        ~bool_series(normalized, "dcf_ready")
+        & (
+            _text_contains(normalized, "blocked_features", "dcf")
+            | _text_contains(normalized, "blocked_features", "fundamental")
+            | _text_contains(normalized, "missing_data", "dcf")
+            | _text_contains(normalized, "missing_data", "free_cash_flow")
+            | _text_contains(normalized, "missing_data", "shares_outstanding")
+        )
+    )
+    stale_peer_action = (
+        _text_contains(normalized, "next_action", "optional context")
+        | _text_contains(normalized, "next_action", "peer mappings and peer metrics")
+        | normalized["next_action"].fillna("").astype(str).str.strip().eq("")
+    )
+    override = peer_gap & ~price_blocked & ~dcf_or_fundamentals_blocked & stale_peer_action
+    if override.any() and "ticker" in normalized.columns:
+        normalized.loc[override, "next_action"] = normalized.loc[override, "ticker"].map(peer_mapping_unlock_action)
+    return normalized
+
+
 def filter_market_readiness_frame(
     frame: pd.DataFrame | None,
     *,
@@ -7381,7 +7506,7 @@ def filter_market_readiness_frame(
 ) -> pd.DataFrame:
     if frame is None or frame.empty:
         return pd.DataFrame()
-    filtered = frame.copy()
+    filtered = normalize_readiness_peer_next_actions(frame)
     if scope == "Active research only" and "in_active_universe" in filtered.columns:
         filtered = filtered.loc[bool_series(filtered, "in_active_universe")].copy()
     elif scope == "All master universe" and "in_master_universe" in filtered.columns:
@@ -8005,7 +8130,7 @@ def single_stock_readiness_snapshot(
     peer_missing_text = str(readiness_row.get("missing_data") or readiness_row.get("blocked_features") or "").lower()
     if not peer_ready and not format_missing(peer_blocker_type, "").strip() and "peer" in peer_missing_text:
         peer_blocker_type = "missing_peer_mapping"
-        next_peer_action = next_peer_action or f"Add source-backed peer mappings for {symbol} before peer-relative valuation is reviewed."
+        next_peer_action = next_peer_action or peer_mapping_unlock_action(symbol)
 
     next_action = decision_row.get("next_best_action") or decision_row.get("next_action") or readiness_row.get("next_action") or "Run make readiness after the next data import."
     if dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
@@ -8015,11 +8140,17 @@ def single_stock_readiness_snapshot(
         next_peer_action = "No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context."
         peer_ready = False
     elif dcf_status == "ready" and not peer_ready and "peer" in peer_missing_text:
-        next_action = f"Add source-backed peer mappings for {symbol} before using peer-relative valuation context."
+        next_action = peer_mapping_unlock_action(symbol)
         peer_mapping_status = peer_row.get("mapping_status", "")
     else:
         peer_mapping_status = peer_row.get("mapping_status", "")
 
+    operator_summary = single_stock_operator_summary(
+        symbol=symbol,
+        readiness_row=readiness_row,
+        decision_row=decision_row,
+        dcf_status=dcf_status,
+    )
     snapshot = {
         "ticker": symbol,
         "status": str(readiness_row.get("overall_readiness_state") or "partial"),
@@ -8050,6 +8181,7 @@ def single_stock_readiness_snapshot(
         "primary_blocker": decision_row.get("primary_blocker", "Not available"),
         "confidence": decision_row.get("confidence", "Not available"),
         "main_reason": decision_row.get("main_reason") or readiness_row.get("missing_data") or "Readiness state available.",
+        "operator_summary": operator_summary,
         "next_action": next_action,
         "missing_data": readiness_row.get("missing_data", ""),
         "price_rows": coverage_row.get("price_history_days", coverage_row.get("price_rows", "")),
@@ -8059,6 +8191,52 @@ def single_stock_readiness_snapshot(
     }
     snapshot["one_minute_summary"] = single_stock_one_minute_summary(snapshot)
     return snapshot
+
+
+def single_stock_operator_summary(
+    *,
+    symbol: str,
+    readiness_row: dict[str, object],
+    decision_row: dict[str, object],
+    dcf_status: str,
+) -> str:
+    asset_type = format_missing(readiness_row.get("asset_type"), "").lower()
+    excluded_features = format_missing(readiness_row.get("excluded_features"), "").lower()
+    bucket = format_missing(decision_row.get("decision_bucket"), "").lower()
+    subtype = first_meaningful_text(decision_row.get("decision_subtype"), decision_row.get("decision_bucket"), fallback="Decision not classified")
+    purpose_status = first_meaningful_text(
+        decision_row.get("purpose_status"),
+        decision_row.get("purpose_alignment"),
+        decision_row.get("purpose_thesis"),
+        fallback="Purpose status unavailable",
+    )
+    if "monitor" in bucket or "market proxy" in subtype.lower() or dcf_status == "excluded" or "dcf" in excluded_features or asset_type in {"etf", "index_proxy", "fund"}:
+        return (
+            f"Operator summary: Monitor context; {subtype}. "
+            "Monitor role: market, theme, liquidity, or risk proxy. "
+            "Withheld: operating-company DCF and peer valuation are excluded. "
+            "Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring."
+        )
+    blocker = first_meaningful_text(decision_row.get("primary_blocker"), readiness_row.get("missing_data"), fallback="none")
+    unsupported = compact_reason(
+        first_meaningful_text(
+            decision_row.get("unsupported_analysis"),
+            decision_row.get("valuation_evaluation"),
+            readiness_row.get("blocked_features"),
+            fallback="Unavailable inputs remain withheld rather than inferred.",
+        ),
+        max_sentences=1,
+        max_chars=150,
+    )
+    invalidation = compact_reason(
+        first_meaningful_text(
+            decision_row.get("invalidation_condition"),
+            fallback=f"Invalidate this research read if {symbol} no longer passes the required readiness checks.",
+        ),
+        max_sentences=1,
+        max_chars=150,
+    )
+    return f"Operator summary: {purpose_status}; {subtype}. Next blocker: {blocker}. Withheld: {unsupported} Invalidation: {invalidation}"
 
 
 def single_stock_one_minute_summary(snapshot: dict[str, object]) -> str:
@@ -8228,6 +8406,7 @@ def single_stock_detail_frame(snapshot: dict[str, object]) -> pd.DataFrame:
             {"Field": "Asset type", "Value": snapshot.get("asset_type")},
             {"Field": "Price rows / days", "Value": snapshot.get("price_rows")},
             {"Field": "Decision subtype", "Value": snapshot.get("decision_subtype")},
+            {"Field": "Operator summary", "Value": snapshot.get("operator_summary")},
             {"Field": "Primary blocker", "Value": snapshot.get("primary_blocker")},
             {"Field": "DCF reason", "Value": snapshot.get("dcf_reason")},
             {"Field": "Peer blocker type", "Value": snapshot.get("peer_blocker_type")},
@@ -8779,30 +8958,37 @@ def workflow_command_rows() -> list[dict[str, str]]:
     ]
 
 
+def sidebar_helper_list(items: list[tuple[str, str]]) -> str:
+    return "<br>".join(
+        f"<strong>{html.escape(title)}:</strong> {html.escape(body)}"
+        for title, body in items
+    )
+
+
 def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     return [
         (
-            "Start in Overview",
-            "Check workflow health, critical actions, and the next local data unlocks before reading the deeper tabs.",
-            f"{DASHBOARD_TAB_TITLES[0]} tab",
+            "Start at Home",
+            "See what is ready, what is blocked, and what to review next without reading raw tables first.",
+            "Home page",
             "neutral",
         ),
         (
-            "Use Monthly Picks",
-            "Review the current research candidates and whether conservative filters left fewer than the target count.",
-            f"{DASHBOARD_TAB_TITLES[1]} tab",
+            "Review Ideas",
+            "Open Monthly Picks only after the Home page shows enough data is available for candidate review.",
+            "Monthly Picks page",
             "neutral",
         ),
         (
-            "Open Stock Report Beta",
-            "Generate a structured single-ticker report with valuation, peer, earnings, and freshness context.",
-            f"{DASHBOARD_TAB_TITLES[7]} tab",
+            "Research One Stock",
+            "Use Single-Stock Report for a ticker-level view of price, valuation, missing data, and source freshness.",
+            "Single-Stock Report page",
             "neutral",
         ),
         (
-            "Fix gaps in Data Health",
-            "Use local validation, price refresh status, and onboarding actions before trusting thin or partial data.",
-            f"{DASHBOARD_TAB_TITLES[8]} tab",
+            "Improve Coverage",
+            "Use Data Health when the Home page says analysis is blocked by missing prices, fundamentals, peers, or optional context.",
+            "Data Health page",
             "warning",
         ),
     ]
@@ -10122,7 +10308,7 @@ def overview_deep_research_handoff_cards(
             "title": str(next_tab.get("title", "Data Health")),
             "body": (
                 f"Use {next_tab.get('title', 'Data Health')} to confirm the queue status for {ticker}, "
-                f"then return to Stock Report Beta once the local {lane.lower()} step is complete."
+                f"then return to Single-Stock Report once the local {lane.lower()} step is complete."
                 if not empty_shortlist
                 else "Use Data Health after onboarding refresh to confirm the SEC stage and peer-mapping queues before deeper interpretation."
             ),
@@ -10304,7 +10490,7 @@ def overview_best_current_name_cards(
     for _, row in ready.head(limit).iterrows():
         ticker = format_missing(row.get("ticker"), "Ticker")
         if bool(row.get("dcf_ready_bool")) or bool(row.get("peer_ready_bool")):
-            next_surface = "Stock Report Beta"
+            next_surface = "Single-Stock Report"
             body = "This name already has enough local context for a deeper single-name review."
         else:
             next_surface = "Monthly Picks"
@@ -10321,7 +10507,7 @@ def overview_best_current_name_cards(
                     "dcf ready" if bool(row.get("dcf_ready_bool")) else "momentum ready",
                     "peer ready" if bool(row.get("peer_ready_bool")) else "partial context",
                 ],
-                "command": f"make stock-report TICKER={ticker}" if next_surface == "Stock Report Beta" else "make monthly",
+                "command": f"make stock-report TICKER={ticker}" if next_surface == "Single-Stock Report" else "make monthly",
             }
         )
     return cards
@@ -11145,7 +11331,7 @@ def overview_handoff_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "NEXT DEEPER TAB",
-            "title": "Stock Report Beta",
+            "title": "Single-Stock Report",
             "body": "Use this for a single-name deep dive after local coverage is good enough to support price, valuation, peer, and missing-assumption context in one place.",
             "badges": ["single name", "deep dive"],
             "command": "make stock-report TICKER=NVDA",
@@ -11172,8 +11358,8 @@ def overview_best_local_research_path_cards(
     next_tab = overview_handoff_cards()[0]
 
     best_title = str(best_name.get("title", ""))
-    if best_title == "Stock Report Beta":
-        next_tab = next((card for card in overview_handoff_cards() if card.get("title") == "Stock Report Beta"), next_tab)
+    if best_title == "Single-Stock Report":
+        next_tab = next((card for card in overview_handoff_cards() if card.get("title") == "Single-Stock Report"), next_tab)
     elif best_title == "Monthly Picks":
         next_tab = next((card for card in overview_handoff_cards() if card.get("title") == "Monthly Picks"), next_tab)
 
@@ -11185,7 +11371,7 @@ def overview_best_local_research_path_cards(
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
     if command_text == "make help" and ready_command_text and ready_command_text != "make help":
         command_text = ready_command_text
-    if tab_text in {"Stock Report Beta", "Monthly Picks"} and ready_command_text:
+    if tab_text in {"Single-Stock Report", "Monthly Picks"} and ready_command_text:
         command_text = ready_command_text
     if command_text == ready_command_text:
         command_reason = compact_reason(ready_cards[1].get("command_reason"), max_sentences=2, max_chars=220)
@@ -11254,11 +11440,11 @@ def overview_ready_name_handoff_cards(
     next_command = overview_next_command_cards(project_status_payload, action_queue, limit=3)
 
     surface = str(best_name.get("title", ""))
-    if surface == "Stock Report Beta":
+    if surface == "Single-Stock Report":
         command_text = format_missing(best_name.get("command"), "make stock-report TICKER=NVDA")
         badges = ["single name", "ready flow"]
         body = (
-            "Open the ticker-targeted stock report in Stock Report Beta first so the deeper read stays tied to the selected local name. "
+            "Open the ticker-targeted stock report in Single-Stock Report first so the deeper read stays tied to the selected local name. "
             "Use deterministic verification separately after data or workflow changes."
         )
     elif surface == "Monthly Picks":
@@ -11352,7 +11538,7 @@ def overview_current_top_surfaces_cards(
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
     if command_text == "make help" and ready_command_text and ready_command_text != "make help":
         command_text = ready_command_text
-    if next_tab == "Stock Report Beta" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"} and ready_command_text:
+    if next_tab == "Single-Stock Report" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"} and ready_command_text:
         command_text = ready_command_text
     if next_tab == "Monthly Picks" and command_text in {"make help", "make status", "make status-check TOP_N=5", "make onboarding"}:
         command_text = "make monthly"
@@ -11507,7 +11693,7 @@ def monthly_picks_landing_cards(
         {
             "kicker": "LOCAL COVERAGE",
             "title": latest_price,
-            "body": f"{universe_count} current universe tickers feed the monthly workflow through local price and screener outputs.",
+            "body": f"{universe_count} current universe tickers feed the monthly workflow through local price and research outputs.",
             "badges": ["latest price date"],
         },
         {
@@ -11620,7 +11806,7 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
     estimates_label = "Estimates Present" if readiness.get("analyst_estimates_available") else "Estimates Missing"
     missing_count = len(warnings)
     main_copy = (
-        "Local structured report assembled from provider data and existing screener context. "
+        "Local structured report assembled from provider data and existing research-output context. "
         "Unavailable inputs stay visible and are not inferred."
     )
     cards = [
@@ -11646,7 +11832,7 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
     return (
         "<div class='report-brief'>"
         "<div class='report-brief-main'>"
-        "<div class='report-brief-kicker'>Stock Report Beta</div>"
+        "<div class='report-brief-kicker'>Single-Stock Report</div>"
         f"<div class='report-brief-title'>{html.escape(ticker)} research snapshot</div>"
         f"<div class='report-brief-copy'>{html.escape(main_copy)}</div>"
         "</div>"
@@ -12738,6 +12924,197 @@ def render_overview(
             st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
 
 
+def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFrame | None) -> list[dict[str, object]]:
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    active = int(summary.get("active_universe") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    earnings_ready = int(summary.get("earnings_ready") or 0)
+    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
+    blocked = int(summary.get("blocked") or summary.get("blocked_by_data") or 0)
+    partial = int(summary.get("partial") or 0)
+
+    research_now = 0
+    monitor = 0
+    if decisions is not None and not decisions.empty and "decision_bucket" in decisions.columns:
+        buckets = decisions["decision_bucket"].fillna("").astype(str)
+        research_now = int(buckets.eq("Research Now").sum())
+        monitor = int(buckets.eq("Monitor").sum())
+
+    return [
+        {
+            "kicker": "UNIVERSE",
+            "title": f"{master:,} tickers tracked",
+            "body": f"{active:,} are in the active research list. The broad list is tracked, but only data-ready names are analyzed deeply.",
+            "badges": ["broad list", "active list"],
+        },
+        {
+            "kicker": "READY TO REVIEW",
+            "title": f"{price_ready:,} have price data",
+            "body": f"{partial:,} names have partial coverage. Momentum-style review is available only where price history is ready.",
+            "badges": ["price first", "no guessing"],
+        },
+        {
+            "kicker": "DEEP ANALYSIS",
+            "title": f"{dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready",
+            "body": "Valuation and peer comparison appear only when the needed inputs exist. Missing peers or fundamentals stay visible.",
+            "badges": ["valuation gated", "source-aware"],
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"{earnings_ready:,} earnings / {estimates_ready:,} estimates",
+            "body": "Earnings and analyst estimates are intentionally locked until trusted local rows are available.",
+            "badges": ["trusted data only"],
+        },
+        {
+            "kicker": "DECISIONS",
+            "title": f"{research_now:,} research now / {monitor:,} monitor",
+            "body": f"{blocked:,} names are blocked by missing data. That is a data-quality signal, not a product failure.",
+            "badges": ["readiness gated"],
+        },
+    ]
+
+
+def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(summary.get("price_ready") or 0)
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    earnings_ready = int(summary.get("earnings_ready") or 0)
+    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
+
+    if price_ready < master:
+        primary = {
+            "kicker": "BEST NEXT STEP",
+            "title": "Expand price coverage",
+            "body": "More tickers need daily price history before momentum, liquidity, and market-context views become useful across the broader universe.",
+            "badges": ["biggest blocker"],
+        }
+    elif dcf_ready <= peer_ready:
+        primary = {
+            "kicker": "BEST NEXT STEP",
+            "title": "Add trusted fundamentals",
+            "body": "Fundamentals unlock DCF and better company-level research. Use trusted SEC or local CSV inputs only.",
+            "badges": ["deep research"],
+        }
+    else:
+        primary = {
+            "kicker": "BEST NEXT STEP",
+            "title": "Add source-backed peers",
+            "body": "Peer mappings unlock peer comparison for DCF-ready companies. Do not use guessed peer relationships.",
+            "badges": ["peer research"],
+        }
+
+    optional_title = "Optional context is locked"
+    optional_body = "Earnings and analyst estimates are not broken; they are waiting for trusted inputs."
+    if earnings_ready or estimates_ready:
+        optional_title = "Optional context is available"
+        optional_body = "Some earnings or estimate data is available. Review it as context, not as a recommendation."
+
+    return [
+        primary,
+        {
+            "kicker": "WHAT TO TRUST",
+            "title": "Use ready sections first",
+            "body": "Review price-ready and research-ready names before reading blocked rows. Blocked rows explain what data is missing.",
+            "badges": ["review safely"],
+        },
+        {
+            "kicker": "WHAT TO IGNORE",
+            "title": "Do not force conclusions",
+            "body": "If a valuation, peer view, earnings view, or estimate view is missing, the right answer is to keep it locked until data exists.",
+            "badges": ["research-only"],
+        },
+        {
+            "kicker": "OPTIONAL DATA",
+            "title": optional_title,
+            "body": optional_body,
+            "badges": ["not required"],
+        },
+    ]
+
+
+def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]]) -> None:
+    ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
+    dcf_readiness_frame, _ = load_dcf_readiness()
+    optional_tables = load_optional_context_readiness()
+    earnings_readiness_frame, _ = optional_tables["earnings_readiness"]
+    analyst_readiness_frame, _ = optional_tables["analyst_estimates_readiness"]
+    decisions_frame, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
+    coverage_frame, _ = load_output(OUTPUTS_DIR / "ticker_data_coverage.csv")
+
+    summary = dashboard_readiness_summary(
+        coverage_frame,
+        dcf_readiness_frame,
+        earnings_readiness_frame,
+        analyst_readiness_frame,
+        ticker_readiness_frame,
+    )
+
+    render_section_header(
+        "Home",
+        "A plain-language view of what is ready, what is blocked, and what to review next.",
+    )
+    render_context_note(
+        "Trust rule.",
+        "This page shows research readiness, not investment advice. Missing data is shown openly instead of being guessed.",
+        tone="success",
+    )
+    render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
+
+    render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
+    render_signal_cards(_plain_home_next_step_cards(summary))
+
+    render_section_header("Where To Go", "Choose the page that matches what you want to review.")
+    render_action_cards(
+        [
+            (
+                "Review one stock",
+                "Open a ticker-level report with price, valuation readiness, missing data, and source freshness.",
+                "Single-Stock Report",
+                "neutral",
+            ),
+            (
+                "Review current ideas",
+                "Open candidate lists only after the data behind them is ready enough to trust.",
+                "Monthly Picks",
+                "neutral",
+            ),
+            (
+                "Improve missing data",
+                "Open the data page when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
+                "Data Coverage",
+                "warning",
+            ),
+        ]
+    )
+
+    if ticker_readiness_message or decisions_message:
+        render_notice_card(
+            "Some reports need refreshing",
+            ticker_readiness_message or decisions_message or "Refresh the local reports before relying on this page.",
+            "",
+            tone="warning",
+        )
+
+    with st.expander("Advanced commands", expanded=False):
+        st.write("Use these only when you want to update local data or regenerate reports.")
+        st.code(
+            "\n".join(
+                [
+                    "make status-check TOP_N=5",
+                    "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+                    "make readiness",
+                    "make project-status",
+                    "make stock-report TICKER=NVDA",
+                    "make dashboard-smoke",
+                ]
+            ),
+            language="bash",
+        )
+
+
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     render_section_header(
         "Monthly Picks",
@@ -12886,7 +13263,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             )
 
     with st.expander("Methodology", expanded=False):
-        st.write("Monthly rankings use local screener outputs, local price history, optional local fundamentals, and transparent score components.")
+        st.write("Monthly rankings use local research outputs, local price history, optional local fundamentals, and transparent score components.")
         st.write("Missing inputs reduce confidence and remain visible in the output.")
         st.write("Track-record files are calculated only from local historical price data; insufficient history is shown explicitly.")
 
@@ -12921,9 +13298,9 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details)
 
 
-def render_stock_report_beta(provider, show_raw_json: bool) -> None:
+def render_single_stock_report(provider, show_raw_json: bool) -> None:
     render_section_header(
-        "Stock Report Beta",
+        "Single-Stock Report",
         "Structured research report workflow. Local CSV-backed data is the default. "
         "Optional yfinance mode stays off by default and is labeled unofficial / research-grade.",
     )
@@ -12955,7 +13332,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
             readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
-    if st.button("Generate Stock Report", key="stock-report-beta-button"):
+    if st.button("Generate Stock Report", key="single-stock-report-button"):
         if not ticker:
             st.warning("Enter a ticker to generate a stock report.")
         else:
@@ -12963,21 +13340,21 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
                 chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)
                 report = build_stock_report(ticker, chosen_provider)
                 history = chosen_provider.get_price_history(ticker, period="1y", interval="1d")
-                st.session_state["stock_report_beta_payload"] = report.to_dict()
-                st.session_state["stock_report_beta_download"] = export_stock_report_json(report)
-                st.session_state["stock_report_beta_ticker"] = ticker
-                st.session_state["stock_report_beta_provider"] = provider_name
-                st.session_state["stock_report_beta_history"] = history
+                st.session_state["single_stock_report_payload"] = report.to_dict()
+                st.session_state["single_stock_report_download"] = export_stock_report_json(report)
+                st.session_state["single_stock_report_ticker"] = ticker
+                st.session_state["single_stock_report_provider"] = provider_name
+                st.session_state["single_stock_report_history"] = history
             except RuntimeError as exc:
                 st.error(str(exc))
             except (LookupError, FileNotFoundError, ValueError) as exc:
                 st.warning(str(exc))
 
-    report_payload = st.session_state.get("stock_report_beta_payload")
+    report_payload = st.session_state.get("single_stock_report_payload")
     if not report_payload:
         return
 
-    if st.session_state.get("stock_report_beta_provider") == "yfinance":
+    if st.session_state.get("single_stock_report_provider") == "yfinance":
         st.info("Using yfinance as an unofficial / research-grade source. Review source/freshness notes carefully.")
 
     readiness = report_payload.get("valuation_readiness", {})
@@ -13011,7 +13388,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         price_columns[0].metric("Last Price", report_display_value(price.get("price"), "currency"))
         price_columns[1].metric("Previous Close", report_display_value(price.get("previous_close"), "currency"))
         price_columns[2].metric("Volume", report_display_value(price.get("volume"), "integer"))
-        history_chart = stock_report_price_chart_frame(st.session_state.get("stock_report_beta_history"))
+        history_chart = stock_report_price_chart_frame(st.session_state.get("single_stock_report_history"))
         if not history_chart.empty:
             render_chart_panel(
                 "Price history chart",
@@ -13242,7 +13619,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         )
 
         if report_payload.get("screener_context"):
-            with st.expander("Existing screener context", expanded=False):
+            with st.expander("Existing research-output context", expanded=False):
                 st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
         if show_raw_json:
@@ -13251,8 +13628,8 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
 
     st.download_button(
         "Download Stock Report JSON",
-        data=st.session_state.get("stock_report_beta_download", "{}"),
-        file_name=f"{st.session_state.get('stock_report_beta_ticker', 'stock').lower()}_stock_report.json",
+        data=st.session_state.get("single_stock_report_download", "{}"),
+        file_name=f"{st.session_state.get('single_stock_report_ticker', 'stock').lower()}_stock_report.json",
         mime="application/json",
     )
 
@@ -14748,41 +15125,62 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Stock Research Screener", layout="wide")
+    st.set_page_config(page_title="Stock Research Command Center", layout="wide")
     apply_dashboard_theme()
     catalog = LocalDataCatalog(BASE_DIR)
     provider = get_local_provider()
     output_frames = load_pipeline_outputs()
-    universe_summary = summarize_universe_manager(BASE_DIR)
-    project_status_payload = build_project_status_payload(BASE_DIR, data_dir=DATA_DIR, output_dir=OUTPUTS_DIR, top_n=5)
     render_app_header(catalog, output_frames)
 
     with st.sidebar:
-        st.header("Research Controls")
-        show_reason_details = st.checkbox("Show reason expanders", value=True)
-        show_raw_json = st.checkbox("Show raw report JSON expanders", value=False)
+        st.header("Navigation")
+        selected_page = st.radio(
+            "Choose a page",
+            USER_PAGE_TITLES,
+            index=0,
+            help="Start with Home, then open a deeper page when you know what you want to review.",
+        )
+        show_reason_details = st.checkbox("Show detailed reasons", value=False)
+        show_raw_json = st.checkbox("Show raw report data", value=False)
         st.divider()
         render_context_note(
             "Start here.",
-            "Overview shows workflow health, Monthly Picks shows current candidates, Stock Report Beta handles single-name deep dives, and Data Health explains what local data is still missing.",
+            "Home explains what is ready, what is blocked, and where to go next.",
             tone="success",
         )
         render_action_cards(dashboard_navigation_cards())
-        render_context_note("Safe local commands.", "These commands are read-only, verification, or preview-first by default.")
-        st.code(
-            "make help\nmake status-check TOP_N=5\nmake data-wizard TOP_N=5\nmake focus-price TICKER=AMD\nmake runbook-prices-broader\nmake verify\nmake dashboard-smoke\nmake dashboard",
-            language="bash",
-        )
-        render_context_note("Safety note.", "CLI-only applies remain the safest path for staged imports and universe changes.", tone="warning")
-        with st.expander("How to read this dashboard", expanded=False):
-            st.dataframe(pd.DataFrame(status_legend_rows()), width="stretch", hide_index=True)
-        with st.expander("Missing-data recovery guide", expanded=False):
-            st.dataframe(pd.DataFrame(missing_data_guide_rows()), width="stretch", hide_index=True)
-        with st.expander("Workflow command guide", expanded=False):
-            st.dataframe(pd.DataFrame(workflow_command_rows()), width="stretch", hide_index=True)
-        with st.expander("Common empty states", expanded=False):
-            st.dataframe(pd.DataFrame(empty_state_command_rows()), width="stretch", hide_index=True)
-        with st.expander("Resolved local paths", expanded=False):
+        with st.expander("Advanced command help", expanded=False):
+            render_context_note("Safe local commands.", "These commands update local files only. The dashboard does not place trades or connect to brokers.")
+            st.code(
+                "make help\nmake status-check TOP_N=5\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report TICKER=NVDA\nmake dashboard-smoke",
+                language="bash",
+            )
+        with st.expander("How to read status labels", expanded=False):
+            st.markdown(
+                sidebar_helper_list(
+                    [
+                        ("Research Ready", "Enough trusted data exists for this view."),
+                        ("Partial Coverage", "Some useful data exists, but a deeper view is still incomplete."),
+                        ("Needs Price Data", "Daily price history is missing or too short."),
+                        ("Needs Enrichment", "Fundamentals, peers, earnings, or estimates are missing."),
+                        ("Insufficient Data", "The app avoided a weak or guessed result."),
+                    ]
+                ),
+                unsafe_allow_html=True,
+            )
+        with st.expander("Missing-data guide", expanded=False):
+            st.markdown(
+                sidebar_helper_list(
+                    [
+                        ("Prices missing", "Refresh price data before trusting momentum or liquidity views."),
+                        ("Fundamentals missing", "Add verified company fundamentals before relying on DCF."),
+                        ("Peers missing", "Add source-backed peer mappings before peer comparison."),
+                        ("Earnings or estimates missing", "Leave them locked unless you have a trusted source."),
+                    ]
+                ),
+                unsafe_allow_html=True,
+            )
+        with st.expander("Technical paths", expanded=False):
             context = path_context(BASE_DIR, DATA_DIR, OUTPUTS_DIR)
             st.code(
                 "\n".join(
@@ -14795,28 +15193,28 @@ def main() -> None:
                 language="text",
             )
 
-    tabs = st.tabs(DASHBOARD_TAB_TITLES)
+    project_status_payload = None
+    if selected_page in {"Overview", "Data Health"}:
+        project_status_payload = build_project_status_payload(BASE_DIR, data_dir=DATA_DIR, output_dir=OUTPUTS_DIR, top_n=5)
 
-    with tabs[0]:
-        render_overview(output_frames, catalog, universe_summary, project_status_payload)
-    with tabs[1]:
+    universe_summary = None
+    if selected_page in {"Overview", "Universe Manager"}:
+        universe_summary = summarize_universe_manager(BASE_DIR)
+
+    if selected_page == "Home":
+        render_home_page(catalog, output_frames)
+    elif selected_page == "Overview":
+        render_overview(output_frames, catalog, universe_summary or summarize_universe_manager(BASE_DIR), project_status_payload)
+    elif selected_page == "Monthly Picks":
         render_monthly_picks(catalog)
-    with tabs[2]:
-        render_output_tab("Market Direction", output_frames, show_reason_details)
-    with tabs[3]:
-        render_output_tab("Momentum Leaders", output_frames, show_reason_details)
-    with tabs[4]:
-        render_output_tab("Portfolio Review", output_frames, show_reason_details)
-    with tabs[5]:
-        render_output_tab("Value / Re-rating", output_frames, show_reason_details)
-    with tabs[6]:
-        render_output_tab("Final Watchlist", output_frames, show_reason_details)
-    with tabs[7]:
-        render_stock_report_beta(provider, show_raw_json)
-    with tabs[8]:
+    elif selected_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
+        render_output_tab(selected_page, output_frames, show_reason_details)
+    elif selected_page == "Single-Stock Report":
+        render_single_stock_report(provider, show_raw_json)
+    elif selected_page == "Data Health":
         render_data_health(provider, project_status_payload)
-    with tabs[9]:
-        render_universe_manager(universe_summary)
+    elif selected_page == "Universe Manager":
+        render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
 
 
 if __name__ == "__main__":

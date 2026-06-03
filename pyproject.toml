@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "stock-research-screener"
+name = "stock-research-command-center"
 version = "0.1.0"
-description = "Local Python stock research screener for watchlists, portfolio review, and risk discipline."
+description = "Local Python stock research command center for watchlists, portfolio review, and risk discipline."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

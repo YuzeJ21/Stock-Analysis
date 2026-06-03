@@ -315,6 +315,13 @@ def _text_value(value: object) -> str:
     return "" if text.lower() in {"nan", "none", "nat"} else text
 
 
+def _peer_mapping_next_action(ticker: str) -> str:
+    return (
+        f"Add at least 2 source-backed peer mappings for {ticker} in data/imports/peers.csv; "
+        "then run make imports-validate, make imports-preview, and make imports-apply."
+    )
+
+
 def _select_row(frame: pd.DataFrame, ticker: str) -> pd.Series:
     if frame.empty or "ticker" not in frame.columns:
         return pd.Series(dtype=object)
@@ -887,8 +894,8 @@ def build_ticker_readiness_report(
                     f"Import trusted fundamentals for {ticker}. If SEC_USER_AGENT is configured, use SEC staging; "
                     "otherwise use the manual fundamentals import workflow."
                 )
-        elif "peer" in blocked:
-            next_action = f"Add source-backed peer mappings and peer metrics for {ticker}."
+        elif "peer" in blocked or "peer" in partial:
+            next_action = _peer_mapping_next_action(ticker)
         elif blocked:
             next_action = f"Optional context missing for {ticker}; leave unavailable unless trusted local CSVs exist."
         else:

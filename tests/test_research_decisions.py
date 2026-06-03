@@ -80,6 +80,11 @@ def test_research_decisions_etf_peer_blocker_does_not_report_fundamentals_as_pri
     assert row["decision_subtype"] == "Monitor - ETF Market Proxy"
     assert row["primary_blocker"] == "peers"
     assert "excluded from company DCF" in row["main_reason"]
+    assert row["next_action"] == (
+        "Add at least 2 source-backed peer mappings for QQQ in data/imports/peers.csv; "
+        "then run make imports-validate, make imports-preview, and make imports-apply."
+    )
+    assert row["next_best_action"] == row["next_action"]
 
 
 def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing():
@@ -135,6 +140,13 @@ def test_research_decisions_only_research_now_when_core_data_is_ready():
     assert row["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
     assert row["confidence"] > 0.5
     assert row["analysis_score"] == 0.8
+    assert row["evaluation_status"].startswith("Ready for a supported research brief")
+    assert row["purpose_fit"].startswith("Purpose fit")
+    assert row["setup_quality"].startswith("Setup quality")
+    assert row["valuation_view"].startswith("Valuation view")
+    assert "Blocked inputs: earnings, analyst_estimates" in row["missing_data_summary"]
+    assert row["next_research_step"] == row["next_research_question"]
+    assert "local CSV readiness outputs" in row["source_freshness_summary"]
     assert "ready: price, momentum, fundamentals, dcf" in row["feature_summary"]
     assert "research brief" in row["purpose_thesis"]
     assert "Purpose alignment" in row["purpose_alignment"]
@@ -145,6 +157,42 @@ def test_research_decisions_only_research_now_when_core_data_is_ready():
     assert "Which source-backed peers" in row["next_research_question"]
     assert "peer-relative context is still limiting" in row["review_priority_reason"]
     assert "core price, fundamentals, and DCF are ready" in row["confidence_explanation"]
+
+
+def test_research_decisions_peer_blocker_next_action_uses_exact_import_flow():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "COHR",
+                "name": "Coherent",
+                "asset_type": "company",
+                "ready_features": "price, momentum, fundamentals, dcf",
+                "partial_features": "peer",
+                "blocked_features": "peer, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "peers: needs at least 2 source-backed peer mappings",
+                "next_action": "Add source-backed peer mappings and peer metrics for COHR.",
+            }
+        ]
+    )
+    watchlist = pd.DataFrame({"ticker": ["COHR"], "watchlistscore": [68]})
+
+    row = build_research_decisions_frame(readiness, watchlist).iloc[0]
+    rendered = " ".join(str(value) for value in row.to_numpy()).lower()
+
+    assert row["decision_bucket"] == "Research Now"
+    assert row["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
+    assert row["primary_blocker"] == "peers"
+    assert row["next_action"] == (
+        "Add at least 2 source-backed peer mappings for COHR in data/imports/peers.csv; "
+        "then run make imports-validate, make imports-preview, and make imports-apply."
+    )
+    assert row["next_best_action"] == row["next_action"]
+    assert "peer metrics for cohr" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
 
 
 def test_research_decisions_add_evaluation_fields_without_recommendation_language():

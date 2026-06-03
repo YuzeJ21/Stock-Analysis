@@ -1,1 +1,1 @@
-"""Phase 1 MVP stock-purpose screener."""
+"""CSV-first stock research command center."""

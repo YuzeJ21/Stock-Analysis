@@ -115,7 +115,7 @@ def _now_iso() -> str:
 
 
 def _default_text_loader(url: str) -> str:
-    request = Request(url, headers={"User-Agent": "StockResearchScreener/1.0 research-only"})
+    request = Request(url, headers={"User-Agent": "StockResearchCommandCenter/1.0 research-only"})
     with urlopen(request, timeout=20) as response:
         return response.read().decode("utf-8", errors="replace")
 

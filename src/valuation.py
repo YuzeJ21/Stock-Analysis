@@ -627,7 +627,7 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         notes.append("Standalone valuation multiples could not be calculated from the available data.")
 
     if valuation_input.screener_context.get("undervalued_candidates"):
-        notes.append("Value/re-rating screener output is included elsewhere as context, not as a replacement for valuation inputs.")
+        notes.append("Value/re-rating research output is included elsewhere as context, not as a replacement for valuation inputs.")
 
     return RelativeValuationResult(
         status=status,

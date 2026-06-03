@@ -202,9 +202,120 @@ def _first_text(values: pd.Series, fallback: str = "Not available") -> str:
     return fallback
 
 
+def _first_row_text(row: pd.Series, *columns: str, fallback: str = "") -> str:
+    for column in columns:
+        text = text_value(row.get(column))
+        if text:
+            return text
+    return fallback
+
+
 def _sample_tickers(values: pd.Series, limit: int = 8) -> str:
     tickers = [text_value(value).upper() for value in values if text_value(value)]
     return ", ".join(list(dict.fromkeys(tickers).keys())[:limit])
+
+
+def _summary_next_research_question(group: pd.DataFrame, purpose_family: object, decision_bucket: object) -> str:
+    family = text_value(purpose_family).lower()
+    bucket = text_value(decision_bucket).lower()
+    asset_types = group.get("asset_type", pd.Series("", index=group.index)).fillna("").astype(str).str.lower()
+    subtypes = group.get("decision_subtype", pd.Series("", index=group.index)).fillna("").astype(str).str.lower()
+    if (
+        "monitor" in bucket
+        or "etf" in family
+        or "hedge" in family
+        or asset_types.isin({"etf", "index_proxy", "fund"}).any()
+        or subtypes.str.contains("market proxy", na=False).any()
+    ):
+        return "What market, theme, liquidity, or risk signal should this proxy monitor, and what would invalidate that proxy role?"
+    return _first_text(group["next_research_question"], "Open a ticker report for the next research question.")
+
+
+def _drilldown_is_monitor(row: pd.Series) -> bool:
+    asset_type = text_value(row.get("asset_type")).lower()
+    family = text_value(row.get("purpose_family")).lower()
+    bucket = text_value(row.get("decision_bucket")).lower()
+    subtype = text_value(row.get("decision_subtype")).lower()
+    return (
+        "monitor" in bucket
+        or "market proxy" in subtype
+        or asset_type in {"etf", "index_proxy", "fund"}
+        or any(token in family for token in ["etf", "hedge", "fund", "index"])
+    )
+
+
+def _drilldown_supported_analysis(row: pd.Series) -> str:
+    supported = _first_row_text(row, "supported_analysis", "supporting_features", "feature_summary", "ready_features")
+    if supported:
+        return f"Supported analysis: {supported}."
+    return f"Supported analysis is limited to the current {text_value(row.get('decision_bucket'), 'local')} readiness state."
+
+
+def _drilldown_unsupported_analysis(row: pd.Series) -> str:
+    if _drilldown_is_monitor(row):
+        return "Unsupported analysis: operating-company DCF and peer valuation are excluded for ETF/index/fund monitor context."
+    unsupported = _first_row_text(row, "unsupported_analysis", "missing_data", "blocked_features", "excluded_features")
+    if unsupported:
+        return f"Unsupported analysis: {unsupported}."
+    return "Unsupported analysis remains withheld when fundamentals, peers, earnings, or analyst estimates are unavailable."
+
+
+def _drilldown_next_question(row: pd.Series) -> str:
+    ticker = text_value(row.get("ticker"), "TICKER").upper()
+    blocker = text_value(row.get("primary_blocker")).lower().replace(" ", "_")
+    if _drilldown_is_monitor(row):
+        return f"What market, theme, liquidity, or risk signal should {ticker} monitor, and what would invalidate that proxy role?"
+    if blocker in {"peer", "peers"}:
+        return f"Which source-backed peers should be added for {ticker} before peer-relative valuation is reviewed?"
+    if blocker in {"fundamentals", "dcf"}:
+        return f"Which trusted fundamentals or DCF inputs are still missing for {ticker}?"
+    if blocker == "price":
+        return f"Which local price coverage gap must be repaired for {ticker} before setup analysis is reviewed?"
+    if blocker in {"earnings", "analyst_estimates", "analyst"}:
+        return f"Is trusted local earnings or analyst-estimate context available for {ticker}, or should optional context stay locked?"
+    return f"Which trusted local input or review step is needed next for {ticker}?"
+
+
+def _drilldown_risk_watchpoint(row: pd.Series) -> str:
+    blocker = text_value(row.get("primary_blocker"), "missing local data")
+    if _drilldown_is_monitor(row):
+        return "Risk watchpoint: monitor liquidity, correlation, theme exposure, and whether the proxy still matches its intended role."
+    if blocker in {"peer", "peers"}:
+        return "Risk watchpoint: peer-relative context is incomplete, so valuation comparison and opportunity-cost analysis remain withheld."
+    if blocker in {"fundamentals", "dcf"}:
+        return "Risk watchpoint: valuation interpretation is blocked until trusted fundamentals and DCF inputs are complete."
+    if blocker == "price":
+        return "Risk watchpoint: setup, momentum, liquidity, and risk analysis are blocked until local price coverage is sufficient."
+    return f"Risk watchpoint: conclusions are limited by {blocker}."
+
+
+def _drilldown_invalidation_condition(row: pd.Series) -> str:
+    blocker = text_value(row.get("primary_blocker"), "required readiness checks")
+    if _drilldown_is_monitor(row):
+        return "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role."
+    return f"Invalidate this research brief if local readiness no longer supports the stated purpose or if {blocker} remains unresolved for the intended analysis."
+
+
+def _drilldown_confidence_explanation(row: pd.Series) -> str:
+    confidence = text_value(row.get("data_confidence"), "limited")
+    score = text_value(row.get("readiness_score"))
+    if _drilldown_is_monitor(row):
+        score_text = f" Readiness score: {score}." if score else ""
+        return (
+            f"Confidence is {confidence} because only ready local monitor inputs are used. "
+            "Operating-company DCF and peer valuation are excluded, not treated as failed monitor inputs."
+            f"{score_text}"
+        )
+    blocker = text_value(row.get("primary_blocker"), "none")
+    score_text = f" Readiness score: {score}." if score else ""
+    return f"Confidence is {confidence} because only ready local inputs are used. Limiting factor: {blocker}.{score_text}"
+
+
+def _fill_drilldown_text(frame: pd.DataFrame, column: str, builder: Any) -> None:
+    current = frame[column].fillna("").astype(str).str.strip()
+    missing = current.eq("") | current.str.lower().isin({"nan", "none", "null", "<na>", "not available"})
+    if missing.any():
+        frame.loc[missing, column] = frame.loc[missing].apply(builder, axis=1)
 
 
 def enrich_purpose_evaluation_rows(decisions: pd.DataFrame, readiness: pd.DataFrame | None = None) -> pd.DataFrame:
@@ -336,6 +447,9 @@ def build_purpose_evaluation_drilldown(
         "decision_subtype",
         "purpose_alignment",
         "supported_analysis",
+        "supporting_features",
+        "feature_summary",
+        "ready_features",
         "unsupported_analysis",
         "next_research_question",
         "risk_watchpoint",
@@ -345,6 +459,9 @@ def build_purpose_evaluation_drilldown(
         "readiness_score",
         "overall_readiness_state",
         "updated_at",
+        "missing_data",
+        "blocked_features",
+        "excluded_features",
         "Reason",
     ]:
         if column not in frame.columns:
@@ -366,6 +483,13 @@ def build_purpose_evaluation_drilldown(
         ),
         axis=1,
     )
+    _fill_drilldown_text(frame, "purpose_alignment", lambda row: f"{text_value(row.get('purpose_status'), 'Purpose status')} for current local data.")
+    _fill_drilldown_text(frame, "supported_analysis", _drilldown_supported_analysis)
+    _fill_drilldown_text(frame, "unsupported_analysis", _drilldown_unsupported_analysis)
+    _fill_drilldown_text(frame, "next_research_question", _drilldown_next_question)
+    _fill_drilldown_text(frame, "risk_watchpoint", _drilldown_risk_watchpoint)
+    _fill_drilldown_text(frame, "invalidation_condition", _drilldown_invalidation_condition)
+    _fill_drilldown_text(frame, "confidence_explanation", _drilldown_confidence_explanation)
     frame["peer_trend_status"] = frame["peer_trend_comparison_ready"].apply(
         lambda value: "peer trend possible" if str(value).strip().lower() in {"true", "1", "yes"} else "peer trend blocked"
     )
@@ -448,7 +572,7 @@ def build_purpose_evaluation_summary(
                 "optional_context_locked_count": optional_context_count,
                 "top_primary_blocker": _mode_text(group["primary_blocker"]),
                 "top_unlock_command": _first_text(group["unlock_command"], "make project-status"),
-                "top_next_research_question": _first_text(group["next_research_question"], "Open a ticker report for the next research question."),
+                "top_next_research_question": _summary_next_research_question(group, purpose_family, decision_bucket),
                 "sample_tickers": _sample_tickers(group["ticker"]),
                 "Reason": (
                     f"{text_value(purpose_family, 'General')} / {text_value(decision_bucket, 'Unknown')} "

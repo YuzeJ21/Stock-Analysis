@@ -67,6 +67,30 @@ def test_purpose_evaluation_summary_groups_current_decisions_without_fabricated_
     assert "sell now" not in rendered
 
 
+def test_purpose_evaluation_summary_keeps_etf_monitor_question_out_of_peer_unlock():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "decision_bucket": "Monitor",
+                "decision_subtype": "Monitor - ETF Market Proxy",
+                "primary_blocker": "peers",
+                "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market context.",
+                "next_research_question": "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy?",
+                "unlock_command": "make stock-report TICKER=QQQ",
+            }
+        ]
+    )
+
+    summary = build_purpose_evaluation_summary(decisions)
+    question = summary.loc[summary["purpose_family"].eq("ETF / Hedge"), "top_next_research_question"].iloc[0].lower()
+
+    assert "market, theme, liquidity, or risk signal" in question
+    assert "peer mappings" not in question
+    assert summary.loc[summary["purpose_family"].eq("ETF / Hedge"), "top_unlock_command"].iloc[0] == "make stock-report TICKER=QQQ"
+
+
 def test_purpose_evaluation_enrichment_does_not_match_fundamentals_as_fund_asset():
     decisions = pd.DataFrame(
         [
@@ -168,6 +192,12 @@ def test_purpose_evaluation_drilldown_prioritizes_active_rows_and_separates_peer
     assert drilldown.iloc[0]["unlock_command"] == "make focus-peers TICKER=META"
     assert drilldown.iloc[0]["peer_trend_status"] == "peer trend possible"
     assert drilldown.iloc[0]["peer_valuation_status"] == "peer valuation blocked"
+    assert "Supported analysis:" in drilldown.iloc[0]["supported_analysis"]
+    assert "Unsupported analysis:" in drilldown.iloc[0]["unsupported_analysis"]
+    assert "source-backed peers" in drilldown.iloc[0]["next_research_question"]
+    assert "Risk watchpoint:" in drilldown.iloc[0]["risk_watchpoint"]
+    assert "Invalidate" in drilldown.iloc[0]["invalidation_condition"]
+    assert "peer context is missing" in drilldown.iloc[0]["confidence_explanation"]
     assert "source-backed peers" in rendered
     assert "copy-only command" in rendered
     assert "broker" not in rendered
@@ -242,7 +272,16 @@ def test_purpose_evaluation_drilldown_keeps_etf_monitor_on_stock_report_when_pee
 
     assert qqq["purpose_family"] == "ETF / Hedge"
     assert qqq["unlock_command"] == "make stock-report TICKER=QQQ"
+    assert "monitor, and what would invalidate" in qqq["next_research_question"].lower()
+    assert "operating-company dcf and peer valuation are excluded" in qqq["unsupported_analysis"].lower()
+    assert "market-proxy usefulness" in qqq["invalidation_condition"].lower()
+    assert "only ready local monitor inputs are used" in qqq["confidence_explanation"].lower()
+    assert "excluded, not treated as failed monitor inputs" in qqq["confidence_explanation"].lower()
+    assert "limiting factor: peers" not in qqq["confidence_explanation"].lower()
+    assert "next blocker: peers" not in " ".join(str(value) for value in qqq.to_dict().values()).lower()
     assert meta["unlock_command"] == "make focus-peers TICKER=META"
+    assert "source-backed peers" in meta["next_research_question"].lower()
+    assert "peer-relative context is incomplete" in meta["risk_watchpoint"].lower()
     assert "copy-only command" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

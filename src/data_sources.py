@@ -430,9 +430,9 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
     ),
     DataSourceRegistryEntry(
         dataset="local_outputs",
-        source_name="Generated screener outputs",
+        source_name="Generated research outputs",
         source_type="generated_csv",
-        required_for="dashboard, monthly picks, stock report screener context",
+        required_for="dashboard, monthly picks, stock report research-output context",
         is_required=True,
         is_optional=False,
         is_manual_only=False,

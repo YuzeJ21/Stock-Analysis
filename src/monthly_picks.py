@@ -468,7 +468,7 @@ def _build_reason(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate monthly research candidates from local screener outputs.")
+    parser = argparse.ArgumentParser(description="Generate monthly research candidates from local research outputs.")
     parser.add_argument("--generate", action="store_true", help="Write outputs/monthly_research_picks.csv.")
     parser.add_argument("--top-n", type=int, help="Number of monthly research candidates.")
     parser.add_argument("--benchmark", help="Benchmark ticker used for downstream track-record comparison.")

@@ -180,7 +180,7 @@ class YahooChartDailyPriceSource:
             "includeAdjustedClose": "true",
         }
         url = f"{self.base_url}/{ticker}?{urlencode(params)}"
-        request = Request(url, headers={"User-Agent": "stock-research-screener/1.0"})
+        request = Request(url, headers={"User-Agent": "stock-research-command-center/1.0"})
         try:
             with self.opener(request, timeout=20) as response:
                 payload = response.read().decode("utf-8")
