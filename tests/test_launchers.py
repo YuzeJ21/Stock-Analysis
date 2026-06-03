@@ -131,6 +131,7 @@ def test_makefile_help_documents_key_workflows():
         "make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo]",
         "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
         "make price-refresh-loop [BATCHES=5] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
+        "make price-refresh-loop DRY_RUN=1",
         "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make optional-context-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make sec-stage-queue [TICKERS=NVDA,MSFT] [TOP_N=10]",
@@ -157,10 +158,12 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
 
     assert "price-refresh-loop:" in makefile
-    assert "BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30)" in makefile
+    assert "BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)" in makefile
     assert 'BATCHES="${BATCHES:-5}"' in script
     assert 'TOP_N="${TOP_N:-100}"' in script
     assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in script
+    assert "Dry run only. No local CSV files were changed." in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
     assert "make price-coverage TOP_N=25" in script
     assert "make readiness" in script
@@ -173,6 +176,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert len(readme.splitlines()) < 180
     assert "![Dashboard preview](docs/assets/dashboard-preview.svg)" in readme
     assert "## Quick Start" in readme
+    assert "## What You Can Analyze" in readme
     for phrase in (
         "make pipeline",
         "make readiness",
@@ -182,6 +186,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make status-check TOP_N=5",
         "make research-health-check TOP_N=10",
         "make price-worklist TOP_N=10",
+        "make price-refresh-loop DRY_RUN=1",
         "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
         "make focus-fundamentals TICKER=NVDA",
         "make peer-mapping-queue TOP_N=10",

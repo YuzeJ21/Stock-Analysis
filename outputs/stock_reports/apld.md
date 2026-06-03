@@ -70,10 +70,12 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Missing price reason: Not available
 
 ## Valuation Readiness
-- DCF status: insufficient_data
-- DCF missing fields: free_cash_flow, shares_outstanding, revenue, fcf_margin
-- Reason not ready: missing free_cash_flow, shares_outstanding, revenue, fcf_margin
-- Relative valuation status: insufficient_data
+- DCF status: insufficient_data.
+- DCF missing fields: free_cash_flow, shares_outstanding, revenue, fcf_margin.
+- Reason not ready: missing free_cash_flow, shares_outstanding, revenue, fcf_margin.
+- DCF assumptions: hidden until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.
+- Sensitivity table: unavailable until the base DCF can be calculated.
+- Relative valuation: insufficient_data; peer count=0.
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
 ## Peer Workflow
@@ -108,9 +110,9 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Source / Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-06-03T18:35:06.424153090+00:00; Local CSV-backed research data.
-- local:fundamentals.csv: research-grade / local, retrieved 2026-06-03T18:37:36+00:00; No local fundamentals row was found for this ticker.
-- local:earnings.csv: research-grade / local, retrieved 2026-06-03T18:37:36+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T18:37:36+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:fundamentals.csv: research-grade / local, retrieved 2026-06-03T19:02:41+00:00; No local fundamentals row was found for this ticker.
+- local:earnings.csv: research-grade / local, retrieved 2026-06-03T19:02:41+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T19:02:41+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Source/Freshness Audit
 - Prices: True; local source `data/prices.csv`; coverage 2023-12-15 to 2026-06-01; rows=615; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.

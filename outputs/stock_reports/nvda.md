@@ -70,10 +70,14 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Missing price reason: Not available
 
 ## Valuation Readiness
-- DCF status: calculated
-- DCF missing fields: Not available
-- Reason not ready: Not available
-- Relative valuation status: calculated
+- DCF status: calculated.
+- DCF missing fields: Not available.
+- Reason not ready: Not available.
+- Base DCF fair value per share: $143.42.
+- Base DCF assumptions: method=fcf_direct, revenue growth=40.0%, FCF margin=44.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
+- Scenario coverage: bear, base, bull.
+- Sensitivity table: calculated; it tests fair value across WACC and terminal-growth assumptions when per-share DCF inputs are ready.
+- Relative valuation: calculated; peer count=2.
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
 ## Peer Workflow
@@ -101,8 +105,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source / Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-06-03T18:35:06.424153090+00:00; Local CSV-backed research data.
 - local:fundamentals.csv: research-grade / local, retrieved 2026-05-27T21:34:35.086026430+00:00; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local, retrieved 2026-06-03T18:37:17+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T18:37:17+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local, retrieved 2026-06-03T19:02:37+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T19:02:37+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Source/Freshness Audit
 - Prices: True; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=621; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.

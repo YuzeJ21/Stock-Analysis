@@ -36,7 +36,7 @@ def _copy_rich_fixture(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_build_stock_report_assembles_expected_sections():
+def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     source = make_source_metadata(
         provider="mock",
         freshness="daily snapshot",
@@ -106,23 +106,30 @@ def test_build_stock_report_assembles_expected_sections():
         },
     )
 
-    report = build_stock_report("MSFT", provider).to_dict()
+    report = build_stock_report("MSFT", provider)
+    report_dict = report.to_dict()
+    markdown = export_stock_report_markdown(report, tmp_path / "msft.md")
 
-    assert report["ticker"] == "MSFT"
-    assert report["provider_name"] == "MockMarketDataProvider"
-    assert report["generated_at"] is not None
-    assert report["price_snapshot"]["price"] == 360.0
-    assert report["performance"]["one_month"] is not None
-    assert report["financial_summary"]["revenue"] == 250_000_000_000
-    assert report["valuation_snapshot"]["status"] == "calculated"
-    assert report["valuation_snapshot"]["dcf_result"]["fair_value_per_share"] is not None
-    assert report["earnings_summary"]["next_earnings_date"] == "2026-07-24"
-    assert report["analyst_estimate_summary"]["target_mean_price"] == 390.0
-    assert "missing_data_warnings" in report
-    assert report["valuation_readiness"]["dcf_ready"] is True
-    assert report["local_data_validation"] == []
-    assert len(report["data_freshness"]) >= 3
-    assert any("research-grade" in " ".join(note["notes"]).lower() for note in report["data_freshness"])
+    assert report_dict["ticker"] == "MSFT"
+    assert report_dict["provider_name"] == "MockMarketDataProvider"
+    assert report_dict["generated_at"] is not None
+    assert report_dict["price_snapshot"]["price"] == 360.0
+    assert report_dict["performance"]["one_month"] is not None
+    assert report_dict["financial_summary"]["revenue"] == 250_000_000_000
+    assert report_dict["valuation_snapshot"]["status"] == "calculated"
+    assert report_dict["valuation_snapshot"]["dcf_result"]["fair_value_per_share"] is not None
+    assert report_dict["earnings_summary"]["next_earnings_date"] == "2026-07-24"
+    assert report_dict["analyst_estimate_summary"]["target_mean_price"] == 390.0
+    assert "missing_data_warnings" in report_dict
+    assert report_dict["valuation_readiness"]["dcf_ready"] is True
+    assert report_dict["local_data_validation"] == []
+    assert len(report_dict["data_freshness"]) >= 3
+    assert any("research-grade" in " ".join(note["notes"]).lower() for note in report_dict["data_freshness"])
+    assert "Base DCF fair value per share" in markdown
+    assert "Base DCF assumptions" in markdown
+    assert "Scenario coverage: bear, base, bull" in markdown
+    assert "Sensitivity table:" in markdown
+    assert "missing valuation inputs are not inferred" in markdown
 
 
 def test_build_stock_report_surfaces_missing_data_risks():
@@ -295,6 +302,8 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "transaction execution" not in markdown.lower()
     assert "execute transactions" not in markdown.lower()
     assert "DCF: excluded" in markdown
+    assert "DCF applicability: excluded" in markdown
+    assert "not a failed valuation input" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
     assert "## Purpose Evaluation" in markdown
     assert "Research-only purpose brief" in markdown

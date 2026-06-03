@@ -20,20 +20,22 @@ This project turns a broad stock universe into a research workflow:
 
 Many stock tools jump straight to rankings. This command center treats missing data as a first-class signal: if a ticker is not ready for a specific analysis, it says why and shows the next local data-unlock step. That makes the output more trustworthy, not weaker.
 
-## Current Snapshot
+## What You Can Analyze
 
-The current local baseline is intentionally honest about coverage:
+When trusted local data is available, the command center can produce:
 
-| Area | Ready |
-| --- | ---: |
-| Master universe | 3,538 tickers |
-| Active research universe | 12 tickers |
-| Price-ready subset | 240 tickers |
-| Fundamentals / DCF-ready subset | 23 tickers |
-| Peer-ready subset | 3 tickers |
-| Earnings / analyst estimates | Locked until trusted CSV rows are imported |
+- Price, momentum, liquidity, and market-direction context.
+- Portfolio purpose checks and thesis-review flags.
+- DCF readiness and conservative scenario valuation.
+- Peer-context readiness without pretending missing peer valuation exists.
+- ETF/index monitor reports where operating-company DCF is excluded.
+- Single-stock reports with risks, blockers, next research steps, and source/freshness notes.
 
 Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
+
+## Current Snapshot
+
+The local sample currently tracks a broad universe of 3,538 tickers, with a smaller subset ready for each analysis feature. Exact ready counts can change after local refresh/import work, so use `make status-check TOP_N=5` or the dashboard Home page for the current snapshot.
 
 ## Maturity
 
@@ -98,7 +100,17 @@ make optional-context-worklist TOP_N=10
 For a larger local price refresh, use capped batches instead of repeating small commands manually:
 
 ```bash
+make price-refresh-loop DRY_RUN=1
 make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+```
+
+Demo report examples:
+
+```bash
+make stock-report TICKER=NVDA
+make stock-report TICKER=QQQ
+make stock-report TICKER=SMH
+make stock-report TICKER=APLD
 ```
 
 Preview-first import flow:

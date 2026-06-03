@@ -383,6 +383,91 @@ def _brief_value(value: Any, *prefixes: str, fallback: str = "Not available") ->
     return text
 
 
+def _format_pct(value: Any) -> str:
+    if value is None:
+        return "Not available"
+    try:
+        if pd.isna(value):
+            return "Not available"
+        return f"{float(value) * 100:.1f}%"
+    except (TypeError, ValueError):
+        return _display_value(value)
+
+
+def _format_money(value: Any) -> str:
+    if value is None:
+        return "Not available"
+    try:
+        if pd.isna(value):
+            return "Not available"
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return _display_value(value)
+    return f"${numeric:,.2f}"
+
+
+def _stock_report_valuation_lines(
+    *,
+    valuation_snapshot: dict[str, Any],
+    valuation_readiness: dict[str, Any],
+    dcf: dict[str, Any],
+    dcf_status_text: str,
+    monitor_context: bool,
+) -> list[str]:
+    if monitor_context or dcf_status_text.lower() == "excluded":
+        return [
+            "- DCF applicability: excluded for ETF/index/fund monitor context; this is not a failed valuation input.",
+            "- Valuation conclusion: not shown because operating-company DCF and peer valuation do not apply to this monitor role.",
+        ]
+
+    dcf_result = valuation_snapshot.get("dcf_result", {}) if isinstance(valuation_snapshot, dict) else {}
+    assumptions = dcf_result.get("assumptions", {}) if isinstance(dcf_result, dict) else {}
+    sensitivity = valuation_snapshot.get("sensitivity_table", {}) if isinstance(valuation_snapshot, dict) else {}
+    relative = valuation_snapshot.get("relative_valuation", {}) if isinstance(valuation_snapshot, dict) else {}
+    scenarios = valuation_snapshot.get("scenarios", []) if isinstance(valuation_snapshot, dict) else []
+    missing_fields = dcf.get("missing_dcf_fields") or ", ".join(valuation_readiness.get("dcf_missing_fields", []))
+    fair_value = dcf_result.get("fair_value_per_share") if isinstance(dcf_result, dict) else None
+    scenario_names = [
+        _display_value(item.get("name"))
+        for item in scenarios
+        if isinstance(item, dict) and _display_value(item.get("name")) != "Not available"
+    ]
+    lines = [
+        f"- DCF status: {_display_value(valuation_snapshot.get('status') if isinstance(valuation_snapshot, dict) else None)}.",
+        f"- DCF missing fields: {_display_value(missing_fields)}.",
+        f"- Reason not ready: {_display_value(dcf.get('reason_not_ready'))}.",
+    ]
+    if dcf_result.get("status") == "calculated":
+        lines.extend(
+            [
+                f"- Base DCF fair value per share: {_format_money(fair_value)}.",
+                (
+                    "- Base DCF assumptions: "
+                    f"method={_display_value(assumptions.get('method_name'))}, "
+                    f"revenue growth={_format_pct(assumptions.get('revenue_growth'))}, "
+                    f"FCF margin={_format_pct(assumptions.get('fcf_margin'))}, "
+                    f"WACC={_format_pct(assumptions.get('wacc'))}, "
+                    f"terminal growth={_format_pct(assumptions.get('terminal_growth'))}, "
+                    f"forecast years={_display_value(assumptions.get('forecast_years'))}."
+                ),
+                f"- Scenario coverage: {', '.join(scenario_names) if scenario_names else 'Not available'}.",
+                (
+                    f"- Sensitivity table: {_display_value(sensitivity.get('status'))}; "
+                    "it tests fair value across WACC and terminal-growth assumptions when per-share DCF inputs are ready."
+                ),
+            ]
+        )
+    else:
+        lines.append("- DCF assumptions: hidden until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.")
+        lines.append("- Sensitivity table: unavailable until the base DCF can be calculated.")
+
+    relative_status = _display_value(relative.get("status") if isinstance(relative, dict) else None)
+    peer_count = _display_value(relative.get("peer_count") if isinstance(relative, dict) else None)
+    lines.append(f"- Relative valuation: {relative_status}; peer count={peer_count}.")
+    lines.append("- Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.")
+    return lines
+
+
 def _stock_report_operator_summary(
     *,
     ticker: str,
@@ -695,6 +780,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         estimates_ready=estimates_ready,
         dcf_status_text=dcf_status_text,
     )
+    valuation_lines = _stock_report_valuation_lines(
+        valuation_snapshot=payload.get("valuation_snapshot", {}),
+        valuation_readiness=valuation_readiness,
+        dcf=dcf,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+    )
 
     report_lines = [
         f"# {report.ticker} Single-Stock Research Report",
@@ -769,11 +861,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Missing price reason: {_display_value(coverage.get('missing_price_reason'))}",
         "",
         "## Valuation Readiness",
-        f"- DCF status: {_display_value(payload.get('valuation_snapshot', {}).get('status'))}",
-        f"- DCF missing fields: {_display_value(dcf.get('missing_dcf_fields') or ', '.join(valuation_readiness.get('dcf_missing_fields', [])))}",
-        f"- Reason not ready: {_display_value(dcf.get('reason_not_ready'))}",
-        f"- Relative valuation status: {_display_value(payload.get('valuation_snapshot', {}).get('relative_valuation', {}).get('status'))}",
-        "- Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.",
+        *valuation_lines,
         "",
         "## Peer Workflow",
         f"- Peer blocker type: {peer_blocker_display}",

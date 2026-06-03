@@ -36,21 +36,17 @@ The product is usable today for price, momentum, and market-direction monitoring
 
 The product is partially decision-useful for DCF-ready company research, but peer-relative analysis, earnings context, and analyst-estimate context remain blocked for most tickers because trusted source data is missing or incomplete. This is expected and correct: the system should not promote unsupported conclusions when the underlying data is not ready.
 
-Current verified readiness baseline:
+Current readiness pattern:
 
 - Master universe rows: 3,538.
 - Active research rows: 12.
-- Price ready: 240/3,538.
-- Momentum ready: 237/3,538.
-- Liquidity ready: 232/3,538.
-- Correlation ready: 232/3,538.
-- Fundamentals ready: 23/3,538.
-- DCF ready: 23/3,538.
-- Peer ready: 3/3,538.
-- Earnings ready: 0/3,538.
-- Analyst estimates ready: 0/3,538.
-- Overall readiness: 3,298 blocked, 240 partial.
-- Decision buckets: 3,513 Blocked by Data, 23 Research Now, 2 Monitor.
+- Price, momentum, liquidity, and correlation coverage can improve through capped local refresh/import workflows.
+- Fundamentals and DCF coverage remain limited to trusted local/SEC-backed rows.
+- Peer readiness remains intentionally sparse until source-backed peer mappings and peer inputs are imported.
+- Earnings and analyst estimates remain locked until trusted local CSV rows are imported.
+- Decision buckets remain readiness-gated: incomplete rows stay `Blocked by Data` or `Monitor` rather than becoming unsupported recommendations.
+
+Use `make status-check TOP_N=5`, `make readiness`, or the dashboard Home page for exact current local counts.
 
 The product correctly avoids fake conclusions. The next improvement is product-page workflow clarity plus trusted data ingestion, not more indicators.
 

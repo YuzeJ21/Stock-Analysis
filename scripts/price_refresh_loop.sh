@@ -5,6 +5,7 @@ BATCHES="${BATCHES:-5}"
 TOP_N="${TOP_N:-100}"
 PROVIDER="${PROVIDER:-yahoo}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-30}"
+DRY_RUN="${DRY_RUN:-0}"
 
 case "$BATCHES" in
   ''|*[!0-9]*) echo "BATCHES must be a positive integer." >&2; exit 2 ;;
@@ -24,6 +25,13 @@ fi
 echo "Research-only capped price refresh loop."
 echo "Batches: $BATCHES; tickers per batch: $TOP_N; provider: $PROVIDER; sleep seconds: $SLEEP_SECONDS"
 echo "This updates local CSV files only. It does not connect to brokers, place orders, or make recommendations."
+echo "Plan: run capped missing-price batches, then rebuild price coverage, readiness, and project status."
+if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
+  echo "Dry run only. No local CSV files were changed."
+  echo "First batch command would be: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER"
+  echo "Post-loop commands would be: make price-coverage TOP_N=25; make readiness; make project-status"
+  exit 0
+fi
 
 i=1
 while [ "$i" -le "$BATCHES" ]; do
