@@ -20,8 +20,8 @@ This project is a local research command center. It is strongest when the user h
 | Price and momentum | Yes when local price history is present. | Daily OHLCV rows with enough history for returns, averages, liquidity, and volatility context. | It does not invent missing price history or fill broad-universe gaps silently. | `src/indicators.py`, `src/momentum_engine.py` |
 | Fundamentals and DCF | Useful for DCF-ready companies only. | Trusted fundamentals with revenue, free cash flow or FCF margin, shares outstanding, price, cash, and debt where available. | It does not label not-ready companies undervalued or overvalued. | `src/value_engine.py`, `src/valuation.py` |
 | Peer comparison | Workflow-ready, but coverage-limited until peers are imported. | Source-backed peer mappings plus peer price/fundamentals rows. | It does not treat sector or industry fallback as trusted peer valuation. | `src/readiness_engine.py`, `src/valuation.py` |
-| ETF/index monitor context | Good for market, theme, liquidity, and risk monitoring. | Price, liquidity, correlation, and theme context. | It does not run operating-company DCF for ETFs, index proxies, or funds. | `src/research_decisions.py`, `src/stock_report.py` |
-| Single-stock report | Good for explaining one ticker's supported and blocked analysis in plain language. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not provide allocation instructions or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
+| ETF/index monitor context | Supports market, theme, liquidity, and risk monitoring. | Price, liquidity, correlation, and theme context. | It does not run operating-company DCF for ETFs, index proxies, or funds. | `src/research_decisions.py`, `src/stock_report.py` |
+| Single-stock report | Explains one ticker's supported and blocked analysis in plain language. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not provide allocation instructions or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
 
 ## What Is Intentionally Limited
 
@@ -35,7 +35,7 @@ This project is a local research command center. It is strongest when the user h
 
 The product now uses the same plain modes across the dashboard and single-stock workflow:
 
-| Mode | Good enough for | Not good enough for |
+| Mode | Supported today | Not supported yet |
 | --- | --- | --- |
 | `DCF-ready review` | Company DCF assumptions, scenarios, and sensitivity when trusted inputs exist. | Unsupported recommendations or allocation instructions. |
 | `Standalone DCF review` | Reviewing company DCF assumptions before peer context is ready. | Peer-relative valuation until source-backed peer inputs exist. |
@@ -65,6 +65,6 @@ If those plugins are used during development, their output still has to be trans
 
 ## Good-Enough Assessment
 
-The current functions are good enough for a transparent local research prototype, single-stock review, market/ETF monitoring, and DCF-ready company analysis when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until trusted rows are imported.
+The current functions are strong enough for a transparent local research prototype, single-stock review, market/ETF monitoring, and DCF-ready company analysis when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until trusted rows are imported.
 
 The next quality unlock is not more indicators. It is better data coverage, better source/freshness visibility, more trusted fundamentals/peer rows, and continued UI polish so blocked analysis feels intentional rather than broken.

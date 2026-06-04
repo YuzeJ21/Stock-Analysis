@@ -3265,23 +3265,23 @@ def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> li
     is_monitor = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status
 
     if is_monitor:
-        status_title = "Good for monitor context"
+        status_title = "Monitor-only context"
         status_body = "Use market, theme, liquidity, or risk context. Operating-company DCF and peer valuation are excluded, not failed."
         status_badges = ["monitor", "DCF excluded"]
     elif dcf_ready and peer_ready:
-        status_title = "Good for deeper company review"
+        status_title = "DCF-ready review"
         status_body = "Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass."
         status_badges = ["company review", "core ready"]
     elif dcf_ready:
-        status_title = "Good for standalone DCF"
+        status_title = "Standalone DCF review"
         status_body = "DCF assumptions can be reviewed, but peer-relative valuation remains limited until trusted peer inputs are ready."
         status_badges = ["DCF ready", "peer-limited"]
     elif readiness.get("price_ready"):
-        status_title = "Good for price/setup review"
+        status_title = "Price/setup review only"
         status_body = "Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist."
         status_badges = ["price ready", "valuation blocked"]
     else:
-        status_title = "Data-unlock mode"
+        status_title = "Data-unlock only"
         status_body = "Start with verified local price history before relying on momentum, liquidity, valuation, or peer context."
         status_badges = ["unlock first"]
 
@@ -3342,7 +3342,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
     missing_text = ", ".join(missing_core) if missing_core else "No core DCF fields missing"
 
     if dcf_ready and core_ready == len(core_fields):
-        title = "Good for DCF input review"
+        title = "DCF inputs ready"
         body = "Revenue, free cash flow, FCF margin, and share count are present. Review assumptions and source freshness before interpreting valuation."
         badges = ["DCF inputs", "reviewable"]
     elif fundamentals_ready:
@@ -6012,8 +6012,8 @@ def peer_function_quality_frame(
                 {
                     "Peer Area": "Peer workflow",
                     "Current Coverage": "Peer readiness not generated",
-                    "Good Enough For": "Nothing yet; run readiness before interpreting peer context.",
-                    "Not Good Enough For": "Peer trend or valuation comparison.",
+                    "Supported Today": "Nothing yet; run readiness before interpreting peer context.",
+                    "Not Supported Yet": "Peer trend or valuation comparison.",
                     "Logic Source": "Repo-native peer readiness checks after make readiness.",
                     "Next Step": "make readiness",
                 }
@@ -6037,48 +6037,48 @@ def peer_function_quality_frame(
             {
                 "Peer Area": "Source-backed mappings",
                 "Current Coverage": f"{missing_mapping} ticker(s) missing mappings; {queued} unlock row(s) queued",
-                "Good Enough For": "Prioritizing which manual peer rows to add to data/imports/peers.csv.",
-                "Not Good Enough For": "Trusted peer comparison until relationships are source-backed or clearly marked as fallback context.",
+                "Supported Today": "Prioritizing which manual peer rows to add to data/imports/peers.csv.",
+                "Not Supported Yet": "Trusted peer comparison until relationships are source-backed or clearly marked as fallback context.",
                 "Logic Source": "Repo-native peer readiness and peer unlock worklist generation; peer-selection rules stay in this repository.",
                 "Next Step": "make peer-mapping-queue TOP_N=25",
             },
             {
                 "Peer Area": "Peer trend comparison",
                 "Current Coverage": f"{int(trend_ready.sum())} ticker(s) trend-ready",
-                "Good Enough For": "Relative price or momentum context when mapped peers have enough local price rows.",
-                "Not Good Enough For": "Peer-relative valuation or quality conclusions.",
+                "Supported Today": "Relative price or momentum context when mapped peers have enough local price rows.",
+                "Not Supported Yet": "Peer-relative valuation or quality conclusions.",
                 "Logic Source": "Repo-native price/momentum readiness checks for mapped peers.",
                 "Next Step": "make readiness",
             },
             {
                 "Peer Area": "Peer valuation comparison",
                 "Current Coverage": f"{int(valuation_ready.sum())} ticker(s) valuation-ready; {valuation_blocked} still blocked",
-                "Good Enough For": "Peer-relative valuation only after peer mappings and peer valuation inputs are ready.",
-                "Not Good Enough For": "Valuation conclusions when peer fundamentals, peer metrics, or mapped peer inputs are missing.",
+                "Supported Today": "Peer-relative valuation only after peer mappings and peer valuation inputs are ready.",
+                "Not Supported Yet": "Valuation conclusions when peer fundamentals, peer metrics, or mapped peer inputs are missing.",
                 "Logic Source": "Repo-native peer valuation readiness gates; missing peer inputs are withheld, not inferred.",
                 "Next Step": "make imports-validate",
             },
             {
                 "Peer Area": "Peer DCF comparison",
                 "Current Coverage": f"{int(dcf_comparison_ready.sum())} ticker(s) DCF-peer-ready",
-                "Good Enough For": "DCF peer context when both subject and mapped peer valuation inputs pass readiness.",
-                "Not Good Enough For": "Using DCF-ready subject companies as if peer-relative valuation is ready.",
+                "Supported Today": "DCF peer context when both subject and mapped peer valuation inputs pass readiness.",
+                "Not Supported Yet": "Using DCF-ready subject companies as if peer-relative valuation is ready.",
                 "Logic Source": "Repo-native DCF and peer readiness intersection checks.",
                 "Next Step": "make dcf-readiness",
             },
             {
                 "Peer Area": "Peer data follow-through",
                 "Current Coverage": f"{peer_price_missing} price-gap ticker(s); {peer_fundamentals_missing} fundamentals-gap ticker(s)",
-                "Good Enough For": "Finding whether peer blockers are price rows, fundamentals rows, or peer metrics.",
-                "Not Good Enough For": "Treating sector or industry fallback as trusted manual peer valuation.",
+                "Supported Today": "Finding whether peer blockers are price rows, fundamentals rows, or peer metrics.",
+                "Not Supported Yet": "Treating sector or industry fallback as trusted manual peer valuation.",
                 "Logic Source": "Repo-native blocker classification with explicit fallback labeling.",
                 "Next Step": "make price-worklist TOP_N=25",
             },
             {
                 "Peer Area": "Dependencies",
                 "Current Coverage": "Support layer only.",
-                "Good Enough For": "Data handling, table display, tests, and optional development review.",
-                "Not Good Enough For": "Replacing source-backed peer mappings or repo-native peer-readiness rules.",
+                "Supported Today": "Data handling, table display, tests, and optional development review.",
+                "Not Supported Yet": "Replacing source-backed peer mappings or repo-native peer-readiness rules.",
                 "Logic Source": "Standard libraries and optional Codex plugins support development; peer logic runs from this repository.",
                 "Next Step": "make project-status",
             },
@@ -6323,8 +6323,8 @@ def fundamentals_dcf_function_quality_frame(
                 {
                     "Function Area": "Fundamentals / DCF",
                     "Current Coverage": "Readiness not generated",
-                    "Good Enough For": "Nothing yet; run readiness before interpreting fundamentals or DCF status.",
-                    "Not Good Enough For": "Any company valuation conclusion.",
+                    "Supported Today": "Nothing yet; run readiness before interpreting fundamentals or DCF status.",
+                    "Not Supported Yet": "Any company valuation conclusion.",
                     "Logic Source": "Repo-native readiness checks after make readiness.",
                     "Next Step": "make readiness",
                 }
@@ -6363,48 +6363,48 @@ def fundamentals_dcf_function_quality_frame(
             {
                 "Function Area": "Trusted fundamentals",
                 "Current Coverage": f"{fundamentals_ready_count} fundamentals-ready company row(s)",
-                "Good Enough For": "Company snapshot and DCF input review when trusted local or SEC-backed rows exist.",
-                "Not Good Enough For": "Filling missing revenue, cash-flow, margin, or share-count fields by inference.",
+                "Supported Today": "Company snapshot and DCF input review when trusted local or SEC-backed rows exist.",
+                "Not Supported Yet": "Filling missing revenue, cash-flow, margin, or share-count fields by inference.",
                 "Logic Source": "Repo-native import/readiness checks using trusted local CSV and SEC-staged rows.",
                 "Next Step": "make sec-stage-queue TOP_N=25",
             },
             {
                 "Function Area": "Price-ready but missing fundamentals",
                 "Current Coverage": f"{price_ready_missing_fundamentals} company row(s); {active_missing_fundamentals} active-universe row(s)",
-                "Good Enough For": "Prioritizing which real fundamentals to stage, validate, preview, and apply next.",
-                "Not Good Enough For": "Company valuation, quality score, or DCF interpretation.",
+                "Supported Today": "Prioritizing which real fundamentals to stage, validate, preview, and apply next.",
+                "Not Supported Yet": "Company valuation, quality score, or DCF interpretation.",
                 "Logic Source": "Repo-native readiness gates surface missing fundamentals instead of creating placeholder values.",
                 "Next Step": "make focus-fundamentals TICKER=<ticker>",
             },
             {
                 "Function Area": "DCF-ready companies",
                 "Current Coverage": f"{dcf_ready_count} company row(s)",
-                "Good Enough For": "Assumption and sensitivity review after required company DCF fields pass readiness.",
-                "Not Good Enough For": "Unsupported recommendations or conclusions when optional context remains unavailable.",
+                "Supported Today": "Assumption and sensitivity review after required company DCF fields pass readiness.",
+                "Not Supported Yet": "Unsupported recommendations or conclusions when optional context remains unavailable.",
                 "Logic Source": "Repo-native DCF readiness and valuation logic in src/valuation.py.",
                 "Next Step": "make dcf-readiness",
             },
             {
                 "Function Area": "Missing DCF fields",
                 "Current Coverage": missing_field_text,
-                "Good Enough For": "Seeing exactly which input fields block company valuation.",
-                "Not Good Enough For": "Treating missing inputs as a negative company signal.",
+                "Supported Today": "Seeing exactly which input fields block company valuation.",
+                "Not Supported Yet": "Treating missing inputs as a negative company signal.",
                 "Logic Source": "Repo-native DCF readiness report; missing fields are displayed, not guessed.",
                 "Next Step": "make dcf-readiness",
             },
             {
                 "Function Area": "DCF-ready but peer-blocked",
                 "Current Coverage": f"{dcf_ready_peer_blocked_count} company row(s)",
-                "Good Enough For": "Standalone DCF review while peer-relative valuation stays withheld.",
-                "Not Good Enough For": "Peer-relative valuation without source-backed peer mappings and peer inputs.",
+                "Supported Today": "Standalone DCF review while peer-relative valuation stays withheld.",
+                "Not Supported Yet": "Peer-relative valuation without source-backed peer mappings and peer inputs.",
                 "Logic Source": "Repo-native peer readiness checks; fallback sector context is not trusted peer valuation.",
                 "Next Step": "make peer-mapping-queue TOP_N=10",
             },
             {
                 "Function Area": "ETF / index / fund rows",
                 "Current Coverage": f"{excluded_count} row(s) excluded from operating-company DCF",
-                "Good Enough For": "Market, theme, liquidity, or risk monitor context.",
-                "Not Good Enough For": "Operating-company fundamentals or DCF valuation.",
+                "Supported Today": "Market, theme, liquidity, or risk monitor context.",
+                "Not Supported Yet": "Operating-company fundamentals or DCF valuation.",
                 "Logic Source": "Repo-native asset-type gating marks DCF excluded, not failed.",
                 "Next Step": "make stock-report TICKER=QQQ",
             },
@@ -9589,36 +9589,36 @@ def valuation_function_quality_frame(
             {
                 "Valuation Area": "DCF-ready companies",
                 "Current Coverage": f"{len(ready_companies)} row(s)",
-                "Good Enough For": "Reviewing assumptions, scenarios, and sensitivity when trusted local company inputs are present.",
-                "Not Good Enough For": "Direct recommendations or unsupported price targets.",
+                "Supported Today": "Reviewing assumptions, scenarios, and sensitivity when trusted local company inputs are present.",
+                "Not Supported Yet": "Direct recommendations or unsupported price targets.",
                 "Logic Source": "Repo-native DCF readiness and valuation logic in src/valuation.py plus dashboard/report guardrails.",
             },
             {
                 "Valuation Area": "Blocked companies",
                 "Current Coverage": f"{len(blocked_companies)} row(s)",
-                "Good Enough For": "Finding the exact missing data needed before company valuation can be reviewed.",
-                "Not Good Enough For": "Calling a company undervalued, overvalued, or weak because inputs are missing.",
+                "Supported Today": "Finding the exact missing data needed before company valuation can be reviewed.",
+                "Not Supported Yet": "Calling a company undervalued, overvalued, or weak because inputs are missing.",
                 "Logic Source": "Repo-native readiness checks; missing fields are surfaced instead of inferred.",
             },
             {
                 "Valuation Area": "ETF / index / fund rows",
                 "Current Coverage": f"{len(excluded_rows)} row(s)",
-                "Good Enough For": "Monitor context such as market, theme, liquidity, or risk review.",
-                "Not Good Enough For": "Operating-company DCF or peer valuation.",
+                "Supported Today": "Monitor context such as market, theme, liquidity, or risk review.",
+                "Not Supported Yet": "Operating-company DCF or peer valuation.",
                 "Logic Source": "Repo-native asset-type gating marks DCF excluded, not failed.",
             },
             {
                 "Valuation Area": "Peer-relative valuation",
                 "Current Coverage": "Available only when source-backed peer mappings and peer inputs are ready.",
-                "Good Enough For": "Peer comparison after trusted peer rows and peer metrics exist.",
-                "Not Good Enough For": "Guessed peer relationships or peer valuation when peer inputs are missing.",
+                "Supported Today": "Peer comparison after trusted peer rows and peer metrics exist.",
+                "Not Supported Yet": "Guessed peer relationships or peer valuation when peer inputs are missing.",
                 "Logic Source": "Repo-native peer readiness checks; no fabricated peer mappings.",
             },
             {
                 "Valuation Area": "Dependencies",
                 "Current Coverage": "Support layer only.",
-                "Good Enough For": "Data handling, UI display, tests, and optional research-grade data access.",
-                "Not Good Enough For": "Replacing repo-native valuation rules or trusted local valuation inputs.",
+                "Supported Today": "Data handling, UI display, tests, and optional research-grade data access.",
+                "Not Supported Yet": "Replacing repo-native valuation rules or trusted local valuation inputs.",
                 "Logic Source": "Standard libraries and optional adapters support the workflow; valuation rules live in this repository.",
             },
         ]
@@ -12477,7 +12477,7 @@ def overview_handoff_cards() -> list[dict[str, object]]:
         {
             "kicker": "NEXT DEEPER TAB",
             "title": "Single-Stock Report",
-            "body": "Use this for a single-name deep dive after local coverage is good enough to support price, valuation, peer, and missing-assumption context in one place.",
+            "body": "Use this for a single-name deep dive after local coverage can support price, valuation, peer, and missing-assumption context in one place.",
             "badges": ["single name", "deep dive"],
             "command": "make stock-report TICKER=NVDA",
         },
@@ -13763,7 +13763,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     render_section_header("Valuation Function Quality", "What valuation can and cannot mean with the current trusted local inputs.")
     render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
     render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
-    with st.expander("What the valuation function is good enough for", expanded=False):
+    with st.expander("What valuation can support today", expanded=False):
         st.write(
             "This audit separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "
             "peer-relative valuation, and support dependencies so missing inputs do not look like conclusions."
@@ -14346,7 +14346,7 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "ANALYSIS QUALITY",
-            "title": "Good for ready-data research",
+            "title": "Ready-data research",
             "body": "Price, momentum, DCF, peer workflow, and single-stock reports are useful when the needed trusted local inputs exist.",
             "badges": ["data-gated", "transparent"],
         },
@@ -14428,49 +14428,49 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             {
                 "Function Area": "Readiness gates",
                 "Current Status": "Strong when the local readiness reports are current; this is the first layer every page should respect.",
-                "Good Enough For": "Strongest layer; decides whether deeper analysis is allowed.",
+                "Supported Today": "Strongest layer; decides whether deeper analysis is allowed.",
                 "Needs Trusted Data": "Ticker universe, prices, fundamentals, peers, earnings, and estimate readiness rows.",
                 "Logic Source": "Repo-native rules in src/readiness_engine.py.",
             },
             {
                 "Function Area": "Price / momentum",
                 "Current Status": price_status,
-                "Good Enough For": "Local setup, trend, liquidity, and market-context review when price history exists.",
+                "Supported Today": "Local setup, trend, liquidity, and market-context review when price history exists.",
                 "Needs Trusted Data": "Verified local OHLCV rows with enough history.",
                 "Logic Source": "Repo-native calculations in src/report_generator.py and dashboard helpers.",
             },
             {
                 "Function Area": "Fundamentals / DCF",
                 "Current Status": dcf_status,
-                "Good Enough For": "DCF-ready company analysis with visible assumptions and sensitivity.",
+                "Supported Today": "DCF-ready company analysis with visible assumptions and sensitivity.",
                 "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source freshness.",
                 "Logic Source": "Repo-native assumptions in src/value_engine.py and src/valuation.py.",
             },
             {
                 "Function Area": "Peer comparison",
                 "Current Status": peer_status,
-                "Good Enough For": "Workflow-ready peer context after source-backed peer rows and peer metrics exist.",
+                "Supported Today": "Workflow-ready peer context after source-backed peer rows and peer metrics exist.",
                 "Needs Trusted Data": "Manual peer mappings plus peer fundamentals or peer market context.",
                 "Logic Source": "Repo-native peer readiness and valuation checks; no guessed peer mappings.",
             },
             {
                 "Function Area": "Earnings / estimates",
                 "Current Status": f"{earnings_status} {estimates_status}",
-                "Good Enough For": "Optional context only after trusted local rows exist; empty coverage means intentionally unavailable.",
+                "Supported Today": "Optional context only after trusted local rows exist; empty coverage means intentionally unavailable.",
                 "Needs Trusted Data": "Trusted local earnings and analyst-estimate CSV rows with validation/preview/apply review.",
                 "Logic Source": "Repo-native optional-context readiness and import workflow helpers.",
             },
             {
                 "Function Area": "Single-stock report",
-                "Current Status": "Good for explaining one ticker's ready, blocked, excluded, and monitor-only analysis.",
-                "Good Enough For": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
+                "Current Status": "Clear for one ticker's ready, blocked, excluded, and monitor-only analysis.",
+                "Supported Today": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
                 "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source/freshness outputs.",
                 "Logic Source": "Repo-native report assembly in src/stock_report.py and src/dashboard.py.",
             },
             {
                 "Function Area": "Dependencies",
                 "Current Status": "Support layer only; analysis rules remain repo-native.",
-                "Good Enough For": "Data handling, UI, tests, and optional research-grade provider access.",
+                "Supported Today": "Data handling, UI, tests, and optional research-grade provider access.",
                 "Needs Trusted Data": "Local CSV inputs remain the source of truth by default.",
                 "Logic Source": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance support the app; analysis rules remain under src/.",
             },
@@ -15393,7 +15393,7 @@ def render_market_command_center(
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
     render_signal_cards(peer_mapping_studio_summary_cards(peer_readiness_frame, ticker_readiness_frame))
     render_signal_cards(peer_unlock_operator_cards(peer_unlock_worklist_frame, ticker_readiness_frame))
-    with st.expander("What peer analysis is good enough for", expanded=False):
+    with st.expander("What peer analysis can support today", expanded=False):
         st.write(
             "This audit separates source-backed mappings, peer trend comparison, peer valuation comparison, "
             "peer DCF comparison, follow-through data gaps, and support dependencies."
@@ -15454,7 +15454,7 @@ def render_market_command_center(
         "Price-ready companies that still need trusted fundamentals, missing DCF fields, and DCF-ready names waiting on peer context.",
     )
     render_signal_cards(fundamentals_dcf_payload_cards)
-    with st.expander("What fundamentals and DCF are good enough for", expanded=False):
+    with st.expander("What fundamentals and DCF can support today", expanded=False):
         st.write(
             "This audit separates trusted fundamentals, price-ready names still missing fundamentals, DCF-ready companies, "
             "missing DCF fields, peer-blocked DCF-ready names, and ETF/index exclusions."
@@ -15665,7 +15665,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
     render_signal_cards(data_health_orientation_cards(readiness_summary))
-    render_section_header("Analysis Unlock Map", "What each trusted data lane makes good enough to review next.")
+    render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
     render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
     render_section_header("When Is A Stock Ready Enough?", "A simple ladder for setup review, DCF review, peer context, and optional context.")
     render_signal_cards(data_health_good_enough_ladder_cards(readiness_summary))

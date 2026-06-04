@@ -129,7 +129,7 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 5
-    assert "good for ready-data research" in rendered
+    assert "ready-data research" in rendered
     assert "blocked fundamentals, peers, earnings, or estimates" in rendered
     assert "copy commands, then run them yourself" in rendered
     assert "do not run refreshes, imports, or external account actions" in rendered
@@ -174,7 +174,7 @@ def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
     assert "sell" not in rendered
 
 
-def test_home_function_quality_frame_explains_good_enough_scope_and_logic_source():
+def test_home_function_quality_frame_explains_supported_scope_and_logic_source():
     frame = dashboard._plain_home_function_quality_frame(
         {
             "master_universe": 3538,
@@ -187,7 +187,7 @@ def test_home_function_quality_frame_explains_good_enough_scope_and_logic_source
     )
     rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
 
-    assert list(frame.columns) == ["Function Area", "Current Status", "Good Enough For", "Needs Trusted Data", "Logic Source"]
+    assert list(frame.columns) == ["Function Area", "Current Status", "Supported Today", "Needs Trusted Data", "Logic Source"]
     assert "readiness gates" in rendered
     assert "strongest layer" in rendered
     assert "price / momentum" in rendered
@@ -6403,11 +6403,11 @@ def test_stock_report_analysis_quality_cards_classify_supported_scope():
         for value in card.values()
     ).lower()
 
-    assert "good for monitor context" in rendered
+    assert "monitor-only context" in rendered
     assert "excluded, not failed" in rendered
-    assert "good for standalone dcf" in rendered
+    assert "standalone dcf review" in rendered
     assert "peer-relative valuation remains limited" in rendered
-    assert "good for price/setup review" in rendered
+    assert "price/setup review only" in rendered
     assert "company valuation stays blocked" in rendered
     assert "visible warnings reduce confidence" in rendered
     assert "broker" not in rendered
@@ -6456,7 +6456,7 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     ).lower()
 
     assert [card["kicker"] for card in ready_cards] == ["FUNDAMENTALS QUALITY", "QUALITY CONTEXT", "LOGIC SOURCE"]
-    assert "good for dcf input review" in rendered
+    assert "dcf inputs ready" in rendered
     assert "review assumptions and source freshness" in rendered
     assert "partial fundamentals context" in rendered
     assert "missing: fcf margin" in rendered
@@ -6700,7 +6700,7 @@ def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language(
     assert "sell" not in rendered
 
 
-def test_valuation_function_quality_cards_explain_good_enough_scope_without_overclaiming():
+def test_valuation_function_quality_cards_explain_supported_scope_without_overclaiming():
     ready = pd.DataFrame({"ticker": ["NVDA"]})
     blocked = pd.DataFrame({"ticker": ["AMD", "META"]})
     excluded = pd.DataFrame({"ticker": ["QQQ"]})
@@ -6740,8 +6740,8 @@ def test_valuation_function_quality_frame_explains_scope_counts_and_provenance()
     assert list(frame.columns) == [
         "Valuation Area",
         "Current Coverage",
-        "Good Enough For",
-        "Not Good Enough For",
+        "Supported Today",
+        "Not Supported Yet",
         "Logic Source",
     ]
     assert "dcf-ready companies" in rendered
@@ -11189,8 +11189,8 @@ def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance()
     assert list(frame.columns) == [
         "Function Area",
         "Current Coverage",
-        "Good Enough For",
-        "Not Good Enough For",
+        "Supported Today",
+        "Not Supported Yet",
         "Logic Source",
         "Next Step",
     ]
@@ -11338,8 +11338,8 @@ def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance(
     assert list(frame.columns) == [
         "Peer Area",
         "Current Coverage",
-        "Good Enough For",
-        "Not Good Enough For",
+        "Supported Today",
+        "Not Supported Yet",
         "Logic Source",
         "Next Step",
     ]

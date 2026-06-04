@@ -190,7 +190,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert preview_phrase in preview
     assert "## Quick Start" in readme
     assert "## What You Can Analyze" in readme
-    assert "## Good Enough Today" in readme
+    assert "## What Works Today" in readme
     assert "## Try This Demo Path" in readme
     assert "## Generated Data Hygiene" in readme
     assert "## Analysis Logic Provenance" in readme
