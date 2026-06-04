@@ -37,9 +37,11 @@ Most blocked rows are not errors. They are data gaps the command center exposes 
 
 The local sample currently tracks a broad universe of 3,538 tickers, with a smaller subset ready for each analysis feature. Exact ready counts can change after local refresh/import work, so use `make status-check TOP_N=5` or the dashboard Home page for the current snapshot.
 
-## Maturity
+## Good Enough Today
 
-This is a working local research prototype with deterministic CSV outputs, dashboard smoke coverage, and regression tests. It is not a full-market data provider: broad-universe readiness still depends on trusted local prices, fundamentals, peer mappings, earnings, and analyst-estimate inputs.
+This is a working local research prototype with deterministic CSV outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review.
+
+Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, hidden recommendation engine, broker workflow, or auto-refreshing trading system.
 
 ## Preview
 
@@ -126,7 +128,7 @@ Small example outputs are included for review. Large refreshed files such as `da
 
 ## Analysis Logic Provenance
 
-The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. Codex plugins or skills are not runtime dependencies or hidden stock-picking engines. See [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
+The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. Codex plugins or skills are not runtime dependencies; Public Equity Investing and Investment Banking are development aids only, not hidden valuation engines, copied stock-picking systems, hidden stock-picking engines, or broker integrations. See [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
 
 ## Core Outputs
 

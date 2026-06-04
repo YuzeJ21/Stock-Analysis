@@ -188,6 +188,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert preview_phrase in preview
     assert "## Quick Start" in readme
     assert "## What You Can Analyze" in readme
+    assert "## Good Enough Today" in readme
     assert "## Try This Demo Path" in readme
     assert "## Generated Data Hygiene" in readme
     assert "## Analysis Logic Provenance" in readme
@@ -215,7 +216,14 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Review them before committing",
         "where the logic lives",
         "Codex plugins or skills are not runtime dependencies",
+        "development aids only",
+        "hidden valuation engines",
+        "copied stock-picking systems",
         "hidden stock-picking engines",
+        "Strongest today",
+        "Useful with limits",
+        "Intentionally locked",
+        "Not built to be",
     ):
         assert phrase in readme
 
@@ -250,6 +258,12 @@ def test_operator_guide_is_command_focused_and_research_only():
         "ready, blocked, excluded, or optional",
         "Large refreshed CSVs are local working data",
         "docs/analysis_capability_audit.md",
+        "What Powers The Analysis",
+        "shipped analysis comes from repo code under `src/`",
+        "development aids only",
+        "not runtime dependencies",
+        "hidden recommendation systems",
+        "copied stock-analysis skills",
     ):
         assert phrase in guide
 

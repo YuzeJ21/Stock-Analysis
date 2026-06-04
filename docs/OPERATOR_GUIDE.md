@@ -92,3 +92,9 @@ Large refreshed CSVs are local working data. Review generated changes before com
 - ETF/index/fund reports are monitor context; operating-company DCF is excluded.
 
 See `docs/analysis_capability_audit.md` for the deeper function-quality and provenance explanation.
+
+## What Powers The Analysis
+
+The shipped analysis comes from repo code under `src/` plus trusted local CSV inputs. Standard Python libraries support data handling, UI, and tests; optional `yfinance` is only a research-grade adapter.
+
+Codex plugins or skills, including Public Equity Investing and Investment Banking, are development aids only. They are not runtime dependencies, hidden recommendation systems, copied stock-analysis skills, or broker integrations.
