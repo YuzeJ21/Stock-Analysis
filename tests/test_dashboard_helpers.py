@@ -9431,6 +9431,35 @@ def test_output_tab_summary_cards_explain_rows_status_and_gaps():
     assert "AI" in rendered
 
 
+def test_output_tab_function_quality_cards_explain_broad_page_limits():
+    market_cards = dashboard.output_tab_function_quality_cards("Market Direction")
+    momentum_cards = dashboard.output_tab_function_quality_cards("Momentum Leaders")
+    portfolio_cards = dashboard.output_tab_function_quality_cards("Portfolio Review")
+    rendered = " ".join(
+        str(value)
+        for card in market_cards + momentum_cards + portfolio_cards
+        for value in card.values()
+    ).lower()
+
+    assert [card["kicker"] for card in market_cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO"]
+    assert [card["kicker"] for card in momentum_cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO"]
+    assert [card["kicker"] for card in portfolio_cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO"]
+    assert "show theme and etf context" in rendered
+    assert "no market timing instruction" in rendered
+    assert "surface local setup strength" in rendered
+    assert "no automatic entry signal" in rendered
+    assert "review holding purpose and risk" in rendered
+    assert "no portfolio action instruction" in rendered
+    assert "does not rebalance" in rendered
+    assert "research context only" in rendered
+    assert "trade timing" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_dashboard_readiness_summary_counts_ready_blocked_and_credentials(monkeypatch):
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
     monkeypatch.setenv("SEC_USER_AGENT", "tester@example.com")

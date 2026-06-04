@@ -9324,6 +9324,55 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
     ]
 
 
+def output_tab_function_quality_cards(title: str) -> list[dict[str, object]]:
+    if title == "Market Direction":
+        return [
+            {
+                "kicker": "WHAT IT CAN DO",
+                "title": "Show theme and ETF context",
+                "body": "Market Direction can compare locally supported theme, sector, and ETF rotation signals when enough price history exists.",
+                "badges": ["market context", "price-gated"],
+            },
+            {
+                "kicker": "WHAT IT CANNOT DO",
+                "title": "No market timing instruction",
+                "body": "This page does not call market tops or bottoms, time entries, or provide portfolio actions. Missing price context stays visible.",
+                "badges": ["context only", "no timing call"],
+            },
+        ]
+    if title == "Momentum Leaders":
+        return [
+            {
+                "kicker": "WHAT IT CAN DO",
+                "title": "Surface local setup strength",
+                "body": "Momentum Leaders can rank setup, relative strength, liquidity, and extension context for names with enough local price history.",
+                "badges": ["setup review", "price-gated"],
+            },
+            {
+                "kicker": "WHAT IT CANNOT DO",
+                "title": "No automatic entry signal",
+                "body": "Momentum leadership is research context only. It does not provide trade timing, account actions, or direct recommendations.",
+                "badges": ["research-only", "no execution"],
+            },
+        ]
+    if title == "Portfolio Review":
+        return [
+            {
+                "kicker": "WHAT IT CAN DO",
+                "title": "Review holding purpose and risk",
+                "body": "Portfolio Review can summarize declared purpose, concentration, liquidity, thesis status, and visible risk flags from local holdings data.",
+                "badges": ["purpose review", "risk context"],
+            },
+            {
+                "kicker": "WHAT IT CANNOT DO",
+                "title": "No portfolio action instruction",
+                "body": "This page does not rebalance, resize, place account actions, or recommend portfolio moves. It keeps review context separate from decisions.",
+                "badges": ["review only", "no account actions"],
+            },
+        ]
+    return []
+
+
 def market_direction_chart_frame(frame: pd.DataFrame | None, max_rows: int = 6) -> pd.DataFrame:
     if frame is None or frame.empty or "Theme" not in frame.columns:
         return pd.DataFrame()
@@ -14297,6 +14346,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     if frame is None:
         return
     render_signal_cards(output_tab_summary_cards(title, frame))
+    render_signal_cards(output_tab_function_quality_cards(title))
     if title == "Momentum Leaders":
         render_momentum_readiness_tab(frame, show_reason_details)
         return
