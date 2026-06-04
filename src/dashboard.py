@@ -4124,6 +4124,45 @@ def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> l
     ]
 
 
+def data_health_good_enough_ladder_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    return [
+        {
+            "kicker": "LEVEL 1",
+            "title": f"{price_ready} ready for setup review",
+            "body": "Price-ready stocks can support trend, liquidity, and market-context review. Stop there if fundamentals are missing.",
+            "badges": ["price/setup", "not valuation"],
+            "command": "make stock-report TICKER=NVDA",
+        },
+        {
+            "kicker": "LEVEL 2",
+            "title": f"{fundamentals_ready} fundamentals / {dcf_ready} DCF-ready",
+            "body": "DCF-ready companies can support assumption and sensitivity review. Missing DCF inputs mean valuation stays locked, not negative.",
+            "badges": ["assumptions", "blocked is not negative"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "LEVEL 3",
+            "title": f"{peer_ready} ready for peer context",
+            "body": "Peer-relative review is useful only after source-backed peer mappings and peer metrics exist. Sector fallback is not trusted peer valuation.",
+            "badges": ["source-backed peers", "no fallback valuation"],
+            "command": "make peer-mapping-queue TOP_N=10",
+        },
+        {
+            "kicker": "LEVEL 4",
+            "title": f"{earnings_ready} earnings / {estimates_ready} estimates",
+            "body": "Earnings and analyst estimates are optional context. If they are empty, the app should say locked instead of producing weak conclusions.",
+            "badges": ["optional context", "no weak conclusions"],
+            "command": "make optional-context-worklist TOP_N=10",
+        },
+    ]
+
+
 def data_health_action_path_cards(
     actions_frame: pd.DataFrame | None,
     action_queue_frame: pd.DataFrame | None,
@@ -15126,6 +15165,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_section_header("Analysis Unlock Map", "What each trusted data lane makes good enough to review next.")
     render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
+    render_section_header("When Is A Stock Ready Enough?", "A simple ladder for setup review, DCF review, peer context, and optional context.")
+    render_signal_cards(data_health_good_enough_ladder_cards(readiness_summary))
     render_market_command_center(
         ticker_readiness_frame,
         coverage_frame,

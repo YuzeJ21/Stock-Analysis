@@ -6629,10 +6629,47 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
     assert "sell" not in rendered
 
 
+def test_data_health_good_enough_ladder_cards_explain_analysis_levels_without_overclaiming():
+    cards = dashboard.data_health_good_enough_ladder_cards(
+        {
+            "price_ready": 586,
+            "fundamentals_ready": 23,
+            "dcf_ready": 23,
+            "peer_ready": 3,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["LEVEL 1", "LEVEL 2", "LEVEL 3", "LEVEL 4"]
+    assert "586 ready for setup review" in rendered
+    assert "stop there if fundamentals are missing" in rendered
+    assert "price/setup" in rendered
+    assert "not valuation" in rendered
+    assert "23 fundamentals / 23 dcf-ready" in rendered
+    assert "assumption and sensitivity review" in rendered
+    assert "valuation stays locked, not negative" in rendered
+    assert "3 ready for peer context" in rendered
+    assert "source-backed peer mappings and peer metrics" in rendered
+    assert "sector fallback is not trusted peer valuation" in rendered
+    assert "0 earnings / 0 estimates" in rendered
+    assert "locked instead of producing weak conclusions" in rendered
+    assert "make dcf-readiness" in rendered
+    assert "make peer-mapping-queue top_n=10" in rendered
+    assert "make optional-context-worklist top_n=10" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next." in source
+    assert "When Is A Stock Ready Enough?" in source
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
 
 
