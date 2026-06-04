@@ -4,7 +4,7 @@
 
 I built a local, CSV-first stock research command center that focuses on data readiness before analysis. Instead of producing unsupported stock picks, it checks whether each ticker has enough trusted local data for price, momentum, liquidity, correlation, fundamentals, DCF, peer comparison, earnings, and analyst-estimate context.
 
-The system generates readiness-aware research decisions, single-stock reports, source/freshness audits, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports also include an `Analysis Quality` section so readers can see whether a ticker is ready for DCF review, monitor context, setup review, or data-unlock work.
+The system generates readiness-aware research decisions, single-stock reports, source/freshness audits, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports also include `Analysis Quality` and `Evaluation Function Check` sections so readers can see whether a ticker is ready for DCF review, monitor context, setup review, or data-unlock work.
 
 ## Suggested LinkedIn Post
 
@@ -23,8 +23,10 @@ Current features:
 - Streamlit command center dashboard.
 - Single-stock Markdown reports.
 - Analysis Quality labels that separate DCF-ready companies, ETF/index monitor context, partial setup reviews, and data-unlock mode.
+- Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Source and freshness audit sections.
 - CSV-first staged import workflows.
+- Repo-native analysis logic under `src/`; Python libraries and optional provider adapters support data handling and UI, not hidden stock-picking engines.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
 
 This was a great project for practicing product thinking, deterministic data workflows, test coverage, and financial-analysis guardrails in Python.
@@ -36,16 +38,17 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Built a Python and Streamlit stock research command center that evaluates market-wide ticker readiness before generating research decisions.
 - Designed a CSV-first data pipeline covering price, momentum, liquidity, correlation, fundamentals, DCF, peer mapping, earnings, and analyst-estimate readiness.
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
-- Added single-stock Analysis Quality labels to explain whether each report supports deeper company review, standalone DCF review, monitor context, price/setup review, or data-unlock work.
+- Added single-stock Analysis Quality and Evaluation Function Check sections to explain whether each report supports deeper company review, standalone DCF review, monitor context, price/setup review, or data-unlock work.
 - Added source/freshness auditability, staged import validation, rejected-row reporting, and research-only guardrails to prevent unsupported conclusions.
+- Documented that Codex-side investing or banking plugins are optional development aids, not runtime dependencies, hidden recommendation systems, or broker integrations.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
 
 ## Demo Talking Points
 
 - Start with `make project-status` to show the command-center summary.
-- Open `outputs/stock_reports/nvda.md` to show a company report with DCF assumptions and Analysis Quality notes.
+- Open `outputs/stock_reports/nvda.md` to show a company report with DCF assumptions, Analysis Quality notes, and the Evaluation Function Check.
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` to show how the product handles partial data without inventing valuation conclusions.
 - Run `make dashboard` locally to show readiness cards, next-action cards, and single-stock drilldowns.
-- Point to `docs/analysis_capability_audit.md` when someone asks where the analysis logic lives and what is strong or intentionally limited today.
+- Point to `docs/analysis_capability_audit.md` when someone asks where the analysis logic lives, what is strong or intentionally limited today, and why plugins are not hidden product dependencies.
 - Mention that the project is intentionally research-only and does not connect to a broker or place trades.

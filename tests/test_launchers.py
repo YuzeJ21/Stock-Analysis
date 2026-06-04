@@ -213,11 +213,18 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
 
     for phrase in (
         "Analysis Quality",
+        "Evaluation Function Check",
         "deeper company review",
         "standalone DCF review",
         "monitor context",
         "price/setup review",
         "data-unlock work",
+        "ready, blocked, excluded, or optional",
+        "Repo-native analysis logic under `src/`",
+        "not hidden stock-picking engines",
+        "optional development aids",
+        "not runtime dependencies",
+        "hidden recommendation systems",
         "outputs/stock_reports/nvda.md",
         "outputs/stock_reports/qqq.md",
         "outputs/stock_reports/smh.md",
@@ -232,6 +239,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     for guardrail_phrase in (
         "direct buy/sell instructions",
         "unsupported stock picks",
+        "no broker integration",
     ):
         assert guardrail_phrase in brief
 
