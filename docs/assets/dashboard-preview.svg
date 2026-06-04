@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Stock Research Command Center dashboard preview</title>
-  <desc id="desc">A stylized preview of the readiness-first stock research dashboard with readiness cards, copy-only unlock commands, and single-stock evaluation function checks.</desc>
+  <desc id="desc">A stylized preview of the readiness-first stock research dashboard with readiness cards, copy-only unlock commands, and plain-language stock analysis modes.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f7efe1"/>
@@ -73,16 +73,19 @@
 
     <rect x="648" y="326" width="508" height="264" rx="22" fill="#ffffff" stroke="#d8dfd2"/>
     <text x="672" y="363" fill="#172820" font-size="21" font-weight="700">Single-Stock Report</text>
-    <text x="672" y="390" fill="#68796f" font-size="14">Analysis Quality plus Evaluation Function Check.</text>
-    <rect x="672" y="423" width="216" height="108" rx="16" fill="#f2f7f1"/>
-    <text x="694" y="456" fill="#597164" font-size="13" font-weight="700">FUNCTION CHECK</text>
-    <text x="694" y="487" fill="#172820" font-size="20" font-weight="700">Ready / blocked</text>
-    <text x="694" y="513" fill="#68796f" font-size="13">Repo-native logic</text>
-    <rect x="910" y="423" width="216" height="108" rx="16" fill="#fff2dd"/>
-    <text x="932" y="456" fill="#9a6429" font-size="13" font-weight="700">VALUATION BOUNDARY</text>
-    <text x="932" y="487" fill="#172820" font-size="20" font-weight="700">DCF gated</text>
-    <text x="932" y="513" fill="#68796f" font-size="13">ETF/index DCF excluded</text>
-    <rect x="672" y="548" width="454" height="26" rx="13" fill="#172820"/>
-    <text x="696" y="566" fill="#f8f1df" font-size="13">Research-only: no broker, no order routing, no direct buy/sell instructions</text>
+    <text x="672" y="390" fill="#68796f" font-size="14">Analysis modes before tables or conclusions.</text>
+    <rect x="672" y="423" width="216" height="50" rx="16" fill="#f2f7f1"/>
+    <text x="694" y="454" fill="#172820" font-size="15" font-weight="700">DCF-ready review</text>
+    <rect x="910" y="423" width="216" height="50" rx="16" fill="#f5f1e8"/>
+    <text x="932" y="454" fill="#172820" font-size="15" font-weight="700">Standalone DCF</text>
+    <rect x="672" y="487" width="216" height="50" rx="16" fill="#fff2dd"/>
+    <text x="694" y="518" fill="#172820" font-size="15" font-weight="700">Price/setup only</text>
+    <rect x="910" y="487" width="216" height="50" rx="16" fill="#eef6fa"/>
+    <text x="932" y="518" fill="#172820" font-size="15" font-weight="700">Monitor-only</text>
+    <rect x="672" y="548" width="216" height="26" rx="13" fill="#e9ece2"/>
+    <text x="694" y="566" fill="#172820" font-size="13" font-weight="700">Data-unlock only</text>
+    <rect x="910" y="548" width="216" height="26" rx="13" fill="#172820"/>
+    <text x="932" y="566" fill="#f8f1df" font-size="13">Repo-native logic</text>
   </g>
+  <text x="672" y="618" fill="#68796f" font-family="Verdana, sans-serif" font-size="13">Research-only: no broker, no order routing, no direct buy/sell instructions</text>
 </svg>

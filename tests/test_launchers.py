@@ -177,12 +177,14 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert len(readme.splitlines()) < 180
     assert "![Dashboard preview](docs/assets/dashboard-preview.svg)" in readme
     for preview_phrase in (
-        "Evaluation Function Check",
-        "FUNCTION CHECK",
-        "Ready / blocked",
+        "plain-language stock analysis modes",
+        "Analysis modes before tables or conclusions",
+        "DCF-ready review",
+        "Standalone DCF",
+        "Price/setup only",
+        "Monitor-only",
+        "Data-unlock only",
         "Repo-native logic",
-        "DCF gated",
-        "ETF/index DCF excluded",
         "copy-only unlock commands",
     ):
         assert preview_phrase in preview
