@@ -11181,6 +11181,43 @@ def test_dashboard_splits_dcf_ready_blocked_and_excluded_rows():
     assert excluded["ticker"].tolist() == ["QQQ"]
 
 
+def test_valuation_readiness_operator_frame_summarizes_ready_blocked_and_excluded_rows():
+    ready = pd.DataFrame({"ticker": ["NVDA"], "missing_dcf_fields": [""]})
+    blocked = pd.DataFrame(
+        {
+            "ticker": ["AMD", "META"],
+            "missing_dcf_fields": ["free_cash_flow, shares_outstanding", "shares_outstanding, fcf_margin"],
+        }
+    )
+    excluded = pd.DataFrame({"ticker": ["QQQ"], "asset_type": ["etf"]})
+
+    frame = dashboard.valuation_readiness_operator_frame(ready, blocked, excluded)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Valuation State",
+        "Count",
+        "What It Means",
+        "What Stays Withheld",
+        "Next Command",
+    ]
+    assert frame["Count"].tolist() == [1, 2, 1]
+    assert "ready company rows" in rendered
+    assert "review assumptions, scenarios, and sensitivity" in rendered
+    assert "blocked company rows" in rendered
+    assert "most common blockers: shares_outstanding" in rendered
+    assert "no undervalued or overvalued conclusion is shown for blocked rows" in rendered
+    assert "etf / fund monitor rows" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make stock-report ticker=qqq" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_dashboard_splits_risk_context_by_price_ready_status():
     liquidity = pd.DataFrame(
         {

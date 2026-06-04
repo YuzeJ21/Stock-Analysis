@@ -8747,6 +8747,51 @@ def split_dcf_readiness(dcf_readiness_frame: pd.DataFrame | None) -> tuple[pd.Da
     return frame.loc[company_mask & ready_mask].copy(), frame.loc[company_mask & ~ready_mask].copy(), frame.loc[~company_mask].copy()
 
 
+def valuation_readiness_operator_frame(
+    ready_companies: pd.DataFrame,
+    blocked_companies: pd.DataFrame,
+    excluded_rows: pd.DataFrame,
+) -> pd.DataFrame:
+    top_missing = "trusted fundamentals, free cash flow or margin, share count, and source freshness"
+    if not blocked_companies.empty and "missing_dcf_fields" in blocked_companies.columns:
+        missing_counts: dict[str, int] = {}
+        for value in blocked_companies["missing_dcf_fields"].dropna().astype(str):
+            for field in re.split(r"[,;|]", value):
+                cleaned = field.strip()
+                if cleaned and cleaned.lower() not in {"nan", "none", "not available"}:
+                    missing_counts[cleaned] = missing_counts.get(cleaned, 0) + 1
+        if missing_counts:
+            top_missing = ", ".join(
+                field for field, _count in sorted(missing_counts.items(), key=lambda item: (-item[1], item[0]))[:3]
+            )
+
+    return pd.DataFrame(
+        [
+            {
+                "Valuation State": "Ready company rows",
+                "Count": len(ready_companies),
+                "What It Means": "DCF inputs are present enough to review assumptions, scenarios, and sensitivity as research context.",
+                "What Stays Withheld": "Unsupported recommendations and allocation instructions remain withheld.",
+                "Next Command": "make dcf-readiness",
+            },
+            {
+                "Valuation State": "Blocked company rows",
+                "Count": len(blocked_companies),
+                "What It Means": f"Company valuation is locked until missing inputs are filled. Most common blockers: {top_missing}.",
+                "What Stays Withheld": "No undervalued or overvalued conclusion is shown for blocked rows.",
+                "Next Command": "make sec-stage-queue TOP_N=25",
+            },
+            {
+                "Valuation State": "ETF / fund monitor rows",
+                "Count": len(excluded_rows),
+                "What It Means": "These rows can still support market, theme, liquidity, or risk monitoring.",
+                "What Stays Withheld": "Operating-company DCF is excluded, not failed.",
+                "Next Command": "make stock-report TICKER=QQQ",
+            },
+        ]
+    )
+
+
 def split_risk_context_by_price_ready(frame: pd.DataFrame | None, unavailable_statuses: set[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
     if frame is None or frame.empty:
         return pd.DataFrame(), pd.DataFrame()
@@ -12729,6 +12774,12 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
     render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
+    render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
+    st.dataframe(
+        clean_display_frame(valuation_readiness_operator_frame(ready_companies, not_ready_companies, excluded)),
+        width="stretch",
+        hide_index=True,
+    )
     render_signal_cards(
         [
             {
@@ -12767,7 +12818,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         with st.expander("ETF / index proxy exclusions", expanded=True):
             columns = _readiness_columns(excluded, ["ticker", "asset_type", "reason_not_ready"])
             st.dataframe(clean_display_frame(excluded[columns]), width="stretch", hide_index=True)
-    with st.expander("Detailed valuation output diagnostics", expanded=False):
+    with st.expander("Advanced valuation output table", expanded=False):
         diagnostic_columns = _readiness_columns(frame, ["Ticker", "ValuationStatus", "FinalValueCategory", "MissingDataFields", "Reason"])
         st.dataframe(clean_display_frame(frame[diagnostic_columns]), width="stretch", hide_index=True)
 
