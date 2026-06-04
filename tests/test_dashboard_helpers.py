@@ -11088,6 +11088,54 @@ def test_final_decision_quality_cards_handle_missing_outputs():
     assert "sell" not in rendered
 
 
+def test_final_decision_table_guide_cards_explain_columns_before_rows():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "decision_bucket": "Research Now",
+                "confidence": "medium-high",
+                "primary_blocker": "peers",
+                "next_action": "Add source-backed peer mappings.",
+            },
+            {
+                "ticker": "APLD",
+                "decision_bucket": "Blocked by Data",
+                "confidence": "low",
+                "primary_blocker": "price",
+                "next_action": "Refresh local price coverage.",
+            },
+            {
+                "ticker": "QQQ",
+                "decision_bucket": "Monitor",
+                "confidence": "limited",
+                "primary_blocker": "none",
+                "next_action": "Review as monitor context.",
+            },
+        ]
+    )
+
+    cards = dashboard.final_decision_table_guide_cards(decisions)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["BUCKET", "CONFIDENCE", "BLOCKER", "NEXT ACTION"]
+    assert "workflow state, not a call" in rendered
+    assert "deeper review, monitor context, or data-unlock work" in rendered
+    assert "2 low-confidence row(s)" in rendered
+    assert "confidence falls when core inputs, peer context" in rendered
+    assert "top blocker:" in rendered
+    assert "use primary_blocker, missing_data, blocked_features, and excluded_features" in rendered
+    assert "3 row(s) with next steps" in rendered
+    assert "copyable local workflow steps" in rendered
+    assert "do not execute anything from the dashboard" in rendered
+    assert "make research-health top_n=10" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     decisions = pd.DataFrame(
         [

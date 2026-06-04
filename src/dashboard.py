@@ -6558,6 +6558,76 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
     ]
 
 
+def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if decisions_frame is None or decisions_frame.empty:
+        return [
+            {
+                "kicker": "TABLE GUIDE",
+                "title": "Generate decisions first",
+                "body": "The table-reading guide appears after local decision outputs exist.",
+                "badges": ["refresh first"],
+                "command": "make research-decisions",
+            }
+        ]
+
+    confidence_values = (
+        decisions_frame.get("confidence", pd.Series(dtype=object))
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .replace("", pd.NA)
+        .dropna()
+        .str.lower()
+    )
+    blocker_values = (
+        decisions_frame.get("primary_blocker", decisions_frame.get("missing_data", pd.Series(dtype=object)))
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .replace("", pd.NA)
+        .dropna()
+        .str.lower()
+    )
+    low_confidence_count = int(confidence_values.str.contains("low|limited", na=False).sum()) if not confidence_values.empty else 0
+    top_blocker = str(blocker_values.value_counts().index[0]) if not blocker_values.empty else "not available"
+    next_action_count = int(
+        decisions_frame.get("next_action", decisions_frame.get("next_best_action", pd.Series("", index=decisions_frame.index)))
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
+        .sum()
+    )
+    return [
+        {
+            "kicker": "BUCKET",
+            "title": "Workflow state, not a call",
+            "body": "Read decision_bucket as where the ticker belongs in the research workflow: deeper review, monitor context, or data-unlock work.",
+            "badges": ["workflow label", "not advice"],
+        },
+        {
+            "kicker": "CONFIDENCE",
+            "title": f"{low_confidence_count} low-confidence row(s)",
+            "body": "Confidence falls when core inputs, peer context, source freshness, earnings, or analyst estimates are missing.",
+            "badges": ["data confidence", "missing inputs"],
+        },
+        {
+            "kicker": "BLOCKER",
+            "title": f"Top blocker: {top_blocker}",
+            "body": "Use primary_blocker, missing_data, blocked_features, and excluded_features before interpreting any ticker-level output.",
+            "badges": ["read blockers first"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "NEXT ACTION",
+            "title": f"{next_action_count} row(s) with next steps",
+            "body": "Next-action fields point to copyable local workflow steps. They do not execute anything from the dashboard.",
+            "badges": ["copy-only", "local workflow"],
+            "command": "make research-health TOP_N=10",
+        },
+    ]
+
+
 def purpose_family_label(asset_type: object, purpose_text: object = "", alignment_text: object = "") -> str:
     asset_kind = format_missing(asset_type, "").lower()
     if asset_kind in {"etf", "index_proxy", "fund"}:
@@ -13275,6 +13345,8 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
         render_signal_cards(decision_workflow_summary_cards(decisions))
         bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
         render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
+        render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
+        render_signal_cards(final_decision_table_guide_cards(decisions))
         decision_columns = _readiness_columns(
             decisions,
             [
