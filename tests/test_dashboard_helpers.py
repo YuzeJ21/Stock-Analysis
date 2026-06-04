@@ -175,6 +175,53 @@ def test_home_function_quality_frame_explains_good_enough_scope_and_logic_source
     assert "sell" not in rendered
 
 
+def test_stock_report_function_quality_cards_summarize_supported_analysis_and_provenance():
+    cards = dashboard.stock_report_function_quality_cards(
+        {
+            "readiness": {
+                "price_ready": True,
+                "momentum_ready": True,
+                "liquidity_ready": True,
+                "correlation_ready": True,
+                "fundamentals_ready": True,
+            },
+            "valuation_readiness": {
+                "dcf_ready": True,
+                "peer_ready": False,
+                "earnings_available": False,
+                "analyst_estimates_available": False,
+            },
+            "valuation_snapshot": {"status": "calculated"},
+            "asset_type": "company",
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "DATA GATE",
+        "PRICE / RISK",
+        "VALUATION",
+        "OPTIONAL CONTEXT",
+        "LOGIC SOURCE",
+    ]
+    assert "ready, blocked, or excluded first" in rendered
+    assert "missing inputs stay visible instead of being guessed" in rendered
+    assert "ready for local trend/setup review" in rendered
+    assert "ready for local liquidity/correlation context" in rendered
+    assert "ready for standalone dcf assumptions and sensitivity review" in rendered
+    assert "peer context: blocked until source-backed peer mappings" in rendered
+    assert "empty optional files are not treated as conclusions" in rendered
+    assert "repo-native" in rendered
+    assert "not copied stock-picking skills" in rendered
+    assert "no open source was used" not in rendered
+    assert "100% original" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_notice_card_escapes_content_and_uses_tones():
     html = dashboard.notice_card_html("<Missing>", "Use <safe> local files.", "make pipeline", tone="warning")
 

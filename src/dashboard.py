@@ -3503,6 +3503,58 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
     )
 
 
+def stock_report_function_quality_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    frame = stock_report_function_quality_frame(report_payload)
+    status_by_function = {
+        format_missing(row.get("Function"), "").lower(): {
+            "status": format_missing(row.get("Current Status"), "Not available"),
+            "trust": format_missing(row.get("What To Trust"), "Not available"),
+        }
+        for _, row in frame.iterrows()
+    }
+    price = status_by_function.get("price / setup", {})
+    risk = status_by_function.get("risk context", {})
+    dcf = status_by_function.get("fundamentals / dcf", {})
+    peer = status_by_function.get("peer comparison", {})
+    optional = status_by_function.get("optional context", {})
+    logic = status_by_function.get("logic source", {})
+    return [
+        {
+            "kicker": "DATA GATE",
+            "title": "Ready, blocked, or excluded first",
+            "body": "The report checks readiness before showing deeper analysis. Missing inputs stay visible instead of being guessed.",
+            "badges": ["data first", "no guessing"],
+        },
+        {
+            "kicker": "PRICE / RISK",
+            "title": price.get("status", "Price status unavailable"),
+            "body": f"Setup: {price.get('trust', 'Not available')} Risk: {risk.get('status', 'Not available')}.",
+            "badges": ["setup", "risk context"],
+        },
+        {
+            "kicker": "VALUATION",
+            "title": dcf.get("status", "Valuation status unavailable"),
+            "body": f"DCF: {dcf.get('trust', 'Not available')} Peer context: {peer.get('status', 'Not available')}.",
+            "badges": ["dcf", "peers"],
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": optional.get("status", "Optional context status unavailable"),
+            "body": "Earnings and analyst estimates add context only when trusted local rows exist. Empty optional files are not treated as conclusions.",
+            "badges": ["earnings", "estimates"],
+        },
+        {
+            "kicker": "LOGIC SOURCE",
+            "title": logic.get("status", "Repo-native"),
+            "body": logic.get(
+                "trust",
+                "Rules live under src/; libraries and adapters support data/UI, not copied stock-picking skills.",
+            ),
+            "badges": ["repo-native", "transparent"],
+        },
+    ]
+
+
 def preferred_single_stock_default(local_tickers: list[str], preferred: str = "NVDA") -> int:
     """Return the selectbox index for a visitor-friendly demo ticker when present."""
     if not local_tickers:
@@ -14178,11 +14230,13 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         hide_index=True,
     )
     st.markdown("#### What This Report Can Evaluate")
-    st.dataframe(
-        clean_display_frame(stock_report_function_quality_frame(report_payload)),
-        width="stretch",
-        hide_index=True,
-    )
+    render_signal_cards(stock_report_function_quality_cards(report_payload))
+    with st.expander("Detailed function status", expanded=False):
+        st.dataframe(
+            clean_display_frame(stock_report_function_quality_frame(report_payload)),
+            width="stretch",
+            hide_index=True,
+        )
     st.markdown(stock_report_brief_html(report_payload), unsafe_allow_html=True)
 
     price = report_payload["price_snapshot"]
