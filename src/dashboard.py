@@ -14979,7 +14979,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
         if show_source_details:
-            with st.expander("Developer detail: raw report JSON", expanded=False):
+            with st.expander("Advanced source audit (JSON)", expanded=False):
                 st.json(report_payload, expanded=False)
 
     st.download_button(

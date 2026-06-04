@@ -101,6 +101,15 @@ def test_single_stock_default_prefers_demo_ticker_when_available():
     assert dashboard.preferred_single_stock_default(["nvda", "QQQ"]) == 1
 
 
+def test_single_stock_source_json_label_uses_visitor_friendly_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Advanced source audit (JSON)" in source
+    assert "Developer detail: raw report JSON" not in source
+    assert "Show report source details" in source
+    assert "Most users can leave this off" in source
+
+
 def test_home_capability_cards_explain_quality_limits_and_provenance():
     cards = dashboard._plain_home_capability_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
