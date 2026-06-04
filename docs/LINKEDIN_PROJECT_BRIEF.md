@@ -40,7 +40,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
 - Added single-stock Analysis Quality and Evaluation Function Check sections to explain whether each report supports deeper company review, standalone DCF review, monitor context, price/setup review, or data-unlock work.
 - Added source/freshness auditability, staged import validation, rejected-row reporting, and research-only guardrails to prevent unsupported conclusions.
-- Documented that Codex-side investing or banking plugins are optional development helpers, not shipped analysis rules, recommendation logic, or broker integrations.
+- Documented that development plugins or assistant skills are optional helpers, not shipped analysis rules, recommendation logic, or broker integrations.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
 
 ## Demo Talking Points
@@ -50,5 +50,5 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` to show how the product handles partial data without inventing valuation conclusions.
 - Run `make dashboard` locally to show readiness cards, next-action cards, and single-stock drilldowns.
-- Point to `docs/analysis_capability_audit.md` when someone asks where the analysis logic lives, what is strong or intentionally limited today, and why plugins are not hidden product dependencies.
+- Point to `docs/analysis_capability_audit.md` when someone asks where the analysis logic lives, what is strong or intentionally limited today, and why development helpers are not hidden product dependencies.
 - Mention that the project is intentionally research-only and does not connect to a broker or place trades.

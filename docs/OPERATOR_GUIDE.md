@@ -107,4 +107,4 @@ See `docs/analysis_capability_audit.md` for the deeper function-quality and prov
 
 The shipped analysis comes from repo code under `src/` plus trusted local CSV inputs. Standard Python libraries support data handling, UI, and tests; optional `yfinance` is only a research-grade adapter.
 
-Codex plugins or skills, including Public Equity Investing and Investment Banking, are development helpers only. The shipped analysis rules, readiness gates, valuation gates, decision buckets, and research-only guardrails come from repo code under `src/` plus trusted local CSV inputs.
+Development plugins or assistant skills are helpers only. The shipped analysis rules, readiness gates, valuation gates, decision buckets, and research-only guardrails come from repo code under `src/` plus trusted local CSV inputs.

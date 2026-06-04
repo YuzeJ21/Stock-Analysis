@@ -14,7 +14,7 @@ This project is a local research command center. It is strongest when the user h
 
 ## Function Quality Matrix
 
-| Function area | Good enough for today | Needs trusted data | What it refuses to do | Main implementation |
+| Function area | Supported today | Needs trusted data | What it refuses to do | Main implementation |
 | --- | --- | --- | --- | --- |
 | Readiness gates | Yes. This is the strongest layer because every deeper output depends on it. | Local ticker, price, fundamentals, peer, earnings, and estimate readiness rows. | It does not turn missing data into a weak conclusion. | `src/readiness_engine.py` |
 | Price and momentum | Yes when local price history is present. | Daily OHLCV rows with enough history for returns, averages, liquidity, and volatility context. | It does not invent missing price history or fill broad-universe gaps silently. | `src/indicators.py`, `src/momentum_engine.py` |
@@ -57,13 +57,13 @@ The analysis logic is implemented in this repository under `src/`. The shipped p
 
 The project uses standard Python libraries such as `pandas`, `numpy`, `PyYAML`, and `streamlit` for data handling and UI. Optional `yfinance` support is an unofficial research-grade data adapter. These dependencies support the workflow; they are not the analysis rules, recommendation logic, or account-execution systems.
 
-## Plugin And Skill Boundary
+## Development Helper Boundary
 
-Codex-side plugins or skills, including Public Equity Investing or Investment Banking workflows, are optional development helpers outside the shipped product. They are not shipped analysis rules, embedded valuation logic, recommendation logic, broker integrations, or sources of trusted runtime data.
+Development-side plugins or assistant skills are optional helpers outside the shipped product. They are not shipped analysis rules, embedded valuation logic, recommendation logic, broker integrations, or sources of trusted runtime data.
 
 If those plugins are used during development, their output still has to be translated into deterministic repo code, local CSV schemas, tests, and research-only wording before it belongs in the product. The public product should be judged by the files in this repository, the local data it is given, and the tests that verify readiness gates and guardrails.
 
-## Good-Enough Assessment
+## Supported-Today Assessment
 
 The current functions are strong enough for a transparent local research prototype, single-stock review, market/ETF monitoring, and DCF-ready company analysis when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until trusted rows are imported.
 

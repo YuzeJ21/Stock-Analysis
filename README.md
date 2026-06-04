@@ -128,7 +128,7 @@ Small example outputs are included for review. Large refreshed files such as `da
 
 ## Analysis Logic Provenance
 
-The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. Codex plugins or skills are development helpers, not shipped product dependencies: the analysis rules, valuation gates, decision buckets, and research-only guardrails come from repo code plus local CSV inputs. See [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
+The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. Development plugins or assistant skills are not shipped product dependencies: the analysis rules, valuation gates, decision buckets, and research-only guardrails come from repo code plus local CSV inputs. See [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
 
 ## Core Outputs
 

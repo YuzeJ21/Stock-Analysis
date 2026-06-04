@@ -136,10 +136,11 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "implemented under src/" in rendered
     assert "repo-native" in rendered
     assert "skill boundary" in rendered
-    assert "repo-native analysis logic" in rendered
-    assert "public equity investing" in rendered
-    assert "investment banking" in rendered
+    assert "development helpers stay separate" in rendered
+    assert "assistant plugins or skills can help development review" in rendered
     assert "analysis shown to users comes from repo code and local data" in rendered
+    assert "public equity investing" not in rendered
+    assert "investment banking" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -160,9 +161,10 @@ def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
     assert "analysis rules stay in this repository" in rendered
     assert "yfinance is optional and research-grade" in rendered
     assert "csv-first local path is default" in rendered
-    assert "plugins are development helpers" in rendered
-    assert "public equity investing" in rendered
-    assert "investment banking" in rendered
+    assert "not product logic" in rendered
+    assert "development plugins or assistant skills can help review" in rendered
+    assert "public equity investing" not in rendered
+    assert "investment banking" not in rendered
     assert "shipped analysis comes from repo code and local data" in rendered
     assert "product engines" not in rendered
     assert "no open source was used" not in rendered

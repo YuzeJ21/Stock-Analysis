@@ -6079,7 +6079,7 @@ def peer_function_quality_frame(
                 "Current Coverage": "Support layer only.",
                 "Supported Today": "Data handling, table display, tests, and optional development review.",
                 "Not Supported Yet": "Replacing source-backed peer mappings or repo-native peer-readiness rules.",
-                "Logic Source": "Standard libraries and optional Codex plugins support development; peer logic runs from this repository.",
+                "Logic Source": "Standard libraries and optional development helpers support review; peer logic runs from this repository.",
                 "Next Step": "make project-status",
             },
         ]
@@ -14370,8 +14370,8 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "SKILL BOUNDARY",
-            "title": "Repo-native analysis logic",
-            "body": "Codex, Public Equity Investing, and Investment Banking plugins can help development review. The analysis shown to users comes from repo code and local data.",
+            "title": "Development helpers stay separate",
+            "body": "Assistant plugins or skills can help development review, but the analysis shown to users comes from repo code and local data.",
             "badges": ["transparent"],
         },
     ]
@@ -14398,9 +14398,9 @@ def _plain_home_provenance_cards() -> list[dict[str, object]]:
             "badges": ["off by default"],
         },
         {
-            "kicker": "CODEX PLUGINS",
-            "title": "Plugins are development helpers",
-            "body": "Public Equity Investing and Investment Banking plugins can help development review, but shipped analysis comes from repo code and local data.",
+            "kicker": "DEV HELPERS",
+            "title": "Not product logic",
+            "body": "Development plugins or assistant skills can help review the project, but shipped analysis comes from repo code and local data.",
             "badges": ["not product logic"],
         },
     ]
