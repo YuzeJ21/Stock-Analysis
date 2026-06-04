@@ -119,6 +119,31 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "sell" not in rendered
 
 
+def test_home_function_quality_frame_explains_good_enough_scope_and_logic_source():
+    frame = dashboard._plain_home_function_quality_frame()
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == ["Function Area", "Good Enough For", "Needs Trusted Data", "Logic Source"]
+    assert "readiness gates" in rendered
+    assert "strongest layer" in rendered
+    assert "price / momentum" in rendered
+    assert "fundamentals / dcf" in rendered
+    assert "dcf-ready company analysis" in rendered
+    assert "peer comparison" in rendered
+    assert "no guessed peer mappings" in rendered
+    assert "single-stock report" in rendered
+    assert "supported, blocked, excluded, and monitor-only analysis" in rendered
+    assert "libraries/adapters" in rendered
+    assert "not copied stock-picking skills" in rendered
+    assert "no open source was used" not in rendered
+    assert "100% original" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_notice_card_escapes_content_and_uses_tones():
     html = dashboard.notice_card_html("<Missing>", "Use <safe> local files.", "make pipeline", tone="warning")
 
