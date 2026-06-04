@@ -12,6 +12,17 @@ This project is a local research command center. It is strongest when the user h
 - **ETF/index handling:** operating-company DCF is excluded for ETF/index/fund monitor context instead of being shown as failed.
 - **Single-stock report:** one ticker can be reviewed with readiness, supported analysis, blocked analysis, valuation state, risk notes, next step, and source/freshness notes.
 
+## Function Quality Matrix
+
+| Function area | Good enough for today | Needs trusted data | What it refuses to do | Main implementation |
+| --- | --- | --- | --- | --- |
+| Readiness gates | Yes. This is the strongest layer because every deeper output depends on it. | Local ticker, price, fundamentals, peer, earnings, and estimate readiness rows. | It does not turn missing data into a weak conclusion. | `src/readiness_engine.py` |
+| Price and momentum | Yes when local price history is present. | Daily OHLCV rows with enough history for returns, averages, liquidity, and volatility context. | It does not invent missing price history or fill broad-universe gaps silently. | `src/indicators.py`, `src/momentum_engine.py` |
+| Fundamentals and DCF | Useful for DCF-ready companies only. | Trusted fundamentals with revenue, free cash flow or FCF margin, shares outstanding, price, cash, and debt where available. | It does not label not-ready companies undervalued or overvalued. | `src/value_engine.py`, `src/valuation.py` |
+| Peer comparison | Workflow-ready, but coverage-limited until peers are imported. | Source-backed peer mappings plus peer price/fundamentals rows. | It does not treat sector or industry fallback as trusted peer valuation. | `src/readiness_engine.py`, `src/valuation.py` |
+| ETF/index monitor context | Good for market, theme, liquidity, and risk monitoring. | Price, liquidity, correlation, and theme context. | It does not run operating-company DCF for ETFs, index proxies, or funds. | `src/research_decisions.py`, `src/stock_report.py` |
+| Single-stock report | Good for explaining one ticker's supported and blocked analysis in plain language. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not provide allocation instructions or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
+
 ## What Is Intentionally Limited
 
 - Broad-universe coverage depends on local data; many tickers may be blocked.
@@ -22,7 +33,7 @@ This project is a local research command center. It is strongest when the user h
 
 ## Where The Logic Comes From
 
-The analysis logic is implemented in this repository under `src/`:
+The analysis logic is implemented in this repository under `src/`. It is not a wrapper around copied stock-picking skills, ranking engines, account-execution tools, or broker workflows:
 
 - `src/indicators.py`: moving averages, returns, relative strength, ATR/volatility proxy.
 - `src/momentum_engine.py`: rule-based setup classification.
@@ -32,10 +43,10 @@ The analysis logic is implemented in this repository under `src/`:
 - `src/research_decisions.py`: readiness-aware research buckets, blockers, confidence, and next actions.
 - `src/stock_report.py`: single-stock report assembly and Markdown output.
 
-The project uses standard Python libraries such as `pandas`, `numpy`, `PyYAML`, and `streamlit` for data handling and UI. Optional `yfinance` support is an unofficial research-grade data adapter. These dependencies are not copied stock-analysis skills, ranking engines, or account-execution systems.
+The project uses standard Python libraries such as `pandas`, `numpy`, `PyYAML`, and `streamlit` for data handling and UI. Optional `yfinance` support is an unofficial research-grade data adapter. These dependencies are libraries/adapters, not copied stock-analysis skills, recommendation engines, or account-execution systems.
 
 ## Good-Enough Assessment
 
-The current functions are good enough for a transparent local research prototype and single-stock review when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until the user imports trusted rows.
+The current functions are good enough for a transparent local research prototype, single-stock review, market/ETF monitoring, and DCF-ready company analysis when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until trusted rows are imported.
 
-The next quality unlock is not more indicators. It is better data coverage, better source/freshness visibility, and more trusted fundamentals/peer rows.
+The next quality unlock is not more indicators. It is better data coverage, better source/freshness visibility, more trusted fundamentals/peer rows, and continued UI polish so blocked analysis feels intentional rather than broken.

@@ -211,12 +211,21 @@ def test_analysis_capability_audit_is_public_and_data_honest():
 
     for phrase in (
         "What Is Strong Today",
+        "Function Quality Matrix",
         "What Is Intentionally Limited",
         "Where The Logic Comes From",
         "Good-Enough Assessment",
+        "Readiness gates",
+        "Fundamentals and DCF",
+        "Peer comparison",
+        "ETF/index monitor context",
+        "Single-stock report",
+        "What it refuses to do",
         "src/valuation.py",
         "src/readiness_engine.py",
+        "not a wrapper around copied stock-picking skills",
         "not copied stock-analysis skills",
+        "libraries/adapters, not copied stock-analysis skills",
         "not yet a full-market data platform",
     ):
         assert phrase in audit
