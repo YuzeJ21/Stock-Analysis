@@ -11,7 +11,7 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 This project turns a broad stock universe into a research workflow:
 
 - Checks market data readiness before showing analysis.
-- Separates `Research Now`, `Monitor`, and `Blocked by Data` names.
+- Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
 - Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
 - Generates transparent CSV outputs for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
 - Provides a Streamlit dashboard plus single-stock reports with source/freshness notes.
@@ -41,7 +41,7 @@ The local sample currently tracks a broad universe of 3,538 tickers, with a smal
 
 This is a working local research prototype with deterministic CSV outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review.
 
-Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, hidden recommendation engine, broker workflow, or auto-refreshing trading system.
+Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, runtime decision or recommendation engine, broker workflow, or auto-refreshing trading system.
 
 ## Preview
 
@@ -53,7 +53,7 @@ The dashboard is designed as an operator console:
 - `Momentum Leaders`: trend, relative strength, extension risk, and setup status.
 - `Portfolio Review`: holdings reviewed against declared purpose and risk.
 - `Value / Re-rating`: DCF and valuation readiness with missing-input guardrails.
-- `Final Watchlist`: readiness-aware final output.
+- `Final Watchlist`: readiness-state output, not an action list.
 - `Single-Stock Report`: ticker-level report with source/freshness audit.
 - `Data Health`: import paths, rejected-row reports, and unlock queues.
 
@@ -128,7 +128,7 @@ Small example outputs are included for review. Large refreshed files such as `da
 
 ## Analysis Logic Provenance
 
-The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. Codex plugins or skills are not runtime dependencies; Public Equity Investing and Investment Banking are development aids only, not hidden valuation engines, investing engines, or broker integrations. See [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
+The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. Codex plugins or skills are not runtime dependencies; Public Equity Investing and Investment Banking are development aids only, not runtime decision engines, recommendation engines, valuation engines, investing engines, or broker integrations. See [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
 
 ## Core Outputs
 

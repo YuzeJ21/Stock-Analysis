@@ -10082,7 +10082,7 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
         ),
         (
             "Review Candidate Ideas",
-            "Open Monthly Picks when the app shows enough local data to support candidate review.",
+            "Open Monthly Picks when local data supports candidate review. This is a research queue, not a conclusion list.",
             "Monthly Picks tab",
             "neutral",
         ),
@@ -10094,7 +10094,7 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
         ),
         (
             "Unlock Missing Data",
-            "Use Data Health when missing prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
+            "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis instead of being inferred.",
             "Data Health tab",
             "warning",
         ),

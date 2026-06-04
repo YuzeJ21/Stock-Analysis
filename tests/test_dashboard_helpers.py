@@ -12292,10 +12292,12 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make runbook-prices-broader" in rendered
     assert "overview tab" in nav_rendered
     assert "monthly picks tab" in nav_rendered
+    assert "research queue, not a conclusion list" in nav_rendered
     assert "use this first" in nav_rendered
     assert "analyze one stock" in nav_rendered
     assert "ready, blocked, excluded, or monitor-only" in nav_rendered
     assert "unlock missing data" in nav_rendered
+    assert "blocking analysis instead of being inferred" in nav_rendered
     assert "make status-check top_n=5" in rendered
     fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Needs SEC enrichment")
     peers_row = next(row for row in missing_rows if row["Dashboard Label"] == "Needs peers.csv")
