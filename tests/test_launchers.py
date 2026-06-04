@@ -206,6 +206,34 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert phrase in readme
 
 
+def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
+    brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "Analysis Quality",
+        "deeper company review",
+        "standalone DCF review",
+        "monitor context",
+        "price/setup review",
+        "data-unlock work",
+        "outputs/stock_reports/nvda.md",
+        "outputs/stock_reports/qqq.md",
+        "outputs/stock_reports/smh.md",
+        "outputs/stock_reports/apld.md",
+        "docs/analysis_capability_audit.md",
+        "research-only",
+        "does not connect to a broker or place trades",
+    ):
+        assert phrase in brief
+
+    assert "outputs/stock_reports/a.md" not in brief
+    for guardrail_phrase in (
+        "direct buy/sell instructions",
+        "unsupported stock picks",
+    ):
+        assert guardrail_phrase in brief
+
+
 def test_analysis_capability_audit_is_public_and_data_honest():
     audit = Path("docs/analysis_capability_audit.md").read_text(encoding="utf-8")
 
