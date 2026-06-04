@@ -6323,6 +6323,13 @@ def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_l
     assert "sell" not in rendered
 
 
+def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next." in source
+    assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
+
+
 def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
     coverage = pd.DataFrame(
         [

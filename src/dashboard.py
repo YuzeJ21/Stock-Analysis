@@ -14495,7 +14495,7 @@ def render_market_command_center(
 def render_data_health(provider, project_status_payload: dict[str, Any] | None = None) -> None:
     render_section_header(
         "Data Health",
-        "Validation, source availability, price refresh diagnostics, and onboarding actions in one place.",
+        "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next.",
     )
     if provider is None:
         st.warning("Local provider could not be initialized.")
