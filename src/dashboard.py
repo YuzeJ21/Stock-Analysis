@@ -10050,19 +10050,19 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
             "What to do": "Use `make runbook-prices-broader` or `make focus-price TICKER=...` first. For downloaded files, use `make price-normalize`, then run `make price-validate`, `make price-preview`, and `make price-apply`.",
         },
         {
-            "Dashboard Label": "Needs SEC enrichment",
+            "Dashboard Label": "Missing company fundamentals",
             "What to do": "Use `make runbook-fundamentals-broader` or `make focus-fundamentals TICKER=...` first, then run `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make status-check TOP_N=5`.",
         },
         {
-            "Dashboard Label": "Needs peers.csv",
+            "Dashboard Label": "Missing peer mapping",
             "What to do": "Use `make runbook-peers-broader` or `make focus-peers TICKER=...` first, then add manually researched mappings through `data/imports/peers.csv`, run `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make status-check TOP_N=5`. If mappings already exist, finish the staged peer fundamentals or peer price follow-through the queue points to.",
         },
         {
-            "Dashboard Label": "Needs earnings.csv",
+            "Dashboard Label": "Earnings unavailable",
             "What to do": "Add trusted local earnings rows only if you have a reliable source.",
         },
         {
-            "Dashboard Label": "Needs analyst_estimates.csv",
+            "Dashboard Label": "Analyst estimates unavailable",
             "What to do": "Optional file. Leave missing unless you have a trusted local source.",
         },
     ]

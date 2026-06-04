@@ -12347,10 +12347,12 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "unlock missing data" in nav_rendered
     assert "blocking analysis instead of being inferred" in nav_rendered
     assert "make status-check top_n=5" in rendered
-    fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Needs SEC enrichment")
-    peers_row = next(row for row in missing_rows if row["Dashboard Label"] == "Needs peers.csv")
+    fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing company fundamentals")
+    peers_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing peer mapping")
     assert "make status-check TOP_N=5" in fundamentals_row["What to do"]
     assert "make status-check TOP_N=5" in peers_row["What to do"]
+    assert any(row["Dashboard Label"] == "Earnings unavailable" for row in missing_rows)
+    assert any(row["Dashboard Label"] == "Analyst estimates unavailable" for row in missing_rows)
     assert "make data-wizard top_n=5" in rendered
     assert "data health tab" in nav_rendered
     assert "make runbook-prices-broader" in empty_rendered
@@ -12396,7 +12398,9 @@ def test_sidebar_guide_cards_render_plain_language_without_tables():
     assert "research ready" in rendered
     assert "the app intentionally avoided calculating a result from incomplete inputs" in rendered
     assert "make imports-validate" in rendered
+    assert "missing peer mapping" in rendered
     assert "data/imports/peers.csv" in rendered
+    assert "needs peers.csv" not in rendered
 
 
 def test_sidebar_guide_cards_escape_untrusted_copy():
