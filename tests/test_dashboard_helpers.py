@@ -6007,6 +6007,44 @@ def test_monthly_picks_landing_cards_show_history_and_gap_context():
     assert "sell" not in rendered
 
 
+def test_monthly_picks_quality_cards_explain_candidate_boundary_without_recommendations():
+    empty_cards = dashboard.monthly_picks_quality_cards(pd.DataFrame(), None, None, 5)
+    partial_picks = pd.DataFrame(
+        [
+            {"Month": "2026-05", "MissingDataFields": "Return3M"},
+            {"Month": "2026-05", "MissingDataFields": ""},
+        ]
+    )
+    partial_cards = dashboard.monthly_picks_quality_cards(partial_picks, None, None, 5)
+    track = pd.DataFrame([{"Month": "2026-04"}])
+    equity = pd.DataFrame([{"Month": "2026-04", "PicksEquity": 1.0, "BenchmarkEquity": 1.0}])
+    full_cards = dashboard.monthly_picks_quality_cards(pd.DataFrame([{"MissingDataFields": ""}] * 5), track, equity, 5)
+    rendered = " ".join(
+        str(value)
+        for card in empty_cards + partial_cards + full_cards
+        for value in card.values()
+    ).lower()
+
+    assert empty_cards[0]["title"] == "Candidate review is locked"
+    assert partial_cards[0]["title"] == "Partial candidate set"
+    assert full_cards[0]["title"] == "Candidate set is filled"
+    assert "monthly picks has no supported local candidates yet" in rendered
+    assert "2 of 5 conservative slots are filled" in rendered
+    assert "weaker names are not forced into the list" in rendered
+    assert "no allocation conclusion" in rendered
+    assert "position sizing" in rendered
+    assert "external account actions" in rendered
+    assert "direct portfolio actions" in rendered
+    assert "track record limited" in rendered
+    assert "track record ready" in rendered
+    assert "missing fields stay visible" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_review():
     queue = pd.DataFrame(
         [

@@ -12270,6 +12270,61 @@ def monthly_picks_next_step_cards(
     return [primary, secondary]
 
 
+def monthly_picks_quality_cards(
+    picks_frame: pd.DataFrame | None,
+    track_frame: pd.DataFrame | None,
+    equity_frame: pd.DataFrame | None,
+    top_n: int,
+) -> list[dict[str, object]]:
+    candidate_count = 0 if picks_frame is None else len(picks_frame)
+    has_candidates = picks_frame is not None and not picks_frame.empty
+    has_track_record = track_frame is not None and not track_frame.empty and equity_frame is not None and not equity_frame.empty
+    gap_count = 0
+    if has_candidates and "MissingDataFields" in picks_frame.columns:
+        gap_count = non_empty_count(picks_frame, ["MissingDataFields"])
+    if not has_candidates:
+        support_title = "Candidate review is locked"
+        support_body = "Monthly Picks has no supported local candidates yet; improve data coverage before interpreting the page."
+        support_badges = ["coverage first"]
+    elif candidate_count < top_n:
+        support_title = "Partial candidate set"
+        support_body = (
+            f"{candidate_count} of {top_n} conservative slots are filled. Empty slots are intentional; weaker names are not forced into the list."
+        )
+        support_badges = ["partial", "no forced fills"]
+    else:
+        support_title = "Candidate set is filled"
+        support_body = f"{candidate_count} conservative research candidates are available from current local outputs."
+        support_badges = ["candidate review"]
+
+    track_title = "Track record ready" if has_track_record else "Track record limited"
+    track_body = (
+        "Local benchmark comparison is available, so review candidates together with history context."
+        if has_track_record
+        else "Forward-return and equity-curve context remains limited until enough local monthly history exists."
+    )
+    return [
+        {
+            "kicker": "CANDIDATE QUALITY",
+            "title": support_title,
+            "body": support_body,
+            "badges": support_badges,
+        },
+        {
+            "kicker": "WHAT STAYS WITHHELD",
+            "title": "No allocation conclusion",
+            "body": "Monthly Picks is a research queue. It does not provide position sizing, external account actions, or direct portfolio actions.",
+            "badges": ["research-only", "copy-only"],
+        },
+        {
+            "kicker": "CONFIDENCE CHECK",
+            "title": f"{gap_count} candidate row(s) with visible gaps",
+            "body": f"{track_body} Missing fields stay visible on candidate cards and reduce confidence instead of being inferred.",
+            "badges": [track_title, "data-honest"],
+        },
+    ]
+
+
 def stock_report_brief_html(payload: dict[str, Any]) -> str:
     ticker = format_missing(payload.get("ticker"), "Selected ticker")
     valuation = payload.get("valuation_snapshot", {})
@@ -13802,6 +13857,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             action_queue_frame,
         )
     )
+    render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n))
 
     render_metric_cards(
         [
