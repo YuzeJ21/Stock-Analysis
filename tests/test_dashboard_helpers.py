@@ -6204,6 +6204,53 @@ def test_stock_report_analysis_quality_cards_classify_supported_scope():
     assert "sell" not in rendered
 
 
+def test_valuation_workflow_guidance_cards_explain_ready_blocked_and_excluded_states():
+    cards = dashboard.valuation_workflow_guidance_cards(23, 3513, 2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Use only ready valuation rows"
+    assert "23 company row(s) currently have dcf-ready inputs" in rendered
+    assert "blocked rows are not weak valuation calls" in rendered
+    assert "trusted price, fundamentals, free cash flow or margin" in rendered
+    assert "operating-company dcf is excluded rather than failed" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make stock-report ticker=qqq" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_language():
+    cards = dashboard.data_health_orientation_cards(
+        {
+            "price_ready": 586,
+            "fundamentals_ready": 23,
+            "dcf_ready": 23,
+            "peer_ready": 3,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Use this page to unlock analysis"
+    assert "not an error page" in rendered
+    assert "586 price-ready / 23 fundamentals-ready / 23 dcf-ready" in rendered
+    assert "price coverage unlocks setup review first" in rendered
+    assert "trusted fundamentals unlock company-level valuation" in rendered
+    assert "3 peer-ready / 0 earnings / 0 estimates" in rendered
+    assert "the app does not infer these inputs" in rendered
+    assert "make status-check top_n=5" in rendered
+    assert "make templates" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
     coverage = pd.DataFrame(
         [

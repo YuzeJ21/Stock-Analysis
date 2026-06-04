@@ -3772,6 +3772,41 @@ def data_health_overview_cards(
     ]
 
 
+def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    return [
+        {
+            "kicker": "DATA HEALTH GUIDE",
+            "title": "Use this page to unlock analysis",
+            "body": (
+                "Data Health is not an error page. It shows which trusted local inputs are ready, which analyses stay locked, "
+                "and which safe command to copy next."
+            ),
+            "badges": ["operator guide", "copy only"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "CORE COVERAGE",
+            "title": f"{price_ready} price-ready / {fundamentals_ready} fundamentals-ready / {dcf_ready} DCF-ready",
+            "body": "Price coverage unlocks setup review first. Trusted fundamentals unlock company-level valuation only after required DCF fields pass readiness.",
+            "badges": ["price first", "fundamentals next"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "CONTEXT COVERAGE",
+            "title": f"{peer_ready} peer-ready / {earnings_ready} earnings / {estimates_ready} estimates",
+            "body": "Peer, earnings, and estimate context stays unavailable until trusted rows exist. The app does not infer these inputs.",
+            "badges": ["trusted rows only", "no inference"],
+            "command": "make templates",
+        },
+    ]
+
+
 def data_health_action_path_cards(
     actions_frame: pd.DataFrame | None,
     action_queue_frame: pd.DataFrame | None,
@@ -12603,9 +12638,46 @@ def render_momentum_readiness_tab(frame: pd.DataFrame, show_reason_details: bool
             st.dataframe(style_frame(presentation_frame(blocked_frame[columns])), width="stretch", hide_index=True)
 
 
+def valuation_workflow_guidance_cards(
+    ready_count: int,
+    blocked_count: int,
+    excluded_count: int,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "VALUATION GUIDE",
+            "title": "Use only ready valuation rows",
+            "body": (
+                f"{ready_count} company row(s) currently have DCF-ready inputs. "
+                "Those rows can show assumptions, scenarios, and sensitivity; the output remains research context only."
+            ),
+            "badges": ["ready inputs", "research context"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "BLOCKED VALUATION",
+            "title": f"{blocked_count} company row(s) blocked",
+            "body": (
+                "Blocked rows are not weak valuation calls. They need trusted price, fundamentals, free cash flow or margin, "
+                "share count, and source/freshness checks before DCF interpretation appears."
+            ),
+            "badges": ["no inference", "missing fields shown"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "ETF / FUND CONTEXT",
+            "title": f"{excluded_count} row(s) excluded",
+            "body": "ETF, index, and fund rows stay useful for monitor context, but operating-company DCF is excluded rather than failed.",
+            "badges": ["monitor context", "DCF excluded"],
+            "command": "make stock-report TICKER=QQQ",
+        },
+    ]
+
+
 def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
+    render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
     render_signal_cards(
         [
             {
@@ -12637,14 +12709,14 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         value_ready = frame.loc[frame["Ticker"].astype(str).str.upper().isin(ready_tickers)].copy() if "Ticker" in frame.columns else pd.DataFrame()
         render_table(value_ready, "value-re-rating", show_reason_details=False)
     if not not_ready_companies.empty:
-        with st.expander("DCF-blocked companies and missing fields", expanded=True):
+        with st.expander("Companies waiting for valuation inputs", expanded=True):
             columns = _readiness_columns(not_ready_companies, ["ticker", "asset_type", "missing_dcf_fields", "reason_not_ready", "has_price", "has_free_cash_flow", "has_shares_outstanding", "has_revenue", "has_fcf_margin"])
             st.dataframe(clean_display_frame(not_ready_companies[columns]), width="stretch", hide_index=True)
     if not excluded.empty:
         with st.expander("ETF / index proxy exclusions", expanded=True):
             columns = _readiness_columns(excluded, ["ticker", "asset_type", "reason_not_ready"])
             st.dataframe(clean_display_frame(excluded[columns]), width="stretch", hide_index=True)
-    with st.expander("Raw valuation output diagnostics", expanded=False):
+    with st.expander("Detailed valuation output diagnostics", expanded=False):
         diagnostic_columns = _readiness_columns(frame, ["Ticker", "ValuationStatus", "FinalValueCategory", "MissingDataFields", "Reason"])
         st.dataframe(clean_display_frame(frame[diagnostic_columns]), width="stretch", hide_index=True)
 
@@ -14320,6 +14392,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "Data Quality / Readiness",
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
+    render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_market_command_center(
         ticker_readiness_frame,
         coverage_frame,
