@@ -9276,6 +9276,52 @@ def valuation_function_quality_cards(
     ]
 
 
+def valuation_function_quality_frame(
+    ready_companies: pd.DataFrame,
+    blocked_companies: pd.DataFrame,
+    excluded_rows: pd.DataFrame,
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Valuation Area": "DCF-ready companies",
+                "Current Coverage": f"{len(ready_companies)} row(s)",
+                "Good Enough For": "Reviewing assumptions, scenarios, and sensitivity when trusted local company inputs are present.",
+                "Not Good Enough For": "Direct recommendations or unsupported price targets.",
+                "Logic Source": "Repo-native DCF readiness and valuation logic in src/valuation.py plus dashboard/report guardrails.",
+            },
+            {
+                "Valuation Area": "Blocked companies",
+                "Current Coverage": f"{len(blocked_companies)} row(s)",
+                "Good Enough For": "Finding the exact missing data needed before company valuation can be reviewed.",
+                "Not Good Enough For": "Calling a company undervalued, overvalued, or weak because inputs are missing.",
+                "Logic Source": "Repo-native readiness checks; missing fields are surfaced instead of inferred.",
+            },
+            {
+                "Valuation Area": "ETF / index / fund rows",
+                "Current Coverage": f"{len(excluded_rows)} row(s)",
+                "Good Enough For": "Monitor context such as market, theme, liquidity, or risk review.",
+                "Not Good Enough For": "Operating-company DCF or peer valuation.",
+                "Logic Source": "Repo-native asset-type gating marks DCF excluded, not failed.",
+            },
+            {
+                "Valuation Area": "Peer-relative valuation",
+                "Current Coverage": "Available only when source-backed peer mappings and peer inputs are ready.",
+                "Good Enough For": "Peer comparison after trusted peer rows and peer metrics exist.",
+                "Not Good Enough For": "Guessed peer relationships or peer valuation when peer inputs are missing.",
+                "Logic Source": "Repo-native peer readiness checks; no fabricated peer mappings.",
+            },
+            {
+                "Valuation Area": "Dependencies",
+                "Current Coverage": "Support layer only.",
+                "Good Enough For": "Data handling, UI display, tests, and optional research-grade data access.",
+                "Not Good Enough For": "Hidden stock-picking logic or copied valuation skills.",
+                "Logic Source": "Standard libraries and optional adapters support the workflow; valuation rules live in this repository.",
+            },
+        ]
+    )
+
+
 def split_risk_context_by_price_ready(frame: pd.DataFrame | None, unavailable_statuses: set[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
     if frame is None or frame.empty:
         return pd.DataFrame(), pd.DataFrame()
@@ -13396,6 +13442,16 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     render_section_header("Valuation Function Quality", "What valuation can and cannot mean with the current trusted local inputs.")
     render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
     render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
+    with st.expander("What the valuation function is good enough for", expanded=False):
+        st.write(
+            "This audit separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "
+            "peer-relative valuation, and support dependencies so missing inputs do not look like conclusions."
+        )
+        st.dataframe(
+            clean_display_frame(valuation_function_quality_frame(ready_companies, not_ready_companies, excluded)),
+            width="stretch",
+            hide_index=True,
+        )
     render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
     render_signal_cards(valuation_decision_guide_cards(ready_companies, not_ready_companies, excluded))
     with st.expander("Detailed valuation decision guide", expanded=False):

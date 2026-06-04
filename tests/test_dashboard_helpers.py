@@ -6604,6 +6604,46 @@ def test_valuation_function_quality_cards_explain_good_enough_scope_without_over
     assert "sell" not in rendered
 
 
+def test_valuation_function_quality_frame_explains_scope_counts_and_provenance():
+    ready = pd.DataFrame({"ticker": ["NVDA"]})
+    blocked = pd.DataFrame({"ticker": ["AMD", "META"]})
+    excluded = pd.DataFrame({"ticker": ["QQQ", "SMH"]})
+
+    frame = dashboard.valuation_function_quality_frame(ready, blocked, excluded)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Valuation Area",
+        "Current Coverage",
+        "Good Enough For",
+        "Not Good Enough For",
+        "Logic Source",
+    ]
+    assert "dcf-ready companies" in rendered
+    assert "1 row(s)" in rendered
+    assert "reviewing assumptions, scenarios, and sensitivity" in rendered
+    assert "blocked companies" in rendered
+    assert "2 row(s)" in rendered
+    assert "finding the exact missing data" in rendered
+    assert "calling a company undervalued, overvalued, or weak" in rendered
+    assert "etf / index / fund rows" in rendered
+    assert "2 row(s)" in rendered
+    assert "operating-company dcf or peer valuation" in rendered
+    assert "peer-relative valuation" in rendered
+    assert "guessed peer relationships" in rendered
+    assert "dependencies" in rendered
+    assert "support layer only" in rendered
+    assert "valuation rules live in this repository" in rendered
+    assert "copied valuation skills" in rendered
+    assert "no open source was used" not in rendered
+    assert "100% original" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_language():
     cards = dashboard.data_health_orientation_cards(
         {
