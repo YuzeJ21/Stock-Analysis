@@ -6832,8 +6832,8 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
     assert "sell" not in rendered
 
 
-def test_data_health_good_enough_ladder_cards_explain_analysis_levels_without_overclaiming():
-    cards = dashboard.data_health_good_enough_ladder_cards(
+def test_data_health_supported_ladder_cards_explain_analysis_levels_without_overclaiming():
+    cards = dashboard.data_health_supported_ladder_cards(
         {
             "price_ready": 586,
             "fundamentals_ready": 23,
@@ -6872,7 +6872,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next." in source
-    assert "When Is A Stock Ready Enough?" in source
+    assert "Supported Analysis Ladder" in source
+    assert "When Is A Stock Ready Enough?" not in source
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
 
 

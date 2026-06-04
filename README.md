@@ -1,6 +1,6 @@
 # Stock Research Command Center
 
-A local, CSV-first research dashboard for screening stocks, reviewing portfolio names, and seeing exactly which data is ready enough to trust.
+A local, CSV-first research dashboard for screening stocks, reviewing portfolio names, and seeing exactly which data is ready to support analysis.
 
 > Data readiness first, analysis second, research decision last.
 

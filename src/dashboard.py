@@ -3270,7 +3270,7 @@ def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> li
         status_badges = ["monitor", "DCF excluded"]
     elif dcf_ready and peer_ready:
         status_title = "DCF-ready review"
-        status_body = "Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass."
+        status_body = "Price, fundamentals, standalone DCF, and peer context are ready for a fuller research pass."
         status_badges = ["company review", "core ready"]
     elif dcf_ready:
         status_title = "Standalone DCF review"
@@ -4200,7 +4200,7 @@ def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> l
     ]
 
 
-def data_health_good_enough_ladder_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
     price_ready = int(readiness_summary.get("price_ready") or 0)
     fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
     dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
@@ -14540,7 +14540,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             ),
             (
                 "Review current ideas",
-                "Open candidate lists only after the data behind them is ready enough to trust.",
+                "Open candidate lists only after the data behind them has enough trusted local coverage.",
                 "Monthly Picks",
                 "neutral",
             ),
@@ -15667,8 +15667,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
     render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
-    render_section_header("When Is A Stock Ready Enough?", "A simple ladder for setup review, DCF review, peer context, and optional context.")
-    render_signal_cards(data_health_good_enough_ladder_cards(readiness_summary))
+    render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
+    render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
     render_market_command_center(
         ticker_readiness_frame,
         coverage_frame,
