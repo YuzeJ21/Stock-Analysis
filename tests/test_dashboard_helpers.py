@@ -6307,6 +6307,34 @@ def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_n
     assert "sell" not in rendered
 
 
+def test_stock_report_evaluation_summary_cards_surface_trust_boundary_before_tables():
+    cards = dashboard.stock_report_evaluation_summary_cards(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": False},
+            "missing_data_warnings": ["Peers missing"],
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["SUPPORTED", "WITHHELD", "NEXT REVIEW", "CONFIDENCE"]
+    assert "what this report can support" in rendered
+    assert "standalone dcf assumptions" in rendered
+    assert "what remains withheld" in rendered
+    assert "peer-relative valuation remains withheld" in rendered
+    assert "best next review step" in rendered
+    assert "review the dcf assumptions first" in rendered
+    assert "missing inputs reduce confidence" in rendered
+    assert "research-only" in rendered
+    assert "data-gated" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_function_quality_frame_explains_current_function_scope_and_source():
     frame = dashboard.stock_report_function_quality_frame(
         {

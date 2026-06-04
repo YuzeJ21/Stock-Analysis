@@ -3359,6 +3359,39 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
     )
 
 
+def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    summary = stock_report_evaluation_summary_frame(report_payload)
+    if summary.empty:
+        return [
+            {
+                "kicker": "EVALUATION",
+                "title": "Refresh report",
+                "body": "Generate a local stock report before reviewing supported or withheld analysis.",
+                "badges": ["no guessing"],
+                "command": "make stock-report TICKER=NVDA",
+            }
+        ]
+    kicker_by_question = {
+        "What this report can support": "SUPPORTED",
+        "What remains withheld": "WITHHELD",
+        "Best next review step": "NEXT REVIEW",
+        "Confidence note": "CONFIDENCE",
+    }
+    cards: list[dict[str, object]] = []
+    for _, row in summary.iterrows():
+        question = format_missing(row.get("Question"), "Evaluation")
+        answer = format_missing(row.get("Answer"), "Not available")
+        cards.append(
+            {
+                "kicker": kicker_by_question.get(question, "EVALUATION"),
+                "title": question,
+                "body": answer,
+                "badges": ["research-only", "data-gated"],
+            }
+        )
+    return cards
+
+
 def stock_report_inferred_asset_type(report_payload: dict[str, object]) -> str:
     asset_type = format_missing(report_payload.get("asset_type"), "").lower()
     if asset_type and asset_type != "not available":
@@ -13963,6 +13996,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         unsafe_allow_html=True,
     )
     st.markdown("#### Evaluation Summary")
+    render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
     st.dataframe(
         clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
         width="stretch",
