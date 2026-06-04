@@ -6514,6 +6514,40 @@ def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_l
     assert "sell" not in rendered
 
 
+def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis():
+    cards = dashboard.data_health_analysis_unlock_cards(
+        {
+            "price_ready": 586,
+            "dcf_ready": 23,
+            "peer_ready": 3,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["PRICE UNLOCK", "DCF UNLOCK", "PEER UNLOCK", "OPTIONAL CONTEXT"]
+    assert "586 price-ready" in rendered
+    assert "setup, trend, liquidity, and market-context review" in rendered
+    assert "23 dcf-ready" in rendered
+    assert "company-level assumptions and sensitivity review" in rendered
+    assert "not automatic valuation conclusions" in rendered
+    assert "3 peer-ready" in rendered
+    assert "peer-relative context" in rendered
+    assert "missing peers stay blocked instead of guessed" in rendered
+    assert "0 earnings / 0 estimates" in rendered
+    assert "intentional lock, not a broken analysis path" in rendered
+    assert "make price-worklist top_n=10" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make peer-mapping-queue top_n=10" in rendered
+    assert "make optional-context-worklist top_n=10" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

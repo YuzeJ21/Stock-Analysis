@@ -4034,6 +4034,44 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
     ]
 
 
+def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    return [
+        {
+            "kicker": "PRICE UNLOCK",
+            "title": f"{price_ready} price-ready",
+            "body": "Enough local price history unlocks setup, trend, liquidity, and market-context review. Without it, deeper analysis stays premature.",
+            "badges": ["setup review", "history first"],
+            "command": "make price-worklist TOP_N=10",
+        },
+        {
+            "kicker": "DCF UNLOCK",
+            "title": f"{dcf_ready} DCF-ready",
+            "body": "Trusted fundamentals plus required DCF fields unlock company-level assumptions and sensitivity review, not automatic valuation conclusions.",
+            "badges": ["fundamentals", "assumptions"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "PEER UNLOCK",
+            "title": f"{peer_ready} peer-ready",
+            "body": "Source-backed peer mappings and peer metrics unlock peer-relative context. Missing peers stay blocked instead of guessed.",
+            "badges": ["manual peers", "no guessed mappings"],
+            "command": "make peer-mapping-queue TOP_N=10",
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"{earnings_ready} earnings / {estimates_ready} estimates",
+            "body": "Trusted earnings and analyst-estimate rows add context only. Empty optional files are an intentional lock, not a broken analysis path.",
+            "badges": ["optional", "trusted rows"],
+            "command": "make optional-context-worklist TOP_N=10",
+        },
+    ]
+
+
 def data_health_action_path_cards(
     actions_frame: pd.DataFrame | None,
     action_queue_frame: pd.DataFrame | None,
@@ -14925,6 +14963,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
     render_signal_cards(data_health_orientation_cards(readiness_summary))
+    render_section_header("Analysis Unlock Map", "What each trusted data lane makes good enough to review next.")
+    render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
     render_market_command_center(
         ticker_readiness_frame,
         coverage_frame,
