@@ -6422,6 +6422,31 @@ def test_valuation_workflow_guidance_cards_explain_ready_blocked_and_excluded_st
     assert "sell" not in rendered
 
 
+def test_valuation_function_quality_cards_explain_good_enough_scope_without_overclaiming():
+    ready = pd.DataFrame({"ticker": ["NVDA"]})
+    blocked = pd.DataFrame({"ticker": ["AMD", "META"]})
+    excluded = pd.DataFrame({"ticker": ["QQQ"]})
+
+    cards = dashboard.valuation_function_quality_cards(ready, blocked, excluded)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["VALUATION QUALITY", "BLOCKED IS NOT NEGATIVE", "MONITOR CONTEXT"]
+    assert "dcf is useful only for ready companies" in rendered
+    assert "1 company row(s) have enough trusted local dcf inputs" in rendered
+    assert "research context, not a recommendation" in rendered
+    assert "2 company row(s) still need inputs" in rendered
+    assert "missing-data state" in rendered
+    assert "not an undervalued, overvalued, or weak-company conclusion" in rendered
+    assert "operating-company dcf is intentionally excluded" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make stock-report ticker=qqq" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_language():
     cards = dashboard.data_health_orientation_cards(
         {

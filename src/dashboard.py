@@ -8968,6 +8968,42 @@ def valuation_readiness_operator_frame(
     )
 
 
+def valuation_function_quality_cards(
+    ready_companies: pd.DataFrame,
+    blocked_companies: pd.DataFrame,
+    excluded_rows: pd.DataFrame,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "VALUATION QUALITY",
+            "title": "DCF is useful only for ready companies",
+            "body": (
+                f"{len(ready_companies)} company row(s) have enough trusted local DCF inputs for assumptions, "
+                "scenario, and sensitivity review. This is research context, not a recommendation."
+            ),
+            "badges": ["DCF-ready only", "research context"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "BLOCKED IS NOT NEGATIVE",
+            "title": f"{len(blocked_companies)} company row(s) still need inputs",
+            "body": (
+                "A blocked valuation row is a missing-data state, not an undervalued, overvalued, or weak-company conclusion. "
+                "Use the missing-field table before interpreting valuation."
+            ),
+            "badges": ["no valuation call", "missing fields"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "MONITOR CONTEXT",
+            "title": f"{len(excluded_rows)} ETF/index/fund row(s) excluded",
+            "body": "These rows can support market, theme, liquidity, or risk monitoring; operating-company DCF is intentionally excluded.",
+            "badges": ["DCF excluded", "not failed"],
+            "command": "make stock-report TICKER=QQQ",
+        },
+    ]
+
+
 def split_risk_context_by_price_ready(frame: pd.DataFrame | None, unavailable_statuses: set[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
     if frame is None or frame.empty:
         return pd.DataFrame(), pd.DataFrame()
@@ -12958,6 +12994,8 @@ def valuation_workflow_guidance_cards(
 def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
+    render_section_header("Valuation Function Quality", "What valuation can and cannot mean with the current trusted local inputs.")
+    render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
     render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
     render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
     st.dataframe(
