@@ -645,28 +645,28 @@ def _stock_report_analysis_quality_lines(
     monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
 
     if monitor_context:
-        quality_title = "Good for monitor context"
+        quality_title = "Monitor-only context"
         quality_reason = (
             "Use market, theme, liquidity, or risk context. Operating-company DCF and peer valuation are "
             "excluded, not failed."
         )
     elif dcf_ready and peer_is_ready:
-        quality_title = "Good for deeper company review"
+        quality_title = "DCF-ready review"
         quality_reason = "Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass."
     elif dcf_ready:
-        quality_title = "Good for standalone DCF"
+        quality_title = "Standalone DCF review"
         quality_reason = (
             "DCF assumptions can be reviewed, but peer-relative valuation remains limited until trusted peer "
             "inputs are ready."
         )
     elif price_ready:
-        quality_title = "Good for price/setup review"
+        quality_title = "Price/setup review only"
         quality_reason = (
             "Use price and setup context only. Company valuation stays blocked until trusted fundamentals and "
             "DCF inputs exist."
         )
     else:
-        quality_title = "Data-unlock mode"
+        quality_title = "Data-unlock only"
         quality_reason = (
             "Start with verified local price history before relying on momentum, liquidity, valuation, or peer context."
         )
@@ -677,7 +677,7 @@ def _stock_report_analysis_quality_lines(
         else "Earnings and analyst estimates stay locked until trusted local rows exist."
     )
     return [
-        f"- Current quality label: {quality_title}.",
+        f"- Analysis mode: {quality_title}.",
         f"- Why: {quality_reason}",
         f"- Optional context: {optional_context}",
     ]
@@ -741,15 +741,17 @@ def _stock_report_function_quality_lines(
     ]
 
 
-def _stock_report_reader_guide_lines(*, dcf_status_text: str, monitor_context: bool) -> list[str]:
+def _stock_report_reader_guide_lines(*, dcf_status_text: str, monitor_context: bool, price_ready: bool) -> list[str]:
     if monitor_context:
-        current_use = "Good enough for ETF/index/fund monitor context when local price, liquidity, correlation, or theme inputs are ready."
+        current_use = "Monitor-only context when local price, liquidity, correlation, or theme inputs are ready."
     elif dcf_status_text == "ready":
-        current_use = "Good enough for company-level DCF assumption and sensitivity review when trusted local fundamentals are ready."
+        current_use = "DCF-ready review for company-level assumptions and sensitivity when trusted local fundamentals are ready."
+    elif price_ready:
+        current_use = "Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready."
     elif dcf_status_text == "blocked":
-        current_use = "Good enough for data-unlock workflow only until trusted price, fundamentals, DCF, and peer inputs are ready."
+        current_use = "Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready."
     else:
-        current_use = "Good enough only for the local inputs explicitly marked ready in this report."
+        current_use = "Only the local inputs explicitly marked ready in this report should be interpreted."
     return [
         "- Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.",
         f"- Current use: {current_use}",
@@ -984,6 +986,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     reader_guide_lines = _stock_report_reader_guide_lines(
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
     )
 
     report_lines = [
@@ -1211,6 +1214,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
     reader_guide_lines = _stock_report_reader_guide_lines(
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
     )
     lines = [
         f"# {symbol} Single-Stock Research Report",

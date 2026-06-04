@@ -127,7 +127,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert any("research-grade" in " ".join(note["notes"]).lower() for note in report_dict["data_freshness"])
     assert "## How To Read This Report" in markdown
     assert "Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third" in markdown
-    assert "Good enough for company-level DCF assumption and sensitivity review" in markdown
+    assert "DCF-ready review for company-level assumptions and sensitivity" in markdown
     assert "repo-native code under `src/`" in markdown
     assert "plugins can help development review" in markdown
     assert "shipped analysis comes from repo code and local data" in markdown
@@ -138,7 +138,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Supported now:" in markdown
     assert "Still locked or excluded:" in markdown
     assert "## Analysis Quality" in markdown
-    assert "Good for standalone DCF" in markdown
+    assert "Analysis mode: Standalone DCF review" in markdown
     assert "peer-relative valuation remains limited until trusted peer inputs are ready" in markdown
     assert "## Evaluation Function Check" in markdown
     assert "Readiness gate: strongest function" in markdown
@@ -157,7 +157,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown
 
 
-def test_build_stock_report_surfaces_missing_data_risks():
+def test_build_stock_report_surfaces_missing_data_risks(tmp_path: Path):
     source = make_source_metadata(
         provider="mock",
         freshness="stale",
@@ -187,11 +187,14 @@ def test_build_stock_report_surfaces_missing_data_risks():
     )
 
     report = build_stock_report("TSLA", provider)
+    markdown = export_stock_report_markdown(report, tmp_path / "tsla-price-setup-report.md")
 
     assert any("1Y price performance is unavailable" in risk for risk in report.key_risks)
     assert any("Free-cash-flow coverage is unavailable" in risk for risk in report.key_risks)
     assert any("Operating margin is negative" in risk for risk in report.key_risks)
     assert report.valuation_snapshot["status"] == "insufficient_data"
+    assert "Current use: Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready." in markdown
+    assert "Analysis mode: Price/setup review only" in markdown
 
 
 def test_stock_report_json_export_is_serializable_and_contains_freshness_metadata(tmp_path: Path):
@@ -325,7 +328,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Decision: Monitor - ETF Market Proxy" in markdown
     assert "Monitor - ETF Market Proxy" in markdown
     assert "Research-only local report" in markdown
-    assert "Good enough for ETF/index/fund monitor context" in markdown
+    assert "Monitor-only context when local price, liquidity, correlation, or theme inputs are ready" in markdown
     assert "plugins can help development review" in markdown
     assert "shipped analysis comes from repo code and local data" in markdown
     assert "allocation instructions" in markdown
@@ -333,7 +336,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "transaction execution" not in markdown.lower()
     assert "execute transactions" not in markdown.lower()
     assert "DCF: excluded" in markdown
-    assert "Good for monitor context" in markdown
+    assert "Analysis mode: Monitor-only context" in markdown
     assert "Operating-company DCF and peer valuation are excluded, not failed" in markdown
     assert "Fundamentals / DCF: excluded for ETF/index/fund monitor context, not failed" in markdown
     assert "Peer comparison: excluded for monitor context" in markdown
@@ -437,7 +440,7 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
 
     assert f"Next: {peer_action}" in markdown
     assert "## Analysis Quality" in markdown
-    assert "Good for standalone DCF" in markdown
+    assert "Analysis mode: Standalone DCF review" in markdown
     assert "peer-relative valuation remains limited until trusted peer inputs are ready" in markdown
     assert f"- Next action: {peer_action}" in markdown
     assert "Operator summary:" in markdown
@@ -495,13 +498,13 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "readiness-only report" in markdown
     assert "# APLD Single-Stock Research Report" in markdown
     assert "## How To Read This Report" in markdown
-    assert "Good enough for data-unlock workflow only" in markdown
+    assert "Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready" in markdown
     assert "Read top-down: readiness state first" in markdown
     assert "## Executive Summary" in markdown
     assert "## What This Stock Is" in markdown
     assert "## Analysis Quality" in markdown
     assert "## Evaluation Function Check" in markdown
-    assert "Data-unlock mode" in markdown
+    assert "Analysis mode: Data-unlock only" in markdown
     assert "Start with verified local price history before relying on momentum" in markdown
     assert "Price and setup: locked until enough trusted price history is available" in markdown
     assert "Fundamentals / DCF: blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready" in markdown

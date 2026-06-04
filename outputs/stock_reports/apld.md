@@ -4,7 +4,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
-- Current use: Good enough for data-unlock workflow only until trusted price, fundamentals, DCF, and peer inputs are ready.
+- Current use: Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready.
 - Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and plugins can help development review, but shipped analysis comes from repo code and local data.
 - Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.
 
@@ -20,7 +20,7 @@ APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 - Still locked or excluded: Blocked features: fundamentals, dcf, peer, earnings, analyst_estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
 ## Analysis Quality
-- Current quality label: Good for price/setup review.
+- Analysis mode: Price/setup review only.
 - Why: Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 
@@ -135,9 +135,9 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Source / Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-06-03T18:35:06.424153090+00:00; Local CSV-backed research data.
-- local:fundamentals.csv: research-grade / local, retrieved 2026-06-04T04:31:17+00:00; No local fundamentals row was found for this ticker.
-- local:earnings.csv: research-grade / local, retrieved 2026-06-04T04:31:17+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-04T04:31:17+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:fundamentals.csv: research-grade / local, retrieved 2026-06-04T04:54:31+00:00; No local fundamentals row was found for this ticker.
+- local:earnings.csv: research-grade / local, retrieved 2026-06-04T04:54:31+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-04T04:54:31+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Source/Freshness Audit
 - Prices: True; local source `data/prices.csv`; coverage 2023-12-15 to 2026-06-01; rows=615; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
