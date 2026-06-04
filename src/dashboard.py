@@ -9600,6 +9600,8 @@ def valuation_function_quality_frame(
         [
             {
                 "Valuation Area": "DCF-ready companies",
+                "Quality Verdict": "Good for DCF-ready companies only",
+                "Best Use Today": "Review assumptions, scenarios, and sensitivity with trusted local inputs.",
                 "Current Coverage": f"{len(ready_companies)} row(s)",
                 "Supported Today": "Reviewing assumptions, scenarios, and sensitivity when trusted local company inputs are present.",
                 "Not Supported Yet": "Direct recommendations or unsupported price targets.",
@@ -9607,6 +9609,8 @@ def valuation_function_quality_frame(
             },
             {
                 "Valuation Area": "Blocked companies",
+                "Quality Verdict": "Not valuation-ready",
+                "Best Use Today": "Use as a missing-input worklist before interpreting company valuation.",
                 "Current Coverage": f"{len(blocked_companies)} row(s)",
                 "Supported Today": "Finding the exact missing data needed before company valuation can be reviewed.",
                 "Not Supported Yet": "Calling a company undervalued, overvalued, or weak because inputs are missing.",
@@ -9614,6 +9618,8 @@ def valuation_function_quality_frame(
             },
             {
                 "Valuation Area": "ETF / index / fund rows",
+                "Quality Verdict": "Good for monitor context only",
+                "Best Use Today": "Review market, theme, liquidity, or risk context without operating-company DCF.",
                 "Current Coverage": f"{len(excluded_rows)} row(s)",
                 "Supported Today": "Monitor context such as market, theme, liquidity, or risk review.",
                 "Not Supported Yet": "Operating-company DCF or peer valuation.",
@@ -9621,6 +9627,8 @@ def valuation_function_quality_frame(
             },
             {
                 "Valuation Area": "Peer-relative valuation",
+                "Quality Verdict": "Coverage-limited until peers are trusted",
+                "Best Use Today": "Use the peer queue to add source-backed peer mappings and peer metrics.",
                 "Current Coverage": "Available only when source-backed peer mappings and peer inputs are ready.",
                 "Supported Today": "Peer comparison after trusted peer rows and peer metrics exist.",
                 "Not Supported Yet": "Guessed peer relationships or peer valuation when peer inputs are missing.",
@@ -9628,6 +9636,8 @@ def valuation_function_quality_frame(
             },
             {
                 "Valuation Area": "Dependencies",
+                "Quality Verdict": "Support layer, not valuation logic",
+                "Best Use Today": "Use libraries/adapters for data handling and UI while repo code owns valuation rules.",
                 "Current Coverage": "Support layer only.",
                 "Supported Today": "Data handling, UI display, tests, and optional research-grade data access.",
                 "Not Supported Yet": "Replacing repo-native valuation rules or trusted local valuation inputs.",

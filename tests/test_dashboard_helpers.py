@@ -6759,24 +6759,34 @@ def test_valuation_function_quality_frame_explains_scope_counts_and_provenance()
 
     assert list(frame.columns) == [
         "Valuation Area",
+        "Quality Verdict",
+        "Best Use Today",
         "Current Coverage",
         "Supported Today",
         "Not Supported Yet",
         "Logic Source",
     ]
     assert "dcf-ready companies" in rendered
+    assert "good for dcf-ready companies only" in rendered
+    assert "review assumptions, scenarios, and sensitivity with trusted local inputs" in rendered
     assert "1 row(s)" in rendered
     assert "reviewing assumptions, scenarios, and sensitivity" in rendered
     assert "blocked companies" in rendered
+    assert "not valuation-ready" in rendered
+    assert "use as a missing-input worklist" in rendered
     assert "2 row(s)" in rendered
     assert "finding the exact missing data" in rendered
     assert "calling a company undervalued, overvalued, or weak" in rendered
     assert "etf / index / fund rows" in rendered
+    assert "good for monitor context only" in rendered
     assert "2 row(s)" in rendered
     assert "operating-company dcf or peer valuation" in rendered
     assert "peer-relative valuation" in rendered
+    assert "coverage-limited until peers are trusted" in rendered
+    assert "source-backed peer mappings and peer metrics" in rendered
     assert "guessed peer relationships" in rendered
     assert "dependencies" in rendered
+    assert "support layer, not valuation logic" in rendered
     assert "support layer only" in rendered
     assert "valuation rules live in this repository" in rendered
     assert "replacing repo-native valuation rules or trusted local valuation inputs" in rendered
