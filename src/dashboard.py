@@ -3213,6 +3213,69 @@ def stock_report_summary_cards(report_payload: dict[str, object]) -> list[dict[s
     ]
 
 
+def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    readiness = {
+        **(report_payload.get("readiness", {}) or {}),
+        **(report_payload.get("valuation_readiness", {}) or {}),
+    }
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    asset_type = format_missing(report_payload.get("asset_type"), "").lower()
+    valuation_status = format_missing(valuation.get("status"), "").lower()
+    warnings = report_payload.get("missing_data_warnings", []) or []
+    dcf_ready = bool(readiness.get("dcf_ready"))
+    peer_ready = bool(readiness.get("peer_ready"))
+    earnings_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready"))
+    estimates_ready = bool(readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready"))
+    is_monitor = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status
+
+    if is_monitor:
+        status_title = "Good for monitor context"
+        status_body = "Use market, theme, liquidity, or risk context. Operating-company DCF and peer valuation are excluded, not failed."
+        status_badges = ["monitor", "DCF excluded"]
+    elif dcf_ready and peer_ready:
+        status_title = "Good for deeper company review"
+        status_body = "Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass."
+        status_badges = ["company review", "core ready"]
+    elif dcf_ready:
+        status_title = "Good for standalone DCF"
+        status_body = "DCF assumptions can be reviewed, but peer-relative valuation remains limited until trusted peer inputs are ready."
+        status_badges = ["DCF ready", "peer-limited"]
+    elif readiness.get("price_ready"):
+        status_title = "Good for price/setup review"
+        status_body = "Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist."
+        status_badges = ["price ready", "valuation blocked"]
+    else:
+        status_title = "Data-unlock mode"
+        status_body = "Start with verified local price history before relying on momentum, liquidity, valuation, or peer context."
+        status_badges = ["unlock first"]
+
+    optional_body = (
+        "Optional earnings and analyst-estimate context is available for review."
+        if earnings_ready and estimates_ready
+        else "Earnings and analyst estimates are optional context and stay locked until trusted local rows exist."
+    )
+    return [
+        {
+            "kicker": "ANALYSIS QUALITY",
+            "title": status_title,
+            "body": status_body,
+            "badges": status_badges,
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": "Available" if earnings_ready and estimates_ready else "Locked",
+            "body": optional_body,
+            "badges": ["trusted rows only"],
+        },
+        {
+            "kicker": "MISSING INPUTS",
+            "title": f"{len(warnings)} visible",
+            "body": "Visible warnings reduce confidence and should be handled before forcing a broader conclusion.",
+            "badges": ["no guessing"],
+        },
+    ]
+
+
 def preferred_single_stock_default(local_tickers: list[str], preferred: str = "NVDA") -> int:
     """Return the selectbox index for a visitor-friendly demo ticker when present."""
     if not local_tickers:
@@ -13470,6 +13533,7 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
         "A structured view of local research inputs. This is context only, not execution guidance.",
     )
     render_signal_cards(stock_report_summary_cards(report_payload))
+    render_signal_cards(stock_report_analysis_quality_cards(report_payload))
     render_signal_cards(stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     st.markdown(
         "<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.5rem 0 1rem 0;'>"

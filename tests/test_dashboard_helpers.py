@@ -6159,6 +6159,51 @@ def test_stock_report_summary_cards_are_readable_and_research_only():
     assert "sell" not in rendered.lower()
 
 
+def test_stock_report_analysis_quality_cards_classify_supported_scope():
+    monitor_cards = dashboard.stock_report_analysis_quality_cards(
+        {
+            "asset_type": "etf",
+            "valuation_snapshot": {"status": "excluded"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["DCF excluded"],
+        }
+    )
+    standalone_cards = dashboard.stock_report_analysis_quality_cards(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": False},
+            "missing_data_warnings": ["Peers missing"],
+        }
+    )
+    price_only_cards = dashboard.stock_report_analysis_quality_cards(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "insufficient_data"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["Fundamentals missing"],
+        }
+    )
+    rendered = " ".join(
+        str(value)
+        for card in monitor_cards + standalone_cards + price_only_cards
+        for value in card.values()
+    ).lower()
+
+    assert "good for monitor context" in rendered
+    assert "excluded, not failed" in rendered
+    assert "good for standalone dcf" in rendered
+    assert "peer-relative valuation remains limited" in rendered
+    assert "good for price/setup review" in rendered
+    assert "company valuation stays blocked" in rendered
+    assert "visible warnings reduce confidence" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
     coverage = pd.DataFrame(
         [
