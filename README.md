@@ -109,15 +109,6 @@ make price-refresh-loop DRY_RUN=1
 make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
 ```
 
-Demo report examples:
-
-```bash
-make stock-report TICKER=NVDA
-make stock-report TICKER=QQQ
-make stock-report TICKER=SMH
-make stock-report TICKER=APLD
-```
-
 Preview-first import flow:
 
 ```bash
@@ -130,6 +121,10 @@ make imports-apply
 ## Generated Data Hygiene
 
 Small example outputs are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and generated report CSVs are local working data by default. Review them before committing; do not publish broad refresh churn unless intentionally selected.
+
+## Analysis Logic Provenance
+
+The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. The project uses standard Python packages such as `pandas`, `numpy`, `PyYAML`, and `streamlit`; optional `yfinance` is an unofficial research-grade adapter. These libraries support data handling and UI, but they are not copied stock-picking or recommendation engines.
 
 ## Core Outputs
 

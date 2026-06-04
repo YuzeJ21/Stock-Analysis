@@ -179,6 +179,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## What You Can Analyze" in readme
     assert "## Try This Demo Path" in readme
     assert "## Generated Data Hygiene" in readme
+    assert "## Analysis Logic Provenance" in readme
     for phrase in (
         "make pipeline",
         "make readiness",
@@ -199,6 +200,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "not investment advice",
         "Roadmap Snapshot",
         "Review them before committing",
+        "not copied stock-picking or recommendation engines",
     ):
         assert phrase in readme
 
@@ -210,6 +212,9 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
 
     assert dry_run_index < refresh_index
     assert "broad refresh churn should be inspected before it is committed or shared publicly" in dashboard
+    assert "Generate Local Stock Report" in dashboard
+    assert "Use optional online data" in dashboard
+    assert "research rows" in dashboard
 
 def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     readme = Path("README.md").read_text(encoding="utf-8")

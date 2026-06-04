@@ -2404,7 +2404,7 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
           </div>
           <div class="hero-pills">
             <span class="hero-pill">{tickers} universe tickers</span>
-            <span class="hero-pill">{final_count} watchlist rows</span>
+            <span class="hero-pill">{final_count} research rows</span>
             <span class="hero-pill">{monthly_count} monthly candidates</span>
             <span class="hero-pill">Latest price: {html.escape(latest_price)}</span>
           </div>
@@ -3211,6 +3211,18 @@ def stock_report_summary_cards(report_payload: dict[str, object]) -> list[dict[s
             "badges": stock_report_readiness_badges(readiness)[2:],
         },
     ]
+
+
+def preferred_single_stock_default(local_tickers: list[str], preferred: str = "NVDA") -> int:
+    """Return the selectbox index for a visitor-friendly demo ticker when present."""
+    if not local_tickers:
+        return 0
+    options = ["Custom"] + local_tickers
+    preferred_upper = preferred.upper()
+    for index, ticker in enumerate(options):
+        if str(ticker).upper() == preferred_upper:
+            return index
+    return 1
 
 
 def stock_report_local_context_cards(
@@ -9016,21 +9028,27 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
             "neutral",
         ),
         (
+            "Open Command Center",
+            "Use Overview after Home when you want the broader workflow cockpit and grouped next actions.",
+            "Overview tab",
+            "neutral",
+        ),
+        (
             "Review Ideas",
             "Open Monthly Picks only after the Home page shows enough data is available for candidate review.",
-            "Monthly Picks page",
+            "Monthly Picks tab",
             "neutral",
         ),
         (
             "Research One Stock",
             "Use Single-Stock Report for a ticker-level view of price, valuation, missing data, and source freshness.",
-            "Single-Stock Report page",
+            "Single-Stock Report tab",
             "neutral",
         ),
         (
             "Improve Coverage",
             "Use Data Health when the Home page says analysis is blocked by missing prices, fundamentals, peers, or optional context.",
-            "Data Health page",
+            "Data Health tab",
             "warning",
         ),
     ]
@@ -9294,7 +9312,7 @@ def overview_landing_cards(
     return [
         {
             "kicker": "RESEARCH FLOW",
-            "title": f"{watchlist_count} watchlist rows",
+            "title": f"{watchlist_count} research rows",
             "body": f"{monthly_count} current monthly candidates and latest local price date {latest_price}.",
             "badges": ["local outputs"],
             "command": "make monthly",
@@ -13358,9 +13376,14 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
     )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
-    selected = selection_cols[0].selectbox("Local ticker", ["Custom"] + local_tickers if local_tickers else ["Custom"], index=1 if local_tickers else 0)
+    selected = selection_cols[0].selectbox(
+        "Local ticker",
+        ["Custom"] + local_tickers if local_tickers else ["Custom"],
+        index=preferred_single_stock_default(local_tickers),
+        help="Defaults to NVDA when it exists in local data because it is a richer demo report.",
+    )
     manual_ticker = selection_cols[1].text_input("Manual ticker", value="" if selected != "Custom" else "AAPL")
-    use_yfinance = selection_cols[2].checkbox("Use yfinance", value=False, help="Unofficial / research-grade. Leave off for the CSV-first path.")
+    use_yfinance = selection_cols[2].checkbox("Use optional online data", value=False, help="Uses yfinance as an unofficial / research-grade source. Leave off for the CSV-first path.")
     ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
     provider_name = "yfinance" if use_yfinance else "local"
     coverage = pd.DataFrame()
@@ -13384,7 +13407,7 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
             readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
-    if st.button("Generate Stock Report", key="single-stock-report-button"):
+    if st.button("Generate Local Stock Report", key="single-stock-report-button"):
         if not ticker:
             st.warning("Enter a ticker to generate a stock report.")
         else:
@@ -15200,7 +15223,8 @@ def main() -> None:
             "Home explains what is ready, what is blocked, and where to go next.",
             tone="success",
         )
-        render_action_cards(dashboard_navigation_cards())
+        with st.expander("Start guide", expanded=False):
+            render_action_cards(dashboard_navigation_cards())
         with st.expander("Advanced command help", expanded=False):
             render_context_note("Safe local commands.", "Preview capped refreshes first. The dashboard shows copyable commands only and never runs imports, refreshes, or account actions.")
             st.code(

@@ -94,6 +94,13 @@ def test_dashboard_card_helpers_render_modern_markup():
     assert "make pipeline" in notice
 
 
+def test_single_stock_default_prefers_demo_ticker_when_available():
+    assert dashboard.preferred_single_stock_default([]) == 0
+    assert dashboard.preferred_single_stock_default(["A", "MSFT"]) == 1
+    assert dashboard.preferred_single_stock_default(["A", "NVDA", "QQQ"]) == 2
+    assert dashboard.preferred_single_stock_default(["nvda", "QQQ"]) == 1
+
+
 def test_notice_card_escapes_content_and_uses_tones():
     html = dashboard.notice_card_html("<Missing>", "Use <safe> local files.", "make pipeline", tone="warning")
 
@@ -2280,7 +2287,7 @@ def test_overview_landing_cards_surface_workflow_and_gap_context():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 4
-    assert "12 watchlist rows" in rendered
+    assert "12 research rows" in rendered
     assert "4 current monthly candidates" in rendered
     assert "3/12" in rendered
     assert "0 dcf-ready" in rendered
@@ -11386,9 +11393,10 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
     assert "Home page" in navigation
-    assert "Monthly Picks page" in navigation
-    assert "Single-Stock Report page" in navigation
-    assert "Data Health page" in navigation
+    assert "Overview tab" in navigation
+    assert "Monthly Picks tab" in navigation
+    assert "Single-Stock Report tab" in navigation
+    assert "Data Health tab" in navigation
 
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():
