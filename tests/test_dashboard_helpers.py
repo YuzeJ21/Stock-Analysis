@@ -8733,6 +8733,7 @@ def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values
     cards = dashboard.data_coverage_wizard_cards(wizard)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
+    assert "unlock-guide rows" in rendered
     assert "monthly" in rendered
     assert "valuation" in rendered
     assert "not blocking" in rendered
@@ -8749,9 +8750,32 @@ def test_data_coverage_wizard_cards_handle_missing_output():
     cards = dashboard.data_coverage_wizard_cards(None)
     rendered = " ".join(str(value) for card in cards for value in card.values())
 
+    assert cards[0]["kicker"] == "UNLOCK GUIDE"
     assert "Not generated" in rendered
+    assert "local unlock guide" in rendered
     assert cards[0]["command"] == "make data-wizard TOP_N=10"
     assert "make data-wizard" in rendered
+
+
+def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    for phrase in (
+        "Data Coverage Unlock Guide",
+        "Data Quality Unlock Guide",
+        "Data Quality Unlock Guide rows",
+        "Coverage unlock guide has not been generated",
+        "Data Coverage Unlock Guide Rows",
+    ):
+        assert phrase in source
+
+    for old_label in (
+        '"data_coverage_wizard.csv": "Data Coverage Wizard"',
+        '"data_quality_wizard.csv": "Data Quality Wizard"',
+        "Data Coverage Wizard Rows",
+        "Coverage wizard has not been generated",
+    ):
+        assert old_label not in source
 
 
 def test_data_coverage_wizard_cards_use_lane_front_doors_when_commands_are_missing():

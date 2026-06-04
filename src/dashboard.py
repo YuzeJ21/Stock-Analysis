@@ -176,7 +176,7 @@ ACTIVE_UNLOCK_DRILLDOWN_COLUMNS = [
 DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
-    "data_coverage_wizard.csv": "Data Coverage Wizard",
+    "data_coverage_wizard.csv": "Data Coverage Unlock Guide",
     "price_import_worklist.csv": "Price Import Worklist",
     "fundamentals_peer_worklist.csv": "Fundamentals Peer Worklist",
     "optional_context_worklist.csv": "Optional Context Worklist",
@@ -190,7 +190,7 @@ DATA_ONBOARDING_FILES = {
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
-    "data_quality_wizard.csv": "Data Quality Wizard",
+    "data_quality_wizard.csv": "Data Quality Unlock Guide",
     "liquidity_risk.csv": "Liquidity Risk",
     "correlation_risk.csv": "Correlation Risk",
 }
@@ -4717,9 +4717,9 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
     if wizard_frame is None or wizard_frame.empty:
         return [
             {
-                "kicker": "DATA WIZARD",
+                "kicker": "UNLOCK GUIDE",
                 "title": "Not generated",
-                "body": "Run the local data wizard to see which verified CSV inputs unlock the most value next.",
+                "body": "Run the local unlock guide to see which verified CSV inputs unlock the most value next.",
                 "badges": ["make data-wizard"],
                 "command": "make data-wizard TOP_N=10",
             }
@@ -4732,7 +4732,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
                 {
                     "kicker": kicker,
                     "title": "Ready or not blocking",
-                    "body": "No priority wizard rows currently block this research surface.",
+                    "body": "No priority unlock-guide rows currently block this research surface.",
                     "badges": ["local CSV"],
                 }
             )
@@ -13128,7 +13128,7 @@ def render_overview(
                 ("Latest Price", latest_price, "From local prices.csv"),
                 ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
                 ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
-                ("Research Ready", health_summary["research_ready"], "Data Quality Wizard rows"),
+                ("Research Ready", health_summary["research_ready"], "Data Quality Unlock Guide rows"),
                 ("Critical Actions", queue_summary["critical"], "Highest-priority remediation items"),
             ]
         )
@@ -14606,7 +14606,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     if wizard_frame is None:
         wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
         render_notice_card(
-            "Coverage wizard has not been generated",
+            "Coverage unlock guide has not been generated",
             wizard_notice_body,
             wizard_notice_command,
         )
@@ -15058,7 +15058,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 st.info(actions_message)
 
             if wizard_frame is not None and not wizard_frame.empty:
-                with st.expander("Data Coverage Wizard Rows", expanded=False):
+                with st.expander("Data Coverage Unlock Guide Rows", expanded=False):
                     wizard_columns = [
                         column
                         for column in [
