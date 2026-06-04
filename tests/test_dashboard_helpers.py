@@ -612,7 +612,86 @@ def test_ticker_coverage_display_frame_hides_noisy_paths():
     assert display.iloc[0]["Latest"] == "2026-03-14"
 
 
-def test_data_source_status_tables_handle_missing_outputs(tmp_path):
+def _fake_pipeline_outputs(_root, *, output_dir):
+    output_path = Path(output_dir)
+    for filename in dashboard.PIPELINE_FILES:
+        pd.DataFrame([{"ticker": "NVDA", "status": "fixture"}]).to_csv(output_path / filename, index=False)
+
+
+def _fake_monthly_research_picks(_root, *, output_dir, top_n):
+    pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "monthly_pick_status": "fixture",
+                "research_only_note": "Copy-only research fixture.",
+            }
+        ]
+    ).to_csv(Path(output_dir) / "monthly_research_picks.csv", index=False)
+
+
+def _fake_monthly_track_record(_root, *, output_dir, top_n, write_output):
+    output_path = Path(output_dir)
+    pd.DataFrame([{"ticker": "NVDA", "status": "fixture"}]).to_csv(
+        output_path / "monthly_picks_track_record.csv",
+        index=False,
+    )
+    pd.DataFrame([{"month": "2026-01", "equity": 1.0}]).to_csv(
+        output_path / "monthly_picks_equity_curve.csv",
+        index=False,
+    )
+
+
+def _fake_data_source_outputs(_root, *, output_dir):
+    payload = {
+        "data_sources": [
+            {
+                "dataset": "fundamentals",
+                "source_name": "fixture",
+                "source_type": "local_csv",
+                "availability_status": "partial",
+                "required_for": "valuation",
+                "fallback_action": "Run make imports-validate, then make imports-preview.",
+                "target_file": "data/imports/fundamentals.csv",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "credential_required": "",
+                "credential_present": False,
+                "manual_fallback_command": "make templates",
+                "command_safety_note": "Copy-only command.",
+                "local_file": "data/imports/fundamentals.csv",
+                "row_count": 1,
+                "validation_warnings": "",
+            }
+        ],
+        "data_gaps": [
+            {
+                "dataset": "fundamentals",
+                "ticker": "",
+                "status": "partial",
+                "reason": "fixture",
+                "required_for": "valuation",
+                "recommended_action": "Run make imports-validate, then make imports-preview.",
+                "target_file": "data/imports/fundamentals.csv",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "credential_required": "",
+                "credential_present": False,
+                "manual_fallback_command": "make templates",
+                "command_safety_note": "Copy-only command.",
+                "local_file": "data/imports/fundamentals.csv",
+                "source_name": "fixture",
+            }
+        ],
+    }
+    output_path = Path(output_dir)
+    pd.DataFrame(payload["data_sources"]).to_csv(output_path / "data_source_status.csv", index=False)
+    pd.DataFrame(payload["data_gaps"]).to_csv(output_path / "data_gap_report.csv", index=False)
+    return payload
+
+
+def test_data_source_status_tables_handle_missing_outputs(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_data_source_outputs", _fake_data_source_outputs)
     tables = dashboard.load_data_source_status_tables(tmp_path)
 
     source_frame, source_message = tables["data_source_status.csv"]
@@ -628,11 +707,12 @@ def test_data_source_status_tables_handle_missing_outputs(tmp_path):
     assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"
 
 
-def test_pipeline_outputs_loader_regenerates_missing_core_outputs(tmp_path):
+def test_pipeline_outputs_loader_regenerates_missing_core_outputs(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "run_report_generator", _fake_pipeline_outputs)
     old_base = dashboard.BASE_DIR
     old_outputs = dashboard.OUTPUTS_DIR
     try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        dashboard.BASE_DIR = tmp_path
         dashboard.OUTPUTS_DIR = tmp_path
         tables = dashboard.load_pipeline_outputs(tmp_path)
     finally:
@@ -649,11 +729,13 @@ def test_pipeline_outputs_loader_regenerates_missing_core_outputs(tmp_path):
     assert (tmp_path / "final_watchlist.csv").exists()
 
 
-def test_monthly_outputs_loader_regenerates_missing_monthly_outputs(tmp_path):
+def test_monthly_outputs_loader_regenerates_missing_monthly_outputs(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "build_monthly_research_picks", _fake_monthly_research_picks)
+    monkeypatch.setattr(dashboard, "calculate_monthly_track_record", _fake_monthly_track_record)
     old_base = dashboard.BASE_DIR
     old_outputs = dashboard.OUTPUTS_DIR
     try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        dashboard.BASE_DIR = tmp_path
         dashboard.OUTPUTS_DIR = tmp_path
         tables = dashboard.load_monthly_outputs(tmp_path)
     finally:
@@ -836,7 +918,8 @@ def test_data_source_status_tables_refresh_stale_source_status_columns(tmp_path)
     assert source_frame.loc[source_frame["dataset"] == "fundamentals", "example_command"].iloc[0] == "make runbook-fundamentals-broader"
 
 
-def test_data_source_status_tables_refresh_stale_example_commands(tmp_path):
+def test_data_source_status_tables_refresh_stale_example_commands(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_data_source_outputs", _fake_data_source_outputs)
     outputs_dir = tmp_path
     pd.DataFrame(
         [
@@ -884,12 +967,7 @@ def test_data_source_status_tables_refresh_stale_example_commands(tmp_path):
         ]
     ).to_csv(outputs_dir / "data_source_status.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        tables = dashboard.load_data_source_status_tables(outputs_dir)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_data_source_status_tables(outputs_dir)
 
     source_frame, _ = tables["data_source_status.csv"]
     gap_frame, _ = tables["data_gap_report.csv"]
@@ -899,7 +977,8 @@ def test_data_source_status_tables_refresh_stale_example_commands(tmp_path):
     assert gap_frame.loc[gap_frame["dataset"] == "fundamentals", "example_command"].iloc[0] == "make imports-preview"
 
 
-def test_data_source_status_tables_refresh_stale_action_text(tmp_path):
+def test_data_source_status_tables_refresh_stale_action_text(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_data_source_outputs", _fake_data_source_outputs)
     outputs_dir = tmp_path
     pd.DataFrame(
         [
@@ -947,12 +1026,7 @@ def test_data_source_status_tables_refresh_stale_action_text(tmp_path):
         ]
     ).to_csv(outputs_dir / "data_source_status.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        tables = dashboard.load_data_source_status_tables(outputs_dir)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_data_source_status_tables(outputs_dir)
 
     source_frame, _ = tables["data_source_status.csv"]
     gap_frame, _ = tables["data_gap_report.csv"]
@@ -1148,7 +1222,30 @@ def test_ensure_command_safety_columns_preserves_rows_without_regeneration(monke
     assert enriched.iloc[1]["manual_fallback_command"] == "make templates"
 
 
-def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
+def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path, monkeypatch):
+    def fake_write_action_queue_output(_root, *, output_dir):
+        pd.DataFrame(
+            [
+                {
+                    "priority": 1,
+                    "urgency": "critical",
+                    "action_type": "prices",
+                    "ticker": "AMD",
+                    "title": "Repair price history for AMD",
+                    "status": "parse_error",
+                    "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=yahoo.",
+                    "focus_command": "make focus-price TICKER=AMD",
+                    "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                    "target_file": "data/imports/prices.csv",
+                    "source_file": "data/imports/prices.csv",
+                    "source_artifact": "outputs/price_update_status.csv",
+                    "reason": "AMD parse failed.",
+                }
+            ]
+        ).to_csv(Path(output_dir) / "research_action_queue.csv", index=False)
+        return {}
+
+    monkeypatch.setattr(dashboard, "write_action_queue_output", fake_write_action_queue_output)
     pd.DataFrame(
         [
             {
@@ -1167,12 +1264,7 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
         ]
     ).to_csv(tmp_path / "research_action_queue.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        frame, message = dashboard.load_action_queue(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    frame, message = dashboard.load_action_queue(tmp_path)
 
     assert message is None
     assert frame is not None
@@ -1189,7 +1281,30 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
         assert fundamentals_rows["focus_command"].astype(str).str.startswith("make focus-fundamentals").any()
 
 
-def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_command_fields(tmp_path):
+def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_command_fields(tmp_path, monkeypatch):
+    def fake_write_action_queue_output(_root, *, output_dir):
+        pd.DataFrame(
+            [
+                {
+                    "priority": 1,
+                    "urgency": "critical",
+                    "action_type": "prices",
+                    "ticker": "AMD",
+                    "title": "Repair price history for AMD",
+                    "status": "parse_error",
+                    "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=yahoo.",
+                    "focus_command": "make focus-price TICKER=AMD",
+                    "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                    "target_file": "data/imports/prices.csv",
+                    "source_file": "data/imports/prices.csv",
+                    "source_artifact": "outputs/price_update_status.csv",
+                    "reason": "AMD has stale price action text.",
+                }
+            ]
+        ).to_csv(Path(output_dir) / "research_action_queue.csv", index=False)
+        return {}
+
+    monkeypatch.setattr(dashboard, "write_action_queue_output", fake_write_action_queue_output)
     pd.DataFrame(
         [
             {
@@ -1210,12 +1325,7 @@ def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_c
         ]
     ).to_csv(tmp_path / "research_action_queue.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        frame, message = dashboard.load_action_queue(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    frame, message = dashboard.load_action_queue(tmp_path)
 
     assert message is None
     assert frame is not None
@@ -1230,7 +1340,30 @@ def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_c
         assert frame["focus_command"].astype(str).str.startswith(("make focus-", "make templates")).any()
 
 
-def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tmp_path):
+def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tmp_path, monkeypatch):
+    def fake_write_action_queue_output(_root, *, output_dir):
+        pd.DataFrame(
+            [
+                {
+                    "priority": 2,
+                    "urgency": "high",
+                    "action_type": "fundamentals",
+                    "ticker": "",
+                    "title": "Advance staged fundamentals import",
+                    "status": "partial",
+                    "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply.",
+                    "focus_command": "make imports-validate",
+                    "example_command": "make imports-preview",
+                    "target_file": "data/imports/fundamentals.csv",
+                    "source_file": "data/imports/fundamentals.csv",
+                    "source_artifact": "outputs/data_gap_report.csv",
+                    "reason": "Staged import rows are present in data/imports/fundamentals.csv.",
+                }
+            ]
+        ).to_csv(Path(output_dir) / "research_action_queue.csv", index=False)
+        return {}
+
+    monkeypatch.setattr(dashboard, "write_action_queue_output", fake_write_action_queue_output)
     pd.DataFrame(
         [
             {
@@ -1251,12 +1384,7 @@ def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tm
         ]
     ).to_csv(tmp_path / "research_action_queue.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        frame, message = dashboard.load_action_queue(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    frame, message = dashboard.load_action_queue(tmp_path)
 
     assert message is None
     assert frame is not None
@@ -1385,7 +1513,269 @@ def test_load_action_queue_refreshes_stale_manual_peer_queue_artifact(tmp_path):
     assert "make focus-peers TICKER=AMD" in str(peer_rows.iloc[0]["recommended_action"])
 
 
-def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
+def _fake_research_health_outputs(_root, *, data_dir=None, output_dir):
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    stale = pd.read_csv(output_path / "data_quality_wizard.csv") if (output_path / "data_quality_wizard.csv").exists() else pd.DataFrame()
+    if stale.empty:
+        stale = pd.DataFrame(
+            [
+                {
+                    "Ticker": "AMD",
+                    "ReadinessStatus": "Needs Price Data",
+                    "NextBestAction": "old",
+                }
+            ]
+        )
+    rows = []
+    for _, row in stale.iterrows():
+        ticker = str(row.get("Ticker", "AMD")).strip().upper() or "AMD"
+        status = str(row.get("ReadinessStatus", "Needs Price Data")).strip()
+        if status == "Needs Price Data":
+            focus_command = f"make focus-price TICKER={ticker}"
+            example_command = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+            next_action = f"Run {focus_command}, then make price-refresh TICKERS={ticker} PROVIDER=yahoo."
+        else:
+            focus_command = f"make focus-fundamentals TICKER={ticker}"
+            example_command = f"make sec-stage TICKERS={ticker}"
+            next_action = f"Run {focus_command}, then validate staged fundamentals before apply."
+        rows.append(
+            {
+                **row.to_dict(),
+                "Ticker": ticker,
+                "ReadinessStatus": status,
+                "NextBestAction": next_action,
+                "FocusCommand": focus_command,
+                "ExampleCommand": example_command,
+            }
+        )
+    pd.DataFrame(rows).to_csv(output_path / "data_quality_wizard.csv", index=False)
+    pd.DataFrame([{"Ticker": "AMD", "LiquidityStatus": "Thin / Needs Review"}]).to_csv(
+        output_path / "liquidity_risk.csv",
+        index=False,
+    )
+    pd.DataFrame([{"Ticker": "AMD", "CorrelationStatus": "Low Co-movement"}]).to_csv(
+        output_path / "correlation_risk.csv",
+        index=False,
+    )
+
+
+def _fake_action_queue_outputs(_root, *, output_dir):
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "AMD",
+                "title": "Repair price history for AMD",
+                "status": "missing",
+                "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=yahoo.",
+                "focus_command": "make focus-price TICKER=AMD",
+                "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "target_file": "data/imports/prices.csv",
+                "source_file": "data/imports/prices.csv",
+                "source_artifact": "outputs/price_update_status.csv",
+                "reason": "Fixture row.",
+            }
+        ]
+    ).to_csv(output_path / "research_action_queue.csv", index=False)
+    return {}
+
+
+def _fake_onboarding_outputs(_root, *, output_dir):
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    coverage = (
+        pd.read_csv(output_path / "ticker_data_coverage.csv")
+        if (output_path / "ticker_data_coverage.csv").exists()
+        else pd.DataFrame([{"ticker": "AMD"}])
+    )
+    if "ticker" not in coverage.columns:
+        coverage["ticker"] = "AMD"
+    coverage["target_file"] = "data/imports/prices.csv"
+    coverage["focus_command"] = coverage["ticker"].astype(str).str.upper().map(lambda ticker: f"make focus-price TICKER={ticker}")
+    coverage["example_command"] = coverage["ticker"].astype(str).str.upper().map(
+        lambda ticker: f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+    )
+    coverage["next_best_action"] = coverage["ticker"].astype(str).str.upper().map(
+        lambda ticker: f"Run make focus-price TICKER={ticker}, then make price-refresh TICKERS={ticker} PROVIDER=yahoo."
+    )
+    coverage.to_csv(output_path / "ticker_data_coverage.csv", index=False)
+
+    optional = (
+        pd.read_csv(output_path / "optional_context_worklist.csv")
+        if (output_path / "optional_context_worklist.csv").exists()
+        else pd.DataFrame([{"ticker": "AMD"}])
+    )
+    optional["focus_command"] = "make templates"
+    optional.to_csv(output_path / "optional_context_worklist.csv", index=False)
+
+    wizard = (
+        pd.read_csv(output_path / "data_coverage_wizard.csv")
+        if (output_path / "data_coverage_wizard.csv").exists()
+        else pd.DataFrame(
+            [
+                {
+                    "priority": 1,
+                    "ticker": "AMD",
+                    "unlock_goal": "Unlock Monthly Picks",
+                    "blocking_dataset": "prices",
+                    "current_status": "0 local price rows",
+                }
+            ]
+        )
+    )
+    wizard_rows = []
+    for _, row in wizard.iterrows():
+        ticker = str(row.get("ticker", "AMD")).strip().upper() or "AMD"
+        dataset = str(row.get("blocking_dataset", "prices")).strip()
+        refreshed = row.to_dict()
+        refreshed["ticker"] = ticker
+        refreshed["credential_required"] = ""
+        refreshed["credential_present"] = False
+        refreshed["manual_fallback_command"] = "make templates"
+        refreshed["command_safety_note"] = "Copy-only command."
+        if dataset == "fundamentals":
+            refreshed["target_file"] = "data/imports/fundamentals.csv"
+            refreshed["focus_command"] = f"make focus-fundamentals TICKER={ticker}"
+            refreshed["example_command"] = f"make sec-stage TICKERS={ticker}"
+            refreshed["recommended_action"] = (
+                f"Run make focus-fundamentals TICKER={ticker}, then make sec-stage TICKERS={ticker} "
+                "before validating staged fundamentals."
+            )
+        elif dataset == "peers":
+            refreshed["target_file"] = "data/imports/peers.csv"
+            refreshed["focus_command"] = f"make focus-peers TICKER={ticker}"
+            refreshed["example_command"] = "make templates"
+            refreshed["recommended_action"] = (
+                f"Run make focus-peers TICKER={ticker}, then fill data/imports/peers.csv with trusted peer mappings."
+            )
+        else:
+            refreshed["blocking_dataset"] = "prices"
+            refreshed["target_file"] = "data/imports/prices.csv"
+            refreshed["focus_command"] = f"make focus-price TICKER={ticker}"
+            refreshed["example_command"] = (
+                f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+            )
+            refreshed["recommended_action"] = (
+                f"Run make focus-price TICKER={ticker}, then make price-refresh TICKERS={ticker} PROVIDER=yahoo."
+            )
+        wizard_rows.append(refreshed)
+    pd.DataFrame(wizard_rows).to_csv(output_path / "data_coverage_wizard.csv", index=False)
+
+    pd.DataFrame(
+        [
+            {
+                "dataset": "prices",
+                "ticker": "AMD",
+                "priority": 1,
+                "status": "missing",
+                "recommended_action": "Run make focus-price TICKER=AMD, then make price-refresh TICKERS=AMD PROVIDER=yahoo.",
+                "target_file": "data/imports/prices.csv",
+                "focus_command": "make focus-price TICKER=AMD",
+                "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "credential_required": "",
+                "credential_present": False,
+                "manual_fallback_command": "make templates",
+                "command_safety_note": "Copy-only command.",
+            }
+        ]
+    ).to_csv(output_path / "data_onboarding_actions.csv", index=False)
+    pd.DataFrame([{"ticker": "AMD", "focus_command": "make focus-price TICKER=AMD"}]).to_csv(
+        output_path / "price_import_worklist.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "focus_command": "make focus-fundamentals TICKER=NVDA"}]).to_csv(
+        output_path / "fundamentals_peer_worklist.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "focus_command": "make sec-stage TICKERS=NVDA"}]).to_csv(
+        output_path / "sec_stage_queue.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "META", "focus_command": "make focus-peers TICKER=META"}]).to_csv(
+        output_path / "peer_mapping_queue.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "AMD", "current_unlock_stage": "prices"}]).to_csv(
+        output_path / "ticker_unlock_ladder.csv",
+        index=False,
+    )
+    pd.DataFrame([{"workflow_group": "price_unlock", "ticker_count": 1}]).to_csv(
+        output_path / "unlock_priority_summary.csv",
+        index=False,
+    )
+
+    bundles = (
+        pd.read_csv(output_path / "command_bundles.csv")
+        if (output_path / "command_bundles.csv").exists()
+        else pd.DataFrame(
+            [
+                {
+                    "bundle_name": "Price Coverage Bundle",
+                    "primary_command": "make price-refresh TICKERS=AMD",
+                }
+            ]
+        )
+    )
+    if "primary_command" not in bundles.columns:
+        bundles["primary_command"] = "make price-refresh TICKERS=AMD"
+    bundles["primary_command"] = bundles["primary_command"].map(dashboard.normalize_operator_command)
+    bundles.to_csv(output_path / "command_bundles.csv", index=False)
+
+    details = (
+        pd.read_csv(output_path / "command_bundle_details.csv")
+        if (output_path / "command_bundle_details.csv").exists()
+        else pd.DataFrame(
+            [
+                {
+                    "bundle_name": "Price Coverage Bundle",
+                    "ticker": "AMD",
+                    "exact_next_command": "make focus-price TICKER=AMD",
+                    "primary_command": "make price-refresh TICKERS=AMD",
+                }
+            ]
+        )
+    )
+    if "ticker" not in details.columns:
+        details["ticker"] = "AMD"
+    if "exact_next_command" not in details.columns:
+        details["exact_next_command"] = details["ticker"].astype(str).str.upper().map(lambda ticker: f"make focus-price TICKER={ticker}")
+    if "primary_command" not in details.columns:
+        details["primary_command"] = "make price-refresh TICKERS=AMD"
+    details["exact_next_command"] = details.apply(
+        lambda row: f"make focus-price TICKER={str(row.get('ticker', 'AMD')).strip().upper() or 'AMD'}"
+        if str(row.get("exact_next_command", "")).startswith("python3 -m src.data_update --tickers ")
+        else dashboard.normalize_operator_command(row.get("exact_next_command", "")),
+        axis=1,
+    )
+    details["primary_command"] = details["primary_command"].map(dashboard.normalize_operator_command)
+    details.to_csv(output_path / "command_bundle_details.csv", index=False)
+
+    runbook = (
+        pd.read_csv(output_path / "command_bundle_runbook.csv")
+        if (output_path / "command_bundle_runbook.csv").exists()
+        else pd.DataFrame(
+            [
+                {
+                    "bundle_name": "Price Coverage Bundle",
+                    "command": "make price-refresh TICKERS=AMD",
+                }
+            ]
+        )
+    )
+    if "command" not in runbook.columns:
+        runbook["command"] = "make price-refresh TICKERS=AMD"
+    runbook["command"] = runbook["command"].map(dashboard.normalize_operator_command)
+    runbook.to_csv(output_path / "command_bundle_runbook.csv", index=False)
+    return {}
+
+
+def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "run_research_health", _fake_research_health_outputs)
     pd.DataFrame(
         [
             {
@@ -1406,12 +1796,7 @@ def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
         ]
     ).to_csv(tmp_path / "data_quality_wizard.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        tables = dashboard.load_research_health_tables(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_research_health_tables(tmp_path)
 
     frame, message = tables["data_quality_wizard.csv"]
     assert message is None
@@ -1432,7 +1817,8 @@ def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
         assert "python3 -m src.data_update" not in str(amd_row["NextBestAction"])
 
 
-def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(tmp_path):
+def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "run_research_health", _fake_research_health_outputs)
     pd.DataFrame(
         [
             {
@@ -1455,12 +1841,7 @@ def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(t
         ]
     ).to_csv(tmp_path / "data_quality_wizard.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        tables = dashboard.load_research_health_tables(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_research_health_tables(tmp_path)
 
     frame, message = tables["data_quality_wizard.csv"]
     assert message is None
@@ -1471,7 +1852,8 @@ def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(t
     assert str(nvda_row["FocusCommand"]).startswith(("make focus-", "make templates"))
 
 
-def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path):
+def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_onboarding_outputs", _fake_onboarding_outputs)
     pd.DataFrame(
         [
             {
@@ -1496,12 +1878,7 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path)
         ]
     ).to_csv(tmp_path / "ticker_data_coverage.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        tables = dashboard.load_data_onboarding_tables(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_data_onboarding_tables(tmp_path)
 
     frame, message = tables["ticker_data_coverage.csv"]
     assert message is None
@@ -1518,7 +1895,8 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path)
         assert "python3 -m src.data_update" not in str(amd_row["next_best_action"])
 
 
-def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(tmp_path):
+def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_onboarding_outputs", _fake_onboarding_outputs)
     pd.DataFrame(
         [
             {
@@ -1537,12 +1915,7 @@ def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(t
         ]
     ).to_csv(tmp_path / "optional_context_worklist.csv", index=False)
 
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        tables = dashboard.load_data_onboarding_tables(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_data_onboarding_tables(tmp_path)
 
     frame, message = tables["optional_context_worklist.csv"]
     assert message is None
@@ -1552,59 +1925,53 @@ def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(t
     assert amd_row["focus_command"] == "make templates"
 
 
-def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp_path):
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        dashboard.write_onboarding_outputs(dashboard.BASE_DIR, output_dir=tmp_path)
+def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_onboarding_outputs", _fake_onboarding_outputs)
+    pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "unlock_goal": "Unlock Monthly Picks",
+                "blocking_dataset": "prices",
+                "current_status": "0 local price rows",
+                "why_it_matters": "old",
+                "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "target_file": "data/imports/prices.csv",
+                "focus_command": "make focus-price TICKER=AMD",
+                "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "safe_next_step": "old",
+            },
+            {
+                "priority": 2,
+                "ticker": "NVDA",
+                "unlock_goal": "Unlock DCF",
+                "blocking_dataset": "fundamentals",
+                "current_status": "DCF inputs incomplete",
+                "why_it_matters": "old",
+                "recommended_action": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with make sec-stage TICKERS=NVDA.",
+                "target_file": "data/imports/fundamentals.csv",
+                "focus_command": "make focus-fundamentals TICKER=NVDA",
+                "example_command": "make onboarding",
+                "safe_next_step": "old",
+            },
+            {
+                "priority": 3,
+                "ticker": "META",
+                "unlock_goal": "Unlock Peer Relative",
+                "blocking_dataset": "peers",
+                "current_status": "Peer-relative inputs incomplete",
+                "why_it_matters": "old",
+                "recommended_action": "Run make focus-peers TICKER=META, or run make templates, then fill data/imports/peers.csv manually with transparent peer mappings.",
+                "target_file": "data/imports/peers.csv",
+                "focus_command": "make focus-peers TICKER=META",
+                "example_command": "make onboarding",
+                "safe_next_step": "old",
+            },
+        ]
+    ).to_csv(tmp_path / "data_coverage_wizard.csv", index=False)
 
-        pd.DataFrame(
-            [
-                {
-                    "priority": 1,
-                    "ticker": "AMD",
-                    "unlock_goal": "Unlock Monthly Picks",
-                    "blocking_dataset": "prices",
-                    "current_status": "0 local price rows",
-                    "why_it_matters": "old",
-                    "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
-                    "target_file": "data/imports/prices.csv",
-                    "focus_command": "make focus-price TICKER=AMD",
-                    "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
-                    "safe_next_step": "old",
-                },
-                {
-                    "priority": 2,
-                    "ticker": "NVDA",
-                    "unlock_goal": "Unlock DCF",
-                    "blocking_dataset": "fundamentals",
-                    "current_status": "DCF inputs incomplete",
-                    "why_it_matters": "old",
-                    "recommended_action": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with make sec-stage TICKERS=NVDA.",
-                    "target_file": "data/imports/fundamentals.csv",
-                    "focus_command": "make focus-fundamentals TICKER=NVDA",
-                    "example_command": "make onboarding",
-                    "safe_next_step": "old",
-                },
-                {
-                    "priority": 3,
-                    "ticker": "META",
-                    "unlock_goal": "Unlock Peer Relative",
-                    "blocking_dataset": "peers",
-                    "current_status": "Peer-relative inputs incomplete",
-                    "why_it_matters": "old",
-                    "recommended_action": "Run make focus-peers TICKER=META, or run make templates, then fill data/imports/peers.csv manually with transparent peer mappings.",
-                    "target_file": "data/imports/peers.csv",
-                    "focus_command": "make focus-peers TICKER=META",
-                    "example_command": "make onboarding",
-                    "safe_next_step": "old",
-                },
-            ]
-        ).to_csv(tmp_path / "data_coverage_wizard.csv", index=False)
-
-        tables = dashboard.load_data_onboarding_tables(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_data_onboarding_tables(tmp_path)
 
     frame, message = tables["data_coverage_wizard.csv"]
     assert message is None
@@ -1624,82 +1991,76 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
     assert frame["focus_command"].astype(str).str.startswith(("make focus-", "make templates")).any()
 
 
-def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path):
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        dashboard.write_onboarding_outputs(dashboard.BASE_DIR, output_dir=tmp_path)
+def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_onboarding_outputs", _fake_onboarding_outputs)
+    pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "ticker_count": 2,
+                "tickers": "AMD,AVGO",
+                "goal_summary": "old",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
+                "bundle_shortcut_command": "make bundle-prices",
+                "detail_shortcut_command": "make detail-prices",
+                "runbook_shortcut_command": "make runbook-prices",
+                "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
+                "follow_up_command": "make price-status",
+                "target_file": "data/imports/prices.csv",
+                "why_it_matters": "old",
+                "safe_next_step": "old",
+            }
+        ]
+    ).to_csv(tmp_path / "command_bundles.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "ticker": "AMD",
+                "is_holding": True,
+                "theme": "AI Infra",
+                "sector_etf": "SMH",
+                "current_unlock_stage": "prices",
+                "target_goal": "Unlock Monthly Picks",
+                "rows_needed": 21,
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "exact_next_command": "python3 -m src.data_update --tickers AMD",
+                "recommended_action": "old",
+                "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
+                "follow_up_command": "make price-status",
+                "target_file": "data/imports/prices.csv",
+                "safe_next_step": "old",
+            }
+        ]
+    ).to_csv(tmp_path / "command_bundle_details.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "python3 -m src.data_update --tickers AMD,AVGO",
+                "target_file": "data/imports/prices.csv",
+                "tickers": "AMD,AVGO",
+                "goal_summary": "old",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "why_it_matters": "old",
+                "safe_next_step": "old",
+            }
+        ]
+    ).to_csv(tmp_path / "command_bundle_runbook.csv", index=False)
 
-        pd.DataFrame(
-            [
-                {
-                    "bundle_name": "Price Coverage Bundle",
-                    "lane": "prices",
-                    "scope": "holdings_first",
-                    "ticker_count": 2,
-                    "tickers": "AMD,AVGO",
-                    "goal_summary": "old",
-                    "target_history_rows": 21,
-                    "suggested_start_date": "2025-12-01",
-                    "bundle_shortcut_command": "make bundle-prices",
-                    "detail_shortcut_command": "make detail-prices",
-                    "runbook_shortcut_command": "make runbook-prices",
-                    "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
-                    "follow_up_command": "make price-status",
-                    "target_file": "data/imports/prices.csv",
-                    "why_it_matters": "old",
-                    "safe_next_step": "old",
-                }
-            ]
-        ).to_csv(tmp_path / "command_bundles.csv", index=False)
-        pd.DataFrame(
-            [
-                {
-                    "bundle_name": "Price Coverage Bundle",
-                    "lane": "prices",
-                    "ticker": "AMD",
-                    "is_holding": True,
-                    "theme": "AI Infra",
-                    "sector_etf": "SMH",
-                    "current_unlock_stage": "prices",
-                    "target_goal": "Unlock Monthly Picks",
-                    "rows_needed": 21,
-                    "target_history_rows": 21,
-                    "suggested_start_date": "2025-12-01",
-                    "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
-                    "exact_next_command": "python3 -m src.data_update --tickers AMD",
-                    "recommended_action": "old",
-                    "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
-                    "follow_up_command": "make price-status",
-                    "target_file": "data/imports/prices.csv",
-                    "safe_next_step": "old",
-                }
-            ]
-        ).to_csv(tmp_path / "command_bundle_details.csv", index=False)
-        pd.DataFrame(
-            [
-                {
-                    "bundle_name": "Price Coverage Bundle",
-                    "lane": "prices",
-                    "scope": "holdings_first",
-                    "step_order": 1,
-                    "step_label": "Run bundle command",
-                    "command": "python3 -m src.data_update --tickers AMD,AVGO",
-                    "target_file": "data/imports/prices.csv",
-                    "tickers": "AMD,AVGO",
-                    "goal_summary": "old",
-                    "target_history_rows": 21,
-                    "suggested_start_date": "2025-12-01",
-                    "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
-                    "why_it_matters": "old",
-                    "safe_next_step": "old",
-                }
-            ]
-        ).to_csv(tmp_path / "command_bundle_runbook.csv", index=False)
-
-        tables = dashboard.load_data_onboarding_tables(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_data_onboarding_tables(tmp_path)
 
     bundle_frame, bundle_message = tables["command_bundles.csv"]
     detail_frame, detail_message = tables["command_bundle_details.csv"]
@@ -1718,38 +2079,32 @@ def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path):
     assert detail_frame["exact_next_command"].astype(str).str.startswith(("make focus-price", "make focus-fundamentals", "make focus-peers")).any()
 
 
-def test_load_data_onboarding_tables_refreshes_env_prefixed_sec_bundle_commands(tmp_path):
-    old_base = dashboard.BASE_DIR
-    try:
-        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
-        dashboard.write_onboarding_outputs(dashboard.BASE_DIR, output_dir=tmp_path)
+def test_load_data_onboarding_tables_refreshes_env_prefixed_sec_bundle_commands(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_onboarding_outputs", _fake_onboarding_outputs)
+    pd.DataFrame(
+        [
+            {
+                "bundle_name": "Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "ticker_count": 1,
+                "tickers": "NVDA",
+                "goal_summary": "old",
+                "target_history_rows": 0,
+                "suggested_start_date": "",
+                "bundle_shortcut_command": "make bundle-fundamentals",
+                "detail_shortcut_command": "make detail-fundamentals",
+                "runbook_shortcut_command": "make runbook-fundamentals",
+                "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
+                "follow_up_command": "make imports-validate",
+                "target_file": "data/imports/fundamentals.csv",
+                "why_it_matters": "old",
+                "safe_next_step": "old",
+            }
+        ]
+    ).to_csv(tmp_path / "command_bundles.csv", index=False)
 
-        pd.DataFrame(
-            [
-                {
-                    "bundle_name": "Fundamentals Bundle",
-                    "lane": "fundamentals",
-                    "scope": "holdings_first",
-                    "ticker_count": 1,
-                    "tickers": "NVDA",
-                    "goal_summary": "old",
-                    "target_history_rows": 0,
-                    "suggested_start_date": "",
-                    "bundle_shortcut_command": "make bundle-fundamentals",
-                    "detail_shortcut_command": "make detail-fundamentals",
-                    "runbook_shortcut_command": "make runbook-fundamentals",
-                    "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
-                    "follow_up_command": "make imports-validate",
-                    "target_file": "data/imports/fundamentals.csv",
-                    "why_it_matters": "old",
-                    "safe_next_step": "old",
-                }
-            ]
-        ).to_csv(tmp_path / "command_bundles.csv", index=False)
-
-        tables = dashboard.load_data_onboarding_tables(tmp_path)
-    finally:
-        dashboard.BASE_DIR = old_base
+    tables = dashboard.load_data_onboarding_tables(tmp_path)
 
     bundle_frame, bundle_message = tables["command_bundles.csv"]
     assert bundle_message is None
@@ -1758,8 +2113,9 @@ def test_load_data_onboarding_tables_refreshes_env_prefixed_sec_bundle_commands(
     assert bundle_frame["primary_command"].astype(str).str.startswith("make sec-stage TICKERS=").any()
 
 
-def test_onboarding_tables_handle_missing_outputs_and_summary():
-    tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
+def test_onboarding_tables_handle_missing_outputs_and_summary(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_onboarding_outputs", _fake_onboarding_outputs)
+    tables = dashboard.load_data_onboarding_tables(tmp_path / "missing-onboarding-outputs")
 
     for filename in (
         "ticker_data_coverage.csv",
@@ -1912,7 +2268,8 @@ def test_summarize_unlock_priority_summary_counts_group_types_and_stages():
     assert summary["fundamentals_led_groups"] == 1
 
 
-def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):
+def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "run_research_health", _fake_research_health_outputs)
     tables = dashboard.load_research_health_tables(tmp_path)
 
     wizard_frame, wizard_message = tables["data_quality_wizard.csv"]
@@ -1940,7 +2297,8 @@ def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):
     assert summary["high_correlation"] == 1
 
 
-def test_action_queue_loader_and_summary_handle_missing_outputs(tmp_path):
+def test_action_queue_loader_and_summary_handle_missing_outputs(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "write_action_queue_output", _fake_action_queue_outputs)
     frame, message = dashboard.load_action_queue(tmp_path)
 
     assert frame is not None

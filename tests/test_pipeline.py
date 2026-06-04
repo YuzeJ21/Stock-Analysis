@@ -6,8 +6,66 @@ from src.config import AppConfig
 from src.report_generator import printable_warnings, run
 
 
-def test_report_generator_creates_outputs():
-    result = run(Path.cwd())
+def _write_compact_pipeline_project(base_dir: Path) -> None:
+    data_dir = base_dir / "data"
+    outputs_dir = base_dir / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (base_dir / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sector_etf,default_purpose,market_cap_bucket,notes,is_etf\n"
+        "NVDA,AI Infrastructure,SMH,Momentum Leader,Large,fixture,False\n"
+        "META,Platform Software,QQQ,Core Compounder,Large,fixture,False\n"
+        "SMH,AI Semiconductors,,ETF / Defensive / Hedge,ETF,fixture,True\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text(
+        "Ticker,Shares,CostBasis,PositionPercent,PrimaryPurpose,SecondaryTags,OriginalThesis,MaxPositionPercent,InvalidationOverride\n"
+        "NVDA,1,100,5,Momentum Leader,Core Compounder,fixture thesis,10,\n"
+        "META,1,100,5,Core Compounder,,fixture thesis,10,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "theme_map.csv").write_text(
+        "Theme,ETF,Description\n"
+        "AI Infrastructure,SMH,Semiconductor and AI infrastructure context\n"
+        "Platform Software,QQQ,Large-cap platform software context\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,theme,sector,pe_ratio,revenue_growth,profit_margin,debt_to_equity,revenue,eps,free_cash_flow,fcf_margin,shares_outstanding,source,as_of_date\n"
+        "NVDA,AI Infrastructure,Technology,34,0.30,0.45,0.20,100000000,4.9,30000000,0.30,1000000,fixture,2026-01-01\n"
+        "META,Platform Software,Technology,24,0.12,0.35,0.10,90000000,8.1,25000000,0.28,1000000,fixture,2026-01-01\n",
+        encoding="utf-8",
+    )
+    dates = pd.date_range("2026-01-01", periods=90, freq="D")
+    rows = []
+    for ticker, start_price in {
+        "NVDA": 100.0,
+        "META": 80.0,
+        "SMH": 70.0,
+        "SPY": 50.0,
+        "QQQ": 60.0,
+    }.items():
+        for index, date in enumerate(dates):
+            close = start_price + index * 0.5
+            rows.append(
+                {
+                    "date": date.strftime("%Y-%m-%d"),
+                    "ticker": ticker,
+                    "open": close - 0.2,
+                    "high": close + 0.4,
+                    "low": close - 0.5,
+                    "close": close,
+                    "adj_close": close,
+                    "volume": 1_000_000 + index,
+                }
+            )
+    pd.DataFrame(rows).to_csv(data_dir / "prices.csv", index=False)
+
+
+def test_report_generator_creates_outputs(tmp_path: Path):
+    _write_compact_pipeline_project(tmp_path)
+    result = run(tmp_path)
     config = AppConfig.load(Path("config.yaml"))
     banned_phrases = ("buy now", "sell now", "strong buy", "guaranteed")
     allowed_purposes = {
@@ -129,13 +187,8 @@ def test_printable_warnings_summarizes_broad_universe_missing_prices():
 
 
 def test_report_generator_handles_missing_price_file_gracefully(tmp_path: Path):
-    (tmp_path / "data").mkdir()
-    (tmp_path / "outputs").mkdir()
-    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "universe.csv").write_text(Path("data/universe.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "holdings.csv").write_text(Path("data/holdings.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "theme_map.csv").write_text(Path("data/theme_map.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "fundamentals.csv").write_text(Path("data/fundamentals.csv").read_text(), encoding="utf-8")
+    _write_compact_pipeline_project(tmp_path)
+    (tmp_path / "data" / "prices.csv").unlink()
 
     result = run(tmp_path)
 
@@ -148,13 +201,8 @@ def test_report_generator_handles_missing_price_file_gracefully(tmp_path: Path):
 
 
 def test_report_generator_handles_missing_fundamentals_file_gracefully(tmp_path: Path):
-    (tmp_path / "data").mkdir()
-    (tmp_path / "outputs").mkdir()
-    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "universe.csv").write_text(Path("data/universe.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "holdings.csv").write_text(Path("data/holdings.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "theme_map.csv").write_text(Path("data/theme_map.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "prices.csv").write_text(Path("data/prices.csv").read_text(), encoding="utf-8")
+    _write_compact_pipeline_project(tmp_path)
+    (tmp_path / "data" / "fundamentals.csv").unlink()
 
     result = run(tmp_path)
 
@@ -170,13 +218,8 @@ def test_report_generator_handles_missing_fundamentals_file_gracefully(tmp_path:
 
 
 def test_report_generator_handles_missing_theme_map_file_gracefully(tmp_path: Path):
-    (tmp_path / "data").mkdir()
-    (tmp_path / "outputs").mkdir()
-    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "universe.csv").write_text(Path("data/universe.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "holdings.csv").write_text(Path("data/holdings.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "prices.csv").write_text(Path("data/prices.csv").read_text(), encoding="utf-8")
-    (tmp_path / "data" / "fundamentals.csv").write_text(Path("data/fundamentals.csv").read_text(), encoding="utf-8")
+    _write_compact_pipeline_project(tmp_path)
+    (tmp_path / "data" / "theme_map.csv").unlink()
 
     result = run(tmp_path)
 
@@ -189,9 +232,7 @@ def test_report_generator_handles_missing_theme_map_file_gracefully(tmp_path: Pa
 
 
 def test_report_generator_keeps_holdings_only_tickers_without_price_history(tmp_path: Path):
-    (tmp_path / "data").mkdir()
-    (tmp_path / "outputs").mkdir()
-    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    _write_compact_pipeline_project(tmp_path)
     (tmp_path / "data" / "universe.csv").write_text("Ticker,Theme,SectorETF,DefaultPurpose,MarketCapBucket\n", encoding="utf-8")
     (tmp_path / "data" / "holdings.csv").write_text(
         "Ticker,Shares,CostBasis,PositionPercent,PrimaryPurpose,SecondaryTags,OriginalThesis,MaxPositionPercent,InvalidationOverride\n"
@@ -200,7 +241,6 @@ def test_report_generator_keeps_holdings_only_tickers_without_price_history(tmp_
     )
     (tmp_path / "data" / "theme_map.csv").write_text("Theme,ETF,Description\n", encoding="utf-8")
     (tmp_path / "data" / "fundamentals.csv").write_text("Ticker\n", encoding="utf-8")
-    (tmp_path / "data" / "prices.csv").write_text(Path("data/prices.csv").read_text(), encoding="utf-8")
 
     result = run(tmp_path)
 
