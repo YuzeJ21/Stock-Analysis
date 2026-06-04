@@ -6414,6 +6414,61 @@ def test_stock_report_analysis_quality_cards_classify_supported_scope():
     assert "sell" not in rendered
 
 
+def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
+    ready_cards = dashboard.stock_report_fundamentals_quality_cards(
+        {
+            "valuation_readiness": {"dcf_ready": True, "fundamentals_ready": True},
+            "financial_summary": {
+                "revenue": 100_000_000,
+                "free_cash_flow": 20_000_000,
+                "fcf_margin": 0.2,
+                "shares_outstanding": 10_000_000,
+                "operating_margin": 0.3,
+                "profit_margin": 0.25,
+                "cash": 5_000_000,
+                "debt": 2_000_000,
+            },
+        }
+    )
+    partial_cards = dashboard.stock_report_fundamentals_quality_cards(
+        {
+            "valuation_readiness": {"dcf_ready": False, "fundamentals_ready": True},
+            "financial_summary": {
+                "revenue": 100_000_000,
+                "free_cash_flow": 20_000_000,
+                "shares_outstanding": 10_000_000,
+            },
+        }
+    )
+    locked_cards = dashboard.stock_report_fundamentals_quality_cards(
+        {
+            "valuation_readiness": {"dcf_ready": False, "fundamentals_ready": False},
+            "financial_summary": {"revenue": 100_000_000},
+        }
+    )
+    rendered = " ".join(
+        str(value)
+        for card in ready_cards + partial_cards + locked_cards
+        for value in card.values()
+    ).lower()
+
+    assert [card["kicker"] for card in ready_cards] == ["FUNDAMENTALS QUALITY", "QUALITY CONTEXT", "LOGIC SOURCE"]
+    assert "good for dcf input review" in rendered
+    assert "review assumptions and source freshness" in rendered
+    assert "partial fundamentals context" in rendered
+    assert "missing: fcf margin" in rendered
+    assert "fundamentals need data" in rendered
+    assert "should not infer valuation from unavailable fundamentals" in rendered
+    assert "margins, cash, and debt help explain business quality only when present" in rendered
+    assert "external plugins are not runtime fundamentals engines" in rendered
+    assert "make focus-fundamentals ticker=..." in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_next_step():
     monitor_frame = dashboard.stock_report_evaluation_summary_frame(
         {

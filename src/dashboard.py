@@ -3308,6 +3308,71 @@ def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> li
     ]
 
 
+def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    financials = report_payload.get("financial_summary", {}) or {}
+    readiness = {
+        **(report_payload.get("readiness", {}) or {}),
+        **(report_payload.get("valuation_readiness", {}) or {}),
+    }
+
+    def present(field: str) -> bool:
+        return report_display_value(financials.get(field)) != "Not available"
+
+    core_fields = {
+        "Revenue": present("revenue"),
+        "Free cash flow": present("free_cash_flow"),
+        "FCF margin": present("fcf_margin"),
+        "Shares outstanding": present("shares_outstanding"),
+    }
+    quality_fields = {
+        "Operating margin": present("operating_margin"),
+        "Profit margin": present("profit_margin"),
+        "Cash": present("cash"),
+        "Debt": present("debt"),
+    }
+    core_ready = sum(core_fields.values())
+    quality_ready = sum(quality_fields.values())
+    dcf_ready = bool(readiness.get("dcf_ready"))
+    fundamentals_ready = bool(readiness.get("fundamentals_ready")) or core_ready >= 3
+    missing_core = [name for name, is_present in core_fields.items() if not is_present]
+    missing_text = ", ".join(missing_core) if missing_core else "No core DCF fields missing"
+
+    if dcf_ready and core_ready == len(core_fields):
+        title = "Good for DCF input review"
+        body = "Revenue, free cash flow, FCF margin, and share count are present. Review assumptions and source freshness before interpreting valuation."
+        badges = ["DCF inputs", "reviewable"]
+    elif fundamentals_ready:
+        title = "Partial fundamentals context"
+        body = f"{core_ready} of {len(core_fields)} core DCF field(s) are present. Missing: {missing_text}. Use this as context until all required valuation inputs are ready."
+        badges = ["partial", "no inference"]
+    else:
+        title = "Fundamentals need data"
+        body = f"Core DCF fields are not ready yet. Missing: {missing_text}. The report should not infer valuation from unavailable fundamentals."
+        badges = ["locked", "trusted rows needed"]
+
+    return [
+        {
+            "kicker": "FUNDAMENTALS QUALITY",
+            "title": title,
+            "body": body,
+            "badges": badges,
+            "command": "make focus-fundamentals TICKER=...",
+        },
+        {
+            "kicker": "QUALITY CONTEXT",
+            "title": f"{quality_ready} of {len(quality_fields)} quality field(s)",
+            "body": "Margins, cash, and debt help explain business quality only when present. Missing quality fields stay blank instead of being estimated.",
+            "badges": ["business context", "data-honest"],
+        },
+        {
+            "kicker": "LOGIC SOURCE",
+            "title": "Local fundamentals only",
+            "body": "This card reads the current report payload and local CSV-backed fundamentals. External plugins are not runtime fundamentals engines.",
+            "badges": ["repo-native", "local CSV"],
+        },
+    ]
+
+
 def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> pd.DataFrame:
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
@@ -14819,6 +14884,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         )
 
         st.markdown("#### Company Fundamentals")
+        render_signal_cards(stock_report_fundamentals_quality_cards(report_payload))
         financial_fields = [
             ("revenue", "Revenue", "number"),
             ("revenue_growth", "Revenue Growth", "percent"),
