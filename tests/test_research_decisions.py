@@ -195,6 +195,31 @@ def test_research_decisions_peer_blocker_next_action_uses_exact_import_flow():
     assert "order" not in rendered
 
 
+def test_research_decisions_keeps_mapped_peer_price_history_as_peer_blocker():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "MU",
+                "name": "Micron",
+                "asset_type": "company",
+                "ready_features": "price, momentum, fundamentals, dcf",
+                "partial_features": "",
+                "blocked_features": "peer, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "peers: needs at least 2 peers with momentum-ready price history",
+                "next_action": "Add trusted price history for mapped peers: SNDK, WDC.",
+            }
+        ]
+    )
+
+    row = build_research_decisions_frame(readiness).iloc[0]
+
+    assert row["decision_bucket"] == "Research Now"
+    assert row["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
+    assert row["primary_blocker"] == "peers"
+    assert row["next_action"] == "Add trusted price history for mapped peers: SNDK, WDC."
+
+
 def test_research_decisions_add_evaluation_fields_without_recommendation_language():
     readiness = pd.DataFrame(
         [

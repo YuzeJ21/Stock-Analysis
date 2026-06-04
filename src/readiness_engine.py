@@ -322,6 +322,29 @@ def _peer_mapping_next_action(ticker: str) -> str:
     )
 
 
+def _peer_readiness_next_action(ticker: str, peer: pd.Series) -> str:
+    action = _text_value(peer.get("next_peer_action", ""))
+    blocker_type = _text_value(peer.get("peer_blocker_type", ""))
+    if not action:
+        return _peer_mapping_next_action(ticker)
+    if blocker_type == "missing_peer_mapping":
+        return (
+            f"{action} Then run make imports-validate, make imports-preview, "
+            "and make imports-apply."
+        )
+    if blocker_type in {"peer_price_missing", "peer_momentum_missing"}:
+        return (
+            f"{action} Run make focus-peers TICKER={ticker} to review mapped peers, "
+            "then use capped price refresh or verified staged OHLCV rows."
+        )
+    if blocker_type in {"peer_fundamentals_missing", "peer_valuation_blocked"}:
+        return (
+            f"{action} Run make focus-peers TICKER={ticker}, then use SEC staging "
+            "or the manual fundamentals import workflow for the mapped peers."
+        )
+    return action
+
+
 def _select_row(frame: pd.DataFrame, ticker: str) -> pd.Series:
     if frame.empty or "ticker" not in frame.columns:
         return pd.Series(dtype=object)
@@ -895,7 +918,7 @@ def build_ticker_readiness_report(
                     "otherwise use the manual fundamentals import workflow."
                 )
         elif "peer" in blocked or "peer" in partial:
-            next_action = _peer_mapping_next_action(ticker)
+            next_action = _peer_readiness_next_action(ticker, peer)
         elif blocked:
             next_action = f"Optional context missing for {ticker}; leave unavailable unless trusted local CSVs exist."
         else:

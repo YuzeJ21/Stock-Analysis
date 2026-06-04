@@ -116,7 +116,7 @@ def _data_confidence_label(score: float) -> str:
 def _primary_blocker(blocked: list[str], missing_data: Any) -> str:
     blocked_set = set(blocked)
     missing_text = str(missing_data or "").lower()
-    if "price" in blocked_set or "price" in missing_text:
+    if "price" in blocked_set:
         return "price"
     if {"fundamentals", "dcf"} & blocked_set or any(
         token in missing_text
@@ -125,6 +125,8 @@ def _primary_blocker(blocked: list[str], missing_data: Any) -> str:
         return "fundamentals"
     if "peer" in blocked_set or "peer" in missing_text:
         return "peers"
+    if "price" in missing_text:
+        return "price"
     if "earnings" in blocked_set:
         return "earnings"
     if "analyst_estimates" in blocked_set:
@@ -178,6 +180,14 @@ def _feature_summary(ready: list[str], partial: list[str], blocked: list[str], e
 def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -> str:
     text = _text_value(next_action, "")
     if primary_blocker == "peers":
+        lowered = text.lower()
+        if text and (
+            "mapped peer" in lowered
+            or "price history" in lowered
+            or "peer fundamentals" in lowered
+            or "dcf-ready fundamentals" in lowered
+        ):
+            return text
         return (
             f"Add at least 2 source-backed peer mappings for {ticker} in data/imports/peers.csv; "
             "then run make imports-validate, make imports-preview, and make imports-apply."

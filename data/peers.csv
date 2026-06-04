@@ -1,9 +1,26 @@
 ticker,peer_ticker,peer_group,sector,industry,source,as_of_date
-AMD,AVGO,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
-AMD,NVDA,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
-AVGO,AMD,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
-AVGO,NVDA,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
-COHR,LITE,Optical / AI Infrastructure,SMH,,local_universe_theme_match,2026-05-24
-LITE,COHR,Optical / AI Infrastructure,SMH,,local_universe_theme_match,2026-05-24
-NVDA,AMD,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
-NVDA,AVGO,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
+AMD,NVDA,AI accelerators and data center semiconductors,Semiconductors,AI accelerators,https://ir.amd.com/financial-information/sec-filings/content/0001193125-26-129106/0001193125-26-129106.pdf,2026-06-04
+AMD,AVGO,AI accelerators and data center semiconductors,Semiconductors,AI accelerators and ASICs,https://ir.amd.com/financial-information/sec-filings/content/0001193125-26-129106/0001193125-26-129106.pdf,2026-06-04
+AVGO,AMD,AI accelerators and data center semiconductors,Semiconductors,AI accelerators and ASICs,https://ir.amd.com/financial-information/sec-filings/content/0001193125-26-129106/0001193125-26-129106.pdf,2026-06-04
+AVGO,NVDA,AI accelerators and data center semiconductors,Semiconductors,AI accelerators and networking,https://www.sec.gov/Archives/edgar/data/1045810/000104581025000098/finalforfiling-2025xannual.pdf,2026-06-04
+COHR,LITE,Optical communications and photonics,Semiconductors,Optical components and datacom,https://www.coherent.com/content/dam/coherent/site/en/documents/investors/annual-filings/2025/coherent-annual-report-2025.pdf,2026-06-04
+COHR,AVGO,Optical communications and photonics,Semiconductors,Optical components and datacom,https://www.coherent.com/content/dam/coherent/site/en/documents/investors/annual-filings/2025/coherent-annual-report-2025.pdf,2026-06-04
+CRDO,AVGO,Data center connectivity semiconductors,Semiconductors,Connectivity semiconductors,https://www.sec.gov/Archives/edgar/data/1807794/000180779425000012/ars_10-kx2025.pdf,2026-06-04
+CRDO,MRVL,Data center connectivity semiconductors,Semiconductors,Connectivity semiconductors,https://www.sec.gov/Archives/edgar/data/1807794/000180779425000012/ars_10-kx2025.pdf,2026-06-04
+CRDO,ALAB,Data center connectivity semiconductors,Semiconductors,Connectivity semiconductors,https://www.sec.gov/Archives/edgar/data/1807794/000180779425000012/ars_10-kx2025.pdf,2026-06-04
+HOOD,SCHW,Retail brokerage and financial technology,Financials,Retail brokerage and fintech,https://fintel.io/doc/sec-robinhood-markets-inc-1783879-10k-2026-february-18-20502-6892,2026-06-04
+HOOD,IBKR,Retail brokerage and financial technology,Financials,Retail brokerage and fintech,https://fintel.io/doc/sec-robinhood-markets-inc-1783879-10k-2026-february-18-20502-6892,2026-06-04
+HOOD,COIN,Retail brokerage and financial technology,Financials,Crypto exchange and fintech,https://fintel.io/doc/sec-robinhood-markets-inc-1783879-10k-2026-february-18-20502-6892,2026-06-04
+LITE,COHR,Optical communications and photonics,Semiconductors,Optical components and datacom,https://investor.lumentum.com/sec-filings/sec-filings-details/default.aspx?FilingId=18710345,2026-06-04
+LITE,AAOI,Optical communications and photonics,Semiconductors,Optical components and datacom,https://invest-alpha.com/stocks/data-center/cloud-infra/connectivity/lumentum-lite/,2026-06-04
+LITE,AVGO,Optical communications and photonics,Semiconductors,Optical components and datacom,https://invest-alpha.com/stocks/data-center/cloud-infra/connectivity/lumentum-lite/,2026-06-04
+META,GOOG,Digital advertising and AI platforms,Communication Services,Digital advertising and AI platforms,https://www.sec.gov/Archives/edgar/data/0001326801/000162828026003942/meta-20251231.htm,2026-06-04
+META,AAPL,Digital advertising and mobile ecosystem platforms,Communication Services,Digital advertising and mobile platforms,https://s204.q4cdn.com/369458543/files/doc_financials/2025/ar/Annual-Report-and-Proxy_2026.pdf,2026-06-04
+MU,SNDK,Memory and storage semiconductors,Semiconductors,Memory and storage,https://micron.gcs-web.com/static-files/8791eb80-8263-4c6f-aa74-fdd03fbbb027,2026-06-04
+MU,WDC,Memory and storage semiconductors,Semiconductors,Memory and storage,https://techmarketbriefs.com/companies/micron/,2026-06-04
+NVDA,AMD,AI accelerators and data center semiconductors,Semiconductors,AI accelerators,https://www.sec.gov/Archives/edgar/data/1045810/000104581025000098/finalforfiling-2025xannual.pdf,2026-06-04
+NVDA,AVGO,AI accelerators and data center semiconductors,Semiconductors,AI accelerators and networking,https://www.sec.gov/Archives/edgar/data/1045810/000104581025000098/finalforfiling-2025xannual.pdf,2026-06-04
+TSLA,RIVN,Electric vehicles and automotive technology,Consumer Discretionary,Electric vehicles,https://www.hudson-labs.com/research/tesla-competitors-tsla,2026-06-04
+TSLA,LCID,Electric vehicles and automotive technology,Consumer Discretionary,Electric vehicles,https://www.hudson-labs.com/research/tesla-competitors-tsla,2026-06-04
+TSLA,GM,Electric vehicles and automotive technology,Consumer Discretionary,Automotive OEMs,https://www.hudson-labs.com/research/tesla-competitors-tsla,2026-06-04
+TSLA,F,Electric vehicles and automotive technology,Consumer Discretionary,Automotive OEMs,https://www.hudson-labs.com/research/tesla-competitors-tsla,2026-06-04
