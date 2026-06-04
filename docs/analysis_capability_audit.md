@@ -2,6 +2,14 @@
 
 This project is a local research command center. It is strongest when the user has trusted local CSV data and weakest when a ticker is missing prices, fundamentals, peers, earnings, or analyst-estimate rows.
 
+## Plain Answer
+
+The current functions are good enough for a transparent local research prototype, single-stock review, ETF/index monitoring, and DCF-ready company analysis when trusted local inputs exist.
+
+They are not good enough for broad-universe valuation conclusions without more trusted data. Missing fundamentals, peer mappings, earnings, or analyst estimates are intentionally shown as locked or blocked states instead of being turned into weak analysis.
+
+The shipped analysis logic is repo-native. Open-source Python packages support data handling, UI, tests, and optional provider access, but they are not the stock-analysis rules. Development plugins or assistant skills can help review the project, but they are not shipped product logic or trusted runtime data.
+
 ## What Is Strong Today
 
 - **Readiness gating:** every ticker is checked before deeper analysis appears.
@@ -14,14 +22,15 @@ This project is a local research command center. It is strongest when the user h
 
 ## Function Quality Matrix
 
-| Function area | Supported today | Needs trusted data | What it refuses to do | Main implementation |
-| --- | --- | --- | --- | --- |
-| Readiness gates | Yes. This is the strongest layer because every deeper output depends on it. | Local ticker, price, fundamentals, peer, earnings, and estimate readiness rows. | It does not turn missing data into a weak conclusion. | `src/readiness_engine.py` |
-| Price and momentum | Yes when local price history is present. | Daily OHLCV rows with enough history for returns, averages, liquidity, and volatility context. | It does not invent missing price history or fill broad-universe gaps silently. | `src/indicators.py`, `src/momentum_engine.py` |
-| Fundamentals and DCF | Useful for DCF-ready companies only. | Trusted fundamentals with revenue, free cash flow or FCF margin, shares outstanding, price, cash, and debt where available. | It does not label not-ready companies undervalued or overvalued. | `src/value_engine.py`, `src/valuation.py` |
-| Peer comparison | Workflow-ready, but coverage-limited until peers are imported. | Source-backed peer mappings plus peer price/fundamentals rows. | It does not treat sector or industry fallback as trusted peer valuation. | `src/readiness_engine.py`, `src/valuation.py` |
-| ETF/index monitor context | Supports market, theme, liquidity, and risk monitoring. | Price, liquidity, correlation, and theme context. | It does not run operating-company DCF for ETFs, index proxies, or funds. | `src/research_decisions.py`, `src/stock_report.py` |
-| Single-stock report | Explains one ticker's supported and blocked analysis in plain language. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not provide allocation instructions or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
+| Function area | Quality verdict | Best use today | Needs trusted data | What it refuses to do | Main implementation |
+| --- | --- | --- | --- | --- | --- |
+| Readiness gates | Strong today. | Decide whether a ticker can support deeper review. | Local ticker, price, fundamentals, peer, earnings, and estimate readiness rows. | It does not turn missing data into a weak conclusion. | `src/readiness_engine.py` |
+| Price and momentum | Good when local price history is ready. | Review setup, trend, liquidity, and market context. | Daily OHLCV rows with enough history for returns, averages, liquidity, and volatility context. | It does not invent missing price history or fill broad-universe gaps silently. | `src/indicators.py`, `src/momentum_engine.py` |
+| Fundamentals and DCF | Good for DCF-ready companies only. | Review assumptions, scenarios, and sensitivity with trusted local inputs. | Trusted fundamentals with revenue, free cash flow or FCF margin, shares outstanding, price, cash, and debt where available. | It does not label not-ready companies undervalued or overvalued. | `src/value_engine.py`, `src/valuation.py` |
+| Peer comparison | Workflow-ready, coverage-limited. | Use as a peer data-unlock workflow until source-backed peers and peer metrics are ready. | Source-backed peer mappings plus peer price/fundamentals rows. | It does not treat sector or industry fallback as trusted peer valuation. | `src/readiness_engine.py`, `src/valuation.py` |
+| ETF/index monitor context | Good for monitor context only. | Review market, theme, liquidity, and risk context without operating-company DCF. | Price, liquidity, correlation, and theme context. | It does not run operating-company DCF for ETFs, index proxies, or funds. | `src/research_decisions.py`, `src/stock_report.py` |
+| Single-stock report | Strongest visitor-facing workflow. | See one ticker's ready, blocked, excluded, optional, and source/freshness states step by step. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not provide allocation instructions or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
+| Dependencies | Support layer, not analysis logic. | Handle data frames, UI, tests, YAML config, and optional research-grade provider access. | Local CSV inputs remain the source of truth by default. | They do not replace repo-native analysis rules or trusted local data. | `pyproject.toml` |
 
 ## What Is Intentionally Limited
 
@@ -55,13 +64,26 @@ The analysis logic is implemented in this repository under `src/`. The shipped p
 - `src/research_decisions.py`: readiness-aware research buckets, blockers, confidence, and next actions.
 - `src/stock_report.py`: single-stock report assembly and Markdown output.
 
-The project uses standard Python libraries such as `pandas`, `numpy`, `PyYAML`, and `streamlit` for data handling and UI. Optional `yfinance` support is an unofficial research-grade data adapter. These dependencies support the workflow; they are not the analysis rules, recommendation logic, or account-execution systems.
+The project uses standard Python libraries for support work. Based on `pyproject.toml`, shipped dependencies are:
+
+| Dependency | Role in this project | Analysis boundary |
+| --- | --- | --- |
+| `numpy` | Numeric support for calculations and data preparation. | Not a stock-analysis rule source. |
+| `pandas` | CSV/data-frame loading, joins, validation, and report tables. | Not a stock-analysis rule source. |
+| `PyYAML` | Configuration loading. | Not a valuation or decision engine. |
+| `streamlit` | Local dashboard UI. | Not analysis logic. |
+| `yfinance` | Optional unofficial research-grade data adapter. | Optional provider access only; local CSVs and source/freshness checks still gate analysis. |
+| `pytest` | Development/test dependency. | Verifies behavior; not product logic. |
+
+These dependencies support the workflow; they are not the analysis rules, recommendation logic, valuation gates, or account-execution systems.
 
 ## Development Helper Boundary
 
 Development-side plugins or assistant skills are optional helpers outside the shipped product. They are not shipped analysis rules, embedded valuation logic, recommendation logic, broker integrations, or sources of trusted runtime data.
 
 If those plugins are used during development, their output still has to be translated into deterministic repo code, local CSV schemas, tests, and research-only wording before it belongs in the product. The public product should be judged by the files in this repository, the local data it is given, and the tests that verify readiness gates and guardrails.
+
+The Public Equity Investing and Investment Banking plugins are not listed in `pyproject.toml` and are not runtime dependencies of this product. If used during development review, they remain helper context only; they do not supply trusted prices, fundamentals, peer mappings, earnings, analyst estimates, valuation inputs, or shipped recommendations.
 
 ## Supported-Today Assessment
 
