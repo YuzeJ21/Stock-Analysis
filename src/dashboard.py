@@ -15449,7 +15449,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
 
         st.markdown("#### Staged Universe Import")
         st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
-        with st.expander("Raw staged universe diagnostics", expanded=False):
+        with st.expander("Advanced staged universe details (JSON)", expanded=False):
             st.json(staged_universe, expanded=False)
 
         st.markdown("#### Runtime Artifact Hygiene")
@@ -15515,7 +15515,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 
     st.markdown("### Staged Universe Import Status")
     st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
-    with st.expander("Raw staged universe diagnostics", expanded=False):
+    with st.expander("Advanced staged universe details (JSON)", expanded=False):
         st.json(staged, expanded=False)
 
     st.markdown("### CLI Workflow")

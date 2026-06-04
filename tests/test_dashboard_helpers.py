@@ -9007,6 +9007,13 @@ def test_staged_universe_status_frame_hides_raw_json_shape():
     assert "manual review recommended" in frame["Value"].tolist()
 
 
+def test_dashboard_uses_advanced_label_for_staged_universe_json_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Advanced staged universe details (JSON)" in source
+    assert "Raw staged universe diagnostics" not in source
+
+
 def test_output_tab_summary_cards_explain_rows_status_and_gaps():
     frame = pd.DataFrame(
         {
