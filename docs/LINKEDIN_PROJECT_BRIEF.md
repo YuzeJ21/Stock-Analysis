@@ -40,7 +40,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
 - Added single-stock Analysis Quality and Evaluation Function Check sections to explain whether each report supports deeper company review, standalone DCF review, monitor context, price/setup review, or data-unlock work.
 - Added source/freshness auditability, staged import validation, rejected-row reporting, and research-only guardrails to prevent unsupported conclusions.
-- Documented that Codex-side investing or banking plugins are optional development aids, not runtime dependencies, hidden recommendation systems, or broker integrations.
+- Documented that Codex-side investing or banking plugins are optional development aids, not runtime dependencies, runtime decision engines, recommendation engines, or broker integrations.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
 
 ## Demo Talking Points

@@ -262,7 +262,8 @@ def test_operator_guide_is_command_focused_and_research_only():
         "shipped analysis comes from repo code under `src/`",
         "development aids only",
         "not runtime dependencies",
-        "hidden recommendation systems",
+        "runtime decision engines",
+        "recommendation engines",
         "stock-analysis engines",
     ):
         assert phrase in guide
@@ -312,7 +313,8 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "not hidden investing engines",
         "optional development aids",
         "not runtime dependencies",
-        "hidden recommendation systems",
+        "runtime decision engines",
+        "recommendation engines",
         "outputs/stock_reports/nvda.md",
         "outputs/stock_reports/qqq.md",
         "outputs/stock_reports/smh.md",
@@ -356,7 +358,8 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Public Equity Investing",
         "Investment Banking",
         "not runtime dependencies",
-        "hidden recommendation systems",
+        "runtime decision engines",
+        "recommendation engines",
         "public product should be judged by the files in this repository",
         "not yet a full-market data platform",
     ):

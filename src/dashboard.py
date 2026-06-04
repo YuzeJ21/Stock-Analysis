@@ -6824,7 +6824,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         {
             "kicker": "RESEARCH NOW",
             "title": f"{research_now} row(s)",
-            "body": "Ready for deeper research workflow only. This bucket does not mean a direct action, allocation, or recommendation.",
+            "body": "Ready for deeper research workflow only. Treat this as a review-queue label; it is not a direct action, allocation instruction, or recommendation.",
             "badges": ["research workflow", "not advice"],
             "command": "make research-health TOP_N=10",
         },
@@ -6845,7 +6845,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         {
             "kicker": "LOGIC SOURCE",
             "title": "Repo-native readiness gates",
-            "body": "Decision buckets are assembled from local readiness, blocker, and source/freshness outputs under src/; libraries and plugins are not hidden recommendation engines.",
+            "body": "Decision buckets are assembled from local readiness, blocker, and source/freshness outputs under src/; external plugins are not runtime decision engines.",
             "badges": ["repo-native", "transparent"],
             "command": "make project-status",
         },

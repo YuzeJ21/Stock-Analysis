@@ -11448,13 +11448,15 @@ def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommen
     assert [card["kicker"] for card in cards] == ["RESEARCH NOW", "MONITOR", "BLOCKED BY DATA", "LOGIC SOURCE"]
     assert "1 row(s)" in str(cards[0]["title"])
     assert "ready for deeper research workflow only" in rendered
-    assert "does not mean a direct action, allocation, or recommendation" in rendered
+    assert "review-queue label" in rendered
+    assert "not a direct action, allocation instruction, or recommendation" in rendered
     assert "market, theme, etf/index, liquidity, or risk context" in rendered
     assert "blocked rows are data-unlock work" in rendered
     assert "not weak-company conclusions" in rendered
     assert "repo-native readiness gates" in rendered
     assert "local readiness, blocker, and source/freshness outputs under src/" in rendered
-    assert "not hidden recommendation engines" in rendered
+    assert "external plugins are not runtime decision engines" in rendered
+    assert "not hidden recommendation engines" not in rendered
     assert "make onboarding top_n=10" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

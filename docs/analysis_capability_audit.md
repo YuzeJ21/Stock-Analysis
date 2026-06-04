@@ -47,7 +47,7 @@ The project uses standard Python libraries such as `pandas`, `numpy`, `PyYAML`, 
 
 ## Plugin And Skill Boundary
 
-Codex-side plugins or skills, including Public Equity Investing or Investment Banking workflows, are optional development aids outside the shipped product. They are not runtime dependencies, embedded valuation engines, hidden recommendation systems, broker integrations, or sources of runtime investing logic.
+Codex-side plugins or skills, including Public Equity Investing or Investment Banking workflows, are optional development aids outside the shipped product. They are not runtime dependencies, embedded valuation engines, runtime decision engines, recommendation engines, broker integrations, or sources of runtime investing logic.
 
 If those plugins are used during development, their output still has to be translated into deterministic repo code, local CSV schemas, tests, and research-only wording before it belongs in the product. The public product should be judged by the files in this repository, the local data it is given, and the tests that verify readiness gates and guardrails.
 
