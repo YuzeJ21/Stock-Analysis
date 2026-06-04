@@ -21,7 +21,7 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 
 ## Analysis Quality
 - Analysis mode: DCF-ready review.
-- Why: Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass.
+- Why: Price, fundamentals, standalone DCF, and peer context are ready for a fuller research pass.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 
 ## Evaluation Function Check

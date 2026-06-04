@@ -47,7 +47,7 @@ make stock-report TICKER=SMH
 make stock-report TICKER=APLD
 ```
 
-- `NVDA` demonstrates company-level DCF assumptions when trusted local inputs are ready enough.
+- `NVDA` demonstrates company-level DCF assumptions when trusted local inputs are ready.
 - `QQQ` and `SMH` demonstrate ETF/index monitor context where operating-company DCF is excluded, not failed.
 - `APLD` demonstrates partial-data handling where valuation stays blocked instead of being invented.
 
@@ -57,7 +57,7 @@ Read the `Analysis Quality` and `Evaluation Function Check` sections first. They
 
 The dashboard and single-stock report use plain modes before showing detailed tables:
 
-- `DCF-ready review`: company DCF inputs are ready enough for assumptions, scenarios, and sensitivity review.
+- `DCF-ready review`: company DCF inputs are ready for assumptions, scenarios, and sensitivity review.
 - `Standalone DCF review`: company DCF can be reviewed, but peer-relative valuation is still waiting on source-backed peers.
 - `Price/setup review only`: local price/setup context is available, but company valuation remains blocked.
 - `Monitor-only context`: ETF/index/fund rows can support market, theme, liquidity, or risk monitoring; operating-company DCF is excluded.

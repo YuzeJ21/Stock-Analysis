@@ -2201,9 +2201,9 @@ def build_command_bundles(
             return
         tickers = ",".join(row.ticker for row in sec_targets)
         why_it_matters = (
-            "These holdings are the best next candidates for explicit local DCF inputs once price coverage is good enough."
+            "These holdings are the best next candidates for explicit local DCF inputs once price coverage is sufficient."
             if scope == "holdings_first"
-            else "These broader-queue tickers are the best next candidates for explicit local DCF inputs once price coverage is good enough."
+            else "These broader-queue tickers are the best next candidates for explicit local DCF inputs once price coverage is sufficient."
         )
         bundles.append(
             CommandBundleRow(

@@ -652,7 +652,7 @@ def _stock_report_analysis_quality_lines(
         )
     elif dcf_ready and peer_is_ready:
         quality_title = "DCF-ready review"
-        quality_reason = "Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass."
+        quality_reason = "Price, fundamentals, standalone DCF, and peer context are ready for a fuller research pass."
     elif dcf_ready:
         quality_title = "Standalone DCF review"
         quality_reason = (

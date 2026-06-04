@@ -314,7 +314,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     for phrase in (
         "Analysis Quality",
         "Evaluation Function Check",
-        "deeper company review",
+        "DCF-ready review",
         "DCF-ready review",
         "standalone DCF review",
         "Price/setup review only",

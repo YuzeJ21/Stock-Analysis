@@ -38,7 +38,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Built a Python and Streamlit stock research command center that evaluates market-wide ticker readiness before generating research decisions.
 - Designed a CSV-first data pipeline covering price, momentum, liquidity, correlation, fundamentals, DCF, peer mapping, earnings, and analyst-estimate readiness.
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
-- Added single-stock Analysis Quality and Evaluation Function Check sections to explain whether each report supports deeper company review, standalone DCF review, monitor context, price/setup review, or data-unlock work.
+- Added single-stock Analysis Quality and Evaluation Function Check sections to explain whether each report supports DCF-ready review, standalone DCF review, monitor-only context, price/setup review, or data-unlock work.
 - Added source/freshness auditability, staged import validation, rejected-row reporting, and research-only guardrails to prevent unsupported conclusions.
 - Documented that development plugins or assistant skills are optional helpers, not shipped analysis rules, recommendation logic, or broker integrations.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
