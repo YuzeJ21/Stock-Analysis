@@ -741,6 +741,23 @@ def _stock_report_function_quality_lines(
     ]
 
 
+def _stock_report_reader_guide_lines(*, dcf_status_text: str, monitor_context: bool) -> list[str]:
+    if monitor_context:
+        current_use = "Good enough for ETF/index/fund monitor context when local price, liquidity, correlation, or theme inputs are ready."
+    elif dcf_status_text == "ready":
+        current_use = "Good enough for company-level DCF assumption and sensitivity review when trusted local fundamentals are ready."
+    elif dcf_status_text == "blocked":
+        current_use = "Good enough for data-unlock workflow only until trusted price, fundamentals, DCF, and peer inputs are ready."
+    else:
+        current_use = "Good enough only for the local inputs explicitly marked ready in this report."
+    return [
+        "- Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.",
+        f"- Current use: {current_use}",
+        "- Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and plugins are not hidden stock-picking engines.",
+        "- Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.",
+    ]
+
+
 def _stock_report_source_audit_lines(
     *,
     ticker: str,
@@ -964,11 +981,18 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    reader_guide_lines = _stock_report_reader_guide_lines(
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+    )
 
     report_lines = [
         f"# {report.ticker} Single-Stock Research Report",
         "",
         "Research-only local report. It summarizes readiness and does not provide allocation instructions.",
+        "",
+        "## How To Read This Report",
+        *reader_guide_lines,
         "",
         "## Executive Summary",
         one_minute_summary,
@@ -1184,10 +1208,17 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    reader_guide_lines = _stock_report_reader_guide_lines(
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+    )
     lines = [
         f"# {symbol} Single-Stock Research Report",
         "",
         "Research-only local report. It summarizes readiness and does not provide allocation instructions.",
+        "",
+        "## How To Read This Report",
+        *reader_guide_lines,
         "",
         "This is a readiness-only report because the full stock-report provider could not assemble price-backed analysis.",
         f"Provider blocker: {_display_value(failure_reason)}",

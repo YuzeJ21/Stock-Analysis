@@ -125,6 +125,13 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert report_dict["local_data_validation"] == []
     assert len(report_dict["data_freshness"]) >= 3
     assert any("research-grade" in " ".join(note["notes"]).lower() for note in report_dict["data_freshness"])
+    assert "## How To Read This Report" in markdown
+    assert "Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third" in markdown
+    assert "Good enough for company-level DCF assumption and sensitivity review" in markdown
+    assert "repo-native code under `src/`" in markdown
+    assert "plugins are not hidden stock-picking engines" in markdown
+    assert "research context only" in markdown
+    assert "account actions" in markdown
     assert "## What We Can Analyze Now" in markdown
     assert "Ready inputs:" in markdown
     assert "Supported now:" in markdown
@@ -297,6 +304,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert output_path.exists()
     assert "# QQQ Single-Stock Research Report" in markdown
     for heading in (
+        "## How To Read This Report",
         "## Executive Summary",
         "## Analysis Quality",
         "## Evaluation Function Check",
@@ -315,6 +323,8 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Decision: Monitor - ETF Market Proxy" in markdown
     assert "Monitor - ETF Market Proxy" in markdown
     assert "Research-only local report" in markdown
+    assert "Good enough for ETF/index/fund monitor context" in markdown
+    assert "plugins are not hidden stock-picking engines" in markdown
     assert "allocation instructions" in markdown
     assert "trade instruction" not in markdown.lower()
     assert "transaction execution" not in markdown.lower()
@@ -481,6 +491,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
 
     assert "readiness-only report" in markdown
     assert "# APLD Single-Stock Research Report" in markdown
+    assert "## How To Read This Report" in markdown
+    assert "Good enough for data-unlock workflow only" in markdown
+    assert "Read top-down: readiness state first" in markdown
     assert "## Executive Summary" in markdown
     assert "## What This Stock Is" in markdown
     assert "## Analysis Quality" in markdown
