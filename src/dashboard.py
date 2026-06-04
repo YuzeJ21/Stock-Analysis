@@ -12597,6 +12597,29 @@ def monthly_picks_quality_cards(
     ]
 
 
+def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "WHAT IT CAN DO",
+            "title": "Rank local research candidates",
+            "body": "Monthly Picks can compare transparent local score components when enough price, setup, liquidity, and optional fundamentals context exists.",
+            "badges": ["candidate review", "data-gated"],
+        },
+        {
+            "kicker": "WHAT IT CANNOT DO",
+            "title": "No automatic portfolio decision",
+            "body": "The page does not provide allocation, position sizing, account actions, or direct recommendations. Empty slots and missing fields stay visible.",
+            "badges": ["research-only", "no forced fills"],
+        },
+        {
+            "kicker": "LOGIC SOURCE",
+            "title": "Repo-native scoring",
+            "body": "Score components and report wording come from this repository's local pipeline outputs. Libraries support data/UI; plugins are not hidden picking engines.",
+            "badges": ["repo-native", "transparent"],
+        },
+    ]
+
+
 def stock_report_brief_html(payload: dict[str, Any]) -> str:
     ticker = format_missing(payload.get("ticker"), "Selected ticker")
     valuation = payload.get("valuation_snapshot", {})
@@ -14137,6 +14160,8 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         )
     )
     render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n))
+    render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and logic provenance before reading any ranked names.")
+    render_signal_cards(monthly_picks_function_quality_cards())
 
     render_metric_cards(
         [

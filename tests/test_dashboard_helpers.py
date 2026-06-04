@@ -6092,6 +6092,28 @@ def test_monthly_picks_quality_cards_explain_candidate_boundary_without_recommen
     assert "sell" not in rendered
 
 
+def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenance():
+    cards = dashboard.monthly_picks_function_quality_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO", "LOGIC SOURCE"]
+    assert "rank local research candidates" in rendered
+    assert "transparent local score components" in rendered
+    assert "price, setup, liquidity, and optional fundamentals" in rendered
+    assert "no automatic portfolio decision" in rendered
+    assert "does not provide allocation, position sizing, account actions, or direct recommendations" in rendered
+    assert "empty slots and missing fields stay visible" in rendered
+    assert "repo-native scoring" in rendered
+    assert "local pipeline outputs" in rendered
+    assert "libraries support data/ui" in rendered
+    assert "plugins are not hidden picking engines" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_review():
     queue = pd.DataFrame(
         [
