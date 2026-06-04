@@ -13514,6 +13514,41 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
             "body": "Readiness gates, indicators, DCF assumptions, peer checks, decisions, and report wording are implemented under src/.",
             "badges": ["repo-native"],
         },
+        {
+            "kicker": "SKILL BOUNDARY",
+            "title": "Not a hidden stock-picking engine",
+            "body": "Codex, Public Equity Investing, and Investment Banking plugins are development aids only; they are not runtime analysis logic.",
+            "badges": ["transparent"],
+        },
+    ]
+
+
+def _plain_home_provenance_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "REPO LOGIC",
+            "title": "Rules are implemented under src/",
+            "body": "Readiness, momentum, DCF, peer checks, decision buckets, and report wording are code in this repository.",
+            "badges": ["repo-native"],
+        },
+        {
+            "kicker": "LIBRARIES",
+            "title": "Open-source packages support the app",
+            "body": "pandas, numpy, Streamlit, PyYAML, pytest, and similar packages provide data handling, UI, and tests, not stock-picking rules.",
+            "badges": ["normal dependencies"],
+        },
+        {
+            "kicker": "DATA ADAPTER",
+            "title": "yfinance is optional and research-grade",
+            "body": "The CSV-first local path is default. Online provider data stays optional and should be checked through source/freshness notes.",
+            "badges": ["off by default"],
+        },
+        {
+            "kicker": "CODEX PLUGINS",
+            "title": "Plugins are not product engines",
+            "body": "Public Equity Investing and Investment Banking plugins can help development review, but shipped analysis comes from repo code and local data.",
+            "badges": ["not runtime"],
+        },
     ]
 
 
@@ -13601,6 +13636,8 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
 
     render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and where the logic comes from.")
     render_signal_cards(_plain_home_capability_cards())
+    render_section_header("Where The Logic Comes From", "Plain-language provenance for the analysis functions and development aids.")
+    render_signal_cards(_plain_home_provenance_cards())
     with st.expander("Detailed analysis capability audit", expanded=False):
         st.write(
             "The public audit explains which functions are strong today, which data gaps still limit the product, "

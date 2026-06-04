@@ -105,13 +105,44 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     cards = dashboard._plain_home_capability_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert len(cards) == 4
+    assert len(cards) == 5
     assert "good for ready-data research" in rendered
     assert "blocked fundamentals, peers, earnings, or estimates" in rendered
     assert "copy commands, then run them yourself" in rendered
     assert "do not run refreshes, imports, or external account actions" in rendered
     assert "implemented under src/" in rendered
     assert "repo-native" in rendered
+    assert "skill boundary" in rendered
+    assert "not a hidden stock-picking engine" in rendered
+    assert "public equity investing" in rendered
+    assert "investment banking" in rendered
+    assert "not runtime analysis logic" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
+    cards = dashboard._plain_home_provenance_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert "rules are implemented under src/" in rendered
+    assert "readiness, momentum, dcf, peer checks, decision buckets, and report wording" in rendered
+    assert "open-source packages support the app" in rendered
+    assert "pandas" in rendered
+    assert "streamlit" in rendered
+    assert "not stock-picking rules" in rendered
+    assert "yfinance is optional and research-grade" in rendered
+    assert "csv-first local path is default" in rendered
+    assert "plugins are not product engines" in rendered
+    assert "public equity investing" in rendered
+    assert "investment banking" in rendered
+    assert "shipped analysis comes from repo code and local data" in rendered
+    assert "no open source was used" not in rendered
+    assert "100% original" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
