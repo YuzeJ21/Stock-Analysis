@@ -105,9 +105,11 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     cards = dashboard._plain_home_capability_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert len(cards) == 3
+    assert len(cards) == 4
     assert "good for ready-data research" in rendered
     assert "blocked fundamentals, peers, earnings, or estimates" in rendered
+    assert "copy commands, then run them yourself" in rendered
+    assert "do not run refreshes, imports, or external account actions" in rendered
     assert "implemented under src/" in rendered
     assert "repo-native" in rendered
     assert "broker" not in rendered
@@ -11350,6 +11352,10 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make runbook-prices-broader" in rendered
     assert "overview tab" in nav_rendered
     assert "monthly picks tab" in nav_rendered
+    assert "use this first" in nav_rendered
+    assert "analyze one stock" in nav_rendered
+    assert "ready, blocked, excluded, or monitor-only" in nav_rendered
+    assert "unlock missing data" in nav_rendered
     assert "make status-check top_n=5" in rendered
     fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Needs SEC enrichment")
     peers_row = next(row for row in missing_rows if row["Dashboard Label"] == "Needs peers.csv")

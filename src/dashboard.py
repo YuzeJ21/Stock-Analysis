@@ -9121,31 +9121,31 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     return [
         (
             "Start at Home",
-            "See what is ready, what is blocked, and what to review next without reading raw tables first.",
+            "Use this first. It summarizes what is ready, what is blocked, and the safest next review path.",
             "Home page",
             "neutral",
         ),
         (
-            "Open Command Center",
-            "Use Overview after Home when you want the broader workflow cockpit and grouped next actions.",
+            "See The Workflow",
+            "Use Overview after Home when you want grouped next actions across prices, fundamentals, peers, and reports.",
             "Overview tab",
             "neutral",
         ),
         (
-            "Review Ideas",
-            "Open Monthly Picks only after the Home page shows enough data is available for candidate review.",
+            "Review Candidate Ideas",
+            "Open Monthly Picks when the app shows enough local data to support candidate review.",
             "Monthly Picks tab",
             "neutral",
         ),
         (
-            "Research One Stock",
-            "Use Single-Stock Report for a ticker-level view of price, valuation, missing data, and source freshness.",
+            "Analyze One Stock",
+            "Use Single-Stock Report to see what analysis is ready, blocked, excluded, or monitor-only for a ticker.",
             "Single-Stock Report tab",
             "neutral",
         ),
         (
-            "Improve Coverage",
-            "Use Data Health when the Home page says analysis is blocked by missing prices, fundamentals, peers, or optional context.",
+            "Unlock Missing Data",
+            "Use Data Health when missing prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
             "Data Health tab",
             "warning",
         ),
@@ -13239,7 +13239,7 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         {
             "kicker": "ANALYSIS QUALITY",
             "title": "Good for ready-data research",
-            "body": "Price, momentum, DCF, peer workflow, and single-stock reports are useful when trusted local inputs exist.",
+            "body": "Price, momentum, DCF, peer workflow, and single-stock reports are useful when the needed trusted local inputs exist.",
             "badges": ["data-gated", "transparent"],
         },
         {
@@ -13247,6 +13247,12 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
             "title": "Coverage is the constraint",
             "body": "Blocked fundamentals, peers, earnings, or estimates mean the app withholds that analysis instead of filling gaps.",
             "badges": ["no inference"],
+        },
+        {
+            "kicker": "OPERATOR SAFETY",
+            "title": "Copy commands, then run them yourself",
+            "body": "Dashboard buttons and cards show local commands for review. They do not run refreshes, imports, or external account actions.",
+            "badges": ["copy-only", "local"],
         },
         {
             "kicker": "PROVENANCE",
@@ -13286,6 +13292,10 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     render_context_note(
         "Research boundary.",
         "The app shows local research readiness only. Missing data is shown openly instead of being guessed.",
+    )
+    render_context_note(
+        "Copy-only dashboard.",
+        "Cards and helper buttons display commands for you to copy into a terminal; the dashboard itself does not run refreshes, imports, or external account actions.",
     )
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
 
