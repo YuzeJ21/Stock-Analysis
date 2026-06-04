@@ -217,12 +217,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Roadmap Snapshot",
         "Review them before committing",
         "where the logic lives",
-        "Codex plugins or skills are not runtime dependencies",
-        "development aids only",
-        "runtime decision engines",
-        "recommendation engines",
-        "valuation engines",
-        "investing engines",
+        "Codex plugins or skills are development helpers",
+        "not shipped product dependencies",
+        "analysis rules, valuation gates, decision buckets",
         "Strongest today",
         "Useful with limits",
         "Intentionally locked",
@@ -263,11 +260,8 @@ def test_operator_guide_is_command_focused_and_research_only():
         "docs/analysis_capability_audit.md",
         "What Powers The Analysis",
         "shipped analysis comes from repo code under `src/`",
-        "development aids only",
-        "not runtime dependencies",
-        "runtime decision engines",
-        "recommendation engines",
-        "stock-analysis engines",
+        "development helpers only",
+        "shipped analysis rules, readiness gates, valuation gates",
     ):
         assert phrase in guide
 
@@ -313,11 +307,10 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "data-unlock work",
         "ready, blocked, excluded, or optional",
         "Repo-native analysis logic under `src/`",
-        "plugins remain development aids rather than runtime investing engines",
-        "optional development aids",
-        "not runtime dependencies",
-        "runtime decision engines",
-        "recommendation engines",
+        "plugins remain development helpers rather than shipped product logic",
+        "optional development helpers",
+        "not shipped analysis rules",
+        "recommendation logic",
         "outputs/stock_reports/nvda.md",
         "outputs/stock_reports/qqq.md",
         "outputs/stock_reports/smh.md",
@@ -355,14 +348,13 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "What it refuses to do",
         "src/valuation.py",
         "src/readiness_engine.py",
-        "not a wrapper around external investing engines",
-        "not stock-analysis engines",
-        "libraries/adapters, not stock-analysis engines",
+        "not a wrapper around external investing services",
+        "dependencies support the workflow",
+        "they are not the analysis rules",
         "Public Equity Investing",
         "Investment Banking",
-        "not runtime dependencies",
-        "runtime decision engines",
-        "recommendation engines",
+        "not shipped analysis rules",
+        "recommendation logic",
         "public product should be judged by the files in this repository",
         "not yet a full-market data platform",
     ):
@@ -381,8 +373,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "Generate Local Stock Report" in dashboard
     assert "Use research-grade online data" in dashboard
     assert "Show report source details" in dashboard
-    assert "Developer detail: raw report JSON" in dashboard
     assert "Download Report Data (JSON)" in dashboard
+    assert "Developer detail: raw report JSON" not in dashboard
     assert "Show advanced report data (JSON)" not in dashboard
     assert "Use optional online data" not in dashboard
     assert "research rows" in dashboard

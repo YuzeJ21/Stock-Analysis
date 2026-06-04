@@ -251,7 +251,8 @@ def test_stock_report_function_quality_cards_summarize_supported_analysis_and_pr
     assert "peer context: blocked until source-backed peer mappings" in rendered
     assert "empty optional files are not treated as conclusions" in rendered
     assert "repo-native" in rendered
-    assert "external plugins are development aids, not runtime investing engines" in rendered
+    assert "plugins can help development review" in rendered
+    assert "shipped analysis comes from repo code and local data" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered
@@ -6148,7 +6149,8 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     assert "repo-native scoring logic" in rendered
     assert "src/monthly_picks.py" in rendered
     assert "libraries support data/ui" in rendered
-    assert "external plugins are development aids, not runtime investing engines" in rendered
+    assert "plugins can help development review" in rendered
+    assert "shipped scoring comes from repo code and local data" in rendered
     assert "make stock-report ticker=..." in rendered
     assert "valuation readiness" in rendered
     assert "source freshness" in rendered
@@ -6460,7 +6462,8 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     assert "fundamentals need data" in rendered
     assert "should not infer valuation from unavailable fundamentals" in rendered
     assert "margins, cash, and debt help explain business quality only when present" in rendered
-    assert "external plugins are not runtime fundamentals engines" in rendered
+    assert "fundamentals rules stay in repo code" in rendered
+    assert "plugins are development aids only" in rendered
     assert "make focus-fundamentals ticker=..." in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -6566,7 +6569,8 @@ def test_stock_report_function_quality_frame_explains_current_function_scope_and
     assert "blocked until source-backed peer mappings" in rendered
     assert "logic source" in rendered
     assert "repo-native" in rendered
-    assert "external plugins are development aids, not runtime investing engines" in rendered
+    assert "plugins can help development review" in rendered
+    assert "shipped analysis comes from repo code and local data" in rendered
     assert "no open source was used" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -6722,7 +6726,7 @@ def test_valuation_function_quality_frame_explains_scope_counts_and_provenance()
     assert "dependencies" in rendered
     assert "support layer only" in rendered
     assert "valuation rules live in this repository" in rendered
-    assert "hidden investing logic or external valuation engines" in rendered
+    assert "replacing repo-native valuation rules or trusted local valuation inputs" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered
@@ -11309,7 +11313,7 @@ def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance(
     assert "source-backed mappings" in rendered
     assert "1 ticker(s) missing mappings; 2 unlock row(s) queued" in rendered
     assert "data/imports/peers.csv" in rendered
-    assert "external plugins are not runtime peer-selection engines" in rendered
+    assert "peer-selection rules stay in this repository" in rendered
     assert "peer trend comparison" in rendered
     assert "2 ticker(s) trend-ready" in rendered
     assert "peer-relative valuation or quality conclusions" in rendered
@@ -11322,7 +11326,7 @@ def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance(
     assert "1 price-gap ticker(s); 1 fundamentals-gap ticker(s)" in rendered
     assert "sector or industry fallback" in rendered
     assert "dependencies" in rendered
-    assert "runtime peer-selection or investing logic" in rendered
+    assert "replacing source-backed peer mappings or repo-native peer-readiness rules" in rendered
     assert "peer logic runs from this repository" in rendered
     assert "copied peer-selection skills" not in rendered
     assert "no hidden peer-selection engine" not in rendered
@@ -11455,7 +11459,8 @@ def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommen
     assert "not weak-company conclusions" in rendered
     assert "repo-native readiness gates" in rendered
     assert "local readiness, blocker, and source/freshness outputs under src/" in rendered
-    assert "external plugins are not runtime decision engines" in rendered
+    assert "plugins can help development review" in rendered
+    assert "shipped decisions come from repo code and local data" in rendered
     assert "not hidden recommendation engines" not in rendered
     assert "make onboarding top_n=10" in rendered
     assert "broker" not in rendered

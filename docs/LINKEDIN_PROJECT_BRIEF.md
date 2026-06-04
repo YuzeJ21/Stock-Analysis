@@ -26,7 +26,7 @@ Current features:
 - Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Source and freshness audit sections.
 - CSV-first staged import workflows.
-- Repo-native analysis logic under `src/`; Python libraries and optional provider adapters support data handling and UI, while plugins remain development aids rather than runtime investing engines.
+- Repo-native analysis logic under `src/`; Python libraries and optional provider adapters support data handling and UI, while plugins remain development helpers rather than shipped product logic.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
 
 This was a great project for practicing product thinking, deterministic data workflows, test coverage, and financial-analysis guardrails in Python.
@@ -40,7 +40,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
 - Added single-stock Analysis Quality and Evaluation Function Check sections to explain whether each report supports deeper company review, standalone DCF review, monitor context, price/setup review, or data-unlock work.
 - Added source/freshness auditability, staged import validation, rejected-row reporting, and research-only guardrails to prevent unsupported conclusions.
-- Documented that Codex-side investing or banking plugins are optional development aids, not runtime dependencies, runtime decision engines, recommendation engines, or broker integrations.
+- Documented that Codex-side investing or banking plugins are optional development helpers, not shipped analysis rules, recommendation logic, or broker integrations.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
 
 ## Demo Talking Points

@@ -3371,7 +3371,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
         {
             "kicker": "LOGIC SOURCE",
             "title": "Local fundamentals only",
-            "body": "This card reads the current report payload and local CSV-backed fundamentals. External plugins are not runtime fundamentals engines.",
+            "body": "This card reads the current report payload and local CSV-backed fundamentals. Fundamentals rules stay in repo code; plugins are development aids only.",
             "badges": ["repo-native", "local CSV"],
         },
     ]
@@ -3566,7 +3566,7 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
             {
                 "Function": "Logic source",
                 "Current Status": "Repo-native",
-                "What To Trust": "Rules live under src/; libraries and adapters support data/UI. External plugins are development aids, not runtime investing engines.",
+                "What To Trust": "Rules live under src/; libraries and adapters support data/UI. Plugins can help development review, but shipped analysis comes from repo code and local data.",
             },
         ]
     )
@@ -3617,7 +3617,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
             "title": logic.get("status", "Repo-native"),
             "body": logic.get(
                 "trust",
-                "Rules live under src/; libraries and adapters support data/UI. External plugins are development aids, not runtime investing engines.",
+                "Rules live under src/; libraries and adapters support data/UI. Plugins can help development review, but shipped analysis comes from repo code and local data.",
             ),
             "badges": ["repo-native", "transparent"],
         },
@@ -6032,7 +6032,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{missing_mapping} ticker(s) missing mappings; {queued} unlock row(s) queued",
                 "Good Enough For": "Prioritizing which manual peer rows to add to data/imports/peers.csv.",
                 "Not Good Enough For": "Trusted peer comparison until relationships are source-backed or clearly marked as fallback context.",
-                "Logic Source": "Repo-native peer readiness and peer unlock worklist generation; external plugins are not runtime peer-selection engines.",
+                "Logic Source": "Repo-native peer readiness and peer unlock worklist generation; peer-selection rules stay in this repository.",
                 "Next Step": "make peer-mapping-queue TOP_N=25",
             },
             {
@@ -6071,7 +6071,7 @@ def peer_function_quality_frame(
                 "Peer Area": "Dependencies",
                 "Current Coverage": "Support layer only.",
                 "Good Enough For": "Data handling, table display, tests, and optional development review.",
-                "Not Good Enough For": "Runtime peer-selection or investing logic.",
+                "Not Good Enough For": "Replacing source-backed peer mappings or repo-native peer-readiness rules.",
                 "Logic Source": "Standard libraries and optional Codex plugins support development; peer logic runs from this repository.",
                 "Next Step": "make project-status",
             },
@@ -6849,7 +6849,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         {
             "kicker": "LOGIC SOURCE",
             "title": "Repo-native readiness gates",
-            "body": "Decision buckets are assembled from local readiness, blocker, and source/freshness outputs under src/; external plugins are not runtime decision engines.",
+            "body": "Decision buckets are assembled from local readiness, blocker, and source/freshness outputs under src/; plugins can help development review, but shipped decisions come from repo code and local data.",
             "badges": ["repo-native", "transparent"],
             "command": "make project-status",
         },
@@ -9587,7 +9587,7 @@ def valuation_function_quality_frame(
                 "Valuation Area": "Dependencies",
                 "Current Coverage": "Support layer only.",
                 "Good Enough For": "Data handling, UI display, tests, and optional research-grade data access.",
-                "Not Good Enough For": "Hidden investing logic or external valuation engines.",
+                "Not Good Enough For": "Replacing repo-native valuation rules or trusted local valuation inputs.",
                 "Logic Source": "Standard libraries and optional adapters support the workflow; valuation rules live in this repository.",
             },
         ]
@@ -12989,7 +12989,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "title": "Repo-native scoring logic",
             "body": (
                 "Score components and report wording come from this repository's local pipeline outputs and src/monthly_picks.py. "
-                "Public libraries support data/UI. External plugins are development aids, not runtime investing engines."
+                "Public libraries support data/UI. Plugins can help development review, but shipped scoring comes from repo code and local data."
             ),
             "badges": ["repo-native", "transparent"],
         },
