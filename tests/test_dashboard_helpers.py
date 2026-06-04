@@ -11018,6 +11018,82 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "sell" not in rendered
 
 
+def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "in_active_universe": True,
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+            },
+            {
+                "ticker": "A",
+                "asset_type": "company",
+                "in_active_universe": False,
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "in_active_universe": True,
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+            },
+        ]
+    )
+    dcf = pd.DataFrame(
+        [
+            {"ticker": "META", "asset_type": "company", "missing_dcf_fields": "shares_outstanding, free_cash_flow"},
+            {"ticker": "A", "asset_type": "company", "missing_dcf_fields": ""},
+            {"ticker": "QQQ", "asset_type": "etf", "missing_dcf_fields": ""},
+        ]
+    )
+
+    frame = dashboard.fundamentals_dcf_function_quality_frame(readiness, dcf)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Function Area",
+        "Current Coverage",
+        "Good Enough For",
+        "Not Good Enough For",
+        "Logic Source",
+        "Next Step",
+    ]
+    assert "trusted fundamentals" in rendered
+    assert "1 fundamentals-ready company row(s)" in rendered
+    assert "price-ready but missing fundamentals" in rendered
+    assert "1 company row(s); 1 active-universe row(s)" in rendered
+    assert "prioritizing which real fundamentals to stage" in rendered
+    assert "creating placeholder values" in rendered
+    assert "dcf-ready companies" in rendered
+    assert "assumption and sensitivity review" in rendered
+    assert "missing dcf fields" in rendered
+    assert "shares_outstanding: 1" in rendered
+    assert "free_cash_flow: 1" in rendered
+    assert "treating missing inputs as a negative company signal" in rendered
+    assert "dcf-ready but peer-blocked" in rendered
+    assert "peer-relative valuation stays withheld" in rendered
+    assert "fallback sector context is not trusted peer valuation" in rendered
+    assert "etf / index / fund rows" in rendered
+    assert "1 row(s) excluded from operating-company dcf" in rendered
+    assert "repo-native" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_fundamentals_dcf_unlock_copy_uses_guide_language_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

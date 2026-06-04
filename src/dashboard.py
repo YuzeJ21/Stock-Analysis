@@ -6153,6 +6153,105 @@ def fundamentals_dcf_diagnostic_cards(
     ]
 
 
+def fundamentals_dcf_function_quality_frame(
+    ticker_readiness_frame: pd.DataFrame | None,
+    dcf_readiness_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Function Area": "Fundamentals / DCF",
+                    "Current Coverage": "Readiness not generated",
+                    "Good Enough For": "Nothing yet; run readiness before interpreting fundamentals or DCF status.",
+                    "Not Good Enough For": "Any company valuation conclusion.",
+                    "Logic Source": "Repo-native readiness checks after make readiness.",
+                    "Next Step": "make readiness",
+                }
+            ]
+        )
+
+    frame = ticker_readiness_frame.copy()
+    company = frame.get("asset_type", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower().eq("company")
+    price_ready = bool_series(frame, "price_ready")
+    fundamentals_ready = bool_series(frame, "fundamentals_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    peer_ready = bool_series(frame, "peer_ready")
+    active = bool_series(frame, "in_active_universe")
+    price_ready_missing_fundamentals = int((company & price_ready & ~fundamentals_ready).sum())
+    active_missing_fundamentals = int((company & active & price_ready & ~fundamentals_ready).sum())
+    fundamentals_ready_count = int((company & fundamentals_ready).sum())
+    dcf_ready_count = int((company & dcf_ready).sum())
+    dcf_ready_peer_blocked_count = int((company & dcf_ready & ~peer_ready).sum())
+
+    missing_field_text = "Missing DCF field detail not loaded"
+    excluded_count = 0
+    if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
+        dcf_frame = dcf_readiness_frame.copy()
+        asset_type = dcf_frame.get("asset_type", pd.Series("", index=dcf_frame.index)).fillna("").astype(str).str.lower()
+        excluded_count = int(asset_type.ne("company").sum())
+        if "missing_dcf_fields" in dcf_frame.columns:
+            missing_counts = dcf_frame["missing_dcf_fields"].fillna("").astype(str).str.split(",").explode().str.strip()
+            missing_counts = missing_counts.loc[missing_counts.ne("")]
+            if not missing_counts.empty:
+                missing_field_text = ", ".join(f"{field}: {count}" for field, count in missing_counts.value_counts().head(4).items())
+            else:
+                missing_field_text = "No missing DCF fields reported for generated rows"
+
+    return pd.DataFrame(
+        [
+            {
+                "Function Area": "Trusted fundamentals",
+                "Current Coverage": f"{fundamentals_ready_count} fundamentals-ready company row(s)",
+                "Good Enough For": "Company snapshot and DCF input review when trusted local or SEC-backed rows exist.",
+                "Not Good Enough For": "Filling missing revenue, cash-flow, margin, or share-count fields by inference.",
+                "Logic Source": "Repo-native import/readiness checks using trusted local CSV and SEC-staged rows.",
+                "Next Step": "make sec-stage-queue TOP_N=25",
+            },
+            {
+                "Function Area": "Price-ready but missing fundamentals",
+                "Current Coverage": f"{price_ready_missing_fundamentals} company row(s); {active_missing_fundamentals} active-universe row(s)",
+                "Good Enough For": "Prioritizing which real fundamentals to stage, validate, preview, and apply next.",
+                "Not Good Enough For": "Company valuation, quality score, or DCF interpretation.",
+                "Logic Source": "Repo-native readiness gates surface missing fundamentals instead of creating placeholder values.",
+                "Next Step": "make focus-fundamentals TICKER=<ticker>",
+            },
+            {
+                "Function Area": "DCF-ready companies",
+                "Current Coverage": f"{dcf_ready_count} company row(s)",
+                "Good Enough For": "Assumption and sensitivity review after required company DCF fields pass readiness.",
+                "Not Good Enough For": "Unsupported recommendations or conclusions when optional context remains unavailable.",
+                "Logic Source": "Repo-native DCF readiness and valuation logic in src/valuation.py.",
+                "Next Step": "make dcf-readiness",
+            },
+            {
+                "Function Area": "Missing DCF fields",
+                "Current Coverage": missing_field_text,
+                "Good Enough For": "Seeing exactly which input fields block company valuation.",
+                "Not Good Enough For": "Treating missing inputs as a negative company signal.",
+                "Logic Source": "Repo-native DCF readiness report; missing fields are displayed, not guessed.",
+                "Next Step": "make dcf-readiness",
+            },
+            {
+                "Function Area": "DCF-ready but peer-blocked",
+                "Current Coverage": f"{dcf_ready_peer_blocked_count} company row(s)",
+                "Good Enough For": "Standalone DCF review while peer-relative valuation stays withheld.",
+                "Not Good Enough For": "Peer-relative valuation without source-backed peer mappings and peer inputs.",
+                "Logic Source": "Repo-native peer readiness checks; fallback sector context is not trusted peer valuation.",
+                "Next Step": "make peer-mapping-queue TOP_N=10",
+            },
+            {
+                "Function Area": "ETF / index / fund rows",
+                "Current Coverage": f"{excluded_count} row(s) excluded from operating-company DCF",
+                "Good Enough For": "Market, theme, liquidity, or risk monitor context.",
+                "Not Good Enough For": "Operating-company fundamentals or DCF valuation.",
+                "Logic Source": "Repo-native asset-type gating marks DCF excluded, not failed.",
+                "Next Step": "make stock-report TICKER=QQQ",
+            },
+        ]
+    )
+
+
 PEER_STUDIO_FILTERS = [
     "DCF-ready but peer-blocked",
     "Missing peer mapping",
@@ -15122,6 +15221,16 @@ def render_market_command_center(
         "Price-ready companies that still need trusted fundamentals, missing DCF fields, and DCF-ready names waiting on peer context.",
     )
     render_signal_cards(fundamentals_dcf_payload_cards)
+    with st.expander("What fundamentals and DCF are good enough for", expanded=False):
+        st.write(
+            "This audit separates trusted fundamentals, price-ready names still missing fundamentals, DCF-ready companies, "
+            "missing DCF fields, peer-blocked DCF-ready names, and ETF/index exclusions."
+        )
+        st.dataframe(
+            clean_display_frame(fundamentals_dcf_function_quality_frame(ticker_readiness_frame, dcf_readiness_frame)),
+            width="stretch",
+            hide_index=True,
+        )
     render_section_header("Next Action Console", "Grouped feature-level actions with source/freshness notes. These cards are copyable commands only; the dashboard does not run them.")
     render_signal_cards(next_action_console_cards(action_console))
     if action_console.empty:
