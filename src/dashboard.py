@@ -6428,6 +6428,46 @@ def decision_workflow_summary_cards(
     return cards
 
 
+def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if decisions_frame is None or decisions_frame.empty:
+        return [
+            {
+                "kicker": "DECISION QUALITY",
+                "title": "Decision outputs not generated",
+                "body": "Run the local pipeline before interpreting Research Now, Monitor, or Blocked by Data buckets.",
+                "badges": ["refresh first"],
+                "command": "make pipeline",
+            }
+        ]
+    buckets = decisions_frame.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str)
+    research_now = int(buckets.eq("Research Now").sum())
+    monitor = int(buckets.eq("Monitor").sum())
+    blocked = int(buckets.eq("Blocked by Data").sum())
+    return [
+        {
+            "kicker": "RESEARCH NOW",
+            "title": f"{research_now} row(s)",
+            "body": "Ready for deeper research workflow only. This bucket does not mean a direct action, allocation, or recommendation.",
+            "badges": ["research workflow", "not advice"],
+            "command": "make research-health TOP_N=10",
+        },
+        {
+            "kicker": "MONITOR",
+            "title": f"{monitor} row(s)",
+            "body": "Useful for market, theme, ETF/index, liquidity, or risk context where operating-company valuation may be excluded.",
+            "badges": ["context", "DCF may be excluded"],
+            "command": "make stock-report TICKER=QQQ",
+        },
+        {
+            "kicker": "BLOCKED BY DATA",
+            "title": f"{blocked} row(s)",
+            "body": "Blocked rows are data-unlock work, not weak-company conclusions. Open Data Health or the next-action columns before interpreting them.",
+            "badges": ["missing data", "no inference"],
+            "command": "make onboarding TOP_N=10",
+        },
+    ]
+
+
 def purpose_family_label(asset_type: object, purpose_text: object = "", alignment_text: object = "") -> str:
     asset_kind = format_missing(asset_type, "").lower()
     if asset_kind in {"etf", "index_proxy", "fund"}:
@@ -13104,7 +13144,10 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
 def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) -> None:
     decisions, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
     if decisions is not None and not decisions.empty:
+        render_section_header("Decision Quality", "How to interpret Research Now, Monitor, and Blocked by Data before reading the table.")
+        render_signal_cards(final_decision_quality_cards(decisions))
         render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock lanes.")
+        render_signal_cards(decision_workflow_summary_cards(decisions))
         bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
         render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
         decision_columns = _readiness_columns(

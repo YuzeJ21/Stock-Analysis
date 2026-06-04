@@ -10932,6 +10932,47 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
     assert "sell" not in rendered
 
 
+def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommendations():
+    decisions = pd.DataFrame(
+        [
+            {"ticker": "A", "decision_bucket": "Research Now"},
+            {"ticker": "QQQ", "decision_bucket": "Monitor"},
+            {"ticker": "APLD", "decision_bucket": "Blocked by Data"},
+            {"ticker": "AMD", "decision_bucket": "Blocked by Data"},
+        ]
+    )
+
+    cards = dashboard.final_decision_quality_cards(decisions)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["RESEARCH NOW", "MONITOR", "BLOCKED BY DATA"]
+    assert "1 row(s)" in str(cards[0]["title"])
+    assert "ready for deeper research workflow only" in rendered
+    assert "does not mean a direct action, allocation, or recommendation" in rendered
+    assert "market, theme, etf/index, liquidity, or risk context" in rendered
+    assert "blocked rows are data-unlock work" in rendered
+    assert "not weak-company conclusions" in rendered
+    assert "make onboarding top_n=10" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_final_decision_quality_cards_handle_missing_outputs():
+    cards = dashboard.final_decision_quality_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Decision outputs not generated"
+    assert cards[0]["command"] == "make pipeline"
+    assert "run the local pipeline" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     decisions = pd.DataFrame(
         [
