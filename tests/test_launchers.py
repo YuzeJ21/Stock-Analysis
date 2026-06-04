@@ -172,9 +172,20 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
 
 def test_readme_public_landing_page_is_short_visual_and_command_focused():
     readme = Path("README.md").read_text(encoding="utf-8")
+    preview = Path("docs/assets/dashboard-preview.svg").read_text(encoding="utf-8")
 
     assert len(readme.splitlines()) < 180
     assert "![Dashboard preview](docs/assets/dashboard-preview.svg)" in readme
+    for preview_phrase in (
+        "Evaluation Function Check",
+        "FUNCTION CHECK",
+        "Ready / blocked",
+        "No hidden stock-picking engine",
+        "DCF gated",
+        "ETF/index DCF excluded",
+        "copy-only unlock commands",
+    ):
+        assert preview_phrase in preview
     assert "## Quick Start" in readme
     assert "## What You Can Analyze" in readme
     assert "## Try This Demo Path" in readme
