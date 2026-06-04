@@ -13843,7 +13843,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details)
 
 
-def render_single_stock_report(provider, show_raw_json: bool) -> None:
+def render_single_stock_report(provider, show_source_details: bool) -> None:
     render_section_header(
         "Single-Stock Report",
         "Structured research report workflow. Local CSV-backed data is the default. "
@@ -13858,7 +13858,11 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
         help="Defaults to NVDA when it exists in local data because it is a richer demo report.",
     )
     manual_ticker = selection_cols[1].text_input("Manual ticker", value="" if selected != "Custom" else "AAPL")
-    use_yfinance = selection_cols[2].checkbox("Use optional online data", value=False, help="Uses yfinance as an unofficial / research-grade source. Leave off for the CSV-first path.")
+    use_yfinance = selection_cols[2].checkbox(
+        "Use research-grade online data",
+        value=False,
+        help="Optional yfinance mode. Leave this off for the CSV-first local-data path.",
+    )
     ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
     provider_name = "yfinance" if use_yfinance else "local"
     coverage = pd.DataFrame()
@@ -14185,12 +14189,12 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
             with st.expander("Existing research-output context", expanded=False):
                 st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
-        if show_raw_json:
-            with st.expander("Advanced report data (JSON)", expanded=False):
+        if show_source_details:
+            with st.expander("Developer detail: raw report JSON", expanded=False):
                 st.json(report_payload, expanded=False)
 
     st.download_button(
-        "Download Stock Report JSON",
+        "Download Report Data (JSON)",
         data=st.session_state.get("single_stock_report_download", "{}"),
         file_name=f"{st.session_state.get('single_stock_report_ticker', 'stock').lower()}_stock_report.json",
         mime="application/json",
@@ -15705,7 +15709,13 @@ def main() -> None:
             help="Start with Home, then open a deeper page when you know what you want to review.",
         )
         show_reason_details = st.checkbox("Show detailed reasons", value=False)
-        show_raw_json = st.checkbox("Show advanced report data (JSON)", value=False)
+        show_source_details = False
+        if selected_page == "Single-Stock Report":
+            show_source_details = st.checkbox(
+                "Show report source details",
+                value=False,
+                help="Adds raw JSON under Sources & Gaps for troubleshooting. Most users can leave this off.",
+            )
         st.divider()
         render_context_note(
             "Start here.",
@@ -15760,7 +15770,7 @@ def main() -> None:
     elif selected_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
         render_output_tab(selected_page, output_frames, show_reason_details)
     elif selected_page == "Single-Stock Report":
-        render_single_stock_report(provider, show_raw_json)
+        render_single_stock_report(provider, show_source_details)
     elif selected_page == "Data Health":
         render_data_health(provider, project_status_payload)
     elif selected_page == "Universe Manager":

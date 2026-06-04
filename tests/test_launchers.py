@@ -359,7 +359,12 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert dry_run_index < refresh_index
     assert "broad refresh churn should be inspected before it is committed or shared publicly" in dashboard
     assert "Generate Local Stock Report" in dashboard
-    assert "Use optional online data" in dashboard
+    assert "Use research-grade online data" in dashboard
+    assert "Show report source details" in dashboard
+    assert "Developer detail: raw report JSON" in dashboard
+    assert "Download Report Data (JSON)" in dashboard
+    assert "Show advanced report data (JSON)" not in dashboard
+    assert "Use optional online data" not in dashboard
     assert "research rows" in dashboard
 
 def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
