@@ -737,7 +737,7 @@ def _stock_report_function_quality_lines(
         f"- Fundamentals / DCF: {valuation_status}.",
         f"- Peer comparison: {peer_status}.",
         f"- Optional context: {optional_status}.",
-        "- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`; standard libraries/adapters support data handling and UI, not copied stock-picking skills.",
+        "- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`; standard libraries/adapters support data handling and UI, and external plugins are not hidden investing engines.",
     ]
 
 
@@ -753,7 +753,7 @@ def _stock_report_reader_guide_lines(*, dcf_status_text: str, monitor_context: b
     return [
         "- Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.",
         f"- Current use: {current_use}",
-        "- Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and plugins are not hidden stock-picking engines.",
+        "- Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and external plugins are not hidden investing engines.",
         "- Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.",
     ]
 

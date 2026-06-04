@@ -136,7 +136,7 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "implemented under src/" in rendered
     assert "repo-native" in rendered
     assert "skill boundary" in rendered
-    assert "not a hidden stock-picking engine" in rendered
+    assert "not a hidden investing engine" in rendered
     assert "public equity investing" in rendered
     assert "investment banking" in rendered
     assert "not runtime analysis logic" in rendered
@@ -204,7 +204,7 @@ def test_home_function_quality_frame_explains_good_enough_scope_and_logic_source
     assert "single-stock report" in rendered
     assert "supported, blocked, excluded, and monitor-only analysis" in rendered
     assert "libraries/adapters" in rendered
-    assert "not copied stock-picking skills" in rendered
+    assert "not runtime investing engines" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered
@@ -251,7 +251,7 @@ def test_stock_report_function_quality_cards_summarize_supported_analysis_and_pr
     assert "peer context: blocked until source-backed peer mappings" in rendered
     assert "empty optional files are not treated as conclusions" in rendered
     assert "repo-native" in rendered
-    assert "not copied stock-picking skills" in rendered
+    assert "external plugins are not hidden investing engines" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered
@@ -6089,6 +6089,8 @@ def test_monthly_picks_landing_cards_show_history_and_gap_context():
     assert "2 of 5" in rendered
     assert "needs history" in rendered
     assert "1 rows with gaps" in rendered
+    assert "data-gated review queue" in rendered
+    assert "not as advice or a conclusion list" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -6135,17 +6137,21 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     cards = dashboard.monthly_picks_function_quality_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO", "LOGIC SOURCE"]
-    assert "rank local research candidates" in rendered
+    assert [card["kicker"] for card in cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO", "LOGIC SOURCE", "BEST USE"]
+    assert "rank a local research-candidate queue" in rendered
     assert "transparent local score components" in rendered
+    assert "triage signals for deeper single-stock review" in rendered
     assert "price, setup, liquidity, and optional fundamentals" in rendered
     assert "no automatic portfolio decision" in rendered
     assert "does not provide allocation, position sizing, account actions, or direct recommendations" in rendered
     assert "empty slots and missing fields stay visible" in rendered
-    assert "repo-native scoring" in rendered
-    assert "local pipeline outputs" in rendered
+    assert "repo-native scoring logic" in rendered
+    assert "src/monthly_picks.py" in rendered
     assert "libraries support data/ui" in rendered
-    assert "plugins are not hidden picking engines" in rendered
+    assert "external plugins are not hidden investing engines" in rendered
+    assert "make stock-report ticker=..." in rendered
+    assert "valuation readiness" in rendered
+    assert "source freshness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -6505,7 +6511,7 @@ def test_stock_report_function_quality_frame_explains_current_function_scope_and
     assert "blocked until source-backed peer mappings" in rendered
     assert "logic source" in rendered
     assert "repo-native" in rendered
-    assert "not copied stock-picking skills" in rendered
+    assert "external plugins are not hidden investing engines" in rendered
     assert "no open source was used" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

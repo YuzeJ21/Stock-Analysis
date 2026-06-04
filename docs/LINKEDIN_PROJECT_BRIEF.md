@@ -26,7 +26,7 @@ Current features:
 - Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Source and freshness audit sections.
 - CSV-first staged import workflows.
-- Repo-native analysis logic under `src/`; Python libraries and optional provider adapters support data handling and UI, not hidden stock-picking engines.
+- Repo-native analysis logic under `src/`; Python libraries and optional provider adapters support data handling and UI, not hidden investing engines.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
 
 This was a great project for practicing product thinking, deterministic data workflows, test coverage, and financial-analysis guardrails in Python.

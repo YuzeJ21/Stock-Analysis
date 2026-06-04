@@ -77,7 +77,7 @@
     <rect x="672" y="423" width="216" height="108" rx="16" fill="#f2f7f1"/>
     <text x="694" y="456" fill="#597164" font-size="13" font-weight="700">FUNCTION CHECK</text>
     <text x="694" y="487" fill="#172820" font-size="20" font-weight="700">Ready / blocked</text>
-    <text x="694" y="513" fill="#68796f" font-size="13">No hidden stock-picking engine</text>
+    <text x="694" y="513" fill="#68796f" font-size="13">No hidden investing engine</text>
     <rect x="910" y="423" width="216" height="108" rx="16" fill="#fff2dd"/>
     <text x="932" y="456" fill="#9a6429" font-size="13" font-weight="700">VALUATION BOUNDARY</text>
     <text x="932" y="487" fill="#172820" font-size="20" font-weight="700">DCF gated</text>

@@ -33,7 +33,7 @@ This project is a local research command center. It is strongest when the user h
 
 ## Where The Logic Comes From
 
-The analysis logic is implemented in this repository under `src/`. It is not a wrapper around copied stock-picking skills, ranking engines, account-execution tools, or broker workflows:
+The analysis logic is implemented in this repository under `src/`. It is not a wrapper around external investing engines, ranking engines, account-execution tools, or broker workflows:
 
 - `src/indicators.py`: moving averages, returns, relative strength, ATR/volatility proxy.
 - `src/momentum_engine.py`: rule-based setup classification.
@@ -43,11 +43,11 @@ The analysis logic is implemented in this repository under `src/`. It is not a w
 - `src/research_decisions.py`: readiness-aware research buckets, blockers, confidence, and next actions.
 - `src/stock_report.py`: single-stock report assembly and Markdown output.
 
-The project uses standard Python libraries such as `pandas`, `numpy`, `PyYAML`, and `streamlit` for data handling and UI. Optional `yfinance` support is an unofficial research-grade data adapter. These dependencies are libraries/adapters, not copied stock-analysis skills, recommendation engines, or account-execution systems.
+The project uses standard Python libraries such as `pandas`, `numpy`, `PyYAML`, and `streamlit` for data handling and UI. Optional `yfinance` support is an unofficial research-grade data adapter. These dependencies are libraries/adapters, not stock-analysis engines, recommendation engines, or account-execution systems.
 
 ## Plugin And Skill Boundary
 
-Codex-side plugins or skills, including Public Equity Investing or Investment Banking workflows, are optional development aids outside the shipped product. They are not runtime dependencies, embedded valuation engines, hidden recommendation systems, broker integrations, or sources of copied stock-picking logic.
+Codex-side plugins or skills, including Public Equity Investing or Investment Banking workflows, are optional development aids outside the shipped product. They are not runtime dependencies, embedded valuation engines, hidden recommendation systems, broker integrations, or sources of runtime investing logic.
 
 If those plugins are used during development, their output still has to be translated into deterministic repo code, local CSV schemas, tests, and research-only wording before it belongs in the product. The public product should be judged by the files in this repository, the local data it is given, and the tests that verify readiness gates and guardrails.
 

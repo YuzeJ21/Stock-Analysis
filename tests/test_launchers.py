@@ -180,7 +180,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Evaluation Function Check",
         "FUNCTION CHECK",
         "Ready / blocked",
-        "No hidden stock-picking engine",
+        "No hidden investing engine",
         "DCF gated",
         "ETF/index DCF excluded",
         "copy-only unlock commands",
@@ -218,8 +218,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Codex plugins or skills are not runtime dependencies",
         "development aids only",
         "hidden valuation engines",
-        "copied stock-picking systems",
-        "hidden stock-picking engines",
+        "not hidden valuation engines",
+        "investing engines",
         "Strongest today",
         "Useful with limits",
         "Intentionally locked",
@@ -263,7 +263,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "development aids only",
         "not runtime dependencies",
         "hidden recommendation systems",
-        "copied stock-analysis skills",
+        "stock-analysis engines",
     ):
         assert phrase in guide
 
@@ -271,7 +271,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "buy recommendation",
         "sell recommendation",
         "auto-trading system",
-        "hidden stock-picking",
+        "hidden investing engine",
     ):
         assert forbidden not in guide.lower()
 
@@ -309,7 +309,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "data-unlock work",
         "ready, blocked, excluded, or optional",
         "Repo-native analysis logic under `src/`",
-        "not hidden stock-picking engines",
+        "not hidden investing engines",
         "optional development aids",
         "not runtime dependencies",
         "hidden recommendation systems",
@@ -350,9 +350,9 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "What it refuses to do",
         "src/valuation.py",
         "src/readiness_engine.py",
-        "not a wrapper around copied stock-picking skills",
-        "not copied stock-analysis skills",
-        "libraries/adapters, not copied stock-analysis skills",
+        "not a wrapper around external investing engines",
+        "not stock-analysis engines",
+        "libraries/adapters, not stock-analysis engines",
         "Public Equity Investing",
         "Investment Banking",
         "not runtime dependencies",

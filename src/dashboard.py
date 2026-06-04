@@ -3497,7 +3497,7 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
             {
                 "Function": "Logic source",
                 "Current Status": "Repo-native",
-                "What To Trust": "Rules live under src/; libraries and adapters support data/UI, not copied stock-picking skills.",
+                "What To Trust": "Rules live under src/; libraries and adapters support data/UI, and external plugins are not hidden investing engines.",
             },
         ]
     )
@@ -3548,7 +3548,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
             "title": logic.get("status", "Repo-native"),
             "body": logic.get(
                 "trust",
-                "Rules live under src/; libraries and adapters support data/UI, not copied stock-picking skills.",
+                "Rules live under src/; libraries and adapters support data/UI, and external plugins are not hidden investing engines.",
             ),
             "badges": ["repo-native", "transparent"],
         },
@@ -6002,7 +6002,7 @@ def peer_function_quality_frame(
                 "Peer Area": "Dependencies",
                 "Current Coverage": "Support layer only.",
                 "Good Enough For": "Data handling, table display, tests, and optional development review.",
-                "Not Good Enough For": "Copied peer-selection skills or hidden stock-picking logic.",
+                "Not Good Enough For": "Hidden peer-selection or investing logic.",
                 "Logic Source": "Standard libraries and optional Codex plugins support development; peer logic runs from this repository.",
                 "Next Step": "make project-status",
             },
@@ -12713,8 +12713,11 @@ def monthly_picks_landing_cards(
         {
             "kicker": "MONTH",
             "title": month_value,
-            "body": f"{candidate_count} of {top_n} conservative research candidate slots are filled from the current local run.",
-            "badges": ["transparent ranking"],
+            "body": (
+                f"{candidate_count} of {top_n} conservative research-candidate slots are filled from the current local run. "
+                "Read this as a data-gated review queue, not as advice or a conclusion list."
+            ),
+            "badges": ["candidate queue", "not advice"],
         },
         {
             "kicker": "TRACK RECORD",
@@ -12886,8 +12889,11 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "WHAT IT CAN DO",
-            "title": "Rank local research candidates",
-            "body": "Monthly Picks can compare transparent local score components when enough price, setup, liquidity, and optional fundamentals context exists.",
+            "title": "Rank a local research-candidate queue",
+            "body": (
+                "Monthly Picks can compare transparent local score components when enough price, setup, liquidity, "
+                "and optional fundamentals context exists. Scores are triage signals for deeper single-stock review."
+            ),
             "badges": ["candidate review", "data-gated"],
         },
         {
@@ -12898,9 +12904,21 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "LOGIC SOURCE",
-            "title": "Repo-native scoring",
-            "body": "Score components and report wording come from this repository's local pipeline outputs. Libraries support data/UI; plugins are not hidden picking engines.",
+            "title": "Repo-native scoring logic",
+            "body": (
+                "Score components and report wording come from this repository's local pipeline outputs and src/monthly_picks.py. "
+                "Public libraries support data/UI; external plugins are not hidden investing engines."
+            ),
             "badges": ["repo-native", "transparent"],
+        },
+        {
+            "kicker": "BEST USE",
+            "title": "Open single-stock review next",
+            "body": (
+                "Use a candidate as a starting point for make stock-report TICKER=..., then read valuation readiness, "
+                "fundamental gaps, peer gaps, and source freshness before forming any personal research view."
+            ),
+            "badges": ["next step", "single-stock depth"],
         },
     ]
 
@@ -14239,7 +14257,7 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "SKILL BOUNDARY",
-            "title": "Not a hidden stock-picking engine",
+            "title": "Not a hidden investing engine",
             "body": "Codex, Public Equity Investing, and Investment Banking plugins are development aids only; they are not runtime analysis logic.",
             "badges": ["transparent"],
         },
@@ -14341,7 +14359,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": "Support layer only; not hidden analysis logic.",
                 "Good Enough For": "Data handling, UI, tests, and optional research-grade provider access.",
                 "Needs Trusted Data": "Local CSV inputs remain the source of truth by default.",
-                "Logic Source": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance; not copied stock-picking skills.",
+                "Logic Source": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance; not runtime investing engines.",
             },
         ]
     )
@@ -14393,7 +14411,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     with st.expander("Detailed analysis capability audit", expanded=False):
         st.write(
             "The public audit explains which functions are strong today, which data gaps still limit the product, "
-            "and why the analysis logic is repo-native rather than a copied stock-analysis skill."
+            "and why the analysis logic is repo-native rather than a hidden investing engine."
         )
         st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
         st.code("docs/analysis_capability_audit.md", language="text")
@@ -14452,7 +14470,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     render_section_header(
         "Monthly Picks",
-        "A compact, product-style view of the current local research candidates and whether the track record has enough data.",
+        "A compact, data-gated research-candidate queue. Scores help decide what to review next; they are not advice, allocation guidance, or a conclusion list.",
     )
     top_n = _monthly_top_n()
     monthly_tables = load_monthly_outputs()
