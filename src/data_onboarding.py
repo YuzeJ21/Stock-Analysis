@@ -128,12 +128,18 @@ SEC_STAGE_QUEUE_COLUMNS = [
     "priority",
     "ticker",
     "is_holding",
+    "workflow_scope",
+    "price_ready_fundamentals_blocked",
+    "dcf_blocker_type",
+    "missing_dcf_field_count",
     "theme",
     "sector_etf",
     "price_history_days",
     "has_fundamentals",
     "dcf_ready",
     "missing_required_for_dcf",
+    "next_input_file",
+    "validation_sequence",
     "recommended_action",
     "target_file",
     "focus_command",
@@ -158,6 +164,9 @@ PEER_MAPPING_QUEUE_COLUMNS = [
     "workflow_group",
     "workflow_scope",
     "next_action_summary",
+    "peer_mapping_min_rows",
+    "trusted_source_requirement",
+    "fallback_context_note",
     "next_input_file",
     "validation_sequence",
     "recommended_action",
@@ -534,12 +543,18 @@ class SecStageQueueRow:
     priority: int
     ticker: str
     is_holding: bool
+    workflow_scope: str
+    price_ready_fundamentals_blocked: bool
+    dcf_blocker_type: str
+    missing_dcf_field_count: int
     theme: str
     sector_etf: str
     price_history_days: int
     has_fundamentals: bool
     dcf_ready: bool
     missing_required_for_dcf: str
+    next_input_file: str
+    validation_sequence: str
     recommended_action: str
     target_file: str
     focus_command: str
@@ -564,6 +579,9 @@ class PeerMappingQueueRow:
     workflow_group: str
     workflow_scope: str
     next_action_summary: str
+    peer_mapping_min_rows: int
+    trusted_source_requirement: str
+    fallback_context_note: str
     next_input_file: str
     validation_sequence: str
     recommended_action: str
@@ -1001,6 +1019,24 @@ def _fundamentals_onboarding_reason(row: TickerCoverage) -> str:
     if row.missing_required_for_dcf:
         return f"DCF inputs are still incomplete: {row.missing_required_for_dcf}."
     return "DCF inputs are still incomplete."
+
+
+def _missing_dcf_fields(missing_required_for_dcf: object) -> list[str]:
+    return [
+        field.strip()
+        for field in str(missing_required_for_dcf or "").split(",")
+        if field.strip() and "staged fundamentals still need" not in field.strip().lower()
+    ]
+
+
+def _dcf_blocker_type(row: TickerCoverage) -> str:
+    if _has_staged_fundamentals_follow_through(row):
+        return "staged_fundamentals_pending_apply"
+    if not row.has_fundamentals:
+        return "missing_fundamentals_row"
+    if row.missing_required_for_dcf:
+        return "incomplete_dcf_fields"
+    return "dcf_inputs_incomplete"
 
 
 def _peer_onboarding_reason(row: TickerCoverage) -> str:
@@ -1719,7 +1755,12 @@ def build_sec_stage_queue(
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
 ) -> list[SecStageQueueRow]:
+    root = resolve_project_root(project_root)
+    data_path = resolve_data_dir(data_dir, root)
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
+    active_path = data_path / "universe_active.csv"
+    active_universe = pd.read_csv(active_path) if active_path.exists() else pd.DataFrame()
+    active_tickers = _ticker_set(active_universe)
     rows: list[SecStageQueueRow] = []
     for coverage in coverage_rows:
         if coverage.dcf_ready or _dcf_excluded_asset(coverage.asset_type):
@@ -1728,7 +1769,20 @@ def build_sec_stage_queue(
         is_holding = bool(context.get("is_holding", False))
         theme = str(context.get("theme", "") or "Unclassified")
         sector_etf = str(context.get("sector_etf", "") or "Unclassified")
-        if is_holding and coverage.usable_for_momentum:
+        price_ready_fundamentals_blocked = bool(coverage.has_prices and not coverage.dcf_ready)
+        missing_dcf_fields = _missing_dcf_fields(coverage.missing_required_for_dcf)
+        dcf_blocker_type = _dcf_blocker_type(coverage)
+        if coverage.ticker in active_tickers:
+            workflow_scope = "active_universe"
+        elif is_holding:
+            workflow_scope = "holdings_first"
+        elif price_ready_fundamentals_blocked:
+            workflow_scope = "price_ready_company"
+        else:
+            workflow_scope = "after_price"
+        if workflow_scope == "active_universe" and coverage.usable_for_momentum:
+            priority = 1
+        elif is_holding and coverage.usable_for_momentum:
             priority = 1
         elif coverage.usable_for_momentum:
             priority = 2
@@ -1742,12 +1796,22 @@ def build_sec_stage_queue(
                 priority=priority,
                 ticker=coverage.ticker,
                 is_holding=is_holding,
+                workflow_scope=workflow_scope,
+                price_ready_fundamentals_blocked=price_ready_fundamentals_blocked,
+                dcf_blocker_type=dcf_blocker_type,
+                missing_dcf_field_count=len(missing_dcf_fields),
                 theme=theme,
                 sector_etf=sector_etf,
                 price_history_days=coverage.price_history_days,
                 has_fundamentals=coverage.has_fundamentals,
                 dcf_ready=coverage.dcf_ready,
                 missing_required_for_dcf=coverage.missing_required_for_dcf,
+                next_input_file="data/imports/fundamentals.csv",
+                validation_sequence=(
+                    "make imports-validate -> make imports-preview -> make imports-apply -> make status-check TOP_N=5"
+                    if _has_staged_fundamentals_follow_through(coverage)
+                    else "make focus-fundamentals -> make sec-stage or data/imports/fundamentals.csv -> make imports-validate -> make imports-preview -> make imports-apply"
+                ),
                 recommended_action=recommended_action,
                 target_file=coverage.target_file if _has_staged_fundamentals_follow_through(coverage) else "data/imports/fundamentals.csv",
                 focus_command=coverage.focus_command if _has_staged_fundamentals_follow_through(coverage) else focus_command_for_ticker("fundamentals", coverage.ticker),
@@ -1763,7 +1827,8 @@ def build_sec_stage_queue(
                 ),
             )
         )
-    return sorted(rows, key=lambda item: (item.priority, -item.price_history_days, item.ticker))
+    scope_rank = {"active_universe": 0, "holdings_first": 1, "price_ready_company": 2, "after_price": 3}
+    return sorted(rows, key=lambda item: (item.priority, scope_rank.get(item.workflow_scope, 99), -item.price_history_days, item.ticker))
 
 
 def build_peer_mapping_queue(
@@ -1806,11 +1871,20 @@ def build_peer_mapping_queue(
             next_action_summary = "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data."
             next_input_file = "data/imports/peers.csv"
             validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+            trusted_source_requirement = (
+                "Each row needs ticker, peer_ticker, peer_group, source, and as_of_date from a trusted research source; "
+                "do not use sector/theme fallback as trusted manual peer data."
+            )
+            fallback_context_note = "Sector/theme fallback can guide research only; it is not peer valuation input."
         else:
             workflow_group = "peer_valuation_unlock" if coverage.dcf_ready else "peer_metric_follow_through"
             next_action_summary = "Complete trusted peer fundamentals or peer price history before treating peer-relative context as ready."
             next_input_file = "data/imports/fundamentals.csv, data/imports/prices.csv"
             validation_sequence = "make focus-peers TICKER=<ticker> -> add verified peer metrics -> make imports-validate -> make imports-preview -> make imports-apply"
+            trusted_source_requirement = (
+                "Existing mappings still need verified peer fundamentals and price context before peer valuation is ready."
+            )
+            fallback_context_note = "Existing fallback context remains secondary to source-backed peer mappings and metrics."
         recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
         target_file = "data/imports/peers.csv"
         focus_command = focus_command_for_ticker("peers", coverage.ticker)
@@ -1851,6 +1925,9 @@ def build_peer_mapping_queue(
                 workflow_group=workflow_group,
                 workflow_scope=workflow_scope,
                 next_action_summary=next_action_summary,
+                peer_mapping_min_rows=DEFAULT_MIN_READY_PEERS,
+                trusted_source_requirement=trusted_source_requirement,
+                fallback_context_note=fallback_context_note,
                 next_input_file=next_input_file,
                 validation_sequence=validation_sequence,
                 recommended_action=recommended_action,

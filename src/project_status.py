@@ -38,6 +38,27 @@ def _load_purpose_evaluation_summary(output_path: Path, top_n: int) -> list[dict
     return frame.head(top_n).fillna("").to_dict("records")
 
 
+def _read_csv_records(path: Path, *, top_n: int | None = None) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    try:
+        frame = pd.read_csv(path, nrows=top_n)
+    except Exception:
+        return []
+    if frame.empty:
+        return []
+    return frame.fillna("").to_dict("records")
+
+
+def _read_csv_frame(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        return pd.DataFrame()
+
+
 def _count_true(rows: list[dict[str, Any]], field: str) -> int:
     return sum(1 for row in rows if bool(row.get(field)))
 
@@ -88,6 +109,107 @@ def _count_readiness_true(data_path: Path, field: str) -> int | None:
     if pd.api.types.is_bool_dtype(values):
         return int(values.fillna(False).sum())
     return int(values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"}).sum())
+
+
+def _truthy_series(values: pd.Series) -> pd.Series:
+    if pd.api.types.is_bool_dtype(values):
+        return values.fillna(False).astype(bool)
+    return values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"})
+
+
+def _fast_status_payload_from_outputs(
+    project_root: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+    top_n: int = 10,
+    tickers: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Build a read-only operator snapshot from generated artifacts.
+
+    The full project-status payload intentionally recomputes onboarding/source
+    state. `make status-check` should stay fast on large local CSVs, so this
+    path reuses existing generated reports and only falls back to recomputation
+    when the minimal artifacts are missing.
+    """
+    root = resolve_project_root(project_root)
+    data_path = resolve_data_dir(data_dir, root)
+    output_path = resolve_outputs_dir(output_dir, root)
+    readiness_path = data_path / "reports" / "ticker_readiness_report.csv"
+    source_path = output_path / "data_source_status.csv"
+    gaps_path = output_path / "data_gap_report.csv"
+    actions_path = output_path / "data_onboarding_actions.csv"
+
+    if not readiness_path.exists() or not source_path.exists() or not gaps_path.exists() or not actions_path.exists():
+        return None
+
+    readiness = _read_csv_frame(readiness_path)
+    sources = _read_csv_records(source_path)
+    gaps = _read_csv_records(gaps_path)
+    actions = _read_csv_records(actions_path)
+    bundles = _read_csv_records(output_path / "command_bundles.csv")
+    if readiness.empty or not sources or not actions:
+        return None
+
+    allowed: set[str] | None = None
+    if tickers:
+        allowed = {str(ticker).upper().strip() for ticker in tickers if str(ticker).strip()}
+        if "ticker" in readiness.columns:
+            readiness = readiness.loc[readiness["ticker"].astype(str).str.upper().str.strip().isin(allowed)].copy()
+        gaps = [
+            row for row in gaps
+            if str(row.get("ticker", "")).upper().strip() in allowed
+        ]
+        actions = [
+            row for row in actions
+            if str(row.get("ticker", "")).upper().strip() in allowed
+        ]
+
+    sorted_actions = sorted(actions, key=_action_rank)
+    problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
+    purpose_evaluation_rows = [] if allowed else _load_purpose_evaluation_summary(output_path, top_n)
+
+    def readiness_count(field: str) -> int:
+        if readiness.empty or field not in readiness.columns:
+            return 0
+        return int(_truthy_series(readiness[field]).sum())
+
+    summary = {
+        "data_sources_total": len(sources),
+        "data_sources_available": sum(1 for row in sources if row.get("availability_status") == "available"),
+        "data_sources_needing_attention": len(problem_sources),
+        "data_gaps": len(gaps),
+        "tickers_total": len(readiness),
+        "tickers_with_prices": readiness_count("price_ready"),
+        "tickers_usable_for_momentum": readiness_count("momentum_ready"),
+        "tickers_dcf_ready": readiness_count("dcf_ready"),
+        "tickers_peer_ready": readiness_count("peer_ready"),
+        "onboarding_actions": len(sorted_actions),
+        "critical_actions": sum(1 for row in sorted_actions if int(row.get("priority") or 999) <= 1),
+        "purpose_evaluation_groups": len(purpose_evaluation_rows),
+        "purpose_evaluation_active_groups": sum(
+            1 for row in purpose_evaluation_rows if int(row.get("active_universe_count") or 0) > 0
+        ),
+    }
+    command_rows = _read_csv_records(output_path / PROJECT_STATUS_NEXT_STEPS_CSV)
+    if allowed:
+        command_rows = _recommended_next_command_rows(sorted_actions, bundles, [])
+    if not command_rows:
+        command_rows = _recommended_next_command_rows(sorted_actions, bundles, [] if allowed else problem_sources)
+
+    return {
+        "project_root": str(root),
+        "data_dir": str(data_path),
+        "outputs_dir": str(output_path),
+        "summary": summary,
+        "data_sources_needing_attention": problem_sources[:top_n],
+        "top_data_gaps": gaps[:top_n],
+        "top_onboarding_actions": sorted_actions[:top_n],
+        "recommended_next_command_rows": command_rows,
+        "recommended_next_commands": [row["Command"] for row in command_rows if row.get("Command")],
+        "purpose_evaluation_summary": purpose_evaluation_rows,
+        "status_source": "generated_artifacts",
+    }
 
 
 def _enrich_top_actions(onboarding_payload: dict[str, Any], price_status_lookup: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -523,17 +645,38 @@ def main() -> None:
         parser.error("--check cannot be combined with --write-output or --refresh-artifacts")
     if should_write_output and explicit_tickers:
         parser.error("--tickers is only supported for read-only project status views")
-    payload = (
-        write_project_status_output(
+    if should_write_output:
+        payload = write_project_status_output(
             root,
             data_dir=data_path,
             output_dir=output_path,
             top_n=args.top_n,
             refresh_supporting_outputs=args.refresh_artifacts,
         )
-        if should_write_output
-        else build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n, tickers=explicit_tickers)
-    )
+    elif args.check:
+        payload = _fast_status_payload_from_outputs(
+            root,
+            data_dir=data_path,
+            output_dir=output_path,
+            top_n=args.top_n,
+            tickers=explicit_tickers,
+        )
+        if payload is None:
+            payload = build_project_status_payload(
+                root,
+                data_dir=data_path,
+                output_dir=output_path,
+                top_n=args.top_n,
+                tickers=explicit_tickers,
+            )
+    else:
+        payload = build_project_status_payload(
+            root,
+            data_dir=data_path,
+            output_dir=output_path,
+            top_n=args.top_n,
+            tickers=explicit_tickers,
+        )
 
     if args.json:
         print(json.dumps(payload, indent=2))

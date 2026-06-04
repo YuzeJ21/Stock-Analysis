@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 import pytest
 
+import src.project_status as project_status
 from src.project_status import build_project_status_payload, main, write_project_status_output
 
 
@@ -29,6 +30,69 @@ def _write_minimal_local_data(root: Path) -> None:
         index=False,
     )
     pd.DataFrame([{"ticker": "NVDA", "theme": "AI"}]).to_csv(data_dir / "fundamentals.csv", index=False)
+
+
+def _write_fast_status_artifacts(root: Path) -> None:
+    data_dir = root / "data"
+    reports_dir = data_dir / "reports"
+    outputs_dir = root / "outputs"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    (root / "config.yaml").write_text(Path("config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "AMD", "price_ready": False, "momentum_ready": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    ).to_csv(reports_dir / "ticker_readiness_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {"dataset": "prices", "availability_status": "available", "focus_command": "make status"},
+            {"dataset": "fundamentals", "availability_status": "partial", "focus_command": "make imports-validate"},
+        ]
+    ).to_csv(outputs_dir / "data_source_status.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "dataset": "fundamentals",
+                "ticker": "AMD",
+                "status": "partial",
+                "recommended_action": "Run make focus-fundamentals TICKER=AMD.",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_gap_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "dataset": "fundamentals",
+                "status": "missing",
+                "reason": "Missing trusted fundamentals.",
+                "recommended_action": "Run make focus-fundamentals TICKER=AMD.",
+                "focus_command": "make focus-fundamentals TICKER=AMD",
+                "example_command": "make sec-stage TICKERS=AMD",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_onboarding_actions.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "broader_queue",
+                "ticker_count": 1,
+                "tickers": "AMD",
+                "runbook_shortcut_command": "make runbook-fundamentals-broader",
+                "goal_summary": "Advance trusted fundamentals.",
+            }
+        ]
+    ).to_csv(outputs_dir / "command_bundles.csv", index=False)
+    pd.DataFrame(
+        [
+            {"Step": "Fix top fundamentals blocker", "Command": "make focus-fundamentals TICKER=AMD", "Reason": "Missing trusted fundamentals."}
+        ]
+    ).to_csv(outputs_dir / "project_status_next_steps.csv", index=False)
 
 
 def test_project_status_payload_is_read_only_and_summarizes_local_gaps(tmp_path: Path):
@@ -479,6 +543,45 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
 
     assert "project status summary" in output
     assert "wrote:" not in output
+
+
+def test_project_status_cli_check_uses_fast_generated_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+
+    def fail_full_payload(*_args: object, **_kwargs: object) -> dict[str, object]:
+        raise AssertionError("status-check should use generated artifacts before full recomputation")
+
+    monkeypatch.setattr(project_status, "build_project_status_payload", fail_full_payload)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--top-n", "2"]
+    try:
+        main()
+        output = capsys.readouterr().out
+    finally:
+        sys.argv = argv_before
+
+    assert "Project status summary:" in output
+    assert "Tickers with prices: 1/2" in output
+    assert "DCF-ready tickers: 1/2" in output
+    assert "make focus-fundamentals TICKER=AMD" in output
+    assert "Wrote:" not in output
+
+
+def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5, tickers=["nvda"])
+
+    assert payload is not None
+    assert payload["summary"]["tickers_total"] == 1
+    assert payload["summary"]["tickers_with_prices"] == 1
+    assert payload["summary"]["onboarding_actions"] == 0
+    assert payload["top_onboarding_actions"] == []
 
 
 def test_project_status_human_write_output_reports_written_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]):

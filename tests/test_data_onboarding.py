@@ -844,6 +844,23 @@ def test_sec_stage_queue_prioritizes_holdings_and_price_ready_names(tmp_path: Pa
     assert "make focus-fundamentals TICKER=AMD" in queue["AMD"]["recommended_action"]
 
 
+def test_sec_stage_queue_surfaces_price_ready_fundamentals_blocker_fields(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    queue = {row["ticker"]: row for row in payload["sec_stage_queue"]}
+    amd = queue["AMD"]
+
+    assert amd["workflow_scope"] in {"price_ready_company", "holdings_first", "active_universe", "after_price"}
+    assert amd["price_ready_fundamentals_blocked"] is True
+    assert amd["dcf_blocker_type"] == "missing_fundamentals_row"
+    assert amd["missing_dcf_field_count"] >= 1
+    assert amd["next_input_file"] == "data/imports/fundamentals.csv"
+    assert "make imports-validate" in amd["validation_sequence"]
+    assert "make imports-preview" in amd["validation_sequence"]
+    assert "make imports-apply" in amd["validation_sequence"]
+
+
 def test_fundamentals_peer_worklist_uses_richer_operator_wording(tmp_path: Path):
     _write_fixture(tmp_path)
 
