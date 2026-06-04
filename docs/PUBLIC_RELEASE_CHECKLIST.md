@@ -6,6 +6,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 
 - Keep the top of `README.md` focused on what the project does, why it matters, and how to run it.
 - Put the best demo commands near the top: `make pipeline`, `make project-status`, `make stock-report TICKER=NVDA`, and `make dashboard`.
+- Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper runbook so LinkedIn visitors see a short landing page first and operators still have exact commands.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Avoid committing huge timestamp-only generated CSV churn.
@@ -58,8 +59,10 @@ Internal agent/reference notes are not part of the public product surface. Keep 
 make pipeline
 make readiness
 make project-status
+make stock-report TICKER=APLD
 make stock-report TICKER=NVDA
 make stock-report TICKER=QQQ
+make stock-report TICKER=SMH
 make test
 make dashboard-smoke
 git diff --check

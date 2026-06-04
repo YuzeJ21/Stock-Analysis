@@ -10,6 +10,7 @@ The current diff includes:
 
 - A much shorter public `README.md`.
 - A new dashboard preview image at `docs/assets/dashboard-preview.svg`.
+- A visitor-friendly `docs/OPERATOR_GUIDE.md` for deeper local workflow commands without re-expanding the README.
 - Public naming cleanup from "Stock Research Screener" / "Stock Report Beta" to "Stock Research Command Center" / "Single-Stock Report".
 - Removal of tracked internal agent/build instruction files.
 - `.gitignore` updates to keep internal agent/build notes out of future public commits.
@@ -34,7 +35,7 @@ The current diff includes:
 ## Risky Or Human-Review Areas
 
 - The removed `.agents` notes included product reasoning and open-source inspiration notes. The product-facing parts were summarized publicly, but a human should confirm they do not want those notes published as development history.
-- The README is intentionally shorter. If a visitor needs deeper operator guidance, the project may benefit from a separate `docs/OPERATOR_GUIDE.md` later instead of re-expanding the README.
+- The README is intentionally shorter. Deeper operator guidance now lives in `docs/OPERATOR_GUIDE.md`; keep future runbook detail there instead of re-expanding the README.
 - The repo still tracks sample/local data files. Before sharing publicly, manually review `data/holdings.csv`, `data/fundamentals.csv`, `data/prices.csv`, and example stock reports for personal or sensitive information.
 - Add a `LICENSE` file before public sharing if reuse terms matter.
 - Existing source/test diffs outside the README/public cleanup are still present on this branch and should be reviewed as product changes, not treated as generated churn.
@@ -49,6 +50,7 @@ The current README now answers:
 - How to run a demo: `make pipeline`, `make readiness`, `make stock-report TICKER=NVDA`, `make dashboard`.
 - What the dashboard looks like: `docs/assets/dashboard-preview.svg`.
 - What the CLI can do: visitor-friendly commands for status, pipeline, reports, dashboard, and targeted unlock queues.
+- Where deeper commands live: `docs/OPERATOR_GUIDE.md`.
 - What it does not do: no broker integration, order routing, auto-trading, option recommendations, direct buy/sell instructions, or fabricated data.
 - What data is ready versus missing: current local readiness snapshot is shown as a local-output baseline.
 - Product maturity: working local prototype, not a full-market data provider.
@@ -65,6 +67,7 @@ Checked public Markdown references in:
 Result:
 
 - `README.md` references `docs/assets/dashboard-preview.svg`, and the target exists.
+- `README.md` references `docs/OPERATOR_GUIDE.md`, and the target exists.
 - Remaining `.agents` / `AGENTS.md` references are intentional exclusion rules in `docs/PUBLIC_RELEASE_CHECKLIST.md` and `tests/test_guardrails.py`.
 - No old GitHub owner links, old "Stock Research Screener" title, old "Stock Report Beta" label, or `stock_report_beta` references were found in public docs/source scans.
 
@@ -121,4 +124,4 @@ Before final commit/share, human review is still recommended for:
 - Whether the internal agent/reference files should remain excluded from the public branch.
 - Whether tracked local data and example reports contain anything personal or too specific.
 - Whether a `LICENSE` file should be added.
-- Whether to create a separate `docs/OPERATOR_GUIDE.md` for deeper CLI runbooks instead of expanding the README again.
+- Whether the current `docs/OPERATOR_GUIDE.md` is enough for the first public share, or should get screenshots after the next dashboard polish pass.

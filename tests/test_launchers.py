@@ -262,6 +262,26 @@ def test_operator_guide_is_command_focused_and_research_only():
         assert forbidden not in guide.lower()
 
 
+def test_public_release_docs_point_to_operator_guide_without_stale_future_copy():
+    checklist = Path("docs/PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
+    audit = Path("docs/public_cleanup_audit.md").read_text(encoding="utf-8")
+
+    assert "docs/OPERATOR_GUIDE.md" in checklist
+    assert "deeper runbook" in checklist
+    for demo_command in (
+        "make stock-report TICKER=APLD",
+        "make stock-report TICKER=NVDA",
+        "make stock-report TICKER=QQQ",
+        "make stock-report TICKER=SMH",
+    ):
+        assert demo_command in checklist
+
+    assert "docs/OPERATOR_GUIDE.md" in audit
+    assert "the target exists" in audit
+    assert "may benefit from a separate `docs/OPERATOR_GUIDE.md` later" not in audit
+    assert "Whether to create a separate `docs/OPERATOR_GUIDE.md`" not in audit
+
+
 def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
