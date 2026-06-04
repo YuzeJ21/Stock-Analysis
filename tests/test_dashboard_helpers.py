@@ -6507,6 +6507,40 @@ def test_valuation_workflow_guidance_cards_explain_ready_blocked_and_excluded_st
     assert "sell" not in rendered
 
 
+def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language():
+    ready = pd.DataFrame({"ticker": ["NVDA"]})
+    blocked = pd.DataFrame(
+        {
+            "ticker": ["AMD", "META"],
+            "missing_dcf_fields": ["free_cash_flow, shares_outstanding", "free_cash_flow"],
+        }
+    )
+    excluded = pd.DataFrame({"ticker": ["QQQ"]})
+
+    cards = dashboard.valuation_decision_guide_cards(ready, blocked, excluded)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["READY TO REVIEW", "LOCKED BY DATA", "MONITOR ONLY"]
+    assert "1 ready company rows" in rendered
+    assert "assumptions, scenarios, and sensitivity as research context" in rendered
+    assert "unsupported recommendations and allocation instructions remain withheld" in rendered
+    assert "2 blocked company rows" in rendered
+    assert "company valuation is locked until missing inputs are filled" in rendered
+    assert "free_cash_flow" in rendered
+    assert "no undervalued or overvalued conclusion is shown" in rendered
+    assert "1 etf / fund monitor rows" in rendered
+    assert "support market, theme, liquidity, or risk monitoring" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "make dcf-readiness" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make stock-report ticker=qqq" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_valuation_function_quality_cards_explain_good_enough_scope_without_overclaiming():
     ready = pd.DataFrame({"ticker": ["NVDA"]})
     blocked = pd.DataFrame({"ticker": ["AMD", "META"]})

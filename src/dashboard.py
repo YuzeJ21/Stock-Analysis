@@ -9098,6 +9098,39 @@ def valuation_readiness_operator_frame(
     )
 
 
+def valuation_decision_guide_cards(
+    ready_companies: pd.DataFrame,
+    blocked_companies: pd.DataFrame,
+    excluded_rows: pd.DataFrame,
+) -> list[dict[str, object]]:
+    operator_frame = valuation_readiness_operator_frame(ready_companies, blocked_companies, excluded_rows)
+    kicker_by_state = {
+        "Ready company rows": "READY TO REVIEW",
+        "Blocked company rows": "LOCKED BY DATA",
+        "ETF / fund monitor rows": "MONITOR ONLY",
+    }
+    badge_by_state = {
+        "Ready company rows": ["assumptions", "sensitivity"],
+        "Blocked company rows": ["missing inputs", "no valuation call"],
+        "ETF / fund monitor rows": ["DCF excluded", "context only"],
+    }
+    cards: list[dict[str, object]] = []
+    for _, row in operator_frame.iterrows():
+        state = format_missing(row.get("Valuation State"), "Valuation state")
+        meaning = format_missing(row.get("What It Means"), "Not available")
+        withheld = format_missing(row.get("What Stays Withheld"), "Not available")
+        cards.append(
+            {
+                "kicker": kicker_by_state.get(state, "VALUATION STATE"),
+                "title": f"{format_missing(row.get('Count'), 0)} {state.lower()}",
+                "body": f"{meaning} Withheld: {withheld}",
+                "badges": badge_by_state.get(state, ["research-only"]),
+                "command": format_missing(row.get("Next Command"), "make dcf-readiness"),
+            }
+        )
+    return cards
+
+
 def valuation_function_quality_cards(
     ready_companies: pd.DataFrame,
     blocked_companies: pd.DataFrame,
@@ -13183,11 +13216,13 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
     render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
     render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
-    st.dataframe(
-        clean_display_frame(valuation_readiness_operator_frame(ready_companies, not_ready_companies, excluded)),
-        width="stretch",
-        hide_index=True,
-    )
+    render_signal_cards(valuation_decision_guide_cards(ready_companies, not_ready_companies, excluded))
+    with st.expander("Detailed valuation decision guide", expanded=False):
+        st.dataframe(
+            clean_display_frame(valuation_readiness_operator_frame(ready_companies, not_ready_companies, excluded)),
+            width="stretch",
+            hide_index=True,
+        )
     render_signal_cards(
         [
             {
