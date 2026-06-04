@@ -9463,6 +9463,16 @@ def valuation_function_quality_cards(
             "badges": ["DCF excluded", "not failed"],
             "command": "make stock-report TICKER=QQQ",
         },
+        {
+            "kicker": "PEER VALUATION",
+            "title": "Separate from standalone DCF",
+            "body": (
+                "A DCF-ready company can still have peer-relative valuation withheld. Peer valuation appears only after "
+                "source-backed peer mappings and peer valuation inputs are ready."
+            ),
+            "badges": ["peer-gated", "no guessed peers"],
+            "command": "make peer-mapping-queue TOP_N=10",
+        },
     ]
 
 
@@ -9505,7 +9515,7 @@ def valuation_function_quality_frame(
                 "Valuation Area": "Dependencies",
                 "Current Coverage": "Support layer only.",
                 "Good Enough For": "Data handling, UI display, tests, and optional research-grade data access.",
-                "Not Good Enough For": "Hidden stock-picking logic or copied valuation skills.",
+                "Not Good Enough For": "Hidden investing logic or external valuation engines.",
                 "Logic Source": "Standard libraries and optional adapters support the workflow; valuation rules live in this repository.",
             },
         ]

@@ -6616,7 +6616,7 @@ def test_valuation_function_quality_cards_explain_good_enough_scope_without_over
     cards = dashboard.valuation_function_quality_cards(ready, blocked, excluded)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["VALUATION QUALITY", "BLOCKED IS NOT NEGATIVE", "MONITOR CONTEXT"]
+    assert [card["kicker"] for card in cards] == ["VALUATION QUALITY", "BLOCKED IS NOT NEGATIVE", "MONITOR CONTEXT", "PEER VALUATION"]
     assert "dcf is useful only for ready companies" in rendered
     assert "1 company row(s) have enough trusted local dcf inputs" in rendered
     assert "research context, not a recommendation" in rendered
@@ -6624,6 +6624,10 @@ def test_valuation_function_quality_cards_explain_good_enough_scope_without_over
     assert "missing-data state" in rendered
     assert "not an undervalued, overvalued, or weak-company conclusion" in rendered
     assert "operating-company dcf is intentionally excluded" in rendered
+    assert "separate from standalone dcf" in rendered
+    assert "dcf-ready company can still have peer-relative valuation withheld" in rendered
+    assert "source-backed peer mappings and peer valuation inputs are ready" in rendered
+    assert "make peer-mapping-queue top_n=10" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make stock-report ticker=qqq" in rendered
     assert "broker" not in rendered
@@ -6663,7 +6667,7 @@ def test_valuation_function_quality_frame_explains_scope_counts_and_provenance()
     assert "dependencies" in rendered
     assert "support layer only" in rendered
     assert "valuation rules live in this repository" in rendered
-    assert "copied valuation skills" in rendered
+    assert "hidden investing logic or external valuation engines" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered
