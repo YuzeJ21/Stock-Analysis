@@ -5926,6 +5926,90 @@ def peer_mapping_studio_summary_cards(
     ]
 
 
+def peer_function_quality_frame(
+    peer_readiness_frame: pd.DataFrame | None,
+    peer_unlock_worklist_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    if peer_readiness_frame is None or peer_readiness_frame.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Peer Area": "Peer workflow",
+                    "Current Coverage": "Peer readiness not generated",
+                    "Good Enough For": "Nothing yet; run readiness before interpreting peer context.",
+                    "Not Good Enough For": "Peer trend or valuation comparison.",
+                    "Logic Source": "Repo-native peer readiness checks after make readiness.",
+                    "Next Step": "make readiness",
+                }
+            ]
+        )
+
+    frame = peer_readiness_frame.copy()
+    peer_ready = bool_series(frame, "peer_ready")
+    trend_ready = bool_series(frame, "peer_trend_comparison_ready")
+    valuation_ready = bool_series(frame, "peer_valuation_comparison_ready")
+    dcf_comparison_ready = bool_series(frame, "peer_dcf_comparison_ready")
+    blocker = frame.get("peer_blocker_type", pd.Series("", index=frame.index)).fillna("").astype(str)
+    missing_mapping = int(blocker.eq("missing_peer_mapping").sum())
+    peer_price_missing = int(blocker.eq("peer_price_missing").sum())
+    peer_fundamentals_missing = int(blocker.eq("peer_fundamentals_missing").sum())
+    valuation_blocked = int((~valuation_ready & ~peer_ready).sum())
+    queued = 0 if peer_unlock_worklist_frame is None else int(len(peer_unlock_worklist_frame))
+
+    return pd.DataFrame(
+        [
+            {
+                "Peer Area": "Source-backed mappings",
+                "Current Coverage": f"{missing_mapping} ticker(s) missing mappings; {queued} unlock row(s) queued",
+                "Good Enough For": "Prioritizing which manual peer rows to add to data/imports/peers.csv.",
+                "Not Good Enough For": "Trusted peer comparison until relationships are source-backed or clearly marked as fallback context.",
+                "Logic Source": "Repo-native peer readiness and peer unlock worklist generation; no hidden peer-selection engine.",
+                "Next Step": "make peer-mapping-queue TOP_N=25",
+            },
+            {
+                "Peer Area": "Peer trend comparison",
+                "Current Coverage": f"{int(trend_ready.sum())} ticker(s) trend-ready",
+                "Good Enough For": "Relative price or momentum context when mapped peers have enough local price rows.",
+                "Not Good Enough For": "Peer-relative valuation or quality conclusions.",
+                "Logic Source": "Repo-native price/momentum readiness checks for mapped peers.",
+                "Next Step": "make readiness",
+            },
+            {
+                "Peer Area": "Peer valuation comparison",
+                "Current Coverage": f"{int(valuation_ready.sum())} ticker(s) valuation-ready; {valuation_blocked} still blocked",
+                "Good Enough For": "Peer-relative valuation only after peer mappings and peer valuation inputs are ready.",
+                "Not Good Enough For": "Valuation conclusions when peer fundamentals, peer metrics, or mapped peer inputs are missing.",
+                "Logic Source": "Repo-native peer valuation readiness gates; missing peer inputs are withheld, not inferred.",
+                "Next Step": "make imports-validate",
+            },
+            {
+                "Peer Area": "Peer DCF comparison",
+                "Current Coverage": f"{int(dcf_comparison_ready.sum())} ticker(s) DCF-peer-ready",
+                "Good Enough For": "DCF peer context when both subject and mapped peer valuation inputs pass readiness.",
+                "Not Good Enough For": "Using DCF-ready subject companies as if peer-relative valuation is ready.",
+                "Logic Source": "Repo-native DCF and peer readiness intersection checks.",
+                "Next Step": "make dcf-readiness",
+            },
+            {
+                "Peer Area": "Peer data follow-through",
+                "Current Coverage": f"{peer_price_missing} price-gap ticker(s); {peer_fundamentals_missing} fundamentals-gap ticker(s)",
+                "Good Enough For": "Finding whether peer blockers are price rows, fundamentals rows, or peer metrics.",
+                "Not Good Enough For": "Treating sector or industry fallback as trusted manual peer valuation.",
+                "Logic Source": "Repo-native blocker classification with explicit fallback labeling.",
+                "Next Step": "make price-worklist TOP_N=25",
+            },
+            {
+                "Peer Area": "Dependencies",
+                "Current Coverage": "Support layer only.",
+                "Good Enough For": "Data handling, table display, tests, and optional development review.",
+                "Not Good Enough For": "Copied peer-selection skills or hidden stock-picking logic.",
+                "Logic Source": "Standard libraries and optional Codex plugins support development; peer logic runs from this repository.",
+                "Next Step": "make project-status",
+            },
+        ]
+    )
+
+
 def peer_unlock_operator_cards(
     peer_unlock_worklist_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
@@ -15170,6 +15254,16 @@ def render_market_command_center(
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
     render_signal_cards(peer_mapping_studio_summary_cards(peer_readiness_frame, ticker_readiness_frame))
     render_signal_cards(peer_unlock_operator_cards(peer_unlock_worklist_frame, ticker_readiness_frame))
+    with st.expander("What peer analysis is good enough for", expanded=False):
+        st.write(
+            "This audit separates source-backed mappings, peer trend comparison, peer valuation comparison, "
+            "peer DCF comparison, follow-through data gaps, and support dependencies."
+        )
+        st.dataframe(
+            clean_display_frame(peer_function_quality_frame(peer_readiness_frame, peer_unlock_worklist_frame)),
+            width="stretch",
+            hide_index=True,
+        )
     peer_cols = st.columns([1.7, 1.5, 1, 1, 1])
     peer_filter = peer_cols[0].selectbox(
         "Peer workflow filter",

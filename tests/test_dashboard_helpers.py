@@ -11168,6 +11168,81 @@ def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
     assert "sell" not in rendered_cards
 
 
+def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+            },
+            {
+                "ticker": "META",
+                "peer_ready": False,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+            },
+            {
+                "ticker": "NVDA",
+                "peer_ready": True,
+                "peer_blocker_type": "",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": True,
+                "peer_dcf_comparison_ready": True,
+            },
+            {
+                "ticker": "COHR",
+                "peer_ready": False,
+                "peer_blocker_type": "peer_price_missing",
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+            },
+        ]
+    )
+    worklist = pd.DataFrame([{"ticker": "A"}, {"ticker": "META"}])
+
+    frame = dashboard.peer_function_quality_frame(peer_readiness, worklist)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Peer Area",
+        "Current Coverage",
+        "Good Enough For",
+        "Not Good Enough For",
+        "Logic Source",
+        "Next Step",
+    ]
+    assert "source-backed mappings" in rendered
+    assert "1 ticker(s) missing mappings; 2 unlock row(s) queued" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "no hidden peer-selection engine" in rendered
+    assert "peer trend comparison" in rendered
+    assert "2 ticker(s) trend-ready" in rendered
+    assert "peer-relative valuation or quality conclusions" in rendered
+    assert "peer valuation comparison" in rendered
+    assert "1 ticker(s) valuation-ready; 3 still blocked" in rendered
+    assert "withheld, not inferred" in rendered
+    assert "peer dcf comparison" in rendered
+    assert "1 ticker(s) dcf-peer-ready" in rendered
+    assert "peer data follow-through" in rendered
+    assert "1 price-gap ticker(s); 1 fundamentals-gap ticker(s)" in rendered
+    assert "sector or industry fallback" in rendered
+    assert "dependencies" in rendered
+    assert "copied peer-selection skills" in rendered
+    assert "peer logic runs from this repository" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_peer_readiness_product_cards_prioritize_peer_unlock_worklist_active_scope():
     peer_readiness = pd.DataFrame(
         [
