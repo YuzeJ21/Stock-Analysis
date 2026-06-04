@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -582,6 +583,24 @@ def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
     assert payload["summary"]["tickers_with_prices"] == 1
     assert payload["summary"]["onboarding_actions"] == 0
     assert payload["top_onboarding_actions"] == []
+
+
+def test_project_status_fast_check_warns_when_source_csv_is_newer(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    readiness_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
+    source_path = tmp_path / "data" / "peers.csv"
+    source_path.write_text("ticker,peer_ticker,source\nNVDA,AMD,fixture\n", encoding="utf-8")
+    old_time = 1_700_000_000
+    new_time = old_time + 60
+    os.utime(readiness_path, (old_time, old_time))
+    os.utime(source_path, (new_time, new_time))
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    assert payload["warnings"]
+    assert "make readiness" in payload["warnings"][0]
+    assert "data/peers.csv" in payload["warnings"][0]
 
 
 def test_project_status_human_write_output_reports_written_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]):

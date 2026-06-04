@@ -117,6 +117,44 @@ def _truthy_series(values: pd.Series) -> pd.Series:
     return values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"})
 
 
+def _stale_generated_artifact_warnings(data_path: Path, output_path: Path) -> list[str]:
+    generated_paths = [
+        data_path / "reports" / "ticker_readiness_report.csv",
+        output_path / "data_onboarding_actions.csv",
+        output_path / PROJECT_STATUS_NEXT_STEPS_CSV,
+    ]
+    existing_generated = [path for path in generated_paths if path.exists()]
+    if not existing_generated:
+        return []
+    oldest_generated_mtime = min(path.stat().st_mtime for path in existing_generated)
+    source_paths = [
+        data_path / "prices.csv",
+        data_path / "fundamentals.csv",
+        data_path / "peers.csv",
+        data_path / "earnings.csv",
+        data_path / "analyst_estimates.csv",
+        data_path / "universe_master.csv",
+        data_path / "universe_active.csv",
+        data_path / "holdings.csv",
+    ]
+    newer_sources = [
+        path.relative_to(data_path.parent).as_posix()
+        for path in source_paths
+        if path.exists() and path.stat().st_mtime > oldest_generated_mtime
+    ]
+    if not newer_sources:
+        return []
+    sample = ", ".join(newer_sources[:4])
+    if len(newer_sources) > 4:
+        sample = f"{sample}, +{len(newer_sources) - 4} more"
+    return [
+        (
+            "Generated status artifacts may be stale because source CSVs changed after the last generated report "
+            f"({sample}). Run make readiness or make status to refresh before relying on exact counts."
+        )
+    ]
+
+
 def _fast_status_payload_from_outputs(
     project_root: Path | str | None = None,
     *,
@@ -208,6 +246,7 @@ def _fast_status_payload_from_outputs(
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows if row.get("Command")],
         "purpose_evaluation_summary": purpose_evaluation_rows,
+        "warnings": _stale_generated_artifact_warnings(data_path, output_path),
         "status_source": "generated_artifacts",
     }
 
@@ -595,6 +634,8 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
     print(f"- Onboarding actions: {summary['onboarding_actions']} ({summary['critical_actions']} critical)")
     print(f"- Purpose evaluation groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
+    for warning in payload.get("warnings", []):
+        print(f"Warning: {warning}")
     print("Top onboarding actions:")
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
