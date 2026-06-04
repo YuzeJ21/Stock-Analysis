@@ -1790,6 +1790,38 @@ def apply_dashboard_theme() -> None:
           background: linear-gradient(180deg, #f2fbf7, rgba(255,255,255,0.92));
           border-color: #b9e5cf;
         }
+        .sidebar-guide-stack {
+          display: grid;
+          gap: 0.55rem;
+          margin: 0.35rem 0 0.8rem 0;
+        }
+        .sidebar-guide-card {
+          border-radius: 14px;
+          border: 1px solid #dce5dc;
+          background: rgba(255, 254, 250, 0.9);
+          padding: 0.68rem 0.72rem;
+          box-shadow: 0 8px 20px rgba(17, 24, 39, 0.045);
+        }
+        .sidebar-guide-label {
+          display: inline-flex;
+          align-items: center;
+          max-width: 100%;
+          border-radius: 999px;
+          background: #eef9f5;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          color: #0b3b36 !important;
+          font-size: 0.74rem;
+          font-weight: 900;
+          line-height: 1.1;
+          padding: 0.24rem 0.5rem;
+          overflow-wrap: anywhere;
+        }
+        .sidebar-guide-body {
+          color: #475569 !important;
+          font-size: 0.82rem;
+          line-height: 1.36;
+          margin-top: 0.42rem;
+        }
         .cockpit-panel {
           display: grid;
           grid-template-columns: minmax(260px, 1.1fr) minmax(260px, 1.6fr);
@@ -9317,11 +9349,20 @@ def workflow_command_rows() -> list[dict[str, str]]:
     ]
 
 
-def sidebar_helper_list(items: list[tuple[str, str]]) -> str:
-    return "<br>".join(
-        f"<strong>{html.escape(title)}:</strong> {html.escape(body)}"
-        for title, body in items
-    )
+def sidebar_guide_cards_html(rows: list[dict[str, str]], label_key: str, body_key: str) -> str:
+    cards = []
+    for row in rows:
+        label = str(row.get(label_key, "")).strip()
+        body = str(row.get(body_key, "")).strip()
+        if not label and not body:
+            continue
+        cards.append(
+            "<div class='sidebar-guide-card'>"
+            f"<div class='sidebar-guide-label'>{html.escape(label or 'Guide')}</div>"
+            f"<div class='sidebar-guide-body'>{html.escape(body or 'Open the matching page for next steps.')}</div>"
+            "</div>"
+        )
+    return "<div class='sidebar-guide-stack'>" + "".join(cards) + "</div>"
 
 
 def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
@@ -15681,27 +15722,12 @@ def main() -> None:
             )
         with st.expander("How to read status labels", expanded=False):
             st.markdown(
-                sidebar_helper_list(
-                    [
-                        ("Research Ready", "Enough trusted data exists for this view."),
-                        ("Partial Coverage", "Some useful data exists, but a deeper view is still incomplete."),
-                        ("Needs Price Data", "Daily price history is missing or too short."),
-                        ("Needs Enrichment", "Fundamentals, peers, earnings, or estimates are missing."),
-                        ("Insufficient Data", "The app avoided a weak or guessed result."),
-                    ]
-                ),
+                sidebar_guide_cards_html(status_legend_rows(), "Label", "Meaning"),
                 unsafe_allow_html=True,
             )
         with st.expander("Missing-data guide", expanded=False):
             st.markdown(
-                sidebar_helper_list(
-                    [
-                        ("Prices missing", "Refresh price data before trusting momentum or liquidity views."),
-                        ("Fundamentals missing", "Add verified company fundamentals before relying on DCF."),
-                        ("Peers missing", "Add source-backed peer mappings before peer comparison."),
-                        ("Earnings or estimates missing", "Leave them locked unless you have a trusted source."),
-                    ]
-                ),
+                sidebar_guide_cards_html(missing_data_guide_rows(), "Dashboard Label", "What to do"),
                 unsafe_allow_html=True,
             )
         with st.expander("Technical paths", expanded=False):

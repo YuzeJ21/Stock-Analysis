@@ -11613,6 +11613,37 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "staged peer fundamentals or peer price follow-through" in rendered
 
 
+def test_sidebar_guide_cards_render_plain_language_without_tables():
+    status_html = dashboard.sidebar_guide_cards_html(dashboard.status_legend_rows(), "Label", "Meaning")
+    missing_html = dashboard.sidebar_guide_cards_html(
+        dashboard.missing_data_guide_rows(),
+        "Dashboard Label",
+        "What to do",
+    )
+    rendered = (status_html + missing_html).lower()
+
+    assert "sidebar-guide-card" in rendered
+    assert "sidebar-guide-label" in rendered
+    assert "sidebar-guide-body" in rendered
+    assert "<table" not in rendered
+    assert "<th" not in rendered
+    assert "research ready" in rendered
+    assert "the app intentionally avoided calculating a result from incomplete inputs" in rendered
+    assert "make imports-validate" in rendered
+    assert "data/imports/peers.csv" in rendered
+
+
+def test_sidebar_guide_cards_escape_untrusted_copy():
+    html = dashboard.sidebar_guide_cards_html(
+        [{"Label": "<Ready>", "Meaning": "Use <trusted> rows."}],
+        "Label",
+        "Meaning",
+    )
+
+    assert "&lt;Ready&gt;" in html
+    assert "&lt;trusted&gt;" in html
+
+
 def test_priority_now_falls_back_to_status_first_ready_path():
     class ReadyCatalog:
         def load_dataframe(self, name: str):
