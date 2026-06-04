@@ -6491,6 +6491,22 @@ def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_n
             "missing_data_warnings": ["Peers missing"],
         }
     )
+    full_frame = dashboard.stock_report_evaluation_summary_frame(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": True},
+            "missing_data_warnings": [],
+        }
+    )
+    price_frame = dashboard.stock_report_evaluation_summary_frame(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "insufficient_data"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["Fundamentals missing"],
+        }
+    )
     unlock_frame = dashboard.stock_report_evaluation_summary_frame(
         {
             "asset_type": "company",
@@ -6501,11 +6517,21 @@ def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_n
     )
     rendered = " ".join(
         " ".join(frame.astype(str).to_numpy().flatten()).lower()
-        for frame in (monitor_frame, dcf_frame, unlock_frame)
+        for frame in (monitor_frame, dcf_frame, full_frame, price_frame, unlock_frame)
     )
 
     assert list(monitor_frame.columns) == ["Question", "Answer"]
+    assert monitor_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Monitor-only context"}
+    assert dcf_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Standalone DCF review"}
+    assert full_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Full company research review"}
+    assert price_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Price/setup review only"}
+    assert unlock_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Data-unlock only"}
     assert "what this report can support" in rendered
+    assert "monitor-only context" in rendered
+    assert "standalone dcf review" in rendered
+    assert "full company research review" in rendered
+    assert "price/setup review only" in rendered
+    assert "data-unlock only" in rendered
     assert "operating-company dcf and peer valuation are excluded, not failed" in rendered
     assert "standalone dcf assumptions" in rendered
     assert "peer-relative valuation remains withheld" in rendered
@@ -6530,7 +6556,9 @@ def test_stock_report_evaluation_summary_cards_surface_trust_boundary_before_tab
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["SUPPORTED", "WITHHELD", "NEXT REVIEW", "CONFIDENCE"]
+    assert [card["kicker"] for card in cards] == ["MODE", "SUPPORTED", "WITHHELD", "NEXT REVIEW", "CONFIDENCE"]
+    assert "evaluation mode" in rendered
+    assert "standalone dcf review" in rendered
     assert "what this report can support" in rendered
     assert "standalone dcf assumptions" in rendered
     assert "what remains withheld" in rendered

@@ -3392,22 +3392,27 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
     is_monitor = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status
 
     if is_monitor:
+        mode = "Monitor-only context"
         supported = "Market, theme, liquidity, risk, and monitor context."
         withheld = "Operating-company DCF and peer valuation are excluded, not failed."
         next_review = "Use the report as market/context monitoring; do not look for company valuation output."
     elif dcf_ready and peer_ready:
+        mode = "Full company research review"
         supported = "Price setup, company fundamentals, standalone DCF, and peer-relative context."
         withheld = "Unsupported recommendations and allocation instructions remain withheld."
         next_review = "Review assumptions, sensitivity, peer inputs, warnings, and source freshness before forming a research view."
     elif dcf_ready:
+        mode = "Standalone DCF review"
         supported = "Price setup, company fundamentals, and standalone DCF assumptions."
         withheld = "Peer-relative valuation remains withheld until source-backed peer inputs are ready."
         next_review = "Review the DCF assumptions first, then add trusted peer mappings if peer context matters."
     elif price_ready:
+        mode = "Price/setup review only"
         supported = "Price/setup review and missing-data diagnosis."
         withheld = "Company valuation remains blocked until trusted fundamentals and DCF inputs are ready."
         next_review = "Use Data Health or the next-step cards to unlock fundamentals before valuation review."
     else:
+        mode = "Data-unlock only"
         supported = "Data-unlock workflow only."
         withheld = "Momentum, liquidity, DCF, peer context, and conclusions stay unavailable until price coverage starts."
         next_review = "Start with verified local price history, then regenerate readiness before interpreting the ticker."
@@ -3420,6 +3425,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
 
     return pd.DataFrame(
         [
+            {"Question": "Evaluation mode", "Answer": mode},
             {"Question": "What this report can support", "Answer": supported},
             {"Question": "What remains withheld", "Answer": withheld},
             {"Question": "Best next review step", "Answer": next_review},
@@ -3441,6 +3447,7 @@ def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> 
             }
         ]
     kicker_by_question = {
+        "Evaluation mode": "MODE",
         "What this report can support": "SUPPORTED",
         "What remains withheld": "WITHHELD",
         "Best next review step": "NEXT REVIEW",
