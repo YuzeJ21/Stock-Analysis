@@ -14427,6 +14427,8 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
         [
             {
                 "Function Area": "Readiness gates",
+                "Quality Verdict": "Strong today",
+                "Best Use Today": "Trust this first when deciding whether a ticker can support deeper review.",
                 "Current Status": "Strong when the local readiness reports are current; this is the first layer every page should respect.",
                 "Supported Today": "Strongest layer; decides whether deeper analysis is allowed.",
                 "Needs Trusted Data": "Ticker universe, prices, fundamentals, peers, earnings, and estimate readiness rows.",
@@ -14434,6 +14436,8 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Price / momentum",
+                "Quality Verdict": "Good when price history is ready",
+                "Best Use Today": "Review trend, setup, liquidity, and market context for tickers with enough local prices.",
                 "Current Status": price_status,
                 "Supported Today": "Local setup, trend, liquidity, and market-context review when price history exists.",
                 "Needs Trusted Data": "Verified local OHLCV rows with enough history.",
@@ -14441,6 +14445,8 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Fundamentals / DCF",
+                "Quality Verdict": "Good for DCF-ready companies only",
+                "Best Use Today": "Review assumptions, scenarios, and sensitivity when trusted fundamentals and price inputs exist.",
                 "Current Status": dcf_status,
                 "Supported Today": "DCF-ready company analysis with visible assumptions and sensitivity.",
                 "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source freshness.",
@@ -14448,6 +14454,8 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Peer comparison",
+                "Quality Verdict": "Workflow-ready, coverage-limited",
+                "Best Use Today": "Use as a peer data-unlock queue until source-backed peer mappings and metrics are ready.",
                 "Current Status": peer_status,
                 "Supported Today": "Workflow-ready peer context after source-backed peer rows and peer metrics exist.",
                 "Needs Trusted Data": "Manual peer mappings plus peer fundamentals or peer market context.",
@@ -14455,6 +14463,8 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Earnings / estimates",
+                "Quality Verdict": "Intentionally locked without trusted rows",
+                "Best Use Today": "Treat as optional context setup; do not interpret empty coverage as analysis.",
                 "Current Status": f"{earnings_status} {estimates_status}",
                 "Supported Today": "Optional context only after trusted local rows exist; empty coverage means intentionally unavailable.",
                 "Needs Trusted Data": "Trusted local earnings and analyst-estimate CSV rows with validation/preview/apply review.",
@@ -14462,6 +14472,8 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Single-stock report",
+                "Quality Verdict": "Strongest visitor-facing workflow",
+                "Best Use Today": "Open one ticker to see ready, blocked, excluded, optional, and source/freshness states step by step.",
                 "Current Status": "Clear for one ticker's ready, blocked, excluded, and monitor-only analysis.",
                 "Supported Today": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
                 "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source/freshness outputs.",
@@ -14469,6 +14481,8 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Dependencies",
+                "Quality Verdict": "Support layer, not analysis logic",
+                "Best Use Today": "Use packages and optional adapters to handle data and UI while repo code keeps the rules.",
                 "Current Status": "Support layer only; analysis rules remain repo-native.",
                 "Supported Today": "Data handling, UI, tests, and optional research-grade provider access.",
                 "Needs Trusted Data": "Local CSV inputs remain the source of truth by default.",

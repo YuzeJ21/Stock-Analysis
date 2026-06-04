@@ -189,24 +189,42 @@ def test_home_function_quality_frame_explains_supported_scope_and_logic_source()
     )
     rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
 
-    assert list(frame.columns) == ["Function Area", "Current Status", "Supported Today", "Needs Trusted Data", "Logic Source"]
+    assert list(frame.columns) == [
+        "Function Area",
+        "Quality Verdict",
+        "Best Use Today",
+        "Current Status",
+        "Supported Today",
+        "Needs Trusted Data",
+        "Logic Source",
+    ]
     assert "readiness gates" in rendered
+    assert "strong today" in rendered
+    assert "trust this first" in rendered
     assert "strongest layer" in rendered
     assert "price / momentum" in rendered
+    assert "good when price history is ready" in rendered
     assert "240 / 3,538 price-ready" in rendered
     assert "fundamentals / dcf" in rendered
+    assert "good for dcf-ready companies only" in rendered
+    assert "review assumptions, scenarios, and sensitivity" in rendered
     assert "23 / 3,538 dcf-ready" in rendered
     assert "dcf-ready company analysis" in rendered
     assert "peer comparison" in rendered
+    assert "workflow-ready, coverage-limited" in rendered
     assert "3 / 3,538 peer-ready" in rendered
     assert "no guessed peer mappings" in rendered
     assert "earnings / estimates" in rendered
+    assert "intentionally locked without trusted rows" in rendered
+    assert "do not interpret empty coverage as analysis" in rendered
     assert "0 / 3,538 earnings-ready" in rendered
     assert "0 / 3,538 analyst-estimate-ready" in rendered
     assert "intentionally unavailable" in rendered
     assert "single-stock report" in rendered
+    assert "strongest visitor-facing workflow" in rendered
     assert "supported, blocked, excluded, and monitor-only analysis" in rendered
     assert "libraries/adapters" in rendered
+    assert "support layer, not analysis logic" in rendered
     assert "analysis rules remain under src/" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
