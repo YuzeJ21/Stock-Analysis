@@ -136,7 +136,7 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "implemented under src/" in rendered
     assert "repo-native" in rendered
     assert "skill boundary" in rendered
-    assert "not a hidden investing engine" in rendered
+    assert "repo-native analysis logic" in rendered
     assert "public equity investing" in rendered
     assert "investment banking" in rendered
     assert "not runtime analysis logic" in rendered
@@ -251,7 +251,7 @@ def test_stock_report_function_quality_cards_summarize_supported_analysis_and_pr
     assert "peer context: blocked until source-backed peer mappings" in rendered
     assert "empty optional files are not treated as conclusions" in rendered
     assert "repo-native" in rendered
-    assert "external plugins are not hidden investing engines" in rendered
+    assert "external plugins are development aids, not runtime investing engines" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered
@@ -6148,7 +6148,7 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     assert "repo-native scoring logic" in rendered
     assert "src/monthly_picks.py" in rendered
     assert "libraries support data/ui" in rendered
-    assert "external plugins are not hidden investing engines" in rendered
+    assert "external plugins are development aids, not runtime investing engines" in rendered
     assert "make stock-report ticker=..." in rendered
     assert "valuation readiness" in rendered
     assert "source freshness" in rendered
@@ -6566,7 +6566,7 @@ def test_stock_report_function_quality_frame_explains_current_function_scope_and
     assert "blocked until source-backed peer mappings" in rendered
     assert "logic source" in rendered
     assert "repo-native" in rendered
-    assert "external plugins are not hidden investing engines" in rendered
+    assert "external plugins are development aids, not runtime investing engines" in rendered
     assert "no open source was used" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

@@ -3562,7 +3562,7 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
             {
                 "Function": "Logic source",
                 "Current Status": "Repo-native",
-                "What To Trust": "Rules live under src/; libraries and adapters support data/UI, and external plugins are not hidden investing engines.",
+                "What To Trust": "Rules live under src/; libraries and adapters support data/UI. External plugins are development aids, not runtime investing engines.",
             },
         ]
     )
@@ -3613,7 +3613,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
             "title": logic.get("status", "Repo-native"),
             "body": logic.get(
                 "trust",
-                "Rules live under src/; libraries and adapters support data/UI, and external plugins are not hidden investing engines.",
+                "Rules live under src/; libraries and adapters support data/UI. External plugins are development aids, not runtime investing engines.",
             ),
             "badges": ["repo-native", "transparent"],
         },
@@ -12982,7 +12982,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "title": "Repo-native scoring logic",
             "body": (
                 "Score components and report wording come from this repository's local pipeline outputs and src/monthly_picks.py. "
-                "Public libraries support data/UI; external plugins are not hidden investing engines."
+                "Public libraries support data/UI. External plugins are development aids, not runtime investing engines."
             ),
             "badges": ["repo-native", "transparent"],
         },
@@ -14332,7 +14332,7 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "SKILL BOUNDARY",
-            "title": "Not a hidden investing engine",
+            "title": "Repo-native analysis logic",
             "body": "Codex, Public Equity Investing, and Investment Banking plugins are development aids only; they are not runtime analysis logic.",
             "badges": ["transparent"],
         },
@@ -14486,7 +14486,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     with st.expander("Detailed analysis capability audit", expanded=False):
         st.write(
             "The public audit explains which functions are strong today, which data gaps still limit the product, "
-            "and why the analysis logic is repo-native rather than a hidden investing engine."
+            "and why the analysis logic is repo-native rather than a runtime investing engine."
         )
         st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
         st.code("docs/analysis_capability_audit.md", language="text")
