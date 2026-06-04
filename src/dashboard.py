@@ -6777,6 +6777,13 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
             "badges": ["missing data", "no inference"],
             "command": "make onboarding TOP_N=10",
         },
+        {
+            "kicker": "LOGIC SOURCE",
+            "title": "Repo-native readiness gates",
+            "body": "Decision buckets are assembled from local readiness, blocker, and source/freshness outputs under src/; libraries and plugins are not hidden recommendation engines.",
+            "badges": ["repo-native", "transparent"],
+            "command": "make project-status",
+        },
     ]
 
 
