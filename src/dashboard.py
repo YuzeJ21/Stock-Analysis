@@ -11607,7 +11607,7 @@ def overview_market_context_cards(
 ONBOARDING_NOTICE_DEFAULTS: dict[str, str] = {
     "coverage_wizard": "Run make onboarding to refresh the local data coverage wizard and see the next best coverage unlocks.",
     "command_bundles": "Run make onboarding to refresh the onboarding outputs and generate holdings-first local command bundles.",
-    "command_bundle_details": "Run make onboarding to refresh the onboarding outputs and generate ticker-level bundle detail rows.",
+    "command_bundle_details": "Run make onboarding to refresh the onboarding outputs and generate ticker-level bundle steps.",
     "command_bundle_runbook": "Run make onboarding to refresh the onboarding outputs and generate ordered bundle runbook rows.",
     "price_worklist": "Run make onboarding to refresh the onboarding outputs and see exact local price-history gaps plus the safe manual-import path.",
     "fundamentals_peer_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still need SEC fundamentals or manual peer mappings.",
@@ -15601,7 +15601,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             bundle_notice_command,
         )
     if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
-        with st.expander("Command bundle detail rows", expanded=False):
+        with st.expander("Ticker-level bundle steps", expanded=False):
             detail_columns = [
                 column
                 for column in [
@@ -15628,7 +15628,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     elif command_bundle_details_frame is None:
         detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
         render_notice_card(
-            "Command bundle detail rows are not available yet",
+            "Ticker-level bundle steps are not available yet",
             detail_notice_body,
             detail_notice_command,
         )

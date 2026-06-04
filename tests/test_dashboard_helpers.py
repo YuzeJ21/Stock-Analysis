@@ -114,6 +114,16 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert 'st.expander("Technical paths"' not in source
 
 
+def test_data_health_bundle_detail_copy_uses_operator_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Ticker-level bundle steps" in source
+    assert "Ticker-level bundle steps are not available yet" in source
+    assert "generate ticker-level bundle steps" in source
+    assert "Command bundle detail rows" not in source
+    assert "generate ticker-level bundle detail rows" not in source
+
+
 def test_home_capability_cards_explain_quality_limits_and_provenance():
     cards = dashboard._plain_home_capability_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
