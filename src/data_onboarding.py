@@ -682,6 +682,48 @@ def _select_row(frame: pd.DataFrame, ticker: str) -> pd.Series:
     return rows.iloc[-1] if not rows.empty else pd.Series(dtype=object)
 
 
+def _ticker_row_lookup(frame: pd.DataFrame, column: str = "ticker") -> dict[str, pd.Series]:
+    if frame.empty or column not in frame.columns:
+        return {}
+    working = frame.copy()
+    working["_normalized_ticker"] = working[column].astype(str).str.upper().str.strip()
+    working = working.loc[working["_normalized_ticker"].ne("")]
+    return {
+        str(row["_normalized_ticker"]): row.drop(labels=["_normalized_ticker"])
+        for _, row in working.iterrows()
+    }
+
+
+def _ticker_count_lookup(frame: pd.DataFrame, column: str = "ticker") -> dict[str, int]:
+    if frame.empty or column not in frame.columns:
+        return {}
+    tickers = frame[column].dropna().astype(str).str.upper().str.strip()
+    tickers = tickers.loc[tickers.ne("")]
+    return {str(ticker): int(count) for ticker, count in tickers.value_counts().items()}
+
+
+def _peer_ticker_lookup(peers: pd.DataFrame) -> dict[str, list[str]]:
+    if peers.empty or "ticker" not in peers.columns or "peer_ticker" not in peers.columns:
+        return {}
+    working = peers[["ticker", "peer_ticker"]].copy()
+    working["ticker"] = working["ticker"].astype(str).str.upper().str.strip()
+    working["peer_ticker"] = working["peer_ticker"].astype(str).str.upper().str.strip()
+    working = working.loc[working["ticker"].ne("") & working["peer_ticker"].ne("")]
+    lookup: dict[str, list[str]] = {}
+    for ticker, group in working.groupby("ticker", sort=False):
+        peer_tickers = sorted(set(group["peer_ticker"].tolist()) - {str(ticker)})
+        lookup[str(ticker)] = peer_tickers
+    return lookup
+
+
+def _peer_ready_from_lookup(ticker: str, peer_lookup: dict[str, list[str]], price_history_by_ticker: dict[str, int]) -> bool:
+    peer_tickers = peer_lookup.get(ticker, [])
+    if not peer_tickers:
+        return False
+    ready_peers = [peer for peer in peer_tickers if price_history_by_ticker.get(peer, 0) >= 21]
+    return len(peer_tickers) >= DEFAULT_MIN_READY_PEERS and len(ready_peers) >= DEFAULT_MIN_READY_PEERS
+
+
 def _has_number(row: pd.Series, *columns: str) -> bool:
     for column in columns:
         if column in row and pd.notna(pd.to_numeric(pd.Series([row[column]]), errors="coerce").iloc[0]):
@@ -1116,29 +1158,38 @@ def build_ticker_coverage(
     momentum = _load_frame(catalog, "momentum_leaders")
     asset_type_map = _load_asset_type_map(data_path)
 
-    price_tickers = _ticker_set(prices)
-    fundamental_tickers = _ticker_set(fundamentals)
+    price_history_by_ticker = _ticker_count_lookup(prices)
+    price_tickers = set(price_history_by_ticker)
+    fundamental_rows = _ticker_row_lookup(fundamentals)
+    staged_fundamental_rows = _ticker_row_lookup(staged_fundamentals)
+    peer_lookup = _peer_ticker_lookup(peers)
+    staged_peer_lookup = _peer_ticker_lookup(staged_peers)
+    peer_ready_by_ticker = {
+        ticker: _peer_ready_from_lookup(ticker, peer_lookup, price_history_by_ticker)
+        for ticker in peer_lookup
+    }
+    fundamental_tickers = set(fundamental_rows)
     earnings_tickers = _ticker_set(earnings)
     estimate_tickers = _ticker_set(estimates)
-    peer_subject_tickers = _ticker_set(peers)
-    staged_peer_subject_tickers = _ticker_set(staged_peers)
+    peer_subject_tickers = set(peer_lookup)
+    staged_peer_subject_tickers = set(staged_peer_lookup)
     output_tickers = _ticker_set(final_watchlist) | _ticker_set(momentum)
 
     rows: list[TickerCoverage] = []
     for ticker in _discover_tickers(catalog, tickers):
         asset_type = asset_type_map.get(ticker, "company")
         dcf_excluded = _dcf_excluded_asset(asset_type)
-        history_days = _price_history_days(prices, ticker)
+        history_days = price_history_by_ticker.get(ticker, 0)
         has_prices = ticker in price_tickers
         has_fundamentals = ticker in fundamental_tickers
-        financial_row = _select_row(fundamentals, ticker)
+        financial_row = fundamental_rows.get(ticker, pd.Series(dtype=object))
         dcf_ready = False if dcf_excluded else _dcf_ready(financial_row)
-        staged_financial_row = _select_row(staged_fundamentals, ticker)
+        staged_financial_row = staged_fundamental_rows.get(ticker, pd.Series(dtype=object))
         has_staged_fundamentals = False if dcf_excluded else not staged_financial_row.empty and _dcf_ready(staged_financial_row) and not dcf_ready
         has_canonical_peer_mapping = ticker in peer_subject_tickers
         has_staged_peer_mapping = ticker in staged_peer_subject_tickers and not has_canonical_peer_mapping
         has_peer_mapping = has_canonical_peer_mapping or has_staged_peer_mapping
-        peer_ready = _peer_ready(ticker, peers, fundamentals, prices)
+        peer_ready = peer_ready_by_ticker.get(ticker, False)
         has_earnings = ticker in earnings_tickers
         has_estimates = ticker in estimate_tickers
         usable_for_momentum = has_prices and history_days >= 21
@@ -2643,6 +2694,18 @@ def build_onboarding_payload(
     }
 
 
+def build_sec_stage_queue_payload(
+    project_root: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+    tickers: list[str] | None = None,
+) -> dict[str, Any]:
+    coverage = build_ticker_coverage(project_root, data_dir=data_dir, output_dir=output_dir, tickers=tickers)
+    sec_stage_queue = build_sec_stage_queue(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
+    return {"sec_stage_queue": [row.to_dict() for row in sec_stage_queue]}
+
+
 def write_onboarding_outputs(
     project_root: Path | str | None = None,
     *,
@@ -3115,6 +3178,21 @@ def main() -> None:
 
     if args.write_output:
         payload = write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
+    elif (
+        args.sec_stage_queue
+        and not args.coverage
+        and not args.wizard
+        and not args.price_worklist
+        and not args.fundamentals_peer_worklist
+        and not args.optional_context_worklist
+        and not args.peer_mapping_queue
+        and not args.unlock_ladder
+        and not args.unlock_summary
+        and not args.command_bundles
+        and not args.command_bundle_details
+        and not args.command_bundle_runbook
+    ):
+        payload = build_sec_stage_queue_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
     else:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 

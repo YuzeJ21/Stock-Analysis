@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
+import src.data_onboarding as data_onboarding
 from src.data_onboarding import (
     COMMAND_BUNDLE_COLUMNS,
     COMMAND_BUNDLE_DETAIL_COLUMNS,
@@ -813,6 +814,26 @@ def test_data_onboarding_cli_sec_stage_queue_json(tmp_path: Path, capsys):
     assert payload["sec_stage_queue"][0]["ticker"] == "AMD"
     assert "missing_required_for_dcf" in payload["sec_stage_queue"][0]
     assert payload["sec_stage_queue"][0]["focus_command"] == "make focus-fundamentals TICKER=AMD"
+
+
+def test_data_onboarding_cli_sec_stage_queue_skips_full_payload(tmp_path: Path, capsys, monkeypatch):
+    _write_fixture(tmp_path)
+
+    def fail_full_payload(*_args, **_kwargs):
+        raise AssertionError("sec-stage-queue should not build unrelated onboarding views")
+
+    monkeypatch.setattr(data_onboarding, "build_onboarding_payload", fail_full_payload)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--sec-stage-queue", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert payload is not None
+    assert "sec_stage_queue" in payload
+    assert payload["sec_stage_queue"][0]["ticker"] == "AMD"
 
 
 def test_data_onboarding_cli_sec_stage_queue_text_surfaces_command_and_target_file(tmp_path: Path, capsys):
