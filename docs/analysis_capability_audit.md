@@ -31,6 +31,18 @@ This project is a local research command center. It is strongest when the user h
 - Earnings and analyst estimates stay unavailable until trusted local rows are imported.
 - The app does not infer missing prices, fundamentals, peer relationships, estimates, or valuation inputs.
 
+## Analysis Modes
+
+The product now uses the same plain modes across the dashboard and single-stock workflow:
+
+| Mode | Good enough for | Not good enough for |
+| --- | --- | --- |
+| `DCF-ready review` | Company DCF assumptions, scenarios, and sensitivity when trusted inputs exist. | Unsupported recommendations or allocation instructions. |
+| `Standalone DCF review` | Reviewing company DCF assumptions before peer context is ready. | Peer-relative valuation until source-backed peer inputs exist. |
+| `Price/setup review only` | Local price, setup, and missing-data diagnosis. | Company valuation or quality conclusions. |
+| `Monitor-only context` | ETF/index/fund market, theme, liquidity, and risk monitoring. | Operating-company DCF, which is excluded rather than failed. |
+| `Data-unlock only` | Identifying the next trusted local input to add. | Any analytical conclusion beyond the visible blocker. |
+
 ## Where The Logic Comes From
 
 The analysis logic is implemented in this repository under `src/`. The shipped product is not a wrapper around external investing services, ranking services, account-execution tools, or broker workflows:

@@ -39,9 +39,9 @@ The local sample currently tracks a broad universe of 3,538 tickers, with a smal
 
 ## Good Enough Today
 
-This is a working local research prototype with deterministic CSV outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review.
+This is a working local research prototype with deterministic CSV outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
 
-Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, runtime decision or recommendation engine, broker workflow, or auto-refreshing trading system.
+Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker workflow, or auto-refreshing trading system.
 
 ## Preview
 
@@ -52,7 +52,7 @@ The dashboard is designed as an operator console:
 - `Market Direction`: theme and sector/ETF context.
 - `Momentum Leaders`: trend, relative strength, extension risk, and setup status.
 - `Portfolio Review`: holdings reviewed against declared purpose and risk.
-- `Value / Re-rating`: DCF and valuation readiness with missing-input guardrails.
+- `Value / Re-rating`: DCF and valuation modes with ready, locked, and monitor-only guardrails.
 - `Final Watchlist`: readiness-state output, not an action list.
 - `Single-Stock Report`: ticker-level report with source/freshness audit.
 - `Data Health`: import paths, rejected-row reports, and unlock queues.

@@ -4,7 +4,7 @@
 
 I built a local, CSV-first stock research command center that focuses on data readiness before analysis. Instead of producing unsupported stock picks, it checks whether each ticker has enough trusted local data for price, momentum, liquidity, correlation, fundamentals, DCF, peer comparison, earnings, and analyst-estimate context.
 
-The system generates readiness-aware research decisions, single-stock reports, source/freshness audits, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports also include `Analysis Quality` and `Evaluation Function Check` sections so readers can see whether a ticker is ready for DCF review, monitor context, setup review, or data-unlock work.
+The system generates readiness-aware research decisions, single-stock reports, source/freshness audits, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports also include `Analysis Quality` and `Evaluation Function Check` sections so readers can see whether a ticker is in `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, or `Data-unlock only` mode.
 
 ## Suggested LinkedIn Post
 
@@ -22,7 +22,7 @@ Current features:
 - Purpose-aware research decisions.
 - Streamlit command center dashboard.
 - Single-stock Markdown reports.
-- Analysis Quality labels that separate DCF-ready companies, ETF/index monitor context, partial setup reviews, and data-unlock mode.
+- Analysis Quality labels that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and data-unlock mode.
 - Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Source and freshness audit sections.
 - CSV-first staged import workflows.
