@@ -132,6 +132,14 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "## Analysis Quality" in markdown
     assert "Good for standalone DCF" in markdown
     assert "peer-relative valuation remains limited until trusted peer inputs are ready" in markdown
+    assert "## Evaluation Function Check" in markdown
+    assert "Readiness gate: strongest function" in markdown
+    assert "Price and setup: ready for local trend/setup review" in markdown
+    assert "Fundamentals / DCF: ready for standalone DCF assumptions and sensitivity review" in markdown
+    assert "Peer comparison: blocked until source-backed peer mappings and peer valuation inputs are ready" in markdown
+    assert "repo-native under `src/`" in markdown
+    assert "not copied stock-picking skills" in markdown
+    assert "no open source was used" not in markdown.lower()
     assert "Base DCF fair value per share" in markdown
     assert "Base DCF assumptions" in markdown
     assert "Scenario coverage: bear, base, bull" in markdown
@@ -291,6 +299,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     for heading in (
         "## Executive Summary",
         "## Analysis Quality",
+        "## Evaluation Function Check",
         "## What This Stock Is",
         "## Data Readiness",
         "## Supported Analysis",
@@ -313,6 +322,9 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "DCF: excluded" in markdown
     assert "Good for monitor context" in markdown
     assert "Operating-company DCF and peer valuation are excluded, not failed" in markdown
+    assert "Fundamentals / DCF: excluded for ETF/index/fund monitor context, not failed" in markdown
+    assert "Peer comparison: excluded for monitor context" in markdown
+    assert "Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`" in markdown
     assert "DCF applicability: excluded" in markdown
     assert "not a failed valuation input" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
@@ -472,8 +484,13 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "## Executive Summary" in markdown
     assert "## What This Stock Is" in markdown
     assert "## Analysis Quality" in markdown
+    assert "## Evaluation Function Check" in markdown
     assert "Data-unlock mode" in markdown
     assert "Start with verified local price history before relying on momentum" in markdown
+    assert "Price and setup: locked until enough trusted price history is available" in markdown
+    assert "Fundamentals / DCF: blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready" in markdown
+    assert "Optional context: locked until trusted local earnings and analyst-estimate rows exist" in markdown
+    assert "not copied stock-picking skills" in markdown
     assert "## Data Readiness" in markdown
     assert "## Valuation Readiness" in markdown
     assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown

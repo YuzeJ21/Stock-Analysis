@@ -406,6 +406,10 @@ def _format_money(value: Any) -> str:
     return f"${numeric:,.2f}"
 
 
+def _has_report_value(value: Any) -> bool:
+    return _display_value(value) != "Not available"
+
+
 def _stock_report_valuation_lines(
     *,
     valuation_snapshot: dict[str, Any],
@@ -679,6 +683,64 @@ def _stock_report_analysis_quality_lines(
     ]
 
 
+def _stock_report_function_quality_lines(
+    *,
+    readiness: dict[str, Any],
+    dcf_status_text: str,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+) -> list[str]:
+    price_ready = bool(readiness.get("price_ready"))
+    momentum_ready = bool(readiness.get("momentum_ready"))
+    liquidity_ready = bool(readiness.get("liquidity_ready"))
+    correlation_ready = bool(readiness.get("correlation_ready"))
+    fundamentals_ready = bool(readiness.get("fundamentals_ready"))
+    peer_is_ready = bool(peer_ready)
+    optional_ready = bool(earnings_ready) and bool(estimates_ready)
+    asset_type = _display_value(readiness.get("asset_type"), "").lower()
+    monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+
+    price_status = (
+        "ready for local trend/setup review"
+        if price_ready and momentum_ready
+        else "locked until enough trusted price history is available"
+    )
+    risk_status = (
+        "ready for local liquidity/correlation context"
+        if liquidity_ready and correlation_ready
+        else "partial until liquidity and correlation inputs pass readiness checks"
+    )
+    if monitor_context:
+        valuation_status = "excluded for ETF/index/fund monitor context, not failed"
+    elif dcf_status_text == "ready" and fundamentals_ready:
+        valuation_status = "ready for standalone DCF assumptions and sensitivity review"
+    else:
+        valuation_status = "blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready"
+    peer_status = (
+        "ready for peer-relative review"
+        if peer_is_ready and not monitor_context
+        else "excluded for monitor context"
+        if monitor_context
+        else "blocked until source-backed peer mappings and peer valuation inputs are ready"
+    )
+    optional_status = (
+        "ready for earnings and analyst-estimate context"
+        if optional_ready
+        else "locked until trusted local earnings and analyst-estimate rows exist"
+    )
+
+    return [
+        "- Readiness gate: strongest function; it decides ready, blocked, or excluded before any conclusion is shown.",
+        f"- Price and setup: {price_status}.",
+        f"- Risk context: {risk_status}.",
+        f"- Fundamentals / DCF: {valuation_status}.",
+        f"- Peer comparison: {peer_status}.",
+        f"- Optional context: {optional_status}.",
+        "- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`; standard libraries/adapters support data handling and UI, not copied stock-picking skills.",
+    ]
+
+
 def _stock_report_source_audit_lines(
     *,
     ticker: str,
@@ -747,7 +809,7 @@ def _load_local_context(ticker: str, output_dir: Path, data_dir: Path) -> dict[s
 def build_stock_report_markdown(report: StockReport, local_context: dict[str, Any] | None = None) -> str:
     payload = report.to_dict()
     local_context = local_context or {}
-    readiness = local_context.get("readiness", {})
+    readiness = dict(local_context.get("readiness", {}))
     decision = local_context.get("decision", {})
     coverage = local_context.get("price_coverage", {})
     dcf = local_context.get("dcf", {})
@@ -769,6 +831,23 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     missing_lines = [f"- {warning}" for warning in payload.get("missing_data_warnings", [])[:20]]
     if not missing_lines:
         missing_lines.append("- None reported by the local provider.")
+
+    valuation_status = _display_value(payload.get("valuation_snapshot", {}).get("status")).lower()
+    if "price_ready" not in readiness:
+        readiness["price_ready"] = _has_report_value(payload.get("price_snapshot", {}).get("price"))
+    if "momentum_ready" not in readiness:
+        performance = payload.get("performance", {})
+        readiness["momentum_ready"] = any(
+            _has_report_value(performance.get(field)) for field in ("one_month", "three_month", "one_year")
+        )
+    if "fundamentals_ready" not in readiness:
+        financials = payload.get("financial_summary", {})
+        readiness["fundamentals_ready"] = valuation_status == "calculated" or any(
+            _has_report_value(financials.get(field))
+            for field in ("revenue", "free_cash_flow", "fcf_margin", "shares_outstanding")
+        )
+    if "dcf_ready" not in readiness:
+        readiness["dcf_ready"] = valuation_status == "calculated"
 
     dcf_ready = readiness.get("dcf_ready") if "dcf_ready" in readiness else valuation_readiness.get("dcf_ready")
     peer_ready = readiness.get("peer_ready") if "peer_ready" in readiness else valuation_readiness.get("peer_ready")
@@ -878,6 +957,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    function_quality_lines = _stock_report_function_quality_lines(
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
 
     report_lines = [
         f"# {report.ticker} Single-Stock Research Report",
@@ -897,6 +983,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Analysis Quality",
         *analysis_quality_lines,
+        "",
+        "## Evaluation Function Check",
+        *function_quality_lines,
         "",
         "## What This Stock Is",
         f"- Ticker: {report.ticker}",
@@ -1088,6 +1177,13 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    function_quality_lines = _stock_report_function_quality_lines(
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     lines = [
         f"# {symbol} Single-Stock Research Report",
         "",
@@ -1109,6 +1205,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## Analysis Quality",
         *analysis_quality_lines,
+        "",
+        "## Evaluation Function Check",
+        *function_quality_lines,
         "",
         "## What This Stock Is",
         f"- Ticker: {symbol}",
