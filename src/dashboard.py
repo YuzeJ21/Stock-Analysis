@@ -5746,7 +5746,7 @@ def fundamentals_dcf_diagnostic_cards(
             {
                 "kicker": "FUNDAMENTALS / DCF",
                 "title": "Readiness not generated",
-                "body": "Run make readiness before reviewing fundamentals and DCF unlock diagnostics.",
+                "body": "Run make readiness before reviewing the fundamentals and DCF unlock guide.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
@@ -14350,8 +14350,8 @@ def render_market_command_center(
         tone="warning" if summary.get("blocked_by_data", 0) else "neutral",
     )
     render_section_header(
-        "Fundamentals / DCF Unlock Diagnostics",
-        "Price-ready companies that still need trusted fundamentals, missing DCF fields, and DCF-ready names blocked only by peer context.",
+        "Fundamentals / DCF Unlock Guide",
+        "Price-ready companies that still need trusted fundamentals, missing DCF fields, and DCF-ready names waiting on peer context.",
     )
     render_signal_cards(fundamentals_dcf_payload_cards)
     render_section_header("Next Action Console", "Grouped feature-level actions with source/freshness notes. These cards are copyable commands only; the dashboard does not run them.")

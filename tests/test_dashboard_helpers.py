@@ -10544,6 +10544,16 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "sell" not in rendered
 
 
+def test_fundamentals_dcf_unlock_copy_uses_guide_language_not_diagnostics():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Fundamentals / DCF Unlock Guide" in source
+    assert "waiting on peer context" in source
+    assert "Run make readiness before reviewing the fundamentals and DCF unlock guide." in source
+    assert "Fundamentals / DCF Unlock Diagnostics" not in source
+    assert "fundamentals and DCF unlock diagnostics" not in source
+
+
 def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
     peer_readiness = pd.DataFrame(
         [
