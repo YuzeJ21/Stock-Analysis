@@ -11309,7 +11309,7 @@ def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance(
     assert "source-backed mappings" in rendered
     assert "1 ticker(s) missing mappings; 2 unlock row(s) queued" in rendered
     assert "data/imports/peers.csv" in rendered
-    assert "no hidden peer-selection engine" in rendered
+    assert "external plugins are not runtime peer-selection engines" in rendered
     assert "peer trend comparison" in rendered
     assert "2 ticker(s) trend-ready" in rendered
     assert "peer-relative valuation or quality conclusions" in rendered
@@ -11322,8 +11322,10 @@ def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance(
     assert "1 price-gap ticker(s); 1 fundamentals-gap ticker(s)" in rendered
     assert "sector or industry fallback" in rendered
     assert "dependencies" in rendered
-    assert "copied peer-selection skills" in rendered
+    assert "runtime peer-selection or investing logic" in rendered
     assert "peer logic runs from this repository" in rendered
+    assert "copied peer-selection skills" not in rendered
+    assert "no hidden peer-selection engine" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

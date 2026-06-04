@@ -6028,7 +6028,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{missing_mapping} ticker(s) missing mappings; {queued} unlock row(s) queued",
                 "Good Enough For": "Prioritizing which manual peer rows to add to data/imports/peers.csv.",
                 "Not Good Enough For": "Trusted peer comparison until relationships are source-backed or clearly marked as fallback context.",
-                "Logic Source": "Repo-native peer readiness and peer unlock worklist generation; no hidden peer-selection engine.",
+                "Logic Source": "Repo-native peer readiness and peer unlock worklist generation; external plugins are not runtime peer-selection engines.",
                 "Next Step": "make peer-mapping-queue TOP_N=25",
             },
             {
@@ -6067,7 +6067,7 @@ def peer_function_quality_frame(
                 "Peer Area": "Dependencies",
                 "Current Coverage": "Support layer only.",
                 "Good Enough For": "Data handling, table display, tests, and optional development review.",
-                "Not Good Enough For": "Hidden peer-selection or investing logic.",
+                "Not Good Enough For": "Runtime peer-selection or investing logic.",
                 "Logic Source": "Standard libraries and optional Codex plugins support development; peer logic runs from this repository.",
                 "Next Step": "make project-status",
             },
