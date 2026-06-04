@@ -139,7 +139,7 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "repo-native analysis logic" in rendered
     assert "public equity investing" in rendered
     assert "investment banking" in rendered
-    assert "not runtime analysis logic" in rendered
+    assert "analysis shown to users comes from repo code and local data" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -160,10 +160,11 @@ def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
     assert "analysis rules stay in this repository" in rendered
     assert "yfinance is optional and research-grade" in rendered
     assert "csv-first local path is default" in rendered
-    assert "plugins are not product engines" in rendered
+    assert "plugins are development helpers" in rendered
     assert "public equity investing" in rendered
     assert "investment banking" in rendered
     assert "shipped analysis comes from repo code and local data" in rendered
+    assert "product engines" not in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered
@@ -6463,7 +6464,8 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     assert "should not infer valuation from unavailable fundamentals" in rendered
     assert "margins, cash, and debt help explain business quality only when present" in rendered
     assert "fundamentals rules stay in repo code" in rendered
-    assert "plugins are development aids only" in rendered
+    assert "plugins can help development review" in rendered
+    assert "do not provide the shipped analysis" in rendered
     assert "make focus-fundamentals ticker=..." in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

@@ -3371,7 +3371,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
         {
             "kicker": "LOGIC SOURCE",
             "title": "Local fundamentals only",
-            "body": "This card reads the current report payload and local CSV-backed fundamentals. Fundamentals rules stay in repo code; plugins are development aids only.",
+            "body": "This card reads the current report payload and local CSV-backed fundamentals. Fundamentals rules stay in repo code; plugins can help development review, but they do not provide the shipped analysis.",
             "badges": ["repo-native", "local CSV"],
         },
     ]
@@ -14340,7 +14340,7 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         {
             "kicker": "SKILL BOUNDARY",
             "title": "Repo-native analysis logic",
-            "body": "Codex, Public Equity Investing, and Investment Banking plugins are development aids only; they are not runtime analysis logic.",
+            "body": "Codex, Public Equity Investing, and Investment Banking plugins can help development review. The analysis shown to users comes from repo code and local data.",
             "badges": ["transparent"],
         },
     ]
@@ -14368,9 +14368,9 @@ def _plain_home_provenance_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "CODEX PLUGINS",
-            "title": "Plugins are not product engines",
+            "title": "Plugins are development helpers",
             "body": "Public Equity Investing and Investment Banking plugins can help development review, but shipped analysis comes from repo code and local data.",
-            "badges": ["not runtime"],
+            "badges": ["not product logic"],
         },
     ]
 
@@ -14493,7 +14493,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     with st.expander("Detailed analysis capability audit", expanded=False):
         st.write(
             "The public audit explains which functions are strong today, which data gaps still limit the product, "
-            "and why the analysis logic is repo-native rather than a runtime investing engine."
+            "and why the analysis shown to users comes from repo code and local CSV inputs."
         )
         st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
         st.code("docs/analysis_capability_audit.md", language="text")
