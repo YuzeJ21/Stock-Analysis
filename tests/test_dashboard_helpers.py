@@ -6677,14 +6677,17 @@ def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language(
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["READY TO REVIEW", "LOCKED BY DATA", "MONITOR ONLY"]
-    assert "1 ready company rows" in rendered
+    assert "1 dcf-ready review" in rendered
+    assert "examples: nvda" in rendered
     assert "assumptions, scenarios, and sensitivity as research context" in rendered
     assert "unsupported recommendations and allocation instructions remain withheld" in rendered
-    assert "2 blocked company rows" in rendered
+    assert "2 locked by missing inputs" in rendered
+    assert "examples: amd, meta" in rendered
     assert "company valuation is locked until missing inputs are filled" in rendered
     assert "free_cash_flow" in rendered
     assert "no undervalued or overvalued conclusion is shown" in rendered
-    assert "1 etf / fund monitor rows" in rendered
+    assert "1 monitor-only context" in rendered
+    assert "examples: qqq" in rendered
     assert "support market, theme, liquidity, or risk monitoring" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "make dcf-readiness" in rendered
@@ -12088,19 +12091,26 @@ def test_valuation_readiness_operator_frame_summarizes_ready_blocked_and_exclude
     rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
 
     assert list(frame.columns) == [
+        "Evaluation Mode",
         "Valuation State",
         "Count",
+        "Example Tickers",
         "What It Means",
         "What Stays Withheld",
         "Next Command",
     ]
     assert frame["Count"].tolist() == [1, 2, 1]
+    assert frame["Evaluation Mode"].tolist() == ["DCF-ready review", "Locked by missing inputs", "Monitor-only context"]
+    assert frame["Example Tickers"].tolist() == ["NVDA", "AMD, META", "QQQ"]
     assert "ready company rows" in rendered
+    assert "dcf-ready review" in rendered
     assert "review assumptions, scenarios, and sensitivity" in rendered
     assert "blocked company rows" in rendered
+    assert "locked by missing inputs" in rendered
     assert "most common blockers: shares_outstanding" in rendered
     assert "no undervalued or overvalued conclusion is shown for blocked rows" in rendered
     assert "etf / fund monitor rows" in rendered
+    assert "monitor-only context" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make stock-report ticker=qqq" in rendered

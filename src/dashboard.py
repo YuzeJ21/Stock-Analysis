@@ -9436,6 +9436,22 @@ def valuation_readiness_operator_frame(
     blocked_companies: pd.DataFrame,
     excluded_rows: pd.DataFrame,
 ) -> pd.DataFrame:
+    def example_tickers(frame: pd.DataFrame, limit: int = 5) -> str:
+        if frame.empty or "ticker" not in frame.columns:
+            return "No examples"
+        tickers = (
+            frame["ticker"]
+            .dropna()
+            .astype(str)
+            .str.upper()
+            .str.strip()
+        )
+        tickers = [ticker for ticker in tickers.tolist() if ticker and ticker.lower() not in {"nan", "none"}]
+        if not tickers:
+            return "No examples"
+        suffix = f" +{len(tickers) - limit} more" if len(tickers) > limit else ""
+        return ", ".join(tickers[:limit]) + suffix
+
     top_missing = "trusted fundamentals, free cash flow or margin, share count, and source freshness"
     if not blocked_companies.empty and "missing_dcf_fields" in blocked_companies.columns:
         missing_counts: dict[str, int] = {}
@@ -9452,22 +9468,28 @@ def valuation_readiness_operator_frame(
     return pd.DataFrame(
         [
             {
+                "Evaluation Mode": "DCF-ready review",
                 "Valuation State": "Ready company rows",
                 "Count": len(ready_companies),
+                "Example Tickers": example_tickers(ready_companies),
                 "What It Means": "DCF inputs are present enough to review assumptions, scenarios, and sensitivity as research context.",
                 "What Stays Withheld": "Unsupported recommendations and allocation instructions remain withheld.",
                 "Next Command": "make dcf-readiness",
             },
             {
+                "Evaluation Mode": "Locked by missing inputs",
                 "Valuation State": "Blocked company rows",
                 "Count": len(blocked_companies),
+                "Example Tickers": example_tickers(blocked_companies),
                 "What It Means": f"Company valuation is locked until missing inputs are filled. Most common blockers: {top_missing}.",
                 "What Stays Withheld": "No undervalued or overvalued conclusion is shown for blocked rows.",
                 "Next Command": "make sec-stage-queue TOP_N=25",
             },
             {
+                "Evaluation Mode": "Monitor-only context",
                 "Valuation State": "ETF / fund monitor rows",
                 "Count": len(excluded_rows),
+                "Example Tickers": example_tickers(excluded_rows),
                 "What It Means": "These rows can still support market, theme, liquidity, or risk monitoring.",
                 "What Stays Withheld": "Operating-company DCF is excluded, not failed.",
                 "Next Command": "make stock-report TICKER=QQQ",
@@ -9495,13 +9517,15 @@ def valuation_decision_guide_cards(
     cards: list[dict[str, object]] = []
     for _, row in operator_frame.iterrows():
         state = format_missing(row.get("Valuation State"), "Valuation state")
+        mode = format_missing(row.get("Evaluation Mode"), state)
+        examples = format_missing(row.get("Example Tickers"), "No examples")
         meaning = format_missing(row.get("What It Means"), "Not available")
         withheld = format_missing(row.get("What Stays Withheld"), "Not available")
         cards.append(
             {
                 "kicker": kicker_by_state.get(state, "VALUATION STATE"),
-                "title": f"{format_missing(row.get('Count'), 0)} {state.lower()}",
-                "body": f"{meaning} Withheld: {withheld}",
+                "title": f"{format_missing(row.get('Count'), 0)} {mode.lower()}",
+                "body": f"Examples: {examples}. {meaning} Withheld: {withheld}",
                 "badges": badge_by_state.get(state, ["research-only"]),
                 "command": format_missing(row.get("Next Command"), "make dcf-readiness"),
             }
