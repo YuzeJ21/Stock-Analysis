@@ -129,7 +129,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third" in markdown
     assert "Good enough for company-level DCF assumption and sensitivity review" in markdown
     assert "repo-native code under `src/`" in markdown
-    assert "external plugins are development aids, not runtime analysis engines" in markdown
+    assert "plugins can help development review" in markdown
+    assert "shipped analysis comes from repo code and local data" in markdown
     assert "research context only" in markdown
     assert "account actions" in markdown
     assert "## What We Can Analyze Now" in markdown
@@ -145,7 +146,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Fundamentals / DCF: ready for standalone DCF assumptions and sensitivity review" in markdown
     assert "Peer comparison: blocked until source-backed peer mappings and peer valuation inputs are ready" in markdown
     assert "repo-native under `src/`" in markdown
-    assert "external plugins are development aids, not runtime analysis engines" in markdown
+    assert "plugins can help development review" in markdown
+    assert "shipped analysis comes from repo code and local data" in markdown
     assert "no open source was used" not in markdown.lower()
     assert "Base DCF fair value per share" in markdown
     assert "Base DCF assumptions" in markdown
@@ -324,7 +326,8 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Monitor - ETF Market Proxy" in markdown
     assert "Research-only local report" in markdown
     assert "Good enough for ETF/index/fund monitor context" in markdown
-    assert "external plugins are development aids, not runtime analysis engines" in markdown
+    assert "plugins can help development review" in markdown
+    assert "shipped analysis comes from repo code and local data" in markdown
     assert "allocation instructions" in markdown
     assert "trade instruction" not in markdown.lower()
     assert "transaction execution" not in markdown.lower()
@@ -503,7 +506,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Price and setup: locked until enough trusted price history is available" in markdown
     assert "Fundamentals / DCF: blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready" in markdown
     assert "Optional context: locked until trusted local earnings and analyst-estimate rows exist" in markdown
-    assert "external plugins are development aids, not runtime analysis engines" in markdown
+    assert "plugins can help development review" in markdown
+    assert "shipped analysis comes from repo code and local data" in markdown
     assert "## Data Readiness" in markdown
     assert "## Valuation Readiness" in markdown
     assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown

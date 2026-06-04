@@ -5,7 +5,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Good enough for ETF/index/fund monitor context when local price, liquidity, correlation, or theme inputs are ready.
-- Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and external plugins are development aids, not runtime analysis engines.
+- Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and plugins can help development review, but shipped analysis comes from repo code and local data.
 - Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.
 
 ## Executive Summary
@@ -31,7 +31,7 @@ QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - Fundamentals / DCF: excluded for ETF/index/fund monitor context, not failed.
 - Peer comparison: excluded for monitor context.
 - Optional context: locked until trusted local earnings and analyst-estimate rows exist.
-- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`; standard libraries/adapters support data handling and UI, and external plugins are development aids, not runtime analysis engines.
+- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`; standard libraries/adapters support data handling and UI, and plugins can help development review, but shipped analysis comes from repo code and local data.
 
 ## What This Stock Is
 - Ticker: QQQ
@@ -131,8 +131,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source / Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-06-03T18:35:06.424153090+00:00; Local CSV-backed research data.
 - local:fundamentals.csv: research-grade / local, retrieved 2026-05-27T21:34:35.086026430+00:00; Local fundamentals data.
-- local:earnings.csv: research-grade / local, retrieved 2026-06-04T04:21:20+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-04T04:21:20+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local, retrieved 2026-06-04T04:31:17+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-04T04:31:17+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Source/Freshness Audit
 - Prices: True; local source `data/prices.csv`; coverage 2026-02-10 to 2026-03-14; rows=25; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
