@@ -4172,28 +4172,40 @@ def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> l
         {
             "kicker": "PRICE UNLOCK",
             "title": f"{price_ready} price-ready",
-            "body": "Enough local price history unlocks setup, trend, liquidity, and market-context review. Without it, deeper analysis stays premature.",
+            "body": (
+                "Function status: usable for setup, trend, liquidity, and market-context review when local history is ready. "
+                "Without price coverage, deeper analysis stays premature."
+            ),
             "badges": ["setup review", "history first"],
             "command": "make price-worklist TOP_N=10",
         },
         {
             "kicker": "DCF UNLOCK",
             "title": f"{dcf_ready} DCF-ready",
-            "body": "Trusted fundamentals plus required DCF fields unlock company-level assumptions and sensitivity review, not automatic valuation conclusions.",
+            "body": (
+                "Function status: good for DCF-ready companies only. Trusted fundamentals plus required DCF fields unlock "
+                "company-level assumptions and sensitivity review, not automatic valuation conclusions."
+            ),
             "badges": ["fundamentals", "assumptions"],
             "command": "make sec-stage-queue TOP_N=25",
         },
         {
             "kicker": "PEER UNLOCK",
             "title": f"{peer_ready} peer-ready",
-            "body": "Source-backed peer mappings and peer metrics unlock peer-relative context. Missing peers stay blocked instead of guessed.",
+            "body": (
+                "Function status: workflow-ready but coverage-limited. Source-backed peer mappings and peer metrics unlock "
+                "peer-relative context; missing peers stay blocked instead of guessed."
+            ),
             "badges": ["manual peers", "no guessed mappings"],
             "command": "make peer-mapping-queue TOP_N=10",
         },
         {
             "kicker": "OPTIONAL CONTEXT",
             "title": f"{earnings_ready} earnings / {estimates_ready} estimates",
-            "body": "Trusted earnings and analyst-estimate rows add context only. Empty optional files are an intentional lock, not a broken analysis path.",
+            "body": (
+                "Function status: intentionally locked until trusted rows exist. Earnings and analyst-estimate rows add context only; "
+                "empty optional files are not a broken analysis path."
+            ),
             "badges": ["optional", "trusted rows"],
             "command": "make optional-context-worklist TOP_N=10",
         },
@@ -4211,14 +4223,14 @@ def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> 
         {
             "kicker": "LEVEL 1",
             "title": f"{price_ready} ready for setup review",
-            "body": "Price-ready stocks can support trend, liquidity, and market-context review. Stop there if fundamentals are missing.",
+            "body": "Price-ready stocks can support trend, liquidity, and market-context review. Stop at setup/risk review if fundamentals are missing.",
             "badges": ["price/setup", "not valuation"],
             "command": "make stock-report TICKER=NVDA",
         },
         {
             "kicker": "LEVEL 2",
             "title": f"{fundamentals_ready} fundamentals / {dcf_ready} DCF-ready",
-            "body": "DCF-ready companies can support assumption and sensitivity review. Missing DCF inputs mean valuation stays locked, not negative.",
+            "body": "DCF-ready companies can support assumption and sensitivity review. Missing DCF inputs mean valuation stays locked, not negative or weak.",
             "badges": ["assumptions", "blocked is not negative"],
             "command": "make dcf-readiness",
         },

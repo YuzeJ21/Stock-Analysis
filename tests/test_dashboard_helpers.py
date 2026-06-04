@@ -6832,15 +6832,19 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
 
     assert [card["kicker"] for card in cards] == ["PRICE UNLOCK", "DCF UNLOCK", "PEER UNLOCK", "OPTIONAL CONTEXT"]
     assert "586 price-ready" in rendered
+    assert "function status: usable" in rendered
     assert "setup, trend, liquidity, and market-context review" in rendered
     assert "23 dcf-ready" in rendered
+    assert "function status: good for dcf-ready companies only" in rendered
     assert "company-level assumptions and sensitivity review" in rendered
     assert "not automatic valuation conclusions" in rendered
     assert "3 peer-ready" in rendered
+    assert "function status: workflow-ready but coverage-limited" in rendered
     assert "peer-relative context" in rendered
     assert "missing peers stay blocked instead of guessed" in rendered
     assert "0 earnings / 0 estimates" in rendered
-    assert "intentional lock, not a broken analysis path" in rendered
+    assert "function status: intentionally locked until trusted rows exist" in rendered
+    assert "empty optional files are not a broken analysis path" in rendered
     assert "make price-worklist top_n=10" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=10" in rendered
@@ -6867,12 +6871,12 @@ def test_data_health_supported_ladder_cards_explain_analysis_levels_without_over
 
     assert [card["kicker"] for card in cards] == ["LEVEL 1", "LEVEL 2", "LEVEL 3", "LEVEL 4"]
     assert "586 ready for setup review" in rendered
-    assert "stop there if fundamentals are missing" in rendered
+    assert "stop at setup/risk review if fundamentals are missing" in rendered
     assert "price/setup" in rendered
     assert "not valuation" in rendered
     assert "23 fundamentals / 23 dcf-ready" in rendered
     assert "assumption and sensitivity review" in rendered
-    assert "valuation stays locked, not negative" in rendered
+    assert "valuation stays locked, not negative or weak" in rendered
     assert "3 ready for peer context" in rendered
     assert "source-backed peer mappings and peer metrics" in rendered
     assert "sector fallback is not trusted peer valuation" in rendered
