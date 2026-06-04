@@ -93,6 +93,8 @@ make dashboard
 
 In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Technical file paths and update commands are intentionally tucked into advanced sections.
 
+For a deeper local runbook, see [Operator Guide](docs/OPERATOR_GUIDE.md).
+
 Targeted data-unlock examples:
 
 ```bash

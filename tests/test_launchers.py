@@ -192,6 +192,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## Generated Data Hygiene" in readme
     assert "## Analysis Logic Provenance" in readme
     assert "docs/analysis_capability_audit.md" in readme
+    assert "[Operator Guide](docs/OPERATOR_GUIDE.md)" in readme
     for phrase in (
         "make pipeline",
         "make readiness",
@@ -217,6 +218,48 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "hidden stock-picking engines",
     ):
         assert phrase in readme
+
+
+def test_operator_guide_is_command_focused_and_research_only():
+    guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "Data readiness first",
+        "Analysis second",
+        "Research decision last",
+        "does not connect to brokers",
+        "make pipeline",
+        "make readiness",
+        "make project-status",
+        "make stock-report TICKER=NVDA",
+        "make stock-report TICKER=QQQ",
+        "make stock-report TICKER=SMH",
+        "make stock-report TICKER=APLD",
+        "make dashboard",
+        "make dashboard-smoke",
+        "make price-worklist TOP_N=10",
+        "make focus-fundamentals TICKER=NVDA",
+        "make peer-mapping-queue TOP_N=10",
+        "make optional-context-worklist TOP_N=10",
+        "make imports-validate",
+        "make imports-preview",
+        "make imports-apply",
+        "make price-refresh-loop DRY_RUN=1",
+        "Analysis Quality",
+        "Evaluation Function Check",
+        "ready, blocked, excluded, or optional",
+        "Large refreshed CSVs are local working data",
+        "docs/analysis_capability_audit.md",
+    ):
+        assert phrase in guide
+
+    for forbidden in (
+        "buy recommendation",
+        "sell recommendation",
+        "auto-trading system",
+        "hidden stock-picking",
+    ):
+        assert forbidden not in guide.lower()
 
 
 def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
