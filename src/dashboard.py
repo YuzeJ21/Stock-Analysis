@@ -1568,6 +1568,7 @@ def apply_dashboard_theme() -> None:
           font-size: 0.89rem;
           line-height: 1.45;
           margin-top: 0.45rem;
+          white-space: pre-line;
         }
         .signal-footer {
           margin-top: 0.7rem;
@@ -1796,10 +1797,12 @@ def apply_dashboard_theme() -> None:
           margin: 0.35rem 0 0.8rem 0;
         }
         .sidebar-guide-card {
+          position: relative;
           border-radius: 14px;
           border: 1px solid #dce5dc;
           background: rgba(255, 254, 250, 0.9);
-          padding: 0.68rem 0.72rem;
+          border-left: 4px solid #0f766e;
+          padding: 0.7rem 0.72rem 0.72rem 0.78rem;
           box-shadow: 0 8px 20px rgba(17, 24, 39, 0.045);
         }
         .sidebar-guide-label {
@@ -1821,6 +1824,7 @@ def apply_dashboard_theme() -> None:
           font-size: 0.82rem;
           line-height: 1.36;
           margin-top: 0.42rem;
+          overflow-wrap: anywhere;
         }
         .cockpit-panel {
           display: grid;
@@ -8768,20 +8772,23 @@ def next_action_console_cards(console_frame: pd.DataFrame | None, limit: int = 8
         category = format_missing(row.get("action_category"), "Next action")
         scope = format_missing(row.get("scope"), "")
         sample = format_missing(row.get("sample_tickers"), "")
-        body = compact_reason(row.get("why_it_matters"), max_sentences=1, max_chars=150)
+        why = compact_reason(row.get("why_it_matters"), max_sentences=1, max_chars=150)
         when_to_use = compact_reason(row.get("when_to_use"), max_sentences=1, max_chars=120)
         output_to_check = compact_reason(row.get("output_to_check"), max_sentences=1, max_chars=120)
         source_note = compact_reason(row.get("source_freshness_note"), max_sentences=1, max_chars=140)
+        scope_line = ""
         if scope and scope != "Not available":
-            body = f"{scope}: {body}"
+            scope_line = f"Scope: {scope}"
         if sample and sample != "Not available":
-            body = f"{body} Sample: {sample}."
+            scope_line = f"{scope_line}. Sample: {sample}." if scope_line else f"Sample: {sample}."
+        body_lines = [line for line in [scope_line, f"Why: {why}" if why and why != "Not available" else ""] if line]
         if when_to_use and when_to_use != "Not available":
-            body = f"{body} When to use: {when_to_use}"
+            body_lines.append(f"When to use: {when_to_use}")
         if output_to_check and output_to_check != "Not available":
-            body = f"{body} Check after: {output_to_check}"
+            body_lines.append(f"Check after: {output_to_check}")
         if source_note and source_note != "Not available":
-            body = f"{body} {source_note}"
+            body_lines.append(f"Source: {source_note}")
+        body = "\n".join(body_lines)
         cards.append(
             {
                 "kicker": category.upper(),
@@ -14350,7 +14357,7 @@ def _plain_home_provenance_cards() -> list[dict[str, object]]:
         {
             "kicker": "LIBRARIES",
             "title": "Open-source packages support the app",
-            "body": "pandas, numpy, Streamlit, PyYAML, pytest, and similar packages provide data handling, UI, and tests, not stock-picking rules.",
+            "body": "pandas, numpy, Streamlit, PyYAML, pytest, and similar packages provide data handling, UI, and tests. The analysis rules stay in this repository.",
             "badges": ["normal dependencies"],
         },
         {
@@ -14431,10 +14438,10 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Dependencies",
-                "Current Status": "Support layer only; not hidden analysis logic.",
+                "Current Status": "Support layer only; analysis rules remain repo-native.",
                 "Good Enough For": "Data handling, UI, tests, and optional research-grade provider access.",
                 "Needs Trusted Data": "Local CSV inputs remain the source of truth by default.",
-                "Logic Source": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance; not runtime investing engines.",
+                "Logic Source": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance support the app; analysis rules remain under src/.",
             },
         ]
     )

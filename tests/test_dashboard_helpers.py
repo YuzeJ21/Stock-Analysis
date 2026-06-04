@@ -157,7 +157,7 @@ def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
     assert "open-source packages support the app" in rendered
     assert "pandas" in rendered
     assert "streamlit" in rendered
-    assert "not stock-picking rules" in rendered
+    assert "analysis rules stay in this repository" in rendered
     assert "yfinance is optional and research-grade" in rendered
     assert "csv-first local path is default" in rendered
     assert "plugins are not product engines" in rendered
@@ -204,7 +204,7 @@ def test_home_function_quality_frame_explains_good_enough_scope_and_logic_source
     assert "single-stock report" in rendered
     assert "supported, blocked, excluded, and monitor-only analysis" in rendered
     assert "libraries/adapters" in rendered
-    assert "not runtime investing engines" in rendered
+    assert "analysis rules remain under src/" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered

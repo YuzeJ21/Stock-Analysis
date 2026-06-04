@@ -2,6 +2,12 @@
 
 Research-only local report. It summarizes readiness and does not provide allocation instructions.
 
+## How To Read This Report
+- Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
+- Current use: Good enough for company-level DCF assumption and sensitivity review when trusted local fundamentals are ready.
+- Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and external plugins are development aids, not runtime analysis engines.
+- Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.
+
 ## Executive Summary
 NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready. Primary blocker: earnings. Peer workflow: Not available. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
@@ -17,6 +23,15 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 - Current quality label: Good for deeper company review.
 - Why: Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
+
+## Evaluation Function Check
+- Readiness gate: strongest function; it decides ready, blocked, or excluded before any conclusion is shown.
+- Price and setup: ready for local trend/setup review.
+- Risk context: ready for local liquidity/correlation context.
+- Fundamentals / DCF: ready for standalone DCF assumptions and sensitivity review.
+- Peer comparison: ready for peer-relative review.
+- Optional context: locked until trusted local earnings and analyst-estimate rows exist.
+- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`; standard libraries/adapters support data handling and UI, and external plugins are development aids, not runtime analysis engines.
 
 ## What This Stock Is
 - Ticker: NVDA
@@ -115,8 +130,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source / Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-06-03T18:35:06.424153090+00:00; Local CSV-backed research data.
 - local:fundamentals.csv: research-grade / local, retrieved 2026-05-27T21:34:35.086026430+00:00; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local, retrieved 2026-06-03T21:30:54+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-03T21:30:54+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local, retrieved 2026-06-04T04:21:20+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-04T04:21:20+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Source/Freshness Audit
 - Prices: True; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=621; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
