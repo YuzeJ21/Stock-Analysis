@@ -16527,7 +16527,7 @@ def main() -> None:
             show_source_details = st.checkbox(
                 "Show report source details",
                 value=False,
-                help="Adds raw JSON under Sources & Gaps for troubleshooting. Most users can leave this off.",
+                help="Adds an advanced source audit under Sources & Gaps for troubleshooting. Most users can leave this off.",
             )
         st.divider()
         render_context_note(
@@ -16553,7 +16553,7 @@ def main() -> None:
                 sidebar_guide_cards_html(missing_data_guide_rows(), "Dashboard Label", "What to do"),
                 unsafe_allow_html=True,
             )
-        with st.expander("Technical paths", expanded=False):
+        with st.expander("Local file paths", expanded=False):
             context = path_context(BASE_DIR, DATA_DIR, OUTPUTS_DIR)
             st.code(
                 "\n".join(

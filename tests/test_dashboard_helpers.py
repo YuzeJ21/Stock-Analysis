@@ -107,7 +107,11 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Advanced source audit (JSON)" in source
     assert "Developer detail: raw report JSON" not in source
     assert "Show report source details" in source
+    assert "Adds an advanced source audit under Sources & Gaps" in source
+    assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
+    assert 'st.expander("Local file paths"' in source
+    assert 'st.expander("Technical paths"' not in source
 
 
 def test_home_capability_cards_explain_quality_limits_and_provenance():
