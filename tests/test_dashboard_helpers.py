@@ -6543,13 +6543,13 @@ def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_n
     assert list(monitor_frame.columns) == ["Question", "Answer"]
     assert monitor_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Monitor-only context"}
     assert dcf_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Standalone DCF review"}
-    assert full_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Full company research review"}
+    assert full_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "DCF-ready review"}
     assert price_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Price/setup review only"}
     assert unlock_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Data-unlock only"}
     assert "what this report can support" in rendered
     assert "monitor-only context" in rendered
     assert "standalone dcf review" in rendered
-    assert "full company research review" in rendered
+    assert "dcf-ready review" in rendered
     assert "price/setup review only" in rendered
     assert "data-unlock only" in rendered
     assert "operating-company dcf and peer valuation are excluded, not failed" in rendered

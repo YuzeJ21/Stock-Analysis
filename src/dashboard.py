@@ -3397,7 +3397,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
         withheld = "Operating-company DCF and peer valuation are excluded, not failed."
         next_review = "Use the report as market/context monitoring; do not look for company valuation output."
     elif dcf_ready and peer_ready:
-        mode = "Full company research review"
+        mode = "DCF-ready review"
         supported = "Price setup, company fundamentals, standalone DCF, and peer-relative context."
         withheld = "Unsupported recommendations and allocation instructions remain withheld."
         next_review = "Review assumptions, sensitivity, peer inputs, warnings, and source freshness before forming a research view."
