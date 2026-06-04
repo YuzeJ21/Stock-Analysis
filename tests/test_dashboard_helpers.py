@@ -6206,6 +6206,51 @@ def test_stock_report_analysis_quality_cards_classify_supported_scope():
     assert "sell" not in rendered
 
 
+def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_next_step():
+    monitor_frame = dashboard.stock_report_evaluation_summary_frame(
+        {
+            "asset_type": "etf",
+            "valuation_snapshot": {"status": "excluded"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["DCF excluded"],
+        }
+    )
+    dcf_frame = dashboard.stock_report_evaluation_summary_frame(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": False},
+            "missing_data_warnings": ["Peers missing"],
+        }
+    )
+    unlock_frame = dashboard.stock_report_evaluation_summary_frame(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "insufficient_data"},
+            "valuation_readiness": {"price_ready": False, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["Price history missing"],
+        }
+    )
+    rendered = " ".join(
+        " ".join(frame.astype(str).to_numpy().flatten()).lower()
+        for frame in (monitor_frame, dcf_frame, unlock_frame)
+    )
+
+    assert list(monitor_frame.columns) == ["Question", "Answer"]
+    assert "what this report can support" in rendered
+    assert "operating-company dcf and peer valuation are excluded, not failed" in rendered
+    assert "standalone dcf assumptions" in rendered
+    assert "peer-relative valuation remains withheld" in rendered
+    assert "data-unlock workflow only" in rendered
+    assert "conclusions stay unavailable until price coverage starts" in rendered
+    assert "missing inputs reduce confidence" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_valuation_workflow_guidance_cards_explain_ready_blocked_and_excluded_states():
     cards = dashboard.valuation_workflow_guidance_cards(23, 3513, 2)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

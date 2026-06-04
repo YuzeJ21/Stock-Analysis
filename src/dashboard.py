@@ -3276,6 +3276,57 @@ def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> li
     ]
 
 
+def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    readiness = {
+        **(report_payload.get("readiness", {}) or {}),
+        **(report_payload.get("valuation_readiness", {}) or {}),
+    }
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    asset_type = format_missing(report_payload.get("asset_type"), "").lower()
+    valuation_status = format_missing(valuation.get("status"), "").lower()
+    warnings = report_payload.get("missing_data_warnings", []) or []
+    dcf_ready = bool(readiness.get("dcf_ready"))
+    peer_ready = bool(readiness.get("peer_ready"))
+    price_ready = bool(readiness.get("price_ready"))
+    is_monitor = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status
+
+    if is_monitor:
+        supported = "Market, theme, liquidity, risk, and monitor context."
+        withheld = "Operating-company DCF and peer valuation are excluded, not failed."
+        next_review = "Use the report as market/context monitoring; do not look for company valuation output."
+    elif dcf_ready and peer_ready:
+        supported = "Price setup, company fundamentals, standalone DCF, and peer-relative context."
+        withheld = "Unsupported recommendations and allocation instructions remain withheld."
+        next_review = "Review assumptions, sensitivity, peer inputs, warnings, and source freshness before forming a research view."
+    elif dcf_ready:
+        supported = "Price setup, company fundamentals, and standalone DCF assumptions."
+        withheld = "Peer-relative valuation remains withheld until source-backed peer inputs are ready."
+        next_review = "Review the DCF assumptions first, then add trusted peer mappings if peer context matters."
+    elif price_ready:
+        supported = "Price/setup review and missing-data diagnosis."
+        withheld = "Company valuation remains blocked until trusted fundamentals and DCF inputs are ready."
+        next_review = "Use Data Health or the next-step cards to unlock fundamentals before valuation review."
+    else:
+        supported = "Data-unlock workflow only."
+        withheld = "Momentum, liquidity, DCF, peer context, and conclusions stay unavailable until price coverage starts."
+        next_review = "Start with verified local price history, then regenerate readiness before interpreting the ticker."
+
+    confidence_note = (
+        f"{len(warnings)} visible warning{'s' if len(warnings) != 1 else ''}; missing inputs reduce confidence and stay visible."
+        if warnings
+        else "No visible missing-data warnings in the current report payload."
+    )
+
+    return pd.DataFrame(
+        [
+            {"Question": "What this report can support", "Answer": supported},
+            {"Question": "What remains withheld", "Answer": withheld},
+            {"Question": "Best next review step", "Answer": next_review},
+            {"Question": "Confidence note", "Answer": confidence_note},
+        ]
+    )
+
+
 def preferred_single_stock_default(local_tickers: list[str], preferred: str = "NVDA") -> int:
     """Return the selectbox index for a visitor-friendly demo ticker when present."""
     if not local_tickers:
@@ -13623,6 +13674,12 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
+    st.markdown("#### Evaluation Summary")
+    st.dataframe(
+        clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
+        width="stretch",
+        hide_index=True,
+    )
     st.markdown(stock_report_brief_html(report_payload), unsafe_allow_html=True)
 
     price = report_payload["price_snapshot"]
@@ -13876,7 +13933,7 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
                 st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
         if show_raw_json:
-            with st.expander("Raw stock report JSON", expanded=False):
+            with st.expander("Advanced report data (JSON)", expanded=False):
                 st.json(report_payload, expanded=False)
 
     st.download_button(
@@ -15395,7 +15452,7 @@ def main() -> None:
             help="Start with Home, then open a deeper page when you know what you want to review.",
         )
         show_reason_details = st.checkbox("Show detailed reasons", value=False)
-        show_raw_json = st.checkbox("Show raw report data", value=False)
+        show_raw_json = st.checkbox("Show advanced report data (JSON)", value=False)
         st.divider()
         render_context_note(
             "Start here.",
