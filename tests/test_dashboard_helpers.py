@@ -101,6 +101,22 @@ def test_single_stock_default_prefers_demo_ticker_when_available():
     assert dashboard.preferred_single_stock_default(["nvda", "QQQ"]) == 1
 
 
+def test_home_capability_cards_explain_quality_limits_and_provenance():
+    cards = dashboard._plain_home_capability_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert "good for ready-data research" in rendered
+    assert "blocked fundamentals, peers, earnings, or estimates" in rendered
+    assert "implemented under src/" in rendered
+    assert "repo-native" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_notice_card_escapes_content_and_uses_tones():
     html = dashboard.notice_card_html("<Missing>", "Use <safe> local files.", "make pipeline", tone="warning")
 

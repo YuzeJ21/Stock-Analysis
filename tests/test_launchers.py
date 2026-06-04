@@ -180,6 +180,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## Try This Demo Path" in readme
     assert "## Generated Data Hygiene" in readme
     assert "## Analysis Logic Provenance" in readme
+    assert "docs/analysis_capability_audit.md" in readme
     for phrase in (
         "make pipeline",
         "make readiness",
@@ -200,9 +201,27 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "not investment advice",
         "Roadmap Snapshot",
         "Review them before committing",
-        "not copied stock-picking or recommendation engines",
+        "where the logic lives",
     ):
         assert phrase in readme
+
+
+def test_analysis_capability_audit_is_public_and_data_honest():
+    audit = Path("docs/analysis_capability_audit.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "What Is Strong Today",
+        "What Is Intentionally Limited",
+        "Where The Logic Comes From",
+        "Good-Enough Assessment",
+        "src/valuation.py",
+        "src/readiness_engine.py",
+        "not copied stock-analysis skills",
+        "not yet a full-market data platform",
+    ):
+        assert phrase in audit
+    for forbidden in ("place orders", "connect to brokers", "auto-trade", "direct buy/sell"):
+        assert forbidden not in audit.lower()
 
 
 def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():

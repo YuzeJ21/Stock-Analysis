@@ -124,7 +124,7 @@ Small example outputs are included for review. Large refreshed files such as `da
 
 ## Analysis Logic Provenance
 
-The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. The project uses standard Python packages such as `pandas`, `numpy`, `PyYAML`, and `streamlit`; optional `yfinance` is an unofficial research-grade adapter. These libraries support data handling and UI, but they are not copied stock-picking or recommendation engines.
+The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. See [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
 
 ## Core Outputs
 

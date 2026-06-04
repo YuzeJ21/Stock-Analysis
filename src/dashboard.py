@@ -13099,6 +13099,29 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
     ]
 
 
+def _plain_home_capability_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "ANALYSIS QUALITY",
+            "title": "Good for ready-data research",
+            "body": "Price, momentum, DCF, peer workflow, and single-stock reports are useful when trusted local inputs exist.",
+            "badges": ["data-gated", "transparent"],
+        },
+        {
+            "kicker": "LIMITS",
+            "title": "Coverage is the constraint",
+            "body": "Blocked fundamentals, peers, earnings, or estimates mean the app withholds that analysis instead of filling gaps.",
+            "badges": ["no inference"],
+        },
+        {
+            "kicker": "PROVENANCE",
+            "title": "Logic lives in this repo",
+            "body": "Readiness gates, indicators, DCF assumptions, peer checks, decisions, and report wording are implemented under src/.",
+            "badges": ["repo-native"],
+        },
+    ]
+
+
 def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]]) -> None:
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     dcf_readiness_frame, _ = load_dcf_readiness()
@@ -13133,6 +13156,15 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary))
+
+    render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and where the logic comes from.")
+    render_signal_cards(_plain_home_capability_cards())
+    with st.expander("Detailed analysis capability audit", expanded=False):
+        st.write(
+            "The public audit explains which functions are strong today, which data gaps still limit the product, "
+            "and why the analysis logic is repo-native rather than a copied stock-analysis skill."
+        )
+        st.code("docs/analysis_capability_audit.md", language="text")
 
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
     render_action_cards(
