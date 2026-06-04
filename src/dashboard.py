@@ -3327,6 +3327,117 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
     )
 
 
+def stock_report_inferred_asset_type(report_payload: dict[str, object]) -> str:
+    asset_type = format_missing(report_payload.get("asset_type"), "").lower()
+    if asset_type and asset_type != "not available":
+        return asset_type
+
+    screener_context = report_payload.get("screener_context", {}) or {}
+    purpose_context = {}
+    if isinstance(screener_context, dict):
+        purpose_context = screener_context.get("purpose_classification", {}) or {}
+    purpose_text = " ".join(
+        format_missing(purpose_context.get(field), "")
+        for field in ("finalprimarypurpose", "defaultpurpose", "declaredprimarypurpose", "theme", "sectoretf")
+    ).lower()
+    if any(token in purpose_text for token in ("etf", "index", "hedge", "defensive")):
+        return "etf"
+    return asset_type
+
+
+def _stock_report_payload_readiness(report_payload: dict[str, object]) -> dict[str, object]:
+    readiness = {
+        **(report_payload.get("readiness", {}) or {}),
+        **(report_payload.get("valuation_readiness", {}) or {}),
+    }
+    price = report_payload.get("price_snapshot", {}) or {}
+    performance = report_payload.get("performance", {}) or {}
+    financials = report_payload.get("financial_summary", {}) or {}
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    valuation_status = format_missing(valuation.get("status"), "").lower()
+
+    if "price_ready" not in readiness:
+        readiness["price_ready"] = format_missing(price.get("price")) != "Not available"
+    if "momentum_ready" not in readiness:
+        readiness["momentum_ready"] = any(
+            format_missing(performance.get(field)) != "Not available"
+            for field in ("one_month", "three_month", "one_year")
+        )
+    if "fundamentals_ready" not in readiness:
+        readiness["fundamentals_ready"] = valuation_status == "calculated" or any(
+            format_missing(financials.get(field)) != "Not available"
+            for field in ("revenue", "free_cash_flow", "fcf_margin", "shares_outstanding")
+        )
+    if "dcf_ready" not in readiness:
+        readiness["dcf_ready"] = valuation_status == "calculated"
+    return readiness
+
+
+def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    readiness = _stock_report_payload_readiness(report_payload)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    valuation_status = format_missing(valuation.get("status"), "").lower()
+    asset_type = stock_report_inferred_asset_type(report_payload)
+    is_monitor = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status
+    price_ready = bool(readiness.get("price_ready"))
+    momentum_ready = bool(readiness.get("momentum_ready"))
+    liquidity_ready = bool(readiness.get("liquidity_ready"))
+    correlation_ready = bool(readiness.get("correlation_ready"))
+    dcf_ready = bool(readiness.get("dcf_ready"))
+    fundamentals_ready = bool(readiness.get("fundamentals_ready"))
+    peer_ready = bool(readiness.get("peer_ready"))
+    earnings_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready"))
+    estimates_ready = bool(readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready"))
+
+    price_status = (
+        "Ready for local trend/setup review"
+        if price_ready and momentum_ready
+        else "Locked until enough trusted price history is available"
+    )
+    risk_status = (
+        "Ready for local liquidity/correlation context"
+        if liquidity_ready and correlation_ready
+        else "Partial until liquidity and correlation inputs pass readiness checks"
+    )
+    if is_monitor:
+        dcf_status = "Excluded for ETF/index/fund monitor context, not failed"
+    elif dcf_ready and fundamentals_ready:
+        dcf_status = "Ready for standalone DCF assumptions and sensitivity review"
+    else:
+        dcf_status = "Blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready"
+    if is_monitor:
+        peer_status = "Excluded for monitor context"
+    elif peer_ready:
+        peer_status = "Ready for peer-relative review"
+    else:
+        peer_status = "Blocked until source-backed peer mappings and peer valuation inputs are ready"
+    optional_status = (
+        "Ready for earnings and analyst-estimate context"
+        if earnings_ready and estimates_ready
+        else "Locked until trusted local earnings and analyst-estimate rows exist"
+    )
+
+    return pd.DataFrame(
+        [
+            {
+                "Function": "Readiness gate",
+                "Current Status": "Strongest layer",
+                "What To Trust": "Ready, blocked, and excluded states are checked before conclusions appear.",
+            },
+            {"Function": "Price / setup", "Current Status": price_status, "What To Trust": "Trend and setup context only when local price history is present."},
+            {"Function": "Risk context", "Current Status": risk_status, "What To Trust": "Liquidity and correlation are context, not execution instructions."},
+            {"Function": "Fundamentals / DCF", "Current Status": dcf_status, "What To Trust": "Company valuation only when trusted DCF inputs are ready; ETF/index DCF is excluded."},
+            {"Function": "Peer comparison", "Current Status": peer_status, "What To Trust": "Peer valuation waits for source-backed peer mappings and peer inputs."},
+            {"Function": "Optional context", "Current Status": optional_status, "What To Trust": "Earnings and estimates remain unavailable until trusted local rows exist."},
+            {
+                "Function": "Logic source",
+                "Current Status": "Repo-native",
+                "What To Trust": "Rules live under src/; libraries and adapters support data/UI, not copied stock-picking skills.",
+            },
+        ]
+    )
+
+
 def preferred_single_stock_default(local_tickers: list[str], preferred: str = "NVDA") -> int:
     """Return the selectbox index for a visitor-friendly demo ticker when present."""
     if not local_tickers:
@@ -13772,6 +13883,12 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
     st.markdown("#### Evaluation Summary")
     st.dataframe(
         clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
+        width="stretch",
+        hide_index=True,
+    )
+    st.markdown("#### What This Report Can Evaluate")
+    st.dataframe(
+        clean_display_frame(stock_report_function_quality_frame(report_payload)),
         width="stretch",
         hide_index=True,
     )

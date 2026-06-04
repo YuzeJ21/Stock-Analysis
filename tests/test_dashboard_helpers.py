@@ -6276,6 +6276,75 @@ def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_n
     assert "sell" not in rendered
 
 
+def test_stock_report_function_quality_frame_explains_current_function_scope_and_source():
+    frame = dashboard.stock_report_function_quality_frame(
+        {
+            "asset_type": "company",
+            "price_snapshot": {"price": 100.0},
+            "performance": {"one_month": 0.12},
+            "financial_summary": {"free_cash_flow": 10_000_000, "shares_outstanding": 1_000_000},
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"peer_ready": False, "earnings_available": False, "analyst_estimates_available": False},
+        }
+    )
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == ["Function", "Current Status", "What To Trust"]
+    assert "readiness gate" in rendered
+    assert "strongest layer" in rendered
+    assert "price / setup" in rendered
+    assert "ready for local trend/setup review" in rendered
+    assert "fundamentals / dcf" in rendered
+    assert "ready for standalone dcf assumptions and sensitivity review" in rendered
+    assert "peer comparison" in rendered
+    assert "blocked until source-backed peer mappings" in rendered
+    assert "logic source" in rendered
+    assert "repo-native" in rendered
+    assert "not copied stock-picking skills" in rendered
+    assert "no open source was used" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_function_quality_frame_infers_etf_monitor_context_from_screener_context():
+    frame = dashboard.stock_report_function_quality_frame(
+        {
+            "ticker": "QQQ",
+            "price_snapshot": {"price": 570.0},
+            "performance": {"one_month": 0.08},
+            "financial_summary": {},
+            "valuation_snapshot": {"status": "insufficient_data"},
+            "valuation_readiness": {"peer_ready": False},
+            "screener_context": {
+                "purpose_classification": {
+                    "finalprimarypurpose": "ETF / Defensive / Hedge",
+                    "theme": "Nasdaq 100 ETF",
+                }
+            },
+        }
+    )
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert dashboard.stock_report_inferred_asset_type(
+        {
+            "screener_context": {
+                "purpose_classification": {
+                    "finalprimarypurpose": "ETF / Defensive / Hedge",
+                    "theme": "Nasdaq 100 ETF",
+                }
+            }
+        }
+    ) == "etf"
+    assert "excluded for etf/index/fund monitor context, not failed" in rendered
+    assert "peer comparison" in rendered
+    assert "excluded for monitor context" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_valuation_workflow_guidance_cards_explain_ready_blocked_and_excluded_states():
     cards = dashboard.valuation_workflow_guidance_cards(23, 3513, 2)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
