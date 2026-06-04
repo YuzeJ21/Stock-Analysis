@@ -202,6 +202,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Roadmap Snapshot",
         "Review them before committing",
         "where the logic lives",
+        "Codex plugins or skills are not runtime dependencies",
+        "hidden stock-picking engines",
     ):
         assert phrase in readme
 
@@ -242,6 +244,7 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Function Quality Matrix",
         "What Is Intentionally Limited",
         "Where The Logic Comes From",
+        "Plugin And Skill Boundary",
         "Good-Enough Assessment",
         "Readiness gates",
         "Fundamentals and DCF",
@@ -254,6 +257,11 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "not a wrapper around copied stock-picking skills",
         "not copied stock-analysis skills",
         "libraries/adapters, not copied stock-analysis skills",
+        "Public Equity Investing",
+        "Investment Banking",
+        "not runtime dependencies",
+        "hidden recommendation systems",
+        "public product should be judged by the files in this repository",
         "not yet a full-market data platform",
     ):
         assert phrase in audit

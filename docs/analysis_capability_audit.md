@@ -45,6 +45,12 @@ The analysis logic is implemented in this repository under `src/`. It is not a w
 
 The project uses standard Python libraries such as `pandas`, `numpy`, `PyYAML`, and `streamlit` for data handling and UI. Optional `yfinance` support is an unofficial research-grade data adapter. These dependencies are libraries/adapters, not copied stock-analysis skills, recommendation engines, or account-execution systems.
 
+## Plugin And Skill Boundary
+
+Codex-side plugins or skills, including Public Equity Investing or Investment Banking workflows, are optional development aids outside the shipped product. They are not runtime dependencies, embedded valuation engines, hidden recommendation systems, broker integrations, or sources of copied stock-picking logic.
+
+If those plugins are used during development, their output still has to be translated into deterministic repo code, local CSV schemas, tests, and research-only wording before it belongs in the product. The public product should be judged by the files in this repository, the local data it is given, and the tests that verify readiness gates and guardrails.
+
 ## Good-Enough Assessment
 
 The current functions are good enough for a transparent local research prototype, single-stock review, market/ETF monitoring, and DCF-ready company analysis when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until trusted rows are imported.
