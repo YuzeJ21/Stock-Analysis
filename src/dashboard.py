@@ -13586,9 +13586,9 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
         performance_columns[1].metric("3M Return", report_display_value(performance.get("three_month"), "percent"))
         performance_columns[2].metric("1Y Return", report_display_value(performance.get("one_year"), "percent"))
 
-        st.markdown("#### Technical Context")
+        st.markdown("#### Setup And Trend Context")
         render_context_note(
-            "Technical context.",
+            "Setup and trend context.",
             "These fields come from the current local momentum and watchlist outputs. They summarize setup quality and trend context without implying an allocation action.",
         )
         render_signal_cards(stock_report_technical_context_cards(report_payload))
@@ -13598,7 +13598,7 @@ def render_single_stock_report(provider, show_raw_json: bool) -> None:
             hide_index=True,
         )
 
-        st.markdown("#### Financial Context")
+        st.markdown("#### Company Fundamentals")
         financial_fields = [
             ("revenue", "Revenue", "number"),
             ("revenue_growth", "Revenue Growth", "percent"),

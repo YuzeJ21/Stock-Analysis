@@ -129,6 +129,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Ready inputs:" in markdown
     assert "Supported now:" in markdown
     assert "Still locked or excluded:" in markdown
+    assert "## Analysis Quality" in markdown
+    assert "Good for standalone DCF" in markdown
+    assert "peer-relative valuation remains limited until trusted peer inputs are ready" in markdown
     assert "Base DCF fair value per share" in markdown
     assert "Base DCF assumptions" in markdown
     assert "Scenario coverage: bear, base, bull" in markdown
@@ -287,6 +290,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "# QQQ Single-Stock Research Report" in markdown
     for heading in (
         "## Executive Summary",
+        "## Analysis Quality",
         "## What This Stock Is",
         "## Data Readiness",
         "## Supported Analysis",
@@ -307,6 +311,8 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "transaction execution" not in markdown.lower()
     assert "execute transactions" not in markdown.lower()
     assert "DCF: excluded" in markdown
+    assert "Good for monitor context" in markdown
+    assert "Operating-company DCF and peer valuation are excluded, not failed" in markdown
     assert "DCF applicability: excluded" in markdown
     assert "not a failed valuation input" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
@@ -405,6 +411,9 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     )
 
     assert f"Next: {peer_action}" in markdown
+    assert "## Analysis Quality" in markdown
+    assert "Good for standalone DCF" in markdown
+    assert "peer-relative valuation remains limited until trusted peer inputs are ready" in markdown
     assert f"- Next action: {peer_action}" in markdown
     assert "Operator summary:" in markdown
     assert "Next blocker: peers" in markdown
@@ -462,6 +471,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "# APLD Single-Stock Research Report" in markdown
     assert "## Executive Summary" in markdown
     assert "## What This Stock Is" in markdown
+    assert "## Analysis Quality" in markdown
+    assert "Data-unlock mode" in markdown
+    assert "Start with verified local price history before relying on momentum" in markdown
     assert "## Data Readiness" in markdown
     assert "## Valuation Readiness" in markdown
     assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown

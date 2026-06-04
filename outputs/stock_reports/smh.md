@@ -13,6 +13,11 @@ SMH state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - Supported now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Still locked or excluded: Blocked features: fundamentals, peer, earnings, analyst_estimates. Excluded features: dcf, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Analysis Quality
+- Current quality label: Good for monitor context.
+- Why: Use market, theme, liquidity, or risk context. Operating-company DCF and peer valuation are excluded, not failed.
+- Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
+
 ## What This Stock Is
 - Ticker: SMH
 - Asset type: etf

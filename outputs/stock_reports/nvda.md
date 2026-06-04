@@ -13,6 +13,11 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst_estimates. Excluded features: Not available. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Analysis Quality
+- Current quality label: Good for deeper company review.
+- Why: Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass.
+- Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
+
 ## What This Stock Is
 - Ticker: NVDA
 - Asset type: company

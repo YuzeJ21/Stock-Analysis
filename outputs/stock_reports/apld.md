@@ -13,6 +13,11 @@ APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked or excluded: Blocked features: fundamentals, dcf, peer, earnings, analyst_estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Analysis Quality
+- Current quality label: Good for price/setup review.
+- Why: Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist.
+- Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
+
 ## What This Stock Is
 - Ticker: APLD
 - Asset type: company

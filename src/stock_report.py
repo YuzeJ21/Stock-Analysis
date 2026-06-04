@@ -626,6 +626,59 @@ def _stock_report_next_action(
     return _display_value(decision.get("next_best_action") or decision.get("next_action") or readiness.get("next_action"))
 
 
+def _stock_report_analysis_quality_lines(
+    *,
+    readiness: dict[str, Any],
+    dcf_status_text: str,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+) -> list[str]:
+    asset_type = _display_value(readiness.get("asset_type"), "").lower()
+    price_ready = bool(readiness.get("price_ready"))
+    dcf_ready = dcf_status_text == "ready" or bool(readiness.get("dcf_ready"))
+    peer_is_ready = bool(peer_ready)
+    monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+
+    if monitor_context:
+        quality_title = "Good for monitor context"
+        quality_reason = (
+            "Use market, theme, liquidity, or risk context. Operating-company DCF and peer valuation are "
+            "excluded, not failed."
+        )
+    elif dcf_ready and peer_is_ready:
+        quality_title = "Good for deeper company review"
+        quality_reason = "Price, fundamentals, standalone DCF, and peer context are ready enough for a fuller research pass."
+    elif dcf_ready:
+        quality_title = "Good for standalone DCF"
+        quality_reason = (
+            "DCF assumptions can be reviewed, but peer-relative valuation remains limited until trusted peer "
+            "inputs are ready."
+        )
+    elif price_ready:
+        quality_title = "Good for price/setup review"
+        quality_reason = (
+            "Use price and setup context only. Company valuation stays blocked until trusted fundamentals and "
+            "DCF inputs exist."
+        )
+    else:
+        quality_title = "Data-unlock mode"
+        quality_reason = (
+            "Start with verified local price history before relying on momentum, liquidity, valuation, or peer context."
+        )
+
+    optional_context = (
+        "Optional earnings and analyst-estimate context is available for review."
+        if bool(earnings_ready) and bool(estimates_ready)
+        else "Earnings and analyst estimates stay locked until trusted local rows exist."
+    )
+    return [
+        f"- Current quality label: {quality_title}.",
+        f"- Why: {quality_reason}",
+        f"- Optional context: {optional_context}",
+    ]
+
+
 def _stock_report_source_audit_lines(
     *,
     ticker: str,
@@ -818,6 +871,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"Blocked features: {blocked_features}. Excluded features: {excluded_features}. "
         "Unavailable sections are intentionally locked; missing data is not inferred."
     )
+    analysis_quality_lines = _stock_report_analysis_quality_lines(
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
 
     report_lines = [
         f"# {report.ticker} Single-Stock Research Report",
@@ -834,6 +894,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Ready inputs: {ready_features}.",
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
+        "",
+        "## Analysis Quality",
+        *analysis_quality_lines,
         "",
         "## What This Stock Is",
         f"- Ticker: {report.ticker}",
@@ -1018,6 +1081,13 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"Blocked features: {blocked_features}. Excluded features: {excluded_features}. "
         "Unavailable sections are intentionally locked; missing data is not inferred."
     )
+    analysis_quality_lines = _stock_report_analysis_quality_lines(
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     lines = [
         f"# {symbol} Single-Stock Research Report",
         "",
@@ -1036,6 +1106,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Ready inputs: {ready_features}.",
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
+        "",
+        "## Analysis Quality",
+        *analysis_quality_lines,
         "",
         "## What This Stock Is",
         f"- Ticker: {symbol}",
