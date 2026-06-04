@@ -151,17 +151,33 @@ def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
 
 
 def test_home_function_quality_frame_explains_good_enough_scope_and_logic_source():
-    frame = dashboard._plain_home_function_quality_frame()
+    frame = dashboard._plain_home_function_quality_frame(
+        {
+            "master_universe": 3538,
+            "price_ready": 240,
+            "dcf_ready": 23,
+            "peer_ready": 3,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
     rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
 
-    assert list(frame.columns) == ["Function Area", "Good Enough For", "Needs Trusted Data", "Logic Source"]
+    assert list(frame.columns) == ["Function Area", "Current Status", "Good Enough For", "Needs Trusted Data", "Logic Source"]
     assert "readiness gates" in rendered
     assert "strongest layer" in rendered
     assert "price / momentum" in rendered
+    assert "240 / 3,538 price-ready" in rendered
     assert "fundamentals / dcf" in rendered
+    assert "23 / 3,538 dcf-ready" in rendered
     assert "dcf-ready company analysis" in rendered
     assert "peer comparison" in rendered
+    assert "3 / 3,538 peer-ready" in rendered
     assert "no guessed peer mappings" in rendered
+    assert "earnings / estimates" in rendered
+    assert "0 / 3,538 earnings-ready" in rendered
+    assert "0 / 3,538 analyst-estimate-ready" in rendered
+    assert "intentionally unavailable" in rendered
     assert "single-stock report" in rendered
     assert "supported, blocked, excluded, and monitor-only analysis" in rendered
     assert "libraries/adapters" in rendered

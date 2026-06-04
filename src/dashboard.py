@@ -14029,41 +14029,70 @@ def _plain_home_provenance_cards() -> list[dict[str, object]]:
     ]
 
 
-def _plain_home_function_quality_frame() -> pd.DataFrame:
+def _plain_home_function_quality_frame(summary: dict[str, object] | None = None) -> pd.DataFrame:
+    summary = summary or {}
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+
+    def _count_text(key: str, label: str) -> str:
+        count = int(summary.get(key) or 0)
+        if master:
+            return f"{count:,} / {master:,} {label}."
+        if count:
+            return f"{count:,} {label}."
+        return f"{label.title()} count not loaded on this page yet."
+
+    price_status = _count_text("price_ready", "price-ready")
+    dcf_status = _count_text("dcf_ready", "DCF-ready")
+    peer_status = _count_text("peer_ready", "peer-ready")
+    earnings_status = _count_text("earnings_ready", "earnings-ready")
+    estimates_status = _count_text("analyst_estimates_ready", "analyst-estimate-ready")
     return pd.DataFrame(
         [
             {
                 "Function Area": "Readiness gates",
+                "Current Status": "Strong when the local readiness reports are current; this is the first layer every page should respect.",
                 "Good Enough For": "Strongest layer; decides whether deeper analysis is allowed.",
                 "Needs Trusted Data": "Ticker universe, prices, fundamentals, peers, earnings, and estimate readiness rows.",
                 "Logic Source": "Repo-native rules in src/readiness_engine.py.",
             },
             {
                 "Function Area": "Price / momentum",
+                "Current Status": price_status,
                 "Good Enough For": "Local setup, trend, liquidity, and market-context review when price history exists.",
                 "Needs Trusted Data": "Verified local OHLCV rows with enough history.",
                 "Logic Source": "Repo-native calculations in src/report_generator.py and dashboard helpers.",
             },
             {
                 "Function Area": "Fundamentals / DCF",
+                "Current Status": dcf_status,
                 "Good Enough For": "DCF-ready company analysis with visible assumptions and sensitivity.",
                 "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source freshness.",
                 "Logic Source": "Repo-native assumptions in src/value_engine.py and src/valuation.py.",
             },
             {
                 "Function Area": "Peer comparison",
+                "Current Status": peer_status,
                 "Good Enough For": "Workflow-ready peer context after source-backed peer rows and peer metrics exist.",
                 "Needs Trusted Data": "Manual peer mappings plus peer fundamentals or peer market context.",
                 "Logic Source": "Repo-native peer readiness and valuation checks; no guessed peer mappings.",
             },
             {
+                "Function Area": "Earnings / estimates",
+                "Current Status": f"{earnings_status} {estimates_status}",
+                "Good Enough For": "Optional context only after trusted local rows exist; empty coverage means intentionally unavailable.",
+                "Needs Trusted Data": "Trusted local earnings and analyst-estimate CSV rows with validation/preview/apply review.",
+                "Logic Source": "Repo-native optional-context readiness and import workflow helpers.",
+            },
+            {
                 "Function Area": "Single-stock report",
+                "Current Status": "Good for explaining one ticker's ready, blocked, excluded, and monitor-only analysis.",
                 "Good Enough For": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
                 "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source/freshness outputs.",
                 "Logic Source": "Repo-native report assembly in src/stock_report.py and src/dashboard.py.",
             },
             {
                 "Function Area": "Dependencies",
+                "Current Status": "Support layer only; not hidden analysis logic.",
                 "Good Enough For": "Data handling, UI, tests, and optional research-grade provider access.",
                 "Needs Trusted Data": "Local CSV inputs remain the source of truth by default.",
                 "Logic Source": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance; not copied stock-picking skills.",
@@ -14120,7 +14149,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             "The public audit explains which functions are strong today, which data gaps still limit the product, "
             "and why the analysis logic is repo-native rather than a copied stock-analysis skill."
         )
-        st.dataframe(clean_display_frame(_plain_home_function_quality_frame()), width="stretch", hide_index=True)
+        st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
         st.code("docs/analysis_capability_audit.md", language="text")
 
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
