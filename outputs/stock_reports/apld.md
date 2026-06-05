@@ -152,6 +152,12 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Formula path: withheld before base FCF, projected FCF, terminal value, equity value, or fair value/share are calculated.
 - Sensitivity: unavailable until the base DCF can be calculated from trusted inputs.
 
+## Valuation Boundary Checklist
+- DCF boundary: blocked until trusted price, fundamentals, cash-flow or margin, share-count, and DCF fields pass readiness.
+- Peer-relative boundary: withheld until trusted fundamentals and DCF readiness pass first.
+- Optional-context boundary: locked until trusted local earnings and analyst-estimate rows pass import validation.
+- Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
+
 ## Peer Workflow
 - Peer blocker type: blocked until fundamentals / DCF
 - Mapping status: waiting for price, fundamentals, and DCF

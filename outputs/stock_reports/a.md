@@ -158,6 +158,12 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Sensitivity: calculated; reader should compare WACC and terminal-growth cases before interpreting fair value.
 - Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation.
 
+## Valuation Boundary Checklist
+- DCF boundary: ready for assumption, scenario, and sensitivity review; still research context, not a price target.
+- Peer-relative boundary: blocked until source-backed peer mappings and peer valuation inputs pass readiness.
+- Optional-context boundary: locked until trusted local earnings and analyst-estimate rows pass import validation.
+- Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
+
 ## Peer Workflow
 - Peer blocker type: peer price missing
 - Mapping status: mapped

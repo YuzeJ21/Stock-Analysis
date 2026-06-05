@@ -149,6 +149,12 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Formula path: not run for this ticker because the asset-type gate excludes company DCF.
 - Reader takeaway: use supported market, theme, liquidity, or risk context instead of treating DCF as failed.
 
+## Valuation Boundary Checklist
+- DCF boundary: excluded for ETF/index/fund monitor context; this is not a failed company DCF input.
+- Peer-relative boundary: excluded for monitor context; peer-relative company valuation is not shown.
+- Optional-context boundary: locked until trusted local earnings and analyst-estimate rows pass import validation.
+- Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
+
 ## Peer Workflow
 - Peer blocker type: monitor context
 - Mapping status: monitor context

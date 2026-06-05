@@ -258,6 +258,11 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs" in markdown
     assert "Input source: local price/fundamentals rows; base revenue=$250.0B; base FCF=$90.0B; shares outstanding=7.4B" in markdown
     assert "Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation" in markdown
+    assert "## Valuation Boundary Checklist" in markdown
+    assert "DCF boundary: ready for assumption, scenario, and sensitivity review; still research context, not a price target" in markdown
+    assert "Peer-relative boundary: blocked until source-backed peer mappings and peer valuation inputs pass readiness" in markdown
+    assert "Optional-context boundary: locked until trusted local earnings and analyst-estimate rows pass import validation" in markdown
+    assert "Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions" in markdown
     assert "Reason not ready: Not available" not in markdown
     assert "DCF missing fields: Not available" not in markdown
     assert "missing valuation inputs are not inferred" in markdown
@@ -798,6 +803,10 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "## DCF Calculation Path" in markdown
     assert "State: blocked; the product withholds DCF math until trusted company inputs pass readiness checks" in markdown
     assert "Formula path: withheld before base FCF, projected FCF, terminal value, equity value, or fair value/share are calculated" in markdown
+    assert "## Valuation Boundary Checklist" in markdown
+    assert "DCF boundary: blocked until trusted price, fundamentals, cash-flow or margin, share-count, and DCF fields pass readiness" in markdown
+    assert "Peer-relative boundary: withheld until trusted fundamentals and DCF readiness pass first" in markdown
+    assert "Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions" in markdown
     assert "## Risk Notes" in markdown
     assert "## Next Research Step" in markdown
     assert "allocation instructions" in markdown

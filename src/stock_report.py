@@ -831,6 +831,41 @@ def _stock_report_dcf_calculation_path_lines(
     ]
 
 
+def _stock_report_valuation_boundary_checklist_lines(
+    *,
+    dcf_status_text: str,
+    monitor_context: bool,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+) -> list[str]:
+    if monitor_context or dcf_status_text.lower() == "excluded":
+        dcf_boundary = "excluded for ETF/index/fund monitor context; this is not a failed company DCF input."
+        peer_boundary = "excluded for monitor context; peer-relative company valuation is not shown."
+    elif dcf_status_text.lower() == "ready":
+        dcf_boundary = "ready for assumption, scenario, and sensitivity review; still research context, not a price target."
+        peer_boundary = (
+            "available only from trusted peer mappings and peer valuation inputs."
+            if bool(peer_ready)
+            else "blocked until source-backed peer mappings and peer valuation inputs pass readiness."
+        )
+    else:
+        dcf_boundary = "blocked until trusted price, fundamentals, cash-flow or margin, share-count, and DCF fields pass readiness."
+        peer_boundary = "withheld until trusted fundamentals and DCF readiness pass first."
+
+    optional_boundary = (
+        "available for timing and consensus context."
+        if bool(earnings_ready) and bool(estimates_ready)
+        else "locked until trusted local earnings and analyst-estimate rows pass import validation."
+    )
+    return [
+        f"- DCF boundary: {dcf_boundary}",
+        f"- Peer-relative boundary: {peer_boundary}",
+        f"- Optional-context boundary: {optional_boundary}",
+        "- Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.",
+    ]
+
+
 def _stock_report_missing_data_lines(payload: dict[str, Any], *, monitor_context: bool) -> list[str]:
     warnings = list(payload.get("missing_data_warnings", []))
     if monitor_context:
@@ -1729,6 +1764,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
     )
+    valuation_boundary_lines = _stock_report_valuation_boundary_checklist_lines(
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
     blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
     excluded_features = _display_report_list(readiness.get("excluded_features"), "none")
@@ -1939,6 +1981,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## DCF Calculation Path",
         *dcf_calculation_lines,
         "",
+        "## Valuation Boundary Checklist",
+        *valuation_boundary_lines,
+        "",
         "## Peer Workflow",
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
@@ -2051,6 +2096,13 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         dcf=dcf,
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
+    )
+    valuation_boundary_lines = _stock_report_valuation_boundary_checklist_lines(
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
     )
     ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
     blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
@@ -2256,6 +2308,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## DCF Calculation Path",
         *dcf_calculation_lines,
+        "",
+        "## Valuation Boundary Checklist",
+        *valuation_boundary_lines,
         "",
         "## Peer Workflow",
         f"- Peer blocker type: {peer_blocker_display}",
