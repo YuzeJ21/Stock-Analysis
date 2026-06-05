@@ -2754,6 +2754,57 @@ def optional_context_empty_state_message(dataset_label: str) -> str:
     )
 
 
+def stock_report_optional_context_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    readiness = {
+        **(report_payload.get("readiness", {}) or {}),
+        **(report_payload.get("valuation_readiness", {}) or {}),
+    }
+    earnings = report_payload.get("earnings_summary", {}) or {}
+    estimates = report_payload.get("analyst_estimate_summary", {}) or {}
+    earnings_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready"))
+    estimates_ready = bool(readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready"))
+    earnings_rows = "available" if earnings_ready else "locked"
+    estimate_rows = "available" if estimates_ready else "locked"
+    next_earnings = report_display_value(earnings.get("next_earnings_date"), "date")
+    target_mean = report_display_value(estimates.get("target_mean_price"), "currency")
+
+    return [
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"Earnings {earnings_rows} / estimates {estimate_rows}",
+            "body": "Optional context can add timing, consensus, and revision context, but it never overrides readiness gates or creates a valuation conclusion by itself.",
+            "badges": ["optional", "readiness gated"],
+        },
+        {
+            "kicker": "EARNINGS",
+            "title": f"Next date: {next_earnings}",
+            "body": (
+                "Trusted earnings rows can show dates, EPS, revenue, and surprise fields. "
+                "When rows are missing, the report leaves earnings context locked instead of using placeholders."
+            ),
+            "badges": ["trusted local rows" if earnings_ready else "locked"],
+            "command": "" if earnings_ready else "make import-earnings",
+        },
+        {
+            "kicker": "ANALYST ESTIMATES",
+            "title": f"Mean target: {target_mean}",
+            "body": (
+                "Trusted estimate rows can show consensus EPS, revenue, target ranges, and revision trend. "
+                "They are shown as optional context, not as the product's own valuation output."
+            ),
+            "badges": ["trusted local rows" if estimates_ready else "locked"],
+            "command": "" if estimates_ready else "make import-analyst-estimates",
+        },
+        {
+            "kicker": "UNLOCK PATH",
+            "title": "Validate before applying",
+            "body": "Use schema-only templates, stage trusted rows, then validate, preview, apply, and rebuild readiness before the report treats optional context as available.",
+            "badges": ["schema only first", "copy-only"],
+            "command": "make templates && make imports-validate && make imports-preview",
+        },
+    ]
+
+
 def optional_context_unlock_cards() -> list[dict[str, object]]:
     return [
         {
@@ -17382,6 +17433,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         earnings = report_payload["earnings_summary"]
         estimates = report_payload["analyst_estimate_summary"]
         render_context_note("Optional context.", "Earnings and analyst estimates only appear when trusted local files exist. Missing files are safe and stay explicit.")
+        render_signal_cards(stock_report_optional_context_boundary_cards(report_payload))
         earnings_col, estimates_col = st.columns(2)
         with earnings_col:
             st.markdown("#### Earnings")

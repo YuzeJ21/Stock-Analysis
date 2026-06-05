@@ -13786,6 +13786,46 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "sell" not in rendered
 
 
+def test_stock_report_optional_context_boundary_cards_explain_locked_and_available_states():
+    locked_cards = dashboard.stock_report_optional_context_boundary_cards(
+        {
+            "valuation_readiness": {"earnings_available": False, "analyst_estimates_available": False},
+            "earnings_summary": {},
+            "analyst_estimate_summary": {},
+        }
+    )
+    ready_cards = dashboard.stock_report_optional_context_boundary_cards(
+        {
+            "valuation_readiness": {"earnings_available": True, "analyst_estimates_available": True},
+            "earnings_summary": {"next_earnings_date": "2026-07-24"},
+            "analyst_estimate_summary": {"target_mean_price": 390.0},
+        }
+    )
+    locked_rendered = " ".join(str(value) for card in locked_cards for value in card.values()).lower()
+    ready_rendered = " ".join(str(value) for card in ready_cards for value in card.values()).lower()
+    rendered = f"{locked_rendered} {ready_rendered}"
+
+    assert [card["kicker"] for card in locked_cards] == ["OPTIONAL CONTEXT", "EARNINGS", "ANALYST ESTIMATES", "UNLOCK PATH"]
+    assert "earnings locked / estimates locked" in locked_rendered
+    assert "earnings available / estimates available" in ready_rendered
+    assert "optional context can add timing, consensus, and revision context" in rendered
+    assert "never overrides readiness gates or creates a valuation conclusion by itself" in rendered
+    assert "leaves earnings context locked instead of using placeholders" in locked_rendered
+    assert locked_cards[1]["command"] == "make import-earnings"
+    assert locked_cards[2]["command"] == "make import-analyst-estimates"
+    assert ready_cards[1]["command"] == ""
+    assert ready_cards[2]["command"] == ""
+    assert "next date: 2026-07-24" in ready_rendered
+    assert "mean target: $390.00" in ready_rendered
+    assert "schema-only templates" in rendered
+    assert "validate, preview, apply, and rebuild readiness" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_first_optional_context_unlock_frame_keeps_optional_rows_locked_until_trusted():
     frame = dashboard.first_optional_context_unlock_frame("analyst_estimates")
     rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
