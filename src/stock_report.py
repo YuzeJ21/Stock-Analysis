@@ -745,7 +745,8 @@ def _stock_report_valuation_lines(
     if dcf_status_text.lower() != "ready":
         lines.append(
             "- Relative valuation: withheld until trusted fundamentals and DCF readiness pass; "
-            f"background relative-multiple status={relative_status_display}; peer count={peer_count}."
+            f"background relative-multiple calculation is not reader-ready yet "
+            f"(status={relative_status_display}; peer count={peer_count})."
         )
     elif relative_status_key in {"insufficient_data", "not available", "peer_data_unavailable"} or peer_inputs_missing:
         lines.append(

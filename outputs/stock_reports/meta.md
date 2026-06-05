@@ -146,7 +146,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Why DCF is blocked: missing shares outstanding.
 - DCF assumptions: withheld until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.
 - Sensitivity table: unavailable until the base DCF can be calculated.
-- Relative valuation: withheld until trusted fundamentals and DCF readiness pass; background relative-multiple status=calculated; peer count=2.
+- Relative valuation: withheld until trusted fundamentals and DCF readiness pass; background relative-multiple calculation is not reader-ready yet (status=calculated; peer count=2).
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
 ## DCF Calculation Path

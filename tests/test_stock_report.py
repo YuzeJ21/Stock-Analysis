@@ -350,7 +350,7 @@ def test_stock_report_valuation_lines_withhold_relative_valuation_when_dcf_readi
     assert "dcf status: blocked" in rendered
     assert "dcf status: calculated" not in rendered
     assert "relative valuation: withheld until trusted fundamentals and dcf readiness pass" in rendered
-    assert "background relative-multiple status=calculated" in rendered
+    assert "background relative-multiple calculation is not reader-ready yet (status=calculated; peer count=2)" in rendered
     assert "relative valuation: calculated from trusted peer inputs" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -794,6 +794,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "DCF missing inputs:" in markdown
     assert "Why DCF is blocked:" in markdown
     assert "Relative valuation: withheld until trusted fundamentals and DCF readiness pass" in markdown
+    assert "background relative-multiple calculation is not reader-ready yet" in markdown
     assert "## DCF Calculation Path" in markdown
     assert "State: blocked; the product withholds DCF math until trusted company inputs pass readiness checks" in markdown
     assert "Formula path: withheld before base FCF, projected FCF, terminal value, equity value, or fair value/share are calculated" in markdown
