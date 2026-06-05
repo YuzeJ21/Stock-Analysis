@@ -249,7 +249,31 @@ When a company ticker has the full trusted local input stack, the single-stock r
 
 When any part of that stack is missing, only the supported sections appear. The report keeps the blocked section visible and explains the exact local input needed next, plus the local command path for inspecting or unlocking that input.
 
-## 11. Methodology Limits
+## 11. Data Unlock Ladder
+
+The product uses the same unlock ladder in the dashboard, single-stock reports, and data-health queues:
+
+| Step | What unlocks | What can be analyzed | What stays unavailable |
+| --- | --- | --- | --- |
+| 1. Prices | Trusted local price rows. | Price/setup review, trend context, basic risk context when enough history exists. | Fundamentals, DCF, peers, earnings, and estimates. |
+| 2. Fundamentals / DCF inputs | Trusted company fundamentals with revenue, free cash flow or FCF margin, shares outstanding, and source metadata. | Fundamental field review and standalone DCF assumptions, scenarios, sensitivity, and fair value/share math. | Peer-relative valuation and optional earnings/estimate context. |
+| 3. Source-backed peers | Trusted peer mappings plus peer valuation inputs. | Peer trend context first, then peer-relative valuation only when peer valuation inputs pass readiness. | Peer premium/discount or peer DCF comparison when peer inputs are incomplete. |
+| 4. Optional context | Trusted earnings and analyst-estimate CSV rows. | Earnings timing context and analyst-estimate context. | Optional sections remain unavailable when those rows are missing. |
+
+Each step is permission to review a specific analysis layer, not permission to invent the next layer. Price-ready does not mean fundamentals-ready. Fundamentals-ready does not mean DCF-ready unless all required DCF fields pass. DCF-ready does not mean peer-ready. Peer-ready does not mean earnings or analyst estimates are available.
+
+The no-conclusion boundary is explicit: blocked rows must not be labeled undervalued, overvalued, DCF-ready, peer-ready, or optional-context-ready until the trusted input gate for that label passes. ETF, index proxy, and fund rows follow a separate monitor path where operating-company DCF and peer valuation are excluded, not failed.
+
+The safe local sequence is:
+
+1. Inspect the focused queue or report, such as `make focus-fundamentals TICKER=NVDA` or `make focus-peers TICKER=A`.
+2. Stage trusted rows only in the matching local CSV path, such as `data/imports/fundamentals.csv`, `data/imports/peers.csv`, `data/staged/earnings/`, or `data/staged/analyst_estimates/`.
+3. Run validation and preview before apply: `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
+4. Regenerate readiness, then read the report again before interpreting the newly unlocked section.
+
+This ladder is why empty or partial outputs are useful: they show the first trustworthy unlock instead of hiding the gap behind a weak conclusion.
+
+## 12. Methodology Limits
 
 This is not a full data-vendor terminal, analyst-estimate service, or execution workflow. The useful strength is transparency: the app shows exactly what local data supports and refuses to overstate missing analysis.
 
@@ -268,7 +292,7 @@ The current methodology remains limited when:
 - Earnings and analyst-estimate rows have not been imported.
 - A ticker has too little local price history.
 
-## 12. Where This Lives In Code
+## 13. Where This Lives In Code
 
 The methodology is implemented in project code, not hidden in a model prompt.
 
