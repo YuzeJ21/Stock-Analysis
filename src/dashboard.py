@@ -170,6 +170,7 @@ ACTIVE_UNLOCK_COCKPIT_COLUMNS = [
     "trusted_input_needed",
     "validation_sequence",
     "import_dataset",
+    "queue_group",
     "canonical_import_file",
     "rejected_report",
     "rejected_status",
@@ -3145,6 +3146,25 @@ def active_unlock_priority(dataset: str, readiness_state: object, asset_type: ob
     return 4 if state_text == "partial" else 6
 
 
+def active_unlock_queue_group(row: pd.Series, dataset: str) -> str:
+    asset_type = format_missing(row.get("asset_type"), "").lower()
+    if dataset == "monitor_context" or asset_type in {"etf", "fund", "index", "index_proxy"}:
+        return "Monitor context / DCF excluded"
+    if dataset == "prices":
+        return "Needs price coverage first"
+    if dataset == "fundamentals":
+        if bool(row.get("price_ready", False)) and not bool(row.get("fundamentals_ready", False)):
+            return "Price-ready but fundamentals missing"
+        return "Fundamentals / DCF unlock"
+    if dataset == "peers":
+        if bool(row.get("dcf_ready", False)) and not bool(row.get("peer_ready", False)):
+            return "DCF-ready but peer-blocked"
+        return "Trusted peer mapping unlock"
+    if dataset in {"earnings", "analyst_estimates"}:
+        return "Optional context locked"
+    return "Review current readiness"
+
+
 def active_unlock_drilldown_missing_fields(
     dataset: str,
     ticker: object,
@@ -3272,6 +3292,7 @@ def build_active_universe_unlock_frame(
                 "trusted_input_needed": trusted_input_needed,
                 "validation_sequence": validation_sequence,
                 "import_dataset": dataset,
+                "queue_group": active_unlock_queue_group(row, dataset),
                 "canonical_import_file": format_missing(import_row.get("canonical_import_file"), "Not available"),
                 "rejected_report": format_missing(import_row.get("rejected_report"), "Not available"),
                 "rejected_status": format_missing(import_row.get("rejected_status"), "Not available"),
@@ -3388,6 +3409,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
         ]
     frame = cockpit_frame.copy()
     dataset_counts = frame.get("import_dataset", pd.Series("", index=frame.index)).fillna("").astype(str).value_counts()
+    group_counts = frame.get("queue_group", pd.Series("", index=frame.index)).fillna("").astype(str).value_counts()
     blocked = frame.get("readiness_state", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower().eq("blocked")
     partial = frame.get("readiness_state", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower().eq("partial")
     top_row = frame.sort_values(["priority", "ticker"], kind="stable").iloc[0]
@@ -3396,6 +3418,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
         "analyst_estimates": "analyst estimates",
     }
     dataset_text = ", ".join(f"{dataset_labels.get(str(key), str(key))}: {int(value)}" for key, value in dataset_counts.head(4).items())
+    group_text = ", ".join(f"{str(key)}: {int(value)}" for key, value in group_counts.head(3).items())
     monitor_count = int(dataset_counts.get("monitor_context", 0))
     import_body = (
         "Rows that require local data changes carry the relevant standard import file, rejected report, and clean/header-only or missing-report status. "
@@ -3407,7 +3430,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
         {
             "kicker": "ACTIVE UNLOCK",
             "title": f"{len(frame)} active ticker(s)",
-            "body": f"{int(blocked.sum())} blocked and {int(partial.sum())} partial rows shown. Dataset lanes: {dataset_text}.",
+            "body": f"{int(blocked.sum())} blocked and {int(partial.sum())} partial rows shown. Queue groups: {group_text}. Dataset lanes: {dataset_text}.",
             "badges": ["active universe", "row-limited"],
             "command": "make readiness",
         },
@@ -3415,7 +3438,10 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
             "kicker": "NEXT ACTIVE ACTION",
             "title": format_missing(top_row.get("ticker"), "Ticker"),
             "body": f"{format_missing(top_row.get('primary_blocker'), 'blocker')}: {compact_reason(top_row.get('next_best_action'), max_sentences=1, max_chars=160)}",
-            "badges": [format_missing(top_row.get("import_dataset"), "dataset"), format_missing(top_row.get("rejected_status"), "rejected status")],
+            "badges": [
+                format_missing(top_row.get("queue_group"), "queue group"),
+                format_missing(top_row.get("rejected_status"), "rejected status"),
+            ],
             "command": format_missing(top_row.get("exact_command"), "make readiness"),
         },
         {

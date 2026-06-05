@@ -11703,8 +11703,11 @@ def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_comman
     assert list(cockpit["ticker"]) == ["APLD", "META", "QQQ"]
     assert "BROAD" not in set(cockpit["ticker"])
     assert cockpit.loc[cockpit["ticker"].eq("APLD"), "exact_command"].iloc[0] == "make focus-price TICKER=APLD"
+    assert cockpit.loc[cockpit["ticker"].eq("APLD"), "queue_group"].iloc[0] == "Needs price coverage first"
     assert cockpit.loc[cockpit["ticker"].eq("META"), "exact_command"].iloc[0] == "make focus-fundamentals TICKER=META"
+    assert cockpit.loc[cockpit["ticker"].eq("META"), "queue_group"].iloc[0] == "Price-ready but fundamentals missing"
     assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "exact_command"].iloc[0] == "make stock-report-md TICKER=QQQ"
+    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "queue_group"].iloc[0] == "Monitor context / DCF excluded"
     assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "import_dataset"].iloc[0] == "monitor_context"
     assert cockpit.loc[cockpit["ticker"].eq("META"), "trusted_input_needed"].iloc[0].startswith(
         "Trusted fundamentals for META"
@@ -11719,6 +11722,10 @@ def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_comman
         "make stock-report-md TICKER=QQQ"
     )
     assert "operating-company dcf and peer valuation stay excluded" in rendered
+    assert "queue groups:" in rendered
+    assert "needs price coverage first: 1" in rendered
+    assert "price-ready but fundamentals missing: 1" in rendered
+    assert "monitor context / dcf excluded: 1" in rendered
     assert "monitor context: 1" in rendered
     assert "monitor_context: 1" not in rendered
     assert "monitor-context row(s) use stock-report review instead of import files" in rendered
@@ -11891,6 +11898,21 @@ def test_active_universe_drilldown_surfaces_missing_fields_and_validation_paths(
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_active_unlock_queue_group_labels_dcf_ready_peer_blocked_rows():
+    row = pd.Series(
+        {
+            "asset_type": "company",
+            "price_ready": True,
+            "fundamentals_ready": True,
+            "dcf_ready": True,
+            "peer_ready": False,
+        }
+    )
+
+    assert dashboard.active_unlock_queue_group(row, "peers") == "DCF-ready but peer-blocked"
+    assert dashboard.active_unlock_queue_group(row, "fundamentals") == "Fundamentals / DCF unlock"
 
 
 def test_feature_readiness_cards_show_feature_level_product_status():
