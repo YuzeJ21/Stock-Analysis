@@ -275,6 +275,47 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "sell" not in rendered
 
 
+def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaiming():
+    cards = dashboard._plain_home_evaluation_workflow_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["STEP 1", "STEP 2", "STEP 3", "STEP 4"]
+    assert "check readiness first" in rendered
+    assert "local prices, fundamentals, dcf fields, peers, earnings, and estimates" in rendered
+    assert "run only supported analysis" in rendered
+    assert "price-ready rows can support setup and risk context" in rendered
+    assert "dcf-ready rows can support assumptions and sensitivity" in rendered
+    assert "peer-ready rows can support source-backed relative context" in rendered
+    assert "keep locked sections visible" in rendered
+    assert "missing fundamentals, peer inputs, earnings, or estimates stay locked" in rendered
+    assert "etf/index/fund dcf is excluded, not failed" in rendered
+    assert "read the report boundary" in rendered
+    assert "what data came from source rows" in rendered
+    assert "what the product calculated" in rendered
+    assert "what stayed withheld" in rendered
+    assert "copy-only local step" in rendered
+    assert "make readiness" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "make data-wizard top_n=10" in rendered
+    assert "make stock-report-md ticker=a" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_home_page_renders_evaluation_workflow_before_next_steps():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    workflow_index = source.index('render_section_header("Evaluation Workflow"')
+    next_step_index = source.index('render_section_header("What To Do Next"')
+
+    assert workflow_index < next_step_index
+    assert "How the product moves from trusted data to supported analysis without overclaiming." in source
+    assert "render_signal_cards(_plain_home_evaluation_workflow_cards())" in source
+
+
 def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
     cards = dashboard._plain_home_provenance_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

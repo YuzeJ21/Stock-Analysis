@@ -15573,6 +15573,48 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
     ]
 
 
+def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "STEP 1",
+            "title": "Check readiness first",
+            "body": (
+                "The product checks local prices, fundamentals, DCF fields, peers, earnings, and estimates before showing deeper analysis."
+            ),
+            "badges": ["data readiness", "no guessing"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "STEP 2",
+            "title": "Run only supported analysis",
+            "body": (
+                "Price-ready rows can support setup and risk context; DCF-ready rows can support assumptions and sensitivity; "
+                "peer-ready rows can support source-backed relative context."
+            ),
+            "badges": ["module-gated", "plain English"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "STEP 3",
+            "title": "Keep locked sections visible",
+            "body": (
+                "Missing fundamentals, peer inputs, earnings, or estimates stay locked. ETF/index/fund DCF is excluded, not failed."
+            ),
+            "badges": ["blocked is not negative", "excluded is not failed"],
+            "command": "make data-wizard TOP_N=10",
+        },
+        {
+            "kicker": "STEP 4",
+            "title": "Read the report boundary",
+            "body": (
+                "Single-stock reports explain what data came from source rows, what the product calculated, what stayed withheld, and the next copy-only local step."
+            ),
+            "badges": ["source vs logic", "copy-only"],
+            "command": "make stock-report-md TICKER=A",
+        },
+    ]
+
+
 def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, object]]:
     price_ready = int(summary.get("price_ready") or 0)
     master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
@@ -15972,6 +16014,9 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "Cards display commands for you to copy into a terminal; the dashboard itself does not run refreshes, imports, or external account actions.",
     )
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
+
+    render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
+    render_signal_cards(_plain_home_evaluation_workflow_cards())
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary))
