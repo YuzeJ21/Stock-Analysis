@@ -10799,6 +10799,84 @@ def valuation_readiness_operator_frame(
     )
 
 
+def _plain_missing_input_list(value: object, fallback: str = "trusted DCF inputs") -> str:
+    text = format_missing(value, fallback)
+    if text == fallback:
+        return fallback
+    parts = [
+        public_status_label(part).replace("_", " ").strip()
+        for part in re.split(r"[,;|]", text)
+        if part.strip() and part.strip().lower() not in {"nan", "none", "not available"}
+    ]
+    return ", ".join(parts) if parts else fallback
+
+
+def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int = 25) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "Current State",
+        "Missing Trusted Inputs",
+        "What This Means",
+        "Next Trusted Input",
+        "Copy-Only Command",
+    ]
+    if blocked_companies.empty:
+        return pd.DataFrame(columns=columns)
+
+    def row_bool(row: pd.Series, column: str, default: bool = True) -> bool:
+        if column not in row or pd.isna(row.get(column)):
+            return default
+        value = row.get(column)
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in {"true", "1", "yes", "y"}
+
+    rows: list[dict[str, object]] = []
+    for _, row in blocked_companies.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        missing_inputs = _plain_missing_input_list(
+            first_meaningful_text(row.get("missing_dcf_fields"), row.get("reason_not_ready"), fallback="")
+        )
+        has_price = row_bool(row, "has_price", default=True)
+        if not has_price:
+            next_input = "Add or refresh trusted local price rows before reviewing valuation."
+            command = f"make focus-price TICKER={ticker}"
+        else:
+            next_input = "Add trusted company fundamentals such as revenue, free cash flow or margin, and shares outstanding."
+            command = f"make focus-fundamentals TICKER={ticker}"
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Current State": "Valuation locked by missing inputs",
+                "Missing Trusted Inputs": missing_inputs,
+                "What This Means": "No fair value, undervalued, or overvalued conclusion is shown until these inputs pass readiness.",
+                "Next Trusted Input": next_input,
+                "Copy-Only Command": command,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def valuation_excluded_context_frame(excluded_rows: pd.DataFrame, limit: int = 25) -> pd.DataFrame:
+    columns = ["Ticker", "Asset Type", "Current State", "What This Means", "Copy-Only Command"]
+    if excluded_rows.empty:
+        return pd.DataFrame(columns=columns)
+    rows: list[dict[str, object]] = []
+    for _, row in excluded_rows.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        asset_type = public_status_label(row.get("asset_type"), "ETF / index / fund")
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Asset Type": asset_type,
+                "Current State": "Operating-company DCF excluded",
+                "What This Means": "Use monitor context such as market, theme, liquidity, or risk review; DCF is excluded, not failed.",
+                "Copy-Only Command": stock_report_md_command(ticker),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
 def valuation_decision_guide_cards(
     ready_companies: pd.DataFrame,
     blocked_companies: pd.DataFrame,
@@ -15383,10 +15461,30 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         render_table(value_ready, "value-re-rating", show_reason_details=False)
     if not not_ready_companies.empty:
         with st.expander("Companies waiting for valuation inputs", expanded=True):
+            st.write(
+                "Start here when company valuation is locked. These rows are missing trusted inputs; "
+                "they are not negative company conclusions."
+            )
+            st.dataframe(
+                clean_display_frame(valuation_blocked_unlock_frame(not_ready_companies)),
+                width="stretch",
+                hide_index=True,
+            )
+        with st.expander("Raw valuation input details", expanded=False):
             columns = _readiness_columns(not_ready_companies, ["ticker", "asset_type", "missing_dcf_fields", "reason_not_ready", "has_price", "has_free_cash_flow", "has_shares_outstanding", "has_revenue", "has_fcf_margin"])
             st.dataframe(clean_display_frame(not_ready_companies[columns]), width="stretch", hide_index=True)
     if not excluded.empty:
         with st.expander("ETF / index proxy exclusions", expanded=True):
+            st.write(
+                "These rows can still be useful as market, sector, or theme monitors. "
+                "They are excluded from operating-company DCF because that method does not fit the asset type."
+            )
+            st.dataframe(
+                clean_display_frame(valuation_excluded_context_frame(excluded)),
+                width="stretch",
+                hide_index=True,
+            )
+        with st.expander("Raw ETF / index exclusion details", expanded=False):
             columns = _readiness_columns(excluded, ["ticker", "asset_type", "reason_not_ready"])
             st.dataframe(clean_display_frame(excluded[columns]), width="stretch", hide_index=True)
     with st.expander("Full valuation output table", expanded=False):

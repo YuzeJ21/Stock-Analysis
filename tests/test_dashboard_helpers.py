@@ -14036,6 +14036,60 @@ def test_valuation_readiness_operator_frame_summarizes_ready_blocked_and_exclude
     assert "sell" not in rendered
 
 
+def test_valuation_blocked_unlock_frame_plain_language_and_copy_only_commands():
+    blocked = pd.DataFrame(
+        {
+            "ticker": ["META", "APLD"],
+            "missing_dcf_fields": ["free_cash_flow, shares_outstanding", "price, revenue"],
+            "reason_not_ready": ["", ""],
+            "has_price": [True, "False"],
+        }
+    )
+
+    frame = dashboard.valuation_blocked_unlock_frame(blocked)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Ticker",
+        "Current State",
+        "Missing Trusted Inputs",
+        "What This Means",
+        "Next Trusted Input",
+        "Copy-Only Command",
+    ]
+    assert frame["Ticker"].tolist() == ["META", "APLD"]
+    assert frame.loc[frame["Ticker"].eq("META"), "Copy-Only Command"].iloc[0] == "make focus-fundamentals TICKER=META"
+    assert frame.loc[frame["Ticker"].eq("APLD"), "Copy-Only Command"].iloc[0] == "make focus-price TICKER=APLD"
+    assert "free cash flow, shares outstanding" in rendered
+    assert "no fair value, undervalued, or overvalued conclusion" in rendered
+    assert "trusted company fundamentals" in rendered
+    assert "trusted local price rows" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_valuation_excluded_context_frame_explains_excluded_not_failed():
+    excluded = pd.DataFrame({"ticker": ["QQQ"], "asset_type": ["etf"]})
+
+    frame = dashboard.valuation_excluded_context_frame(excluded)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == ["Ticker", "Asset Type", "Current State", "What This Means", "Copy-Only Command"]
+    assert frame.iloc[0]["Ticker"] == "QQQ"
+    assert frame.iloc[0]["Copy-Only Command"] == "make stock-report-md TICKER=QQQ"
+    assert "operating-company dcf excluded" in rendered
+    assert "dcf is excluded, not failed" in rendered
+    assert "market, theme, liquidity, or risk review" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_dashboard_splits_risk_context_by_price_ready_status():
     liquidity = pd.DataFrame(
         {
