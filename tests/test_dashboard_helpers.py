@@ -8045,6 +8045,85 @@ def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_l
     assert "sell" not in rendered
 
 
+def test_data_health_quick_read_cards_prioritize_first_unlock_lane_without_execution_language():
+    cards = dashboard.data_health_quick_read_cards(
+        {
+            "price_ready": 240,
+            "fundamentals_ready": 23,
+            "dcf_ready": 23,
+            "peer_ready": 3,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED"]
+    assert cards[0]["title"] == "Unlock fundamentals before valuation"
+    assert cards[0]["command"] == "make sec-stage-queue TOP_N=25"
+    assert "217 price-ready row(s) still need trusted fundamentals" in rendered
+    assert "not a negative company signal" in rendered
+    assert "240 price / 23 dcf / 3 peer-ready" in rendered
+    assert "what you can analyze now" in rendered
+    assert "assumption and sensitivity review" in rendered
+    assert "0 earnings / 0 estimates" in rendered
+    assert "what is still locked" in rendered
+    assert "missing optional rows are not hidden analysis" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_quick_read_cards_switch_to_peer_unlock_when_dcf_ready_outpaces_peers():
+    cards = dashboard.data_health_quick_read_cards(
+        {
+            "price_ready": 25,
+            "fundamentals_ready": 25,
+            "dcf_ready": 25,
+            "peer_ready": 4,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Add trusted peers for DCF-ready names"
+    assert cards[0]["command"] == "make peer-mapping-queue TOP_N=10"
+    assert "21 dcf-ready row(s) still have peer-relative valuation locked" in rendered
+    assert "peer premium/discount stays withheld" in rendered
+    assert "source-backed peer rows" in rendered
+
+
+def test_data_health_quick_read_cards_keep_optional_context_locked_after_core_lanes():
+    cards = dashboard.data_health_quick_read_cards(
+        {
+            "price_ready": 10,
+            "fundamentals_ready": 10,
+            "dcf_ready": 10,
+            "peer_ready": 10,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Optional context is intentionally locked"
+    assert cards[0]["command"] == "make optional-context-worklist TOP_N=10"
+    assert "empty optional coverage should not weaken ready price, dcf, or peer analysis" in rendered
+
+
+def test_data_health_quick_read_cards_start_with_price_when_no_price_ready_rows():
+    cards = dashboard.data_health_quick_read_cards({"price_ready": 0, "dcf_ready": 0, "peer_ready": 0})
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Start with trusted price coverage"
+    assert cards[0]["command"] == "make price-worklist TOP_N=10"
+    assert "no price-ready rows means setup, dcf, peer, earnings, and estimate analysis should stay locked" in rendered
+    assert "make stock-report ticker" not in rendered
+
+
 def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis():
     cards = dashboard.data_health_analysis_unlock_cards(
         {
@@ -8225,6 +8304,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next." in source
+    assert "Data Health Quick Read" in source
+    assert "Which unlock lane should you inspect first, before opening detailed tables." in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
     assert "Plain-English valuation queues before the full command center details." in source

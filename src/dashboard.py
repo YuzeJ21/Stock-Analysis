@@ -4952,6 +4952,82 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
     ]
 
 
+def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+
+    if price_ready <= 0:
+        first_title = "Start with trusted price coverage"
+        first_body = "No price-ready rows means setup, DCF, peer, earnings, and estimate analysis should stay locked."
+        first_command = "make price-worklist TOP_N=10"
+        first_badges = ["price first", "analysis locked"]
+    elif fundamentals_ready < price_ready:
+        gap = max(price_ready - fundamentals_ready, 0)
+        first_title = "Unlock fundamentals before valuation"
+        first_body = (
+            f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
+            "Missing fundamentals are an input gap, not a negative company signal."
+        )
+        first_command = "make sec-stage-queue TOP_N=25"
+        first_badges = ["fundamentals next", "no valuation inference"]
+    elif dcf_ready > peer_ready:
+        gap = max(dcf_ready - peer_ready, 0)
+        first_title = "Add trusted peers for DCF-ready names"
+        first_body = (
+            f"{gap} DCF-ready row(s) still have peer-relative valuation locked. Standalone DCF can be reviewed, "
+            "but peer premium/discount stays withheld until source-backed peer rows exist."
+        )
+        first_command = "make peer-mapping-queue TOP_N=10"
+        first_badges = ["peer unlock", "source-backed rows"]
+    elif earnings_ready == 0 or estimates_ready == 0:
+        first_title = "Optional context is intentionally locked"
+        first_body = (
+            "Earnings and analyst estimates add context only after trusted local CSV rows pass validation. "
+            "Empty optional coverage should not weaken ready price, DCF, or peer analysis."
+        )
+        first_command = "make optional-context-worklist TOP_N=10"
+        first_badges = ["optional context", "trusted rows only"]
+    else:
+        first_title = "Review single-stock reports"
+        first_body = "Core unlock lanes look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and freshness."
+        first_command = "make stock-report-md TICKER=NVDA"
+        first_badges = ["single-stock review", "source freshness"]
+
+    return [
+        {
+            "kicker": "FIRST READ",
+            "title": first_title,
+            "body": f"What this means: {first_body}",
+            "badges": first_badges,
+            "command": first_command,
+        },
+        {
+            "kicker": "ANALYZE NOW",
+            "title": f"{price_ready} price / {dcf_ready} DCF / {peer_ready} peer-ready",
+            "body": (
+                "What you can analyze now: price-ready rows can support setup review; DCF-ready rows can support "
+                "assumption and sensitivity review; peer-ready rows can support source-backed relative context."
+            ),
+            "badges": ["supported only", "plain English"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "STILL LOCKED",
+            "title": f"{earnings_ready} earnings / {estimates_ready} estimates",
+            "body": (
+                "What is still locked: optional context remains unavailable until trusted earnings and analyst-estimate "
+                "rows exist; missing optional rows are not hidden analysis."
+            ),
+            "badges": ["no inference", "optional context"],
+            "command": "make templates",
+        },
+    ]
+
+
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
     price_ready = int(readiness_summary.get("price_ready") or 0)
     dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
@@ -18166,6 +18242,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
     render_signal_cards(data_health_orientation_cards(readiness_summary))
+    render_section_header("Data Health Quick Read", "Which unlock lane should you inspect first, before opening detailed tables.")
+    render_signal_cards(data_health_quick_read_cards(readiness_summary))
     render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
     render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
     render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
