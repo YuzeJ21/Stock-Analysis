@@ -101,7 +101,7 @@ make price-refresh-loop DRY_RUN=1
 make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
 ```
 
-The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; do not repeat 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. Large refreshed CSVs are local working data, so review generated changes before committing them.
+The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; increase `BATCHES`, dry-run again, then run the capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. Large refreshed CSVs are local working data, so review generated changes before committing them.
 
 ## Function Quality Checklist
 

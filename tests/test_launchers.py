@@ -237,10 +237,14 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert 'TOP_N="${TOP_N:-100}"' in script
     assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
     assert 'DRY_RUN="${DRY_RUN:-0}"' in script
-    assert "review up to $((BATCHES * TOP_N)) missing-price candidates" in script
+    assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
+    assert "review up to $TOTAL_CANDIDATES missing-price candidates" in script
+    assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
     assert "Dry run only. No local CSV files were changed." in script
+    assert "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)." in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
+    assert "If you want broader coverage, increase BATCHES first while keeping TOP_N capped, then dry-run again." in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
     assert "This replaces repeating 25-ticker refreshes manually" in script
     assert "make price-coverage TOP_N=25" in script
@@ -728,6 +732,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "Monitor-only context",
         "Data-unlock only",
         "Large refreshed CSVs are local working data",
+        "increase `BATCHES`, dry-run again, then run the capped loop",
         "docs/analysis_capability_audit.md",
         "What Powers The Analysis",
         "shipped analysis comes from project code under `src/`",

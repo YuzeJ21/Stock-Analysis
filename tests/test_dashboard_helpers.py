@@ -11903,13 +11903,14 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     )
     assert len(cards) <= 8
     assert "make price-refresh-loop dry_run=1" in rendered
+    assert "dry-run the loop instead of repeating 25-ticker refreshes manually" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "make imports-validate" in rendered
     assert "rejected-row reports" in rendered
     assert "when to use" in rendered
     assert "check after" in rendered
-    assert "data/imports/prices.csv fallback plus optional yahoo refresh" in rendered
+    assert "dry-run-first capped yahoo refresh loops" in rendered
     assert "capped refresh; verify source/freshness after merge" in rendered
     assert "output_to_check" in console.columns
     assert "when_to_use" in console.columns
@@ -13108,6 +13109,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     cards = dashboard.fundamentals_dcf_diagnostic_cards(readiness, dcf)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
     input_card = next(card for card in cards if card["kicker"] == "INPUT PATH")
+    field_gap_card = next(card for card in cards if card["kicker"] == "DCF FIELD GAPS")
 
     assert "1 price-ready companies" in rendered
     assert "1 active-universe" in rendered
@@ -13116,6 +13118,10 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "shares_outstanding" in rendered
     assert "free_cash_flow" in rendered
     assert "revenue" in rendered
+    assert field_gap_card["command"] == "make focus-fundamentals TICKER=META"
+    assert "field-level blockers from the dcf readiness report, not company conclusions" in rendered
+    assert "inspect meta with `make focus-fundamentals ticker=meta`" in rendered
+    assert "before rerunning `make dcf-readiness`" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
     assert "1 dcf-ready companies" in rendered
     assert input_card["title"] == "SEC import draft workflow"

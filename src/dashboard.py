@@ -7605,6 +7605,21 @@ def fundamentals_dcf_diagnostic_cards(
 
     sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip()) or sec_configured_from_report
     sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
+    if next_ticker != "Not available":
+        dcf_field_gap_body = (
+            "These are field-level blockers from the DCF readiness report, not company conclusions. "
+            f"Inspect {next_ticker} with `make focus-fundamentals TICKER={next_ticker}`, then add trusted fundamentals "
+            "through SEC staging or manual CSV validation before rerunning `make dcf-readiness`. "
+            f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
+        )
+        dcf_field_gap_command = f"make focus-fundamentals TICKER={next_ticker}"
+    else:
+        dcf_field_gap_body = (
+            "These are field-level blockers from the DCF readiness report, not company conclusions. "
+            "Run `make dcf-readiness` and `make sec-stage-queue TOP_N=25` to rebuild the missing-field view before assuming coverage improved. "
+            f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
+        )
+        dcf_field_gap_command = "make dcf-readiness"
     return [
         {
             "kicker": "FUNDAMENTALS GAP",
@@ -7626,9 +7641,9 @@ def fundamentals_dcf_diagnostic_cards(
         {
             "kicker": "DCF FIELD GAPS",
             "title": missing_field_text,
-            "body": f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation.",
-            "badges": ["missing fields explicit", "excluded is not failed"],
-            "command": "make dcf-readiness",
+            "body": dcf_field_gap_body,
+            "badges": ["missing fields explicit", "field-level next step", "excluded is not failed"],
+            "command": dcf_field_gap_command,
         },
         {
             "kicker": "DCF-READY PEER BLOCKERS",
@@ -10384,7 +10399,7 @@ def safe_action_console_command(category: str, command: object = "") -> str:
 
 def next_action_console_when_to_use(category: str) -> str:
     guidance = {
-        "Price Coverage Batch": "Use when many tickers are blocked before momentum, liquidity, or market-context review.",
+        "Price Coverage Batch": "Use when many tickers are blocked before momentum, liquidity, or market-context review; dry-run the loop instead of repeating 25-ticker refreshes manually.",
         "Fundamentals / DCF Unlock": "Use after prices exist and company-level valuation is blocked by missing fundamentals or DCF fields.",
         "Peer Mapping Unlock": "Use when DCF-ready companies still need source-backed peers before relative valuation is shown.",
         "Earnings Import Setup": "Use only when trusted earnings rows are available locally; otherwise leave the section locked.",
@@ -10410,7 +10425,7 @@ def next_action_console_output_to_check(category: str) -> str:
 
 def next_action_console_source_note(category: str) -> str:
     notes = {
-        "Price Coverage Batch": "Uses local prices first, then capped Yahoo refresh or staged manual OHLCV CSVs with preview/apply safeguards.",
+        "Price Coverage Batch": "Uses local prices first, then dry-run-first capped Yahoo refresh loops or staged manual OHLCV CSVs with preview/apply safeguards.",
         "Fundamentals / DCF Unlock": "Uses SEC Companyfacts import draft workflow when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
         "Peer Mapping Unlock": "Uses source-backed manual peer mappings or clearly labeled fallback context; no peer relationship is inferred as trusted.",
         "Earnings Import Setup": "Manual trusted local CSV only; feature stays unavailable until rows validate.",

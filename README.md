@@ -132,7 +132,7 @@ make price-refresh-loop DRY_RUN=1
 make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
 ```
 
-The dry run prints the planned batch size before changing local files. Use it first, then run the capped loop only when you are ready to update local CSVs and review the generated data churn.
+The dry run prints the planned batch size and total capped candidates before changing local files. If you need broader coverage, raise `BATCHES` first, dry-run again, then run the capped loop only when you are ready to update local CSVs and review the generated data churn. You should not need to repeat a 25-ticker command 100+ times.
 
 Preview-first import flow:
 
