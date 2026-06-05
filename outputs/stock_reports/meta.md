@@ -11,6 +11,13 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
 - Next local step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow.
 
+## Reader Guide
+- What can I analyze now? Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
+- What is still locked or excluded? Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
+- What trusted input matters next? Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding.
+- Next copy-only command: `make focus-fundamentals TICKER=META`.
+- Next research step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow.
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready.

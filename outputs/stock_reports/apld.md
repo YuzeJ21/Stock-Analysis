@@ -11,6 +11,13 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
 - Next local step: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
 
+## Reader Guide
+- What can I analyze now? Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
+- What is still locked or excluded? Blocked features: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- What trusted input matters next? Trusted local price history.
+- Next copy-only command: `make focus-price TICKER=APLD`.
+- Next research step: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready.

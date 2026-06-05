@@ -11,6 +11,13 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
 - Next local step: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
+## Reader Guide
+- What can I analyze now? Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
+- What is still locked or excluded? Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- What trusted input matters next? No company DCF input is required for monitor context.
+- Next copy-only command: `make stock-report-md TICKER=SMH`.
+- Next research step: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Monitor-only context when local price, liquidity, correlation, or theme inputs are ready.

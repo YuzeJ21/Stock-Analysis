@@ -1248,6 +1248,41 @@ def _stock_report_reader_guide_lines(
     ]
 
 
+def _stock_report_reader_question_lines(
+    *,
+    ticker: str,
+    supported_now: str,
+    locked_now: str,
+    next_action: str,
+    dcf_status_text: str,
+    monitor_context: bool,
+    price_ready: bool,
+    peer_ready: Any = None,
+) -> list[str]:
+    if not price_ready:
+        next_input = "Trusted local price history."
+        command = f"make focus-price TICKER={ticker}"
+    elif monitor_context:
+        next_input = "No company DCF input is required for monitor context."
+        command = f"make stock-report-md TICKER={ticker}"
+    elif dcf_status_text == "blocked":
+        next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
+        command = f"make focus-fundamentals TICKER={ticker}"
+    elif dcf_status_text == "ready" and not bool(peer_ready):
+        next_input = "Source-backed peer mappings and peer valuation inputs."
+        command = f"make focus-peers TICKER={ticker}"
+    else:
+        next_input = "Review source/freshness notes before interpreting the supported sections."
+        command = f"make stock-report-md TICKER={ticker}"
+    return [
+        f"- What can I analyze now? {_sentence_value(supported_now)}.",
+        f"- What is still locked or excluded? {_sentence_value(locked_now)}.",
+        f"- What trusted input matters next? {_sentence_value(next_input)}.",
+        f"- Next copy-only command: `{command}`.",
+        f"- Next research step: {_sentence_value(_humanize_schema_terms(next_action), 'No next local action is available')}.",
+    ]
+
+
 def _stock_report_executive_summary_lines(
     *,
     ticker: str,
@@ -1765,6 +1800,16 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         price_ready=bool(readiness.get("price_ready")),
         peer_ready=peer_ready,
     )
+    reader_question_lines = _stock_report_reader_question_lines(
+        ticker=report.ticker,
+        supported_now=supported_now,
+        locked_now=locked_now,
+        next_action=one_minute_next,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
+        peer_ready=peer_ready,
+    )
     data_unlock_lines = _stock_report_data_unlock_lines(
         ticker=report.ticker,
         readiness=readiness,
@@ -1791,6 +1836,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## At A Glance",
         *at_a_glance_lines,
+        "",
+        "## Reader Guide",
+        *reader_question_lines,
         "",
         "## How To Read This Report",
         *reader_guide_lines,
@@ -2075,6 +2123,16 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         price_ready=bool(readiness.get("price_ready")),
         peer_ready=readiness.get("peer_ready"),
     )
+    reader_question_lines = _stock_report_reader_question_lines(
+        ticker=symbol,
+        supported_now=supported_now,
+        locked_now=locked_now,
+        next_action=next_action,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+    )
     data_unlock_lines = _stock_report_data_unlock_lines(
         ticker=symbol,
         readiness=readiness,
@@ -2100,6 +2158,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## At A Glance",
         *at_a_glance_lines,
+        "",
+        "## Reader Guide",
+        *reader_question_lines,
         "",
         "## How To Read This Report",
         *reader_guide_lines,

@@ -11,6 +11,13 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
 - Next local step: Add trusted price history for mapped peers: DHR, TMO, WAT.
 
+## Reader Guide
+- What can I analyze now? Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
+- What is still locked or excluded? Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- What trusted input matters next? Source-backed peer mappings and peer valuation inputs.
+- Next copy-only command: `make focus-peers TICKER=A`.
+- Next research step: Add trusted price history for mapped peers: DHR, TMO, WAT.
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Standalone DCF review: company DCF assumptions can be reviewed, while peer-relative valuation stays locked until source-backed peer inputs are ready.

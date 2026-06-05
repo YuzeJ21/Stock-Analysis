@@ -11,6 +11,13 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
 - Next local step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
+## Reader Guide
+- What can I analyze now? Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
+- What is still locked or excluded? Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
+- What trusted input matters next? Review source/freshness notes before interpreting the supported sections.
+- Next copy-only command: `make stock-report-md TICKER=NVDA`.
+- Next research step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: DCF-ready review for company-level assumptions and sensitivity when trusted local fundamentals are ready.
