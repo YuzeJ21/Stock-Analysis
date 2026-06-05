@@ -16538,6 +16538,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Expand price coverage",
             "body": "More tickers need daily price history before momentum, liquidity, and market-context views become useful across the broader universe.",
             "badges": ["biggest blocker"],
+            "command": "make price-worklist TOP_N=25",
         }
     elif dcf_ready <= peer_ready:
         primary = {
@@ -16545,6 +16546,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Add trusted fundamentals",
             "body": "Fundamentals unlock DCF and better company-level research. Use trusted SEC or local CSV inputs only.",
             "badges": ["deep research"],
+            "command": "make sec-stage-queue TOP_N=25",
         }
     else:
         primary = {
@@ -16552,6 +16554,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Add source-backed peers",
             "body": "Peer mappings unlock peer comparison for DCF-ready companies. Do not use guessed peer relationships.",
             "badges": ["peer research"],
+            "command": "make peer-mapping-queue TOP_N=25",
         }
 
     optional_title = "Optional context is locked"
@@ -16567,18 +16570,21 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Read the ready sections first",
             "body": "Start with names that have enough local data for the view you opened. Blocked rows are useful, but they are a data-unlock queue, not a conclusion list.",
             "badges": ["visitor friendly"],
+            "command": "make stock-report-md TICKER=NVDA",
         },
         {
             "kicker": "WHAT STAYS LOCKED",
             "title": "No data, no conclusion",
             "body": "If valuation, peers, earnings, or estimates are missing, the app keeps that analysis unavailable until trusted local rows exist.",
             "badges": ["research-only"],
+            "command": "make data-wizard TOP_N=10",
         },
         {
             "kicker": "OPTIONAL DATA",
             "title": optional_title,
             "body": optional_body,
             "badges": ["not required"],
+            "command": "make optional-context-worklist TOP_N=25",
         },
     ]
 

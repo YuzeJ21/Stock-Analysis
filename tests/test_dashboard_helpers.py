@@ -305,6 +305,60 @@ def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaimi
     assert "sell" not in rendered
 
 
+def test_home_next_step_cards_are_copyable_and_readiness_gated():
+    price_gap_cards = dashboard._plain_home_next_step_cards(
+        {
+            "master_universe": 100,
+            "price_ready": 20,
+            "dcf_ready": 2,
+            "peer_ready": 1,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    fundamentals_cards = dashboard._plain_home_next_step_cards(
+        {
+            "master_universe": 100,
+            "price_ready": 100,
+            "dcf_ready": 1,
+            "peer_ready": 1,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    peer_cards = dashboard._plain_home_next_step_cards(
+        {
+            "master_universe": 100,
+            "price_ready": 100,
+            "dcf_ready": 10,
+            "peer_ready": 1,
+            "earnings_ready": 1,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(
+        str(value)
+        for card in price_gap_cards + fundamentals_cards + peer_cards
+        for value in card.values()
+    ).lower()
+
+    assert price_gap_cards[0]["command"] == "make price-worklist TOP_N=25"
+    assert fundamentals_cards[0]["command"] == "make sec-stage-queue TOP_N=25"
+    assert peer_cards[0]["command"] == "make peer-mapping-queue TOP_N=25"
+    assert price_gap_cards[1]["command"] == "make stock-report-md TICKER=NVDA"
+    assert price_gap_cards[2]["command"] == "make data-wizard TOP_N=10"
+    assert price_gap_cards[3]["command"] == "make optional-context-worklist TOP_N=25"
+    assert "blocked rows are useful, but they are a data-unlock queue, not a conclusion list" in rendered
+    assert "no data, no conclusion" in rendered
+    assert "earnings and analyst estimates are not broken" in rendered
+    assert "optional context is available" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
