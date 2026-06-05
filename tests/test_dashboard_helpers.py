@@ -14107,6 +14107,7 @@ def test_decision_workflow_summary_cards_surface_research_now_optional_context_l
 def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     cards = dashboard.optional_context_unlock_cards()
     empty_message = dashboard.optional_context_empty_state_message("earnings")
+    estimate_empty_message = dashboard.optional_context_empty_state_message("analyst-estimate")
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "ticker, fiscal_period, report_date" in rendered
@@ -14130,6 +14131,14 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "make imports-preview" in empty_message
     assert "make imports-apply" in empty_message
     assert "make onboarding TOP_N=10" in empty_message
+    assert "data/staged/earnings/" in empty_message
+    assert "data/imports/earnings.csv" in empty_message
+    assert "make import-earnings" in empty_message
+    assert "data/rejected/earnings_import_rejected.csv" in empty_message
+    assert "data/staged/analyst_estimates/" in estimate_empty_message
+    assert "data/imports/analyst_estimates.csv" in estimate_empty_message
+    assert "make import-analyst-estimates" in estimate_empty_message
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in estimate_empty_message
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered

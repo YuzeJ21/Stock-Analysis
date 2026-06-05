@@ -2747,10 +2747,24 @@ def optional_context_available(data: dict[str, object], fields: list[str]) -> bo
 
 
 def optional_context_empty_state_message(dataset_label: str) -> str:
+    normalized = str(dataset_label or "").strip().lower().replace("_", "-")
+    if "analyst" in normalized or "estimate" in normalized:
+        staged_path = "data/staged/analyst_estimates/"
+        import_file = "data/imports/analyst_estimates.csv"
+        import_command = "make import-analyst-estimates"
+        rejected_path = "data/rejected/analyst_estimates_import_rejected.csv"
+        label = "analyst-estimate"
+    else:
+        staged_path = "data/staged/earnings/"
+        import_file = "data/imports/earnings.csv"
+        import_command = "make import-earnings"
+        rejected_path = "data/rejected/earnings_import_rejected.csv"
+        label = "earnings"
     return (
         "Not available: missing trusted local CSV input. "
-        f"Add verified {dataset_label} rows through the staged manual CSV workflow, then run "
-        "make imports-validate, make imports-preview, make imports-apply, and make onboarding TOP_N=10."
+        f"Add verified {label} rows through `{staged_path}` or `{import_file}`, run `{import_command}`, then run "
+        "`make imports-validate`, `make imports-preview`, `make imports-apply`, and `make onboarding TOP_N=10`. "
+        f"Rejected rows stay visible at `{rejected_path}`."
     )
 
 
