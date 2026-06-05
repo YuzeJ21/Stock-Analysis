@@ -672,6 +672,24 @@ def _dcf_input_trace_line(assumptions: dict[str, Any]) -> str:
     )
 
 
+def _dcf_sensitivity_snapshot_line(sensitivity: dict[str, Any]) -> str:
+    if not isinstance(sensitivity, dict) or _display_value(sensitivity.get("status")).lower() != "calculated":
+        return ""
+    wacc_values = list(sensitivity.get("wacc_values") or [])
+    terminal_growth_values = list(sensitivity.get("terminal_growth_values") or [])
+    fair_value_grid = list(sensitivity.get("fair_value_grid") or [])
+    if not wacc_values or not terminal_growth_values or not fair_value_grid:
+        return ""
+    row_index = min(len(wacc_values) // 2, len(fair_value_grid) - 1)
+    row_values = fair_value_grid[row_index] if isinstance(fair_value_grid[row_index], list) else []
+    cases = []
+    for terminal_growth, fair_value in zip(terminal_growth_values[:3], row_values[:3]):
+        cases.append(f"TG {_format_pct(terminal_growth)} -> {_format_money(fair_value)}")
+    if not cases:
+        return ""
+    return f"- Sensitivity snapshot: at WACC {_format_pct(wacc_values[row_index])}, " + "; ".join(cases) + "."
+
+
 def _stock_report_valuation_lines(
     *,
     valuation_snapshot: dict[str, Any],
@@ -724,6 +742,9 @@ def _stock_report_valuation_lines(
                 ),
             ]
         )
+        sensitivity_snapshot = _dcf_sensitivity_snapshot_line(sensitivity)
+        if sensitivity_snapshot:
+            lines.append(sensitivity_snapshot)
     else:
         lines.extend(
             [
@@ -803,7 +824,7 @@ def _stock_report_dcf_calculation_path_lines(
             "- Sensitivity: unavailable until the base DCF can be calculated from trusted inputs.",
         ]
 
-    return [
+    lines = [
         "- State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs.",
         (
             "- Formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> "
@@ -827,8 +848,12 @@ def _stock_report_dcf_calculation_path_lines(
             f"- Sensitivity: {_display_value(sensitivity.get('status'))}; "
             "reader should compare WACC and terminal-growth cases before interpreting fair value."
         ),
-        "- Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation.",
     ]
+    sensitivity_snapshot = _dcf_sensitivity_snapshot_line(sensitivity)
+    if sensitivity_snapshot:
+        lines.append(sensitivity_snapshot)
+    lines.append("- Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation.")
+    return lines
 
 
 def _stock_report_valuation_boundary_checklist_lines(

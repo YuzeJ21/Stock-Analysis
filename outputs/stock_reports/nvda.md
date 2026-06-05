@@ -148,6 +148,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Base DCF assumptions: input path=direct free cash flow, revenue growth=40.0%, FCF margin=44.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
 - Scenario coverage: bear, base, bull.
 - Sensitivity table: calculated; it tests fair value across WACC and terminal-growth assumptions when per-share DCF inputs are ready.
+- Sensitivity snapshot: at WACC 9.0%, TG 2.0% -> $126.33; TG 3.0% -> $143.42; TG 4.0% -> $167.35.
 - Relative valuation: calculated from trusted peer inputs, with caveats; peer count=2. Missing peer valuation fields: ebitda.
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
@@ -157,6 +158,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Input source: local price/fundamentals rows; base revenue=$215.9B; base FCF=$96.7B; shares outstanding=24.2B.
 - Assumptions used: revenue growth=40.0%; FCF margin=44.8%; WACC=9.0%; terminal growth=3.0%; forecast years=5.
 - Sensitivity: calculated; reader should compare WACC and terminal-growth cases before interpreting fair value.
+- Sensitivity snapshot: at WACC 9.0%, TG 2.0% -> $126.33; TG 3.0% -> $143.42; TG 4.0% -> $167.35.
 - Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation.
 
 ## Valuation Boundary Checklist

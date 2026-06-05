@@ -254,6 +254,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "method=fcf_direct" not in markdown
     assert "Scenario coverage: bear, base, bull" in markdown
     assert "Sensitivity table:" in markdown
+    assert "Sensitivity snapshot: at WACC 9.0%, TG 2.0% ->" in markdown
+    assert "TG 3.0% ->" in markdown
+    assert "TG 4.0% ->" in markdown
     assert "## DCF Calculation Path" in markdown
     assert "State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs" in markdown
     assert "Input source: local price/fundamentals rows; base revenue=$250.0B; base FCF=$90.0B; shares outstanding=7.4B" in markdown
