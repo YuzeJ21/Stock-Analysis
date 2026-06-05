@@ -38,6 +38,14 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Data Vs Product Logic
+- Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
+- Product checks: project readiness gates decide whether each input is usable before report sections appear.
+- Product DCF logic: calculated locally from trusted price, fundamentals, cash-flow or margin, share count, and cash/debt inputs; the report does not ask a third party or model to create a valuation opinion.
+- Product peer logic: blocked locally until source-backed peer mappings and peer metrics exist; sector or industry fallback is not treated as trusted peer valuation.
+- Optional context logic: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
+- Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
+
 ## Analysis Quality
 - Analysis mode: Standalone DCF review.
 - Why: DCF assumptions can be reviewed, but peer-relative valuation remains limited until trusted peer inputs are ready.
@@ -48,6 +56,7 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
+- DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
 - DCF method: standalone DCF projects free cash flow under bear/base/bull assumptions, discounts projected cash flows and terminal value by WACC, adjusts for cash/debt or net debt, and divides by shares outstanding.
 - Peer method: peer-relative valuation stays withheld until source-backed peer mappings and peer valuation inputs are ready.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.

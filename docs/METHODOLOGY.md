@@ -104,6 +104,14 @@ The default report uses bear, base, and bull scenarios. Scenario assumptions are
 
 DCF output is treated as scenario math, not a price target. The report should show the input path, assumptions, sensitivity, and confidence limits so a reader can challenge the model instead of trusting a hidden conclusion.
 
+The report uses three DCF states:
+
+- `ready`: the local company inputs are complete enough to review assumptions, scenario math, and sensitivity.
+- `blocked`: one or more required company inputs are missing, so the report shows missing fields and withholds valuation interpretation.
+- `excluded`: the ticker is an ETF, index proxy, or fund monitor context where operating-company DCF does not apply.
+
+This distinction matters because a blocked DCF is not a negative company signal, and an excluded DCF is not a failed calculation. Both are product gates that prevent unsupported valuation language.
+
 ## 6. Peer And Relative Context
 
 Peer analysis is separate from standalone DCF.

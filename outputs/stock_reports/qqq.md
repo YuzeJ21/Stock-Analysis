@@ -38,6 +38,14 @@ QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - Supported now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Still locked or excluded: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Data Vs Product Logic
+- Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
+- Product checks: project readiness gates decide whether each input is usable before report sections appear.
+- Product DCF logic: excluded by asset-type gate; the report does not ask a third party or model to create a valuation opinion.
+- Product peer logic: excluded for monitor context; sector or industry fallback is not treated as trusted peer valuation.
+- Optional context logic: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
+- Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
+
 ## Analysis Quality
 - Analysis mode: Monitor-only context.
 - Why: Use market, theme, liquidity, or risk context. Operating-company DCF and peer valuation are excluded, not failed.
@@ -48,6 +56,7 @@ QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
+- DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
 - DCF method: operating-company DCF is excluded because this ticker is treated as ETF/index/fund monitor context; use ready price, liquidity, correlation, theme, or risk context instead.
 - Peer method: peer-relative company valuation is excluded for monitor context.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.

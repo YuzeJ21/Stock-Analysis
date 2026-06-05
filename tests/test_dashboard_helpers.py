@@ -7269,9 +7269,12 @@ def test_stock_report_at_a_glance_cards_match_markdown_report_flow():
     assert "what not to infer" in rendered
     assert "company valuation remains blocked" in rendered
     assert "project gates and dcf math" in rendered
+    assert "what this means" in rendered
+    assert "source rows supply data" in rendered
     assert "projected cash flows" in rendered
     assert "discounted terminal value" in rendered
     assert "fair value per share" in rendered
+    assert "stays locked instead of becoming a weak conclusion" in rendered
     assert cards[-1]["command"] == "make focus-fundamentals TICKER=META"
     assert "copy the command" in rendered
     assert "copy-only" in rendered
@@ -7355,6 +7358,8 @@ def test_stock_report_function_quality_frame_explains_current_function_scope_and
     assert "logic source" in rendered
     assert "project rules" in rendered
     assert "shipped analysis comes from project code and local data" in rendered
+    assert "source rows provide inputs" in rendered
+    assert "what can be analyzed now and what remains locked" in rendered
     assert "plugins can help development review" not in rendered
     assert "no open source was used" not in rendered
     assert "broker" not in rendered

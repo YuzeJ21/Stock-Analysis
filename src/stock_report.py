@@ -1073,10 +1073,49 @@ def _stock_report_methodology_lines(
         "- Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.",
         "- Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.",
         "- DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.",
+        "- DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.",
         f"- DCF method: {valuation_method}.",
         f"- Peer method: {peer_method}.",
         "- Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.",
         "- Report method: text is generated from local readiness, DCF, peer, decision, and source/freshness outputs; blocked or excluded sections are explained instead of filled.",
+    ]
+
+
+def _stock_report_source_logic_lines(
+    *,
+    readiness: dict[str, Any],
+    dcf_status_text: str,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+) -> list[str]:
+    asset_type = _display_value(readiness.get("asset_type"), "company").lower()
+    monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    if monitor_context:
+        dcf_logic = "excluded by asset-type gate"
+        peer_logic = "excluded for monitor context"
+    elif dcf_status_text == "ready":
+        dcf_logic = "calculated locally from trusted price, fundamentals, cash-flow or margin, share count, and cash/debt inputs"
+        peer_logic = (
+            "available only from source-backed peer mappings and peer valuation inputs"
+            if bool(peer_ready)
+            else "blocked locally until source-backed peer mappings and peer metrics exist"
+        )
+    else:
+        dcf_logic = "blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing"
+        peer_logic = "blocked locally until source-backed peer mappings and peer metrics exist"
+    optional_logic = (
+        "available from trusted local earnings and analyst-estimate rows"
+        if bool(earnings_ready) and bool(estimates_ready)
+        else "locked locally until trusted earnings and analyst-estimate rows pass import validation"
+    )
+    return [
+        "- Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.",
+        "- Product checks: project readiness gates decide whether each input is usable before report sections appear.",
+        f"- Product DCF logic: {dcf_logic}; the report does not ask a third party or model to create a valuation opinion.",
+        f"- Product peer logic: {peer_logic}; sector or industry fallback is not treated as trusted peer valuation.",
+        f"- Optional context logic: {optional_logic}; empty optional files are an intentional locked state, not hidden analysis.",
+        "- Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.",
     ]
 
 
@@ -1588,6 +1627,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         dcf_status_text=dcf_status_text,
         peer_ready=peer_ready,
     )
+    source_logic_lines = _stock_report_source_logic_lines(
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     executive_summary_lines = _stock_report_executive_summary_lines(
         ticker=report.ticker,
         analysis_quality_lines=analysis_quality_lines,
@@ -1656,6 +1702,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Ready inputs: {ready_features}.",
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
+        "",
+        "## Data Vs Product Logic",
+        *source_logic_lines,
         "",
         "## Analysis Quality",
         *analysis_quality_lines,
@@ -1877,6 +1926,13 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         dcf_status_text=dcf_status_text,
         peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
     )
+    source_logic_lines = _stock_report_source_logic_lines(
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     executive_summary_lines = _stock_report_executive_summary_lines(
         ticker=symbol,
         analysis_quality_lines=analysis_quality_lines,
@@ -1947,6 +2003,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Ready inputs: {ready_features}.",
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
+        "",
+        "## Data Vs Product Logic",
+        *source_logic_lines,
         "",
         "## Analysis Quality",
         *analysis_quality_lines,

@@ -3770,7 +3770,7 @@ def stock_report_at_a_glance_cards(
         {
             "kicker": "METHOD",
             "title": "Project gates and DCF math",
-            "body": "Readiness gates decide what can appear. When DCF is ready, local free-cash-flow inputs flow through projected cash flows, discounted terminal value, cash/debt adjustment, and fair value per share.",
+            "body": "What this means: source rows supply data, then project gates decide what can appear. When DCF is ready, local free-cash-flow inputs flow through projected cash flows, discounted terminal value, cash/debt adjustment, and fair value per share. When inputs are missing or excluded, the section stays locked instead of becoming a weak conclusion.",
             "badges": ["method visible", "local inputs"],
         },
         {
@@ -3888,7 +3888,11 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
             {
                 "Function": "Logic source",
                 "Current Status": "Project rules",
-                "What To Trust": "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data.",
+                "What To Trust": (
+                    "Rules live in project code; libraries and adapters support data/UI. "
+                    "Shipped analysis comes from project code and local data. Source rows provide inputs; "
+                    "project gates, DCF math, peer blockers, and report wording decide what can be analyzed now and what remains locked."
+                ),
             },
         ]
     )
@@ -3976,7 +3980,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
             "title": logic.get("status", "Project rules"),
             "body": logic.get(
                 "trust",
-                    "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data.",
+                    "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data. Source rows provide inputs; project gates, DCF math, peer blockers, and report wording decide what can be analyzed now and what remains locked.",
             ),
             "badges": ["project rules", "transparent"],
         },
@@ -15571,7 +15575,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": "Clear for one ticker's ready, blocked, excluded, and monitor-only analysis.",
                 "Supported Today": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
                 "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source/freshness outputs.",
-                "Logic Source": "Project report assembly in src/stock_report.py and src/dashboard.py.",
+                "Logic Source": "Project report assembly in src/stock_report.py and src/dashboard.py separates source rows from product calculations and blocked-section wording.",
             },
             {
                 "Function Area": "Dependencies",
