@@ -37,9 +37,10 @@ Most blocked rows are not errors. They are data gaps the command center exposes 
 
 The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed.
 
-- Readiness gates check whether prices, fundamentals, peers, earnings, and estimates are complete enough.
-- Project calculations run only after the needed inputs are ready.
-- Blocked or excluded sections stay visible with the exact missing input and next local step.
+1. Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears.
+2. Supported analysis: price-ready rows can support setup/risk context, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context.
+3. Locked or excluded boundaries: missing fundamentals, peer inputs, earnings, or estimates stay locked; ETF/index/fund DCF is excluded, not failed.
+4. Report explanation: single-stock reports show what came from source rows, what the product calculated, what stayed withheld, and the next copy-only local step.
 
 ## Current Snapshot
 
