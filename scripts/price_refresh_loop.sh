@@ -25,11 +25,14 @@ fi
 echo "Research-only capped price refresh loop."
 echo "Batches: $BATCHES; tickers per batch: $TOP_N; provider: $PROVIDER; sleep seconds: $SLEEP_SECONDS"
 echo "This updates local CSV files only. It does not connect to brokers, place orders, or make recommendations."
-echo "Plan: run capped missing-price batches, then rebuild price coverage, readiness, and project status."
+echo "Plan: review up to $((BATCHES * TOP_N)) missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
+echo "Start with DRY_RUN=1 so you can review the batch size before any local CSV changes."
 if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Dry run only. No local CSV files were changed."
-  echo "First batch command would be: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER"
+  echo "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
+  echo "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER"
   echo "Post-loop commands would be: make price-coverage TOP_N=25; make readiness; make project-status"
+  echo "This replaces repeating 25-ticker refreshes manually; keep batches capped and review generated CSV churn before committing."
   exit 0
 fi
 

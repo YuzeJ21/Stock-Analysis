@@ -189,6 +189,7 @@ def test_makefile_help_documents_key_workflows():
         "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
         "make price-refresh-loop [BATCHES=5] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
         "make price-refresh-loop DRY_RUN=1",
+        "avoids repeating 25-ticker refreshes manually",
         "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make optional-context-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make sec-stage-queue [TICKERS=NVDA,MSFT] [TOP_N=10]",
@@ -236,8 +237,12 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert 'TOP_N="${TOP_N:-100}"' in script
     assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
     assert 'DRY_RUN="${DRY_RUN:-0}"' in script
+    assert "review up to $((BATCHES * TOP_N)) missing-price candidates" in script
     assert "Dry run only. No local CSV files were changed." in script
+    assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
+    assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
+    assert "This replaces repeating 25-ticker refreshes manually" in script
     assert "make price-coverage TOP_N=25" in script
     assert "make readiness" in script
     assert "make project-status" in script

@@ -10302,9 +10302,9 @@ def safe_action_console_command(category: str, command: object = "") -> str:
     lowered = command_text.lower()
     category_key = category.strip().lower()
     if category_key == "price coverage batch":
-        if "top_n=" in lowered or "tickers=" in lowered:
+        if "price-refresh-loop" in lowered or "tickers=" in lowered:
             return command_text
-        return "make price-refresh TOP_N=25 PROVIDER=yahoo"
+        return "make price-refresh-loop DRY_RUN=1"
     if category_key == "fundamentals / dcf unlock":
         if "top_n=" in lowered or "tickers=" in lowered or lowered == "make imports-validate":
             return command_text
@@ -10403,8 +10403,8 @@ def build_next_action_console_frame(
                 "Price Coverage Batch",
                 "price_ready",
                 price_missing,
-                "Refresh the next small missing-price batch so the broad-universe frontier advances without requiring all tickers at once.",
-                "make price-refresh TOP_N=25 PROVIDER=yahoo",
+                "Preview a capped missing-price batch plan first, then run several capped batches if you choose; no need to repeat 25-ticker refreshes manually.",
+                "make price-refresh-loop DRY_RUN=1",
             ),
             (
                 2,

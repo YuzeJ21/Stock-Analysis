@@ -728,7 +728,7 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
 
     assert payload["top_onboarding_actions"][0]["ticker"] == "AMD"
     assert payload["recommended_next_command_rows"][0]["Step"] == "Refresh next capped missing-price batch"
-    assert payload["recommended_next_command_rows"][0]["Command"] == "make price-refresh TOP_N=25 PROVIDER=yahoo"
+    assert payload["recommended_next_command_rows"][0]["Command"] == "make price-refresh-loop DRY_RUN=1"
     assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Bundle (Broader Queue) runbook"
     assert payload["recommended_next_command_rows"][2]["Command"] == "make runbook-prices-broader"
 

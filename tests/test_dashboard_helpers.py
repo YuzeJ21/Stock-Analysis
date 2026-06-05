@@ -11797,7 +11797,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
         "recommended_next_command_rows": [
             {
                 "Step": "Refresh next capped missing-price batch",
-                "Command": "make price-refresh TOP_N=25 PROVIDER=yahoo",
+                "Command": "make price-refresh-loop DRY_RUN=1",
                 "Reason": "Advance the broad-universe price frontier safely.",
                 "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
                 "FreshnessContext": "capped refresh; verify source/freshness after merge",
@@ -11833,7 +11833,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
         }
     )
     assert len(cards) <= 8
-    assert "make price-refresh top_n=25 provider=yahoo" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "make imports-validate" in rendered
@@ -11899,7 +11899,9 @@ def test_next_action_console_prioritizes_active_samples_without_hiding_broad_cou
 
 
 def test_next_action_console_sanitizes_uncapped_batch_commands():
-    assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh") == "make price-refresh TOP_N=25 PROVIDER=yahoo"
+    assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh") == "make price-refresh-loop DRY_RUN=1"
+    assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh-loop DRY_RUN=1") == "make price-refresh-loop DRY_RUN=1"
+    assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh TICKERS=NVDA") == "make price-refresh TICKERS=NVDA"
     assert dashboard.safe_action_console_command("Fundamentals / DCF Unlock", "make sec-stage") == "make sec-stage-queue TOP_N=25"
     assert dashboard.safe_action_console_command("Peer Mapping Unlock", "make templates") == "make peer-mapping-queue TOP_N=25"
     assert dashboard.safe_action_console_command("Import Validation / Rejected Rows", "make imports-apply") == "make imports-apply"
@@ -13796,7 +13798,7 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
                 "decision_bucket": "Blocked by Data",
                 "decision_subtype": "Blocked by Data - Missing Price",
                 "primary_blocker": "price",
-                "next_best_action": "Run make price-refresh TOP_N=25 PROVIDER=yahoo.",
+                "next_best_action": "Run make price-refresh-loop DRY_RUN=1.",
             },
             {
                 "ticker": "QQQ",
