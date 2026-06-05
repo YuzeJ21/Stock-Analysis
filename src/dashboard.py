@@ -7779,14 +7779,18 @@ def data_health_fundamentals_unlock_frame(
             {
                 "Ticker": ticker,
                 "Priority Scope": f"Priority {priority}; {scope}",
-                "Current State": "Price may be ready, but company fundamentals are still locked",
+                "Current State": "Price/setup context may be ready, but company fundamentals are still locked",
                 "What You Can Analyze Now": "Use ready price/setup/risk context only; do not read company valuation yet.",
                 "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
                 "Missing Trusted Inputs": missing_inputs,
                 "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
                 "What This Unlocks": "Trusted fundamentals can unlock DCF readiness checks, scenario assumptions, and fair value/share review when all required fields pass.",
                 "No-Conclusion Boundary": "Do not label the ticker undervalued, overvalued, or DCF-ready until trusted fundamentals and DCF readiness pass.",
-                "Next Safe Sequence": f"1. Inspect `{command}`. 2. Stage trusted fundamentals only. 3. Run validation, preview, apply, then DCF readiness.",
+                "Next Safe Sequence": (
+                    f"1. Inspect `{command}`. 2. Use `make sec-stage TICKERS={ticker}` when SEC_USER_AGENT is configured, "
+                    "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
+                    "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+                ),
                 "Copy-Only Command": command,
                 "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
             }

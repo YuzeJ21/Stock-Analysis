@@ -13213,7 +13213,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert frame["Ticker"].tolist() == ["META"]
     assert frame.iloc[0]["Priority Scope"] == "Priority 1; active universe"
     assert frame.iloc[0]["Copy-Only Command"] == "make focus-fundamentals TICKER=META"
-    assert "price may be ready, but company fundamentals are still locked" in rendered
+    assert "price/setup context may be ready, but company fundamentals are still locked" in rendered
     assert "use ready price/setup/risk context only" in rendered
     assert "do not read company valuation yet" in rendered
     assert "fair value/share, and peer-relative valuation stay locked" in rendered
@@ -13221,7 +13221,12 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
     assert "dcf readiness checks" in rendered
     assert "do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
-    assert "stage trusted fundamentals only" in rendered
+    assert "make sec-stage tickers=meta" in rendered
+    assert "fill `data/imports/fundamentals.csv` with trusted manual rows" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "make dcf-readiness" in rendered
     assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13239,7 +13244,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
                 "Missing Trusted Inputs": "free cash flow, shares outstanding",
                 "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
                 "No-Conclusion Boundary": "Do not label the ticker undervalued, overvalued, or DCF-ready until trusted fundamentals and DCF readiness pass.",
-                "Next Safe Sequence": "1. Inspect `make focus-fundamentals TICKER=META`. 2. Stage trusted fundamentals only. 3. Run validation, preview, apply, then DCF readiness.",
+                "Next Safe Sequence": "1. Inspect `make focus-fundamentals TICKER=META`. 2. Use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured, or fill `data/imports/fundamentals.csv` with trusted manual rows. 3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`.",
                 "Copy-Only Command": "make focus-fundamentals TICKER=META",
                 "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
             }
@@ -13257,7 +13262,8 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "free cash flow, shares outstanding" in rendered
     assert "fair value/share, and peer-relative valuation stay locked" in rendered
     assert "boundary: do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
-    assert "stage trusted fundamentals only" in rendered
+    assert "make sec-stage tickers=meta" in rendered
+    assert "trusted manual rows" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
