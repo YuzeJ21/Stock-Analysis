@@ -8248,8 +8248,18 @@ def test_stock_report_technical_context_cards_are_readable_and_research_only():
     assert "above 10 ema" in rendered
     assert "volatility proxy approximation" in rendered
     assert "proxy values are approximations" in rendered
+    assert "volume 1.2x" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_stock_report_technical_context_cards_do_not_append_units_to_missing_volume():
+    cards = dashboard.stock_report_technical_context_cards({"screener_context": {}})
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "volume ratio not available" in rendered
+    assert "not availablex" not in rendered
+    assert "nan" not in rendered
 
 
 def test_stock_report_technical_context_frame_formats_missing_values_cleanly():
@@ -8260,6 +8270,25 @@ def test_stock_report_technical_context_frame_formats_missing_values_cleanly():
     assert "not available" in rendered
     assert "none" not in rendered
     assert "nan" not in rendered
+
+
+def test_single_stock_report_intro_cards_explain_output_before_generation():
+    cards = dashboard.single_stock_report_intro_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["WHAT YOU WILL SEE", "DATA VS LOGIC", "LOCKED CONTEXT"]
+    assert "ready, blocked, or excluded first" in rendered
+    assert "inputs are separated from calculations" in rendered
+    assert "local/provider rows supply prices and fundamentals" in rendered
+    assert "runs dcf math when inputs are complete" in rendered
+    assert "peer valuation, earnings, and analyst-estimate context stay locked" in rendered
+    assert "etf/index/fund dcf is excluded, not failed" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_stock_report_source_frame_hides_raw_missing_values():

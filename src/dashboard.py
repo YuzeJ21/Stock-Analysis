@@ -4320,6 +4320,8 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
     relative_spy = momentum.get("RelativeReturnVsSPY")
     relative_qqq = momentum.get("RelativeReturnVsQQQ")
     volume_ratio = momentum.get("VolumeRatio")
+    volume_ratio_display = report_display_value(volume_ratio, "number")
+    volume_title = f"Volume {volume_ratio_display}x" if volume_ratio_display != "Not available" else "Volume ratio not available"
     volatility_proxy = momentum.get("ATRorVolatilityPct")
     volatility_source = _atr_or_volatility_source_label(momentum.get("ATRorVolatilitySource"))
     ma_stack = [
@@ -4348,9 +4350,35 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
         },
         {
             "kicker": "FLOW / VOLATILITY",
-            "title": f"Volume {report_display_value(volume_ratio, 'number')}x",
+            "title": volume_title,
             "body": f"{volatility_source}: {report_display_value(volatility_proxy, 'percent')}. Proxy values are approximations; missing values stay visible instead of guessed.",
             "badges": ["local pipeline", volatility_source],
+        },
+    ]
+
+
+def single_stock_report_intro_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "WHAT YOU WILL SEE",
+            "title": "Ready, blocked, or excluded first",
+            "body": "The report starts by saying which analysis is supported for the ticker before showing valuation, trend, peers, or optional context.",
+            "badges": ["readiness first", "plain English"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "DATA VS LOGIC",
+            "title": "Inputs are separated from calculations",
+            "body": "Local/provider rows supply prices and fundamentals. This product decides readiness, runs DCF math when inputs are complete, and withholds conclusions when trusted inputs are missing.",
+            "badges": ["local inputs", "project logic"],
+            "command": "make stock-report-md TICKER=A",
+        },
+        {
+            "kicker": "LOCKED CONTEXT",
+            "title": "Missing data stays visible",
+            "body": "Peer valuation, earnings, and analyst-estimate context stay locked unless trusted local rows exist. ETF/index/fund DCF is excluded, not failed.",
+            "badges": ["no guessing", "research-only"],
+            "command": "make stock-report-md TICKER=QQQ",
         },
     ]
 
@@ -16002,7 +16030,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
-    if st.button("Generate Local Stock Report", key="single-stock-report-button"):
+    render_signal_cards(single_stock_report_intro_cards())
+
+    if st.button("Show Local Research Report", key="single-stock-report-button"):
         if not ticker:
             st.warning("Enter a ticker to generate a stock report.")
         else:
