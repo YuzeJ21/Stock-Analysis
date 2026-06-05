@@ -14,8 +14,8 @@ Research-only local report. It summarizes readiness and does not provide allocat
 ## Reader Guide
 - What can I analyze now? Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - What is still locked or excluded? Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
-- What trusted input matters next? Review source/freshness notes before interpreting the supported sections.
-- Next copy-only command: `make stock-report-md TICKER=NVDA`.
+- What trusted input matters next? Trusted optional earnings or analyst-estimate CSV rows, only if you have a source you trust.
+- Next copy-only command: `make optional-context-worklist TICKERS=NVDA TOP_N=10`.
 - Next research step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## How To Read This Report

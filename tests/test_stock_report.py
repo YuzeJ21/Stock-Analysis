@@ -21,6 +21,7 @@ from src.stock_report import (
     _display_setup_text,
     _format_inline_make_commands,
     _stock_report_reader_guide_lines,
+    _stock_report_reader_question_lines,
     _stock_report_valuation_lines,
     _stock_report_purpose_fields,
     build_readiness_only_markdown,
@@ -57,6 +58,32 @@ def test_stock_report_setup_text_relabels_not_ready_company_rows_as_data_limited
     assert "valuation readiness is not ready" in text
     assert "treat as data-limited review until missing data is resolved" in text
     assert "treat as monitor-only" not in text.lower()
+
+
+def test_stock_report_reader_questions_route_optional_locked_core_ready_names():
+    lines = _stock_report_reader_question_lines(
+        ticker="NVDA",
+        supported_now="Price, fundamentals, DCF, and peer context can be reviewed from trusted local inputs.",
+        locked_now="Earnings and analyst estimates remain unavailable until trusted optional CSV rows exist.",
+        next_action="Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.",
+        dcf_status_text="ready",
+        monitor_context=False,
+        price_ready=True,
+        peer_ready=True,
+        earnings_ready=False,
+        estimates_ready=False,
+    )
+    rendered = "\n".join(lines).lower()
+
+    assert "trusted optional earnings or analyst-estimate csv rows" in rendered
+    assert "`make optional-context-worklist tickers=nvda top_n=10`" in rendered
+    assert "`make stock-report-md ticker=nvda`" not in rendered
+    assert "source-backed peer mappings and peer valuation inputs" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def _copy_rich_fixture(tmp_path: Path) -> Path:

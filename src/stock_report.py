@@ -1353,6 +1353,8 @@ def _stock_report_reader_question_lines(
     monitor_context: bool,
     price_ready: bool,
     peer_ready: Any = None,
+    earnings_ready: Any = None,
+    estimates_ready: Any = None,
 ) -> list[str]:
     if not price_ready:
         next_input = "Trusted local price history."
@@ -1366,6 +1368,9 @@ def _stock_report_reader_question_lines(
     elif dcf_status_text == "ready" and not bool(peer_ready):
         next_input = "Source-backed peer mappings and peer valuation inputs."
         command = f"make focus-peers TICKER={ticker}"
+    elif not bool(earnings_ready) or not bool(estimates_ready):
+        next_input = "Trusted optional earnings or analyst-estimate CSV rows, only if you have a source you trust."
+        command = f"make optional-context-worklist TICKERS={ticker} TOP_N=10"
     else:
         next_input = "Review source/freshness notes before interpreting the supported sections."
         command = f"make stock-report-md TICKER={ticker}"
@@ -1967,6 +1972,8 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         monitor_context=monitor_context,
         price_ready=bool(readiness.get("price_ready")),
         peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
     )
     data_unlock_lines = _stock_report_data_unlock_lines(
         ticker=report.ticker,
@@ -2310,6 +2317,8 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         monitor_context=monitor_context,
         price_ready=bool(readiness.get("price_ready")),
         peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=readiness.get("earnings_ready"),
+        estimates_ready=readiness.get("analyst_estimates_ready"),
     )
     data_unlock_lines = _stock_report_data_unlock_lines(
         ticker=symbol,
