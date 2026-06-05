@@ -10627,6 +10627,51 @@ def valuation_method_contract_frame() -> pd.DataFrame:
     )
 
 
+def valuation_method_path_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "METHOD PATH",
+            "title": "Inputs before valuation",
+            "body": (
+                "DCF starts only after trusted local price and company fundamentals are present. "
+                "Missing free cash flow, margin, shares, or price keeps valuation locked."
+            ),
+            "badges": ["source data first", "readiness gate"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "DCF MATH",
+            "title": "FCF -> discounted value -> fair value/share",
+            "body": (
+                "The product uses explicit free cash flow, or revenue times FCF margin, then applies visible growth, WACC, "
+                "terminal growth, cash/debt adjustment, and share count."
+            ),
+            "badges": ["assumptions visible", "sensitivity review"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "RELATIVE VALUE",
+            "title": "Peer valuation is separate",
+            "body": (
+                "Standalone DCF can be ready while peer-relative valuation stays locked. Peer valuation appears only after "
+                "source-backed peer mappings and peer valuation inputs pass readiness."
+            ),
+            "badges": ["peer-gated", "no guessed peers"],
+            "command": "make peer-mapping-queue TOP_N=10",
+        },
+        {
+            "kicker": "OUTPUT BOUNDARY",
+            "title": "Context, not a conclusion",
+            "body": (
+                "Ready rows support assumption and sensitivity review. Blocked rows withhold valuation, and ETF/index/fund rows "
+                "show monitor context because operating-company DCF is excluded, not failed."
+            ),
+            "badges": ["no inference", "research-only"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+    ]
+
+
 def split_risk_context_by_price_ready(frame: pd.DataFrame | None, unavailable_statuses: set[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
     if frame is None or frame.empty:
         return pd.DataFrame(), pd.DataFrame()
@@ -14894,6 +14939,8 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     render_section_header("Valuation Function Quality", "What valuation can and cannot mean with the current trusted local inputs.")
     render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
     render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
+    render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
+    render_signal_cards(valuation_method_path_cards())
     with st.expander("What valuation can support today", expanded=False):
         st.write(
             "This audit separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "

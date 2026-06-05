@@ -7491,6 +7491,9 @@ def test_value_re_rating_page_uses_context_not_ready_conclusion_language():
     assert "value / re-rating at a glance" in source
     assert "what you can analyze now" in source
     assert "what is still locked" in source
+    assert "valuation method path" in source
+    assert "how source rows become dcf context without becoming a hidden conclusion" in source
+    assert "valuation_method_path_cards()" in source
     assert "operating-company valuation context is shown only for dcf-ready companies" in source
     assert "instead of showing ranked valuation context" in source
     assert "operating-company valuation conclusions are shown only for dcf-ready companies" not in source
@@ -7620,6 +7623,34 @@ def test_valuation_function_quality_frame_explains_scope_counts_and_provenance()
     assert "replacing project valuation rules or trusted local valuation inputs" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_valuation_method_path_cards_explain_dcf_without_black_box_language():
+    cards = dashboard.valuation_method_path_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["METHOD PATH", "DCF MATH", "RELATIVE VALUE", "OUTPUT BOUNDARY"]
+    assert "inputs before valuation" in rendered
+    assert "trusted local price and company fundamentals" in rendered
+    assert "missing free cash flow, margin, shares, or price keeps valuation locked" in rendered
+    assert "fcf -> discounted value -> fair value/share" in rendered
+    assert "revenue times fcf margin" in rendered
+    assert "growth, wacc" in rendered
+    assert "terminal growth" in rendered
+    assert "cash/debt adjustment" in rendered
+    assert "peer valuation is separate" in rendered
+    assert "standalone dcf can be ready while peer-relative valuation stays locked" in rendered
+    assert "source-backed peer mappings" in rendered
+    assert "context, not a conclusion" in rendered
+    assert "blocked rows withhold valuation" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "make peer-mapping-queue top_n=10" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
