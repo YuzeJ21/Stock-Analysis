@@ -14471,6 +14471,7 @@ def test_valuation_blocked_unlock_frame_plain_language_and_copy_only_commands():
     assert list(frame.columns) == [
         "Ticker",
         "Current State",
+        "Valuation Boundary",
         "Missing Trusted Inputs",
         "What This Means",
         "Next Trusted Input",
@@ -14479,6 +14480,7 @@ def test_valuation_blocked_unlock_frame_plain_language_and_copy_only_commands():
     assert frame["Ticker"].tolist() == ["META", "APLD"]
     assert frame.loc[frame["Ticker"].eq("META"), "Copy-Only Command"].iloc[0] == "make focus-fundamentals TICKER=META"
     assert frame.loc[frame["Ticker"].eq("APLD"), "Copy-Only Command"].iloc[0] == "make focus-price TICKER=APLD"
+    assert "no intrinsic, peer-relative, undervalued, or overvalued conclusion until trusted inputs pass readiness" in rendered
     assert "free cash flow, shares outstanding" in rendered
     assert "no fair value, undervalued, or overvalued conclusion" in rendered
     assert "trusted company fundamentals" in rendered
@@ -14496,10 +14498,11 @@ def test_valuation_excluded_context_frame_explains_excluded_not_failed():
     frame = dashboard.valuation_excluded_context_frame(excluded)
     rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
 
-    assert list(frame.columns) == ["Ticker", "Asset Type", "Current State", "What This Means", "Copy-Only Command"]
+    assert list(frame.columns) == ["Ticker", "Asset Type", "Current State", "Valuation Boundary", "What This Means", "Copy-Only Command"]
     assert frame.iloc[0]["Ticker"] == "QQQ"
     assert frame.iloc[0]["Copy-Only Command"] == "make stock-report-md TICKER=QQQ"
     assert "operating-company dcf excluded" in rendered
+    assert "dcf excluded, not failed; peer-relative company valuation is not shown for monitor-context rows" in rendered
     assert "dcf is excluded, not failed" in rendered
     assert "market, theme, liquidity, or risk review" in rendered
     assert "broker" not in rendered

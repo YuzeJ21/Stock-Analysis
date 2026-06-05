@@ -11336,6 +11336,7 @@ def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int =
     columns = [
         "Ticker",
         "Current State",
+        "Valuation Boundary",
         "Missing Trusted Inputs",
         "What This Means",
         "Next Trusted Input",
@@ -11369,6 +11370,7 @@ def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int =
             {
                 "Ticker": ticker,
                 "Current State": "Valuation locked by missing inputs",
+                "Valuation Boundary": "No intrinsic, peer-relative, undervalued, or overvalued conclusion until trusted inputs pass readiness.",
                 "Missing Trusted Inputs": missing_inputs,
                 "What This Means": "No fair value, undervalued, or overvalued conclusion is shown until these inputs pass readiness.",
                 "Next Trusted Input": next_input,
@@ -11379,7 +11381,7 @@ def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int =
 
 
 def valuation_excluded_context_frame(excluded_rows: pd.DataFrame, limit: int = 25) -> pd.DataFrame:
-    columns = ["Ticker", "Asset Type", "Current State", "What This Means", "Copy-Only Command"]
+    columns = ["Ticker", "Asset Type", "Current State", "Valuation Boundary", "What This Means", "Copy-Only Command"]
     if excluded_rows.empty:
         return pd.DataFrame(columns=columns)
     rows: list[dict[str, object]] = []
@@ -11391,6 +11393,7 @@ def valuation_excluded_context_frame(excluded_rows: pd.DataFrame, limit: int = 2
                 "Ticker": ticker,
                 "Asset Type": asset_type,
                 "Current State": "Operating-company DCF excluded",
+                "Valuation Boundary": "DCF excluded, not failed; peer-relative company valuation is not shown for monitor-context rows.",
                 "What This Means": "Use monitor context such as market, theme, liquidity, or risk review; DCF is excluded, not failed.",
                 "Copy-Only Command": stock_report_md_command(ticker),
             }
