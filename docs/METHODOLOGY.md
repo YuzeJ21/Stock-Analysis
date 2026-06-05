@@ -115,7 +115,7 @@ Fair value per share = Equity value / shares outstanding
 
 The default report uses bear, base, and bull scenarios. Scenario assumptions are visible in the report, including revenue growth, FCF margin, WACC, terminal growth, and forecast years. If assumptions are invalid or required inputs are missing, the DCF returns `insufficient_data`, meaning the valuation is intentionally blocked until trusted inputs exist.
 
-DCF output is treated as scenario math, not a price target. The report should show the input path, assumptions, sensitivity, and confidence limits so a reader can challenge the model instead of trusting a hidden conclusion.
+DCF output is treated as scenario math, not a price target. The report should show the input path, assumptions, sensitivity, and data-confidence limits so a reader can challenge the model instead of trusting a hidden conclusion.
 
 ### Conservative DCF Normalization
 
@@ -161,7 +161,7 @@ Valuation status is a gate, not a recommendation.
 
 The product does not infer valuation conclusions for blocked rows.
 
-Data confidence follows the same principle: complete trusted inputs can raise confidence for the supported section, while missing fundamentals, stale prices, missing peers, or unavailable optional context reduce confidence or keep a section locked. Data confidence is never used to override a blocker.
+Data confidence follows the same principle: complete trusted inputs can raise data confidence for the supported section, while missing fundamentals, stale prices, missing peers, or unavailable optional context reduce data confidence or keep a section locked. Data confidence is never used to override a blocker.
 
 ## 8. Confidence And Decision Scores
 

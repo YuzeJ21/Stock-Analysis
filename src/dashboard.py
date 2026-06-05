@@ -3611,7 +3611,7 @@ def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> li
         {
             "kicker": "MISSING INPUTS",
             "title": f"{len(warnings)} visible",
-            "body": "Visible warnings reduce confidence and should be handled before forcing a broader conclusion.",
+            "body": "Visible warnings reduce data confidence and should be handled before forcing a broader conclusion.",
             "badges": ["no guessing"],
         },
     ]
@@ -3725,7 +3725,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
         next_review = "Start with verified local price history, then regenerate readiness before interpreting the ticker."
 
     confidence_note = (
-        f"{len(warnings)} visible warning{'s' if len(warnings) != 1 else ''}; missing inputs reduce confidence and stay visible."
+        f"{len(warnings)} visible warning{'s' if len(warnings) != 1 else ''}; missing inputs reduce data confidence and stay visible."
         if warnings
         else "No visible missing-data warnings in the current report payload."
     )
@@ -3736,7 +3736,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
             {"Question": "What this report can support", "Answer": supported},
             {"Question": "What remains withheld", "Answer": withheld},
             {"Question": "Best next review step", "Answer": next_review},
-            {"Question": "Confidence note", "Answer": confidence_note},
+            {"Question": "Data-confidence note", "Answer": confidence_note},
         ]
     )
 
@@ -3758,7 +3758,7 @@ def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> 
         "What this report can support": "SUPPORTED",
         "What remains withheld": "WITHHELD",
         "Best next review step": "NEXT REVIEW",
-        "Confidence note": "CONFIDENCE",
+        "Data-confidence note": "DATA CONFIDENCE",
     }
     cards: list[dict[str, object]] = []
     for _, row in summary.iterrows():
@@ -8440,9 +8440,9 @@ def decision_interpretation_ladder_frame() -> pd.DataFrame:
                 "Safe Command": "make onboarding TOP_N=10",
             },
             {
-                "Step": "4. Read confidence",
+                "Step": "4. Read data confidence",
                 "What It Means": "Data confidence is a data-quality state that drops when important context is missing.",
-                "What To Check Next": "Treat low or limited confidence as a reason to inspect sources, freshness, and gaps first.",
+                "What To Check Next": "Treat low or limited data confidence as a reason to inspect sources, freshness, and gaps first.",
                 "Safe Command": "make research-health TOP_N=10",
             },
             {
@@ -8533,9 +8533,9 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
             "badges": ["workflow label", "not advice"],
         },
         {
-            "kicker": "CONFIDENCE",
-            "title": f"{low_confidence_count} low-confidence row(s)",
-            "body": "Confidence falls when core inputs, peer context, source freshness, earnings, or analyst estimates are missing.",
+            "kicker": "DATA CONFIDENCE",
+            "title": f"{low_confidence_count} low-data-confidence row(s)",
+            "body": "Data confidence falls when core inputs, peer context, source freshness, earnings, or analyst estimates are missing.",
             "badges": ["data confidence", "missing inputs"],
         },
         {
@@ -14943,7 +14943,7 @@ def monthly_picks_landing_cards(
             "badges": ["latest price date"],
         },
         {
-            "kicker": "CONFIDENCE",
+            "kicker": "DATA CONFIDENCE",
             "title": f"{pick_gap_count} rows with gaps",
             "body": "Missing fields remain attached to each candidate card so short history or missing fundamentals are obvious.",
             "badges": ["no forced fills"],
@@ -15036,7 +15036,7 @@ def monthly_picks_next_step_cards(
     secondary = {
         "kicker": "DATA GAPS",
         "title": f"{gap_count} rows with gaps",
-        "body": "Missing fields remain attached to each candidate so partial confidence is explicit instead of hidden.",
+        "body": "Missing fields remain attached to each candidate so partial data confidence is explicit instead of hidden.",
         "badges": ["transparent scoring", "local only"],
     }
     return [primary, secondary]
@@ -15089,9 +15089,9 @@ def monthly_picks_quality_cards(
             "badges": ["research-only", "copy-only"],
         },
         {
-            "kicker": "CONFIDENCE CHECK",
+            "kicker": "DATA CONFIDENCE CHECK",
             "title": f"{gap_count} candidate row(s) with visible gaps",
-            "body": f"{track_body} Missing fields stay visible on candidate cards and reduce confidence instead of being inferred.",
+            "body": f"{track_body} Missing fields stay visible on candidate cards and reduce data confidence instead of being inferred.",
             "badges": [track_title, "data-honest"],
         },
     ]
@@ -16734,7 +16734,7 @@ def methodology_ladder_frame() -> pd.DataFrame:
             },
             {
                 "Step": "4. Decision wording",
-                "What The Product Does": "Assigns readiness-aware research workflow buckets after blockers, confidence limits, and exclusions are known.",
+                "What The Product Does": "Assigns readiness-aware research workflow buckets after blockers, data-confidence limits, and exclusions are known.",
                 "What Users See": "Research Now, Monitor, or Blocked by Data with primary blocker and next_best_action.",
                 "Main Code": "src/research_decisions.py",
             },
@@ -17178,7 +17178,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
 
     with st.expander("Methodology", expanded=False):
         st.write("Monthly review ordering uses local research outputs, local price history, optional local fundamentals, and transparent score components.")
-        st.write("Missing inputs reduce confidence and remain visible in the output.")
+        st.write("Missing inputs reduce data confidence and remain visible in the output.")
         st.write("Track-record files are calculated only from local historical price data; insufficient history is shown explicitly.")
 
 

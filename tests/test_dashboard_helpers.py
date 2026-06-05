@@ -609,7 +609,7 @@ def test_compact_reason_avoids_wall_of_text():
     reason = (
         "Composite score uses transparent local components. "
         "This row is a research candidate, not execution guidance. "
-        "Missing or incomplete fields reduced confidence."
+        "Missing or incomplete fields reduced data confidence."
     )
 
     compact = dashboard.compact_reason(reason, max_sentences=2)
@@ -6777,7 +6777,7 @@ def test_monthly_pick_card_html_is_product_style_and_clean():
             "MomentumScore": 61.52,
             "SetupStatus": "Watch",
             "FinalState": "Review Thesis",
-            "Reason": "Composite score uses transparent local components. Missing or incomplete fields reduced confidence.",
+            "Reason": "Composite score uses transparent local components. Missing or incomplete fields reduced data confidence.",
             "MissingDataFields": "Return3M, fundamentals unavailable, peers",
         }
     )
@@ -7155,7 +7155,7 @@ def test_stock_report_analysis_quality_cards_classify_supported_scope():
     assert "peer-relative valuation remains limited" in rendered
     assert "price/setup review only" in rendered
     assert "company valuation stays blocked" in rendered
-    assert "visible warnings reduce confidence" in rendered
+    assert "visible warnings reduce data confidence" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7458,7 +7458,7 @@ def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_n
     assert "peer-relative valuation remains withheld" in rendered
     assert "data-unlock workflow only" in rendered
     assert "conclusions stay unavailable until price coverage starts" in rendered
-    assert "missing inputs reduce confidence" in rendered
+    assert "missing inputs reduce data confidence" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7477,7 +7477,7 @@ def test_stock_report_evaluation_summary_cards_surface_trust_boundary_before_tab
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["MODE", "SUPPORTED", "WITHHELD", "NEXT REVIEW", "CONFIDENCE"]
+    assert [card["kicker"] for card in cards] == ["MODE", "SUPPORTED", "WITHHELD", "NEXT REVIEW", "DATA CONFIDENCE"]
     assert "evaluation mode" in rendered
     assert "standalone dcf review" in rendered
     assert "what this report can support" in rendered
@@ -7486,7 +7486,7 @@ def test_stock_report_evaluation_summary_cards_surface_trust_boundary_before_tab
     assert "peer-relative valuation remains withheld" in rendered
     assert "best next review step" in rendered
     assert "review the dcf assumptions first" in rendered
-    assert "missing inputs reduce confidence" in rendered
+    assert "missing inputs reduce data confidence" in rendered
     assert "research-only" in rendered
     assert "data-gated" in rendered
     assert "broker" not in rendered
@@ -11357,7 +11357,7 @@ def test_methodology_ladder_explains_local_analysis_without_recommendations():
     assert "Checks whether local or provider-assisted rows for prices, fundamentals, DCF inputs, peers, earnings, and estimates are complete enough" in rendered
     assert "input rows do not decide the conclusion by themselves" in rendered
     assert "project calculations" in rendered
-    assert "confidence limits" in rendered
+    assert "data-confidence limits" in rendered
     assert "without importing third-party analyst opinions" in rendered
     assert "Withholds missing analysis instead of guessing fields" in rendered
     assert "Research Now, Monitor, or Blocked by Data" in rendered
@@ -13583,7 +13583,7 @@ def test_decision_interpretation_ladder_explains_reading_order_without_recommend
         "1. Read the bucket",
         "2. Read the subtype",
         "3. Read the blocker",
-        "4. Read confidence",
+        "4. Read data confidence",
         "5. Copy the next action",
     ]
     assert "workflow states, not direct actions" in rendered
@@ -13692,11 +13692,11 @@ def test_final_decision_table_guide_cards_explain_columns_before_rows():
     cards = dashboard.final_decision_table_guide_cards(decisions)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["BUCKET", "CONFIDENCE", "BLOCKER", "NEXT ACTION"]
+    assert [card["kicker"] for card in cards] == ["BUCKET", "DATA CONFIDENCE", "BLOCKER", "NEXT ACTION"]
     assert "workflow state, not a call" in rendered
     assert "deeper review, monitor context, or data-unlock work" in rendered
-    assert "2 low-confidence row(s)" in rendered
-    assert "confidence falls when core inputs, peer context" in rendered
+    assert "2 low-data-confidence row(s)" in rendered
+    assert "data confidence falls when core inputs, peer context" in rendered
     assert "top blocker:" in rendered
     assert "use primary_blocker, missing_data, blocked_features, and excluded_features" in rendered
     assert "3 row(s) with next steps" in rendered
