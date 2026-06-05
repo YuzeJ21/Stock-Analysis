@@ -759,6 +759,32 @@ def _stock_report_valuation_lines(
     return lines
 
 
+def _stock_report_missing_data_lines(payload: dict[str, Any], *, monitor_context: bool) -> list[str]:
+    warnings = list(payload.get("missing_data_warnings", []))
+    if monitor_context:
+        excluded_prefixes = (
+            "valuation missing field:",
+            "revenue is unavailable from the current local fundamentals dataset",
+            "eps is unavailable from the current local fundamentals dataset",
+            "free cash flow is unavailable from the current local fundamentals dataset",
+            "fundamentals has no local row for this ticker",
+        )
+        warnings = [
+            warning
+            for warning in warnings
+            if not any(str(warning).lower().startswith(prefix) for prefix in excluded_prefixes)
+        ]
+    lines = [f"- {_humanize_schema_terms(warning)}" for warning in warnings[:20]]
+    if monitor_context:
+        lines.insert(
+            0,
+            "- Operating-company DCF and peer valuation are excluded for this monitor context, so company valuation fields are not treated as repair items.",
+        )
+    if not lines:
+        lines.append("- None reported by the local provider.")
+    return lines
+
+
 def _stock_report_operator_summary(
     *,
     ticker: str,
@@ -1466,10 +1492,6 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     if not source_lines:
         source_lines.append("- Not available")
 
-    missing_lines = [f"- {_humanize_schema_terms(warning)}" for warning in payload.get("missing_data_warnings", [])[:20]]
-    if not missing_lines:
-        missing_lines.append("- None reported by the local provider.")
-
     valuation_status = _display_value(payload.get("valuation_snapshot", {}).get("status")).lower()
     if "price_ready" not in readiness:
         readiness["price_ready"] = _has_report_value(payload.get("price_snapshot", {}).get("price"))
@@ -1501,6 +1523,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     dcf_status_text = "excluded" if "dcf" in str(readiness.get("excluded_features", "")).lower() or asset_type.lower() in {"etf", "index_proxy", "fund"} else "ready" if dcf_ready else "blocked"
     optional_locked = not earnings_ready or not estimates_ready
     monitor_context = _stock_report_is_monitor_context(readiness=readiness, decision=decision, dcf_status_text=dcf_status_text)
+    missing_lines = _stock_report_missing_data_lines(payload, monitor_context=monitor_context)
     one_minute_parts = [
         f"{report.ticker} state: {_display_value(readiness.get('overall_readiness_state'))}.",
         f"Decision: {_display_value(decision.get('decision_subtype') or decision.get('decision_bucket'))}.",

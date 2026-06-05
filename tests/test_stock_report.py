@@ -582,6 +582,9 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "make import-analyst-estimates" in markdown
     assert "STOOQ_API_KEY" in markdown
     assert "DCF excluded for etf" not in markdown
+    assert "company valuation fields are not treated as repair items" in markdown
+    assert "Valuation missing field:" not in markdown
+    assert "fundamentals has no local row" not in markdown.lower()
     assert "Peer Workflow" in markdown
     assert "Primary blocker: monitor context" in markdown
     assert "Peer blocker type: monitor context" in markdown

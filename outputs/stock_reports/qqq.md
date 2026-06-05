@@ -148,22 +148,12 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Next peer action: No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context.
 
 ## Missing Data
+- Operating-company DCF and peer valuation are excluded for this monitor context, so company valuation fields are not treated as repair items.
 - 1Y performance is unavailable from the current local price history.
 - 3M performance is unavailable from the current local price history.
-- EPS is unavailable from the current local fundamentals dataset.
-- Free cash flow is unavailable from the current local fundamentals dataset.
 - No local analyst-estimate dataset is configured in the CSV-first pipeline.
 - No local earnings dataset is configured in the CSV-first pipeline.
 - Normalized growth target was reduced to keep it conservatively below WACC.
-- Revenue is unavailable from the current local fundamentals dataset.
-- Valuation missing field: FCF margin
-- Valuation missing field: cash
-- Valuation missing field: debt
-- Valuation missing field: ebitda
-- Valuation missing field: eps
-- Valuation missing field: free cash flow
-- Valuation missing field: market cap, price, and share count
-- Valuation missing field: revenue
 - analyst estimates has no local row for this ticker.
 - earnings has no local row for this ticker.
 
