@@ -151,7 +151,41 @@ The product does not infer valuation conclusions for blocked rows.
 
 Confidence follows the same principle: complete trusted inputs can raise confidence for the supported section, while missing fundamentals, stale prices, missing peers, or unavailable optional context reduce confidence or keep a section locked. Confidence is never used to override a blocker.
 
-## 8. Scores And Ranking Context
+## 8. Confidence And Decision Scores
+
+Confidence is a data-quality and review-routing signal, not investment conviction.
+
+The decision workflow first calculates a data-readiness score from feature state:
+
+```text
+Data readiness score =
+  (ready features + 0.45 * partial features) / ready-or-partial-or-blocked features
+
+Then blocked features reduce the score.
+Excluded methods can reduce the score when nothing else is ready.
+```
+
+The public confidence labels follow the data-readiness score:
+
+| Data-readiness score | Label |
+| --- | --- |
+| 0.80 or higher | high |
+| 0.55 to below 0.80 | medium |
+| 0.25 to below 0.55 | low |
+| below 0.25 | blocked |
+
+Decision confidence is capped by decision bucket so a row with missing core inputs cannot look stronger than the data allows:
+
+| Decision bucket | Confidence cap / behavior |
+| --- | --- |
+| Research Now | Uses data readiness plus local analysis score, capped below full certainty. |
+| Monitor | Uses ready monitor inputs and is capped below Research Now. |
+| Blocked by Data | Stays low even if some partial context exists. |
+| Excluded | Can be clear about method exclusion without becoming a company valuation view. |
+
+This means a DCF-ready company can have medium confidence when optional context is missing, an ETF/index monitor row can have low or medium confidence for monitoring while DCF stays excluded, and a price-blocked row stays blocked no matter how interesting the ticker might be.
+
+## 9. Scores And Ranking Context
 
 The product uses setup scores, watchlist scores, confidence scores, and monthly
 candidate scores only to sort local review queues and explain why a ticker
@@ -173,7 +207,7 @@ Some compatibility output files keep legacy names, including
 re-rating context. It is not an automatic undervalued-stock list, and rows with
 missing trusted inputs must stay `not_ready`, meaning not enough trusted data exists for valuation, or blocked.
 
-## 9. Report Explanation
+## 10. Report Explanation
 
 Single-stock reports are assembled from the same gates and calculations:
 
@@ -202,7 +236,7 @@ When a company ticker has the full trusted local input stack, the single-stock r
 
 When any part of that stack is missing, only the supported sections appear. The report keeps the blocked section visible and explains the exact local input needed next, plus the local command path for inspecting or unlocking that input.
 
-## 10. Methodology Limits
+## 11. Methodology Limits
 
 This is not a full data-vendor terminal, analyst-estimate service, or execution workflow. The useful strength is transparency: the app shows exactly what local data supports and refuses to overstate missing analysis.
 
@@ -221,7 +255,7 @@ The current methodology remains limited when:
 - Earnings and analyst-estimate rows have not been imported.
 - A ticker has too little local price history.
 
-## 11. Where This Lives In Code
+## 12. Where This Lives In Code
 
 The methodology is implemented in project code, not hidden in a model prompt.
 
