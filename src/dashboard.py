@@ -7436,6 +7436,121 @@ def fundamentals_peer_unlock_story_cards(
     ]
 
 
+def data_health_fundamentals_unlock_frame(
+    fundamentals_peer_worklist_frame: pd.DataFrame | None,
+    limit: int = 10,
+) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "Current State",
+        "Missing Trusted Inputs",
+        "What This Unlocks",
+        "Copy-Only Command",
+        "Validation Path",
+    ]
+    if fundamentals_peer_worklist_frame is None or fundamentals_peer_worklist_frame.empty:
+        return pd.DataFrame(columns=columns)
+
+    frame = fundamentals_peer_worklist_frame.copy()
+    if "ticker" not in frame.columns:
+        return pd.DataFrame(columns=columns)
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    missing_fundamentals = ~bool_series(frame, "has_fundamentals") if "has_fundamentals" in frame.columns else pd.Series(True, index=frame.index)
+    missing_dcf = (
+        frame.get("missing_required_for_dcf", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
+    )
+    unlock_rows = frame.loc[missing_fundamentals | missing_dcf].copy()
+    if unlock_rows.empty:
+        return pd.DataFrame(columns=columns)
+    if "priority" in unlock_rows.columns:
+        unlock_rows = unlock_rows.sort_values(["priority", "ticker"], na_position="last", kind="stable")
+    else:
+        unlock_rows = unlock_rows.sort_values(["ticker"], kind="stable")
+
+    rows: list[dict[str, object]] = []
+    for _, row in unlock_rows.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        missing_inputs = _plain_missing_input_list(row.get("missing_required_for_dcf"), "company fundamentals for DCF")
+        command = format_missing(row.get("focus_command"), f"make focus-fundamentals TICKER={ticker}")
+        if not command.startswith("make focus-fundamentals"):
+            command = f"make focus-fundamentals TICKER={ticker}"
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Current State": "Price may be ready, but company fundamentals are still locked",
+                "Missing Trusted Inputs": missing_inputs,
+                "What This Unlocks": "Trusted fundamentals can unlock DCF readiness checks, scenario assumptions, and fair value/share review when all required fields pass.",
+                "Copy-Only Command": command,
+                "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_peer_unlock_frame(
+    peer_mapping_queue_frame: pd.DataFrame | None,
+    fundamentals_peer_worklist_frame: pd.DataFrame | None = None,
+    limit: int = 10,
+) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "Current State",
+        "Trusted Peer Requirement",
+        "What This Unlocks",
+        "Copy-Only Command",
+        "Validation Path",
+    ]
+    source = peer_mapping_queue_frame
+    if source is None or source.empty:
+        source = fundamentals_peer_worklist_frame
+    if source is None or source.empty or "ticker" not in source.columns:
+        return pd.DataFrame(columns=columns)
+
+    frame = source.copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    missing_mapping = ~bool_series(frame, "has_peer_mapping") if "has_peer_mapping" in frame.columns else pd.Series(True, index=frame.index)
+    peer_not_ready = ~bool_series(frame, "peer_ready") if "peer_ready" in frame.columns else pd.Series(True, index=frame.index)
+    missing_peer_inputs = (
+        frame.get("missing_required_for_peer_relative", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
+    )
+    unlock_rows = frame.loc[missing_mapping | peer_not_ready | missing_peer_inputs].copy()
+    if unlock_rows.empty:
+        return pd.DataFrame(columns=columns)
+    if "priority" in unlock_rows.columns:
+        unlock_rows = unlock_rows.sort_values(["priority", "ticker"], na_position="last", kind="stable")
+    else:
+        unlock_rows = unlock_rows.sort_values(["ticker"], kind="stable")
+
+    rows: list[dict[str, object]] = []
+    for _, row in unlock_rows.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        requirement = _plain_missing_input_list(
+            first_meaningful_text(row.get("missing_required_for_peer_relative"), row.get("recommended_action"), fallback="source-backed peer mappings")
+        )
+        command = format_missing(row.get("focus_command"), f"make focus-peers TICKER={ticker}")
+        if not command.startswith("make focus-peers"):
+            command = f"make focus-peers TICKER={ticker}"
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Current State": "Peer valuation locked until trusted peer inputs exist",
+                "Trusted Peer Requirement": requirement,
+                "What This Unlocks": "Source-backed peer mappings can unlock peer trend context first and peer valuation only after peer valuation inputs also pass.",
+                "Copy-Only Command": command,
+                "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
 def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | None = None) -> pd.DataFrame:
     ticker = str(next_ticker or "").strip().upper()
     has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
@@ -17883,6 +17998,13 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 metric_cols[1].metric("Peer Ready", fp_summary["peer_ready"])
                 metric_cols[2].metric("Need Fundamentals", fp_summary["fundamentals_priority_1"])
                 metric_cols[3].metric("Need Peer Context", fp_summary["peer_priority_2"])
+                fundamentals_unlock = data_health_fundamentals_unlock_frame(fundamentals_peer_worklist_frame)
+                if not fundamentals_unlock.empty:
+                    render_section_header(
+                        "Price-Ready, Fundamentals-Locked Companies",
+                        "Plain-English fundamentals unlock queue before the raw worklist fields.",
+                    )
+                    st.dataframe(clean_display_frame(fundamentals_unlock), width="stretch", hide_index=True)
             render_section_header("DCF Readiness", "Operating-company DCF gating, ETF exclusions, SEC setup, and manual fundamentals import availability.")
             metric_cols = st.columns(3)
             sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip())
@@ -18020,6 +18142,13 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 metric_cols[1].metric("Peer Queue P2", peer_summary["priority_2"])
                 metric_cols[2].metric("Holdings in Peer Queue", peer_summary["holdings"])
                 metric_cols[3].metric("Missing Peer Mappings", peer_summary["missing_peer_mapping"])
+                peer_unlock = data_health_peer_unlock_frame(peer_mapping_queue_frame, fundamentals_peer_worklist_frame)
+                if not peer_unlock.empty:
+                    render_section_header(
+                        "DCF-Ready, Peer-Locked Companies",
+                        "Plain-English peer unlock queue before the raw peer mapping fields.",
+                    )
+                    st.dataframe(clean_display_frame(peer_unlock), width="stretch", hide_index=True)
                 render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
                 render_signal_cards(data_health_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
             if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:

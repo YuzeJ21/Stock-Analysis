@@ -12830,6 +12830,96 @@ def test_fundamentals_peer_unlock_story_cards_bridge_dcf_and_peer_workflow():
     assert "sell" not in rendered
 
 
+def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_raw_worklist():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "has_fundamentals": "False",
+                "missing_required_for_dcf": "free_cash_flow, shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            },
+            {
+                "priority": 2,
+                "ticker": "NVDA",
+                "has_fundamentals": True,
+                "missing_required_for_dcf": "",
+                "focus_command": "make stock-report-md TICKER=NVDA",
+            },
+        ]
+    )
+
+    frame = dashboard.data_health_fundamentals_unlock_frame(worklist)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Ticker",
+        "Current State",
+        "Missing Trusted Inputs",
+        "What This Unlocks",
+        "Copy-Only Command",
+        "Validation Path",
+    ]
+    assert frame["Ticker"].tolist() == ["META"]
+    assert frame.iloc[0]["Copy-Only Command"] == "make focus-fundamentals TICKER=META"
+    assert "price may be ready, but company fundamentals are still locked" in rendered
+    assert "free cash flow, shares outstanding" in rendered
+    assert "dcf readiness checks" in rendered
+    assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements():
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "A",
+                "has_peer_mapping": "False",
+                "peer_ready": False,
+                "missing_required_for_peer_relative": "peer mapping, peer fundamentals",
+                "focus_command": "make focus-peers TICKER=A",
+            },
+            {
+                "priority": 2,
+                "ticker": "NVDA",
+                "has_peer_mapping": True,
+                "peer_ready": True,
+                "missing_required_for_peer_relative": "",
+                "focus_command": "make stock-report-md TICKER=NVDA",
+            },
+        ]
+    )
+
+    frame = dashboard.data_health_peer_unlock_frame(peer_queue)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Ticker",
+        "Current State",
+        "Trusted Peer Requirement",
+        "What This Unlocks",
+        "Copy-Only Command",
+        "Validation Path",
+    ]
+    assert frame["Ticker"].tolist() == ["A"]
+    assert frame.iloc[0]["Copy-Only Command"] == "make focus-peers TICKER=A"
+    assert "peer valuation locked until trusted peer inputs exist" in rendered
+    assert "peer mapping, peer fundamentals" in rendered
+    assert "peer trend context first and peer valuation only after peer valuation inputs also pass" in rendered
+    assert "fill data/imports/peers.csv" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_agent():
     frame = dashboard.first_fundamentals_unlock_frame(False, "META")
     rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
