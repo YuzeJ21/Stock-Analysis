@@ -611,6 +611,19 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "Reports show readiness, analysis quality, methodology, evaluation function checks",
         "ETF/index/fund reports show operating-company DCF as excluded, not failed",
         "`Blocked by Data - Missing Peer Mapping`",
+        "## 8. Next Public Roadmap Stage",
+        "Scalable price refresh",
+        "`make price-refresh-loop DRY_RUN=1`",
+        "Trusted fundamentals",
+        "`make sec-stage-queue TOP_N=25`",
+        "Source-backed peers",
+        "`make peer-mapping-queue TOP_N=25`",
+        "Optional context",
+        "`make optional-context-worklist TOP_N=25`",
+        "Freshness guidance",
+        "`make public-check`, `make diff-hygiene`",
+        "Do not publish broad generated CSV churn unless it is the reviewed artifact for that release",
+        "Do not add execution workflows, direct recommendations, fabricated data, or unsupported valuation labels",
     ):
         assert phrase in roadmap
 
