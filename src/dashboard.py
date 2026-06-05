@@ -8409,7 +8409,7 @@ def decision_next_action_summary(row: pd.Series) -> str:
     if blocker == "fundamentals":
         return f"Import trusted fundamentals for {ticker}; use SEC import draft workflow when configured or data/imports/fundamentals.csv, then validate and preview."
     if blocker == "price":
-        return f"Refresh a capped price worklist before deeper analysis; start with make price-worklist TOP_N=25."
+        return f"Refresh a capped price worklist before deeper analysis; start with make price-refresh-loop DRY_RUN=1, then review the planned batches."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
         return f"Optional context for {ticker} stays unavailable until trusted local CSV rows are staged, validated, previewed, and applied."
     return compact_reason(row.get("next_best_action"), max_sentences=1, max_chars=180)
@@ -8469,6 +8469,16 @@ def decision_workflow_summary_cards(
     bucket_counts = frame.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
     subtype_counts = frame.get("decision_subtype", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
     blocker_counts = frame.get("primary_blocker", pd.Series(dtype=object)).fillna("none").astype(str).replace({"": "none"}).value_counts()
+    confidence_source = (
+        frame.get("data_confidence")
+        if "data_confidence" in frame.columns
+        else frame.get("confidence", pd.Series(dtype=object))
+    )
+    confidence_counts = (
+        confidence_source.fillna("unknown").astype(str).str.strip().replace({"": "unknown"}).value_counts()
+        if confidence_source is not None
+        else pd.Series(dtype=object)
+    )
     next_actions = frame.get("next_best_action", pd.Series(dtype=object)).fillna("").astype(str)
     action_rows = frame.loc[next_actions.str.strip().ne("")].copy()
     if not action_rows.empty:
@@ -8536,6 +8546,18 @@ def decision_workflow_summary_cards(
             "body": ", ".join(f"{key}: {int(value)}" for key, value in list(blocker_counts.items())[:3]),
             "badges": ["blocked by data"],
             "command": "make onboarding TOP_N=10",
+        },
+        {
+            "kicker": "DATA CONFIDENCE",
+            "title": "Coverage signal, not conviction",
+            "body": (
+                ", ".join(f"{key}: {int(value)}" for key, value in list(confidence_counts.items())[:3])
+                if not confidence_counts.empty
+                else "No data-confidence column found yet. Treat decision rows as workflow states until readiness is regenerated."
+            )
+            + " Data confidence describes local input coverage and falls when core, peer, earnings, or estimate context is missing.",
+            "badges": ["data quality", "not a rating"],
+            "command": "make research-health TOP_N=10",
         },
         {
             "kicker": "NEXT DECISION ACTION",

@@ -13804,6 +13804,7 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
                 "decision_bucket": "Research Now",
                 "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
                 "primary_blocker": "peers",
+                "data_confidence": "medium",
                 "next_best_action": "Add source-backed peer mappings and peer metrics for A.",
             },
             {
@@ -13811,6 +13812,7 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
                 "decision_bucket": "Blocked by Data",
                 "decision_subtype": "Blocked by Data - Missing Price",
                 "primary_blocker": "price",
+                "data_confidence": "low",
                 "next_best_action": "Run make price-refresh-loop DRY_RUN=1.",
             },
             {
@@ -13818,6 +13820,7 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
                 "decision_bucket": "Monitor",
                 "decision_subtype": "Monitor - ETF Market Proxy",
                 "primary_blocker": "none",
+                "data_confidence": "limited",
                 "next_best_action": "Use as market proxy; DCF is excluded.",
             },
         ]
@@ -13831,6 +13834,12 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
     assert "price: 1" in rendered
     assert "readiness-gated" in rendered
     assert "not execution guidance" in rendered
+    assert "coverage signal, not conviction" in rendered
+    assert "medium: 1" in rendered
+    assert "low: 1" in rendered
+    assert "data confidence describes local input coverage" in rendered
+    assert "falls when core, peer, earnings, or estimate context is missing" in rendered
+    assert "make research-health top_n=10" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "peer mappings and peer metrics" not in rendered
@@ -13984,6 +13993,35 @@ def test_decision_workflow_summary_cards_use_plain_missing_output_language():
     assert cards[0]["command"] == "make pipeline"
     assert "not generated" not in rendered
     assert "run make pipeline" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_decision_workflow_summary_cards_route_price_blocker_to_refresh_loop_dry_run():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "APLD",
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Price",
+                "primary_blocker": "price",
+                "data_confidence": "low",
+                "next_best_action": "Run a safe price worklist.",
+            }
+        ]
+    )
+
+    cards = dashboard.decision_workflow_summary_cards(decisions)
+    next_card = next(card for card in cards if card["kicker"] == "NEXT DECISION ACTION")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert next_card["title"] == "Price coverage worklist"
+    assert next_card["command"] == "make focus-price TICKER=APLD"
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "review the planned batches" in rendered
+    assert "manually run 25" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
