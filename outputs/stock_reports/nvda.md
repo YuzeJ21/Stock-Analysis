@@ -137,7 +137,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - DCF status: calculated.
 - Base DCF fair value per share: $143.42.
 - DCF input trace: base revenue=$215.9B; base FCF=$96.7B; FCF margin=44.8%; shares outstanding=24.2B; balance-sheet adjustment uses cash=$13.2B; debt=$8.5B.
-- Base DCF assumptions: method=fcf_direct, revenue growth=40.0%, FCF margin=44.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
+- Base DCF assumptions: input path=direct free cash flow, revenue growth=40.0%, FCF margin=44.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
 - Scenario coverage: bear, base, bull.
 - Sensitivity table: calculated; it tests fair value across WACC and terminal-growth assumptions when per-share DCF inputs are ready.
 - Relative valuation: calculated from trusted peer inputs, with caveats; peer count=2. Missing peer valuation fields: ebitda.

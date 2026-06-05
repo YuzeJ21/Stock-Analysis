@@ -545,6 +545,15 @@ def _display_report_status(value: Any, fallback: str = "not available") -> str:
     return text
 
 
+def _display_dcf_method(value: Any) -> str:
+    method = _display_value(value, "")
+    labels = {
+        "fcf_direct": "direct free cash flow",
+        "revenue_fcf_margin": "revenue times FCF margin",
+    }
+    return labels.get(method, _humanize_schema_terms(method) if method else "not available")
+
+
 def _sentence_value(value: Any, fallback: str = "Not available") -> str:
     return _format_inline_make_commands(_display_value(value, fallback)).rstrip(".")
 
@@ -700,7 +709,7 @@ def _stock_report_valuation_lines(
                 _dcf_input_trace_line(assumptions),
                 (
                     "- Base DCF assumptions: "
-                    f"method={_display_value(assumptions.get('method_name'))}, "
+                    f"input path={_display_dcf_method(assumptions.get('method_name'))}, "
                     f"revenue growth={_format_pct(assumptions.get('revenue_growth'))}, "
                     f"FCF margin={_format_pct(assumptions.get('fcf_margin'))}, "
                     f"WACC={_format_pct(assumptions.get('wacc'))}, "

@@ -244,6 +244,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "DCF input trace: base revenue=$250.0B; base FCF=$90.0B; FCF margin=36.0%; shares outstanding=7.4B" in markdown
     assert "balance-sheet adjustment uses cash=$90.0B; debt=$40.0B" in markdown
     assert "Base DCF assumptions" in markdown
+    assert "input path=direct free cash flow" in markdown
+    assert "method=fcf_direct" not in markdown
     assert "Scenario coverage: bear, base, bull" in markdown
     assert "Sensitivity table:" in markdown
     assert "## DCF Calculation Path" in markdown
