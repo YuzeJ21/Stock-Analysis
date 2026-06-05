@@ -155,7 +155,7 @@ def test_purpose_evaluation_drilldown_prioritizes_active_rows_and_separates_peer
                 "next_research_question": "Which source-backed peers should be added?",
                 "risk_watchpoint": "Risk watchpoint: peer valuation is unavailable.",
                 "invalidation_condition": "Invalidate only if local evidence no longer supports the thesis.",
-                "confidence_explanation": "Confidence is medium because peer context is missing.",
+                "confidence_explanation": "Data confidence is medium because peer context is missing.",
                 "data_confidence": "medium",
                 "readiness_score": 0.61,
             },

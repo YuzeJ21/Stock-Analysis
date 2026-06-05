@@ -13589,7 +13589,7 @@ def test_decision_interpretation_ladder_explains_reading_order_without_recommend
     assert "workflow states, not direct actions" in rendered
     assert "subtype explains why the broad bucket exists" in rendered
     assert "do not interpret valuation, peers, earnings, or estimates until the blocker is resolved" in rendered
-    assert "confidence is a data-quality state" in rendered
+    assert "data confidence is a data-quality state" in rendered
     assert "not a dashboard action or recommendation" in rendered
     assert "make onboarding TOP_N=10".lower() in rendered
     assert "broker" not in rendered
@@ -16258,7 +16258,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
                 "invalidation_condition": "Invalidate the research brief if fundamentals or DCF inputs no longer pass readiness checks.",
                 "next_research_question": "Which source-backed peers should be added to test valuation comparison?",
                 "review_priority_reason": "High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation.",
-                "confidence_explanation": "Confidence is medium-high because core price, fundamentals, and DCF are ready.",
+                "confidence_explanation": "Data confidence is medium-high because core price, fundamentals, and DCF are ready.",
             },
             {
                 "ticker": "QQQ",
@@ -16276,7 +16276,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
                 "invalidation_condition": "Invalidate market-proxy usefulness if liquidity or theme trend no longer supports the intended monitoring role.",
                 "next_research_question": "What market context is this proxy intended to monitor?",
                 "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context.",
-                "confidence_explanation": "Confidence is medium because monitoring uses ready market data.",
+                "confidence_explanation": "Data confidence is medium because monitoring uses ready market data.",
             },
             {
                 "ticker": "BROAD",

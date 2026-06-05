@@ -119,7 +119,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Next Research Step
 - Next research question: Do trend, fundamentals, DCF assumptions, and thesis conflict notes still support the compounder purpose?
 - Review priority: High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation.
-- Confidence explanation: Confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: partial

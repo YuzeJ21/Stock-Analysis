@@ -524,7 +524,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
                 "invalidation_condition": "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.",
                 "next_research_question": "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy?",
                 "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.",
-                "confidence_explanation": "Confidence is medium: monitoring is supported by price, momentum, market_direction, while optional context remains unavailable.",
+                "confidence_explanation": "Data confidence is medium: monitoring is supported by price, momentum, market_direction, while optional context remains unavailable.",
             },
             "dcf": {"reason_not_ready": "DCF excluded for etf."},
             "peer": {
@@ -743,7 +743,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
                 "invalidation_condition": "Invalidate any setup read until price history is available and passes readiness checks.",
                 "next_research_question": "Can trusted local price rows be staged for APLD so trend, liquidity, and downstream analysis become testable?",
                 "review_priority_reason": "Unlock priority: price is the first blocker before setup, valuation, or risk interpretation should be trusted.",
-                "confidence_explanation": "Confidence is low because the primary blocker is price; current output is an unlock checklist, not analysis.",
+                "confidence_explanation": "Data confidence is low because the primary blocker is price; current output is an unlock checklist, not analysis.",
             },
             "price_coverage": {"price_rows": 0, "missing_price_reason": "needs at least 5 valid price rows"},
             "peer": {

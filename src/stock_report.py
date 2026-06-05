@@ -517,6 +517,8 @@ def _display_setup_text(value: Any, fallback: str = "Not available") -> str:
         "final state: Ignore": "final state: Not Prioritized",
         "final state `Ignore`": "final state `Not Prioritized`",
         "Ignored names are left unranked": "Not-prioritized names are left unranked",
+        "Confidence is ": "Data confidence is ",
+        "Confidence is:": "Data confidence is:",
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
@@ -1002,7 +1004,7 @@ def _stock_report_purpose_fields(
             "invalidation_condition": "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.",
             "next_research_question": f"What market, theme, liquidity, or risk context should {ticker} monitor, and what would invalidate that proxy role?",
             "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.",
-            "confidence_explanation": f"Confidence is {confidence}: only ready local monitor inputs are used. Operating-company DCF and peer valuation are excluded.",
+            "confidence_explanation": f"Data confidence is {confidence}: only ready local monitor inputs are used. Operating-company DCF and peer valuation are excluded.",
         }
     else:
         blocker_verb = "remain" if blocker.lower().endswith("s") else "remains"
@@ -1031,7 +1033,7 @@ def _stock_report_purpose_fields(
             "invalidation_condition": f"Invalidate this research read if local readiness no longer supports the stated purpose or if {blocker} {blocker_verb} unresolved for the intended analysis.",
             "next_research_question": next_question,
             "review_priority_reason": f"{bucket} / {subtype}; primary blocker: {blocker}.",
-            "confidence_explanation": f"Confidence is {confidence}: only ready local inputs are used; missing inputs are not inferred.",
+            "confidence_explanation": f"Data confidence is {confidence}: only ready local inputs are used; missing inputs are not inferred.",
         }
 
     result = {key: _display_setup_text(decision.get(key), value) for key, value in fallback.items()}
@@ -2066,7 +2068,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Next Research Step",
         f"- Next research question: {_display_value(purpose_fields.get('next_research_question'))}",
         f"- Review priority: {_display_value(purpose_fields.get('review_priority_reason'))}",
-        f"- Confidence explanation: {_display_value(purpose_fields.get('confidence_explanation'))}",
+        f"- Data-confidence explanation: {_display_value(purpose_fields.get('confidence_explanation'))}",
         "",
         "## Data Readiness",
         f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",
@@ -2407,7 +2409,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "## Next Research Step",
         f"- Next research question: {_display_value(purpose_fields.get('next_research_question'))}",
         f"- Review priority: {_display_value(purpose_fields.get('review_priority_reason'))}",
-        f"- Confidence explanation: {_display_value(purpose_fields.get('confidence_explanation'))}",
+        f"- Data-confidence explanation: {_display_value(purpose_fields.get('confidence_explanation'))}",
         "",
         "## Data Readiness",
         f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",

@@ -118,7 +118,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Next Research Step
 - Next research question: Can trusted local price rows be added before interpreting setup, risk, or relative strength?
 - Review priority: Unlock priority: price is the first blocker before setup, valuation, or risk interpretation should be trusted.
-- Confidence explanation: Confidence is blocked: primary blocker is price; blocked features are price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is blocked: primary blocker is price; blocked features are price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: blocked

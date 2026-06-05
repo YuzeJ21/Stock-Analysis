@@ -601,14 +601,14 @@ def _review_priority_reason(
 
 def _confidence_explanation(bucket: str, data_label: str, primary_blocker: str, ready: list[str], blocked: list[str], excluded: list[str]) -> str:
     if bucket == "Research Now":
-        return f"Confidence is {data_label}: core price, fundamentals, and DCF are ready; blockers still reduce breadth: {', '.join(blocked) or 'none'}."
+        return f"Data confidence is {data_label}: core price, fundamentals, and DCF are ready; blockers still reduce breadth: {', '.join(blocked) or 'none'}."
     if bucket == "Monitor":
-        return f"Confidence is {data_label}: monitoring is supported by {', '.join(ready) or 'limited ready features'}, while {', '.join(blocked) or 'no blocked features'} remains unavailable."
+        return f"Data confidence is {data_label}: monitoring is supported by {', '.join(ready) or 'limited ready features'}, while {', '.join(blocked) or 'no blocked features'} remains unavailable."
     if bucket == "Blocked by Data":
-        return f"Confidence is {data_label}: primary blocker is {primary_blocker}; blocked features are {', '.join(blocked) or 'not specified'}."
+        return f"Data confidence is {data_label}: primary blocker is {primary_blocker}; blocked features are {', '.join(blocked) or 'not specified'}."
     if bucket == "Excluded":
-        return f"Confidence is {data_label}: excluded features are {', '.join(excluded) or 'not specified'}, so unsupported analysis is intentionally omitted."
-    return f"Confidence is {data_label}: current readiness does not support a stronger classification."
+        return f"Data confidence is {data_label}: excluded features are {', '.join(excluded) or 'not specified'}, so unsupported analysis is intentionally omitted."
+    return f"Data confidence is {data_label}: current readiness does not support a stronger classification."
 
 
 def _evaluation_status(bucket: str, subtype: str, primary_blocker: str, asset_type: str) -> str:

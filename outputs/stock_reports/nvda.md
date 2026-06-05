@@ -119,7 +119,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Next Research Step
 - Next research question: Does relative strength, trend quality, and extension risk still support the momentum purpose after reviewing the latest local price context?
 - Review priority: High review priority: momentum purpose has enough core data for trend/relative-strength review, but confirm setup quality manually.
-- Confidence explanation: Confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: partial

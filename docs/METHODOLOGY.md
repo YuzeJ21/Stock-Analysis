@@ -161,11 +161,11 @@ Valuation status is a gate, not a recommendation.
 
 The product does not infer valuation conclusions for blocked rows.
 
-Confidence follows the same principle: complete trusted inputs can raise confidence for the supported section, while missing fundamentals, stale prices, missing peers, or unavailable optional context reduce confidence or keep a section locked. Confidence is never used to override a blocker.
+Data confidence follows the same principle: complete trusted inputs can raise confidence for the supported section, while missing fundamentals, stale prices, missing peers, or unavailable optional context reduce confidence or keep a section locked. Data confidence is never used to override a blocker.
 
 ## 8. Confidence And Decision Scores
 
-Confidence is a data-quality and review-routing signal, not investment conviction.
+Data confidence is a data-quality and review-routing signal, not investment conviction.
 
 The decision workflow first calculates a data-readiness score from feature state:
 
@@ -186,20 +186,20 @@ The public confidence labels follow the data-readiness score:
 | 0.25 to below 0.55 | low |
 | below 0.25 | blocked |
 
-Decision confidence is capped by decision bucket so a row with missing core inputs cannot look stronger than the data allows:
+Data confidence is capped by decision bucket so a row with missing core inputs cannot look stronger than the data allows:
 
-| Decision bucket | Confidence cap / behavior |
+| Decision bucket | Data-confidence cap / behavior |
 | --- | --- |
 | Research Now | Uses data readiness plus local analysis score, capped below full certainty. |
 | Monitor | Uses ready monitor inputs and is capped below Research Now. |
 | Blocked by Data | Stays low even if some partial context exists. |
 | Excluded | Can be clear about method exclusion without becoming a company valuation view. |
 
-This means a DCF-ready company can have medium confidence when optional context is missing, an ETF/index monitor row can have low or medium confidence for monitoring while DCF stays excluded, and a price-blocked row stays blocked no matter how interesting the ticker might be.
+This means a DCF-ready company can have medium data confidence when optional context is missing, an ETF/index monitor row can have low or medium data confidence for monitoring while DCF stays excluded, and a price-blocked row stays blocked no matter how interesting the ticker might be.
 
 ## 9. Scores And Ranking Context
 
-The product uses setup scores, watchlist scores, confidence scores, and monthly
+The product uses setup scores, watchlist scores, data-confidence scores, and monthly
 candidate scores only to sort local review queues and explain why a ticker
 deserves attention next.
 

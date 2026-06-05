@@ -8441,7 +8441,7 @@ def decision_interpretation_ladder_frame() -> pd.DataFrame:
             },
             {
                 "Step": "4. Read confidence",
-                "What It Means": "Confidence is a data-quality state that drops when important context is missing.",
+                "What It Means": "Data confidence is a data-quality state that drops when important context is missing.",
                 "What To Check Next": "Treat low or limited confidence as a reason to inspect sources, freshness, and gaps first.",
                 "Safe Command": "make research-health TOP_N=10",
             },
@@ -8633,6 +8633,8 @@ def first_meaningful_text(*values: object, fallback: str = "Not available") -> s
 def _active_brief_existing_or(row: pd.Series, column: str, fallback: str) -> str:
     existing = format_missing(row.get(column), "")
     if existing and existing.lower() != "not available":
+        if column == "confidence_explanation":
+            existing = existing.replace("Confidence is ", "Data confidence is ")
         return existing
     return fallback
 
@@ -8743,7 +8745,7 @@ def _active_brief_confidence_explanation(row: pd.Series) -> str:
     blocker = first_meaningful_text(row.get("primary_blocker"), row.get("missing_data"), fallback="")
     score_text = f" Readiness score: {score}." if score else ""
     blocker_text = f" Limiting factor: {blocker}." if blocker else ""
-    return f"Confidence is {confidence} because only ready local inputs are used.{score_text}{blocker_text}"
+    return f"Data confidence is {confidence} because only ready local inputs are used.{score_text}{blocker_text}"
 
 
 def _active_brief_evaluation_summary(row: pd.Series) -> str:

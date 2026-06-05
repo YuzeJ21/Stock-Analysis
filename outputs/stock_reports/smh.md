@@ -119,7 +119,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Next Research Step
 - Next research question: What market, theme, liquidity, or risk context should SMH monitor, and what would invalidate that proxy role?
 - Review priority: Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.
-- Confidence explanation: Confidence is low: monitoring is supported by price, momentum, market direction, liquidity, correlation, while fundamentals, peer, earnings, analyst estimates remains unavailable.
+- Data-confidence explanation: Data confidence is low: monitoring is supported by price, momentum, market direction, liquidity, correlation, while fundamentals, peer, earnings, analyst estimates remains unavailable.
 
 ## Data Readiness
 - Overall state: partial

@@ -119,7 +119,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Next Research Step
 - Next research question: Which trusted fundamentals or DCF fields are needed to confirm whether the compounder thesis remains supported?
 - Review priority: High review priority: compounder purpose conflicts with current trend/thesis state and needs manual thesis review.
-- Confidence explanation: Confidence is low: primary blocker is fundamentals; blocked features are DCF, earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is low: primary blocker is fundamentals; blocked features are DCF, earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: partial
