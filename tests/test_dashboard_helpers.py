@@ -7762,11 +7762,108 @@ def test_data_health_supported_ladder_cards_explain_analysis_levels_without_over
     assert "sell" not in rendered
 
 
+def test_data_health_valuation_unlock_snapshot_surfaces_fundamentals_and_peer_queues():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "in_active_universe": True,
+            },
+            {
+                "ticker": "CRDO",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "in_active_universe": True,
+            },
+            {
+                "ticker": "BROAD",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "in_active_universe": False,
+            },
+            {
+                "ticker": "NVDA",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": True,
+                "in_active_universe": True,
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "in_active_universe": True,
+            },
+        ]
+    )
+    cards = dashboard.data_health_valuation_unlock_snapshot_cards(
+        readiness,
+        {
+            "price_ready": 5,
+            "dcf_ready": 2,
+            "peer_ready": 1,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        },
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "WHAT YOU CAN ANALYZE NOW",
+        "FUNDAMENTALS STILL LOCKED",
+        "PEER VALUATION STILL LOCKED",
+        "OPTIONAL / EXCLUDED CONTEXT",
+    ]
+    assert "5 setup / 2 dcf / 1 peer" in rendered
+    assert "2 price-ready companies" in rendered
+    assert "1 active-universe row(s) already have price coverage" in rendered
+    assert "do not treat missing fundamentals as a negative company signal" in rendered
+    assert "1 dcf-ready company" in rendered
+    assert "standalone dcf can be reviewed without pretending peer valuation is ready" in rendered
+    assert "0 earnings / 0 estimates / 1 monitor proxies" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "make focus-fundamentals ticker=crdo" in rendered
+    assert "make focus-peers ticker=a" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_valuation_unlock_snapshot_handles_missing_readiness_without_fake_counts():
+    cards = dashboard.data_health_valuation_unlock_snapshot_cards(None, {"price_ready": 5, "dcf_ready": 2})
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert "readiness report not loaded" in rendered
+    assert "missing readiness output means analysis should stay current-only and blocked" in rendered
+    assert "make readiness" in rendered
+
+
 def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next." in source
     assert "Supported Analysis Ladder" in source
+    assert "Valuation Unlock Snapshot" in source
+    assert "Plain-English valuation queues before the full command center details." in source
     assert "When Is A Stock Ready Enough?" not in source
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
 

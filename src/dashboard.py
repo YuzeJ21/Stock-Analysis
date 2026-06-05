@@ -4697,6 +4697,116 @@ def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> 
     ]
 
 
+def data_health_valuation_unlock_snapshot_cards(
+    ticker_readiness_frame: pd.DataFrame | None,
+    readiness_summary: dict[str, object],
+) -> list[dict[str, object]]:
+    price_ready_count = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready_count = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready_count = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return [
+            {
+                "kicker": "VALUATION SNAPSHOT",
+                "title": "Readiness report not loaded",
+                "body": "Run make readiness before using the valuation unlock snapshot. Missing readiness output means analysis should stay current-only and blocked.",
+                "badges": ["readiness first", "no guessing"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = ticker_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if "asset_type" in frame.columns:
+        asset_type = frame["asset_type"].fillna("").astype(str).str.lower()
+        company = asset_type.eq("company")
+        monitor_proxy = asset_type.isin({"etf", "index_proxy", "fund"}) | asset_type.str.contains("etf|index|fund", na=False)
+    else:
+        company = pd.Series(True, index=frame.index)
+        monitor_proxy = pd.Series(False, index=frame.index)
+
+    price_ready = bool_series(frame, "price_ready")
+    fundamentals_ready = bool_series(frame, "fundamentals_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    peer_ready = bool_series(frame, "peer_ready")
+    active = bool_series(frame, "in_active_universe")
+
+    price_ready_missing_fundamentals = frame.loc[company & price_ready & ~fundamentals_ready].copy()
+    dcf_ready_peer_blocked = frame.loc[company & dcf_ready & ~peer_ready].copy()
+    fundamentals_missing_count = len(price_ready_missing_fundamentals)
+    peer_blocked_count = len(dcf_ready_peer_blocked)
+    fundamentals_company_label = "company" if fundamentals_missing_count == 1 else "companies"
+    peer_company_label = "company" if peer_blocked_count == 1 else "companies"
+    active_fundamentals_missing = int((company & active & price_ready & ~fundamentals_ready).sum())
+    active_peer_blocked = int((company & active & dcf_ready & ~peer_ready).sum())
+    monitor_excluded = int(monitor_proxy.sum())
+
+    next_fundamentals = "make sec-stage-queue TOP_N=25"
+    if not price_ready_missing_fundamentals.empty:
+        ordered_fundamentals = price_ready_missing_fundamentals.assign(
+            _active_rank=(~bool_series(price_ready_missing_fundamentals, "in_active_universe")).astype(int)
+        ).sort_values(["_active_rank", "ticker"], kind="stable")
+        next_ticker = format_missing(ordered_fundamentals.iloc[0].get("ticker"), "")
+        if next_ticker:
+            next_fundamentals = f"make focus-fundamentals TICKER={next_ticker}"
+
+    next_peer = "make peer-mapping-queue TOP_N=25"
+    if not dcf_ready_peer_blocked.empty:
+        ordered_peers = dcf_ready_peer_blocked.assign(
+            _active_rank=(~bool_series(dcf_ready_peer_blocked, "in_active_universe")).astype(int)
+        ).sort_values(["_active_rank", "ticker"], kind="stable")
+        next_peer_ticker = format_missing(ordered_peers.iloc[0].get("ticker"), "")
+        if next_peer_ticker:
+            next_peer = f"make focus-peers TICKER={next_peer_ticker}"
+
+    return [
+        {
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
+            "title": f"{price_ready_count} setup / {dcf_ready_count} DCF / {peer_ready_count} peer",
+            "body": (
+                "Use price-ready rows for setup and risk context, DCF-ready companies for assumptions and sensitivity, "
+                "and peer-ready rows only for source-backed relative context."
+            ),
+            "badges": ["analysis-ready subset", "module-gated"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "FUNDAMENTALS STILL LOCKED",
+            "title": f"{fundamentals_missing_count} price-ready {fundamentals_company_label}",
+            "body": (
+                f"{active_fundamentals_missing} active-universe row(s) already have price coverage but still need trusted fundamentals. "
+                "Do not treat missing fundamentals as a negative company signal."
+            ),
+            "badges": ["price-ready first", "not a conclusion"],
+            "command": next_fundamentals,
+        },
+        {
+            "kicker": "PEER VALUATION STILL LOCKED",
+            "title": f"{peer_blocked_count} DCF-ready {peer_company_label}",
+            "body": (
+                f"{active_peer_blocked} active-universe DCF-ready row(s) still need trusted peer mappings or peer inputs. "
+                "Standalone DCF can be reviewed without pretending peer valuation is ready."
+            ),
+            "badges": ["peer valuation gated", "source-backed only"],
+            "command": next_peer,
+        },
+        {
+            "kicker": "OPTIONAL / EXCLUDED CONTEXT",
+            "title": f"{earnings_ready} earnings / {estimates_ready} estimates / {monitor_excluded} monitor proxies",
+            "body": (
+                "Earnings and analyst estimates stay locked until trusted rows exist. ETF/index/fund rows remain monitor context; "
+                "operating-company DCF is excluded, not failed."
+            ),
+            "badges": ["trusted optional rows", "dcf excluded"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+    ]
+
+
 def data_health_action_path_cards(
     actions_frame: pd.DataFrame | None,
     action_queue_frame: pd.DataFrame | None,
@@ -16941,6 +17051,11 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
     render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
     render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
+    render_section_header(
+        "Valuation Unlock Snapshot",
+        "Plain-English valuation queues before the full command center details.",
+    )
+    render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
     render_market_command_center(
         ticker_readiness_frame,
         coverage_frame,
