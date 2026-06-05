@@ -7487,8 +7487,75 @@ def test_stock_report_evaluation_summary_cards_surface_trust_boundary_before_tab
     assert "best next review step" in rendered
     assert "review the dcf assumptions first" in rendered
     assert "missing inputs reduce data confidence" in rendered
+    next_card = next(card for card in cards if card["kicker"] == "NEXT REVIEW")
+    assert next_card["command"] == "make focus-peers TICKER=NVDA"
+    assert "copy-only" in next_card["badges"]
     assert "research-only" in rendered
     assert "data-gated" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_evaluation_summary_cards_route_next_review_command_by_mode():
+    peer_locked_cards = dashboard.stock_report_evaluation_summary_cards(
+        {
+            "ticker": "NVDA",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": False},
+            "missing_data_warnings": ["Peers missing"],
+        }
+    )
+    fundamentals_cards = dashboard.stock_report_evaluation_summary_cards(
+        {
+            "ticker": "META",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "insufficient_data"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["Fundamentals missing"],
+        }
+    )
+    etf_cards = dashboard.stock_report_evaluation_summary_cards(
+        {
+            "ticker": "QQQ",
+            "asset_type": "etf",
+            "valuation_snapshot": {"status": "excluded"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["DCF excluded"],
+        }
+    )
+    price_cards = dashboard.stock_report_evaluation_summary_cards(
+        {
+            "ticker": "APLD",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "insufficient_data"},
+            "valuation_readiness": {"price_ready": False, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["Price history missing"],
+        }
+    )
+
+    def next_command(cards: list[dict[str, object]]) -> str:
+        return str(next(card for card in cards if card["kicker"] == "NEXT REVIEW")["command"])
+
+    assert next_command(peer_locked_cards) == "make focus-peers TICKER=NVDA"
+    assert next_command(fundamentals_cards) == "make focus-fundamentals TICKER=META"
+    assert next_command(etf_cards) == "make stock-report-md TICKER=QQQ"
+    assert next_command(price_cards) == "make focus-price TICKER=APLD"
+
+    rendered = " ".join(
+        str(value)
+        for cards in (peer_locked_cards, fundamentals_cards, etf_cards, price_cards)
+        for card in cards
+        for value in card.values()
+    ).lower()
+    assert "copy-only" in rendered
+    assert "peer-relative valuation remains withheld" in rendered
+    assert "company valuation remains blocked" in rendered
+    assert "operating-company dcf and peer valuation are excluded" in rendered
+    assert "price coverage starts" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

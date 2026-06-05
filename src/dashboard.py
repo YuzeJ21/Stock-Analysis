@@ -3774,17 +3774,25 @@ def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> 
         "Best next review step": "NEXT REVIEW",
         "Data-confidence note": "DATA CONFIDENCE",
     }
+    next_step_cards = stock_report_next_step_cards(report_payload, None, None)
+    next_step_command = (
+        format_missing(next_step_cards[0].get("command"), "") if next_step_cards else ""
+    )
     cards: list[dict[str, object]] = []
     for _, row in summary.iterrows():
         question = format_missing(row.get("Question"), "Evaluation")
         answer = format_missing(row.get("Answer"), "Not available")
+        card: dict[str, object] = {
+            "kicker": kicker_by_question.get(question, "EVALUATION"),
+            "title": question,
+            "body": answer,
+            "badges": ["research-only", "data-gated"],
+        }
+        if question == "Best next review step":
+            card["command"] = next_step_command or stock_report_md_command(format_missing(report_payload.get("ticker"), "NVDA"))
+            card["badges"] = ["copy-only", "data-gated"]
         cards.append(
-            {
-                "kicker": kicker_by_question.get(question, "EVALUATION"),
-                "title": question,
-                "body": answer,
-                "badges": ["research-only", "data-gated"],
-            }
+            card
         )
     return cards
 
@@ -3834,7 +3842,7 @@ def stock_report_at_a_glance_cards(
         **(report_payload.get("valuation_readiness", {}) or {}),
     }
     valuation = report_payload.get("valuation_snapshot", {}) or {}
-    ticker = format_missing(report_payload.get("ticker"), "Selected ticker")
+    ticker = format_missing(report_payload.get("ticker"), "NVDA")
     next_cards = stock_report_next_step_cards(report_payload, coverage, peer_summary)
     next_command = format_missing(next_cards[0].get("command"), f"make stock-report-md TICKER={ticker}") if next_cards else f"make stock-report-md TICKER={ticker}"
     next_title = format_missing(next_cards[0].get("title"), "Review the selected report") if next_cards else "Review the selected report"
@@ -4427,7 +4435,7 @@ def stock_report_next_step_cards(
     coverage: pd.DataFrame | None,
     peer_summary: dict[str, object] | None,
 ) -> list[dict[str, object]]:
-    ticker = format_missing(report_payload.get("ticker"), "Selected ticker")
+    ticker = format_missing(report_payload.get("ticker"), "NVDA")
     readiness = _stock_report_payload_readiness(report_payload)
     valuation = report_payload.get("valuation_snapshot", {}) or {}
     asset_type = format_missing(report_payload.get("asset_type"), "").lower()
