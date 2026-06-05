@@ -10789,6 +10789,97 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
     return cards
 
 
+def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
+    asset_type = format_missing(snapshot.get("asset_type"), "").lower()
+    dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    price_ready = bool(snapshot.get("price_ready"))
+    peer_ready = bool(snapshot.get("peer_ready"))
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+
+    if monitor_context:
+        dcf_title = "DCF excluded, not failed"
+        dcf_body = "ETF/index/fund rows can support monitor context, but operating-company DCF does not apply."
+        dcf_badges = ["monitor context", "excluded"]
+        dcf_command = stock_report_md_command(ticker)
+    elif dcf_status == "ready":
+        dcf_title = "DCF ready for assumption review"
+        dcf_body = (
+            "The product can review free-cash-flow assumptions, WACC, terminal growth, cash/debt adjustment, "
+            "fair value per share, and sensitivity from trusted local inputs."
+        )
+        dcf_badges = ["scenario math", "sensitivity"]
+        dcf_command = stock_report_md_command(ticker)
+    elif price_ready:
+        dcf_title = "DCF blocked by missing trusted inputs"
+        dcf_body = (
+            "Price/setup context can be reviewed, but valuation math stays locked until trusted fundamentals, "
+            "cash-flow or margin, share count, and source freshness pass readiness."
+        )
+        dcf_badges = ["missing inputs", "no valuation conclusion"]
+        dcf_command = f"make focus-fundamentals TICKER={ticker}"
+    else:
+        dcf_title = "Analysis locked until price rows exist"
+        dcf_body = "The app withholds setup, DCF, and peer interpretation until trusted local price history is available."
+        dcf_badges = ["price first", "no inference"]
+        dcf_command = f"make focus-price TICKER={ticker}"
+
+    if monitor_context:
+        peer_body = "Operating-company peer valuation is excluded for this monitor context."
+        peer_badges = ["peer valuation excluded", "monitor"]
+    elif peer_ready:
+        peer_body = "Source-backed peer context is available; review peer caveats and source freshness before interpretation."
+        peer_badges = ["source-backed peers", "review caveats"]
+    else:
+        peer_body = "Peer-relative valuation remains blocked until trusted peer mappings and peer valuation inputs are ready."
+        peer_badges = ["no guessed peers", "peer-gated"]
+
+    optional_body = (
+        "Earnings and analyst-estimate context is available from trusted optional rows."
+        if earnings_ready and estimates_ready
+        else "Earnings and analyst-estimate context stays locked until trusted optional CSV rows pass validation."
+    )
+
+    return [
+        {
+            "kicker": "SOURCE INPUTS",
+            "title": "Local/provider rows feed the report",
+            "body": (
+                "Prices, fundamentals, peers, earnings, and estimates come from local CSVs or labeled provider-assisted rows. "
+                "Missing trusted rows keep the related section locked."
+            ),
+            "badges": ["source rows", "readiness gate"],
+            "command": stock_report_md_command(ticker),
+        },
+        {
+            "kicker": "PRODUCT LOGIC",
+            "title": "This app decides what can appear",
+            "body": (
+                "Project code checks readiness, runs supported calculations locally, labels blocked or excluded methods, "
+                "and writes the report wording without inventing missing inputs."
+            ),
+            "badges": ["local logic", "data-honest"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "DCF BOUNDARY",
+            "title": dcf_title,
+            "body": dcf_body,
+            "badges": dcf_badges,
+            "command": dcf_command,
+        },
+        {
+            "kicker": "PEERS / OPTIONAL",
+            "title": "Relative and optional context stay separately gated",
+            "body": f"{peer_body} {optional_body}",
+            "badges": peer_badges,
+            "command": f"make focus-peers TICKER={ticker}" if not peer_ready and not monitor_context else stock_report_md_command(ticker),
+        },
+    ]
+
+
 def single_stock_detail_frame(snapshot: dict[str, object]) -> pd.DataFrame:
     return pd.DataFrame(
         [
@@ -17758,6 +17849,11 @@ def render_market_command_center(
     render_signal_cards(single_stock_reader_guide_cards(snapshot))
     with st.expander("Single-stock reader guide table", expanded=False):
         st.dataframe(clean_display_frame(single_stock_reader_guide_frame(snapshot)), width="stretch", hide_index=True)
+    render_section_header(
+        "Source Vs Product Logic",
+        "Plain-English bridge from trusted source rows to product-calculated readiness, DCF, peer gates, and optional context.",
+    )
+    render_signal_cards(single_stock_methodology_bridge_cards(snapshot))
     render_section_header("Single-Stock Source/Freshness Audit", "Local source paths, import draft paths, credential state, and rejected-row reports for the selected ticker.")
     render_signal_cards(single_stock_source_audit_cards(snapshot))
     st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)

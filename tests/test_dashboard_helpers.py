@@ -13992,6 +13992,78 @@ def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
     assert "sell" not in etf_rendered + blocked_rendered
 
 
+def test_single_stock_methodology_bridge_cards_explain_source_vs_product_logic():
+    snapshot = {
+        "ticker": "NVDA",
+        "asset_type": "company",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+    }
+
+    cards = dashboard.single_stock_methodology_bridge_cards(snapshot)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["SOURCE INPUTS", "PRODUCT LOGIC", "DCF BOUNDARY", "PEERS / OPTIONAL"]
+    assert "local/provider rows feed the report" in rendered
+    assert "local csvs or labeled provider-assisted rows" in rendered
+    assert "this app decides what can appear" in rendered
+    assert "runs supported calculations locally" in rendered
+    assert "without inventing missing inputs" in rendered
+    assert "dcf ready for assumption review" in rendered
+    assert "free-cash-flow assumptions, wacc, terminal growth" in rendered
+    assert "fair value per share" in rendered
+    assert "peer-relative valuation remains blocked" in rendered
+    assert "trusted optional csv rows pass validation" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "make focus-peers ticker=nvda" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_methodology_bridge_cards_cover_excluded_and_blocked_states():
+    etf = {
+        "ticker": "QQQ",
+        "asset_type": "etf",
+        "price_ready": True,
+        "dcf_status": "excluded",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+    }
+    blocked = {
+        "ticker": "APLD",
+        "asset_type": "company",
+        "price_ready": False,
+        "dcf_status": "blocked",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+    }
+
+    etf_rendered = " ".join(str(value) for card in dashboard.single_stock_methodology_bridge_cards(etf) for value in card.values()).lower()
+    blocked_rendered = " ".join(str(value) for card in dashboard.single_stock_methodology_bridge_cards(blocked) for value in card.values()).lower()
+
+    assert "dcf excluded, not failed" in etf_rendered
+    assert "operating-company dcf does not apply" in etf_rendered
+    assert "operating-company peer valuation is excluded" in etf_rendered
+    assert "make stock-report-md ticker=qqq" in etf_rendered
+    assert "analysis locked until price rows exist" in blocked_rendered
+    assert "withholds setup, dcf, and peer interpretation" in blocked_rendered
+    assert "make focus-price ticker=apld" in blocked_rendered
+    assert "no inference" in blocked_rendered
+    assert "broker" not in etf_rendered + blocked_rendered
+    assert "order" not in etf_rendered + blocked_rendered
+    assert "trading" not in etf_rendered + blocked_rendered
+    assert "buy" not in etf_rendered + blocked_rendered
+    assert "sell" not in etf_rendered + blocked_rendered
+
+
 def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_commands(monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "Research Tester tester@example.com")
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
