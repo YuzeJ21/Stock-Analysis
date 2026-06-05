@@ -11608,6 +11608,93 @@ def valuation_decision_guide_cards(
     return cards
 
 
+def valuation_quick_read_cards(
+    ready_companies: pd.DataFrame | None,
+    blocked_companies: pd.DataFrame | None,
+    excluded_rows: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    ready = pd.DataFrame() if ready_companies is None else ready_companies
+    blocked = pd.DataFrame() if blocked_companies is None else blocked_companies
+    excluded = pd.DataFrame() if excluded_rows is None else excluded_rows
+
+    def first_ticker(frame: pd.DataFrame, fallback: str = "TICKER") -> str:
+        if frame.empty or "ticker" not in frame.columns:
+            return fallback
+        values = frame["ticker"].dropna().astype(str).str.upper().str.strip()
+        values = values.loc[values.ne("")]
+        return values.iloc[0] if not values.empty else fallback
+
+    if ready.empty and blocked.empty and excluded.empty:
+        first_title = "Generate DCF readiness first"
+        first_body = "No valuation readiness rows are loaded, so valuation should stay current-only and blocked until the local readiness files exist."
+        first_command = "make dcf-readiness"
+        first_badges = ["readiness first", "no guessing"]
+    elif not ready.empty:
+        ticker = first_ticker(ready, "NVDA")
+        first_title = "Review DCF-ready companies first"
+        first_body = (
+            f"Start with {ticker}. DCF-ready rows can support assumption, scenario, sensitivity, and source/freshness review; "
+            "they are still research context, not price targets."
+        )
+        first_command = stock_report_md_command(ticker)
+        first_badges = ["DCF-ready", "scenario review"]
+    elif not blocked.empty:
+        ticker = first_ticker(blocked, "TICKER")
+        missing = "trusted DCF inputs"
+        if "missing_dcf_fields" in blocked.columns:
+            missing_values = blocked["missing_dcf_fields"].fillna("").astype(str).str.strip()
+            missing_values = missing_values.loc[missing_values.ne("")]
+            if not missing_values.empty:
+                missing = missing_values.iloc[0].replace("_", " ")
+        first_title = "Fix missing valuation inputs first"
+        first_body = (
+            f"Start with {ticker}. Company valuation remains locked by {missing}; missing inputs are not undervalued, "
+            "overvalued, or weak-company conclusions."
+        )
+        first_command = f"make focus-fundamentals TICKER={ticker}"
+        first_badges = ["blocked by data", "no conclusion"]
+    else:
+        ticker = first_ticker(excluded, "QQQ")
+        first_title = "Use monitor context only"
+        first_body = (
+            f"Start with {ticker}. ETF/index/fund rows can support market, theme, liquidity, or risk context; "
+            "operating-company DCF is excluded, not failed."
+        )
+        first_command = stock_report_md_command(ticker)
+        first_badges = ["monitor context", "DCF excluded"]
+
+    return [
+        {
+            "kicker": "FIRST READ",
+            "title": first_title,
+            "body": f"What this means: {first_body}",
+            "badges": first_badges,
+            "command": first_command,
+        },
+        {
+            "kicker": "ANALYZE NOW",
+            "title": f"{len(ready)} DCF-ready company row(s)",
+            "body": "What you can analyze now: ready rows can show DCF assumptions, scenarios, sensitivity, and source freshness. Peer-relative valuation still needs trusted peer inputs.",
+            "badges": ["assumptions", "sensitivity"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "STILL LOCKED",
+            "title": f"{len(blocked)} company row(s) need inputs",
+            "body": "What is still locked: blocked rows withhold fair value/share, intrinsic-value interpretation, and re-rating context until trusted inputs pass readiness.",
+            "badges": ["missing inputs", "valuation withheld"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "EXCLUDED",
+            "title": f"{len(excluded)} ETF/index/fund row(s)",
+            "body": "What is excluded: operating-company DCF does not apply to monitor-context rows; use market or risk context instead.",
+            "badges": ["not failed", "monitor only"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+    ]
+
+
 def valuation_function_quality_cards(
     ready_companies: pd.DataFrame,
     blocked_companies: pd.DataFrame,
@@ -16089,6 +16176,8 @@ def valuation_plain_language_cards(
 def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
+    render_section_header("Valuation Quick Read", "Which valuation lane to inspect first before reading tables or legacy value columns.")
+    render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
     render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or legacy output filenames.")
     render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
     render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")

@@ -7847,6 +7847,73 @@ def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language(
     assert "sell" not in rendered
 
 
+def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclaiming():
+    ready = pd.DataFrame({"ticker": ["NVDA"]})
+    blocked = pd.DataFrame({"ticker": ["META"], "missing_dcf_fields": ["free_cash_flow"]})
+    excluded = pd.DataFrame({"ticker": ["QQQ"], "asset_type": ["etf"]})
+
+    cards = dashboard.valuation_quick_read_cards(ready, blocked, excluded)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED", "EXCLUDED"]
+    assert cards[0]["title"] == "Review DCF-ready companies first"
+    assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
+    assert "start with nvda" in rendered
+    assert "assumption, scenario, sensitivity, and source/freshness review" in rendered
+    assert "not price targets" in rendered
+    assert "1 dcf-ready company row(s)" in rendered
+    assert "peer-relative valuation still needs trusted peer inputs" in rendered
+    assert "1 company row(s) need inputs" in rendered
+    assert "fair value/share, intrinsic-value interpretation, and re-rating context" in rendered
+    assert "1 etf/index/fund row(s)" in rendered
+    assert "operating-company dcf does not apply" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_valuation_quick_read_cards_prioritize_missing_inputs_when_no_ready_rows():
+    cards = dashboard.valuation_quick_read_cards(
+        pd.DataFrame(),
+        pd.DataFrame({"ticker": ["META"], "missing_dcf_fields": ["free_cash_flow, shares_outstanding"]}),
+        pd.DataFrame({"ticker": ["QQQ"], "asset_type": ["etf"]}),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Fix missing valuation inputs first"
+    assert cards[0]["command"] == "make focus-fundamentals TICKER=META"
+    assert "start with meta" in rendered
+    assert "free cash flow, shares outstanding" in rendered
+    assert "missing inputs are not undervalued, overvalued, or weak-company conclusions" in rendered
+
+
+def test_valuation_quick_read_cards_keep_etf_rows_monitor_only_when_no_company_rows():
+    cards = dashboard.valuation_quick_read_cards(
+        pd.DataFrame(),
+        pd.DataFrame(),
+        pd.DataFrame({"ticker": ["QQQ"], "asset_type": ["etf"]}),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Use monitor context only"
+    assert cards[0]["command"] == "make stock-report-md TICKER=QQQ"
+    assert "start with qqq" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "monitor only" in rendered
+
+
+def test_valuation_quick_read_cards_handle_missing_readiness_without_fake_counts():
+    cards = dashboard.valuation_quick_read_cards(None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Generate DCF readiness first"
+    assert cards[0]["command"] == "make dcf-readiness"
+    assert "no valuation readiness rows are loaded" in rendered
+    assert "current-only and blocked" in rendered
+
+
 def test_valuation_function_quality_cards_explain_supported_scope_without_overclaiming():
     ready = pd.DataFrame({"ticker": ["NVDA"]})
     blocked = pd.DataFrame({"ticker": ["AMD", "META"]})
