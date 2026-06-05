@@ -940,6 +940,21 @@ def test_package_metadata_matches_public_research_only_positioning():
     assert "trading" not in pyproject.lower()
 
 
+def test_legacy_stock_analysis_scaffold_is_not_published():
+    publishable_legacy_files = [
+        path
+        for path in Path("stock_analysis").rglob("*")
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and not path.name.endswith((".pyc", ".pyo"))
+    ]
+    assert publishable_legacy_files == []
+
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert 'packages = ["src", "src.providers"]' in pyproject
+    assert "stock_analysis" not in pyproject
+
+
 def test_decision_output_model_matches_current_evaluation_contract():
     model = Path("DECISION_OUTPUT_MODEL.md").read_text(encoding="utf-8")
 

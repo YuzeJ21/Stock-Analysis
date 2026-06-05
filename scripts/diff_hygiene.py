@@ -64,6 +64,8 @@ def classify_path(path: str) -> str:
         return "sample_report_candidate"
     if path in ROOT_PRODUCT_FILES or path.startswith(SOURCE_PREFIXES):
         return "product_candidate"
+    if path.startswith("stock_analysis/"):
+        return "product_candidate"
     return "review_manually"
 
 
