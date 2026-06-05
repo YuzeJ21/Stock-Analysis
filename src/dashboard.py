@@ -7737,6 +7737,8 @@ def data_health_fundamentals_unlock_frame(
         "Missing Trusted Inputs",
         "Trusted Input Path",
         "What This Unlocks",
+        "No-Conclusion Boundary",
+        "Next Safe Sequence",
         "Copy-Only Command",
         "Validation Path",
     ]
@@ -7783,6 +7785,8 @@ def data_health_fundamentals_unlock_frame(
                 "Missing Trusted Inputs": missing_inputs,
                 "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
                 "What This Unlocks": "Trusted fundamentals can unlock DCF readiness checks, scenario assumptions, and fair value/share review when all required fields pass.",
+                "No-Conclusion Boundary": "Do not label the ticker undervalued, overvalued, or DCF-ready until trusted fundamentals and DCF readiness pass.",
+                "Next Safe Sequence": f"1. Inspect `{command}`. 2. Stage trusted fundamentals only. 3. Run validation, preview, apply, then DCF readiness.",
                 "Copy-Only Command": command,
                 "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
             }
@@ -7807,6 +7811,8 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
     ticker = format_missing(first.get("Ticker"), "Ticker")
     locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
     missing = compact_reason(first.get("Missing Trusted Inputs"), max_sentences=1, max_chars=140)
+    boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
+    sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, stage trusted fundamentals only, then validate, preview, apply, and rerun DCF readiness.")
     command = format_missing(first.get("Copy-Only Command"), f"make focus-fundamentals TICKER={ticker}")
     return [
         {
@@ -7819,14 +7825,14 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
         {
             "kicker": "NEXT FUNDAMENTALS ROW",
             "title": ticker,
-            "body": f"Missing trusted inputs: {missing}. Still locked: {locked}.",
+            "body": f"Missing trusted inputs: {missing}. Still locked: {locked}. Boundary: {boundary}.",
             "badges": ["one ticker first", "no valuation inference"],
             "command": command,
         },
         {
             "kicker": "TRUSTED INPUT PATH",
             "title": format_missing(first.get("Trusted Input Path"), "data/imports/fundamentals.csv"),
-            "body": format_missing(first.get("Validation Path"), "make imports-validate -> make imports-preview -> make imports-apply"),
+            "body": f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make imports-validate -> make imports-preview -> make imports-apply')}.",
             "badges": ["validate", "preview before apply"],
             "command": "make imports-validate && make imports-preview && make imports-apply",
         },
@@ -7847,6 +7853,8 @@ def data_health_peer_unlock_frame(
         "Trusted Peer Requirement",
         "Trusted Input Path",
         "What This Unlocks",
+        "No-Conclusion Boundary",
+        "Next Safe Sequence",
         "Copy-Only Command",
         "Validation Path",
     ]
@@ -7897,6 +7905,8 @@ def data_health_peer_unlock_frame(
                 "Trusted Peer Requirement": requirement,
                 "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
                 "What This Unlocks": "Source-backed peer mappings can unlock peer trend context first and peer valuation only after peer valuation inputs also pass.",
+                "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
+                "Next Safe Sequence": f"1. Inspect `{command}`. 2. Add source-backed peer rows in data/imports/peers.csv. 3. Validate, preview, and apply before reading peer valuation.",
                 "Copy-Only Command": command,
                 "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
             }
@@ -7921,6 +7931,8 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     ticker = format_missing(first.get("Ticker"), "Ticker")
     locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
     requirement = compact_reason(first.get("Trusted Peer Requirement"), max_sentences=1, max_chars=140)
+    boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
+    sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
     return [
         {
@@ -7933,14 +7945,14 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
         {
             "kicker": "NEXT PEER ROW",
             "title": ticker,
-            "body": f"Trusted peer requirement: {requirement}. Still locked: {locked}.",
+            "body": f"Trusted peer requirement: {requirement}. Still locked: {locked}. Boundary: {boundary}.",
             "badges": ["one ticker first", "no fallback valuation"],
             "command": command,
         },
         {
             "kicker": "TRUSTED PEER PATH",
             "title": format_missing(first.get("Trusted Input Path"), "data/imports/peers.csv"),
-            "body": format_missing(first.get("Validation Path"), "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply"),
+            "body": f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply')}.",
             "badges": ["validate", "preview before apply"],
             "command": "make templates",
         },

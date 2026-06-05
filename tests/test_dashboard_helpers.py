@@ -13203,6 +13203,8 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
         "Missing Trusted Inputs",
         "Trusted Input Path",
         "What This Unlocks",
+        "No-Conclusion Boundary",
+        "Next Safe Sequence",
         "Copy-Only Command",
         "Validation Path",
     ]
@@ -13216,6 +13218,8 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert "free cash flow, shares outstanding" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
     assert "dcf readiness checks" in rendered
+    assert "do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
+    assert "stage trusted fundamentals only" in rendered
     assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13232,6 +13236,8 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
                 "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
                 "Missing Trusted Inputs": "free cash flow, shares outstanding",
                 "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
+                "No-Conclusion Boundary": "Do not label the ticker undervalued, overvalued, or DCF-ready until trusted fundamentals and DCF readiness pass.",
+                "Next Safe Sequence": "1. Inspect `make focus-fundamentals TICKER=META`. 2. Stage trusted fundamentals only. 3. Run validation, preview, apply, then DCF readiness.",
                 "Copy-Only Command": "make focus-fundamentals TICKER=META",
                 "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
             }
@@ -13248,6 +13254,8 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "meta" in rendered
     assert "free cash flow, shares outstanding" in rendered
     assert "fair value/share, and peer-relative valuation stay locked" in rendered
+    assert "boundary: do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
+    assert "stage trusted fundamentals only" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
@@ -13304,6 +13312,8 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
         "Trusted Peer Requirement",
         "Trusted Input Path",
         "What This Unlocks",
+        "No-Conclusion Boundary",
+        "Next Safe Sequence",
         "Copy-Only Command",
         "Validation Path",
     ]
@@ -13316,6 +13326,8 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "peer mapping, peer fundamentals" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "peer trend context first and peer valuation only after peer valuation inputs also pass" in rendered
+    assert "do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
+    assert "add source-backed peer rows in data/imports/peers.csv" in rendered
     assert "fill data/imports/peers.csv" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13332,6 +13344,8 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
                 "What Is Still Locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked until source-backed peer inputs pass readiness.",
                 "Trusted Peer Requirement": "peer mapping, peer fundamentals",
                 "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
+                "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
+                "Next Safe Sequence": "1. Inspect `make focus-peers TICKER=A`. 2. Add source-backed peer rows in data/imports/peers.csv. 3. Validate, preview, and apply before reading peer valuation.",
                 "Copy-Only Command": "make focus-peers TICKER=A",
                 "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
             }
@@ -13346,6 +13360,8 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "open this before reading peer-relative valuation" in rendered
     assert "peer premium/discount stays locked" in rendered
     assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered
+    assert "boundary: do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
+    assert "add source-backed peer rows in data/imports/peers.csv" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make templates" in rendered
