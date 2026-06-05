@@ -13861,7 +13861,7 @@ def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_com
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "sec_user_agent=present" in rendered.replace(" ", "")
     assert "stooq_api_key=missing" in rendered.replace(" ", "")
-    assert "make stock-report ticker=nvda" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
     assert "make import-earnings" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13904,9 +13904,9 @@ def test_single_stock_peer_path_keeps_etf_monitor_context_on_stock_report(monkey
     peer_audit_row = audit.loc[audit["Area"].eq("Peers")].iloc[0]
 
     assert peer_status_card["title"] == "monitor context"
-    assert peer_status_card["command"] == "make stock-report TICKER=QQQ"
+    assert peer_status_card["command"] == "make stock-report-md TICKER=QQQ"
     assert peer_audit_row["Status"] == "monitor context"
-    assert peer_audit_row["Next command"] == "make stock-report TICKER=QQQ"
+    assert peer_audit_row["Next command"] == "make stock-report-md TICKER=QQQ"
     assert "operating-company peer valuation is excluded" in rendered
     assert "make focus-peers ticker=qqq" not in rendered
     assert "broker" not in rendered
@@ -13947,7 +13947,7 @@ def test_single_stock_peer_path_waits_for_fundamentals_before_peer_unlock(monkey
     peer_audit_row = audit.loc[audit["Area"].eq("Peers")].iloc[0]
 
     assert peer_status_card["title"] == "blocked until fundamentals / DCF"
-    assert peer_status_card["command"] == "make stock-report TICKER=CRDO"
+    assert peer_status_card["command"] == "make stock-report-md TICKER=CRDO"
     assert peer_audit_row["Status"] == "blocked until fundamentals / DCF"
     assert peer_audit_row["Next command"] == "make sec-stage TICKERS=CRDO"
     assert "peer-relative valuation should wait" in rendered

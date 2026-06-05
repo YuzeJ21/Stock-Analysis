@@ -3090,6 +3090,11 @@ def active_unlock_command(ticker: object, dataset: str, asset_type: object = "")
     return f"make stock-report TICKER={ticker_text}"
 
 
+def stock_report_md_command(ticker: object, fallback: str = "TICKER") -> str:
+    ticker_text = format_missing(ticker, fallback).upper()
+    return f"make stock-report-md TICKER={ticker_text}"
+
+
 def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: object = "") -> str:
     ticker_text = format_missing(ticker, "TICKER").upper()
     asset_text = format_missing(asset_type, "").lower()
@@ -10456,7 +10461,7 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "").lower()
     if dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
-        return f"make stock-report TICKER={ticker}"
+        return stock_report_md_command(ticker)
     if not snapshot.get("price_ready"):
         return f"make focus-price TICKER={ticker}"
     if dcf_status == "blocked":
@@ -10465,7 +10470,7 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
         return f"make focus-peers TICKER={ticker}"
     if not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
         return "make optional-context-worklist TOP_N=25"
-    return f"make stock-report TICKER={ticker}"
+    return stock_report_md_command(ticker)
 
 
 def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame:
@@ -10480,7 +10485,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
     sec_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
     stooq_present = bool(os.environ.get("STOOQ_API_KEY", "").strip() or os.environ.get("STOQ_API_KEY", "").strip())
     if dcf_status == "ready":
-        dcf_command = f"make stock-report TICKER={ticker}"
+        dcf_command = stock_report_md_command(ticker)
     elif dcf_status == "excluded":
         dcf_command = "make readiness"
     elif sec_present:
@@ -10490,11 +10495,11 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
     if peer_ready:
         peer_status = "ready"
         peer_freshness = compact_reason(snapshot.get("next_peer_action"), max_sentences=1, max_chars=140)
-        peer_command = f"make stock-report TICKER={ticker}"
+        peer_command = stock_report_md_command(ticker)
     elif dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
         peer_status = "monitor context"
         peer_freshness = "ETF/index proxy peer mappings are optional context; operating-company peer valuation is excluded."
-        peer_command = f"make stock-report TICKER={ticker}"
+        peer_command = stock_report_md_command(ticker)
     elif dcf_status != "ready":
         peer_status = "blocked until fundamentals / DCF"
         peer_freshness = "Peer-relative valuation should wait until trusted fundamentals and DCF inputs are ready."
@@ -10512,7 +10517,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
             "Local source": "data/prices.csv",
             "Manual path": "data/imports/prices.csv or data/staged/prices/",
             "Rejected rows": "data/rejected/price_import_rejected.csv",
-            "Next command": f"make stock-report TICKER={ticker}" if price_ready else f"make price-refresh TICKERS={ticker}",
+            "Next command": stock_report_md_command(ticker) if price_ready else f"make price-refresh TICKERS={ticker}",
         },
         {
             "Area": "Fundamentals / DCF",
@@ -10643,15 +10648,15 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
         if peer_ready
         else format_missing(snapshot.get("next_peer_action"), "Add source-backed peer mappings before peer-relative valuation is reviewed.")
     )
-    peer_command = f"make stock-report TICKER={ticker}" if peer_ready else f"make focus-peers TICKER={ticker}"
+    peer_command = stock_report_md_command(ticker) if peer_ready else f"make focus-peers TICKER={ticker}"
     if dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
         peer_title = "monitor context"
         peer_body = "ETF/index proxy peer mappings are optional context; operating-company peer valuation is excluded."
-        peer_command = f"make stock-report TICKER={ticker}"
+        peer_command = stock_report_md_command(ticker)
     elif dcf_status and dcf_status != "ready":
         peer_title = "blocked until fundamentals / DCF"
         peer_body = "Peer-relative valuation should wait until trusted fundamentals and DCF inputs are ready."
-        peer_command = f"make stock-report TICKER={ticker}"
+        peer_command = stock_report_md_command(ticker)
     next_command = single_stock_next_command(snapshot)
     status_body = format_missing(snapshot.get("main_reason"), "Readiness state available.")
     if next_command == "make optional-context-worklist TOP_N=25":
@@ -10665,7 +10670,7 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
             "title": format_missing(snapshot.get("ticker"), "Selected ticker"),
             "body": format_missing(snapshot.get("one_minute_summary"), "Readiness state available."),
             "badges": ["readiness first", "single name"],
-            "command": f"make stock-report TICKER={format_missing(snapshot.get('ticker'))}",
+            "command": stock_report_md_command(snapshot.get("ticker")),
         },
         {
             "kicker": "TICKER STATUS",
