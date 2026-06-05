@@ -4798,7 +4798,7 @@ def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> 
             "title": f"{price_ready} ready for setup review",
             "body": "Price-ready stocks can support trend, liquidity, and market-context review. Stop at setup/risk review if fundamentals are missing.",
             "badges": ["price/setup", "not valuation"],
-            "command": "make stock-report TICKER=NVDA",
+            "command": "make stock-report-md TICKER=NVDA",
         },
         {
             "kicker": "LEVEL 2",
@@ -6390,10 +6390,10 @@ def dashboard_readiness_summary(
         "configured_credentials": configured_credentials,
         "updated_at": updated_at,
         "manual_import_paths": [
-            "data/staged/prices/ -> make import-prices",
-            "data/staged/fundamentals/ -> make import-fundamentals",
-            "data/staged/earnings/ -> make import-earnings",
-            "data/staged/analyst_estimates/ -> make import-analyst-estimates",
+            "Price import draft folder: data/staged/prices/ -> make import-prices",
+            "Fundamentals import draft folder: data/staged/fundamentals/ -> make import-fundamentals",
+            "Earnings import draft folder: data/staged/earnings/ -> make import-earnings",
+            "Analyst estimates import draft folder: data/staged/analyst_estimates/ -> make import-analyst-estimates",
         ],
     }
 
@@ -6455,9 +6455,9 @@ def readiness_panel_cards(summary: dict[str, object]) -> list[dict[str, object]]
         },
         {
             "kicker": "MANUAL IMPORTS",
-            "title": "CSV fallback paths available",
+            "title": "Import draft folders available",
             "body": "; ".join(str(path) for path in summary.get("manual_import_paths", [])),
-            "badges": ["staged", "review/apply"],
+            "badges": ["import drafts", "review before apply"],
             "command": "make imports-validate",
         },
     ]

@@ -7918,6 +7918,8 @@ def test_data_health_supported_ladder_cards_explain_analysis_levels_without_over
     assert "sector fallback is not trusted peer valuation" in rendered
     assert "0 earnings / 0 estimates" in rendered
     assert "locked instead of producing unsupported conclusions" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "make stock-report ticker=nvda" not in rendered
     assert "make dcf-readiness" in rendered
     assert "make peer-mapping-queue top_n=10" in rendered
     assert "make optional-context-worklist top_n=10" in rendered
@@ -11032,7 +11034,11 @@ def test_dashboard_readiness_summary_counts_ready_blocked_and_credentials(monkey
     assert "Configured: SEC_USER_AGENT" in rendered
     assert "Only workflows that require the missing credential are blocked" in rendered
     assert "make price-coverage TOP_N=25" in rendered
+    assert "Import draft folders available" in rendered
+    assert "Price import draft folder: data/staged/prices/" in rendered
     assert "data/staged/earnings/" in rendered
+    assert "review before apply" in rendered
+    assert "staged review/apply" not in rendered.lower()
 
 
 def test_market_wide_readiness_summary_prefers_central_dcf_count(monkeypatch):
