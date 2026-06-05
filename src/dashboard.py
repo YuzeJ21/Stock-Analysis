@@ -4554,8 +4554,8 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
             "kicker": "DATA HEALTH GUIDE",
             "title": "Use this page to unlock analysis",
             "body": (
-                "Data Health is not an error page. It shows which trusted local inputs are ready, which analyses stay locked, "
-                "and which safe command to copy next."
+                "Data Health is not an error page. It shows what you can analyze now, what is still locked, "
+                "which trusted local inputs are ready, and which safe command to copy next."
             ),
             "badges": ["operator guide", "copy only"],
             "command": "make status-check TOP_N=5",
@@ -4563,14 +4563,17 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
         {
             "kicker": "CORE COVERAGE",
             "title": f"{price_ready} price-ready / {fundamentals_ready} fundamentals-ready / {dcf_ready} DCF-ready",
-            "body": "Price coverage unlocks setup review first. Trusted fundamentals unlock company-level valuation only after required DCF fields pass readiness.",
+            "body": (
+                "What this means: price coverage unlocks setup review first. Trusted fundamentals unlock company-level "
+                "valuation only after required DCF fields pass readiness."
+            ),
             "badges": ["price first", "fundamentals next"],
             "command": "make sec-stage-queue TOP_N=25",
         },
         {
             "kicker": "CONTEXT COVERAGE",
             "title": f"{peer_ready} peer-ready / {earnings_ready} earnings / {estimates_ready} estimates",
-            "body": "Peer, earnings, and estimate context stays unavailable until trusted rows exist. The app does not infer these inputs.",
+            "body": "What is still locked: peer, earnings, and estimate context stays unavailable until trusted rows exist. The app does not infer these inputs.",
             "badges": ["trusted rows only", "no inference"],
             "command": "make templates",
         },
@@ -14686,9 +14689,70 @@ def valuation_workflow_guidance_cards(
     ]
 
 
+def valuation_plain_language_cards(
+    ready_companies: pd.DataFrame,
+    blocked_companies: pd.DataFrame,
+    excluded_rows: pd.DataFrame,
+) -> list[dict[str, object]]:
+    def examples(frame: pd.DataFrame, *, column: str = "ticker", limit: int = 3) -> str:
+        if frame.empty or column not in frame.columns:
+            return "none yet"
+        values = frame[column].dropna().astype(str).str.upper().str.strip()
+        tickers = [value for value in values.tolist() if value and value.lower() not in {"nan", "none"}]
+        if not tickers:
+            return "none yet"
+        suffix = f" +{len(tickers) - limit} more" if len(tickers) > limit else ""
+        return ", ".join(tickers[:limit]) + suffix
+
+    ready_examples = examples(ready_companies)
+    blocked_examples = examples(blocked_companies)
+    excluded_examples = examples(excluded_rows)
+    return [
+        {
+            "kicker": "WHAT THIS MEANS",
+            "title": f"{len(ready_companies)} ready / {len(blocked_companies)} locked / {len(excluded_rows)} excluded",
+            "body": (
+                "Value / Re-rating is a readiness-gated valuation page. DCF-ready rows can be reviewed; "
+                "blocked rows are missing-input work; ETF/index/fund rows are monitor context."
+            ),
+            "badges": ["plain English", "readiness first"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
+            "title": f"DCF-ready examples: {ready_examples}",
+            "body": (
+                "Review DCF assumptions, scenario math, sensitivity, and source freshness for ready company rows only. "
+                "Treat the output as research context, not an instruction."
+            ),
+            "badges": ["DCF assumptions", "sensitivity"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "WHAT IS STILL LOCKED",
+            "title": f"Locked examples: {blocked_examples}",
+            "body": (
+                "Company valuation stays locked until trusted price, fundamentals, free cash flow or margin, share count, "
+                "and source/freshness inputs exist. Missing inputs are not negative signals."
+            ),
+            "badges": ["missing inputs", "no inference"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "WHAT IS EXCLUDED",
+            "title": f"Monitor examples: {excluded_examples}",
+            "body": "ETF/index/fund rows can support market, theme, liquidity, or risk context; operating-company DCF is excluded, not failed.",
+            "badges": ["monitor context", "DCF excluded"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+    ]
+
+
 def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
+    render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or legacy output filenames.")
+    render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
     render_section_header("Valuation Function Quality", "What valuation can and cannot mean with the current trusted local inputs.")
     render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
     render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))

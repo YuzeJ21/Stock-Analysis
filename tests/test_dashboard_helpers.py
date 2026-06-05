@@ -7454,9 +7454,43 @@ def test_valuation_workflow_guidance_cards_explain_ready_blocked_and_excluded_st
     assert "sell" not in rendered
 
 
+def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states():
+    ready = pd.DataFrame({"ticker": ["NVDA", "A"]})
+    blocked = pd.DataFrame({"ticker": ["META", "AMD", "COHR", "APLD"]})
+    excluded = pd.DataFrame({"ticker": ["QQQ", "SMH"]})
+
+    cards = dashboard.valuation_plain_language_cards(ready, blocked, excluded)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "WHAT THIS MEANS",
+        "WHAT YOU CAN ANALYZE NOW",
+        "WHAT IS STILL LOCKED",
+        "WHAT IS EXCLUDED",
+    ]
+    assert "2 ready / 4 locked / 2 excluded" in rendered
+    assert "readiness-gated valuation page" in rendered
+    assert "dcf-ready examples: nvda, a" in rendered
+    assert "review dcf assumptions, scenario math, sensitivity, and source freshness" in rendered
+    assert "locked examples: meta, amd, cohr +1 more" in rendered
+    assert "company valuation stays locked until trusted price, fundamentals" in rendered
+    assert "missing inputs are not negative signals" in rendered
+    assert "monitor examples: qqq, smh" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_value_re_rating_page_uses_context_not_ready_conclusion_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8").lower()
 
+    assert "value / re-rating at a glance" in source
+    assert "what you can analyze now" in source
+    assert "what is still locked" in source
     assert "operating-company valuation context is shown only for dcf-ready companies" in source
     assert "instead of showing ranked valuation context" in source
     assert "operating-company valuation conclusions are shown only for dcf-ready companies" not in source
@@ -7637,6 +7671,9 @@ def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_l
 
     assert cards[0]["title"] == "Use this page to unlock analysis"
     assert "not an error page" in rendered
+    assert "what you can analyze now" in rendered
+    assert "what is still locked" in rendered
+    assert "what this means" in rendered
     assert "586 price-ready / 23 fundamentals-ready / 23 dcf-ready" in rendered
     assert "price coverage unlocks setup review first" in rendered
     assert "trusted fundamentals unlock company-level valuation" in rendered
