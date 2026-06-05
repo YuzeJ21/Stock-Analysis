@@ -27,7 +27,7 @@ def test_extended_classification():
         }
     )
     status, _ = classify_momentum(row, config)
-    assert status == "Extended / No Chase"
+    assert status == "Extended"
 
 
 def test_broken_classification():
@@ -94,8 +94,8 @@ def test_reject_if_below_50sma_applies_even_when_not_marked_broken():
         }
     )
     status, reason = classify_momentum(row, config)
-    assert status == "Avoid"
-    assert "rejected by rule" in reason
+    assert status == "No Setup"
+    assert "not supported by rule" in reason
 
 
 def test_pullback_add_candidate_respects_configured_support_ema():
@@ -116,7 +116,7 @@ def test_pullback_add_candidate_respects_configured_support_ema():
         }
     )
     status, reason = classify_momentum(row, config)
-    assert status == "Pullback Add Candidate"
+    assert status == "Pullback Review Candidate"
     assert "21EMA" in reason
 
 
@@ -218,7 +218,7 @@ def test_portfolio_review_handles_missing_engine_context_gracefully():
 
     assert row["Ticker"] == "NVDA"
     assert row["PrimaryPurpose"] == "Momentum Leader"
-    assert row["SetupStatus"] == "Avoid"
+    assert row["SetupStatus"] == "No Setup"
     assert row["ReviewState"] == "Review Thesis"
     assert bool(row["ConcentrationRisk"]) is False
     assert "within allowed max" in row["Reason"]
@@ -254,7 +254,7 @@ def test_do_not_add_to_losing_trading_positions_applies_independently():
         [
             {
                 "Ticker": "NVDA",
-                "SetupStatus": "Pullback Add Candidate",
+                "SetupStatus": "Pullback Review Candidate",
                 "Close": 110.0,
             }
         ]
@@ -263,7 +263,7 @@ def test_do_not_add_to_losing_trading_positions_applies_independently():
     result = review_holdings(holdings, purpose_df, momentum_df, config)
     row = result.iloc[0]
 
-    assert row["ReviewState"] == "Hold but Do Not Add"
+    assert row["ReviewState"] == "Hold Review Only"
     assert "below cost basis" in row["Reason"]
 
 
@@ -359,6 +359,7 @@ def test_final_watchlist_adds_ranking_from_value_context():
         [
             {
                 "Ticker": "ALFA",
+                "ValuationStatus": "ready",
                 "FinalValueCategory": "Undervalued Quality",
                 "PeerRelativeStatus": "Discount vs Peers",
                 "RelativeOpportunityScore": 70.0,
@@ -366,6 +367,7 @@ def test_final_watchlist_adds_ranking_from_value_context():
             },
             {
                 "Ticker": "BETA",
+                "ValuationStatus": "ready",
                 "FinalValueCategory": "Possible Value Trap",
                 "PeerRelativeStatus": "Premium vs Peers",
                 "RelativeOpportunityScore": 35.0,
@@ -384,3 +386,43 @@ def test_final_watchlist_adds_ranking_from_value_context():
     assert alfa["FinalValueCategory"] == "Undervalued Quality"
     assert "Base score" in alfa["RankReason"]
     assert "Looks cheap versus peers." in alfa["Reason"]
+
+
+def test_final_watchlist_caps_not_ready_valuation_scores():
+    purpose_df = pd.DataFrame(
+        [
+            {
+                "Ticker": "ALFA",
+                "Theme": "Software",
+                "SectorETF": "QQQ",
+                "FinalPrimaryPurpose": "Re-rating / Undervalued",
+                "SecondaryTags": "",
+                "IsHolding": False,
+                "ConflictFlag": False,
+                "Reason": "Purpose still fits.",
+            }
+        ]
+    )
+    momentum_df = pd.DataFrame([{"Ticker": "ALFA", "SetupStatus": "Setup Forming", "Reason": "Price setup exists."}])
+    value_df = pd.DataFrame(
+        [
+            {
+                "Ticker": "ALFA",
+                "ValuationStatus": "not_ready",
+                "FinalValueCategory": "Insufficient Data",
+                "PeerRelativeStatus": "Insufficient Peer Data",
+                "RelativeOpportunityScore": pd.NA,
+                "Reason": "valuation_status=not_ready: required DCF inputs are incomplete.",
+            }
+        ]
+    )
+
+    result = build_final_watchlist(purpose_df, momentum_df, pd.DataFrame(), value_df=value_df)
+    row = result.iloc[0]
+
+    assert row["ValuationStatus"] == "not_ready"
+    assert row["WatchlistScore"] == 50.0
+    assert pd.isna(row["WatchlistRank"])
+    assert "Capped score at 50" in row["RankReason"]
+    assert "data-limited review" in row["RankReason"]
+    assert "monitor-only" not in row["RankReason"].lower()

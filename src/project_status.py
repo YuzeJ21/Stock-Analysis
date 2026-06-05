@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,8 @@ from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame, refresh_price_update_status_output
 from src.data_sources import build_data_source_payload, write_data_source_outputs
 from src.action_queue import write_action_queue_output
-from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
 from src.research_health import run as run_research_health
 
 
@@ -23,13 +25,56 @@ PROJECT_STATUS_TOP_ACTIONS_CSV = "project_status_top_actions.csv"
 PROJECT_STATUS_NEXT_STEPS_CSV = "project_status_next_steps.csv"
 
 
+def _load_purpose_evaluation_summary(output_path: Path, top_n: int) -> list[dict[str, Any]]:
+    path = output_path / PURPOSE_EVALUATION_SUMMARY_CSV
+    if not path.exists():
+        return []
+    try:
+        frame = pd.read_csv(path)
+    except Exception:
+        return []
+    if frame.empty:
+        return []
+    return frame.head(top_n).fillna("").to_dict("records")
+
+
+def _read_csv_records(path: Path, *, top_n: int | None = None) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    try:
+        frame = pd.read_csv(path, nrows=top_n)
+    except Exception:
+        return []
+    if frame.empty:
+        return []
+    return frame.fillna("").to_dict("records")
+
+
+def _read_csv_frame(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        return pd.DataFrame()
+
+
 def _count_true(rows: list[dict[str, Any]], field: str) -> int:
     return sum(1 for row in rows if bool(row.get(field)))
 
 
 def _first_non_empty(*values: object) -> str:
     for value in values:
+        if value is None:
+            continue
+        try:
+            if pd.isna(value):
+                continue
+        except (TypeError, ValueError):
+            pass
         text = str(value or "").strip()
+        if text.lower() == "nan":
+            continue
         if text:
             return text
     return ""
@@ -48,6 +93,162 @@ def _load_price_status_lookup(output_path: Path) -> dict[str, dict[str, Any]]:
         if ticker:
             lookup[ticker] = row.to_dict()
     return lookup
+
+
+def _count_readiness_true(data_path: Path, field: str) -> int | None:
+    path = data_path / "reports" / "ticker_readiness_report.csv"
+    if not path.exists():
+        return None
+    try:
+        frame = pd.read_csv(path)
+    except Exception:
+        return None
+    if frame.empty or field not in frame.columns:
+        return None
+    values = frame[field]
+    if pd.api.types.is_bool_dtype(values):
+        return int(values.fillna(False).sum())
+    return int(values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"}).sum())
+
+
+def _truthy_series(values: pd.Series) -> pd.Series:
+    if pd.api.types.is_bool_dtype(values):
+        return values.fillna(False).astype(bool)
+    return values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"})
+
+
+def _stale_generated_artifact_warnings(data_path: Path, output_path: Path) -> list[str]:
+    generated_paths = [
+        data_path / "reports" / "ticker_readiness_report.csv",
+        output_path / "data_onboarding_actions.csv",
+        output_path / PROJECT_STATUS_NEXT_STEPS_CSV,
+    ]
+    existing_generated = [path for path in generated_paths if path.exists()]
+    if not existing_generated:
+        return []
+    oldest_generated_mtime = min(path.stat().st_mtime for path in existing_generated)
+    source_paths = [
+        data_path / "prices.csv",
+        data_path / "fundamentals.csv",
+        data_path / "peers.csv",
+        data_path / "earnings.csv",
+        data_path / "analyst_estimates.csv",
+        data_path / "universe_master.csv",
+        data_path / "universe_active.csv",
+        data_path / "holdings.csv",
+    ]
+    newer_sources = [
+        path.relative_to(data_path.parent).as_posix()
+        for path in source_paths
+        if path.exists() and path.stat().st_mtime > oldest_generated_mtime
+    ]
+    if not newer_sources:
+        return []
+    sample = ", ".join(newer_sources[:4])
+    if len(newer_sources) > 4:
+        sample = f"{sample}, +{len(newer_sources) - 4} more"
+    return [
+        (
+            "Generated status artifacts may be stale because source CSVs changed after the last generated report "
+            f"({sample}). Run make readiness or make status to refresh before relying on exact counts."
+        )
+    ]
+
+
+def _fast_status_payload_from_outputs(
+    project_root: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+    top_n: int = 10,
+    tickers: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Build a read-only operator snapshot from generated artifacts.
+
+    The full project-status payload intentionally recomputes onboarding/source
+    state. `make status-check` should stay fast on large local CSVs, so this
+    path reuses existing generated reports and only falls back to recomputation
+    when the minimal artifacts are missing.
+    """
+    root = resolve_project_root(project_root)
+    data_path = resolve_data_dir(data_dir, root)
+    output_path = resolve_outputs_dir(output_dir, root)
+    readiness_path = data_path / "reports" / "ticker_readiness_report.csv"
+    source_path = output_path / "data_source_status.csv"
+    gaps_path = output_path / "data_gap_report.csv"
+    actions_path = output_path / "data_onboarding_actions.csv"
+
+    if not readiness_path.exists() or not source_path.exists() or not gaps_path.exists() or not actions_path.exists():
+        return None
+
+    readiness = _read_csv_frame(readiness_path)
+    sources = _read_csv_records(source_path)
+    gaps = _read_csv_records(gaps_path)
+    actions = _read_csv_records(actions_path)
+    bundles = _read_csv_records(output_path / "command_bundles.csv")
+    if readiness.empty or not sources or not actions:
+        return None
+
+    allowed: set[str] | None = None
+    if tickers:
+        allowed = {str(ticker).upper().strip() for ticker in tickers if str(ticker).strip()}
+        if "ticker" in readiness.columns:
+            readiness = readiness.loc[readiness["ticker"].astype(str).str.upper().str.strip().isin(allowed)].copy()
+        gaps = [
+            row for row in gaps
+            if str(row.get("ticker", "")).upper().strip() in allowed
+        ]
+        actions = [
+            row for row in actions
+            if str(row.get("ticker", "")).upper().strip() in allowed
+        ]
+
+    sorted_actions = sorted(actions, key=_action_rank)
+    problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
+    purpose_evaluation_rows = [] if allowed else _load_purpose_evaluation_summary(output_path, top_n)
+
+    def readiness_count(field: str) -> int:
+        if readiness.empty or field not in readiness.columns:
+            return 0
+        return int(_truthy_series(readiness[field]).sum())
+
+    summary = {
+        "data_sources_total": len(sources),
+        "data_sources_available": sum(1 for row in sources if row.get("availability_status") == "available"),
+        "data_sources_needing_attention": len(problem_sources),
+        "data_gaps": len(gaps),
+        "tickers_total": len(readiness),
+        "tickers_with_prices": readiness_count("price_ready"),
+        "tickers_usable_for_momentum": readiness_count("momentum_ready"),
+        "tickers_dcf_ready": readiness_count("dcf_ready"),
+        "tickers_peer_ready": readiness_count("peer_ready"),
+        "onboarding_actions": len(sorted_actions),
+        "critical_actions": sum(1 for row in sorted_actions if int(row.get("priority") or 999) <= 1),
+        "purpose_evaluation_groups": len(purpose_evaluation_rows),
+        "purpose_evaluation_active_groups": sum(
+            1 for row in purpose_evaluation_rows if int(row.get("active_universe_count") or 0) > 0
+        ),
+    }
+    command_rows = _read_csv_records(output_path / PROJECT_STATUS_NEXT_STEPS_CSV)
+    if allowed:
+        command_rows = _recommended_next_command_rows(sorted_actions, bundles, [])
+    if not command_rows:
+        command_rows = _recommended_next_command_rows(sorted_actions, bundles, [] if allowed else problem_sources)
+
+    return {
+        "project_root": str(root),
+        "data_dir": str(data_path),
+        "outputs_dir": str(output_path),
+        "summary": summary,
+        "data_sources_needing_attention": problem_sources[:top_n],
+        "top_data_gaps": gaps[:top_n],
+        "top_onboarding_actions": sorted_actions[:top_n],
+        "recommended_next_command_rows": command_rows,
+        "recommended_next_commands": [row["Command"] for row in command_rows if row.get("Command")],
+        "purpose_evaluation_summary": purpose_evaluation_rows,
+        "warnings": _stale_generated_artifact_warnings(data_path, output_path),
+        "status_source": "generated_artifacts",
+    }
 
 
 def _enrich_top_actions(onboarding_payload: dict[str, Any], price_status_lookup: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -108,11 +309,24 @@ def _enrich_top_actions(onboarding_payload: dict[str, Any], price_status_lookup:
         if dataset == "prices" and ticker:
             price_status_row = price_status_lookup.get(ticker)
             if price_status_row:
-                for field in ("status", "recommended_action", "focus_command", "example_command", "target_file"):
+                status = str(price_status_row.get("status") or "").strip().lower()
+                for field in (
+                    "status",
+                    "recommended_action",
+                    "focus_command",
+                    "example_command",
+                    "target_file",
+                    "provider",
+                    "requested_end",
+                    "run_timestamp",
+                ):
+                    if source_row and status in {"fetched", "skipped_fresh"} and field != "status":
+                        continue
                     value = _first_non_empty(price_status_row.get(field), row.get(field))
                     if value:
                         row[field] = value
-                row["reason"] = _first_non_empty(price_status_row.get("error_message"), row.get("reason"))
+                if not (source_row and status in {"fetched", "skipped_fresh"}):
+                    row["reason"] = _first_non_empty(price_status_row.get("error_message"), row.get("reason"))
         enriched.append(row)
     return enriched
 
@@ -131,6 +345,57 @@ def _bundle_rank(bundle: dict[str, Any]) -> tuple[int, int, str]:
     ticker_count = int(bundle.get("ticker_count") or 0)
     scope_rank = 0 if scope == "broader_queue" else 1 if scope == "holdings_first" else 2
     return (scope_rank, -ticker_count, str(bundle.get("bundle_name") or ""))
+
+
+def _source_context(*rows: dict[str, Any] | None, fallback: str = "") -> str:
+    for row in rows:
+        if not row:
+            continue
+        context = _first_non_empty(
+            row.get("source_file"),
+            row.get("target_file"),
+            row.get("local_file"),
+            row.get("source_artifact"),
+            row.get("source_name"),
+            row.get("provider"),
+        )
+        if context:
+            return context
+    return fallback
+
+
+def _freshness_context(*rows: dict[str, Any] | None, fallback: str = "") -> str:
+    for row in rows:
+        if not row:
+            continue
+        context = _first_non_empty(
+            row.get("updated_at"),
+            row.get("last_price_date"),
+            row.get("as_of_date"),
+            row.get("requested_end"),
+            row.get("status"),
+            row.get("availability_status"),
+        )
+        if context:
+            return context
+    return fallback
+
+
+def _command_row(
+    step: str,
+    command: str,
+    reason: str,
+    *,
+    source_context: str = "",
+    freshness_context: str = "",
+) -> dict[str, str]:
+    return {
+        "Step": step,
+        "Command": command,
+        "Reason": reason,
+        "SourceContext": source_context,
+        "FreshnessContext": freshness_context,
+    }
 
 
 def _select_top_bundle(actions: list[dict[str, Any]], bundles: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -194,20 +459,36 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
                 "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
                 f"to confirm the live local {dataset_text} inputs."
             )
-            rows.append({"Step": "Advance staged imports", "Command": command, "Reason": reason})
+            rows.append(
+                _command_row(
+                    "Review import drafts",
+                    command,
+                    reason,
+                    source_context=file_text,
+                    freshness_context="local import draft workflow rows present",
+                )
+            )
             continue
 
         row = grouped[0]
         dataset = str(row.get("dataset") or "data").replace("_", " ")
         status = str(row.get("availability_status") or "").strip().lower()
         if command == "make imports-validate":
-            step = f"Advance staged {dataset} import"
+            step = f"Review {dataset} import draft"
         elif status == "manual_only":
             step = f"Prepare {dataset} input"
         else:
             step = f"Advance {dataset} source"
         reason = _first_non_empty(row.get("fallback_action"), row.get("validation_warnings"), row.get("notes"))
-        rows.append({"Step": step, "Command": command, "Reason": reason})
+        rows.append(
+            _command_row(
+                step,
+                command,
+                reason,
+                source_context=_source_context(row),
+                freshness_context=_freshness_context(row),
+            )
+        )
     return rows
 
 
@@ -220,13 +501,51 @@ def _recommended_next_command_rows(
 
     if actions:
         top_action = actions[0]
+        dataset_key = str(top_action.get("dataset") or "").strip().lower()
+        if dataset_key == "prices" and not bool(top_action.get("is_holding")):
+            rows.append(
+                _command_row(
+                    "Refresh next capped missing-price batch",
+                    "make price-refresh TOP_N=25 PROVIDER=yahoo",
+                    (
+                        "Advance the broad-universe price frontier safely by refreshing only the next "
+                        "25 tickers without local price coverage; Yahoo rows are research-grade and "
+                        "the manual import draft fallback remains available."
+                    ),
+                    source_context="data/imports/prices.csv fallback plus optional Yahoo refresh",
+                    freshness_context="capped refresh; verify source/freshness after merge",
+                )
+            )
         command = _first_non_empty(top_action.get("focus_command"), top_action.get("example_command"))
         if command:
             dataset = str(top_action.get("dataset") or "data").replace("_", " ")
             ticker = _first_non_empty(top_action.get("ticker"))
             step = f"Fix top {dataset} blocker" + (f" ({ticker})" if ticker else "")
             reason = _first_non_empty(top_action.get("reason"), top_action.get("recommended_action"))
-            rows.append({"Step": step, "Command": command, "Reason": reason})
+            rows.append(
+                _command_row(
+                    step,
+                    command,
+                    reason,
+                    source_context=_source_context(top_action),
+                    freshness_context=_freshness_context(top_action),
+                )
+            )
+            if dataset_key in {"fundamentals", "peers"} and not os.environ.get("SEC_USER_AGENT", "").strip():
+                rows.append(
+                    _command_row(
+                        "Choose fundamentals input path",
+                        "make templates",
+                        (
+                            "SEC_USER_AGENT is not configured, so remote SEC import draft workflow is unavailable. "
+                            "Either export SEC_USER_AGENT before make sec-stage, or prepare trusted manual "
+                            "fundamentals in data/imports/fundamentals.csv and run make imports-validate, "
+                            "make imports-preview, and make imports-apply."
+                        ),
+                        source_context="SEC_USER_AGENT or data/imports/fundamentals.csv",
+                        freshness_context="credential/manual import state controls availability",
+                    )
+                )
 
     top_bundle = _select_top_bundle(actions, bundles)
     if top_bundle:
@@ -250,7 +569,15 @@ def _recommended_next_command_rows(
                 step = f"Run {bundle_name}"
             else:
                 step = f"Run {bundle_name}"
-            rows.append({"Step": step, "Command": command, "Reason": reason})
+            rows.append(
+                _command_row(
+                    step,
+                    command,
+                    reason,
+                    source_context=_source_context(top_bundle),
+                    freshness_context=_freshness_context(top_bundle, fallback="bundle generated from current onboarding outputs"),
+                )
+            )
 
     problem_source_rows = _recommended_source_command_rows(problem_sources)
     if problem_source_rows:
@@ -258,16 +585,20 @@ def _recommended_next_command_rows(
 
     rows.extend(
         [
-            {
-                "Step": "Deterministic verification",
-                "Command": "make verify",
-                "Reason": "Confirm the local CSV outputs and dashboard helpers still pass deterministic checks.",
-            },
-            {
-                "Step": "Dashboard smoke check",
-                "Command": "make dashboard-smoke",
-                "Reason": "Confirm the Streamlit surface still boots cleanly after the local data and workflow updates.",
-            },
+            _command_row(
+                "Deterministic verification",
+                "make verify",
+                "Confirm the local CSV outputs and dashboard helpers still pass deterministic checks.",
+                source_context="tests and generated local CSV outputs",
+                freshness_context="run after data refresh/import or code changes",
+            ),
+            _command_row(
+                "Dashboard smoke check",
+                "make dashboard-smoke",
+                "Confirm the Streamlit surface still boots cleanly after the local data and workflow updates.",
+                source_context="Streamlit dashboard",
+                freshness_context="run after dashboard or environment changes",
+            ),
         ]
     )
 
@@ -309,6 +640,8 @@ def build_project_status_payload(
     actions = sorted(enriched_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     command_problem_sources = [] if tickers else problem_sources
+    readiness_dcf_ready = None if tickers else _count_readiness_true(data_path, "dcf_ready")
+    purpose_evaluation_rows = [] if tickers else _load_purpose_evaluation_summary(output_path, top_n)
     summary = {
         "data_sources_total": len(sources),
         "data_sources_available": sum(1 for row in sources if row.get("availability_status") == "available"),
@@ -317,10 +650,14 @@ def build_project_status_payload(
         "tickers_total": len(coverage),
         "tickers_with_prices": _count_true(coverage, "has_prices"),
         "tickers_usable_for_momentum": _count_true(coverage, "usable_for_momentum"),
-        "tickers_dcf_ready": _count_true(coverage, "dcf_ready"),
+        "tickers_dcf_ready": readiness_dcf_ready if readiness_dcf_ready is not None else _count_true(coverage, "dcf_ready"),
         "tickers_peer_ready": _count_true(coverage, "peer_ready"),
         "onboarding_actions": len(actions),
         "critical_actions": sum(1 for row in actions if int(row.get("priority") or 999) <= 1),
+        "purpose_evaluation_groups": len(purpose_evaluation_rows),
+        "purpose_evaluation_active_groups": sum(
+            1 for row in purpose_evaluation_rows if int(row.get("active_universe_count") or 0) > 0
+        ),
     }
     command_rows = _recommended_next_command_rows(
         actions,
@@ -337,6 +674,7 @@ def build_project_status_payload(
         "top_onboarding_actions": actions[:top_n],
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows],
+        "purpose_evaluation_summary": purpose_evaluation_rows,
     }
 
 
@@ -357,13 +695,15 @@ def write_project_status_output(
         write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path)
         run_research_health(root, data_dir=data_path, output_dir=output_path)
         write_action_queue_output(root, data_dir=data_path, output_dir=output_path)
-    payload = build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=top_n)
     output_path.mkdir(parents=True, exist_ok=True)
+    write_purpose_evaluation_summary(root, data_dir=data_path, output_dir=output_path)
+    payload = build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=top_n)
 
     json_path = output_path / PROJECT_STATUS_JSON
     summary_path = output_path / PROJECT_STATUS_SUMMARY_CSV
     top_actions_path = output_path / PROJECT_STATUS_TOP_ACTIONS_CSV
     next_steps_path = output_path / PROJECT_STATUS_NEXT_STEPS_CSV
+    purpose_summary_path = output_path / PURPOSE_EVALUATION_SUMMARY_CSV
 
     json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     pd.DataFrame([payload["summary"]]).to_csv(summary_path, index=False)
@@ -377,12 +717,15 @@ def write_project_status_output(
             "project_status_summary": str(summary_path),
             "project_status_top_actions": str(top_actions_path),
             "project_status_next_steps": str(next_steps_path),
+            "purpose_evaluation_summary": str(purpose_summary_path),
         },
     }
 
 
 def _print_human(payload: dict[str, Any]) -> None:
     summary = payload["summary"]
+    print("Read-only operator snapshot.")
+    print("Commands below are copy-only local research helpers; this status view does not run them.")
     print("Project status summary:")
     print(f"- Data sources: {summary['data_sources_available']}/{summary['data_sources_total']} available")
     print(f"- Data sources needing attention: {summary['data_sources_needing_attention']}")
@@ -392,6 +735,9 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- DCF-ready tickers: {summary['tickers_dcf_ready']}/{summary['tickers_total']}")
     print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
     print(f"- Onboarding actions: {summary['onboarding_actions']} ({summary['critical_actions']} critical)")
+    print(f"- Purpose evaluation groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
+    for warning in payload.get("warnings", []):
+        print(f"Warning: {warning}")
     print("Top onboarding actions:")
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
@@ -400,6 +746,11 @@ def _print_human(payload: dict[str, Any]) -> None:
             print(f"  focus: {row['focus_command']}")
         if row.get("example_command"):
             print(f"  command: {row['example_command']}")
+        if row.get("credential_required"):
+            present = "present" if bool(row.get("credential_present")) else "missing"
+            print(f"  credential: {row['credential_required']} ({present})")
+        if row.get("manual_fallback_command"):
+            print(f"  fallback: {row['manual_fallback_command']}")
     print("Recommended next commands:")
     command_rows = payload.get("recommended_next_command_rows") or [
         {"Step": f"Next {index}", "Command": command}
@@ -409,6 +760,25 @@ def _print_human(payload: dict[str, Any]) -> None:
         print(f"- {row.get('Step', 'Next')}: {row.get('Command', '')}")
         if row.get("Reason"):
             print(f"  why: {row['Reason']}")
+        if row.get("SourceContext"):
+            print(f"  source: {row['SourceContext']}")
+        if row.get("FreshnessContext"):
+            print(f"  freshness: {row['FreshnessContext']}")
+
+
+def _format_operator_path_context(root: Path, data_path: Path, output_path: Path) -> str:
+    def display(path: Path) -> str:
+        try:
+            return path.relative_to(root).as_posix()
+        except ValueError:
+            return str(path)
+
+    return (
+        "Local folders:\n"
+        f"- project: current repository root\n"
+        f"- data: {display(data_path)}\n"
+        f"- outputs: {display(output_path)}"
+    )
 
 
 def main() -> None:
@@ -437,23 +807,44 @@ def main() -> None:
         parser.error("--check cannot be combined with --write-output or --refresh-artifacts")
     if should_write_output and explicit_tickers:
         parser.error("--tickers is only supported for read-only project status views")
-    payload = (
-        write_project_status_output(
+    if should_write_output:
+        payload = write_project_status_output(
             root,
             data_dir=data_path,
             output_dir=output_path,
             top_n=args.top_n,
             refresh_supporting_outputs=args.refresh_artifacts,
         )
-        if should_write_output
-        else build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n, tickers=explicit_tickers)
-    )
+    elif args.check:
+        payload = _fast_status_payload_from_outputs(
+            root,
+            data_dir=data_path,
+            output_dir=output_path,
+            top_n=args.top_n,
+            tickers=explicit_tickers,
+        )
+        if payload is None:
+            payload = build_project_status_payload(
+                root,
+                data_dir=data_path,
+                output_dir=output_path,
+                top_n=args.top_n,
+                tickers=explicit_tickers,
+            )
+    else:
+        payload = build_project_status_payload(
+            root,
+            data_dir=data_path,
+            output_dir=output_path,
+            top_n=args.top_n,
+            tickers=explicit_tickers,
+        )
 
     if args.json:
         print(json.dumps(payload, indent=2))
         return
 
-    print(format_path_context(root, data_path, output_path))
+    print(_format_operator_path_context(root, data_path, output_path))
     _print_human(payload)
     if args.write_output:
         print("Wrote:")

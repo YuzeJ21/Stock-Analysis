@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ import pandas as pd
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_schemas import validate_local_dataset
+from src.universe_model import infer_asset_type
 
 
 AVAILABILITY_STATUSES = {
@@ -68,7 +70,10 @@ class DataSourceStatus:
     validation_warnings: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            **asdict(self),
+            **_command_safety_fields(self.example_command),
+        }
 
 
 @dataclass
@@ -86,7 +91,32 @@ class DataGap:
     source_name: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            **asdict(self),
+            **_command_safety_fields(self.example_command),
+        }
+
+
+def _command_safety_fields(example_command: object) -> dict[str, object]:
+    command = str(example_command or "").strip().lower()
+    if not command.startswith("make sec-stage"):
+        return {
+            "credential_required": "",
+            "credential_present": "",
+            "manual_fallback_command": "",
+            "command_safety_note": "",
+        }
+    credential_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
+    return {
+        "credential_required": "SEC_USER_AGENT",
+        "credential_present": credential_present,
+        "manual_fallback_command": "make templates",
+        "command_safety_note": (
+            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
+            "make imports-preview, and make imports-apply."
+        ),
+    }
 
 
 def _gap_focus_command(dataset: str, ticker: str) -> str:
@@ -166,8 +196,10 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
         )
     if dataset == "fundamentals" and ticker:
         return (
-            f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local "
-            f"fundamentals with make sec-stage TICKERS={ticker}."
+            f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
+            f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
+            "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+            "and make imports-apply."
         )
     return ""
 
@@ -249,7 +281,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
     ),
     DataSourceRegistryEntry(
         dataset="fundamentals",
-        source_name="Local fundamentals CSV / SEC Companyfacts staging",
+        source_name="Local fundamentals CSV / SEC Companyfacts import draft workflow",
         source_type="local_csv_or_sec_staging",
         required_for="valuation, quality context, value/re-rating review",
         is_required=False,
@@ -262,10 +294,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/fundamentals.csv",
         fallback_action=(
             "Start with make status, then follow the printed fundamentals focus or runbook path. "
-            "Keep SEC staging staged and review-only through make imports-validate, "
+            "Keep the SEC import draft workflow reviewable and preview-first through make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
-        notes="SEC staging only provides candidate fundamentals; it does not provide prices, peers, earnings, or analyst estimates.",
+        notes="SEC import draft workflow only provides candidate fundamentals; it does not provide prices, peers, earnings, or analyst estimates.",
     ),
     DataSourceRegistryEntry(
         dataset="peers",
@@ -318,7 +350,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/analyst_estimates.csv",
         fallback_action="Run make templates, then fill data/imports/analyst_estimates.csv manually only if you want estimate coverage.",
-        notes="Analyst estimates are not created by SEC staging and are never inferred.",
+        notes="Analyst estimates are not created by SEC import draft workflow and are never inferred.",
     ),
     DataSourceRegistryEntry(
         dataset="universe",
@@ -354,7 +386,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/custom_universe.csv or data/imports/universe.csv",
         fallback_action=(
             "Run make templates, then fill data/custom_universe.csv with verified tickers only if the remote "
-            "SMH page is unavailable. Run make universe-preview before make universe-apply for any staged universe import."
+            "SMH page is unavailable. Run make universe-preview before make universe-apply for any universe import draft."
         ),
         notes="The remote SMH page can require redirect/cookie/location handling; this check does not fetch it.",
     ),
@@ -372,10 +404,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
-            "Run make universe-preview first, then review the staged S&P 500 / SMH "
-            "preset universe before make universe-apply."
+            "Run make universe-preview first, then review the S&P 500 / SMH "
+            "universe import draft before make universe-apply."
         ),
-        notes="Open-source/community source, not the official paid S&P feed; no live check is performed here.",
+        notes="Local optional S&P preset source; verify source and license before redistribution. No live check is performed here.",
     ),
     DataSourceRegistryEntry(
         dataset="nasdaq_symbols",
@@ -391,16 +423,16 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
-            "Run make universe-preview first, then review the broader staged universe "
+            "Run make universe-preview first, then review the broader universe import draft "
             "before make universe-apply; all-Nasdaq mode can be large."
         ),
         notes="No live check is performed by data_sources; universe_builder handles parsing when explicitly invoked.",
     ),
     DataSourceRegistryEntry(
         dataset="local_outputs",
-        source_name="Generated screener outputs",
+        source_name="Generated research outputs",
         source_type="generated_csv",
-        required_for="dashboard, monthly picks, stock report screener context",
+        required_for="dashboard, monthly picks, stock report research-output context",
         is_required=True,
         is_optional=False,
         is_manual_only=False,
@@ -471,7 +503,7 @@ def _remote_source_status(entry: DataSourceRegistryEntry, data_dir: Path) -> tup
             return "partial", "Manual universe fallback file is present.", 1
         return "source_unavailable", "Remote SMH source is not checked here; use the documented manual fallback if it fails.", 0
     if staged_universe.exists():
-        return "partial", "A staged universe file exists; run make universe-preview before make universe-apply.", 1
+        return "partial", "A universe import draft exists; run make universe-preview before make universe-apply.", 1
     return "optional_unofficial" if entry.is_unofficial else "partial", "Remote source is available only when universe_builder is explicitly run.", 0
 
 
@@ -510,7 +542,7 @@ def build_data_source_status(
             staged_ready = staged and staged["row_count"] > 0 and staged["status"] in {"valid", "valid_with_warnings"}
             if entry.dataset == "fundamentals" and staged_ready:
                 notes = (
-                    f"{entry.notes} Staged import rows are present in "
+                    f"{entry.notes} Local import draft rows are present in "
                     f"{_display_path(staged['path'], root)}; validate, preview, apply, "
                     "then refresh status before relying on canonical local data."
                 )
@@ -525,7 +557,7 @@ def build_data_source_status(
                     columns = ", ".join(staged["available_columns"])
                     warnings = "; ".join(staged["warnings"])
                     notes = (
-                        f"{entry.notes} Staged import rows are present; validate, preview, apply, "
+                        f"{entry.notes} Local import draft rows are present; validate, preview, apply, "
                         "then refresh status before relying on canonical local data."
                     )
                     fallback_action = _staged_import_follow_up(entry.dataset)
@@ -583,6 +615,35 @@ def _ticker_set(catalog: LocalDataCatalog, dataset_name: str) -> set[str]:
     return set(frame["ticker"].dropna().astype(str).str.upper().str.strip())
 
 
+DCF_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
+
+
+def _dcf_excluded_asset(asset_type: object) -> bool:
+    return str(asset_type or "").strip().lower() in DCF_EXCLUDED_ASSET_TYPES
+
+
+def _load_asset_type_map(data_path: Path) -> dict[str, str]:
+    asset_map: dict[str, str] = {}
+    for filename in ("universe_master.csv", "universe.csv"):
+        path = data_path / filename
+        if not path.exists():
+            continue
+        try:
+            frame = pd.read_csv(path)
+        except Exception:
+            continue
+        if frame.empty:
+            continue
+        frame.columns = [str(column).strip().replace(" ", "_").replace("-", "_").lower() for column in frame.columns]
+        if "ticker" not in frame.columns:
+            continue
+        for _, row in frame.iterrows():
+            ticker = str(row.get("ticker", "") or "").strip().upper()
+            if ticker:
+                asset_map[ticker] = infer_asset_type(ticker, row)
+    return asset_map
+
+
 def build_data_gap_report(
     project_root: Path | str | None = None,
     *,
@@ -622,6 +683,7 @@ def build_data_gap_report(
     tickers = _read_tickers(catalog)
     price_tickers = _ticker_set(catalog, "prices")
     fundamentals_tickers = _ticker_set(catalog, "fundamentals")
+    asset_type_by_ticker = _load_asset_type_map(data_path)
     price_status = status_by_dataset["prices"]
     fundamentals_status = status_by_dataset["fundamentals"]
     for ticker in tickers:
@@ -641,7 +703,11 @@ def build_data_gap_report(
                     source_name=price_status.source_name,
                 )
             )
-        if fundamentals_status.availability_status != "missing_file" and ticker not in fundamentals_tickers:
+        if (
+            fundamentals_status.availability_status != "missing_file"
+            and ticker not in fundamentals_tickers
+            and not _dcf_excluded_asset(asset_type_by_ticker.get(ticker, "company"))
+        ):
             gaps.append(
                 DataGap(
                     dataset="fundamentals",
@@ -706,6 +772,11 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
             print(f"  focus: {row['focus_command']}")
         if row.get("example_command"):
             print(f"  command: {row['example_command']}")
+        if row.get("credential_required"):
+            state = "present" if row.get("credential_present") else "missing"
+            print(f"  credential: {row['credential_required']} ({state})")
+        if row.get("manual_fallback_command"):
+            print(f"  fallback: {row['manual_fallback_command']}")
     print(f"Data gaps: {len(payload['data_gaps'])}")
     for row in payload["data_gaps"][:20]:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
@@ -714,6 +785,11 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
             print(f"  focus: {row['focus_command']}")
         if row.get("example_command"):
             print(f"  command: {row['example_command']}")
+        if row.get("credential_required"):
+            state = "present" if row.get("credential_present") else "missing"
+            print(f"  credential: {row['credential_required']} ({state})")
+        if row.get("manual_fallback_command"):
+            print(f"  fallback: {row['manual_fallback_command']}")
 
 
 def _filter_data_source_payload(payload: dict[str, Any], tickers: list[str] | None) -> dict[str, Any]:

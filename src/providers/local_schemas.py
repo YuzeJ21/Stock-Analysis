@@ -33,8 +33,10 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
         optional_columns=(
             "theme",
             "sector",
+            "period",
             "revenue",
             "revenue_growth",
+            "net_income",
             "eps",
             "free_cash_flow",
             "fcf",
@@ -56,6 +58,7 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
             "debt_to_equity",
             "source",
             "as_of_date",
+            "updated_at",
             "sec_cik",
             "sec_form",
             "sec_filed_date",
@@ -66,6 +69,7 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
         numeric_columns=(
             "revenue",
             "revenue_growth",
+            "net_income",
             "eps",
             "free_cash_flow",
             "fcf",
@@ -86,7 +90,7 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
             "enterprise_value",
             "debt_to_equity",
         ),
-        date_columns=("as_of_date", "sec_filed_date"),
+        date_columns=("as_of_date", "updated_at", "sec_filed_date"),
     ),
     "earnings": LocalDatasetSchema(
         dataset_name="earnings",
@@ -94,6 +98,7 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
         optional_columns=(
             "next_earnings_date",
             "last_earnings_date",
+            "report_date",
             "fiscal_period",
             "eps_estimate",
             "eps_actual",
@@ -102,14 +107,18 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
             "surprise_pct",
             "source",
             "as_of_date",
+            "updated_at",
         ),
         numeric_columns=("eps_estimate", "eps_actual", "revenue_estimate", "revenue_actual", "surprise_pct"),
-        date_columns=("next_earnings_date", "last_earnings_date", "as_of_date"),
+        date_columns=("next_earnings_date", "last_earnings_date", "report_date", "as_of_date", "updated_at"),
     ),
     "analyst_estimates": LocalDatasetSchema(
         dataset_name="analyst_estimates",
         required_columns=("ticker",),
         optional_columns=(
+            "period",
+            "eps_estimate",
+            "revenue_estimate",
             "current_quarter_eps",
             "next_quarter_eps",
             "current_year_eps",
@@ -118,15 +127,22 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
             "next_quarter_revenue",
             "current_year_revenue",
             "next_year_revenue",
+            "price_target_mean",
+            "price_target_high",
+            "price_target_low",
             "target_mean_price",
             "target_high_price",
             "target_low_price",
+            "rating_consensus",
             "recommendation",
             "revision_trend",
             "source",
             "as_of_date",
+            "updated_at",
         ),
         numeric_columns=(
+            "eps_estimate",
+            "revenue_estimate",
             "current_quarter_eps",
             "next_quarter_eps",
             "current_year_eps",
@@ -135,11 +151,14 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
             "next_quarter_revenue",
             "current_year_revenue",
             "next_year_revenue",
+            "price_target_mean",
+            "price_target_high",
+            "price_target_low",
             "target_mean_price",
             "target_high_price",
             "target_low_price",
         ),
-        date_columns=("as_of_date",),
+        date_columns=("as_of_date", "updated_at"),
     ),
     "peers": LocalDatasetSchema(
         dataset_name="peers",
@@ -225,8 +244,17 @@ ALIASED_DATASET_COLUMNS: dict[str, dict[str, str]] = {
 }
 
 
+def _freshness_label(latest_timestamp: str | None) -> str:
+    if not latest_timestamp:
+        return "local CSV file"
+    parsed = pd.to_datetime(latest_timestamp, errors="coerce")
+    if not pd.isna(parsed):
+        return f"local CSV through {parsed.date().isoformat()}"
+    return f"local CSV through {latest_timestamp}"
+
+
 def _freshness_source(path: Path, latest_timestamp: str | None, notes: list[str]) -> dict[str, Any]:
-    freshness = f"local CSV through {latest_timestamp}" if latest_timestamp else "local CSV file"
+    freshness = _freshness_label(latest_timestamp)
     return make_source_metadata(
         provider=f"local:{path.name}",
         freshness=freshness,
@@ -321,7 +349,7 @@ def validate_local_dataset(dataset_name: str, file_path: Path | None) -> tuple[L
             available_optional_columns=available_optional,
             unknown_columns=unknown_columns,
             warnings=warnings,
-            source=_freshness_source(file_path, latest_timestamp, ["Local CSV-backed research data."]),
+            source=_freshness_source(file_path, latest_timestamp, ["Saved local research data."]),
             date_columns=[column for column in schema.date_columns if column in frame.columns],
             ticker_columns=[column for column in schema.ticker_columns if column in frame.columns],
             latest_data_timestamp=latest_timestamp,
@@ -348,7 +376,7 @@ def validate_local_dataset(dataset_name: str, file_path: Path | None) -> tuple[L
         available_optional_columns=[],
         unknown_columns=[],
         warnings=warnings,
-        source=_freshness_source(file_path, latest_timestamp, ["Local CSV-backed research data."]),
+        source=_freshness_source(file_path, latest_timestamp, ["Saved local research data."]),
         date_columns=date_columns,
         ticker_columns=ticker_columns,
         latest_data_timestamp=latest_timestamp,

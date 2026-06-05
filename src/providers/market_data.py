@@ -179,7 +179,7 @@ class MarketDataProvider(ABC):
     def getOptionsChain(self, ticker: str, expiry: str) -> OptionsChainSummary:
         return self.get_options_chain(ticker, expiry)
 
-    # Optional local-data helpers used by the stock-report beta workflow.
+    # Optional local-data helpers used by the single-stock report workflow.
     def get_local_data_validation(self) -> list[dict[str, Any]]:
         return []
 

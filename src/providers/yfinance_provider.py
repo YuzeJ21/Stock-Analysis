@@ -20,7 +20,7 @@ class YFinanceProvider(MarketDataProvider):
     """Research-grade Yahoo/yfinance adapter.
 
     This provider is optional and should be used through the MarketDataProvider
-    interface only. It is intentionally not part of the core screener pipeline.
+    interface only. It is intentionally not part of the core command-center pipeline.
     """
 
     def __init__(self) -> None:

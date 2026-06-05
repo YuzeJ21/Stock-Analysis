@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -30,13 +31,17 @@ ACTION_QUEUE_COLUMNS = [
     "source_file",
     "source_artifact",
     "reason",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 PROBLEM_PRICE_STATUSES = {"parse_error", "source_unavailable", "network_error", "no_rows", "failed"}
 STALE_PRICE_RECOMMENDED_ACTIONS = {
-    "use staged manual prices.",
-    "retry later or use staged manual prices in data/imports/prices.csv.",
-    "use staged manual prices in data/imports/prices.csv.",
+    "use the manual price import draft workflow.",
+    "retry later or use the manual price import draft workflow in data/imports/prices.csv.",
+    "use the manual price import draft workflow in data/imports/prices.csv.",
 }
 STALE_ONBOARDING_REASONS = {
     "prices",
@@ -47,9 +52,31 @@ STALE_ONBOARDING_REASONS = {
     "peer mapping",
     "peer fundamentals or peer price/market-cap context",
 }
+
+
+def _command_safety_fields(example_command: object) -> dict[str, object]:
+    command = str(example_command or "").strip().lower()
+    if not command.startswith("make sec-stage"):
+        return {
+            "credential_required": "",
+            "credential_present": "",
+            "manual_fallback_command": "",
+            "command_safety_note": "",
+        }
+    credential_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
+    return {
+        "credential_required": "SEC_USER_AGENT",
+        "credential_present": credential_present,
+        "manual_fallback_command": "make templates",
+        "command_safety_note": (
+            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
+            "make imports-preview, and make imports-apply."
+        ),
+    }
 STALE_DATA_GAP_ACTIONS = {
     "fundamentals": {
-        "run sec staging for fundamentals, then validate, preview, and apply the staged import.",
+        "run sec import draft workflow for fundamentals, then validate, preview, and apply the import draft.",
     },
     "peers": {
         "add data/imports/peers.csv manually with real peer mappings, then validate and apply imports.",
@@ -108,7 +135,7 @@ class ActionQueueItem:
     reason: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {**asdict(self), **_command_safety_fields(self.example_command)}
 
 
 def _load_csv(path: Path) -> pd.DataFrame:
@@ -336,8 +363,10 @@ def _fundamentals_focus_recommended_action(ticker: str) -> str:
     if not ticker:
         return "Run make status, then follow the printed fundamentals focus or runbook path."
     return (
-        f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
-        f"make sec-stage TICKERS={ticker}."
+        f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
+        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
+        "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+        "and make imports-apply."
     )
 
 
@@ -351,7 +380,7 @@ def _peer_focus_recommended_action(ticker: str, *, missing_mapping: bool) -> str
             "with transparent peer mappings."
         )
     return (
-        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the staged local import "
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the local import draft workflow "
         "workflows so peer-relative valuation can calculate transparently."
     )
 
@@ -560,9 +589,9 @@ def _global_gap_title(dataset: str, focus_command: str, ticker: str) -> str:
         return f"Resolve {dataset} gap for {ticker}".strip()
     normalized_focus = str(focus_command or "").strip().lower()
     if dataset == "fundamentals" and normalized_focus == "make imports-validate":
-        return "Advance staged fundamentals import"
+        return "Review fundamentals import draft"
     if dataset == "peers" and normalized_focus == "make imports-validate":
-        return "Advance staged peer import"
+        return "Review peer import draft"
     return f"Resolve {dataset} gap".strip()
 
 
@@ -899,6 +928,11 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
         print(f"- P{row['priority']} {row['action_type']}{ticker}: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
+        if row.get("credential_required"):
+            present = "present" if bool(row.get("credential_present")) else "missing"
+            print(f"  credential: {row['credential_required']} ({present})")
+        if row.get("manual_fallback_command"):
+            print(f"  fallback: {row['manual_fallback_command']}")
 
 
 def _filter_action_queue_payload(payload: dict[str, Any], tickers: list[str] | None) -> dict[str, Any]:

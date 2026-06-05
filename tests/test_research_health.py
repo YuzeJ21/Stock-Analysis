@@ -8,6 +8,7 @@ import pandas as pd
 from src.research_health import (
     _filter_research_health_outputs,
     _filter_research_health_warnings,
+    _printable_warnings,
     build_correlation_risk,
     build_data_quality_wizard,
     build_liquidity_risk,
@@ -147,7 +148,7 @@ def test_data_quality_wizard_normalizes_stale_peer_example_commands():
             "usable_for_momentum": True,
             "usable_for_monthly_picks": True,
             "next_best_action": (
-                "Run make focus-peers TICKER=AMD, then add peer fundamentals/prices through the staged local import "
+                "Run make focus-peers TICKER=AMD, then add peer fundamentals/prices through the local import draft workflow "
                 "workflows so peer-relative valuation can calculate transparently."
             ),
             "focus_command": "make focus-peers TICKER=AMD",
@@ -300,7 +301,7 @@ def test_data_quality_wizard_normalizes_stale_enrichment_actions():
             "has_analyst_estimates": False,
             "usable_for_momentum": True,
             "usable_for_monthly_picks": True,
-            "next_best_action": "Run SEC staging for fundamentals: make sec-stage TICKERS=NVDA",
+            "next_best_action": "Run SEC import draft workflow for fundamentals: make sec-stage TICKERS=NVDA",
         },
         {
             "ticker": "AMD",
@@ -334,6 +335,37 @@ def test_data_quality_wizard_normalizes_stale_enrichment_actions():
     assert amd["ExampleCommand"] == "make templates"
 
 
+def test_data_quality_wizard_routes_etfs_away_from_company_dcf():
+    coverage = [
+        {
+            "ticker": "QQQ",
+            "asset_type": "etf",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": "QQQ is etf; skip company DCF and use market/risk monitoring instead.",
+        },
+    ]
+
+    frame = build_data_quality_wizard(coverage)
+    qqq = frame.loc[frame["Ticker"] == "QQQ"].iloc[0]
+
+    assert qqq["ReadinessStatus"] == "Partial Coverage"
+    assert "company DCF excluded for etf" in qqq["MissingDataFields"]
+    assert "fundamentals" not in qqq["MissingDataFields"]
+    assert qqq["FocusCommand"] == "make focus-peers TICKER=QQQ"
+    assert qqq["ExampleCommand"] == "make templates"
+    assert "make focus-peers TICKER=QQQ" in qqq["NextBestAction"]
+    assert "make sec-stage" not in qqq["NextBestAction"]
+
+
 def test_data_quality_wizard_preserves_staged_fundamentals_follow_through():
     coverage = [
         {
@@ -348,7 +380,7 @@ def test_data_quality_wizard_preserves_staged_fundamentals_follow_through():
             "has_analyst_estimates": False,
             "usable_for_momentum": True,
             "usable_for_monthly_picks": True,
-            "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+            "missing_required_for_dcf": "fundamentals import drafts still need validate/preview/apply",
             "next_best_action": (
                 "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
                 "to confirm the live local fundamentals and DCF inputs."
@@ -395,7 +427,8 @@ def test_correlation_risk_reports_high_comovement_and_insufficient_overlap():
     assert nvda["MostCorrelatedTicker"] == "MSFT"
     assert nvda["OverlapDays"] >= 20
     assert missing["CorrelationStatus"] == "Insufficient Data"
-    assert "not a trade instruction" in nvda["Reason"]
+    assert "concentration context only" in nvda["Reason"]
+    assert "trade instruction" not in nvda["Reason"].lower()
 
 
 def test_research_health_run_writes_csv_outputs(tmp_path: Path):
@@ -498,3 +531,22 @@ def test_research_health_cli_check_uses_read_only_summary_wording(tmp_path: Path
 
     assert "research health summary:" in output
     assert "generated research health outputs:" not in output
+    assert "read-only research health snapshot." in output
+    assert "warnings point to copyable local research commands" in output
+    assert "local folders:" in output
+    assert "data: data" in output
+    assert "outputs: outputs" in output
+    assert str(tmp_path).lower() not in output
+
+
+def test_research_health_warnings_recommend_worklist_or_dry_run_before_refresh():
+    printable = _printable_warnings(
+        ["Missing OHLCV data for APLD", "Missing OHLCV data for APLM"],
+        max_warnings=5,
+    )
+
+    rendered = "\n".join(printable)
+    assert "2 tickers are missing OHLCV coverage" in rendered
+    assert "make price-worklist TOP_N=25" in rendered
+    assert "make price-refresh-loop DRY_RUN=1" in rendered
+    assert "make price-refresh TOP_N=25" not in rendered

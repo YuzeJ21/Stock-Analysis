@@ -8,11 +8,11 @@ def resolve_final_state(setup_status: str, review_state: str | None, conflict_fl
         return "Broken"
     if review_state == "Risk Reduce":
         return "Risk Reduce"
-    if setup_status == "Extended / No Chase":
-        return "Extended / No Chase"
+    if setup_status == "Extended":
+        return "Extended"
     if review_state == "Review Thesis" or (is_holding and conflict_flag):
         return "Review Thesis"
-    if setup_status in {"Buyable Area", "Pullback Add Candidate", "Setup Forming", "Watch"}:
+    if setup_status in {"Research Ready", "Pullback Review Candidate", "Setup Forming", "Watch"}:
         return setup_status
     return "Ignore" if not is_holding else "Review Thesis"
 
@@ -22,11 +22,11 @@ def _empty_with_columns(columns: list[str]) -> pd.DataFrame:
 
 
 STATE_BASE_SCORES = {
-    "Buyable Area": 85.0,
-    "Pullback Add Candidate": 80.0,
+    "Research Ready": 85.0,
+    "Pullback Review Candidate": 80.0,
     "Watch": 72.0,
     "Setup Forming": 68.0,
-    "Extended / No Chase": 60.0,
+    "Extended": 60.0,
     "Review Thesis": 45.0,
     "Risk Reduce": 30.0,
     "Broken": 10.0,
@@ -69,11 +69,17 @@ def _score_watchlist_row(row: pd.Series) -> tuple[float | None, str]:
             f"Adjusted {relative_adjustment:+.1f} points from relative opportunity score {float(relative_opportunity):.2f}."
         )
 
-    if row.get("SetupStatus") == "Avoid":
+    if row.get("SetupStatus") == "No Setup":
         score -= 8.0
-        reasons.append("Subtracted 8 points because the current setup is `Avoid`.")
+        reasons.append("Subtracted 8 points because the current setup is `No Setup`.")
 
     score = round(max(0.0, min(100.0, score)), 2)
+    if str(row.get("ValuationStatus", "") or "").strip().lower() == "not_ready":
+        score = min(score, 50.0)
+        reasons.append(
+            "Capped score at 50 because valuation readiness is `not_ready`; "
+            "treat as data-limited review until missing data is resolved."
+        )
     return score, " ".join(reasons)
 
 
@@ -95,6 +101,7 @@ def build_final_watchlist(
                 "SetupStatus",
                 "ReviewState",
                 "FinalState",
+                "ValuationStatus",
                 "FinalValueCategory",
                 "PeerRelativeStatus",
                 "RelativeOpportunityScore",
@@ -109,6 +116,7 @@ def build_final_watchlist(
     portfolio_cols = ["Ticker", "ReviewState", "Reason"]
     value_cols = [
         "Ticker",
+        "ValuationStatus",
         "FinalValueCategory",
         "PeerRelativeStatus",
         "RelativeOpportunityScore",
@@ -145,7 +153,7 @@ def build_final_watchlist(
 
     merged["FinalState"] = merged.apply(
         lambda row: resolve_final_state(
-            setup_status=row.get("SetupStatus", "Avoid"),
+            setup_status=row.get("SetupStatus", "No Setup"),
             review_state=row.get("ReviewState"),
             conflict_flag=bool(row.get("ConflictFlag")),
             is_holding=bool(row.get("IsHolding")),
@@ -164,7 +172,9 @@ def build_final_watchlist(
     score_and_reason = merged.apply(_score_watchlist_row, axis=1)
     merged["WatchlistScore"] = score_and_reason.apply(lambda item: item[0])
     merged["RankReason"] = score_and_reason.apply(lambda item: item[1])
-    rank_mask = merged["WatchlistScore"].notna()
+    rank_mask = merged["WatchlistScore"].notna() & (
+        merged.get("ValuationStatus", pd.Series(index=merged.index, dtype=object)).fillna("").astype(str).str.lower() != "not_ready"
+    )
     merged["WatchlistRank"] = pd.NA
     if rank_mask.any():
         merged.loc[rank_mask, "WatchlistRank"] = (
@@ -188,6 +198,7 @@ def build_final_watchlist(
             "SetupStatus",
             "ReviewState",
             "FinalState",
+            "ValuationStatus",
             "FinalValueCategory",
             "PeerRelativeStatus",
             "RelativeOpportunityScore",

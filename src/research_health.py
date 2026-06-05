@@ -9,8 +9,11 @@ from typing import Any
 import pandas as pd
 
 from src.data_onboarding import build_ticker_coverage, focus_command_for_ticker
+from src.dcf_readiness import build_dcf_readiness_report
 from src.loader import load_inputs
-from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.optional_context_readiness import build_optional_context_readiness_reports
+from src.readiness_engine import build_ticker_readiness_report
+from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.csv_provider import CSVDataFetcher
 
 
@@ -32,6 +35,46 @@ DATA_QUALITY_COLUMNS = [
     "Reason",
 ]
 
+MISSING_OHLCV_PREFIX = "Missing OHLCV data for "
+
+
+def _printable_warnings(warnings: list[str], *, max_warnings: int) -> list[str]:
+    missing_ohlcv_tickers = sorted(
+        warning.removeprefix(MISSING_OHLCV_PREFIX)
+        for warning in warnings
+        if warning.startswith(MISSING_OHLCV_PREFIX)
+    )
+    other_warnings = [warning for warning in warnings if not warning.startswith(MISSING_OHLCV_PREFIX)]
+    printable = other_warnings[:max_warnings]
+    if missing_ohlcv_tickers:
+        sample = ", ".join(missing_ohlcv_tickers[:10])
+        printable.append(
+            f"{len(missing_ohlcv_tickers)} tickers are missing OHLCV coverage"
+            + (f" (sample: {sample})" if sample else "")
+            + "; start with make price-worklist TOP_N=25 or make price-refresh-loop DRY_RUN=1 before any capped refresh."
+        )
+    suppressed = max(len(warnings) - len(printable), 0)
+    if suppressed:
+        printable.append(f"{suppressed} additional warnings suppressed; inspect generated health CSVs for details.")
+    return printable
+
+
+def _relative_to_root(path: object, root: Path) -> str:
+    candidate = Path(str(path))
+    try:
+        return candidate.relative_to(root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _format_operator_path_context(root: Path, data_path: Path, output_path: Path) -> str:
+    return (
+        "Local folders:\n"
+        "- project: current repository root\n"
+        f"- data: {_relative_to_root(data_path, root)}\n"
+        f"- outputs: {_relative_to_root(output_path, root)}"
+    )
+
 
 def _price_next_best_action(ticker: str) -> str:
     return (
@@ -42,8 +85,10 @@ def _price_next_best_action(ticker: str) -> str:
 
 def _fundamentals_next_best_action(ticker: str) -> str:
     return (
-        f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
-        f"make sec-stage TICKERS={ticker}."
+        f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
+        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
+        "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+        "and make imports-apply."
     )
 
 
@@ -61,7 +106,7 @@ def _peer_next_best_action(ticker: str, *, missing_mapping: bool) -> str:
             "with transparent peer mappings."
         )
     return (
-        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the staged local import "
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the local import draft workflow "
         "workflows so peer-relative valuation can calculate transparently."
     )
 
@@ -204,6 +249,13 @@ def _missing_join(items: list[str]) -> str:
     return ", ".join(dict.fromkeys(item for item in items if item))
 
 
+DCF_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
+
+
+def _dcf_excluded_asset(asset_type: object) -> bool:
+    return str(asset_type or "").strip().lower() in DCF_EXCLUDED_ASSET_TYPES
+
+
 def _normalize_prices(prices: pd.DataFrame) -> pd.DataFrame:
     if prices.empty:
         return pd.DataFrame(columns=["date", "ticker", "close", "volume"])
@@ -283,13 +335,15 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
         peer_ready = _bool_value(row.get("peer_ready"))
         has_earnings = _bool_value(row.get("has_earnings"))
         has_estimates = _bool_value(row.get("has_analyst_estimates"))
+        asset_type = str(row.get("asset_type", "") or "").strip().lower()
+        dcf_excluded = _dcf_excluded_asset(asset_type)
 
         score = 0
         score += 20 if has_prices else 0
         score += 15 if history_days >= 21 else 5 if history_days > 0 else 0
         score += 10 if history_days >= 63 else 0
         score += 15 if has_fundamentals else 0
-        score += 15 if dcf_ready else 0
+        score += 15 if dcf_ready or dcf_excluded else 0
         score += 10 if has_peer_mapping else 0
         score += 10 if peer_ready else 0
         score += 3 if has_earnings else 0
@@ -301,9 +355,11 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
             missing_fields.append("prices")
         if has_prices and history_days < 21:
             missing_fields.append("at least 21 price rows")
-        if not has_fundamentals:
+        if dcf_excluded:
+            missing_fields.append(f"company DCF excluded for {asset_type}")
+        elif not has_fundamentals:
             missing_fields.append("fundamentals")
-        if has_fundamentals and not dcf_ready:
+        if has_fundamentals and not dcf_ready and not dcf_excluded:
             missing_fields.append("DCF inputs")
         if not has_peer_mapping:
             missing_fields.append("peer mapping")
@@ -329,7 +385,7 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
         if not momentum_ready:
             focus_command = focus_command_for_ticker("prices", ticker)
             example_command = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
-        elif not dcf_ready:
+        elif not dcf_ready and not dcf_excluded:
             focus_command = str(row.get("focus_command", "") or "").strip() or focus_command_for_ticker("fundamentals", ticker)
             example_command = _normalized_fundamentals_example_command(
                 focus_command,
@@ -361,7 +417,7 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
         next_best_action = str(row.get("next_best_action", "") or "").strip()
         if not momentum_ready:
             next_best_action = _normalized_price_next_best_action(ticker, next_best_action)
-        elif not dcf_ready:
+        elif not dcf_ready and not dcf_excluded:
             next_best_action = _normalized_fundamentals_next_best_action(ticker, focus_command, next_best_action)
         elif not peer_ready:
             next_best_action = _normalized_peer_next_best_action(
@@ -551,7 +607,7 @@ def build_correlation_risk(
             missing = ""
             reason = (
                 f"{ticker} is most correlated with {best_peer} at {best_corr:.2f} over {best_overlap} overlapping "
-                "local return days. This is concentration context, not a trade instruction."
+                "local return days. This is concentration context only, not an allocation instruction."
             )
 
         rows.append(
@@ -638,6 +694,9 @@ def run(
         output_path.mkdir(parents=True, exist_ok=True)
         for name, frame in outputs.items():
             frame.to_csv(files[name], index=False)
+        build_dcf_readiness_report(root, data_dir=data_path)
+        build_optional_context_readiness_reports(root, data_dir=data_path)
+        build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path)
     return {
         "files": files,
         "row_counts": {name: len(frame) for name, frame in outputs.items()},
@@ -681,22 +740,21 @@ def main() -> None:
     if args.json:
         print(json.dumps(_json_ready(result), indent=2))
         return
-    print(
-        format_path_context(
-            project_root=Path(args.project_root) if args.project_root else None,
-            data_dir=Path(args.data_dir) if args.data_dir else None,
-            output_dir=Path(args.output_dir) if args.output_dir else None,
-        )
-    )
+    root = resolve_project_root(Path(args.project_root) if args.project_root else None)
+    data_path = resolve_data_dir(Path(args.data_dir) if args.data_dir else None, root)
+    output_path = resolve_outputs_dir(Path(args.output_dir) if args.output_dir else None, root)
+    print(_format_operator_path_context(root, data_path, output_path))
+    print("Read-only research health snapshot.")
+    print("Warnings point to copyable local research commands; this view does not refresh or import data.")
     print("Generated research health outputs:" if args.write_output else "Research health summary:")
     for name, path in result["files"].items():
-        print(f"- {name}: {path}")
+        print(f"- {name}: {_relative_to_root(path, root)}")
     print("Row counts:")
     for name, count in result["row_counts"].items():
         print(f"- {name}: {count}")
     if result["warnings"]:
         print("Warnings:")
-        for warning in result["warnings"][: max(args.top_n, 0)]:
+        for warning in _printable_warnings(result["warnings"], max_warnings=max(args.top_n, 0)):
             print(f"- {warning}")
 
 

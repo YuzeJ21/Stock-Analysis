@@ -1,1615 +1,175 @@
-# Stock Research Screener
+# Stock Research Command Center
 
-This project is a local Python stock research screener for watchlist generation, portfolio review, risk discipline, and optional value / re-rating review.
+A local, CSV-first research dashboard for screening stocks, reviewing portfolio names, and seeing exactly which data is ready to support analysis.
 
-It is research-only software:
+> Data readiness first, analysis second, research decision last.
 
-- no auto-trading
-- no broker integration
-- no order routing
-- no direct buy/sell advice
-- no fabricated prices or fundamentals
+![Dashboard preview](docs/assets/dashboard-preview.svg)
 
-## Active implementation
+## What It Does
 
-The supported implementation lives in `src/`.
+This project turns a broad stock universe into a research workflow:
 
-- Use `make pipeline` to generate the core local outputs.
-- Use `make dashboard` to run the dashboard.
-- The root `run.py` and `dashboard.py` files are compatibility wrappers that forward to the active `src` implementation.
+- Checks market data readiness before showing analysis.
+- Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
+- Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
+- Generates transparent CSV outputs for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
+- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source/freshness notes, and copyable local unlock commands.
 
-The `stock_analysis/` directory is a documented legacy scaffold kept for reference only. It is not the active pipeline.
+## Why It Matters
 
-## Project layout
+Many stock tools jump straight to rankings. This command center treats missing data as a first-class signal: if a ticker is not ready for a specific analysis, it says why and shows the next local data-unlock step. That makes the output more trustworthy, not weaker.
 
-- `config.yaml`: thresholds, benchmark settings, and allowed state labels
-- `data/universe.csv`: screening universe, default purposes, theme metadata, and sector ETFs
-- `data/custom_universe.csv`: optional manual tickers for larger universe builds
-- `data/holdings.csv`: portfolio holdings, declared purposes, sizing, and thesis metadata
-- `data/theme_map.csv`: theme-to-ETF mapping used by Market Direction
-- `data/prices.csv`: local OHLCV source used by the default CSV provider
-- `data/fundamentals.csv`: optional fundamentals for the value / re-rating engine
-- `src/providers/local_data_catalog.py`: detects which local CSV datasets actually exist and what columns/tickers they cover
-- `src/providers/csv_provider.py`: active local CSV data provider
-- `outputs/`: generated research outputs
-- `tests/`: regression and output-contract coverage for the active pipeline
+## What You Can Analyze
 
-## Setup
+When trusted local data is available, the command center can produce:
 
-1. Create and activate a Python 3.10+ virtual environment.
-2. Install dependencies:
+- Price, momentum, liquidity, and market-direction context.
+- Portfolio purpose checks and thesis-review flags.
+- DCF readiness and conservative scenario valuation.
+- Peer-context readiness without pretending missing peer valuation exists.
+- ETF/index monitor reports where operating-company DCF is excluded.
+- Single-stock reports with At A Glance status, methodology, risks, blockers, copyable local unlock commands, and source/freshness notes.
+
+Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
+
+## How Analysis Works
+
+The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed.
+
+- Readiness gates check whether prices, fundamentals, peers, earnings, and estimates are complete enough.
+- Project calculations run only after the needed inputs are ready.
+- Blocked or excluded sections stay visible with the exact missing input and next local step.
+
+## Current Snapshot
+
+The local sample currently tracks a broad universe of 3,538 tickers, with a smaller subset ready for each analysis feature. Exact ready counts can change after local refresh/import work, so use `make status-check TOP_N=5` or the dashboard Home page for the current snapshot.
+
+## What Works Today
+
+This is a working local research prototype with deterministic CSV outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
+
+Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker workflow, or auto-refreshing trading system.
+
+## Preview
+
+The dashboard is designed as an operator console: `Home` shows readiness, blockers, methodology, examples, and next commands; focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+
+## Quick Start
+
+Run these from the repository root so `make` can find the project targets:
 
 ```bash
-pip install -e .[dev]
-```
-
-If you want the optional research-grade yfinance-backed stock report workflow, install:
-
-```bash
-pip install -e .[dev,research]
-```
-
-### Command location and path safety
-
-The safest workflow is to run commands from the repository root:
-
-```bash
-cd "/Users/yjian070/Documents/New project"
-```
-
-Most project CLIs now print the resolved project root, data directory, and outputs directory before doing file work. By default, they resolve paths from this repository root rather than from whatever shell directory you happen to be in. If you intentionally want to run against a fixture or alternate local dataset, pass explicit paths:
-
-```bash
-make validate-data
+pip install -e '.[dev]'
 make pipeline
-make monthly
+make readiness
+make demo
+make stock-report-md TICKER=NVDA
+make public-check
+make dashboard-smoke
+make dashboard
 ```
 
-If you intentionally want lower-level CLI control against a fixture or alternate local dataset, the raw module commands remain available:
+## Visitor-Friendly Commands
 
-```bash
-python3 -m src.stock_report --project-root "/Users/yjian070/Documents/New project" --validate-local-data
-python3 -m src.stock_report --data-dir data --output-dir outputs --ticker NVDA --provider local
-python3 -m src.report_generator --data-dir data --output-dir outputs
-python3 -m src.monthly_picks --generate --data-dir data --output-dir outputs
-```
-
-For tests, prefer the bounded command below so pytest never scans your home directory by accident:
-
-```bash
-python3 -m pytest tests -q
-```
-
-## Convenience commands
-
-The repo includes a `Makefile` and shell launchers so you do not need to remember every path-sensitive command.
-
-Common commands:
+Use these from the repository root:
 
 ```bash
 make help
-make status
-make focus-price TICKER=AMD
-make focus-fundamentals TICKER=NVDA
-make focus-peers TICKER=NVDA
-make runbook-prices-broader
-make test
-make verify
-make validate-all
+make status-check TOP_N=5
 make pipeline
-make monthly
-make track-record
-make validate-data
-make research-health
-make action-queue
-make coverage
-make templates
-make price-status
-make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual
-make price-validate
-make price-preview
-make price-apply
-make dashboard-smoke
+make readiness
+make project-status
+make research-health-check TOP_N=10
+make stock-report-md TICKER=NVDA
+make public-check
 make dashboard
-make daily
 ```
 
-SEC and universe helpers:
+## Try This Demo Path
 
 ```bash
-export SEC_USER_AGENT="Your Name your.email@example.com"
-make sec-stage
-make sec-stage TICKERS=NVDA,MSFT
-make imports-validate
-make imports-preview
-make imports-apply
-make universe-preview
-make universe-apply
+make demo                       # prints the clean visitor path
+make stock-report-md TICKER=NVDA # company report with DCF assumptions
+make stock-report-md TICKER=A    # standalone DCF report with peer workflow still locked
+make stock-report-md TICKER=META # price/setup report with valuation still gated
+make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded
+make stock-report-md TICKER=SMH  # sector ETF monitor report
+make stock-report-md TICKER=APLD # partial-data blocker report
+make dashboard
 ```
 
-If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make status` first when you want the read-only local project snapshot plus a refresh of the supporting operator artifacts, or `make status-check` when you only want the current summary without that refresh step. Both status paths accept `TOP_N=...` if you want a shorter terminal snapshot. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make dashboard-smoke` before deeper dashboard review. Use `make validate-all` for the extended local validation launcher, including monthly picks, track record, data-source checks, and a dashboard smoke check.
+Example map:
 
-Path-proof shell launchers:
-
-```bash
-scripts/daily.sh
-scripts/dashboard.sh
-scripts/smoke_dashboard.sh
-scripts/validate_all.sh
-```
-
-## Run the pipeline
-
-Generate all active outputs:
-
-```bash
-make pipeline
-```
-
-The active pipeline now owns all generated CSVs:
-
-- `outputs/purpose_classification.csv`
-- `outputs/market_direction.csv`
-- `outputs/momentum_leaders.csv`
-- `outputs/portfolio_review.csv`
-- `outputs/undervalued_candidates.csv`
-- `outputs/final_watchlist.csv`
-
-## Agent workflow layer
-
-This repo also includes a Codex/agent workflow layer under:
-
-- `.agents/skills/stock-analysis-core/`
-
-It adapts selected market-analysis concepts from `himself65/finance-skills` for this project:
-
-- `yfinance-data`
-- `company-valuation`
-- `earnings-preview`
-- `earnings-recap`
-- `estimate-analysis`
-
-These are integrated as reusable research workflows only. They are not broker automations, trade execution systems, or production market-data guarantees.
-
-### External skill notes
-
-This project also reviews selected ideas from:
-
-- `himself65/finance-skills`
-- `himself65/trade-skills`
-
-Usage boundaries:
-
-- finance-skills concepts are used only as research workflow inspiration
-- trade-skills concepts are used only as options risk education
-- no trade recommendations are generated
-- no order execution or broker integration is implemented
-- any future options-payoff tooling must stay educational only and require user-supplied legs or clearly labeled examples
-
-Additional open-source product references are documented in:
-
-- `.agents/skills/stock-analysis-core/references/open-source-product-map.md`
-
-QuantGT is used only as product inspiration for a simple monthly research-candidate experience, benchmark comparison, archive, and methodology layout. This project does not copy QuantGT branding, text, pricing, proprietary strategy, or performance claims.
-
-## Optional stock report workflow
-
-The project now includes a typed stock-report assembly layer for research workflows.
-
-- provider interface: `src/providers/market_data.py`
-- mock provider for tests: `src/providers/mock_market_data.py`
-- optional yfinance adapter: `src/providers/yfinance_provider.py`
-- report assembly: `src/stock_report.py`
-- valuation engine: `src/valuation.py`
-
-Important:
-
-- yfinance-backed data should be treated as unofficial / research-grade
-- the core screener still runs on the local CSV-first pipeline
-- all new market/fundamental calls stay behind provider interfaces
-- valuation is informational only and not financial advice
-- local earnings and analyst-estimate coverage is intentionally limited unless a richer data source is added
-
-### Local CSV-first architecture
-
-The stock-report beta uses local files first.
-
-- required for local stock reports: `data/prices.csv`
-- optional for richer local stock reports: `data/fundamentals.csv`
-- optional if you add them later: `data/earnings.csv`, `data/earnings_calendar.csv`, `data/earnings_history.csv`
-- optional if you add them later: `data/analyst_estimates.csv` or `data/estimates.csv`
-- optional if you add them later: `data/peers.csv`
-- existing screener outputs under `outputs/*.csv` can also be surfaced as local context when they exist for a ticker
-
-The local CSV path is now schema-driven and validated before the Stock Report Beta uses it. Missing files or sparse columns do not crash the workflow. The report continues with explicit missing-data warnings, schema validation notes, and source/freshness metadata.
-
-### Data source availability
-
-Optional files being missing is not automatically a bug. The app is designed to continue with partial coverage and clear warnings instead of inventing unavailable data.
-
-Run a local-only source check:
-
-```bash
-make data-sources-check
-python3 -m src.data_sources --check --json
-make data-sources
-```
-
-Use `make data-sources-check` for the standard read-only operator path and `make data-sources` when you explicitly want to refresh just the source diagnostics without running the broader onboarding workflow. If you want a shorter source and gap summary in the terminal, use `make data-sources-check TOP_N=10`. If you want to inspect only a smaller local ticker slice of the gap list, use `make data-sources-check TICKERS=NVDA,MSFT`. Keep the raw `--json` / `--write-output` CLI forms for machine-readable inspection or lower-level scripting control. The raw read-only CLI path is `python3 -m src.data_sources --check`.
-
-`--write-output` creates:
-
-- `outputs/data_source_status.csv`
-- `outputs/data_gap_report.csv`
-
-The gap report now includes structured next-step fields such as `focus_command` and `example_command`, so missing datasets and ticker-level gaps can point directly to the next local CLI path instead of only prose guidance.
-
-Important source boundaries:
-
-- SEC Companyfacts can stage candidate fundamentals only; it does not provide market prices, analyst estimates, earnings calendars, or peer mappings.
-- Peer mappings are manual/local research. Add them through `data/imports/peers.csv` or `data/peers.csv`; the app never guesses peers.
-- Earnings and analyst-estimate files are optional local CSVs and are not bundled with fabricated values.
-- SMH holdings can be unavailable because the VanEck page may require redirect, cookie, or location handling. Run `make templates`, then fill `data/custom_universe.csv` with verified tickers only if you need the manual fallback.
-- yfinance remains optional, unofficial, and research-grade only. It is never required for the CSV-first pipeline.
-- Short local price history limits track-record, 3M/6M/1Y returns, and long-horizon momentum calculations.
-
-### Data onboarding workflow
-
-Use the onboarding workflow when the dashboard shows sparse coverage or when you want a prioritized checklist for improving the local CSV dataset. It inspects local files only by default and does not fetch, guess, or fabricate unavailable data.
-
-```bash
-make coverage
-make data-wizard
-make command-bundles
-make templates
-```
-
-If you want a narrower targeted coverage pass without leaving the make-based operator path, use:
-
-```bash
-make coverage TICKERS=NVDA,MSFT,AMD,AVGO
-make data-wizard TICKERS=NVDA,MSFT,AMD,AVGO
-```
-
-If you want either read-only onboarding view to stay shorter in the terminal, add `TOP_N=...`, for example:
-
-```bash
-make coverage TOP_N=5
-make data-wizard TICKERS=NVDA,MSFT,AMD,AVGO TOP_N=5
-```
-
-Keep the raw CLI only when you explicitly want the lower-level writer paths outside the broader operator workflow:
-
-```bash
-python3 -m src.data_onboarding --write-output
-python3 -m src.data_onboarding --write-templates
-```
-
-`make coverage` gives the read-only ticker coverage view, `make data-wizard` renders the operator-focused next-step ladder, `make command-bundles` summarizes the current bundle shortcuts, and `make templates` writes the local CSV templates. Use `make onboarding` after you have changed local imports and want to refresh the generated onboarding, coverage, bundle, and action-queue outputs in one pass.
-
-`--write-output` creates:
-
-- `outputs/ticker_data_coverage.csv`
-- `outputs/data_onboarding_actions.csv`
-- `outputs/command_bundles.csv`
-- `outputs/command_bundle_details.csv`
-- `outputs/command_bundle_runbook.csv`
-
-The price onboarding worklist now includes structured next-step targets such as:
-
-- `next_price_goal`
-- `next_target_history_rows`
-- `rows_needed_for_next_goal`
-- `suggested_start_date`
-
-That makes it easier to tell whether a ticker needs enough history for Monthly Picks, track-record coverage, or a fuller 1Y local research view.
-
-`--write-templates` creates header-only local templates under `data/templates/` for:
-
-- `peers.csv`
-- `fundamentals.csv`
-- `earnings.csv`
-- `analyst_estimates.csv`
-- `custom_universe.csv`
-
-Recommended order:
-
-1. Run `make status`.
-2. Follow the first `make focus-*` or bundle/runbook shortcut it prints.
-3. Inspect the dashboard `Data Health` tab for lane-specific blocker detail.
-4. Use staged manual price imports when needed: `make price-normalize`, then `make price-validate`, `make price-preview`, and `make price-apply`.
-5. Use SEC staging for DCF blockers through the printed fundamentals shortcut or runbook.
-6. Manually add peer mappings for important themes in `data/imports/peers.csv`.
-7. Optionally add earnings or analyst-estimate CSVs only from trusted sources.
-8. Rerun `make pipeline`, `make verify`, and `make dashboard`.
-
-Missing optional files are expected in many local workflows. Earnings, analyst estimates, peers, and SMH fallback data should remain blank until you provide verified local data.
-
-### Phase 2B local schema definitions
-
-The local schema validator lives in `src/providers/local_schemas.py`. It defines a small expected contract for optional enrichment files without requiring them to exist.
-
-| Dataset | Required fields | Common optional valuation/report fields |
+| Example | What it demonstrates | What to check |
 | --- | --- | --- |
-| `data/fundamentals.csv` | `ticker` | `theme`, `sector`, `revenue`, `revenue_growth`, `eps`, `free_cash_flow`, `fcf_margin`, `profit_margin`, `operating_margin`, `ebitda`, `cash`, `debt`, `shares_outstanding`, `market_cap`, `pe_ratio`, `source`, `as_of_date` |
-| `data/earnings.csv` / `data/earnings_history.csv` | `ticker` | `next_earnings_date`, `last_earnings_date`, `fiscal_period`, `eps_estimate`, `eps_actual`, `revenue_estimate`, `revenue_actual`, `surprise_pct`, `source`, `as_of_date` |
-| `data/analyst_estimates.csv` / `data/estimates.csv` | `ticker` | `current_quarter_eps`, `next_quarter_eps`, `current_year_eps`, `next_year_eps`, `current_quarter_revenue`, `next_quarter_revenue`, `current_year_revenue`, `next_year_revenue`, `target_mean_price`, `target_high_price`, `target_low_price`, `recommendation`, `revision_trend`, `source`, `as_of_date` |
-| `data/peers.csv` | `ticker`, `peer_ticker` | `peer_group`, `sector`, `industry`, `source`, `as_of_date` |
+| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | At A Glance status, assumptions, sensitivity, peer caveats, source/freshness notes. |
+| [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | DCF assumptions versus the next peer data-unlock step. |
+| [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Supported setup analysis versus valuation blockers and caveats. |
+| [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Operating-company DCF is excluded, not failed. |
+| [APLD](outputs/stock_reports/apld.md) | Blocked-data handling. | No valuation conclusion appears until trusted price rows exist. |
 
-Validation behavior:
+In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then explain methodology and only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.
 
-- missing required columns are reported as `invalid`
-- optional missing files are reported as `missing_file`
-- unknown extra columns are surfaced as warnings, not hard failures
-- numeric/date parse failures are surfaced as warnings, not crashes
-- ticker keys are normalized to uppercase
-- `source` / `as_of_date` are preserved when present, otherwise freshness falls back to file-level metadata
+Dashboard pages also support simple local deep links such as `http://localhost:8501/?page=single-stock-report`.
 
-The bundled `data/fundamentals.csv` remains intentionally sparse today. As of this repo state, its columns are:
+For a deeper local runbook, see [Operator Guide](docs/OPERATOR_GUIDE.md).
 
-- `ticker`
-- `theme`
-- `sector`
-- `pe_ratio`
-- `revenue_growth`
-- `profit_margin`
-- `debt_to_equity`
-
-That means the bundled local path can usually provide partial relative-valuation context, but not a full DCF.
-
-### Phase 2A valuation methodology
-
-The stock report now includes a real valuation engine that stays conservative about missing data.
-
-- DCF is calculated only when the local/provider inputs are sufficient
-- direct FCF projection is used when free cash flow exists
-- revenue-plus-FCF-margin projection is used when revenue and FCF margin exist
-- EPS is never used as a hidden substitute for free cash flow
-- unusually high observed revenue growth is normalized through a deterministic fade path instead of being compounded flat for the full forecast
-- high observed growth and extreme FCF margins can be capped conservatively, with the original observed values preserved in the assumption output
-- WACC must remain above terminal growth
-- per-share fair value is shown only when equity value and shares outstanding are both available
-- when the inputs are incomplete, the valuation result returns `insufficient_data` or partial coverage instead of fabricated outputs
-
-DCF defaults are explicit in code:
-
-- bear: lower growth, lower FCF margin, higher WACC, lower terminal growth
-- base: moderate growth, moderate WACC, moderate terminal growth
-- bull: higher growth, higher FCF margin, lower WACC, higher terminal growth while still below WACC
-- all three scenarios use the same conservative growth-normalization framework rather than blindly extrapolating a single high-growth year
-
-Assumption transparency:
-
-- DCF output includes the observed revenue growth, normalized growth target, applied year-by-year growth path, and whether the growth path was capped
-- fair value outputs are assumption-driven and informational only
-- users should review the staged/local assumptions before relying on the valuation output
-
-Sensitivity:
-
-- the dashboard and JSON output include a WACC vs terminal-growth sensitivity table
-- the grid is only produced when the base DCF can actually derive fair value per share
-
-Relative valuation:
-
-- standalone P/E is calculated when price and EPS exist
-- standalone P/S is calculated when price, revenue, and shares exist
-- standalone P/FCF is calculated when price, FCF, and shares exist
-- EV/EBITDA is calculated only when EBITDA, cash, debt, and market-cap context are available
-- peer multiples are not fabricated; if `data/peers.csv` or peer fundamentals are unavailable, the result is labeled accordingly
-- local peer medians can be used when `data/peers.csv` and the matching peer fundamentals are available
-- peer-aware comparisons stay transparent through fields such as `peer_relative_status`, `relative_discount_premium_by_metric`, and `relative_opportunity_score`
-- `peer_relative_status` meanings:
-  - `peer_discount`: the subject screens cheaper than local peer medians across the available comparison metrics
-  - `peer_premium`: the subject screens richer than local peer medians across the available comparison metrics
-  - `mixed`: some metrics screen cheaper while others screen richer
-  - `insufficient_peer_data`: there is not enough peer-relative data to form a comparison
-- peer-relative output is research context only, not a buy/sell/hold recommendation
-
-Missing-data behavior for valuation:
-
-- if local fundamentals only contain sparse fields, DCF returns `insufficient_data`
-- if standalone multiples can be calculated but peer medians cannot, relative valuation returns `peer_data_unavailable`
-- if local earnings or analyst-estimate files are missing, those sections stay explicit about local unavailability
-- the stock report never fabricates prices, fundamentals, earnings, analyst estimates, or peer values
-
-### Local peer mappings
-
-You can add local peer mappings with `data/peers.csv`.
-
-Required columns:
-
-- `ticker`
-- `peer_ticker`
-
-Optional columns:
-
-- `peer_group`
-- `sector`
-- `industry`
-- `source`
-- `as_of_date`
-
-Example:
-
-```csv
-ticker,peer_ticker,peer_group,source,as_of_date
-NVDA,AMD,ai_semis,manual_research,2026-05-11
-NVDA,AVGO,ai_semis,manual_research,2026-05-11
-```
-
-Behavior:
-
-- ticker keys are normalized to uppercase
-- self-peers are ignored with warnings
-- duplicate `ticker + peer_ticker` rows are deduplicated conservatively
-- peer medians only use local peer fundamentals and local prices when the required fields actually exist
-- missing peer metrics are excluded instead of fabricated
-
-### Stock Report Beta in the dashboard
-
-The Streamlit dashboard now includes a `Stock Report (Beta)` section.
-
-- default mode uses the local CSV-backed provider
-- optional yfinance mode is only used if you explicitly enable it
-- yfinance results are labeled unofficial / research-grade
-- the Beta section can export the structured report as JSON
-- the Beta section can show local dataset coverage for the selected ticker
-- the Beta section can show local dataset validation status and schema warnings
-- the Beta section surfaces missing-data warnings instead of guessing unavailable values
-- the Beta section shows valuation status, bull/base/bear scenarios, relative multiples, and sensitivity when available
-
-This section is additive and does not replace the existing CSV-first screener pages.
-
-### JSON / CLI export
-
-Use the repo-native front door to generate a structured local stock report:
+Targeted data-unlock examples:
 
 ```bash
-make stock-report TICKER=NVDA
-```
-
-If you want to write JSON to a file through the same front door:
-
-```bash
-make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
-```
-
-To validate your local CSV datasets and see schema/freshness warnings:
-
-```bash
-make validate-data
-```
-
-If you explicitly want machine-readable validation output:
-
-```bash
-python -m src.stock_report --validate-local-data --json
-```
-
-To scaffold header-only local enrichment templates without fabricating any production data:
-
-```bash
-make templates
-```
-
-For JSON-friendly template creation output:
-
-```bash
-python -m src.stock_report --write-local-data-templates --json
-```
-
-To scaffold header-only staging files directly under `data/imports/`:
-
-```bash
-make import-staging
-```
-
-For a demo/smoke workflow:
-
-To discover locally available tickers first:
-
-```bash
-make local-tickers
-```
-
-If you intentionally want lower-level CLI control for provider selection or direct JSON output, the raw module commands remain available:
-
-```bash
-python -m src.stock_report --ticker AAPL --provider mock
-python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
-```
-
-For the local provider, use a ticker that actually exists in the bundled `data/prices.csv`. The sample project data currently supports names such as `NVDA`, `TSLA`, `SPY`, and `QQQ`.
-
-The exported JSON includes:
-
-- ticker
-- generated timestamp
-- provider name
-- price snapshot and performance windows
-- financial / earnings / analyst-estimate sections when local data exists
-- valuation status, DCF result, bull/base/bear scenarios, sensitivity, and relative valuation context
-- key risks
-- missing-data warnings
-- source / freshness metadata
-- local dataset coverage
-- local schema validation metadata
-- valuation readiness diagnostics showing whether DCF, peer-relative work, earnings, and analyst estimates are actually available
-
-Example peer-aware workflow:
-
-```bash
-make templates
-# fill data/imports/peers.csv or data/peers.csv with real peer mappings
-make imports-validate
-make imports-preview
-make imports-apply
-make onboarding
-make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
-```
-
-## Optional daily price-data update
-
-The project remains CSV-first and works without network access. If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:
-
-```bash
-make price-refresh
-```
-
-This updater:
-
-- uses a free daily source through the project's provider interface
-- supports `STOOQ_API_KEY` when Stooq requires an API key for CSV downloads in your environment
-- merges fetched rows into the local `data/prices.csv`
-- processes larger ticker sets in chunks
-- skips already-fresh tickers unless you pass `--refresh`
-- preserves partial progress instead of failing all-or-nothing when one ticker has issues
-- keeps the existing local CSV fallback if the remote source is unavailable
-- does not change the report pipeline requirement that local CSV data must exist for deterministic runs
-
-Useful flags:
-
-```bash
-make price-refresh
-make price-refresh TICKERS=NVDA,MSFT,AVGO
-STOOQ_API_KEY=your_key_here make price-refresh TICKERS=NVDA,MSFT,AVGO
-python -m src.data_update --universe-file data/universe.csv --max-tickers 100
-python -m src.data_update --chunk-size 25 --refresh
-```
-
-Use `make price-refresh` for the standard operator path. Keep the raw `src.data_update` flags for narrower scripted refresh control when you explicitly want custom universe-file or chunk-size behavior.
-
-### Price data fallback workflow
-
-Remote price refresh can fail because the default source is free, unofficial, and outside this repo's control. In some environments Stooq returns an API-key instruction page instead of CSV rows; set `STOOQ_API_KEY` before running `make price-refresh`, or use the staged manual import path below. The app keeps using local CSV fallback data instead of fabricating prices.
-
-When remote refresh fails, use the staged manual import path:
-
-```bash
-make status
-# Follow the first make focus-price TICKER=... or make runbook-prices-broader path.
-# For downloaded files, normalize them into staged imports first.
-make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual
-make price-validate
-make price-preview
-make price-apply
-make status
-make daily
-make dashboard
-```
-
-Manual staged prices live at `data/imports/prices.csv`.
-
-Required columns:
-
-- `date`
-- `ticker`
-- `open`
-- `high`
-- `low`
-- `close`
-- `volume`
-
-Optional columns:
-
-- `adjusted_close`
-- `source`
-- `as_of_date`
-- `notes`
-
-Validation checks required columns, parseable dates, uppercase tickers, numeric OHLCV fields, duplicate `date + ticker` rows, `high >= low`, and non-missing positive closes. Preview shows new rows, updated rows, skipped rows, duplicates, and affected tickers before anything is written. Apply creates a backup under `data/backups/<timestamp>/` and never deletes existing canonical price rows in this phase.
-
-Price update diagnostics are written to:
-
-- `outputs/price_update_status.csv`
-
-The dashboard `Data Health` tab surfaces this status file and gives the manual fallback commands. Price imports are still research-only local data management; no broker, order routing, or trade-execution integration is added.
-
-Use `make price-status` for the current read-only diagnostics view, `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows, or `make price-status TICKERS=AMD,AVGO` when you want to inspect only a smaller local ticker slice. The raw read-only CLI path is `python3 -m src.data_update --price-status`.
-
-### Normalize manually downloaded price CSVs
-
-If you download historical OHLCV CSVs from a trusted source, place the raw files under:
-
-- `data/raw/prices/`
-
-Raw downloaded files are ignored by git so they do not get committed accidentally. They are treated as user-provided local data and are never applied directly to canonical `data/prices.csv`.
-
-Yahoo-style historical exports are supported when they contain:
-
-- `Date`
-- `Open`
-- `High`
-- `Low`
-- `Close`
-- `Adj Close` or `Adj Close*`
-- `Volume`
-
-Example:
-
-```bash
-make price-worklist
-make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual
-make price-validate
-make price-preview
-make price-apply
-```
-
-`make price-worklist` shows the current ticker-by-ticker local history gap list, including which names are not yet ready for momentum, track record, or longer-horizon research context.
-
-If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:
-
-```bash
-make price-worklist TICKERS=NVDA,MSFT
-```
-
-To keep that price gap list shorter in the terminal, add `TOP_N=...`, for example `make price-worklist TOP_N=5`.
-
-For DCF and peer-relative blockers, use:
-
-```bash
-make fundamentals-peer-worklist
-make sec-stage-queue
-make peer-mapping-queue
-```
-
-If you want to narrow those blocker queues to a specific local ticker slice, use:
-
-```bash
-make fundamentals-peer-worklist TICKERS=NVDA,MSFT
-make sec-stage-queue TICKERS=NVDA,MSFT
-make peer-mapping-queue TICKERS=NVDA,MSFT
-```
-
-Those read-only blocker views also accept `TOP_N=...`, for example `make fundamentals-peer-worklist TOP_N=5` or `make sec-stage-queue TICKERS=NVDA,MSFT TOP_N=5`.
-
-This prints which tickers still need:
-
-- SEC-stageable fundamentals for DCF readiness
-- manual peer mappings in `data/imports/peers.csv`
-- peer fundamentals or peer price / market-cap context for peer-relative valuation
-
-The two focused queues go one step further:
-
-- `make sec-stage-queue` prioritizes which tickers should go through SEC staging first
-- `make peer-mapping-queue` prioritizes which tickers most need manual peer research next
-
-For optional earnings and analyst-estimate context, use:
-
-```bash
-make optional-context-worklist
-```
-
-To focus that optional-context pass on a smaller local ticker slice, use:
-
-```bash
-make optional-context-worklist TICKERS=NVDA,MSFT
-```
-
-You can also keep that optional-context summary shorter with `make optional-context-worklist TOP_N=5`.
-
-This keeps non-blocking enrichment explicit without treating it like a core pipeline failure. The output shows which tickers still have optional local context gaps and points back to `data/imports/earnings.csv` or `data/imports/analyst_estimates.csv` only when you have trusted local data.
-
-Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:
-
-```bash
-make price-normalize INPUT=data/raw/prices/prices.csv SOURCE=generic_manual
-```
-
-If you explicitly need lower-level CLI control for unusual exports, map columns directly:
-
-```bash
-python3 -m src.price_import_normalizer \
-  --input data/raw/prices/custom.csv \
-  --date-col when \
-  --ticker-col symbol \
-  --open-col o \
-  --high-col h \
-  --low-col l \
-  --close-col c \
-  --volume-col v \
-  --adjusted-close-col adj \
-  --source mapped_manual
-```
-
-The normalizer writes/upserts only to `data/imports/prices.csv` using `date + ticker`. It reports rows read, written, skipped, invalid, and deduplicated, then prints the next validation/preview/apply commands. Do not use unverified or fabricated prices.
-
-## Run the dashboard
-
-```bash
-make dashboard
-```
-
-If your shell is not already at the repository root, either `cd` there first or use the lower-level Streamlit command directly:
-
-```bash
-streamlit run "/Users/yjian070/Documents/New project/src/dashboard.py"
-```
-
-The dashboard now uses a wide tabbed layout with a sidebar for display controls.
-
-Tabs:
-
-- Overview
-- Monthly Picks
-- Market Direction
-- Momentum Leaders
-- Portfolio Review
-- Value / Re-rating
-- Final Watchlist
-- Stock Report Beta
-- Data Health
-- Universe Manager
-
-What each tab is for:
-
-- `Overview`: quick metrics for universe size, holdings count, output coverage, missing-data warnings, local fundamentals coverage, DCF-ready count, peer-ready count, research-health readiness, an interpretation guardrail for partial local coverage, a compact coverage-hotspot row for prices/fundamentals/peers/optional context pressure, a side-by-side research unlock pressure strip for prices vs fundamentals vs peers, a small deep-research leverage strip that ranks whether SEC fundamentals work or manual peer research unlocks more local value next, a short deep-research priority shortlist that names the next holdings or universe names to work on first, a compact deep-research handoff strip that pairs that name with the next exact local command and the next review tab, a compact ready-name handoff strip that does the same for the strongest currently usable name, a one-row “current top surfaces” summary for the best ready name, best blocked deep-research name, best next command, and best next tab, a short ready-now vs blocked-now shortlist, a best-current-names bridge into the next research surface, a compact “today’s best local research path” strip that ties together the strongest usable name, the next repo-native command, and the next deeper tab, a holdings-first unlock board for blocked portfolio names, a holdings DCF / peer board for deeper portfolio research blockers, a theme-first unlock board for grouped research priorities, a theme DCF / peer board for deeper grouped research blockers, a compact market-context strip from local benchmark-relative theme output, a benchmark-pressure strip that distinguishes missing-price coverage from broader context, a short best-next-commands strip, a compact best-data-bundles row for holdings-first local command packs, a compact bundle-lanes row that shows the current prices/fundamentals/peers runbook at a glance, a compact bundle-handoff row that pairs the current top bundle with its follow-up command, refresh step, and first ticker to verify, a small workflow-path ribbon, a short “why this step now” explainer, and a simple handoff row pointing to the right deeper tabs
-- `Monthly Picks`: top-five local research candidates, transparent scoring components, a compact next-step layer for generation/coverage/history/review, local track record, and archive views when enough local history exists
-- `Market Direction`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, `Final Watchlist`: filterable research tables with search, status filters, and highlighted explanation/risk fields
-- `Stock Report Beta`: user-triggered structured stock reports with local CSV data first and optional yfinance clearly labeled as unofficial / research-grade, plus a compact next-step layer for prices, fundamentals, peers, and data-gap review
-- `Data Health`: local dataset validation, research-health readiness, liquidity context, correlation concentration context, a ranked action queue, compact action-path summaries for prices/fundamentals/peers, row counts, freshness timestamps, staged import status, and schema warnings
-- `Universe Manager`: current universe size, source membership counts, staged universe import visibility, and CLI guidance for safe preview/write/apply flows
-
-It reads from local files and `outputs/*.csv`, shows friendly messages when files are missing, and surfaces explanation columns such as `Reason`, `MissingDataFields`, and `ConflictReasons` when available.
-
-The dashboard and CLI are research-only surfaces. They do not execute trades, route orders, or connect to brokers.
-
-## Recommended daily workflow
-
-The easiest path is now:
-
-```bash
-make status
-# then run the first focus or bundle shortcut that status prints
-make verify
-make dashboard-smoke
-make dashboard
-```
-
-`make status` is now the refreshed read-only front door. It prints the current top onboarding blockers plus the next structured commands, usually:
-
-- one ticker-level `make focus-* TICKER=...` shortcut
-- one bundle/runbook shortcut like `make runbook-prices` or `make runbook-prices-broader`
-- `make verify`
-- `make dashboard-smoke`
-
-It also refreshes the supporting read-only operator artifacts first, so the terminal snapshot, onboarding/status CSVs, research-health outputs, action queue, and durable project-status files stay in sync after local data changes.
-
-After the blocker work is done, `make dashboard` opens the Streamlit dashboard from the repo root. If you want the broader end-to-end pipeline after the blocker pass, run:
-
-```bash
-make daily
-```
-
-`make daily` runs the local price updater, report generator, monthly picks, track record, local-data validation, and then refreshes the source-status, onboarding, research-health, action-queue, and project-status operator artifacts.
-
-If you want the current project-status summary without first refreshing those supporting artifacts, use:
-
-```bash
-make status-check
-```
-
-To keep either status view shorter in the terminal, add `TOP_N=...`, for example:
-
-```bash
-make status-check TOP_N=2
-```
-
-If you want to inspect only a smaller local ticker slice in the read-only status view, use `make status-check TICKERS=NVDA,MSFT`.
-
-The raw read-only CLI path is `python3 -m src.project_status --check`.
-
-If price history is the main blocker, run:
-
-```bash
-make price-worklist
-```
-
-This prints the exact local price-history shortfall for each ticker and points back to the safe staged-import path:
-
-- `data/raw/prices/`
-- `make price-normalize`
-- `make price-validate`
-- `make price-preview`
-- `make price-apply`
-
-If valuation coverage is the main blocker, run:
-
-```bash
-make fundamentals-peer-worklist
-```
-
-This complements `make price-worklist` by showing which tickers are blocked on:
-
-- missing local fundamentals rows
-- incomplete DCF inputs such as free cash flow or shares outstanding
-- missing peer mappings
-- incomplete peer-relative inputs
-
-If you want a clean list of optional earnings and analyst-estimate gaps, run:
-
-```bash
-make optional-context-worklist
-```
-
-This keeps optional enrichment visible while preserving the rule that missing earnings or estimates should never be fabricated and should not block the core local workflow.
-
-If you prefer the broader repo-native workflow instead of one-off generator commands, use:
-
-```bash
-make status
-make verify
-make dashboard-smoke
-make dashboard
-```
-
-This keeps the project on its local research path:
-
-- refresh the operator snapshot and print the highest-priority local blocker path
-- run deterministic local verification for core outputs, local-data validation, and read-only status artifacts
-- smoke-check the dashboard before deeper review
-- review everything through the dashboard without any broker or trade execution features
-
-If you also want monthly picks, track record output, and the broader end-to-end refresh path, use `make daily` or `make validate-all` after the blocker-first flow above.
-
-If you still want fully explicit lower-level commands for a specific subsystem, use the CLI examples in the focused sections below. `make status`, `make verify`, `make onboarding`, and `make daily` remain the preferred repo-native front doors.
-
-## Monthly Research Picks
-
-The productized monthly layer produces a small, transparent research-candidate list.
-
-Start with the blocker-first workflow first:
-
-```bash
-make status
-make dashboard-smoke
-```
-
-If the current blocker path is already satisfied and you want the monthly layer directly, use:
-
-```bash
-make monthly
-```
-
-If you explicitly want lower-level CLI control or JSON output for the monthly layer:
-
-```bash
-python3 -m src.monthly_picks --generate --top-n 5
-python3 -m src.monthly_picks --generate --top-n 5 --json
-```
-
-Output:
-
-- `outputs/monthly_research_picks.csv`
-
-The default target is five candidates per month. The output may contain fewer than five rows when conservative filters
-exclude weak, ignored, or insufficiently supported names. The dashboard will show messages such as `4 of 5 research
-candidates available` rather than forcing lower-quality names into the list. These rows are research candidates, not
-direct trade advice.
-
-### How scoring works
-
-The score is intentionally transparent and uses local fields that already exist in the CSV-first workflow:
-
-- momentum / setup context from `outputs/momentum_leaders.csv`
-- final-state context from `outputs/final_watchlist.csv`
-- quality and value context from `outputs/undervalued_candidates.csv`
-- local liquidity and technical context from `data/prices.csv`
-- missing-data penalties when fields are unavailable
-
-Default weights live in `config.yaml` under `monthly_picks`:
-
-- momentum: 40%
-- final state: 25%
-- quality: 15%
-- valuation context: 10%
-- liquidity: 10%
-- risk penalty: subtractive 10% weight
-
-The output includes:
-
-- transparent score components
-- reason text
-- missing-data fields
-- source files
-- generation timestamp
-
-### Track record
-
-The local track-record module uses only local historical prices:
-
-```bash
-make track-record
-```
-
-If you explicitly want lower-level CLI control or JSON output for the track-record layer:
-
-```bash
-python3 -m src.track_record --monthly-picks
-python3 -m src.track_record --monthly-picks --benchmark SPY --json
-```
-
-Outputs:
-
-- `outputs/monthly_picks_track_record.csv`
-- `outputs/monthly_picks_equity_curve.csv`
-
-The track record compares equal-weight monthly candidates against the benchmark when local price history supports the
-selection date and forward return window. It needs enough dated local prices for the candidates and benchmark to form
-month-end selections and next-month forward returns. If the bundled sample history is too short, the output says
-`Insufficient local history` instead of fabricating a performance record or showing an empty chart as if it were real
-performance.
-
-### Interpretation
-
-- monthly picks are research candidates, not trade instructions
-- benchmark comparison is local-history-only and may be unavailable on sparse sample data
-- no unverified performance claim is shown
-- missing data reduces confidence and remains visible
-- expanding the universe first can improve coverage, but larger universes require price updates and validation
-
-## Universe expansion
-
-The project now includes a source-driven universe builder that stages candidate universes before you apply them.
-
-Supported sources:
-
-- current local sample universe from `data/universe.csv`
-- current holdings from `data/holdings.csv`
-- S&P 500 companies from the open-source/community `datasets/s-and-p-500-companies` constituent list
-- Nasdaq-listed securities from the official Nasdaq Trader symbol directory
-- SMH holdings from VanEck’s public holdings surface when accessible
-- manual local tickers from `data/custom_universe.csv`
-
-Recommended presets:
-
-- `core`: local universe + holdings
-- `sp500_smh`: S&P 500 + SMH + holdings
-- `broad`: S&P 500 + Nasdaq-listed common stocks + SMH + holdings
-
-Useful commands:
-
-```bash
-make universe-preview
-make universe-apply
-make data-sources-check
-```
-
-The default `make universe-preview` / `make universe-apply` path uses the safer `sp500_smh` preset with a capped preview-sized build. Use `make data-sources-check` when you want the read-only source-health pass first. If you want a larger CLI-only smoke run:
-
-```bash
-make universe-preview
-make universe-apply
-```
-
-The lower-level `src.universe_builder` flags remain available only when you explicitly need custom CLI-only scripting control.
-
-Warnings:
-
-- all-Nasdaq mode can be large and slow
-- the Nasdaq directory contains many securities unless filtered
-- the S&P 500 source is not the official paid S&P feed
-- SMH holdings can change and should not be treated as recommendations
-- the VanEck SMH web surface may redirect through cookie or location flows in automated runtimes; if that source is
-  unavailable, run `make templates`, then fill `data/custom_universe.csv` with tickers you verified yourself before
-  any staged universe apply step
-
-### `data/custom_universe.csv`
-
-If you want to seed manual names into broader builds, create `data/custom_universe.csv` with columns such as:
-
-- `ticker`
-- `company_name`
-- `theme`
-- `sector`
-- `sector_etf`
-- `source`
-- `notes`
-
-## Enriching local CSV data
-
-If you want richer deterministic valuation coverage without relying on yfinance:
-
-1. Keep `data/prices.csv` populated for the tickers you care about.
-2. Expand `data/fundamentals.csv` with real local fields such as:
-   - `revenue`
-   - `eps`
-   - `free_cash_flow`
-   - `fcf_margin`
-   - `ebitda`
-   - `cash`
-   - `debt`
-   - `shares_outstanding`
-   - `market_cap`
-   - `source`
-   - `as_of_date`
-3. Optionally add:
-   - `data/earnings.csv`
-   - `data/analyst_estimates.csv`
-   - `data/peers.csv`
-4. Re-run:
-
-```bash
-make validate-data
-make templates
-make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
-```
-
-This workflow remains CSV-first. yfinance is optional, unofficial / research-grade, and should only be used when you explicitly opt in.
-
-## Staged local import / merge workflow
-
-You can now place real locally sourced enrichment files under:
-
-- `data/imports/`
-
-Supported staged files:
-
-- `fundamentals.csv`
-- `earnings.csv`
-- `earnings_history.csv`
-- `analyst_estimates.csv`
-- `estimates.csv`
-- `peers.csv`
-- `universe.csv`
-
-The importer never fabricates values. You must provide real local data and, where possible, include `source` and `as_of_date`.
-
-### Import workflow commands
-
-Validate staged files without mutating canonical data:
-
-```bash
-make imports-validate
-```
-
-Preview what would change:
-
-```bash
-make imports-preview
-```
-
-Apply the merge safely:
-
-```bash
-make imports-apply
-```
-
-JSON output is also available:
-
-```bash
-python -m src.stock_report --validate-imports --json
-python -m src.stock_report --preview-import-merge --json
-python -m src.stock_report --apply-import-merge --json
-```
-
-### Merge behavior
-
-- `fundamentals`, `earnings`, and `analyst estimates` merge by `ticker`
-- `peers` merges by `ticker + peer_ticker`
-- staged validation runs before merge
-- invalid required columns refuse the apply step
-- existing canonical rows are updated by key
-- new keyed rows are appended
-- rows with missing merge keys or duplicate staged keys are skipped and reported
-- canonical files are backed up under `data/backups/<timestamp>/` before changed files are written
-- staged unknown extra columns are ignored and reported
-- existing canonical extra columns are preserved during merge
-- this workflow does not delete canonical rows in this phase
-
-### Example workflow
-
-```bash
-make templates
-cp data/templates/fundamentals.csv data/imports/fundamentals.csv
-# fill in real local data manually
-make imports-validate
-make imports-preview
-make imports-apply
-make validate-data
-make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
-```
-
-To add peer mappings through the same workflow, use `data/imports/peers.csv` with:
-
-- required: `ticker`, `peer_ticker`
-- optional: `peer_group`, `sector`, `industry`, `source`, `as_of_date`
-
-Peer mappings are not fabricated by the project. They must come from your own local research workflow.
-
-## Universe Manager and Data Health
-
-The `Data Health` tab helps you inspect:
-
-- local dataset validation status
-- row counts and latest timestamps
-- missing optional files
-- schema warnings
-- staged import status
-- data coverage wizard rows showing what unlocks Monthly Picks, track record, DCF, and peer-relative research next
-
-The `Universe Manager` tab helps you inspect:
-
-- current universe size
-- source membership counts
-- duplicate ticker count
-- missing theme / sector ETF coverage
-- compact preview-first action paths for current/staged universe work
-- staged `data/imports/universe.csv` visibility
-- CLI commands for safe preview/write/apply workflows
-
-Universe changes remain CLI-first on purpose. The dashboard is read-only for apply actions.
-
-## Dashboard troubleshooting for partial data
-
-The dashboard is designed to look usable even when local data is sparse:
-
-- `Not available` means the source column or file is missing locally.
-- `Needs SEC enrichment` means valuation-heavy fields are not present in `data/fundamentals.csv`.
-- `Needs peers.csv`, `Needs earnings.csv`, or `Needs analyst_estimates.csv` means optional enrichment files are not configured.
-- `Not enough price history` means the local `data/prices.csv` window is too short for that return, technical context, or track-record calculation.
-- Monthly Picks may show fewer than the configured `top_n` when conservative filters reject weak or ignored names.
-- Track-record panels stay informational until local historical prices support month-end selection and next-month return calculations.
-
-## Research Health outputs
-
-The pipeline also writes local-only research health files:
-
-- `outputs/data_quality_wizard.csv`: ticker-level readiness for momentum, monthly picks, DCF, peer-relative valuation, earnings, and analyst-estimate coverage
-- `outputs/liquidity_risk.csv`: local volume and dollar-volume context using only local price rows
-- `outputs/correlation_risk.csv`: local co-movement context based on overlapping local return history
-
-Generate them through the normal workflow or directly:
-
-```bash
-make status
-make verify
-make research-health-check
-make research-health
-```
-
-Use `make research-health-check` for the current read-only summary view and `make research-health` when you explicitly want to refresh the research health CSV artifacts. The raw read-only CLI path is `python3 -m src.research_health --check`. If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`. If you want to inspect only a smaller local ticker slice of the read-only diagnostics, use `make research-health-check TICKERS=NVDA,MSFT`. These files are diagnostic. They do not change ticker classifications, do not execute trades, and do not turn missing data into synthetic values. Liquidity and correlation rows are research context only; they are not buy/sell/hold instructions.
-
-## Research action queue
-
-The project can also generate:
-
-- `outputs/research_action_queue.csv`
-
-This queue combines:
-
-- price refresh failures from `outputs/price_update_status.csv`
-- source gaps from `outputs/data_gap_report.csv`
-- ticker-level onboarding priorities from `outputs/data_onboarding_actions.csv`
-- readiness signals from `outputs/data_quality_wizard.csv`
-
-Generate it with:
-
-```bash
-make status
-make action-queue-check
-make action-queue
-```
-
-Use `make action-queue-check` for the current read-only summary view and `make action-queue` when you explicitly want to refresh `outputs/research_action_queue.csv`. If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`. If you want to inspect only a smaller local ticker slice, use `make action-queue-check TICKERS=NVDA,MSFT`. The raw read-only CLI path is `python3 -m src.action_queue --check`. The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
-
-## Data coverage wizard
-
-The data coverage wizard is the next layer above onboarding. It translates local coverage gaps into explicit unlock paths:
-
-- `Unlock Monthly Picks`: usually blocked by missing or short local price history.
-- `Unlock Track Record`: blocked by insufficient dated local price history for picks and benchmark comparison.
-- `Unlock DCF`: blocked by missing fundamentals such as free cash flow or revenue plus FCF margin, and shares outstanding.
-- `Unlock Peer Relative`: blocked by missing peer mappings or missing peer fundamentals/prices.
-- `Add Earnings Context` and `Add Analyst Estimate Context`: optional local enrichments that do not block the core workflow.
-
-Generate it with:
-
-```bash
-make status
-make data-wizard
-python3 -m src.data_onboarding --wizard --json
-make onboarding
-```
-
-Use the raw `--wizard --json` form only when you want a machine-readable snapshot of the ladder itself. Use `make onboarding` when you want to refresh the full local operator artifact set.
-
-Most of the read-only onboarding views also accept `TOP_N=...` when you want a shorter terminal summary without changing the underlying CSV outputs or JSON payloads.
-
-`make onboarding` refreshes:
-
-- `outputs/ticker_data_coverage.csv`
-- `outputs/data_onboarding_actions.csv`
-- `outputs/data_coverage_wizard.csv`
-- `outputs/sec_stage_queue.csv`
-- `outputs/peer_mapping_queue.csv`
-- `outputs/ticker_unlock_ladder.csv`
-- `outputs/command_bundles.csv`
-
-The `project_status` files are generated local operator artifacts. They stay ignored in git so `make status`, `make onboarding`, and `make daily` can refresh them without dirtying the repo.
-
-The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use the existing safe workflows for actual data changes:
-
-- prices: `data/raw/prices/` -> `make price-normalize` -> `make price-validate` -> `make price-preview` -> `make price-apply`
-- fundamentals: `export SEC_USER_AGENT=...` -> `make sec-stage ...` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`
-- peers/earnings/estimates: fill trusted local CSVs under `data/imports/`, then `make imports-validate` -> `make imports-preview` -> `make imports-apply`
-
-If you want one row per ticker instead of several queue outputs, use:
-
-```bash
-make unlock-ladder
-```
-
-To narrow that unlock ladder to a specific local ticker slice without leaving the make-based operator path, use:
-
-```bash
-make unlock-ladder TICKERS=NVDA,MSFT
-```
-
-To keep that one-row-per-ticker ladder shorter in the terminal, add `TOP_N=...`, for example `make unlock-ladder TOP_N=5`.
-
-This combines the current next-step stage for each ticker in order:
-
-1. prices
-2. fundamentals / DCF readiness
-3. peer-relative readiness
-4. optional earnings / analyst-estimate context
-
-The unlock ladder is also read-only and never fabricates missing data.
-
-If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:
-
-```bash
-make unlock-summary
-```
-
-To focus that grouped unlock summary on a smaller local ticker slice, use:
-
-```bash
-make unlock-summary TICKERS=NVDA,MSFT
-```
-
-You can also cap the grouped summary with `make unlock-summary TOP_N=5` when you only want the first few holdings/theme/sector rows.
-
-This grouped summary is useful when you want to decide whether the next best local work should focus on:
-
-- current holdings first
-- a theme such as AI / semiconductors
-- a sector ETF cluster such as `SMH`
-
-It is also written to `outputs/unlock_priority_summary.csv` when you run `make onboarding`.
-
-If you want a smaller, holdings-first command view instead of the full ticker queues, use:
-
-```bash
-make command-bundles
-make command-bundle-details
-make command-bundle-runbook
-```
-
-If you want to narrow those bundle views to a specific local ticker slice without leaving the make-based operator path, use:
-
-```bash
-make command-bundles TICKERS=NVDA,MSFT
-make command-bundle-details TICKERS=NVDA,MSFT
-make command-bundle-runbook TICKERS=NVDA,MSFT
-```
-
-Those bundle views also accept `TOP_N=...`, so you can use `make command-bundles TOP_N=3` or `make command-bundle-runbook TICKERS=NVDA,MSFT TOP_N=6` when you want a shorter read-only pass.
-
-Use the raw CLI only when you explicitly want machine-readable bundle output:
-
-```bash
-python3 -m src.data_onboarding --command-bundles --json
-```
-
-This read-only bundle output groups the next practical local passes into:
-
-- a price coverage bundle
-- an SEC fundamentals staging bundle
-- a manual peer-mapping bundle
-
-Each bundle keeps the workflow explicit by showing:
-
-- the exact tickers in scope
-- the primary local command
-- the next follow-up command
-- the target local file
-- the safe next step if the remote path is unreliable
-
-If you want one row per ticker inside the current bundles, use `make command-bundle-details`. That output is also written to `outputs/command_bundle_details.csv` during `make onboarding`, and the raw CLI remains available if you explicitly need JSON or narrow scripting control.
-
-If you want an ordered bundle follow-through view, use `make command-bundle-runbook`. That runbook is also written to `outputs/command_bundle_runbook.csv` during `make onboarding`.
-
-If you only want one lane at a time, use:
-
-```bash
-make bundle-prices
-make bundle-fundamentals
-make bundle-peers
-make detail-prices
-make detail-fundamentals
-make detail-peers
-make runbook-prices
-make runbook-fundamentals
-make runbook-peers
-make focus-price TICKER=AMD
+make price-worklist TOP_N=10
 make focus-fundamentals TICKER=NVDA
-make focus-peers TICKER=NVDA
+make peer-mapping-queue TOP_N=10
+make optional-context-worklist TOP_N=10
 ```
 
-To narrow one of those lane-specific views to a smaller local ticker slice, use:
+For a larger local price refresh, use capped batches instead of repeating small commands manually:
 
 ```bash
-make bundle-fundamentals TICKERS=NVDA,MSFT
-make detail-peers TICKERS=NVDA,MSFT
-make runbook-prices TICKERS=NVDA,MSFT
+make price-refresh-loop DRY_RUN=1
+make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
 ```
 
-These lane-specific views stay read-only and help you focus on one pass at a time without scanning the broader bundle output first. The raw `python3 -m src.data_onboarding --command-bundles --lane ...` / `--command-bundle-details --lane ...` / `--command-bundle-runbook --lane ...` forms remain available when you explicitly want lower-level scripting control.
-
-If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:
+Preview-first import flow:
 
 ```bash
-make bundle-prices-broader
-make detail-prices-broader
-make runbook-prices-broader
-```
-
-The same `-broader` pattern is available for `fundamentals` and `peers`, and those broader queue lane views also accept `TICKERS=...` when you want to stay on one lane and one small local ticker slice at the same time. The raw `--scope broader_queue` CLI forms remain available when you explicitly want the lower-level path.
-
-If you want a single-name follow-through instead of a holdings-first lane view, use the `focus-*` shortcuts. Each one prints both the ticker-level bundle detail row and the matching runbook for that ticker:
-
-```bash
-make focus-price TICKER=AMD
-make focus-fundamentals TICKER=NVDA
-make focus-peers TICKER=NVDA
-```
-
-The price worklist, SEC stage queue, and peer-mapping queue now also carry these single-name `focus_command` shortcuts in their JSON/CSV/text outputs so the operator path stays consistent between CLI views and the dashboard.
-
-## SEC Companyfacts staging workflow
-
-The project now includes a read-only SEC Companyfacts adapter that can stage candidate fundamentals into:
-
-- `data/imports/fundamentals.csv`
-
-It never writes directly to `data/fundamentals.csv`. You must still review staged data and run the explicit import workflow.
-
-### User-Agent requirement
-
-SEC requests require an identifying User-Agent. You can provide it either as:
-
-- CLI flag: `--sec-user-agent "Your Name your.email@example.com"`
-- environment variable: `SEC_USER_AGENT`
-
-Example:
-
-```bash
-export SEC_USER_AGENT="Your Name your.email@example.com"
-```
-
-### Cache and fair-access behavior
-
-- the SEC ticker map and Companyfacts responses are cached under `data/cache/sec/`
-- cached JSON is reused unless you pass `--sec-refresh`
-- the adapter uses a small delay between live requests to stay within fair-access expectations
-- tests mock SEC responses and do not require network access
-
-### What the SEC adapter can stage
-
-When the facts are available, the adapter may stage:
-
-- `revenue`
-- `revenue_growth`
-- `eps`
-- `free_cash_flow`
-- `fcf_margin`
-- `profit_margin`
-- `operating_margin`
-- `ebitda` only when directly available from SEC facts
-- `cash`
-- `debt`
-- `shares_outstanding`
-- `source`
-- `as_of_date`
-- SEC metadata fields such as `sec_cik`, `sec_form`, `sec_filed_date`, `sec_accession`, `sec_fact_warnings`, and `sec_entity_name`
-
-Fields may remain blank when the official SEC facts are missing or not reliably derivable.
-
-Important limits:
-
-- SEC staging does not create analyst estimates
-- SEC staging does not create peer mappings
-- SEC staging does not fetch market prices
-- SEC staging does not apply imports automatically
-- user review is still required before merging staged data
-
-### SEC staging commands
-
-Stage explicit tickers:
-
-```bash
-export SEC_USER_AGENT="Your Name your.email@example.com"
-make sec-stage TICKERS=NVDA,MSFT
-```
-
-Stage from the local ticker universe:
-
-```bash
-export SEC_USER_AGENT="Your Name your.email@example.com"
-make sec-stage
-```
-
-Optional flags:
-
-- `--sec-refresh` to refresh SEC cache entries
-- `--overwrite` to replace the staged `data/imports/fundamentals.csv` file instead of upserting by ticker
-- `--json` for JSON-formatted CLI output
-
-### SEC staging example
-
-```bash
-export SEC_USER_AGENT="Your Name your.email@example.com"
-make sec-stage TICKERS=NVDA,MSFT
+make templates
 make imports-validate
 make imports-preview
 make imports-apply
-make validate-data
-make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
 ```
 
-This remains a research-only workflow. It does not execute trades, place orders, or provide direct buy/sell advice.
+## Generated Data Hygiene
 
-## Fundamentals enrichment workflow
+Small example outputs are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and generated report CSVs are local working data by default. Review them before committing; do not publish broad refresh churn unless intentionally selected.
 
-If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:
+Before sharing or committing, run `make public-check`, then `make diff-hygiene`. For a large dirty tree, run `make diff-hygiene-files` and review the ignored local pathspec files under `outputs/staging/` before staging. After staging, run `make staged-hygiene-check` before committing. The public check includes `make public-wording-check`, which scans visitor-facing docs, dashboard/report copy, and sample reports for unsupported advice, execution language, internal development notes, and stale repo links. Use the safe staging suggestion for product files and reviewed Markdown reports, and leave generated CSV/JSON churn out unless it is the specific artifact you intend to publish.
 
-```bash
-export SEC_USER_AGENT="Your Name your.email@example.com"
-make sec-stage TICKERS=NVDA,MSFT
-make imports-validate
-make imports-preview
-make imports-apply
-make validate-data
-```
+The tracked `data/holdings.csv` file is a zero-position sample for portfolio-review demos. Keep real holdings, account exports, and personal cost-basis details out of the public branch.
 
-This flow is explicit by design:
+## License
 
-- SEC enrichment stays read-only until you apply the local import merge
-- analyst estimates, peer mappings, and market prices are still separate local inputs
-- valuation remains informational and assumption-driven even after fundamentals are enriched
+Reuse terms are not specified yet because no `LICENSE` file has been selected. Visitors can review the project, but reuse rights are not granted until a license is added. See [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md) before promoting the repo broadly.
 
-If you also want to expand the screening universe afterward:
+## Analysis Methodology
 
-```bash
-make universe-preview
-make universe-apply
-make price-refresh
-```
+The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. The analysis rules, valuation gates, decision buckets, and research-only guardrails come from project code plus local CSV inputs. See [Research Methodology](docs/METHODOLOGY.md) for the calculation flow and [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
 
-## Run tests
+## Core Outputs
 
-```bash
-python3 -m pytest tests -q
-```
+The main pipeline writes deterministic CSVs under `outputs/`, including purpose classification, market direction, momentum leaders, portfolio review, valuation-readiness context, final watchlist, and research decisions. `undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context, not automatic undervalued calls. Readiness and source-health reports live under `data/reports/`.
 
-## What each output means
+## Research-Only Guardrails
 
-### `outputs/purpose_classification.csv`
+This is investment research software, not investment advice and not a trading system. It does not place orders, connect to brokers, route trades, auto-trade, recommend option trades, provide direct buy/sell instructions, or fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations.
 
-Primary purpose routing for each screened ticker or holding.
+That constraint is intentional. The product is useful because it says when data is missing instead of pretending every ticker is ready.
 
-- assigns `FinalPrimaryPurpose`
-- keeps `ConflictFlag` and `ConflictReasons` when the declared thesis conflicts with current data
-- always includes a `Reason`
+## Architecture
 
-### `outputs/market_direction.csv`
+The app is organized around `src/dashboard.py`, `src/readiness_engine.py`, `src/research_decisions.py`, `src/stock_report.py`, `src/providers/`, local `data/` CSVs, generated `outputs/`, and regression tests. It is CSV-first and deterministic by default. Optional network-backed data stays behind provider interfaces and is labeled as research-grade when used.
 
-Theme and ETF rotation view produced by the active `src` pipeline.
+## Roadmap Snapshot
 
-- reads `theme_map.csv` and `universe.csv`
-- uses theme ETF data when available
-- falls back to constituent medians when ETF data is unavailable
-- computes 1M / 3M / 6M returns and relative performance vs SPY / QQQ when possible
-- classifies themes as `Strong Rotation`, `Early Rotation`, `Overextended`, `Weak`, `Broken`, or `Insufficient Data`
-- always includes `Reason` and `MissingDataFields`
-
-### `outputs/momentum_leaders.csv`
-
-Momentum setup classification for screened tickers.
-
-- includes states such as `Watch`, `Setup Forming`, `Buyable Area`, `Extended / No Chase`, `Pullback Add Candidate`, `Broken`, and `Avoid`
-- uses transparent moving-average, return, relative-strength, and volume rules
-- always includes a `Reason`
-
-### `outputs/portfolio_review.csv`
-
-Holding review output for names in `holdings.csv`.
-
-- includes action labels such as `Keep`, `Add Candidate`, `Hold but Do Not Add`, `Risk Reduce`, `Broken`, and `Review Thesis`
-- evaluates concentration, setup quality, and thesis integrity
-- always includes a `Reason`
-
-### `outputs/undervalued_candidates.csv`
-
-Optional value / re-rating screen.
-
-- never fabricates missing fundamentals
-- includes `MissingDataFields` when financial coverage is incomplete
-- can include peer-aware relative valuation context when `data/peers.csv` and matching peer fundamentals are available
-- surfaces fields such as `PeerCount`, `PeerRelativeStatus`, and `RelativeOpportunityScore`
-- uses conservative categories such as `Insufficient Data` and `Possible Value Trap`
-- always includes a `Reason`
-
-### `outputs/final_watchlist.csv`
-
-Final state-machine view combining purpose, momentum, and portfolio context into one watchlist state.
-
-- uses configured state labels from `config.yaml`
-- now adds transparent ranking fields such as `WatchlistScore`, `WatchlistRank`, and `RankReason`
-- ranking is driven by final state plus value context, not by hidden model output
-- always includes a `Reason`
-
-## Local data onboarding tips
-
-- `make status` refreshes ticker-level coverage, action, queue, source-status, research-health, and project-status artifacts for the Data Health dashboard
-- `make onboarding` refreshes the full source-status, onboarding, research-health, action-queue, and project-status artifact set after editing local files
-- `make templates` creates header-only onboarding templates under `data/templates/`
-- `make import-staging` creates header-only staging files under `data/imports/`
-- `python3 -m src.data_onboarding --write-output` remains available when you explicitly want the lower-level writer behind the onboarding/status workflow
-- `python3 -m src.data_onboarding --write-templates` remains available when you explicitly want the raw template writer
-- `--write-local-data-templates` creates header-only CSV templates under `data/templates/`
-- `python -m src.stock_report --write-import-staging` remains available when you explicitly want the raw staging writer
-- these templates are safe starting points for adding real local data later
-- they do not fabricate fundamentals, earnings, analyst estimates, or peer mappings
-- the Stock Report Beta now includes valuation-readiness diagnostics so you can see exactly which inputs are still missing for:
-  - DCF
-  - peer-relative valuation
-  - earnings summary
-  - analyst estimate summary
-
-## Missing-data behavior
-
-The pipeline is designed to continue safely when data is sparse.
-
-- Missing OHLCV produces warnings and conservative classifications instead of crashes.
-- Missing theme ETF data can fall back to constituent-level theme medians when available.
-- Missing fundamentals never get guessed; the value engine marks rows as incomplete instead.
-- Long-horizon calculations stay blank until there is enough history.
-- Output rows include `Reason`, and where applicable `MissingDataFields` or `ConflictReasons`, so missing inputs remain visible.
-
-## Notes on local sample data
-
-- The sample dataset intentionally has sparse OHLCV coverage for several universe tickers.
-- Warnings about missing daily price history are expected with the bundled sample data.
-- Benchmarks like `SPY` and `QQQ` may be used internally for comparisons without appearing in the screened outputs unless explicitly present in the universe or holdings.
-
-## Constraints
-
-- Research-only workflow
-- No auto-trading
-- No broker integration
-- No direct buy/sell commands
-- No fabricated market or fundamental data
-- Explainable rules only
+The next product stage is not more unsupported indicators. It is better operator workflow: clearer readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source/freshness auditability.

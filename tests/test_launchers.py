@@ -1,4 +1,29 @@
+import csv
+import re
 from pathlib import Path
+
+
+def _makefile_targets() -> set[str]:
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    return set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, flags=re.MULTILINE))
+
+
+def test_tracked_holdings_file_is_sanitized_demo_data():
+    holdings_path = Path("data/holdings.csv")
+    rows = list(csv.DictReader(holdings_path.read_text(encoding="utf-8").splitlines()))
+
+    assert rows
+    for row in rows:
+        assert float(row["Shares"]) == 0.0
+        assert float(row["CostBasis"]) == 0.0
+        assert float(row["PositionPercent"]) == 0.0
+        assert "example" in row["OriginalThesis"].lower()
+
+
+def test_generated_staging_pathspec_files_are_ignored():
+    gitignore = Path(".gitignore").read_text(encoding="utf-8")
+
+    assert "outputs/staging/" in gitignore
 
 
 def test_makefile_contains_convenience_targets():
@@ -6,11 +31,19 @@ def test_makefile_contains_convenience_targets():
 
     for target in (
         "help",
+        "demo",
+        "diff-hygiene",
+        "diff-hygiene-summary",
+        "diff-hygiene-files",
+        "staged-hygiene-check",
+        "public-wording-check",
+        "public-check",
         "status",
         "status-check",
         "test",
         "pipeline",
         "stock-report",
+        "stock-report-md",
         "local-tickers",
         "monthly",
         "track-record",
@@ -21,6 +54,7 @@ def test_makefile_contains_convenience_targets():
         "research-health",
         "action-queue-check",
         "action-queue",
+        "project-status",
         "verify",
         "validate-all",
         "daily",
@@ -73,6 +107,7 @@ def test_makefile_contains_convenience_targets():
         "price-preview",
         "price-apply",
         "price-refresh",
+        "price-refresh-loop",
         "price-normalize",
     ):
         assert f"{target}:" in makefile
@@ -82,7 +117,28 @@ def test_makefile_help_documents_key_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
     for phrase in (
-        "Stock Research Screener convenience commands",
+        "Stock Research Command Center convenience commands",
+        "First-time path:",
+        "Print the clean visitor walkthrough",
+        "make status-check TOP_N=5",
+        "make stock-report-md TICKER=NVDA",
+        "make dashboard-smoke",
+        "make dashboard",
+        "make public-check     Run before sharing the GitHub link",
+        "make demo",
+        "make diff-hygiene",
+        "Print a read-only staging guide that separates product work from generated data churn",
+        "make diff-hygiene-summary",
+        "Print a short read-only staging summary for public checks",
+        "make diff-hygiene-files",
+        "Write local pathspec files under outputs/staging for safer reviewed staging",
+        "make staged-hygiene-check",
+        "Fail if staged files include generated churn or manual-review paths",
+        "make public-wording-check",
+        "Scan public docs, dashboard copy, and sample reports for unsupported advice/execution wording",
+        "make public-check",
+        "Run share-safe checks before posting the repo link; does not refresh broad local data",
+        "Run these from the repository root so make can find the project targets.",
         "make status [TOP_N=5]",
         "make status-check [TICKERS=NVDA,MSFT] [TOP_N=5]",
         "make verify",
@@ -92,8 +148,12 @@ def test_makefile_help_documents_key_workflows():
         "make data-sources-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make data-sources",
         "make research-health-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
+        "make project-status",
         "make action-queue-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
-        "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json]",
+        "make stock-report-md TICKER=NVDA [MD_OUTPUT=outputs/stock_reports/nvda.md]",
+        "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] [MD_OUTPUT=outputs/stock_reports/nvda.md]",
+        "Generate a readable Markdown report for demos and review",
+        "Generate the report plus optional report data for inspection",
         "make local-tickers",
         "make coverage [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make data-wizard [TICKERS=NVDA,MSFT] [TOP_N=10]",
@@ -125,140 +185,982 @@ def test_makefile_help_documents_key_workflows():
         "make focus-peers TICKER=NVDA",
         "make price-status [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make price-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
+        "make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo]",
+        "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
+        "make price-refresh-loop [BATCHES=5] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
+        "make price-refresh-loop DRY_RUN=1",
         "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make optional-context-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make sec-stage-queue [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make peer-mapping-queue [TICKERS=NVDA,MSFT] [TOP_N=10]",
-        "Most read-only onboarding views also accept TOP_N=10 for a shorter terminal summary",
+        "Most read-only onboarding views also accept TOP_N=10 for a shorter local summary",
         "make import-staging",
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
         "export SEC_USER_AGENT='Name email@example.com'",
         "make sec-stage TICKERS=NVDA,MSFT",
         "make imports-validate && make imports-preview && make imports-apply",
         "make universe-preview",
+        "Preview-first fundamentals and universe imports",
     ):
         assert phrase in makefile
 
+    for old_phrase in (
+        "Generate one local stock report JSON plus a readable Markdown report",
+        "Generate one local structured stock report plus a readable Markdown report",
+        "Generate the report plus optional structured data for inspection",
+        "Generate a readable Markdown report without printing the structured report data",
+        "structured report data",
+        "full JSON payload",
+        "shorter terminal summary",
+        "Fundamentals and universe import drafts:",
+    ):
+        assert old_phrase not in makefile
 
-def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
+    assert makefile.index("make stock-report-md TICKER=NVDA") < makefile.index("make stock-report TICKER=NVDA")
+    assert makefile.index("First-time path:") < makefile.index("Core:")
+
+
+def test_price_refresh_defaults_to_capped_broad_universe_batch():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "python3 -m src.data_update --universe-file data/universe.csv --missing-only --max-tickers $(or $(TOP_N),25)" in makefile
+
+
+def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
+
+    assert "price-refresh-loop:" in makefile
+    assert "BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)" in makefile
+    assert 'BATCHES="${BATCHES:-5}"' in script
+    assert 'TOP_N="${TOP_N:-100}"' in script
+    assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
+    assert 'DRY_RUN="${DRY_RUN:-0}"' in script
+    assert "Dry run only. No local CSV files were changed." in script
+    assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
+    assert "make price-coverage TOP_N=25" in script
+    assert "make readiness" in script
+    assert "make project-status" in script
+
+
+def test_readme_public_landing_page_is_short_visual_and_command_focused():
     readme = Path("README.md").read_text(encoding="utf-8")
+    preview = Path("docs/assets/dashboard-preview.svg").read_text(encoding="utf-8")
 
-    assert "- Use `make pipeline` to generate the core local outputs." in readme
-    assert "- Use `make dashboard` to run the dashboard." in readme
-    assert "## Run the pipeline\n\nGenerate all active outputs:\n\n```bash\nmake pipeline" in readme
-    assert "Use `make status` first when you want the read-only local project snapshot plus a refresh of the supporting operator artifacts, or `make status-check` when you only want the current summary without that refresh step. Both status paths accept `TOP_N=...` if you want a shorter terminal snapshot." in readme
-    assert "Use the repo-native front door to generate a structured local stock report:\n\n```bash\nmake stock-report TICKER=NVDA" in readme
-    assert "If you want to write JSON to a file through the same front door:\n\n```bash\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
-    assert "To discover locally available tickers first:\n\n```bash\nmake local-tickers" in readme
+    assert len(readme.splitlines()) < 180
+    assert "![Dashboard preview](docs/assets/dashboard-preview.svg)" in readme
+    for preview_phrase in (
+        "plain-language stock analysis modes",
+        "At A Glance single-stock status",
+        "At A Glance before tables or conclusions",
+        "Mode + decision",
+        "DCF + peers",
+        "What not to infer",
+        "Next local step",
+        "DCF-ready review",
+        "Standalone DCF review",
+        "Price/setup review",
+        "Monitor-only context",
+        "Data-unlock only",
+        "Method: project DCF",
+        "project DCF method notes",
+        "DCF path: cash flows, terminal value, cash/debt, fair value/share",
+        "copy-only unlock commands",
+    ):
+        assert preview_phrase in preview
+    for stale_preview_phrase in ("Analysis modes before tables", "Standalone DCF</text>", "Price/setup only", "Monitor-only</text>"):
+        assert stale_preview_phrase not in preview
+    assert "## Quick Start" in readme
+    assert "Run these from the repository root so `make` can find the project targets:" in readme
+    assert "## What You Can Analyze" in readme
+    assert "## How Analysis Works" in readme
+    assert "## What Works Today" in readme
+    assert "## Try This Demo Path" in readme
+    assert "## Generated Data Hygiene" in readme
+    assert "## License" in readme
+    assert "## Analysis Methodology" in readme
+    assert "docs/METHODOLOGY.md" in readme
+    assert "docs/analysis_capability_audit.md" in readme
+    assert "[Operator Guide](docs/OPERATOR_GUIDE.md)" in readme
+    assert "pip install -e '.[dev]'" in readme
+    assert "pip install -e .[dev]" not in readme
     for phrase in (
-        'export SEC_USER_AGENT="Your Name your.email@example.com"',
-        "make sec-stage TICKERS=NVDA,MSFT",
-        "make imports-validate",
-        "make imports-preview",
-        "make imports-apply",
-        "make data-sources-check",
-        "make coverage",
-        "make data-wizard",
-        "make unlock-ladder",
-        "make unlock-summary",
-        "make command-bundles",
-        "make command-bundle-details",
-        "make command-bundle-runbook",
-        "make templates",
-        "make onboarding",
-        "make universe-preview",
-        "make universe-apply",
-        "make price-refresh",
+        "make pipeline",
+        "make readiness",
+        "make demo",
+        "make public-check",
+        "make stock-report-md TICKER=NVDA",
+        "make stock-report-md TICKER=A",
+        "make stock-report-md TICKER=META",
+        "make stock-report-md TICKER=QQQ",
+        "make stock-report-md TICKER=SMH",
+        "make stock-report-md TICKER=APLD",
+        "make stock-report TICKER=NVDA",
+        "make dashboard",
+        "make dashboard-smoke",
+        "make status-check TOP_N=5",
+        "make research-health-check TOP_N=10",
+        "make price-worklist TOP_N=10",
+        "make price-refresh-loop DRY_RUN=1",
+        "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "make focus-fundamentals TICKER=NVDA",
+        "make peer-mapping-queue TOP_N=10",
+        "make optional-context-worklist TOP_N=10",
+        "http://localhost:8501/?page=single-stock-report",
+        "not investment advice",
+        "review queues",
+        "Example map",
+        "Operating-company DCF is excluded, not failed",
+        "No valuation conclusion appears",
+        "At A Glance status, source/freshness notes, and copyable local unlock commands",
+        "At A Glance status, methodology, risks, blockers, copyable local unlock commands",
+        "The report is not a black box",
+        "project rules decide what can be analyzed",
+        "Readiness gates check whether prices, fundamentals, peers, earnings, and estimates are complete enough",
+        "Project calculations run only after the needed inputs are ready",
+        "Blocked or excluded sections stay visible with the exact missing input and next local step",
+        "Markdown reports start with `At A Glance`",
+        "Copyable Unlock Commands",
+        "readiness-state output, not an action list",
+        "Roadmap Snapshot",
+        "Review them before committing",
+        "Before sharing or committing, run `make public-check`, then `make diff-hygiene`",
+        "For a large dirty tree, run `make diff-hygiene-files`",
+        "make staged-hygiene-check",
+        "outputs/staging/",
+        "internal development notes, and stale repo links",
+        "safe staging suggestion for product files and reviewed Markdown reports",
+        "Reuse terms are not specified yet",
+        "reuse rights are not granted until a license is added",
+        "[License Decision Guide](docs/LICENSE_DECISION_GUIDE.md)",
+        "where the logic lives",
+        "analysis rules, valuation gates, decision buckets",
+        "Strongest today",
+        "Main modes",
+        "DCF-ready review",
+        "Standalone DCF review",
+        "Price/setup review only",
+        "Monitor-only context",
+        "Data-unlock only",
+        "Company DCF assumptions and source-backed peer context",
+        "Standalone DCF review where peer-relative valuation is still locked",
+        "Price/setup review where valuation remains gated",
+        "[NVDA](outputs/stock_reports/nvda.md)",
+        "[A](outputs/stock_reports/a.md)",
+        "[META](outputs/stock_reports/meta.md)",
+        "[QQQ](outputs/stock_reports/qqq.md)",
+        "[SMH](outputs/stock_reports/smh.md)",
+        "[APLD](outputs/stock_reports/apld.md)",
+        "Useful with limits",
+        "Intentionally locked",
+        "Not built to be",
+        "`undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context",
+        "not automatic undervalued calls",
     ):
         assert phrase in readme
 
-    assert "Run a local-only source check:\n\n```bash\nmake data-sources-check" in readme
-    assert "make data-sources" in readme
-    assert "If you want a shorter source and gap summary in the terminal, use `make data-sources-check TOP_N=10`." in readme
-    assert "If you want to inspect only a smaller local ticker slice of the gap list, use `make data-sources-check TICKERS=NVDA,MSFT`." in readme
-    assert "The raw read-only CLI path is `python3 -m src.data_sources --check`." in readme
-    assert "If you intentionally want lower-level CLI control against a fixture or alternate local dataset, the raw module commands remain available:\n\n```bash\npython3 -m src.stock_report --project-root \"/Users/yjian070/Documents/New project\" --validate-local-data" in readme
-    assert "```bash\nmake validate-data\nmake pipeline\nmake monthly" in readme
-    assert "## Run the dashboard\n\n```bash\nmake dashboard" in readme
-    assert "```bash\nmake coverage\nmake data-wizard\nmake command-bundles\nmake templates" in readme
-    assert "If you want a narrower targeted coverage pass without leaving the make-based operator path, use:\n\n```bash\nmake coverage TICKERS=NVDA,MSFT,AMD,AVGO\nmake data-wizard TICKERS=NVDA,MSFT,AMD,AVGO" in readme
-    assert "If you want either read-only onboarding view to stay shorter in the terminal, add `TOP_N=...`, for example:\n\n```bash\nmake coverage TOP_N=5\nmake data-wizard TICKERS=NVDA,MSFT,AMD,AVGO TOP_N=5" in readme
-    assert "Generate it with:\n\n```bash\nmake status\nmake data-wizard" in readme
-    assert "Most of the read-only onboarding views also accept `TOP_N=...` when you want a shorter terminal summary without changing the underlying CSV outputs or JSON payloads." in readme
-    assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
-    assert "To narrow that unlock ladder to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake unlock-ladder TICKERS=NVDA,MSFT" in readme
-    assert "To keep that one-row-per-ticker ladder shorter in the terminal, add `TOP_N=...`, for example `make unlock-ladder TOP_N=5`." in readme
-    assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
-    assert "To focus that grouped unlock summary on a smaller local ticker slice, use:\n\n```bash\nmake unlock-summary TICKERS=NVDA,MSFT" in readme
-    assert "You can also cap the grouped summary with `make unlock-summary TOP_N=5` when you only want the first few holdings/theme/sector rows." in readme
-    assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
-    assert "If you want to narrow those bundle views to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake command-bundles TICKERS=NVDA,MSFT\nmake command-bundle-details TICKERS=NVDA,MSFT\nmake command-bundle-runbook TICKERS=NVDA,MSFT" in readme
-    assert "Those bundle views also accept `TOP_N=...`, so you can use `make command-bundles TOP_N=3` or `make command-bundle-runbook TICKERS=NVDA,MSFT TOP_N=6` when you want a shorter read-only pass." in readme
-    assert "If you only want one lane at a time, use:\n\n```bash\nmake bundle-prices\nmake bundle-fundamentals\nmake bundle-peers" in readme
-    assert "To narrow one of those lane-specific views to a smaller local ticker slice, use:\n\n```bash\nmake bundle-fundamentals TICKERS=NVDA,MSFT\nmake detail-peers TICKERS=NVDA,MSFT\nmake runbook-prices TICKERS=NVDA,MSFT" in readme
-    assert "make runbook-prices\nmake runbook-fundamentals\nmake runbook-peers" in readme
-    assert "If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:\n\n```bash\nmake bundle-prices-broader\nmake detail-prices-broader\nmake runbook-prices-broader" in readme
-    assert "The same `-broader` pattern is available for `fundamentals` and `peers`, and those broader queue lane views also accept `TICKERS=...`" in readme
-    assert "To validate your local CSV datasets and see schema/freshness warnings:\n\n```bash\nmake validate-data" in readme
-    assert "If you explicitly want machine-readable validation output:\n\n```bash\npython -m src.stock_report --validate-local-data --json" in readme
-    assert "If you intentionally want lower-level CLI control for provider selection or direct JSON output, the raw module commands remain available:\n\n```bash\npython -m src.stock_report --ticker AAPL --provider mock" in readme
-    assert "To scaffold header-only local enrichment templates without fabricating any production data:\n\n```bash\nmake templates" in readme
-    assert "To scaffold header-only staging files directly under `data/imports/`:\n\n```bash\nmake import-staging" in readme
-    assert "make imports-validate" in readme
-    assert "make imports-preview" in readme
-    assert "make imports-apply" in readme
-    assert "make onboarding" in readme
-    assert "Validate staged files without mutating canonical data:\n\n```bash\nmake imports-validate" in readme
-    assert "Preview what would change:\n\n```bash\nmake imports-preview" in readme
-    assert "Apply the merge safely:\n\n```bash\nmake imports-apply" in readme
-    assert "If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:\n\n```bash\nmake price-refresh" in readme
-    assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
-    assert "If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake price-worklist TICKERS=NVDA,MSFT" in readme
-    assert "Use `make price-status` for the current read-only diagnostics view, `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows, or `make price-status TICKERS=AMD,AVGO` when you want to inspect only a smaller local ticker slice." in readme
-    assert "The raw read-only CLI path is `python3 -m src.data_update --price-status`." in readme
-    assert "To keep that price gap list shorter in the terminal, add `TOP_N=...`, for example `make price-worklist TOP_N=5`." in readme
-    assert "If you want to narrow those blocker queues to a specific local ticker slice, use:\n\n```bash\nmake fundamentals-peer-worklist TICKERS=NVDA,MSFT\nmake sec-stage-queue TICKERS=NVDA,MSFT\nmake peer-mapping-queue TICKERS=NVDA,MSFT" in readme
-    assert "Those read-only blocker views also accept `TOP_N=...`, for example `make fundamentals-peer-worklist TOP_N=5` or `make sec-stage-queue TICKERS=NVDA,MSFT TOP_N=5`." in readme
-    assert "To focus that optional-context pass on a smaller local ticker slice, use:\n\n```bash\nmake optional-context-worklist TICKERS=NVDA,MSFT" in readme
-    assert "You can also keep that optional-context summary shorter with `make optional-context-worklist TOP_N=5`." in readme
-    assert "Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:\n\n```bash\nmake price-normalize INPUT=data/raw/prices/prices.csv SOURCE=generic_manual" in readme
-    assert "If you explicitly need lower-level CLI control for unusual exports, map columns directly:" in readme
-    assert "If you want a larger CLI-only smoke run:\n\n```bash\nmake universe-preview\nmake universe-apply" in readme
-    assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" not in readme
-    assert "If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data" in readme
-    assert "make imports-apply\nmake validate-data\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
-    assert "### SEC staging example\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
-    assert "If the current blocker path is already satisfied and you want the monthly layer directly, use:\n\n```bash\nmake monthly" in readme
-    assert "The local track-record module uses only local historical prices:\n\n```bash\nmake track-record" in readme
-    assert "If you want the current project-status summary without first refreshing those supporting artifacts, use:\n\n```bash\nmake status-check" in readme
-    assert "To keep either status view shorter in the terminal, add `TOP_N=...`, for example:\n\n```bash\nmake status-check TOP_N=2" in readme
-    assert "If you want to inspect only a smaller local ticker slice in the read-only status view, use `make status-check TICKERS=NVDA,MSFT`." in readme
-    assert "The raw read-only CLI path is `python3 -m src.project_status --check`." in readme
-    assert "Generate them through the normal workflow or directly:\n\n```bash\nmake status\nmake verify\nmake research-health-check\nmake research-health" in readme
-    assert "The raw read-only CLI path is `python3 -m src.research_health --check`." in readme
-    assert "If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`." in readme
-    assert "If you want to inspect only a smaller local ticker slice of the read-only diagnostics, use `make research-health-check TICKERS=NVDA,MSFT`." in readme
-    assert "Generate it with:\n\n```bash\nmake status\nmake action-queue-check\nmake action-queue" in readme
-    assert "If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`." in readme
-    assert "If you want to inspect only a smaller local ticker slice, use `make action-queue-check TICKERS=NVDA,MSFT`." in readme
-    assert "The raw read-only CLI path is `python3 -m src.action_queue --check`." in readme
+
+def test_public_markdown_links_resolve_to_tracked_local_files():
+    public_docs = [
+        Path("README.md"),
+        Path("ROADMAP.md"),
+        Path("PRODUCT_SPEC.md"),
+        Path("READINESS_MODEL.md"),
+        Path("DECISION_OUTPUT_MODEL.md"),
+        *Path("docs").glob("*.md"),
+        *Path("outputs/stock_reports").glob("*.md"),
+    ]
+    missing: list[tuple[str, str]] = []
+
+    for path in public_docs:
+        text = path.read_text(encoding="utf-8")
+        image_targets = [match.group(1) for match in re.finditer(r"!\[[^\]]*\]\(([^)]+)\)", text)]
+        link_targets = [match.group(1) for match in re.finditer(r"(?<!!)\[[^\]]+\]\(([^)]+)\)", text)]
+        for target in image_targets + link_targets:
+            local_target = target.split("#", 1)[0].strip()
+            if (
+                not local_target
+                or re.match(r"^[a-z][a-z0-9+.-]*:", local_target)
+                or local_target.startswith("/")
+            ):
+                continue
+            resolved = (path.parent / local_target).resolve()
+            if not resolved.exists():
+                missing.append((str(path), target))
+
+    assert missing == []
 
 
-def test_readme_distinguishes_verify_from_broader_daily_workflow():
+def test_public_docs_only_reference_existing_make_targets():
+    targets = _makefile_targets()
+    docs = [Path("README.md"), Path("ROADMAP.md"), Path("PRODUCT_SPEC.md"), *Path("docs").glob("*.md")]
+    missing: list[tuple[str, str]] = []
+
+    for path in docs:
+        text = path.read_text(encoding="utf-8")
+        command_surfaces = re.findall(r"`([^`]*\bmake\s+[^`]*)`", text)
+        command_surfaces.extend(match.group(1) for match in re.finditer(r"```(?:bash|text)?\n(.*?)```", text, flags=re.DOTALL))
+        for surface in command_surfaces:
+            for match in re.finditer(r"\bmake\s+([A-Za-z0-9_.-]+)", surface):
+                target = match.group(1).rstrip(".,;:)")
+                if target not in targets:
+                    missing.append((str(path), target))
+
+    assert missing == []
+
+
+def test_public_docs_prose_does_not_accidentally_look_like_make_commands():
+    docs = [Path("README.md"), Path("ROADMAP.md"), Path("PRODUCT_SPEC.md"), *Path("docs").glob("*.md")]
+    suspicious: list[tuple[str, str]] = []
+
+    for path in docs:
+        text = path.read_text(encoding="utf-8")
+        code_ranges = [(match.start(), match.end()) for match in re.finditer(r"`[^`]*`|```.*?```", text, flags=re.DOTALL)]
+        for match in re.finditer(r"\bmake\s+([a-z][a-z-]+)", text):
+            if any(start <= match.start() < end for start, end in code_ranges):
+                continue
+            target = match.group(1)
+            if target not in {"the", "clear", "decisions", "risk", "unsupported"}:
+                continue
+            suspicious.append((str(path), match.group(0)))
+
+    assert suspicious == []
+
+
+def test_sample_stock_reports_explain_methodology_and_use_current_research_boundary():
+    for report_name in ("a.md", "meta.md", "nvda.md", "qqq.md", "smh.md", "apld.md"):
+        report = Path("outputs/stock_reports", report_name).read_text(encoding="utf-8")
+        assert "Single-Stock Research Report" in report
+        assert "## At A Glance" in report
+        assert report.index("## At A Glance") < report.index("## How To Read This Report")
+        assert "- Mode:" in report
+        assert "- Decision view:" in report
+        assert "- DCF:" in report
+        assert "- Peer context:" in report
+        assert "- Optional context:" in report
+        assert "- Method: project readiness gates decide what can appear" in report
+        assert "discounted terminal value, cash/debt adjustment, and fair value per share when ready" in report
+        assert "- Next local step:" in report
+        assert "## Analysis Quality" in report
+        assert "## Methodology" in report
+        assert "## Evaluation Function Check" in report
+        assert "## Copyable Unlock Commands" in report
+        assert "Copy-only: these are local research commands to copy when you choose" in report
+        assert "the report does not execute imports, refreshes, broker actions, or trades" in report
+        assert "## Copyable Unlock Commands" in report.split("## Source/Freshness Audit")[0]
+        assert "readiness gate first, supported analysis second, valuation math third, explanation last" in report
+        assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in report
+        assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in report
+        assert "Score boundary: setup, watchlist, confidence, and monthly scores are triage aids" in report
+        assert "not price targets, expected returns, or allocation instructions" in report
+        assert "missing fields are not inferred" in report
+        assert "copyable command only" in report
+        assert "Local CSV-backed research data" not in report
+        assert "T00:00:00" not in report
+        if report_name != "apld.md":
+            assert "Saved local research data" in report
+        assert "Broken" not in report
+        assert "Avoid" not in report
+        assert "not_ready" not in report
+        assert "monitor_context" not in report
+        assert "peer_data_unavailable" not in report
+        assert "insufficient_data" not in report
+        assert "Price ready: True" not in report
+        assert "Price ready: False" not in report
+        assert "Earnings ready: False" not in report
+        assert "Analyst estimates ready: False" not in report
+        assert re.search(r"(?<!`)Run make\s+[A-Za-z0-9_.-]+", report) is None
+        assert re.search(r"(?<!`)run make\s+[A-Za-z0-9_.-]+", report) is None
+        assert "final state: Ignore" not in report
+        assert "current state is Ignore" not in report
+        for raw_field in (
+            "EPSGrowth",
+            "GrossMargin",
+            "DebtToEquity",
+            "ForwardPE",
+            "EVToSales",
+            "EVToEBITDA",
+            "PriceToFCF",
+            "FCFYield",
+            "shares_outstanding",
+            "free_cash_flow",
+            "fcf_margin",
+            "market_cap_or_price_and_shares",
+            "reason_not_ready",
+            "missing_dcf_fields",
+            "market_direction",
+        ):
+            assert raw_field not in report
+        assert "transaction execution" not in report.lower()
+        assert "trade instruction" not in report.lower()
+        assert "preview-first local import workflows" in report
+        assert "staged import workflows" not in report
+
+
+def test_methodology_doc_explains_formulas_limits_and_code_paths():
+    methodology = Path("docs/METHODOLOGY.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "Base FCF = free_cash_flow",
+        "Terminal value = Terminal FCF / (WACC - terminal growth)",
+        "Fair value per share = Equity value / shares outstanding",
+        "Valuation status is a gate, not a recommendation",
+        "Scores And Ranking Context",
+        "setup scores, watchlist scores, confidence scores, and monthly",
+        "Scores are not:",
+        "Price targets",
+        "Expected returns",
+        "Portfolio weights",
+        "Buy/sell/hold recommendations",
+        "converted into a weak score-based conclusion",
+        "outputs/undervalued_candidates.csv",
+        "valuation-readiness and",
+        "not an automatic undervalued-stock list",
+        "not_ready",
+        "meaning not enough trusted data exists for valuation",
+        "`insufficient_data`, meaning the valuation is intentionally blocked until trusted inputs exist",
+        "What Is Data Versus Product Logic",
+        "The product separates source inputs from analysis logic so the report is not a black box",
+        "Third-party or optional provider data can supply rows, but it does not decide the research conclusion",
+        "How This Compares To Standard Research Workflows",
+        "The product follows a familiar equity-research sequence, but keeps each step visible and gated",
+        "Standard research step",
+        "Intrinsic valuation",
+        "Relative valuation",
+        "A free-cash-flow DCF with visible scenario assumptions, WACC, terminal growth, and sensitivity",
+        "Peer valuation from guessed relationships, sector fallback, or incomplete peer metrics",
+        "Compared with a professional research terminal or analyst model, this project is intentionally narrower",
+        "the same project code checks data readiness, runs DCF math only when inputs exist",
+        "Fundamental review is therefore a validation-and-interpretation layer",
+        "DCF output is treated as scenario math, not a price target",
+        "Confidence is never used to override a blocker",
+        "When a company ticker has the full trusted local input stack",
+        "At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
+        "The report should be read top-down: At A Glance first",
+        "copyable local unlock commands next",
+        "the report does not execute imports, refreshes, broker actions, or trades",
+        "At A Glance mode, method cue, and next local step",
+        "Price, momentum, liquidity, and market-context review",
+        "Standalone DCF assumptions, bear/base/bull scenario values, and sensitivity context",
+        "Peer trend or peer valuation context only when source-backed peer inputs are ready",
+        "Copyable local commands for optional context, peer review, or freshness checks",
+        "When any part of that stack is missing, only the supported sections appear",
+        "local command path for inspecting or unlocking that input",
+        "Where This Lives In Code",
+        "`src/readiness_engine.py`",
+        "`src/dcf_readiness.py`",
+        "`src/valuation.py`",
+        "`src/stock_report.py`",
+        "not hidden in a model prompt",
+    ):
+        assert phrase in methodology
+
+
+def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2():
+    roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "Single-stock report mode with readiness, methodology, source/freshness audit",
+        "Public-facing methodology documentation",
+        "Public README/dashboard polish",
+        "### B. Single-Stock Research Mode V2",
+        "`make stock-report-md TICKER=...` generates clean Markdown reports for visitor demos",
+        "`make stock-report TICKER=...` remains available when optional report data is useful for inspection",
+        "Reports show readiness, analysis quality, methodology, evaluation function checks",
+        "ETF/index/fund reports show operating-company DCF as excluded, not failed",
+        "`Blocked by Data - Missing Peer Mapping`",
+    ):
+        assert phrase in roadmap
+
+    assert "### B. Single Stock Research Mode\n\nGoal: produce a data-honest single-ticker research report" not in roadmap
+    assert "- Add ticker search in the dashboard." not in roadmap
+
+
+def test_product_spec_keeps_execution_features_permanently_out_of_scope():
+    spec = Path("PRODUCT_SPEC.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "## Current Product Surfaces",
+        "`Home`: plain-language readiness cards, next-action cards, methodology ladder, and example report comparisons",
+        "`Single-Stock Report`: ticker-level At A Glance status, methodology cue, analysis quality, valuation state, source/freshness audit, and copyable local unlock commands",
+        "`Data Health`: trusted local data paths, import validation, rejected-row reports, and unlock queues",
+        "`Value / Re-rating`: DCF-ready, peer-limited, blocked, and ETF/index/fund excluded valuation states",
+        "Markdown reports under `outputs/stock_reports/`",
+        "richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data modes",
+        "Broad-universe tables should stay filtered and row-limited by default",
+        "## Public Share Definition",
+        "the README has a short demo path and dashboard preview",
+        "sample reports show `At A Glance`, methodology, evaluation function checks, source/freshness, and copyable local unlock commands",
+        "project code provides readiness gates, DCF math, peer boundaries, and report wording",
+        "`make public-check` passes",
+        "generated CSV/JSON churn is reviewed before staging and is not committed by default",
+        "## Future Research Enhancements Not Implemented Yet",
+        "Paid or licensed data-provider integrations for trusted research inputs",
+        "Full SEC financial-statement modeling beyond preview-first fundamentals imports",
+        "Full market-scale background job scheduling for local refresh/import workflows",
+        "Automated peer suggestions only when clearly labeled as fallback",
+        "## Permanently Out Of Scope",
+        "Broker connections",
+        "Automated order routing",
+        "Auto-trading",
+        "Direct buy/sell/hold recommendations",
+        "Options trade recommendations",
+        "Fabricated prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or research conclusions",
+    ):
+        assert phrase in spec
+
+    future_section = spec.split("## Future Research Enhancements Not Implemented Yet", 1)[1].split("## Permanently Out Of Scope", 1)[0]
+    for forbidden in (
+        "Broker connections",
+        "Automated order routing",
+        "Auto-trading",
+        "Direct buy/sell/hold recommendations",
+        "Options trade recommendations",
+    ):
+        assert forbidden not in future_section
+
+
+def test_operator_guide_is_command_focused_and_research_only():
+    guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "Data readiness first",
+        "Analysis second",
+        "Research decision last",
+        "does not connect to brokers",
+        "make pipeline",
+        "make readiness",
+        "make project-status",
+        "make stock-report-md TICKER=NVDA",
+        "make stock-report-md TICKER=A",
+        "make stock-report-md TICKER=META",
+        "make stock-report-md TICKER=QQQ",
+        "make stock-report-md TICKER=SMH",
+        "make stock-report-md TICKER=APLD",
+        "Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.",
+        "make dashboard",
+        "make dashboard-smoke",
+        "Use the Home page `Example Reports` table to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples",
+        "make price-worklist TOP_N=10",
+        "make focus-fundamentals TICKER=NVDA",
+        "make peer-mapping-queue TOP_N=10",
+        "make optional-context-worklist TOP_N=10",
+        "make imports-validate",
+        "make imports-preview",
+        "make imports-apply",
+        "make price-refresh-loop DRY_RUN=1",
+        "At A Glance",
+        "method cue",
+        "Analysis Quality",
+        "Methodology",
+        "DCF formula path",
+        "The At A Glance method cue and the `Methodology` section show the DCF formula path",
+        "For local import drafts, use preview before apply",
+        "Evaluation Function Check",
+        "Copyable Unlock Commands",
+        "does not execute imports, refreshes, broker actions, or trades",
+        "ready, blocked, excluded, or optional",
+        "Analysis Modes",
+        "DCF-ready review",
+        "Standalone DCF review",
+        "Price/setup review only",
+        "Monitor-only context",
+        "Data-unlock only",
+        "Large refreshed CSVs are local working data",
+        "docs/analysis_capability_audit.md",
+        "What Powers The Analysis",
+        "shipped analysis comes from project code under `src/`",
+        "Support tools and libraries are not the stock-analysis rules",
+        "shipped readiness gates, valuation gates",
+    ):
+        assert phrase in guide
+    assert "META` demonstrates company-level analysis where peer context is still locked" not in guide
+    assert "For local import draft workflows" not in guide
+
+    for forbidden in (
+        "buy recommendation",
+        "sell recommendation",
+        "auto-trading system",
+        "hidden investing engine",
+    ):
+        assert forbidden not in guide.lower()
+
+
+def test_public_release_docs_point_to_operator_guide_without_stale_future_copy():
+    checklist = Path("docs/PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
+    audit = Path("docs/public_cleanup_audit.md").read_text(encoding="utf-8")
+    diff_audit = Path("docs/DIFF_HYGIENE_AUDIT.md").read_text(encoding="utf-8")
+
+    assert "docs/OPERATOR_GUIDE.md" in checklist
+    assert "docs/LICENSE_DECISION_GUIDE.md" in checklist
+    assert "docs/DIFF_HYGIENE_AUDIT.md" in checklist
+    assert "portfolio/demo project" in checklist
+    assert "deeper runbook" in checklist
+    assert "make stock-report-md TICKER=NVDA" in checklist
+    assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
+    assert "`At A Glance`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
+    assert "After it passes, run `make diff-hygiene`" in checklist
+    assert "make diff-hygiene-files" in checklist
+    assert "make staged-hygiene-check" in checklist
+    assert "outputs/staging/" in checklist
+    assert "git add --pathspec-from-file=..." in checklist
+    assert "safe staging" in checklist
+    assert "generated CSV/JSON churn" in checklist
+    assert "new `docs/`, `scripts/`, and `tests/` files" in checklist
+    assert "changed and new file counts" in diff_audit
+    assert "make diff-hygiene-files" in diff_audit
+    assert "make staged-hygiene-check" in diff_audit
+    assert "outputs/staging/product_files.txt" in diff_audit
+    assert "outputs/staging/product_plus_reports.txt" in diff_audit
+    assert "New files under `docs/`" in diff_audit
+    assert "`scripts/`, and `tests/` are treated as product candidates" in diff_audit
+    for demo_command in (
+        "make demo",
+        "make stock-report-md TICKER=APLD",
+        "make stock-report-md TICKER=NVDA",
+        "make stock-report-md TICKER=A",
+        "make stock-report-md TICKER=META",
+        "make stock-report-md TICKER=QQQ",
+        "make stock-report-md TICKER=SMH",
+    ):
+        assert demo_command in checklist
+
+    for phrase in (
+        "Public Release Hygiene",
+        "Visitor Experience",
+        "Data Hygiene",
+        "License Decision",
+        "Methodology And Trust",
+        "Public Wording",
+        "Verification Before Sharing",
+        "docs/OPERATOR_GUIDE.md",
+        "docs/METHODOLOGY.md",
+        "docs/LICENSE_DECISION_GUIDE.md",
+        "public reuse rights are not granted yet",
+        "timestamp-only churn",
+        "Research-only; no broker integration or order execution.",
+        "make dashboard-smoke",
+            "make demo",
+            "make public-check",
+            "make stock-report-md TICKER=NVDA",
+            "git diff --check",
+    ):
+        assert phrase in audit
+
+    assert "AGENTS.md" not in audit
+    assert ".agents" not in audit
+    assert "internal agent" not in audit.lower()
+    assert "may benefit from a separate `docs/OPERATOR_GUIDE.md` later" not in audit
+    assert "Whether to create a separate `docs/OPERATOR_GUIDE.md`" not in audit
+
+    for phrase in (
+        "Do not stage broad refreshed local data",
+        "data/prices.csv",
+        "outputs/*.csv",
+        "small Markdown sample reports only",
+        "make dashboard-smoke",
+        "make demo",
+        "make public-check",
+    ):
+        assert phrase in diff_audit
+
+
+def test_license_decision_guide_is_present_until_license_is_chosen():
+    guide = Path("docs/LICENSE_DECISION_GUIDE.md").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
 
-    assert "run deterministic local verification for core outputs, local-data validation, and read-only status artifacts" in readme
-    assert "If you also want monthly picks, track record output, and the broader end-to-end refresh path, use `make daily` or `make validate-all`" in readme
-    assert "run deterministic local verification for core outputs, diagnostics, monthly layers, and read-only status artifacts" not in readme
+    assert not Path("LICENSE").exists()
+    for phrase in (
+        "does not currently grant public reuse rights",
+        "Portfolio showcase only",
+        "Do not claim the project is open source until a license is added",
+        "add a root-level `LICENSE` file",
+    ):
+        assert phrase in guide
+    assert "reuse rights are not granted until a license is added" in readme
+    assert "MIT License" not in readme
+    assert "Apache License" not in readme
 
 
-def test_readme_safe_data_change_ladders_use_explicit_repo_native_commands():
+def test_stock_report_cli_data_unlock_fallback_uses_product_language():
+    source = Path("src/stock_report.py").read_text(encoding="utf-8")
+
+    assert "Data-unlock Markdown report:" in source
+    assert "First blocker to resolve:" in source
+    assert "Readiness-only Markdown report:" not in source
+    assert "Full stock report blocked:" not in source
+
+
+def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
+    brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "At A Glance",
+        "Analysis Quality",
+        "Methodology",
+        "Evaluation Function Check",
+        "Copyable Unlock Commands",
+        "mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
+        "which local method is being used",
+        "with the DCF method path visible before detailed report tables",
+        "At A Glance status, method cue, DCF assumptions",
+        "what command would unlock the next trusted input",
+        "DCF-ready review",
+        "DCF-ready review",
+        "standalone DCF review",
+        "Price/setup review only",
+        "Monitor-only context",
+        "Data-unlock only",
+        "monitor context",
+        "price/setup review",
+        "data-unlock work",
+        "ready, blocked, excluded, or optional",
+        "CSV-first, preview-first local import workflows",
+        "preview-first local import validation",
+        "Original local analysis rules for readiness gates",
+        "support data handling and UI",
+        "which parts are original analysis rules",
+        "which actions remain permanently out of scope",
+        "outputs/stock_reports/nvda.md",
+        "outputs/stock_reports/a.md",
+        "outputs/stock_reports/meta.md",
+        "outputs/stock_reports/qqq.md",
+        "outputs/stock_reports/smh.md",
+        "outputs/stock_reports/apld.md",
+        "docs/analysis_capability_audit.md",
+        "research-only",
+        "does not connect to a broker or place trades",
+        "README example map",
+        "click the tracked sample reports under `outputs/stock_reports/`",
+        "exact copyable local commands for the next unlock",
+    ):
+        assert phrase in brief
+
+    assert "standalone DCF review where peer-relative valuation is still locked" in brief
+    assert "price/setup review where valuation remains gated" in brief
+    assert "CSV-first staged import workflows" not in brief
+    assert "staged import validation" not in brief
+    for guardrail_phrase in (
+        "direct buy/sell instructions",
+        "unsupported stock picks",
+        "no broker integration",
+    ):
+        assert guardrail_phrase in brief
+
+
+def test_analysis_capability_audit_is_public_and_data_honest():
+    audit = Path("docs/analysis_capability_audit.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "What Is Strong Today",
+        "Plain Answer",
+        "Function Quality Matrix",
+        "What Is Intentionally Limited",
+        "Where The Logic Comes From",
+        "Support Tooling Boundary",
+        "Input-To-Output Contract",
+        "At A Glance status",
+        "copyable local unlock commands",
+        "At A Glance first",
+        "copyable local data-unlock commands",
+        "Supported-Today Assessment",
+        "Methodology visibility",
+        "Methodology and explanation",
+        "docs/METHODOLOGY.md",
+        "base FCF, projected FCF, discounted cash flows plus discounted terminal value",
+        "filling the gap with an inferred value",
+        "Analysis Modes",
+        "DCF-ready review",
+        "Standalone DCF review",
+        "Price/setup review only",
+        "Monitor-only context",
+        "Data-unlock only",
+        "Standard Python packages support data handling, UI, tests, and optional provider access",
+        "Readiness gates",
+        "Fundamentals and DCF",
+        "Peer comparison",
+        "ETF/index monitor context",
+        "Single-stock report",
+        "Quality verdict",
+        "Best use today",
+        "Strong today",
+        "Good for DCF-ready companies only",
+        "Workflow-ready, coverage-limited",
+        "Support layer, not analysis logic",
+        "What it refuses to do",
+        "src/valuation.py",
+        "src/readiness_engine.py",
+        "pyproject.toml",
+        "`numpy`",
+        "`pandas`",
+        "`PyYAML`",
+        "`streamlit`",
+        "`yfinance`",
+        "`pytest`",
+        "Optional unofficial research-grade data adapter",
+        "not a wrapper around external investing services",
+        "dependencies support the workflow",
+        "they are not the analysis rules",
+        "Support Tooling Boundary",
+        "Support tools and libraries are outside the stock-analysis rules",
+        "not embedded valuation logic",
+        "recommendation logic",
+        "public product should be judged by the files in this repository",
+        "local or provider-assisted data supplies rows",
+        "does not import a third-party analyst opinion",
+        "Validate whether each feature is `ready`, `partial`, `blocked`, or `excluded`",
+        "Reduce confidence or withhold sections when required inputs are missing",
+        "full-data company can show fundamentals, DCF assumptions, sensitivity, and peer context",
+        "not yet a full-market data platform",
+    ):
+        assert phrase in audit
+    for forbidden in ("place orders", "connect to brokers", "auto-trade", "direct buy/sell"):
+        assert forbidden not in audit.lower()
+    assert "Open-source Python packages support data handling" not in audit
+
+
+def test_package_metadata_matches_public_research_only_positioning():
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    for phrase in (
+        'name = "stock-research-command-center"',
+        "CSV-first, research-only stock command center",
+        "readiness gates",
+        "single-stock reports",
+        "transparent valuation blockers",
+        'keywords = ["stocks", "research", "streamlit", "readiness", "valuation", "csv"]',
+        "[project.urls]",
+        'Repository = "https://github.com/YuzeJ21/Stock-Analysis"',
+    ):
+        assert phrase in pyproject
+
+    assert "license =" not in pyproject
+    assert "github.com/davidjiang8888" not in pyproject
+    assert "broker" not in pyproject.lower()
+    assert "trading" not in pyproject.lower()
+
+
+def test_legacy_stock_analysis_scaffold_is_not_published():
+    publishable_legacy_files = [
+        path
+        for path in Path("stock_analysis").rglob("*")
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and not path.name.endswith((".pyc", ".pyo"))
+    ]
+    assert publishable_legacy_files == []
+
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert 'packages = ["src", "src.providers"]' in pyproject
+    assert "stock_analysis" not in pyproject
+
+
+def test_decision_output_model_matches_current_evaluation_contract():
+    model = Path("DECISION_OUTPUT_MODEL.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "decision_subtype",
+        "primary_blocker",
+        "next_best_action",
+        "readiness_score",
+        "data_confidence",
+        "evaluation_status",
+        "purpose_fit",
+        "setup_quality",
+        "valuation_view",
+        "risk_view",
+        "missing_data_summary",
+        "next_research_step",
+        "source_freshness_summary",
+        "feature_summary",
+        "Current Decision Subtypes",
+        "Research Candidate - DCF Ready But Peer Blocked",
+        "Research Candidate - Optional Context Locked",
+        "Monitor - ETF Market Proxy",
+        "Monitor - Price/Momentum Ready",
+        "Blocked by Data - Missing Price",
+        "Blocked by Data - Missing Fundamentals",
+        "Blocked by Data - Missing Peer Mapping",
+        "Excluded - DCF Not Applicable",
+        "Confidence And Scores",
+        "Scores must not be displayed as price targets, expected returns, or direct",
+        "Base score",
+        "CompositeScore",
+        "review-order or confidence aid only",
+        "ETF/index/fund rows must show DCF as excluded",
+    ):
+        assert phrase in model
+
+
+def test_readiness_model_documents_peer_layers_and_snapshot_history():
+    model = Path("READINESS_MODEL.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "Peer Readiness Layers",
+        "peer_price_ready",
+        "peer_momentum_ready",
+        "peer_fundamentals_ready",
+        "peer_valuation_ready",
+        "peer_trend_comparison_ready",
+        "peer_valuation_comparison_ready",
+        "peer_dcf_comparison_ready",
+        "Peer trend comparison may appear before peer valuation",
+        "Peer valuation must stay blocked when peer fundamentals or valuation inputs are missing",
+        "Sector or industry fallback context must be labeled as fallback",
+        "Readiness Snapshot History",
+        "make readiness-snapshot",
+        "data/reports/ticker_readiness_report.previous.csv",
+        "current-only baseline instead of fake deltas",
+        "valuation-readiness context in legacy `undervalued_candidates.csv`",
+    ):
+        assert phrase in model
+
+
+def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
+    dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
+    dry_run_index = dashboard.index("make price-refresh-loop DRY_RUN=1")
+    refresh_index = dashboard.index("make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30")
+
+    assert dry_run_index < refresh_index
+    assert "broad refresh churn should be inspected before it is committed or shared publicly" in dashboard
+    assert "Generate Local Stock Report" in dashboard
+    assert "Use research-grade online data" in dashboard
+    assert "Show report source details" in dashboard
+    assert "Download Report Data" in dashboard
+    assert "Download Structured Report" not in dashboard
+    assert "Download Report Data (JSON)" not in dashboard
+    assert "technical context" not in dashboard.lower()
+    assert "trend and risk context" in dashboard
+    assert "Analysis mode guide." in dashboard
+    assert "At A Glance" in dashboard
+    assert "stock_report_at_a_glance_cards(report_payload" in dashboard
+    assert "stock_report_mode_guide_cards(report_payload)" in dashboard
+    assert "Project calculations in src/indicators.py and src/momentum_engine.py." in dashboard
+    assert "Project calculations in src/report_generator.py and dashboard helpers." not in dashboard
+    assert "Developer detail: raw report JSON" not in dashboard
+    assert "Show advanced report data (JSON)" not in dashboard
+    assert "Use optional online data" not in dashboard
+    assert "research rows" in dashboard
+
+
+def test_stock_report_cli_help_uses_readable_report_language():
+    source = Path("src/stock_report.py").read_text(encoding="utf-8")
+
+    assert "Generate a readable local single-stock research report." in source
+    assert "optional report data" in source
+    assert "structured stock report" not in source
+    assert "structured report data" not in source
+    assert "full JSON payload" not in source
+
+def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     readme = Path("README.md").read_text(encoding="utf-8")
 
-    assert "- prices: `data/raw/prices/` -> `make price-normalize` -> `make price-validate` -> `make price-preview` -> `make price-apply`" in readme
-    assert "- fundamentals: `export SEC_USER_AGENT=...` -> `make sec-stage ...` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`" in readme
-    assert "- peers/earnings/estimates: fill trusted local CSVs under `data/imports/`, then `make imports-validate` -> `make imports-preview` -> `make imports-apply`" in readme
-    assert "- fundamentals: SEC staging -> validate -> preview -> apply" not in readme
+    assert "Research-Only Guardrails" in readme
+    assert "not a trading system" in readme
+    for phrase in (
+        "place orders",
+        "connect to brokers",
+        "auto-trade",
+        "recommend option trades",
+        "provide direct buy/sell instructions",
+        "fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations",
+        "make templates",
+        "make imports-validate",
+        "make imports-preview",
+        "make imports-apply",
+    ):
+        assert phrase in readme
+
+
+def test_product_facing_status_labels_avoid_action_language():
+    public_paths = [
+        Path("README.md"),
+        Path("ROADMAP.md"),
+        Path("PRODUCT_SPEC.md"),
+        Path("READINESS_MODEL.md"),
+        Path("DECISION_OUTPUT_MODEL.md"),
+        *Path("docs").glob("*.md"),
+        *Path("outputs/stock_reports").glob("*.md"),
+        Path("src/momentum_engine.py"),
+        Path("src/monthly_picks.py"),
+        Path("src/portfolio_review.py"),
+        Path("src/state_machine.py"),
+        Path("src/dashboard.py"),
+    ]
+    forbidden_labels = ("Buyable Area", "Pullback Add Candidate", "Add Candidate", "Hold but Do Not Add")
+
+    for path in public_paths:
+        text = path.read_text(encoding="utf-8")
+        for label in forbidden_labels:
+            assert label not in text, f"{path} still exposes action-sounding label {label!r}"
+
+    for replacement in ("Research Ready", "Pullback Review Candidate", "Constructive Review", "Hold Review Only"):
+        assert replacement in Path("src/dashboard.py").read_text(encoding="utf-8")
+
+
+def test_generated_product_outputs_use_current_import_draft_language():
+    generated_paths = [
+        Path("outputs/research_decisions.csv"),
+        Path("outputs/command_bundle_runbook.csv"),
+        Path("outputs/project_status_next_steps.csv"),
+        Path("outputs/project_status_top_actions.csv"),
+        Path("outputs/peer_unlock_worklist.csv"),
+        Path("data/outputs/research_decisions.csv"),
+        *Path("outputs/stock_reports").glob("*.md"),
+    ]
+    stale_phrases = (
+        "Import staged price rows",
+        "staged price rows",
+        "staged imports",
+        "staged local workflow",
+        "staged local data",
+        "staged price import",
+        "Advance staged",
+        "live staged",
+        "full JSON payload",
+        "technical context",
+    )
+
+    for path in generated_paths:
+        assert path.exists(), f"{path} is missing"
+        text = path.read_text(encoding="utf-8")
+        for phrase in stale_phrases:
+            assert phrase not in text, f"{path} still contains stale generated wording {phrase!r}"
+
+
+def test_public_docs_do_not_reference_stale_github_or_internal_thread_links():
+    public_paths = [
+        Path("README.md"),
+        Path("ROADMAP.md"),
+        Path("PRODUCT_SPEC.md"),
+        Path("READINESS_MODEL.md"),
+        Path("DECISION_OUTPUT_MODEL.md"),
+        *Path("docs").glob("*.md"),
+        *Path("outputs/stock_reports").glob("*.md"),
+    ]
+    forbidden = (
+        "github.com/davidjiang8888",
+        "davidjiang8888/Stock-Analysis",
+        "pull/1",
+        "Draft PR",
+        "codex/market-command-center-roadmap-sync",
+        "/Users/",
+        "Documents/New project",
+        "yjian070",
+        "AGENTS.md",
+        ".agents",
+        "docs/CODEX_SKILLS_OVERVIEW.md",
+        "Codex thread",
+        "goal prompt",
+    )
+
+    for path in public_paths:
+        text = path.read_text(encoding="utf-8")
+        for phrase in forbidden:
+            assert phrase not in text, f"{path} still references stale/internal link text {phrase!r}"
+
+    linkedin_brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
+    assert "https://github.com/YuzeJ21/Stock-Analysis" in linkedin_brief
 
 
 def test_shell_launchers_anchor_to_repo_root():
@@ -328,7 +1230,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
-    assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
+    assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
+    assert "stock-report-md:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)\nendif\n\t@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile
     assert "data-sources-check:\n\tpython3 -m src.data_sources --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
@@ -336,7 +1239,34 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "research-health-check:\n\tpython3 -m src.research_health --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "@echo \"4. Before sharing or committing:\"" in makefile
+    assert "@echo \"   make public-check\"" in makefile
+    assert "@echo \"   make diff-hygiene\"" in makefile
+    assert "@echo \"   make diff-hygiene-files  # optional for large dirty trees\"" in makefile
+    assert "@echo \"   make staged-hygiene-check # after staging, before commit\"" in makefile
+    assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
+    assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile
+    assert "public-check:" in makefile
+    for phrase in (
+        'Public share check: diff hygiene',
+        'Public share check: staged hygiene',
+        'Public share check: whitespace',
+        'Public share check: tests',
+        'Public share check: dashboard smoke',
+        'Public share check: visitor demo',
+        "@$(MAKE) --silent diff-hygiene-summary",
+        "@$(MAKE) --silent staged-hygiene-check",
+        "@git diff --check",
+        "@$(MAKE) --silent test",
+        "@$(MAKE) --silent dashboard-smoke",
+        "@$(MAKE) --silent demo",
+    ):
+        assert phrase in makefile
     assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
+    public_check_body = makefile.split("public-check:", 1)[1].split("\n\ntest:", 1)[0]
+    assert "price-refresh" not in public_check_body
+    assert "imports-apply" not in public_check_body
+    assert "pipeline" not in public_check_body
     assert "verify:\n\tpython3 -m pytest tests -q" not in makefile
     assert "daily:\n\tpython3 -m src.data_update --universe-file data/universe.csv" not in makefile

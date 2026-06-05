@@ -8,6 +8,9 @@ import pandas as pd
 from src.config import AppConfig
 from src.providers.base import DataFetcher
 
+MISSING_OHLCV_PREFIX = "Missing OHLCV data for "
+OPTIONAL_PROXY_OHLCV_PREFIX = "Optional benchmark/proxy OHLCV context unavailable for "
+
 
 def normalize_columns(columns: list[str]) -> list[str]:
     return [
@@ -119,6 +122,11 @@ def _normalize_fundamentals(frame: pd.DataFrame) -> pd.DataFrame:
         "ev_to_ebitda",
         "price_to_fcf",
         "fcf_yield",
+        "net_income",
+        "free_cash_flow",
+        "fcf",
+        "revenue",
+        "shares_outstanding",
     ]
     for column in numeric_columns:
         if column in frame.columns:
@@ -138,6 +146,20 @@ def _read_optional_csv(path: Path) -> tuple[pd.DataFrame, list[str]]:
     if not path.exists():
         return pd.DataFrame(), []
     return _read_csv(path)
+
+
+def _reclassify_optional_proxy_warnings(warnings: list[str], optional_proxy_tickers: set[str]) -> list[str]:
+    reclassified: list[str] = []
+    for warning in warnings:
+        if warning.startswith(MISSING_OHLCV_PREFIX):
+            ticker = warning.removeprefix(MISSING_OHLCV_PREFIX).strip().upper()
+            if ticker in optional_proxy_tickers:
+                reclassified.append(
+                    f"{OPTIONAL_PROXY_OHLCV_PREFIX}{ticker}; theme/sector comparison is unavailable, but the ticker's own readiness state is unchanged."
+                )
+                continue
+        reclassified.append(warning)
+    return reclassified
 
 
 def load_inputs(base_dir: Path, fetcher: DataFetcher, data_dir: Path | None = None) -> LoadedData:
@@ -187,22 +209,26 @@ def load_inputs(base_dir: Path, fetcher: DataFetcher, data_dir: Path | None = No
         if numeric_column in holdings.columns:
             holdings[numeric_column] = pd.to_numeric(holdings[numeric_column], errors="coerce")
 
-    tickers: set[str] = set()
+    analysis_tickers: set[str] = set()
     if not universe.empty and "ticker" in universe.columns:
-        tickers.update(universe["ticker"].dropna().astype(str))
+        analysis_tickers.update(universe["ticker"].dropna().astype(str))
     if not holdings.empty and "ticker" in holdings.columns:
-        tickers.update(holdings["ticker"].dropna().astype(str))
+        analysis_tickers.update(holdings["ticker"].dropna().astype(str))
 
+    benchmark_tickers: set[str] = set()
     for benchmark_group in config.benchmarks.values():
-        tickers.update(str(ticker).upper() for ticker in benchmark_group)
+        benchmark_tickers.update(str(ticker).upper() for ticker in benchmark_group)
 
+    proxy_tickers: set[str] = set()
     if not universe.empty and "sector_etf" in universe.columns:
-        tickers.update(universe["sector_etf"].dropna().astype(str))
+        proxy_tickers.update(universe["sector_etf"].dropna().astype(str))
     if not theme_map.empty and "etf" in theme_map.columns:
-        tickers.update(theme_map["etf"].dropna().astype(str))
+        proxy_tickers.update(theme_map["etf"].dropna().astype(str))
 
+    tickers = analysis_tickers | benchmark_tickers | proxy_tickers
     fetch_result = fetcher.load_ohlcv(sorted(tickers))
-    warnings.extend(fetch_result.warnings)
+    optional_proxy_tickers = {ticker.upper() for ticker in proxy_tickers - analysis_tickers - benchmark_tickers}
+    warnings.extend(_reclassify_optional_proxy_warnings(fetch_result.warnings, optional_proxy_tickers))
 
     return LoadedData(
         config=config,

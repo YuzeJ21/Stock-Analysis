@@ -23,7 +23,7 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
                 {
                     "ticker": "NVDA",
                     "status": "parse_error",
-                    "recommended_action": "Use staged manual prices.",
+                    "recommended_action": "Use the manual price import draft workflow.",
                     "error_message": "Parser failed.",
                 }
             ]
@@ -66,7 +66,7 @@ def test_action_queue_uses_status_first_fallback_for_price_failures_without_tick
                 {
                     "ticker": "",
                     "status": "parse_error",
-                    "recommended_action": "Use staged manual prices.",
+                    "recommended_action": "Use the manual price import draft workflow.",
                     "error_message": "Generic provider failure.",
                 }
             ]
@@ -94,7 +94,7 @@ def test_action_queue_skips_remote_price_failure_when_local_fallback_exists():
                     "ticker": "NVDA",
                     "status": "failed",
                     "fallback_used": True,
-                    "recommended_action": "Leave unchanged because local data exists; use staged manual prices if you need fresher rows.",
+                    "recommended_action": "Leave unchanged because local data exists; use the manual price import draft workflow if you need fresher rows.",
                     "error_message": "NVDA: Stooq CSV download requires an API key.",
                 }
             ]
@@ -251,7 +251,7 @@ def test_action_queue_uses_operator_friendly_onboarding_titles():
                     "dataset": "fundamentals",
                     "status": "missing_or_incomplete",
                     "reason": "No local fundamentals row is present for this ticker yet.",
-                    "recommended_action": "Run SEC staging.",
+                    "recommended_action": "Run SEC import draft workflow.",
                     "target_file": "data/imports/fundamentals.csv",
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
                     "example_command": "make sec-stage TICKERS=NVDA",
@@ -291,7 +291,7 @@ def test_action_queue_normalizes_legacy_sec_stage_example_commands():
                     "dataset": "fundamentals",
                     "status": "missing_or_incomplete",
                     "reason": "No local fundamentals row is present for this ticker yet.",
-                    "recommended_action": "Run SEC staging.",
+                    "recommended_action": "Run SEC import draft workflow.",
                     "target_file": "data/imports/fundamentals.csv",
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
                     "example_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=nvda, msft",
@@ -343,8 +343,8 @@ def test_action_queue_uses_staged_import_titles_for_global_gap_rows():
                     "ticker": "",
                     "status": "partial",
                     "reason": (
-                        "SEC staging only provides candidate fundamentals; it does not provide prices, peers, earnings, "
-                        "or analyst estimates. Staged import rows are present in data/imports/fundamentals.csv; "
+                        "SEC import draft workflow only provides candidate fundamentals; it does not provide prices, peers, earnings, "
+                        "or analyst estimates. Local import draft rows are present in data/imports/fundamentals.csv; "
                         "validate, preview, apply, then refresh status before relying on canonical local data."
                     ),
                     "recommended_action": (
@@ -355,7 +355,7 @@ def test_action_queue_uses_staged_import_titles_for_global_gap_rows():
                     "example_command": "make imports-preview",
                     "target_file": "data/imports/fundamentals.csv",
                     "local_file": "data/fundamentals.csv",
-                    "source_name": "Local fundamentals CSV / SEC Companyfacts staging",
+                    "source_name": "Local fundamentals CSV / SEC Companyfacts import draft workflow",
                 }
             ]
         ),
@@ -363,7 +363,7 @@ def test_action_queue_uses_staged_import_titles_for_global_gap_rows():
     )
 
     row = rows[0]
-    assert row.title == "Advance staged fundamentals import"
+    assert row.title == "Review fundamentals import draft"
     assert row.focus_command == "make imports-validate"
     assert "data/imports/fundamentals.csv" in row.reason
 
@@ -567,7 +567,7 @@ def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp
                 "focus_command": "make imports-validate",
                 "example_command": "make imports-preview",
                 "local_file": "data/fundamentals.csv",
-                "source_name": "Local fundamentals CSV / SEC Companyfacts staging",
+                "source_name": "Local fundamentals CSV / SEC Companyfacts import draft workflow",
             }
         ]
     ).to_csv(outputs_dir / "data_gap_report.csv", index=False)
@@ -577,9 +577,9 @@ def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp
     staged_row = next(
         row
         for row in payload["action_queue"]
-        if row["focus_command"] == "make imports-validate" and row["title"] == "Advance staged fundamentals import"
+        if row["focus_command"] == "make imports-validate" and row["title"] == "Review fundamentals import draft"
     )
-    assert staged_row["title"] == "Advance staged fundamentals import"
+    assert staged_row["title"] == "Review fundamentals import draft"
     assert "data/imports/fundamentals.csv" in staged_row["reason"]
 
 
@@ -615,7 +615,7 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
                     "dataset": "fundamentals",
                     "status": "missing_or_incomplete",
                     "reason": "No local fundamentals row is present for this ticker yet.",
-                    "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
+                    "recommended_action": "Run SEC import draft workflow for fundamentals, then validate and preview before applying.",
                     "target_file": "data/imports/fundamentals.csv",
                     "focus_command": "make focus-fundamentals TICKER=AMD",
                     "example_command": "make sec-stage TICKERS=AMD",
@@ -629,7 +629,7 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
                     "ticker": "AMD",
                     "status": "partial",
                     "reason": "No local fundamentals row was found for AMD.",
-                    "recommended_action": "Run SEC staging for fundamentals, then validate, preview, and apply the staged import.",
+                    "recommended_action": "Run SEC import draft workflow for fundamentals, then validate, preview, and apply the import draft.",
                     "local_file": "data/fundamentals.csv",
                 }
             ]
@@ -640,8 +640,10 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
     fundamentals_row = next(row for row in rows if row.action_type == "fundamentals" and row.ticker == "AMD")
     assert fundamentals_row.title == "Stage fundamentals for AMD"
     assert fundamentals_row.recommended_action == (
-        "Run make focus-fundamentals TICKER=AMD, or stage explicit local fundamentals with "
-        "make sec-stage TICKERS=AMD."
+        "Run make focus-fundamentals TICKER=AMD. If SEC_USER_AGENT is configured, run "
+        "make sec-stage TICKERS=AMD; otherwise prepare trusted manual fundamentals import draft rows in "
+        "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+        "and make imports-apply."
     )
     assert fundamentals_row.focus_command == "make focus-fundamentals TICKER=AMD"
     assert fundamentals_row.example_command == "make sec-stage TICKERS=AMD"
@@ -734,7 +736,7 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
                     "ticker": "",
                     "status": "partial",
                     "reason": "Freshness metadata is file-based only.",
-                    "recommended_action": "Run SEC staging for fundamentals, then validate, preview, and apply the staged import.",
+                    "recommended_action": "Run SEC import draft workflow for fundamentals, then validate, preview, and apply the import draft.",
                     "local_file": "data/fundamentals.csv",
                 },
                 {
@@ -855,7 +857,7 @@ def test_action_queue_prefers_explicit_data_gap_commands_when_present():
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
                     "example_command": "make sec-stage TICKERS=NVDA",
                     "local_file": "data/fundamentals.csv",
-                    "source_name": "Local fundamentals CSV / SEC Companyfacts staging",
+                    "source_name": "Local fundamentals CSV / SEC Companyfacts import draft workflow",
                 }
             ]
         ),
@@ -931,8 +933,8 @@ def test_action_queue_uses_validate_first_fundamentals_global_gap_fallback_witho
                     "dataset": "fundamentals",
                     "ticker": "",
                     "status": "partial",
-                    "reason": "Staged fundamentals need follow-through.",
-                    "recommended_action": "Run staged fundamentals follow-through.",
+                    "reason": "Fundamentals import drafts need follow-through.",
+                    "recommended_action": "Run fundamentals import drafts follow-through.",
                     "local_file": "data/imports/fundamentals.csv",
                 }
             ]
@@ -1063,7 +1065,7 @@ def test_action_queue_merges_price_status_with_price_worklist_guidance():
                 {
                     "ticker": "AMD",
                     "status": "parse_error",
-                    "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                    "recommended_action": "Retry later or use the manual price import draft workflow in data/imports/prices.csv.",
                     "error_message": "AMD: update failed (parse error).",
                 }
             ]
@@ -1098,12 +1100,12 @@ def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: P
     data_dir.mkdir()
     (outputs_dir / "price_update_status.csv").write_text(
         "run_timestamp,ticker,requested_start,requested_end,provider,status,rows_fetched,rows_merged,error_category,error_message,fallback_used,recommended_action\n"
-        "2026-05-21T00:00:00Z,NVDA,,2026-05-21,stooq,parse_error,0,0,parse_error,Parser failed,false,Use staged manual prices.\n",
+        "2026-05-21T00:00:00Z,NVDA,,2026-05-21,stooq,parse_error,0,0,parse_error,Parser failed,false,Use the manual price import draft workflow.\n",
         encoding="utf-8",
     )
     (outputs_dir / "data_onboarding_actions.csv").write_text(
         "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n"
-        "2,NVDA,fundamentals,missing_or_incomplete,DCF inputs incomplete,Run SEC staging,data/imports/fundamentals.csv,make focus-fundamentals TICKER=NVDA,make sec-stage TICKERS=NVDA\n",
+        "2,NVDA,fundamentals,missing_or_incomplete,DCF inputs incomplete,Run SEC import draft workflow,data/imports/fundamentals.csv,make focus-fundamentals TICKER=NVDA,make sec-stage TICKERS=NVDA\n",
         encoding="utf-8",
     )
     (outputs_dir / "data_gap_report.csv").write_text(
@@ -1208,7 +1210,7 @@ def test_action_queue_payload_normalizes_legacy_parse_error_reason_from_price_st
     ).to_csv(outputs_dir / "data_quality_wizard.csv", index=False)
     (outputs_dir / "price_update_status.csv").write_text(
         "run_timestamp,ticker,requested_start,requested_end,provider,status,rows_fetched,rows_merged,error_category,error_message,fallback_used,recommended_action\n"
-        "2026-05-21T00:00:00Z,META,,2026-05-21,stooq,parse_error,0,0,parse_error,\"META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)\",false,Retry later or use staged manual prices in data/imports/prices.csv.\n",
+        "2026-05-21T00:00:00Z,META,,2026-05-21,stooq,parse_error,0,0,parse_error,\"META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)\",false,Retry later or use the manual price import draft workflow in data/imports/prices.csv.\n",
         encoding="utf-8",
     )
 
@@ -1233,7 +1235,7 @@ def test_action_queue_rows_normalize_stale_data_quality_coverage_actions():
                     "Ticker": "NVDA",
                     "ReadinessStatus": "Needs Enrichment",
                     "MissingDataFields": "DCF inputs, peer mapping",
-                    "NextBestAction": "Run SEC staging for fundamentals: make sec-stage TICKERS=NVDA",
+                    "NextBestAction": "Run SEC import draft workflow for fundamentals: make sec-stage TICKERS=NVDA",
                     "FocusCommand": "",
                     "ExampleCommand": "make onboarding",
                     "Reason": "DCF inputs, peer mapping",
@@ -1275,11 +1277,11 @@ def test_action_queue_rows_preserve_staged_fundamentals_data_quality_actions():
                 {
                     "Ticker": "NVDA",
                     "ReadinessStatus": "Needs Enrichment",
-                    "MissingDataFields": "staged fundamentals still need validate/preview/apply, peer mapping",
+                    "MissingDataFields": "fundamentals import drafts still need validate/preview/apply, peer mapping",
                     "NextBestAction": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals and DCF inputs.",
                     "FocusCommand": "make imports-validate",
                     "ExampleCommand": "make status",
-                    "Reason": "staged fundamentals still need validate/preview/apply, peer mapping",
+                    "Reason": "fundamentals import drafts still need validate/preview/apply, peer mapping",
                 }
             ]
         ),
@@ -1355,7 +1357,7 @@ def test_data_quality_needs_refresh_accepts_staged_fundamentals_example_command(
                 "NextBestAction": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals and DCF inputs.",
                 "FocusCommand": "make imports-validate",
                 "ExampleCommand": "make imports-preview",
-                "MissingDataFields": "staged fundamentals still need validate/preview/apply, peer mapping",
+                "MissingDataFields": "fundamentals import drafts still need validate/preview/apply, peer mapping",
             }
         ]
     )
