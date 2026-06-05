@@ -7621,6 +7621,32 @@ def test_valuation_legacy_output_note_explains_compatibility_filename():
     assert "sell" not in note
 
 
+def test_valuation_legacy_diagnostic_frame_adds_reader_boundary_to_raw_values():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "META", "APLD"],
+            "ValuationStatus": ["ready", "not_ready", "ready"],
+            "FinalValueCategory": ["Watch", "Insufficient Data", "Avoid"],
+            "MissingDataFields": ["", "shares_outstanding", "free_cash_flow"],
+            "Reason": ["Ready row.", "Missing shares.", "Missing FCF."],
+        }
+    )
+
+    diagnostic = dashboard.valuation_legacy_diagnostic_frame(frame)
+    rendered = " ".join(diagnostic.astype(str).to_numpy().flatten()).lower()
+
+    assert "ReaderBoundary" in diagnostic.columns
+    assert diagnostic.loc[diagnostic["Ticker"].eq("NVDA"), "ReaderBoundary"].iloc[0].startswith("Ready-row context only")
+    assert "no valuation conclusion; compatibility fields stay blocked" in rendered
+    assert diagnostic.loc[diagnostic["Ticker"].eq("META"), "ReaderBoundary"].iloc[0].startswith("No valuation conclusion")
+    assert diagnostic.loc[diagnostic["Ticker"].eq("APLD"), "ReaderBoundary"].iloc[0].startswith("No valuation conclusion")
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language():
     ready = pd.DataFrame({"ticker": ["NVDA"]})
     blocked = pd.DataFrame(

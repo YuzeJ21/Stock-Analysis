@@ -4120,6 +4120,42 @@ def valuation_legacy_output_note() -> str:
     )
 
 
+def valuation_legacy_diagnostic_frame(frame: pd.DataFrame | None) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "ValuationStatus",
+        "FinalValueCategory",
+        "MissingDataFields",
+        "Reason",
+    ]
+    if frame is None or frame.empty:
+        return pd.DataFrame(columns=columns + ["ReaderBoundary"])
+    available_columns = _readiness_columns(frame, columns)
+    diagnostic = frame[available_columns].copy()
+    if "ValuationStatus" not in diagnostic.columns:
+        diagnostic["ValuationStatus"] = ""
+    if "FinalValueCategory" not in diagnostic.columns:
+        diagnostic["FinalValueCategory"] = ""
+    if "MissingDataFields" not in diagnostic.columns:
+        diagnostic["MissingDataFields"] = ""
+
+    status = diagnostic["ValuationStatus"].fillna("").astype(str).str.strip().str.lower()
+    category = diagnostic["FinalValueCategory"].fillna("").astype(str).str.strip().str.lower()
+    missing = diagnostic["MissingDataFields"].fillna("").astype(str).str.strip()
+    blocked = (
+        status.isin({"not_ready", "not ready", "blocked", "insufficient_data", "insufficient data", ""})
+        | category.isin({"insufficient data", "not ready", "blocked", ""})
+        | missing.ne("")
+    )
+    diagnostic["ReaderBoundary"] = (
+        "Ready-row context only; verify DCF assumptions, peers, and source freshness before interpretation."
+    )
+    diagnostic.loc[blocked, "ReaderBoundary"] = (
+        "No valuation conclusion; compatibility fields stay blocked until trusted inputs pass readiness."
+    )
+    return diagnostic
+
+
 def preferred_single_stock_default(local_tickers: list[str], preferred: str = "NVDA") -> int:
     """Return the selectbox index for a visitor-friendly demo ticker when present."""
     if not local_tickers:
@@ -15784,8 +15820,11 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
             st.dataframe(clean_display_frame(excluded[columns]), width="stretch", hide_index=True)
     with st.expander("Full valuation output table", expanded=False):
         st.caption(valuation_legacy_output_note())
-        diagnostic_columns = _readiness_columns(frame, ["Ticker", "ValuationStatus", "FinalValueCategory", "MissingDataFields", "Reason"])
-        st.dataframe(clean_display_frame(frame[diagnostic_columns]), width="stretch", hide_index=True)
+        st.write(
+            "Reader boundary is added by the dashboard so legacy value categories are interpreted as readiness context, "
+            "not standalone conclusions."
+        )
+        st.dataframe(clean_display_frame(valuation_legacy_diagnostic_frame(frame)), width="stretch", hide_index=True)
 
 
 def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) -> None:
