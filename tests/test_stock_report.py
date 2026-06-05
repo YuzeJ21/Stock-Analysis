@@ -246,6 +246,10 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Base DCF assumptions" in markdown
     assert "Scenario coverage: bear, base, bull" in markdown
     assert "Sensitivity table:" in markdown
+    assert "## DCF Calculation Path" in markdown
+    assert "State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs" in markdown
+    assert "Input source: local price/fundamentals rows; base revenue=$250.0B; base FCF=$90.0B; shares outstanding=7.4B" in markdown
+    assert "Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation" in markdown
     assert "Reason not ready: Not available" not in markdown
     assert "DCF missing fields: Not available" not in markdown
     assert "missing valuation inputs are not inferred" in markdown
@@ -529,6 +533,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
         "## Supported Analysis",
         "## Setup / Momentum",
         "## Valuation Readiness",
+        "## DCF Calculation Path",
         "## Peer Workflow",
         "## Risk Notes",
         "## Source / Freshness",
@@ -558,6 +563,8 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code" in markdown
     assert "DCF applicability: excluded" in markdown
     assert "not a failed valuation input" in markdown
+    assert "State: excluded; operating-company DCF is not the right method for ETF/index/fund monitor context" in markdown
+    assert "Formula path: not run for this ticker because the asset-type gate excludes company DCF" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
     assert "## Purpose Evaluation" in markdown
     assert "Research-only purpose brief" in markdown
@@ -764,6 +771,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "DCF missing inputs:" in markdown
     assert "Why DCF is blocked:" in markdown
     assert "Relative valuation: withheld until trusted fundamentals and DCF readiness pass" in markdown
+    assert "## DCF Calculation Path" in markdown
+    assert "State: blocked; the product withholds DCF math until trusted company inputs pass readiness checks" in markdown
+    assert "Formula path: withheld before base FCF, projected FCF, terminal value, equity value, or fair value/share are calculated" in markdown
     assert "## Risk Notes" in markdown
     assert "## Next Research Step" in markdown
     assert "allocation instructions" in markdown

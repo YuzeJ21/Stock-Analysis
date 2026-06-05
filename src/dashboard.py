@@ -3961,6 +3961,100 @@ def stock_report_methodology_frame(report_payload: dict[str, object]) -> pd.Data
     )
 
 
+def stock_report_dcf_calculation_path_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    readiness = _stock_report_payload_readiness(report_payload)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    dcf_result = valuation.get("dcf_result", {}) or {}
+    assumptions = dcf_result.get("assumptions", {}) or {}
+    sensitivity = valuation.get("sensitivity_table", {}) or {}
+    asset_type = format_missing(report_payload.get("asset_type") or readiness.get("asset_type"), "").lower()
+    valuation_status = format_missing(valuation.get("status"), "").lower()
+    dcf_status = format_missing(dcf_result.get("status") or valuation.get("status"), "").lower()
+    is_monitor = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status or "excluded" in dcf_status
+    dcf_ready = bool(readiness.get("dcf_ready")) or dcf_status == "calculated"
+    missing_fields = valuation.get("dcf_missing_fields") or readiness.get("dcf_missing_fields") or []
+    if isinstance(missing_fields, str):
+        missing_text = missing_fields.replace("_", " ").strip() if missing_fields.strip() else "Not available"
+    else:
+        missing_text = ", ".join(str(field).replace("_", " ").strip() for field in missing_fields if str(field).strip()) or "Not available"
+
+    if is_monitor:
+        return [
+            {
+                "kicker": "DCF PATH",
+                "title": "Excluded, not failed",
+                "body": "What this means: operating-company DCF is not the right method for ETF/index/fund monitor context.",
+                "badges": ["monitor context", "DCF excluded"],
+            },
+            {
+                "kicker": "FORMULA",
+                "title": "Formula path not run",
+                "body": "The asset-type gate excludes company DCF before base FCF, terminal value, equity value, or fair value/share are calculated.",
+                "badges": ["asset gate", "no failed input"],
+            },
+            {
+                "kicker": "READER TAKEAWAY",
+                "title": "Use monitor context",
+                "body": "Review market, theme, liquidity, or risk context instead of looking for company valuation output.",
+                "badges": ["plain English", "research-only"],
+            },
+        ]
+
+    if not dcf_ready:
+        return [
+            {
+                "kicker": "DCF PATH",
+                "title": "Blocked by missing inputs",
+                "body": "What this means: the dashboard withholds DCF math until trusted company inputs pass readiness checks.",
+                "badges": ["locked", "trusted rows needed"],
+            },
+            {
+                "kicker": "REQUIRED INPUTS",
+                "title": f"Missing: {missing_text}",
+                "body": "Required local inputs include price, revenue, free cash flow or FCF margin, shares outstanding, and cash/debt or net-debt context.",
+                "badges": ["no guessing", "data first"],
+            },
+            {
+                "kicker": "FORMULA",
+                "title": "Formula path withheld",
+                "body": "Base FCF, projected FCF, terminal value, equity value, fair value/share, and sensitivity stay unavailable until inputs are ready.",
+                "badges": ["blocked is not negative", "no conclusion"],
+            },
+        ]
+
+    return [
+        {
+            "kicker": "DCF PATH",
+            "title": "Ready for scenario math",
+            "body": "What this means: standalone DCF is calculated locally from trusted price and fundamentals inputs.",
+            "badges": ["DCF ready", "local inputs"],
+        },
+        {
+            "kicker": "FORMULA",
+            "title": "FCF to fair value/share",
+            "body": (
+                "Base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> "
+                "enterprise value -> equity value -> fair value per share."
+            ),
+            "badges": ["formula visible", "scenario math"],
+        },
+        {
+            "kicker": "ASSUMPTIONS",
+            "title": (
+                f"WACC {report_display_value(assumptions.get('wacc'), 'percent')} / "
+                f"terminal growth {report_display_value(assumptions.get('terminal_growth'), 'percent')}"
+            ),
+            "body": (
+                f"Revenue growth {report_display_value(assumptions.get('revenue_growth'), 'percent')}; "
+                f"FCF margin {report_display_value(assumptions.get('fcf_margin'), 'percent')}; "
+                f"sensitivity {format_missing(sensitivity.get('status'), 'Not available')}. "
+                "This is methodology evidence, not a price target."
+            ),
+            "badges": ["sensitivity", "not a recommendation"],
+        },
+    ]
+
+
 def stock_report_function_quality_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     frame = stock_report_function_quality_frame(report_payload)
     status_by_function = {
@@ -16548,6 +16642,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     with valuation_tab:
         base_dcf = valuation["dcf_result"]
         render_context_note("Valuation view.", "DCF, peer-relative context, and sensitivity stay informational only. Missing assumptions remain visible instead of being guessed.")
+        render_signal_cards(stock_report_dcf_calculation_path_cards(report_payload))
         valuation_columns = st.columns(4)
         valuation_columns[0].metric("Valuation Status", public_status_label(valuation.get("status")))
         valuation_columns[1].metric("Coverage", format_missing(valuation.get("coverage")))

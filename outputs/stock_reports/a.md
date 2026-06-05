@@ -143,6 +143,14 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready; current status=peer data unavailable; peer count=3.
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
+## DCF Calculation Path
+- State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs.
+- Formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
+- Input source: local price/fundamentals rows; base revenue=$4.5B; base FCF=$1.2B; shares outstanding=282.6M.
+- Assumptions used: revenue growth=6.4%; FCF margin=25.8%; WACC=9.0%; terminal growth=3.0%; forecast years=5.
+- Sensitivity: calculated; reader should compare WACC and terminal-growth cases before interpreting fair value.
+- Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation.
+
 ## Peer Workflow
 - Peer blocker type: peer price missing
 - Mapping status: mapped

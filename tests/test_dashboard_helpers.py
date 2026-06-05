@@ -7107,6 +7107,67 @@ def test_stock_report_analysis_quality_cards_classify_supported_scope():
     assert "sell" not in rendered
 
 
+def test_stock_report_dcf_calculation_path_cards_explain_ready_blocked_and_excluded_states():
+    ready_cards = dashboard.stock_report_dcf_calculation_path_cards(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {
+                "status": "calculated",
+                "dcf_result": {
+                    "status": "calculated",
+                    "assumptions": {
+                        "revenue_growth": 0.1,
+                        "fcf_margin": 0.2,
+                        "wacc": 0.09,
+                        "terminal_growth": 0.03,
+                    },
+                },
+                "sensitivity_table": {"status": "calculated"},
+            },
+            "valuation_readiness": {"dcf_ready": True},
+        }
+    )
+    blocked_cards = dashboard.stock_report_dcf_calculation_path_cards(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "insufficient_data", "dcf_result": {"status": "insufficient_data"}},
+            "valuation_readiness": {"dcf_ready": False, "dcf_missing_fields": ["revenue", "shares_outstanding"]},
+        }
+    )
+    excluded_cards = dashboard.stock_report_dcf_calculation_path_cards(
+        {
+            "asset_type": "etf",
+            "valuation_snapshot": {"status": "excluded", "dcf_result": {"status": "excluded"}},
+            "valuation_readiness": {"dcf_ready": False},
+        }
+    )
+    rendered = " ".join(
+        str(value)
+        for card in ready_cards + blocked_cards + excluded_cards
+        for value in card.values()
+    ).lower()
+
+    assert [card["kicker"] for card in ready_cards] == ["DCF PATH", "FORMULA", "ASSUMPTIONS"]
+    assert "ready for scenario math" in rendered
+    assert "standalone dcf is calculated locally from trusted price and fundamentals inputs" in rendered
+    assert "base fcf -> projected fcf" in rendered
+    assert "discounted terminal value" in rendered
+    assert "fair value per share" in rendered
+    assert "not a price target" in rendered
+    assert "blocked by missing inputs" in rendered
+    assert "withholds dcf math until trusted company inputs pass readiness checks" in rendered
+    assert "missing: revenue, shares outstanding" in rendered
+    assert "formula path withheld" in rendered
+    assert "excluded, not failed" in rendered
+    assert "asset-type gate excludes company dcf" in rendered
+    assert "use monitor context" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     ready_cards = dashboard.stock_report_fundamentals_quality_cards(
         {

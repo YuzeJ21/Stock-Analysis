@@ -137,6 +137,11 @@ Research-only purpose brief. It separates what local data supports from what rem
 - DCF applicability: excluded for ETF/index/fund monitor context; this is not a failed valuation input.
 - Valuation conclusion: not shown because operating-company DCF and peer valuation do not apply to this monitor role.
 
+## DCF Calculation Path
+- State: excluded; operating-company DCF is not the right method for ETF/index/fund monitor context.
+- Formula path: not run for this ticker because the asset-type gate excludes company DCF.
+- Reader takeaway: use supported market, theme, liquidity, or risk context instead of treating DCF as failed.
+
 ## Peer Workflow
 - Peer blocker type: monitor context
 - Mapping status: monitor context

@@ -759,6 +759,67 @@ def _stock_report_valuation_lines(
     return lines
 
 
+def _stock_report_dcf_calculation_path_lines(
+    *,
+    valuation_snapshot: dict[str, Any],
+    valuation_readiness: dict[str, Any],
+    dcf: dict[str, Any],
+    dcf_status_text: str,
+    monitor_context: bool,
+) -> list[str]:
+    if monitor_context or dcf_status_text.lower() == "excluded":
+        return [
+            "- State: excluded; operating-company DCF is not the right method for ETF/index/fund monitor context.",
+            "- Formula path: not run for this ticker because the asset-type gate excludes company DCF.",
+            "- Reader takeaway: use supported market, theme, liquidity, or risk context instead of treating DCF as failed.",
+        ]
+
+    dcf_result = valuation_snapshot.get("dcf_result", {}) if isinstance(valuation_snapshot, dict) else {}
+    assumptions = dcf_result.get("assumptions", {}) if isinstance(dcf_result, dict) else {}
+    sensitivity = valuation_snapshot.get("sensitivity_table", {}) if isinstance(valuation_snapshot, dict) else {}
+    missing_fields = dcf.get("missing_dcf_fields") or valuation_readiness.get("dcf_missing_fields", [])
+    dcf_is_ready_calculated = dcf_result.get("status") == "calculated" and dcf_status_text.lower() == "ready"
+
+    if not dcf_is_ready_calculated:
+        return [
+            "- State: blocked; the product withholds DCF math until trusted company inputs pass readiness checks.",
+            (
+                "- Required local inputs: trusted price, revenue, free cash flow or FCF margin, shares outstanding, "
+                "and cash/debt or net-debt context."
+            ),
+            f"- Missing now: {_display_field_list(missing_fields)}.",
+            "- Formula path: withheld before base FCF, projected FCF, terminal value, equity value, or fair value/share are calculated.",
+            "- Sensitivity: unavailable until the base DCF can be calculated from trusted inputs.",
+        ]
+
+    return [
+        "- State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs.",
+        (
+            "- Formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> "
+            "enterprise value -> equity value -> fair value per share."
+        ),
+        (
+            "- Input source: local price/fundamentals rows; "
+            f"base revenue={_format_compact_money(assumptions.get('base_revenue'))}; "
+            f"base FCF={_format_compact_money(assumptions.get('base_free_cash_flow'))}; "
+            f"shares outstanding={_format_compact_number(assumptions.get('shares_outstanding'))}."
+        ),
+        (
+            "- Assumptions used: "
+            f"revenue growth={_format_pct(assumptions.get('revenue_growth'))}; "
+            f"FCF margin={_format_pct(assumptions.get('fcf_margin'))}; "
+            f"WACC={_format_pct(assumptions.get('wacc'))}; "
+            f"terminal growth={_format_pct(assumptions.get('terminal_growth'))}; "
+            f"forecast years={_display_value(assumptions.get('forecast_years'))}."
+        ),
+        (
+            f"- Sensitivity: {_display_value(sensitivity.get('status'))}; "
+            "reader should compare WACC and terminal-growth cases before interpreting fair value."
+        ),
+        "- Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation.",
+    ]
+
+
 def _stock_report_missing_data_lines(payload: dict[str, Any], *, monitor_context: bool) -> list[str]:
     warnings = list(payload.get("missing_data_warnings", []))
     if monitor_context:
@@ -1609,6 +1670,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
     )
+    dcf_calculation_lines = _stock_report_dcf_calculation_path_lines(
+        valuation_snapshot=payload.get("valuation_snapshot", {}),
+        valuation_readiness=valuation_readiness,
+        dcf=dcf,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+    )
     ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
     blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
     excluded_features = _display_report_list(readiness.get("excluded_features"), "none")
@@ -1803,6 +1871,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Valuation Readiness",
         *valuation_lines,
         "",
+        "## DCF Calculation Path",
+        *dcf_calculation_lines,
+        "",
         "## Peer Workflow",
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
@@ -1893,16 +1964,24 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         ]
         if part and "Not available" not in part
     )
-    valuation_lines = _stock_report_valuation_lines(
-        valuation_snapshot={
-            "status": "insufficient_data" if dcf_status_text == "blocked" else dcf_status_text,
-            "dcf_result": {"status": "insufficient_data" if dcf_status_text == "blocked" else dcf_status_text},
-            "relative_valuation": {
-                "status": "insufficient_data",
-                "peer_count": peer.get("peer_count"),
-                "missing_fields": ["trusted_peer_inputs"],
-            },
+    valuation_snapshot_for_report = {
+        "status": "insufficient_data" if dcf_status_text == "blocked" else dcf_status_text,
+        "dcf_result": {"status": "insufficient_data" if dcf_status_text == "blocked" else dcf_status_text},
+        "relative_valuation": {
+            "status": "insufficient_data",
+            "peer_count": peer.get("peer_count"),
+            "missing_fields": ["trusted_peer_inputs"],
         },
+    }
+    valuation_lines = _stock_report_valuation_lines(
+        valuation_snapshot=valuation_snapshot_for_report,
+        valuation_readiness={"dcf_missing_fields": []},
+        dcf=dcf,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+    )
+    dcf_calculation_lines = _stock_report_dcf_calculation_path_lines(
+        valuation_snapshot=valuation_snapshot_for_report,
         valuation_readiness={"dcf_missing_fields": []},
         dcf=dcf,
         dcf_status_text=dcf_status_text,
@@ -2096,6 +2175,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## Valuation Readiness",
         *valuation_lines,
+        "",
+        "## DCF Calculation Path",
+        *dcf_calculation_lines,
         "",
         "## Peer Workflow",
         f"- Peer blocker type: {peer_blocker_display}",

@@ -138,6 +138,13 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Relative valuation: withheld until trusted fundamentals and DCF readiness pass; background relative-multiple status=insufficient data; peer count=0.
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
+## DCF Calculation Path
+- State: blocked; the product withholds DCF math until trusted company inputs pass readiness checks.
+- Required local inputs: trusted price, revenue, free cash flow or FCF margin, shares outstanding, and cash/debt or net-debt context.
+- Missing now: free cash flow, shares outstanding, revenue, FCF margin, price.
+- Formula path: withheld before base FCF, projected FCF, terminal value, equity value, or fair value/share are calculated.
+- Sensitivity: unavailable until the base DCF can be calculated from trusted inputs.
+
 ## Peer Workflow
 - Peer blocker type: blocked until fundamentals / DCF
 - Mapping status: waiting for price, fundamentals, and DCF
