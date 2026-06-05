@@ -7487,7 +7487,7 @@ def test_valuation_workflow_guidance_cards_explain_ready_blocked_and_excluded_st
     assert "trusted price, fundamentals, free cash flow or margin" in rendered
     assert "operating-company dcf is excluded rather than failed" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
-    assert "make stock-report ticker=qqq" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7533,6 +7533,9 @@ def test_value_re_rating_page_uses_context_not_ready_conclusion_language():
     assert "what you can analyze now" in source
     assert "what is still locked" in source
     assert "valuation method path" in source
+    assert "intrinsic vs relative value" in source
+    assert "where standalone dcf ends, where peer valuation begins" in source
+    assert "valuation_boundary_explainer_cards()" in source
     assert "how source rows become dcf context without becoming a hidden conclusion" in source
     assert "valuation_method_path_cards()" in source
     assert "operating-company valuation context is shown only for dcf-ready companies" in source
@@ -7584,7 +7587,7 @@ def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language(
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "make dcf-readiness" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
-    assert "make stock-report ticker=qqq" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7613,7 +7616,7 @@ def test_valuation_function_quality_cards_explain_supported_scope_without_overcl
     assert "source-backed peer mappings and peer valuation inputs are ready" in rendered
     assert "make peer-mapping-queue top_n=10" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
-    assert "make stock-report ticker=qqq" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7692,6 +7695,31 @@ def test_valuation_method_path_cards_explain_dcf_without_black_box_language():
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make peer-mapping-queue top_n=10" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_valuation_boundary_explainer_cards_separate_intrinsic_relative_and_excluded():
+    cards = dashboard.valuation_boundary_explainer_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["INTRINSIC VALUE", "RELATIVE VALUE", "LOCKED OR EXCLUDED"]
+    assert "standalone dcf is local scenario math" in rendered
+    assert "project free cash flow" in rendered
+    assert "discount those cash flows and terminal value" in rendered
+    assert "adjust for cash/debt" in rendered
+    assert "assumption review, not a final call" in rendered
+    assert "peer valuation is a separate gate" in rendered
+    assert "source-backed peer mappings and peer valuation inputs" in rendered
+    assert "dcf-ready stock can still be peer-blocked" in rendered
+    assert "missing data is not a valuation opinion" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "make peer-mapping-queue top_n=10" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -11671,7 +11699,7 @@ def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_comman
     assert "BROAD" not in set(cockpit["ticker"])
     assert cockpit.loc[cockpit["ticker"].eq("APLD"), "exact_command"].iloc[0] == "make focus-price TICKER=APLD"
     assert cockpit.loc[cockpit["ticker"].eq("META"), "exact_command"].iloc[0] == "make focus-fundamentals TICKER=META"
-    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "exact_command"].iloc[0] == "make stock-report TICKER=QQQ"
+    assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "exact_command"].iloc[0] == "make stock-report-md TICKER=QQQ"
     assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "import_dataset"].iloc[0] == "monitor_context"
     assert cockpit.loc[cockpit["ticker"].eq("META"), "trusted_input_needed"].iloc[0].startswith(
         "Trusted fundamentals for META"
@@ -11683,7 +11711,7 @@ def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_comman
         "No peer import is required"
     )
     assert cockpit.loc[cockpit["ticker"].eq("QQQ"), "validation_sequence"].iloc[0].startswith(
-        "make stock-report TICKER=QQQ"
+        "make stock-report-md TICKER=QQQ"
     )
     assert "operating-company dcf and peer valuation stay excluded" in rendered
     assert "monitor context: 1" in rendered
@@ -11847,7 +11875,7 @@ def test_active_universe_drilldown_surfaces_missing_fields_and_validation_paths(
     assert drilldown.loc[drilldown["ticker"].eq("QQQ"), "blocker_area"].iloc[0] == "monitor_context"
     assert "operating-company dcf and peer-relative valuation are excluded" in rendered
     assert "no peer import is required for etf/index/fund monitor context" in rendered
-    assert "make stock-report ticker=qqq" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
     assert "make focus-peers ticker=qqq" not in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
@@ -12443,7 +12471,7 @@ def test_peer_unlock_operator_cards_keep_etf_rows_in_monitor_context():
     assert "cohr" in rendered
     assert "make focus-peers ticker=cohr" in rendered
     assert "monitor proxy context" in rendered
-    assert "make stock-report ticker=qqq" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
     assert "make focus-peers ticker=qqq" not in rendered
     assert "ticker=<ticker>" not in rendered
     assert "peer valuation remains excluded" in rendered
@@ -13786,7 +13814,7 @@ def test_valuation_readiness_operator_frame_summarizes_ready_blocked_and_exclude
     assert "monitor-only context" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
-    assert "make stock-report ticker=qqq" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

@@ -3075,7 +3075,7 @@ def active_unlock_command(ticker: object, dataset: str, asset_type: object = "")
     ticker_text = format_missing(ticker, "META").upper()
     asset_text = format_missing(asset_type, "").lower()
     if dataset == "monitor_context":
-        return f"make stock-report TICKER={ticker_text}"
+        return f"make stock-report-md TICKER={ticker_text}"
     if dataset == "prices":
         return f"make focus-price TICKER={ticker_text}"
     if dataset == "fundamentals":
@@ -3093,7 +3093,7 @@ def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: 
     ticker_text = format_missing(ticker, "TICKER").upper()
     asset_text = format_missing(asset_type, "").lower()
     if dataset == "monitor_context":
-        return f"make stock-report TICKER={ticker_text} -> review source/freshness notes, monitor role, and operating-company DCF exclusion"
+        return f"make stock-report-md TICKER={ticker_text} -> review source/freshness notes, monitor role, and operating-company DCF exclusion"
     if dataset == "prices":
         return f"make focus-price TICKER={ticker_text} -> make imports-validate -> make imports-preview -> make imports-apply"
     if dataset == "fundamentals":
@@ -6997,7 +6997,7 @@ def peer_unlock_operator_cards(
                 "title": f"{int(monitor_proxy.sum())} ETF/index/fund row(s)",
                 "body": "These rows stay in stock-report monitoring context; peer valuation remains excluded unless trusted company-peer inputs exist.",
                 "badges": ["monitor context", "dcf excluded"],
-                "command": str(monitor_row.get("focus_command") or f"make stock-report TICKER={monitor_ticker}"),
+                "command": f"make stock-report-md TICKER={monitor_ticker}",
             }
         )
     return cards
@@ -10552,7 +10552,7 @@ def valuation_readiness_operator_frame(
                 "Example Tickers": example_tickers(excluded_rows),
                 "What It Means": "These rows can still support market, theme, liquidity, or risk monitoring.",
                 "What Stays Withheld": "Operating-company DCF is excluded, not failed.",
-                "Next Command": "make stock-report TICKER=QQQ",
+                "Next Command": "make stock-report-md TICKER=QQQ",
             },
         ]
     )
@@ -10624,7 +10624,7 @@ def valuation_function_quality_cards(
             "title": f"{len(excluded_rows)} ETF/index/fund row(s) excluded",
             "body": "These rows can support market, theme, liquidity, or risk monitoring; operating-company DCF is intentionally excluded.",
             "badges": ["DCF excluded", "not failed"],
-            "command": "make stock-report TICKER=QQQ",
+            "command": "make stock-report-md TICKER=QQQ",
         },
         {
             "kicker": "PEER VALUATION",
@@ -10693,6 +10693,41 @@ def valuation_function_quality_frame(
             },
         ]
     )
+
+
+def valuation_boundary_explainer_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "INTRINSIC VALUE",
+            "title": "Standalone DCF is local scenario math",
+            "body": (
+                "DCF uses trusted local company inputs to project free cash flow, discount those cash flows and terminal value, "
+                "adjust for cash/debt, then divide by shares. It is assumption review, not a final call."
+            ),
+            "badges": ["DCF formula path", "assumptions visible"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "RELATIVE VALUE",
+            "title": "Peer valuation is a separate gate",
+            "body": (
+                "Peer-relative valuation appears only after source-backed peer mappings and peer valuation inputs exist. "
+                "A DCF-ready stock can still be peer-blocked."
+            ),
+            "badges": ["peer-gated", "no guessed peers"],
+            "command": "make peer-mapping-queue TOP_N=10",
+        },
+        {
+            "kicker": "LOCKED OR EXCLUDED",
+            "title": "Missing data is not a valuation opinion",
+            "body": (
+                "Blocked company rows withhold valuation until trusted inputs exist. ETF/index/fund rows show monitor context "
+                "because operating-company DCF is excluded, not failed."
+            ),
+            "badges": ["no inference", "monitor context"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+    ]
 
 
 def valuation_method_contract_frame() -> pd.DataFrame:
@@ -14972,7 +15007,7 @@ def valuation_workflow_guidance_cards(
             "title": f"{excluded_count} row(s) excluded",
             "body": "ETF, index, and fund rows stay useful for monitor context, but operating-company DCF is excluded rather than failed.",
             "badges": ["monitor context", "DCF excluded"],
-            "command": "make stock-report TICKER=QQQ",
+            "command": "make stock-report-md TICKER=QQQ",
         },
     ]
 
@@ -15044,6 +15079,8 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     render_section_header("Valuation Function Quality", "What valuation can and cannot mean with the current trusted local inputs.")
     render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
     render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
+    render_section_header("Intrinsic vs Relative Value", "Where standalone DCF ends, where peer valuation begins, and why blocked data stays locked.")
+    render_signal_cards(valuation_boundary_explainer_cards())
     render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
     render_signal_cards(valuation_method_path_cards())
     with st.expander("What valuation can support today", expanded=False):
