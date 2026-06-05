@@ -50,7 +50,7 @@ make stock-report-md TICKER=SMH
 make stock-report-md TICKER=APLD
 ```
 
-Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.
+For public demos, prefer `make stock-report-md TICKER=NVDA`. Use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
 - `NVDA` demonstrates company-level DCF assumptions and source-backed peer context when trusted local inputs are ready.
 - `A` demonstrates standalone DCF review where peer-relative valuation is still waiting on source-backed peers.
