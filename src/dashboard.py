@@ -15994,7 +15994,7 @@ def _plain_home_demo_example_frame() -> pd.DataFrame:
             {
                 "Example": "NVDA",
                 "Comparison Role": "Richer company example",
-                "What It Shows": "Company report with trusted local DCF inputs and visible method cues.",
+                "What It Shows": "Company report with trusted local DCF inputs, input path, assumptions, and sensitivity.",
                 "Review Mode": "Standalone DCF review",
                 "What To Check": "DCF assumptions, sensitivity, blocked peer valuation, and source/freshness notes.",
                 "Copy Command": "make stock-report-md TICKER=NVDA",
@@ -16212,9 +16212,9 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             {
                 "Function Area": "Fundamentals / DCF",
                 "Quality Verdict": "Good for DCF-ready companies only",
-                "Best Use Today": "Review assumptions, scenarios, and sensitivity when trusted fundamentals and price inputs exist.",
+                "Best Use Today": "Review the DCF input path, assumptions, scenarios, and sensitivity when trusted fundamentals and price inputs exist.",
                 "Current Status": dcf_status,
-                "Supported Today": "DCF-ready company analysis with visible assumptions and sensitivity.",
+                "Supported Today": "DCF-ready company analysis with visible input path, assumptions, and sensitivity.",
                 "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source freshness.",
                 "Logic Source": "Project assumptions in src/value_engine.py and src/valuation.py.",
             },

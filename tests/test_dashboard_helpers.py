@@ -94,7 +94,7 @@ def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations
     assert "price/setup review only" in rendered
     assert "monitor-only context" in rendered
     assert "data-unlock only" in rendered
-    assert "visible method cues" in rendered
+    assert "trusted local dcf inputs, input path, assumptions, and sensitivity" in rendered
     assert "peer-relative valuation stays locked" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "no valuation conclusion appears" in rendered
@@ -380,9 +380,9 @@ def test_home_function_quality_frame_explains_supported_scope_and_logic_source()
     assert "240 / 3,538 price-ready" in rendered
     assert "fundamentals / dcf" in rendered
     assert "good for dcf-ready companies only" in rendered
-    assert "review assumptions, scenarios, and sensitivity" in rendered
+    assert "review the dcf input path, assumptions, scenarios, and sensitivity" in rendered
     assert "23 / 3,538 dcf-ready" in rendered
-    assert "dcf-ready company analysis" in rendered
+    assert "dcf-ready company analysis with visible input path, assumptions, and sensitivity" in rendered
     assert "peer comparison" in rendered
     assert "workflow-ready, coverage-limited" in rendered
     assert "3 / 3,538 peer-ready" in rendered
