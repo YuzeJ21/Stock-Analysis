@@ -11630,6 +11630,8 @@ def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int =
         "Missing Trusted Inputs",
         "What This Means",
         "Next Trusted Input",
+        "Next Safe Sequence",
+        "Validation Path",
         "Copy-Only Command",
     ]
     if blocked_companies.empty:
@@ -11653,9 +11655,21 @@ def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int =
         if not has_price:
             next_input = "Add or refresh trusted local price rows before reviewing valuation."
             command = f"make focus-price TICKER={ticker}"
+            safe_sequence = (
+                f"1. Inspect `{command}`. 2. Use `make price-refresh-loop DRY_RUN=1` for a capped broad plan "
+                "or prepare trusted OHLCV rows in `data/imports/prices.csv`. "
+                "3. Run `make price-validate`, `make price-preview`, `make price-apply`, then `make dcf-readiness`."
+            )
+            validation_path = "make price-validate -> make price-preview -> make price-apply -> make dcf-readiness"
         else:
             next_input = "Add trusted company fundamentals such as revenue, free cash flow or margin, and shares outstanding."
             command = f"make focus-fundamentals TICKER={ticker}"
+            safe_sequence = (
+                f"1. Inspect `{command}`. 2. Use `make sec-stage TICKERS={ticker}` when SEC_USER_AGENT is configured, "
+                "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
+                "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+            )
+            validation_path = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
         rows.append(
             {
                 "Ticker": ticker,
@@ -11664,6 +11678,8 @@ def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int =
                 "Missing Trusted Inputs": missing_inputs,
                 "What This Means": "No fair value, undervalued, or overvalued conclusion is shown until these inputs pass readiness.",
                 "Next Trusted Input": next_input,
+                "Next Safe Sequence": safe_sequence,
+                "Validation Path": validation_path,
                 "Copy-Only Command": command,
             }
         )

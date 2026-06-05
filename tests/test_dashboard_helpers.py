@@ -14902,6 +14902,8 @@ def test_valuation_blocked_unlock_frame_plain_language_and_copy_only_commands():
         "Missing Trusted Inputs",
         "What This Means",
         "Next Trusted Input",
+        "Next Safe Sequence",
+        "Validation Path",
         "Copy-Only Command",
     ]
     assert frame["Ticker"].tolist() == ["META", "APLD"]
@@ -14912,6 +14914,17 @@ def test_valuation_blocked_unlock_frame_plain_language_and_copy_only_commands():
     assert "no fair value, undervalued, or overvalued conclusion" in rendered
     assert "trusted company fundamentals" in rendered
     assert "trusted local price rows" in rendered
+    assert "make sec-stage tickers=meta" in rendered
+    assert "data/imports/fundamentals.csv" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "data/imports/prices.csv" in rendered
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
+    assert "make dcf-readiness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
