@@ -9612,7 +9612,10 @@ def purpose_evaluation_drilldown_cards(drilldown_frame: pd.DataFrame | None) -> 
             .str.contains("earnings|analyst", case=False, na=False)
         ).sum()
     )
-    top_review_command = format_missing(top_row.get("exact_command"), "make project-status")
+    top_review_command = safe_action_console_command(
+        "Single-Stock Review",
+        format_missing(top_row.get("exact_command"), stock_report_md_command(top_row.get("ticker"))),
+    )
     return [
         {
             "kicker": "PURPOSE DRILLDOWN",

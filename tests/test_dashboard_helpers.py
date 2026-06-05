@@ -17231,10 +17231,10 @@ def test_purpose_evaluation_drilldown_cards_surface_next_row_without_execution_l
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "3 row(s), 3 active"
-    assert cards[1]["command"] == "make stock-report TICKER=META"
+    assert cards[1]["command"] == "make stock-report-md TICKER=META"
     assert cards[2]["title"] == "1 peer-limited, 1 optional-context-limited"
     assert "which source-backed peers should be added" in rendered
-    assert "make stock-report ticker=meta" in rendered
+    assert "make stock-report-md ticker=meta" in rendered
     assert "peer valuation remains blocked" in rendered
     assert "trusted csv rows" in rendered
     assert "broker" not in rendered
