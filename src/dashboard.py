@@ -7317,6 +7317,101 @@ def fundamentals_dcf_diagnostic_cards(
     ]
 
 
+def fundamentals_peer_unlock_story_cards(
+    ticker_readiness_frame: pd.DataFrame | None,
+    peer_readiness_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return [
+            {
+                "kicker": "UNLOCK STORY",
+                "title": "Run readiness first",
+                "body": "What this means: Data Health needs current readiness rows before it can separate fundamentals work from peer valuation work.",
+                "badges": ["readiness first", "no guessing"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = ticker_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    asset_type = frame.get("asset_type", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    company = asset_type.eq("company")
+    monitor = asset_type.isin(["etf", "fund", "index", "index_proxy"]) | frame.get(
+        "excluded_features", pd.Series("", index=frame.index)
+    ).fillna("").astype(str).str.lower().str.contains("dcf")
+    price_ready = bool_series(frame, "price_ready")
+    fundamentals_ready = bool_series(frame, "fundamentals_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    peer_ready = bool_series(frame, "peer_ready")
+    optional_locked = ~bool_series(frame, "earnings_ready") | ~bool_series(frame, "analyst_estimates_ready")
+    price_ready_missing_fundamentals = frame.loc[company & price_ready & ~fundamentals_ready].copy()
+    dcf_ready_peer_blocked = frame.loc[company & dcf_ready & ~peer_ready].copy()
+    dcf_ready_peer_ready = frame.loc[company & dcf_ready & peer_ready].copy()
+    monitor_excluded_count = int(monitor.sum())
+
+    def example_text(subset: pd.DataFrame, fallback: str = "none yet") -> str:
+        if subset.empty or "ticker" not in subset.columns:
+            return fallback
+        tickers = [
+            ticker
+            for ticker in subset["ticker"].dropna().astype(str).str.upper().str.strip().head(4).tolist()
+            if ticker and ticker.lower() not in {"nan", "none"}
+        ]
+        return ", ".join(tickers) if tickers else fallback
+
+    peer_rows = 0 if peer_readiness_frame is None or peer_readiness_frame.empty else len(peer_readiness_frame)
+    return [
+        {
+            "kicker": "WHAT THIS MEANS",
+            "title": "Fundamentals unlock DCF; peers unlock relative context",
+            "body": (
+                "Price-ready companies need trusted fundamentals before standalone DCF. "
+                "DCF-ready companies still need source-backed peers before peer-relative valuation appears."
+            ),
+            "badges": ["sequence visible", "data-honest"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
+            "title": f"{len(dcf_ready_peer_ready)} DCF + peer-ready company row(s)",
+            "body": (
+                f"Examples: {example_text(dcf_ready_peer_ready)}. Review assumptions, sensitivity, peer caveats, and source freshness; "
+                "do not turn readiness into allocation instructions."
+            ),
+            "badges": ["supported review", "research-only"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "FUNDAMENTALS STILL LOCKED",
+            "title": f"{len(price_ready_missing_fundamentals)} price-ready company row(s)",
+            "body": (
+                f"Examples: {example_text(price_ready_missing_fundamentals)}. Add trusted fundamentals before DCF math, fair value/share, "
+                "or valuation interpretation appears."
+            ),
+            "badges": ["trusted fundamentals", "DCF locked"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "PEER VALUATION STILL LOCKED",
+            "title": f"{len(dcf_ready_peer_blocked)} DCF-ready peer-blocked row(s)",
+            "body": (
+                f"Examples: {example_text(dcf_ready_peer_blocked)}. Peer readiness rows loaded: {peer_rows}. "
+                "Use source-backed peer mappings and peer inputs; sector fallback is not trusted peer valuation."
+            ),
+            "badges": ["peer valuation gated", f"{monitor_excluded_count} monitor excluded"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"{int((company & optional_locked).sum())} company row(s) still optional-context locked",
+            "body": "Earnings and analyst estimates stay lower-priority optional context until trusted local CSV rows pass validation, preview, and apply.",
+            "badges": ["earnings locked", "estimates locked"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+    ]
+
+
 def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | None = None) -> pd.DataFrame:
     ticker = str(next_ticker or "").strip().upper()
     has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
@@ -17186,6 +17281,11 @@ def render_market_command_center(
         "Known universe is not the same as analysis-ready universe. Missing prices, fundamentals, peers, earnings, or estimates block conclusions; ETFs and index proxies stay excluded from operating-company DCF.",
         tone="warning" if summary.get("blocked_by_data", 0) else "neutral",
     )
+    render_section_header(
+        "Fundamentals To Peer Unlock Story",
+        "The plain-language sequence from price-ready company rows to standalone DCF, then source-backed peer-relative context.",
+    )
+    render_signal_cards(fundamentals_peer_unlock_story_cards(ticker_readiness_frame, peer_readiness_frame))
     render_section_header(
         "Fundamentals / DCF Unlock Guide",
         "Price-ready companies that still need trusted fundamentals, missing DCF fields, and DCF-ready names waiting on peer context.",

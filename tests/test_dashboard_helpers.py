@@ -12704,6 +12704,88 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "sell" not in rendered
 
 
+def test_fundamentals_peer_unlock_story_cards_bridge_dcf_and_peer_workflow():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "excluded_features": "",
+            },
+            {
+                "ticker": "A",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "excluded_features": "",
+            },
+            {
+                "ticker": "NVDA",
+                "asset_type": "company",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": True,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "excluded_features": "",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "excluded_features": "dcf",
+            },
+        ]
+    )
+    peer_readiness = pd.DataFrame([{"ticker": "A"}, {"ticker": "NVDA"}])
+
+    cards = dashboard.fundamentals_peer_unlock_story_cards(readiness, peer_readiness)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "WHAT THIS MEANS",
+        "WHAT YOU CAN ANALYZE NOW",
+        "FUNDAMENTALS STILL LOCKED",
+        "PEER VALUATION STILL LOCKED",
+        "OPTIONAL CONTEXT",
+    ]
+    assert "fundamentals unlock dcf; peers unlock relative context" in rendered
+    assert "1 dcf + peer-ready company row(s)" in rendered
+    assert "examples: nvda" in rendered
+    assert "1 price-ready company row(s)" in rendered
+    assert "examples: meta" in rendered
+    assert "add trusted fundamentals before dcf math" in rendered
+    assert "1 dcf-ready peer-blocked row(s)" in rendered
+    assert "examples: a" in rendered
+    assert "peer readiness rows loaded: 2" in rendered
+    assert "sector fallback is not trusted peer valuation" in rendered
+    assert "3 company row(s) still optional-context locked" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "make optional-context-worklist top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_agent():
     frame = dashboard.first_fundamentals_unlock_frame(False, "META")
     rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()

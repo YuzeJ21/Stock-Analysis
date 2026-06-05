@@ -61,6 +61,19 @@ The product does not claim a company is attractive or unattractive when core fie
 
 Fundamental review is therefore a validation-and-interpretation layer, not a third-party analyst summary. A full company row can support revenue scale, growth, margin, free-cash-flow conversion, leverage/cash context, and DCF input quality. A partial row supports only the fields that are actually present.
 
+The fundamental-analysis contract is:
+
+| Question | Product logic | What remains withheld |
+| --- | --- | --- |
+| Is there a trusted company row? | Checks the local fundamentals row, source metadata, and required numeric fields. | Company-quality language when the row is missing or source status is unclear. |
+| Is the business scale visible? | Reads revenue and revenue growth when present. | Growth interpretation when revenue history is absent or malformed. |
+| Is cash generation visible? | Reads free cash flow directly, or uses revenue and FCF margin when both are trusted. | Free-cash-flow conversion claims when both FCF and FCF margin are missing. |
+| Is balance-sheet context visible? | Reads cash, debt, or net-debt fields when present. | Leverage or cash-cushion language when balance-sheet fields are unavailable. |
+| Can DCF run? | Requires price, revenue, free cash flow or FCF margin, shares outstanding, and valid assumptions. | Fair value/share, sensitivity, and valuation interpretation until required fields pass readiness. |
+| Can peer valuation run? | Requires standalone company readiness plus source-backed peer mappings and peer valuation inputs. | Peer-relative valuation from guessed peers, sector fallback, or incomplete peer metrics. |
+
+This means a fundamentals-ready row is not automatically a conclusion. It is permission to review the fields that are present. A DCF-ready row is permission to review scenario math. A peer-ready row is permission to review source-backed relative context. The report and dashboard keep those permissions separate so a partial fundamentals row cannot become an unsupported valuation view.
+
 ## 4. Price, Momentum, And Risk Context
 
 Price and momentum analysis uses local OHLCV rows when they are available. The product calculates moving averages, returns, relative strength, volume ratio, setup status, and volatility context from those rows.
