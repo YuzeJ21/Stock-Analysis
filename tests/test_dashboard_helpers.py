@@ -7170,6 +7170,61 @@ def test_stock_report_dcf_calculation_path_cards_explain_ready_blocked_and_exclu
     assert "sell" not in rendered
 
 
+def test_stock_report_valuation_boundary_cards_explain_source_product_and_locked_logic():
+    ready_payload = {
+        "asset_type": "company",
+        "valuation_readiness": {"dcf_ready": True, "peer_ready": True},
+        "valuation_snapshot": {
+            "dcf_result": {"status": "calculated"},
+            "relative_valuation": {"status": "calculated", "peer_count": 2},
+        },
+    }
+    blocked_payload = {
+        "asset_type": "company",
+        "valuation_readiness": {"dcf_ready": False, "peer_ready": False},
+        "valuation_snapshot": {
+            "dcf_result": {"status": "insufficient_data"},
+            "relative_valuation": {"status": "calculated", "peer_count": 2},
+        },
+    }
+    etf_payload = {
+        "asset_type": "etf",
+        "valuation_readiness": {"dcf_ready": False, "peer_ready": False},
+        "valuation_snapshot": {
+            "dcf_result": {"status": "excluded"},
+            "relative_valuation": {"status": "calculated", "peer_count": 2},
+        },
+    }
+
+    ready_cards = dashboard.stock_report_valuation_boundary_cards(ready_payload)
+    blocked_cards = dashboard.stock_report_valuation_boundary_cards(blocked_payload)
+    etf_cards = dashboard.stock_report_valuation_boundary_cards(etf_payload)
+    rendered = " ".join(
+        str(value)
+        for card in ready_cards + blocked_cards + etf_cards
+        for value in card.values()
+    ).lower()
+
+    assert [card["kicker"] for card in ready_cards] == ["SOURCE ROWS", "INTRINSIC VALUE", "RELATIVE VALUE", "BOUNDARY"]
+    assert "inputs do not decide conclusions" in rendered
+    assert "project readiness gates decide what can be analyzed" in rendered
+    assert "dcf scenario math is available" in rendered
+    assert "this product calculates assumptions, sensitivity, and fair value/share locally" in rendered
+    assert "peer valuation available" in rendered
+    assert "source-backed peer mappings and peer valuation inputs are ready" in rendered
+    assert "dcf remains locked" in rendered
+    assert "projected fcf, terminal value, equity value, fair value/share, and sensitivity withheld" in rendered
+    assert "peer valuation withheld" in rendered
+    assert "dcf excluded for monitor context" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "missing data never becomes a valuation opinion" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_peer_relative_comparison_frame_is_readiness_gated():
     relative = {
         "status": "calculated",

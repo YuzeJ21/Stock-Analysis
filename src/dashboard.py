@@ -3966,6 +3966,64 @@ def stock_report_methodology_frame(report_payload: dict[str, object]) -> pd.Data
     )
 
 
+def stock_report_valuation_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    readiness = _stock_report_payload_readiness(report_payload)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    dcf_result = valuation.get("dcf_result", {}) or {}
+    asset_type = format_missing(report_payload.get("asset_type") or readiness.get("asset_type"), "").lower()
+    is_monitor = asset_type in {"etf", "index_proxy", "fund"}
+    dcf_ready = bool(readiness.get("dcf_ready")) or format_missing(dcf_result.get("status"), "").lower() == "calculated"
+    peer_ready = stock_report_peer_relative_display_ready(report_payload)
+
+    if is_monitor:
+        dcf_title = "DCF excluded for monitor context"
+        dcf_body = "ETF/index/fund rows can support market, theme, liquidity, or risk context; operating-company DCF is excluded, not failed."
+        dcf_badges = ["excluded", "not failed"]
+    elif dcf_ready:
+        dcf_title = "DCF scenario math is available"
+        dcf_body = "Trusted source rows provide price, fundamentals, cash-flow or margin, share count, and balance-sheet inputs; this product calculates assumptions, sensitivity, and fair value/share locally."
+        dcf_badges = ["source inputs", "product math"]
+    else:
+        dcf_title = "DCF remains locked"
+        dcf_body = "Missing trusted company inputs keep base FCF, projected FCF, terminal value, equity value, fair value/share, and sensitivity withheld."
+        dcf_badges = ["locked", "no conclusion"]
+
+    peer_body = (
+        "Source-backed peer mappings and peer valuation inputs are ready, so the product can show peer-relative context separately from standalone DCF."
+        if peer_ready
+        else stock_report_peer_relative_empty_message(report_payload)
+    )
+    peer_title = "Peer valuation available" if peer_ready else "Peer valuation withheld"
+    peer_badges = ["trusted peers", "relative context"] if peer_ready else ["locked", "trusted peers needed"]
+
+    return [
+        {
+            "kicker": "SOURCE ROWS",
+            "title": "Inputs do not decide conclusions",
+            "body": "Local or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates; project readiness gates decide what can be analyzed.",
+            "badges": ["data first", "readiness gate"],
+        },
+        {
+            "kicker": "INTRINSIC VALUE",
+            "title": dcf_title,
+            "body": dcf_body,
+            "badges": dcf_badges,
+        },
+        {
+            "kicker": "RELATIVE VALUE",
+            "title": peer_title,
+            "body": peer_body,
+            "badges": peer_badges,
+        },
+        {
+            "kicker": "BOUNDARY",
+            "title": "Scenario evidence, not a conclusion",
+            "body": "The dashboard shows supported analysis and withheld sections only; missing data never becomes a valuation opinion or direct action instruction.",
+            "badges": ["research-only", "no fabrication"],
+        },
+    ]
+
+
 def stock_report_dcf_calculation_path_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     readiness = _stock_report_payload_readiness(report_payload)
     valuation = report_payload.get("valuation_snapshot", {}) or {}
@@ -17259,6 +17317,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     with valuation_tab:
         base_dcf = valuation["dcf_result"]
         render_context_note("Valuation view.", "DCF, peer-relative context, and sensitivity stay informational only. Missing assumptions remain visible instead of being guessed.")
+        render_signal_cards(stock_report_valuation_boundary_cards(report_payload))
         render_signal_cards(stock_report_dcf_calculation_path_cards(report_payload))
         valuation_columns = st.columns(4)
         valuation_columns[0].metric("Valuation Status", public_status_label(valuation.get("status")))
