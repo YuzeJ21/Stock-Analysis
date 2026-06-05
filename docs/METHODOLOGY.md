@@ -117,6 +117,18 @@ The default report uses bear, base, and bull scenarios. Scenario assumptions are
 
 DCF output is treated as scenario math, not a price target. The report should show the input path, assumptions, sensitivity, and confidence limits so a reader can challenge the model instead of trusting a hidden conclusion.
 
+### Conservative DCF Normalization
+
+The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into an unsupported valuation story.
+
+- Observed revenue growth above the conservative start-growth cap is capped before projection.
+- Very negative observed revenue growth is floored before projection so the model does not compound an extreme one-period decline indefinitely.
+- Projected early-year FCF growth can be capped even after the revenue-growth path is built.
+- Observed FCF margin above the conservative margin cap is capped before projection.
+- Normalized long-term growth is kept below WACC, and terminal growth must remain below WACC.
+
+When one of these guardrails is used, the report shows a warning such as `Observed revenue growth ... was normalized before projection` or `Normalized growth target was reduced to keep it conservatively below WACC`. These warnings are part of the model audit trail. They mean the DCF ran with visible conservative limits, not that the product guessed missing data or changed source inputs.
+
 The report uses three DCF states:
 
 - `ready`: the local company inputs are complete enough to review assumptions, scenario math, and sensitivity.
