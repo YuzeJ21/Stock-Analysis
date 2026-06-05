@@ -12725,6 +12725,91 @@ def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
     assert "sell" not in rendered_cards
 
 
+def test_peer_analysis_boundary_cards_separate_trend_valuation_and_input_path():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+            },
+            {
+                "ticker": "META",
+                "peer_ready": False,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+            },
+            {
+                "ticker": "COHR",
+                "peer_ready": False,
+                "peer_blocker_type": "peer_price_missing",
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+            },
+            {
+                "ticker": "NVDA",
+                "peer_ready": True,
+                "peer_blocker_type": "",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": True,
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "A", "dcf_ready": True, "in_active_universe": False},
+            {"ticker": "META", "dcf_ready": True, "in_active_universe": True},
+            {"ticker": "COHR", "dcf_ready": False, "in_active_universe": True},
+            {"ticker": "NVDA", "dcf_ready": True, "in_active_universe": True},
+        ]
+    )
+
+    cards = dashboard.peer_analysis_boundary_cards(peer_readiness, readiness)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "WHAT PEERS CAN SUPPORT NOW",
+        "WHAT IS STILL LOCKED",
+        "DCF-READY BUT PEER-BLOCKED",
+        "TRUSTED INPUT PATH",
+    ]
+    assert "2 trend-ready / 1 valuation-ready" in rendered
+    assert "peer trend context can be reviewed" in rendered
+    assert "peer valuation is separate" in rendered
+    assert "3 peer valuation row(s) locked" in rendered
+    assert "missing mappings: 1" in rendered
+    assert "peer price gaps: 1" in rendered
+    assert "peer fundamentals gaps: 1" in rendered
+    assert "locked peer valuation is not a company conclusion" in rendered
+    assert "2 company row(s)" in rendered
+    assert "1 active-universe row(s) can have standalone dcf reviewed" in rendered
+    assert "peer-relative valuation stays withheld" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "sector or industry fallback is context, not trusted peer valuation data" in rendered
+    assert "make focus-peers ticker=meta" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_peer_analysis_boundary_cards_handle_missing_report_without_fake_peer_counts():
+    cards = dashboard.peer_analysis_boundary_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert "peer readiness not loaded" in rendered
+    assert "missing peer output means peer analysis stays locked" in rendered
+    assert "make readiness" in rendered
+
+
 def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance():
     peer_readiness = pd.DataFrame(
         [

@@ -6696,6 +6696,104 @@ def peer_mapping_studio_summary_cards(
     ]
 
 
+def peer_analysis_boundary_cards(
+    peer_readiness_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    if peer_readiness_frame is None or peer_readiness_frame.empty:
+        return [
+            {
+                "kicker": "PEER ANALYSIS",
+                "title": "Peer readiness not loaded",
+                "body": "Run make readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked.",
+                "badges": ["readiness first", "no inferred peers"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = peer_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if (
+        ticker_readiness_frame is not None
+        and not ticker_readiness_frame.empty
+        and "ticker" in frame.columns
+        and "ticker" in ticker_readiness_frame.columns
+    ):
+        readiness_columns = [
+            column
+            for column in ["ticker", "dcf_ready", "in_active_universe"]
+            if column in ticker_readiness_frame.columns
+        ]
+        readiness = ticker_readiness_frame[readiness_columns].copy()
+        readiness["ticker"] = readiness["ticker"].astype(str).str.upper().str.strip()
+        frame = frame.merge(readiness, on="ticker", how="left", suffixes=("", "_ticker"))
+
+    peer_ready = bool_series(frame, "peer_ready")
+    trend_ready = bool_series(frame, "peer_trend_comparison_ready")
+    valuation_ready = bool_series(frame, "peer_valuation_comparison_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    active = bool_series(frame, "in_active_universe")
+    blocker = frame.get("peer_blocker_type", pd.Series("", index=frame.index)).fillna("").astype(str)
+    missing_mapping = blocker.eq("missing_peer_mapping")
+    price_gap = blocker.eq("peer_price_missing")
+    fundamentals_gap = blocker.eq("peer_fundamentals_missing")
+    valuation_locked = ~valuation_ready
+    dcf_ready_peer_blocked = dcf_ready & ~peer_ready
+    active_dcf_peer_blocked = active & dcf_ready_peer_blocked
+    next_ticker = "Not available"
+    if "ticker" in frame.columns:
+        candidates = frame.loc[active_dcf_peer_blocked].copy()
+        if candidates.empty:
+            candidates = frame.loc[dcf_ready_peer_blocked].copy()
+        if candidates.empty:
+            candidates = frame.loc[~peer_ready].copy()
+        if not candidates.empty:
+            next_ticker = format_missing(candidates.sort_values("ticker", kind="stable").iloc[0].get("ticker"), "Not available")
+
+    return [
+        {
+            "kicker": "WHAT PEERS CAN SUPPORT NOW",
+            "title": f"{int(trend_ready.sum())} trend-ready / {int(valuation_ready.sum())} valuation-ready",
+            "body": (
+                "Peer trend context can be reviewed when mapped peers have enough price history. "
+                "Peer valuation is separate and needs source-backed mappings plus peer valuation inputs."
+            ),
+            "badges": ["trend before valuation", "module-gated"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "WHAT IS STILL LOCKED",
+            "title": f"{int(valuation_locked.sum())} peer valuation row(s) locked",
+            "body": (
+                f"Missing mappings: {int(missing_mapping.sum())}. Peer price gaps: {int(price_gap.sum())}. "
+                f"Peer fundamentals gaps: {int(fundamentals_gap.sum())}. Locked peer valuation is not a company conclusion."
+            ),
+            "badges": ["specific blockers", "no inference"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "DCF-READY BUT PEER-BLOCKED",
+            "title": f"{int(dcf_ready_peer_blocked.sum())} company row(s)",
+            "body": (
+                f"{int(active_dcf_peer_blocked.sum())} active-universe row(s) can have standalone DCF reviewed while peer-relative valuation stays withheld."
+            ),
+            "badges": ["standalone DCF ok", "peer valuation withheld"],
+            "command": f"make focus-peers TICKER={next_ticker}" if next_ticker != "Not available" else "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "TRUSTED INPUT PATH",
+            "title": "data/imports/peers.csv",
+            "body": (
+                "Add only source-backed peer mappings, then run make imports-validate, make imports-preview, "
+                "and make imports-apply. Sector or industry fallback is context, not trusted peer valuation data."
+            ),
+            "badges": ["source-backed only", "preview first"],
+            "command": "make templates",
+        },
+    ]
+
+
 def peer_function_quality_frame(
     peer_readiness_frame: pd.DataFrame | None,
     peer_unlock_worklist_frame: pd.DataFrame | None = None,
@@ -16804,6 +16902,8 @@ def render_market_command_center(
     st.dataframe(clean_display_frame(product_logic_audit), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
     render_signal_cards(peer_readiness_payload_cards)
+    render_section_header("Peer Analysis Boundaries", "What peer trend can support now, what peer valuation still needs, and where trusted mappings live.")
+    render_signal_cards(peer_analysis_boundary_cards(peer_readiness_frame, ticker_readiness_frame))
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
     render_signal_cards(peer_mapping_studio_summary_cards(peer_readiness_frame, ticker_readiness_frame))
     render_signal_cards(peer_unlock_operator_cards(peer_unlock_worklist_frame, ticker_readiness_frame))
