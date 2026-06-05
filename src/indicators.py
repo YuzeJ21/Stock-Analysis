@@ -136,10 +136,12 @@ def build_indicator_snapshot(
 
         atr_pct = average_true_range_pct(frame)
         volatility_proxy = volatility_proxy_pct(close_series)
+        atr_or_volatility_source = "atr"
         if pd.isna(atr_pct):
             atr_pct = volatility_proxy
-            if ticker not in {"SPY", "QQQ"}:
-                warnings.append(f"{ticker}: ATR unavailable, using volatility proxy.")
+            atr_or_volatility_source = "volatility_proxy" if pd.notna(volatility_proxy) else "unavailable"
+            if ticker not in {"SPY", "QQQ"} and pd.notna(volatility_proxy):
+                warnings.append(f"{ticker}: ATR unavailable; using close-to-close volatility proxy as an approximation.")
 
         row = {
             "ticker": ticker,
@@ -164,6 +166,7 @@ def build_indicator_snapshot(
             "avg_volume_20": float(latest["avg_volume_20"]),
             "volume_ratio": float(latest["volume"] / latest["avg_volume_20"]) if latest["avg_volume_20"] else float("nan"),
             "atr_or_volatility_pct": atr_pct,
+            "atr_or_volatility_source": atr_or_volatility_source,
         }
         rows.append(row)
 
@@ -200,6 +203,7 @@ def build_indicator_snapshot(
                     "avg_volume_20": float("nan"),
                     "volume_ratio": float("nan"),
                     "atr_or_volatility_pct": float("nan"),
+                    "atr_or_volatility_source": "unavailable",
                     "rs_percentile": float("nan"),
                     "theme": theme,
                 }

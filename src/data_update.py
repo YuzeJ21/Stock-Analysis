@@ -392,7 +392,7 @@ def _normalized_error_message(status: str, ticker: str, error_message: object) -
     if not message:
         return ""
     message = message.replace(
-        "Set STOOQ_API_KEY or use staged manual prices.",
+        "Set STOOQ_API_KEY or use the manual price import draft workflow.",
         "Set STOOQ_API_KEY or place verified CSVs in data/staged/prices/ and run make import-prices.",
     )
 
@@ -435,7 +435,7 @@ def _price_recommended_action(status: str, ticker: str, has_local_data: bool) ->
     if status == "source_unavailable":
         return normalize_action
     if has_local_data:
-        return "Leave unchanged because local data exists; use staged manual prices if you need fresher rows."
+        return "Leave unchanged because local data exists; use the manual price import draft workflow if you need fresher rows."
     return normalize_action
 
 
@@ -464,9 +464,9 @@ def _recommended_action_needs_refresh(status: str, recommended_action: str, tick
     if status in {"fetched", "skipped_fresh"}:
         return False
     if normalized_action in {
-        "retry later or use staged manual prices in data/imports/prices.csv.",
-        "use staged manual prices in data/imports/prices.csv.",
-        "use staged manual prices.",
+        "retry later or use the manual price import draft workflow in data/imports/prices.csv.",
+        "use the manual price import draft workflow in data/imports/prices.csv.",
+        "use the manual price import draft workflow.",
     }:
         return True
     if "ohlcv rows into data/imports/prices.csv" in normalized_action:
@@ -496,7 +496,7 @@ def _error_message_needs_refresh(status: str, error_message: str, ticker: str) -
     normalized = str(error_message or "").strip()
     if not normalized:
         return False
-    if "set stooq_api_key or use staged manual prices" in normalized.lower():
+    if "set stooq_api_key or use the manual price import draft workflow" in normalized.lower():
         return True
     if status != "parse_error":
         return "\n" in normalized
@@ -876,7 +876,7 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
     valid_mask &= normalized["high"].ge(normalized["low"])
     skipped_invalid = int((~valid_mask).sum())
     if skipped_invalid:
-        warnings.append(f"Skipped {skipped_invalid} invalid staged price row(s).")
+        warnings.append(f"Skipped {skipped_invalid} invalid price import draft row(s).")
 
     valid = normalized.loc[valid_mask].copy()
     if valid.empty:
@@ -948,7 +948,7 @@ def validate_price_imports(
             "affected_tickers": [],
             "missing_required_columns": PRICE_IMPORT_REQUIRED_COLUMNS,
             "unknown_columns": [],
-            "warnings": ["No staged price import file found."],
+            "warnings": ["No price import draft file found."],
         }
     staged_frame, read_warnings = _read_price_import(staged_path)
     valid_frame, summary = _normalize_price_import_frame(staged_frame)
@@ -1153,8 +1153,8 @@ def main() -> None:
     parser.add_argument("--universe-file", help="Alternate universe file to derive tickers from.")
     parser.add_argument("--provider", choices=["stooq", "yahoo"], default="stooq", help="Remote price provider. Yahoo is unofficial/research-grade.")
     parser.add_argument("--validate-price-imports", action="store_true", help="Validate data/imports/prices.csv without mutating data/prices.csv.")
-    parser.add_argument("--preview-price-import-merge", action="store_true", help="Preview staged price import changes without mutating data/prices.csv.")
-    parser.add_argument("--apply-price-import-merge", action="store_true", help="Apply staged price imports into data/prices.csv with a backup.")
+    parser.add_argument("--preview-price-import-merge", action="store_true", help="Preview price import draft changes without mutating data/prices.csv.")
+    parser.add_argument("--apply-price-import-merge", action="store_true", help="Apply price import drafts into data/prices.csv with a backup.")
     parser.add_argument("--price-status", action="store_true", help="Display outputs/price_update_status.csv if present.")
     parser.add_argument("--top-n", type=int, help="Optional cap for human-readable price status rows.")
     parser.add_argument("--json", action="store_true", help="Print JSON for import/status commands.")

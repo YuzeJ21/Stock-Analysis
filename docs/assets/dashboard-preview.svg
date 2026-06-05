@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Stock Research Command Center dashboard preview</title>
-  <desc id="desc">A stylized preview of the readiness-first stock research dashboard with readiness cards, copy-only unlock commands, and plain-language stock analysis modes.</desc>
+  <desc id="desc">A stylized preview of the readiness-first stock research dashboard with readiness cards, At A Glance single-stock status, project DCF method notes, copy-only unlock commands, and plain-language stock analysis modes.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f7efe1"/>
@@ -73,19 +73,24 @@
 
     <rect x="648" y="326" width="508" height="264" rx="22" fill="#ffffff" stroke="#d8dfd2"/>
     <text x="672" y="363" fill="#172820" font-size="21" font-weight="700">Single-Stock Report</text>
-    <text x="672" y="390" fill="#68796f" font-size="14">Analysis modes before tables or conclusions.</text>
+    <text x="672" y="390" fill="#68796f" font-size="14">At A Glance before tables or conclusions.</text>
     <rect x="672" y="423" width="216" height="50" rx="16" fill="#f2f7f1"/>
-    <text x="694" y="454" fill="#172820" font-size="15" font-weight="700">DCF-ready review</text>
+    <text x="694" y="445" fill="#172820" font-size="15" font-weight="700">Mode + decision</text>
+    <text x="694" y="462" fill="#68796f" font-size="12">DCF-ready review</text>
     <rect x="910" y="423" width="216" height="50" rx="16" fill="#f5f1e8"/>
-    <text x="932" y="454" fill="#172820" font-size="15" font-weight="700">Standalone DCF</text>
+    <text x="932" y="445" fill="#172820" font-size="15" font-weight="700">DCF + peers</text>
+    <text x="932" y="462" fill="#68796f" font-size="12">Standalone DCF review</text>
     <rect x="672" y="487" width="216" height="50" rx="16" fill="#fff2dd"/>
-    <text x="694" y="518" fill="#172820" font-size="15" font-weight="700">Price/setup only</text>
+    <text x="694" y="509" fill="#172820" font-size="15" font-weight="700">What not to infer</text>
+    <text x="694" y="526" fill="#68796f" font-size="12">Price/setup review</text>
     <rect x="910" y="487" width="216" height="50" rx="16" fill="#eef6fa"/>
-    <text x="932" y="518" fill="#172820" font-size="15" font-weight="700">Monitor-only</text>
+    <text x="932" y="509" fill="#172820" font-size="15" font-weight="700">Next local step</text>
+    <text x="932" y="526" fill="#68796f" font-size="12">Monitor-only context</text>
     <rect x="672" y="548" width="216" height="26" rx="13" fill="#e9ece2"/>
     <text x="694" y="566" fill="#172820" font-size="13" font-weight="700">Data-unlock only</text>
     <rect x="910" y="548" width="216" height="26" rx="13" fill="#172820"/>
-    <text x="932" y="566" fill="#f8f1df" font-size="13">Repo-native logic</text>
+    <text x="932" y="566" fill="#f8f1df" font-size="13">Method: project DCF</text>
   </g>
-  <text x="672" y="618" fill="#68796f" font-family="Verdana, sans-serif" font-size="13">Research-only: no broker, no order routing, no direct buy/sell instructions</text>
+  <text x="672" y="606" fill="#68796f" font-family="Verdana, sans-serif" font-size="13">DCF path: cash flows, terminal value, cash/debt, fair value/share</text>
+  <text x="672" y="628" fill="#68796f" font-family="Verdana, sans-serif" font-size="13">Research-only: no broker, no order routing, no direct buy/sell instructions</text>
 </svg>

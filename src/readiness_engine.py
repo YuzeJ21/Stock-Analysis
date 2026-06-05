@@ -335,11 +335,11 @@ def _peer_readiness_next_action(ticker: str, peer: pd.Series) -> str:
     if blocker_type in {"peer_price_missing", "peer_momentum_missing"}:
         return (
             f"{action} Run make focus-peers TICKER={ticker} to review mapped peers, "
-            "then use capped price refresh or verified staged OHLCV rows."
+            "then use capped price refresh or verified OHLCV import draft rows."
         )
     if blocker_type in {"peer_fundamentals_missing", "peer_valuation_blocked"}:
         return (
-            f"{action} Run make focus-peers TICKER={ticker}, then use SEC staging "
+            f"{action} Run make focus-peers TICKER={ticker}, then use SEC import draft workflow "
             "or the manual fundamentals import workflow for the mapped peers."
         )
     return action
@@ -416,7 +416,7 @@ def build_price_coverage_report(root: Path, data_path: Path, master: pd.DataFram
                 "momentum_ready": momentum_ready,
                 "risk_ready": risk_ready,
                 "missing_price_reason": missing_reason,
-                "next_action": "" if price_ready else f"Import staged price rows or refresh price provider for {ticker}.",
+                "next_action": "" if price_ready else f"Import price rows through the preview-first workflow or refresh the price provider for {ticker}.",
                 "updated_at": _now(),
             }
         )
@@ -770,19 +770,19 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
             workflow_group = "peer_trend_unlock"
             next_action_summary = "Add verified peer OHLCV history before treating peer trend comparison as ready."
             next_input_file = "data/imports/prices.csv or data/staged/prices/"
-            validation_sequence = "make focus-price TICKER=<peer> -> make price-refresh TICKERS=<peer> or stage trusted OHLCV -> make imports-validate"
+            validation_sequence = "make focus-price TICKER=<peer> -> make price-refresh TICKERS=<peer> or prepare trusted OHLCV import draft rows -> make imports-validate"
         elif blocker_type in {"peer_fundamentals_missing", "peer_valuation_blocked"}:
             unlock_stage = "add_peer_fundamentals"
             workflow_group = "peer_valuation_unlock"
             next_action_summary = "Add trusted peer fundamentals before showing peer valuation conclusions."
             next_input_file = "data/imports/fundamentals.csv or data/staged/fundamentals/"
-            validation_sequence = "make focus-fundamentals TICKER=<peer> -> make sec-stage TICKERS=<peer> or stage trusted fundamentals -> make imports-validate"
+            validation_sequence = "make focus-fundamentals TICKER=<peer> -> make sec-stage TICKERS=<peer> or prepare trusted fundamentals import draft rows -> make imports-validate"
         else:
             unlock_stage = "review_peer_context"
             workflow_group = "peer_context_review"
             next_action_summary = "Review peer readiness details and keep valuation blocked until required peer inputs are present."
             next_input_file = "data/peers.csv"
-            validation_sequence = "make readiness -> make stock-report TICKER=<ticker>"
+            validation_sequence = f"make readiness -> make stock-report TICKER={ticker}"
         rows.append(
             {
                 "priority": priority,
@@ -807,7 +807,7 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
                 "validation_sequence": validation_sequence,
                 "focus_command": f"make focus-peers TICKER={ticker}",
                 "example_command": "make peer-mapping-queue TOP_N=25",
-                "copy_only_note": "Copy commands only; review staged rows before applying local CSV changes.",
+                "copy_only_note": "Copy commands only; review import draft rows before applying local CSV changes.",
                 "updated_at": _now(),
             }
         )
@@ -904,17 +904,20 @@ def build_ticker_readiness_report(
         if "analyst_estimates" in blocked:
             missing_data.append("analyst_estimates: trusted local CSV input")
         if "price" in blocked:
-            next_action = str(price.get("next_action") or f"Import staged price rows or refresh price provider for {ticker}.")
+            next_action = str(
+                price.get("next_action")
+                or f"Import price rows through the preview-first workflow or refresh the price provider for {ticker}."
+            )
         elif "dcf" in blocked:
             missing_fundamentals = str(fund.get("missing_fundamentals_fields", "") or "").strip()
             if bool(fund.get("has_fundamentals", False)) and missing_fundamentals:
                 next_action = (
                     f"Complete trusted fundamentals for {ticker}; missing fields: {missing_fundamentals}. "
-                    f"Run make focus-fundamentals TICKER={ticker}, then use SEC staging or the manual fundamentals import workflow."
+                    f"Run make focus-fundamentals TICKER={ticker}, then use SEC import draft workflow or the manual fundamentals import workflow."
                 )
             else:
                 next_action = (
-                    f"Import trusted fundamentals for {ticker}. If SEC_USER_AGENT is configured, use SEC staging; "
+                    f"Import trusted fundamentals for {ticker}. If SEC_USER_AGENT is configured, use SEC import draft workflow; "
                     "otherwise use the manual fundamentals import workflow."
                 )
         elif "peer" in blocked or "peer" in partial:

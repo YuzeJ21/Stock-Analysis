@@ -14,7 +14,7 @@ This project turns a broad stock universe into a research workflow:
 - Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
 - Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
 - Generates transparent CSV outputs for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
-- Provides a Streamlit dashboard plus single-stock reports with source/freshness notes.
+- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source/freshness notes, and copyable local unlock commands.
 
 ## Why It Matters
 
@@ -29,9 +29,17 @@ When trusted local data is available, the command center can produce:
 - DCF readiness and conservative scenario valuation.
 - Peer-context readiness without pretending missing peer valuation exists.
 - ETF/index monitor reports where operating-company DCF is excluded.
-- Single-stock reports with risks, blockers, next research steps, and source/freshness notes.
+- Single-stock reports with At A Glance status, methodology, risks, blockers, copyable local unlock commands, and source/freshness notes.
 
 Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
+
+## How Analysis Works
+
+The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed.
+
+- Readiness gates check whether prices, fundamentals, peers, earnings, and estimates are complete enough.
+- Project calculations run only after the needed inputs are ready.
+- Blocked or excluded sections stay visible with the exact missing input and next local step.
 
 ## Current Snapshot
 
@@ -45,25 +53,19 @@ Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final d
 
 ## Preview
 
-The dashboard is designed as an operator console:
-
-- `Overview`: readiness, blockers, and next commands.
-- `Monthly Picks`: conservative research candidates when data supports them.
-- `Market Direction`: theme and sector/ETF context.
-- `Momentum Leaders`: trend, relative strength, extension risk, and setup status.
-- `Portfolio Review`: holdings reviewed against declared purpose and risk.
-- `Value / Re-rating`: DCF and valuation modes with ready, locked, and monitor-only guardrails.
-- `Final Watchlist`: readiness-state output, not an action list.
-- `Single-Stock Report`: ticker-level report with source/freshness audit.
-- `Data Health`: import paths, rejected-row reports, and unlock queues.
+The dashboard is designed as an operator console: `Home` shows readiness, blockers, methodology, examples, and next commands; focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 
 ## Quick Start
 
+Run these from the repository root so `make` can find the project targets:
+
 ```bash
-pip install -e .[dev]
+pip install -e '.[dev]'
 make pipeline
 make readiness
-make stock-report TICKER=NVDA
+make demo
+make stock-report-md TICKER=NVDA
+make public-check
 make dashboard-smoke
 make dashboard
 ```
@@ -79,21 +81,37 @@ make pipeline
 make readiness
 make project-status
 make research-health-check TOP_N=10
-make stock-report TICKER=NVDA
+make stock-report-md TICKER=NVDA
+make public-check
 make dashboard
 ```
 
 ## Try This Demo Path
 
 ```bash
-make stock-report TICKER=NVDA   # company report with DCF assumptions
-make stock-report TICKER=QQQ    # ETF/index report with DCF excluded
-make stock-report TICKER=SMH    # sector ETF monitor report
-make stock-report TICKER=APLD   # partial-data blocker report
+make demo                       # prints the clean visitor path
+make stock-report-md TICKER=NVDA # company report with DCF assumptions
+make stock-report-md TICKER=A    # standalone DCF report with peer workflow still locked
+make stock-report-md TICKER=META # price/setup report with valuation still gated
+make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded
+make stock-report-md TICKER=SMH  # sector ETF monitor report
+make stock-report-md TICKER=APLD # partial-data blocker report
 make dashboard
 ```
 
-In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Technical file paths and update commands are intentionally tucked into advanced sections.
+Example map:
+
+| Example | What it demonstrates | What to check |
+| --- | --- | --- |
+| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | At A Glance status, assumptions, sensitivity, peer caveats, source/freshness notes. |
+| [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | DCF assumptions versus the next peer data-unlock step. |
+| [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Supported setup analysis versus valuation blockers and caveats. |
+| [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Operating-company DCF is excluded, not failed. |
+| [APLD](outputs/stock_reports/apld.md) | Blocked-data handling. | No valuation conclusion appears until trusted price rows exist. |
+
+In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then explain methodology and only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.
+
+Dashboard pages also support simple local deep links such as `http://localhost:8501/?page=single-stock-report`.
 
 For a deeper local runbook, see [Operator Guide](docs/OPERATOR_GUIDE.md).
 
@@ -126,52 +144,31 @@ make imports-apply
 
 Small example outputs are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and generated report CSVs are local working data by default. Review them before committing; do not publish broad refresh churn unless intentionally selected.
 
-## Analysis Logic Provenance
+Before sharing or committing, run `make public-check`, then `make diff-hygiene`. For a large dirty tree, run `make diff-hygiene-files` and review the ignored local pathspec files under `outputs/staging/` before staging. After staging, run `make staged-hygiene-check` before committing. The public check includes `make public-wording-check`, which scans visitor-facing docs, dashboard/report copy, and sample reports for unsupported advice, execution language, internal development notes, and stale repo links. Use the safe staging suggestion for product files and reviewed Markdown reports, and leave generated CSV/JSON churn out unless it is the specific artifact you intend to publish.
 
-The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. Development plugins or assistant skills are not shipped product dependencies: the analysis rules, valuation gates, decision buckets, and research-only guardrails come from repo code plus local CSV inputs. See [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
+The tracked `data/holdings.csv` file is a zero-position sample for portfolio-review demos. Keep real holdings, account exports, and personal cost-basis details out of the public branch.
+
+## License
+
+Reuse terms are not specified yet because no `LICENSE` file has been selected. Visitors can review the project, but reuse rights are not granted until a license is added. See [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md) before promoting the repo broadly.
+
+## Analysis Methodology
+
+The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. The analysis rules, valuation gates, decision buckets, and research-only guardrails come from project code plus local CSV inputs. See [Research Methodology](docs/METHODOLOGY.md) for the calculation flow and [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
 
 ## Core Outputs
 
-The main pipeline writes deterministic CSVs under `outputs/`:
-
-- `purpose_classification.csv`
-- `market_direction.csv`
-- `momentum_leaders.csv`
-- `portfolio_review.csv`
-- `undervalued_candidates.csv`
-- `final_watchlist.csv`
-- `research_decisions.csv`
-
-Readiness and source-health reports live under `data/reports/`.
+The main pipeline writes deterministic CSVs under `outputs/`, including purpose classification, market direction, momentum leaders, portfolio review, valuation-readiness context, final watchlist, and research decisions. `undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context, not automatic undervalued calls. Readiness and source-health reports live under `data/reports/`.
 
 ## Research-Only Guardrails
 
-This is investment research software, not investment advice and not a trading system.
-
-It does not:
-
-- place orders;
-- connect to brokers;
-- route trades;
-- auto-trade;
-- recommend option trades;
-- provide direct buy/sell instructions;
-- fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations.
+This is investment research software, not investment advice and not a trading system. It does not place orders, connect to brokers, route trades, auto-trade, recommend option trades, provide direct buy/sell instructions, or fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations.
 
 That constraint is intentional. The product is useful because it says when data is missing instead of pretending every ticker is ready.
 
 ## Architecture
 
-- `src/dashboard.py`: Streamlit command center.
-- `src/readiness_engine.py`: ticker and feature readiness checks.
-- `src/research_decisions.py`: readiness-aware decision buckets.
-- `src/stock_report.py`: single-stock report CLI and Markdown output.
-- `src/providers/`: local CSV provider interfaces plus optional research-grade adapters.
-- `data/`: local CSV inputs and readiness reports.
-- `outputs/`: generated research outputs.
-- `tests/`: regression coverage for calculations, readiness gates, dashboard helpers, and safety guardrails.
-
-The project is CSV-first and deterministic by default. Optional network-backed data stays behind provider interfaces and is labeled as research-grade when used.
+The app is organized around `src/dashboard.py`, `src/readiness_engine.py`, `src/research_decisions.py`, `src/stock_report.py`, `src/providers/`, local `data/` CSVs, generated `outputs/`, and regression tests. It is CSV-first and deterministic by default. Optional network-backed data stays behind provider interfaces and is labeled as research-grade when used.
 
 ## Roadmap Snapshot
 

@@ -13,7 +13,7 @@ from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame, refresh_price_update_status_output
 from src.data_sources import build_data_source_payload, write_data_source_outputs
 from src.action_queue import write_action_queue_output
-from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
 from src.research_health import run as run_research_health
 
@@ -310,7 +310,16 @@ def _enrich_top_actions(onboarding_payload: dict[str, Any], price_status_lookup:
             price_status_row = price_status_lookup.get(ticker)
             if price_status_row:
                 status = str(price_status_row.get("status") or "").strip().lower()
-                for field in ("status", "recommended_action", "focus_command", "example_command", "target_file"):
+                for field in (
+                    "status",
+                    "recommended_action",
+                    "focus_command",
+                    "example_command",
+                    "target_file",
+                    "provider",
+                    "requested_end",
+                    "run_timestamp",
+                ):
                     if source_row and status in {"fetched", "skipped_fresh"} and field != "status":
                         continue
                     value = _first_non_empty(price_status_row.get(field), row.get(field))
@@ -336,6 +345,57 @@ def _bundle_rank(bundle: dict[str, Any]) -> tuple[int, int, str]:
     ticker_count = int(bundle.get("ticker_count") or 0)
     scope_rank = 0 if scope == "broader_queue" else 1 if scope == "holdings_first" else 2
     return (scope_rank, -ticker_count, str(bundle.get("bundle_name") or ""))
+
+
+def _source_context(*rows: dict[str, Any] | None, fallback: str = "") -> str:
+    for row in rows:
+        if not row:
+            continue
+        context = _first_non_empty(
+            row.get("source_file"),
+            row.get("target_file"),
+            row.get("local_file"),
+            row.get("source_artifact"),
+            row.get("source_name"),
+            row.get("provider"),
+        )
+        if context:
+            return context
+    return fallback
+
+
+def _freshness_context(*rows: dict[str, Any] | None, fallback: str = "") -> str:
+    for row in rows:
+        if not row:
+            continue
+        context = _first_non_empty(
+            row.get("updated_at"),
+            row.get("last_price_date"),
+            row.get("as_of_date"),
+            row.get("requested_end"),
+            row.get("status"),
+            row.get("availability_status"),
+        )
+        if context:
+            return context
+    return fallback
+
+
+def _command_row(
+    step: str,
+    command: str,
+    reason: str,
+    *,
+    source_context: str = "",
+    freshness_context: str = "",
+) -> dict[str, str]:
+    return {
+        "Step": step,
+        "Command": command,
+        "Reason": reason,
+        "SourceContext": source_context,
+        "FreshnessContext": freshness_context,
+    }
 
 
 def _select_top_bundle(actions: list[dict[str, Any]], bundles: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -399,20 +459,36 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
                 "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
                 f"to confirm the live local {dataset_text} inputs."
             )
-            rows.append({"Step": "Advance staged imports", "Command": command, "Reason": reason})
+            rows.append(
+                _command_row(
+                    "Review import drafts",
+                    command,
+                    reason,
+                    source_context=file_text,
+                    freshness_context="local import draft workflow rows present",
+                )
+            )
             continue
 
         row = grouped[0]
         dataset = str(row.get("dataset") or "data").replace("_", " ")
         status = str(row.get("availability_status") or "").strip().lower()
         if command == "make imports-validate":
-            step = f"Advance staged {dataset} import"
+            step = f"Review {dataset} import draft"
         elif status == "manual_only":
             step = f"Prepare {dataset} input"
         else:
             step = f"Advance {dataset} source"
         reason = _first_non_empty(row.get("fallback_action"), row.get("validation_warnings"), row.get("notes"))
-        rows.append({"Step": step, "Command": command, "Reason": reason})
+        rows.append(
+            _command_row(
+                step,
+                command,
+                reason,
+                source_context=_source_context(row),
+                freshness_context=_freshness_context(row),
+            )
+        )
     return rows
 
 
@@ -428,15 +504,17 @@ def _recommended_next_command_rows(
         dataset_key = str(top_action.get("dataset") or "").strip().lower()
         if dataset_key == "prices" and not bool(top_action.get("is_holding")):
             rows.append(
-                {
-                    "Step": "Refresh next capped missing-price batch",
-                    "Command": "make price-refresh TOP_N=25 PROVIDER=yahoo",
-                    "Reason": (
+                _command_row(
+                    "Refresh next capped missing-price batch",
+                    "make price-refresh TOP_N=25 PROVIDER=yahoo",
+                    (
                         "Advance the broad-universe price frontier safely by refreshing only the next "
                         "25 tickers without local price coverage; Yahoo rows are research-grade and "
-                        "the staged manual import fallback remains available."
+                        "the manual import draft fallback remains available."
                     ),
-                }
+                    source_context="data/imports/prices.csv fallback plus optional Yahoo refresh",
+                    freshness_context="capped refresh; verify source/freshness after merge",
+                )
             )
         command = _first_non_empty(top_action.get("focus_command"), top_action.get("example_command"))
         if command:
@@ -444,19 +522,29 @@ def _recommended_next_command_rows(
             ticker = _first_non_empty(top_action.get("ticker"))
             step = f"Fix top {dataset} blocker" + (f" ({ticker})" if ticker else "")
             reason = _first_non_empty(top_action.get("reason"), top_action.get("recommended_action"))
-            rows.append({"Step": step, "Command": command, "Reason": reason})
+            rows.append(
+                _command_row(
+                    step,
+                    command,
+                    reason,
+                    source_context=_source_context(top_action),
+                    freshness_context=_freshness_context(top_action),
+                )
+            )
             if dataset_key in {"fundamentals", "peers"} and not os.environ.get("SEC_USER_AGENT", "").strip():
                 rows.append(
-                    {
-                        "Step": "Choose fundamentals input path",
-                        "Command": "make templates",
-                        "Reason": (
-                            "SEC_USER_AGENT is not configured, so remote SEC staging is unavailable. "
+                    _command_row(
+                        "Choose fundamentals input path",
+                        "make templates",
+                        (
+                            "SEC_USER_AGENT is not configured, so remote SEC import draft workflow is unavailable. "
                             "Either export SEC_USER_AGENT before make sec-stage, or prepare trusted manual "
                             "fundamentals in data/imports/fundamentals.csv and run make imports-validate, "
                             "make imports-preview, and make imports-apply."
                         ),
-                    }
+                        source_context="SEC_USER_AGENT or data/imports/fundamentals.csv",
+                        freshness_context="credential/manual import state controls availability",
+                    )
                 )
 
     top_bundle = _select_top_bundle(actions, bundles)
@@ -481,7 +569,15 @@ def _recommended_next_command_rows(
                 step = f"Run {bundle_name}"
             else:
                 step = f"Run {bundle_name}"
-            rows.append({"Step": step, "Command": command, "Reason": reason})
+            rows.append(
+                _command_row(
+                    step,
+                    command,
+                    reason,
+                    source_context=_source_context(top_bundle),
+                    freshness_context=_freshness_context(top_bundle, fallback="bundle generated from current onboarding outputs"),
+                )
+            )
 
     problem_source_rows = _recommended_source_command_rows(problem_sources)
     if problem_source_rows:
@@ -489,16 +585,20 @@ def _recommended_next_command_rows(
 
     rows.extend(
         [
-            {
-                "Step": "Deterministic verification",
-                "Command": "make verify",
-                "Reason": "Confirm the local CSV outputs and dashboard helpers still pass deterministic checks.",
-            },
-            {
-                "Step": "Dashboard smoke check",
-                "Command": "make dashboard-smoke",
-                "Reason": "Confirm the Streamlit surface still boots cleanly after the local data and workflow updates.",
-            },
+            _command_row(
+                "Deterministic verification",
+                "make verify",
+                "Confirm the local CSV outputs and dashboard helpers still pass deterministic checks.",
+                source_context="tests and generated local CSV outputs",
+                freshness_context="run after data refresh/import or code changes",
+            ),
+            _command_row(
+                "Dashboard smoke check",
+                "make dashboard-smoke",
+                "Confirm the Streamlit surface still boots cleanly after the local data and workflow updates.",
+                source_context="Streamlit dashboard",
+                freshness_context="run after dashboard or environment changes",
+            ),
         ]
     )
 
@@ -624,6 +724,8 @@ def write_project_status_output(
 
 def _print_human(payload: dict[str, Any]) -> None:
     summary = payload["summary"]
+    print("Read-only operator snapshot.")
+    print("Commands below are copy-only local research helpers; this status view does not run them.")
     print("Project status summary:")
     print(f"- Data sources: {summary['data_sources_available']}/{summary['data_sources_total']} available")
     print(f"- Data sources needing attention: {summary['data_sources_needing_attention']}")
@@ -658,6 +760,25 @@ def _print_human(payload: dict[str, Any]) -> None:
         print(f"- {row.get('Step', 'Next')}: {row.get('Command', '')}")
         if row.get("Reason"):
             print(f"  why: {row['Reason']}")
+        if row.get("SourceContext"):
+            print(f"  source: {row['SourceContext']}")
+        if row.get("FreshnessContext"):
+            print(f"  freshness: {row['FreshnessContext']}")
+
+
+def _format_operator_path_context(root: Path, data_path: Path, output_path: Path) -> str:
+    def display(path: Path) -> str:
+        try:
+            return path.relative_to(root).as_posix()
+        except ValueError:
+            return str(path)
+
+    return (
+        "Local folders:\n"
+        f"- project: current repository root\n"
+        f"- data: {display(data_path)}\n"
+        f"- outputs: {display(output_path)}"
+    )
 
 
 def main() -> None:
@@ -723,7 +844,7 @@ def main() -> None:
         print(json.dumps(payload, indent=2))
         return
 
-    print(format_path_context(root, data_path, output_path))
+    print(_format_operator_path_context(root, data_path, output_path))
     _print_human(payload)
     if args.write_output:
         print("Wrote:")

@@ -24,7 +24,7 @@ The target user is an individual investor or research operator who wants a deter
 - Buy/sell/option-trade recommendations.
 - Bloomberg-style full-provider coverage.
 - Fabricated prices, fundamentals, earnings, analyst estimates, peers, or tickers.
-- Hiding missing data behind weak rankings.
+- Hiding missing data behind unsupported rankings.
 - Running expensive full-market analysis on every dashboard refresh.
 
 ## Core Product Principle
@@ -41,7 +41,7 @@ Operationally:
 - Insufficient data, show exactly what is missing.
 - Sufficient data, run the relevant analysis.
 - Completed analysis, generate research decisions.
-- Blocked analysis must not be rendered as a weak recommendation.
+- Blocked analysis must not be rendered as an unsupported recommendation.
 
 ## Market-Wide Expansion Goal
 
@@ -86,6 +86,18 @@ The per-feature subset of tickers with enough data for a specific module, such a
 - What data should I import next?
 - Which analyses are trustworthy today?
 
+## Current Product Surfaces
+
+The product is now organized around a few operator-facing surfaces:
+
+- `Home`: plain-language readiness cards, next-action cards, methodology ladder, and example report comparisons.
+- `Single-Stock Report`: ticker-level At A Glance status, methodology cue, analysis quality, valuation state, source/freshness audit, and copyable local unlock commands.
+- `Data Health`: trusted local data paths, import validation, rejected-row reports, and unlock queues.
+- `Value / Re-rating`: DCF-ready, peer-limited, blocked, and ETF/index/fund excluded valuation states.
+- Markdown reports under `outputs/stock_reports/`: small visitor-readable examples of richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data modes.
+
+These surfaces must show supported, blocked, partial, and excluded states before showing detailed tables. Broad-universe tables should stay filtered and row-limited by default.
+
 ## MVP Definition
 
 The MVP is successful when:
@@ -95,17 +107,38 @@ The MVP is successful when:
 - readiness is reported per ticker and per feature;
 - blocked and excluded states are visible;
 - final research decisions are readiness-aware;
-- staged manual imports are available;
+- preview-first manual import drafts are available;
 - invalid import rows are rejected into CSV files;
-- dashboard smoke passes with missing credentials and empty staged folders.
+- dashboard smoke passes with missing credentials and empty import-draft folders.
 
-## Future Enhancements Not Implemented Yet
+## Public Share Definition
 
-- Paid data-provider integrations.
+The public-facing project is shareable only when:
+
+- the README has a short demo path and dashboard preview;
+- sample reports show `At A Glance`, methodology, evaluation function checks, source/freshness, and copyable local unlock commands;
+- public docs explain that project code provides readiness gates, DCF math, peer boundaries, and report wording;
+- `make public-check` passes;
+- generated CSV/JSON churn is reviewed before staging and is not committed by default;
+- no public surface contains broker, order-routing, auto-trading, options recommendation, or direct buy/sell instruction language.
+
+## Future Research Enhancements Not Implemented Yet
+
+These items may fit the product if they preserve the readiness-first, research-only model:
+
+- Paid or licensed data-provider integrations for trusted research inputs.
+- Full SEC financial-statement modeling beyond preview-first fundamentals imports.
+- Full market-scale background job scheduling for local refresh/import workflows.
+- Parquet or SQLite caches for very large local datasets.
+- Automated peer suggestions only when clearly labeled as fallback, not trusted manual peer data.
+
+## Permanently Out Of Scope
+
+These items do not fit the product purpose:
+
 - Broker connections.
 - Automated order routing.
-- Full SEC financial-statement modeling beyond staged fundamentals.
-- Full market-scale background job scheduling.
-- Parquet or SQLite caches for very large CSVs.
-- Automated peer inference beyond clearly labeled sector/industry fallback.
-- Options payoff workflows beyond educational user-supplied examples.
+- Auto-trading.
+- Direct buy/sell/hold recommendations.
+- Options trade recommendations.
+- Fabricated prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or research conclusions.

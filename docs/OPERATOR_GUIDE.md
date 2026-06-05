@@ -18,7 +18,7 @@ Run these from the repository root:
 make pipeline
 make readiness
 make project-status
-make stock-report TICKER=NVDA
+make stock-report-md TICKER=NVDA
 make dashboard
 ```
 
@@ -33,6 +33,7 @@ make dashboard-smoke
 
 - Open `make dashboard` for the product page.
 - Start on `Home` to see readiness, blockers, and next safe commands.
+- Use the Home page `Example Reports` table to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples without reading raw CSVs first.
 - Open `Single-Stock Report` for one ticker when you want the clearest stock-level explanation.
 - Open `Data Health` when the app says analysis is blocked by missing local data.
 
@@ -41,17 +42,27 @@ make dashboard-smoke
 These examples show the main states without needing a full-market refresh:
 
 ```bash
-make stock-report TICKER=NVDA
-make stock-report TICKER=QQQ
-make stock-report TICKER=SMH
-make stock-report TICKER=APLD
+make stock-report-md TICKER=NVDA
+make stock-report-md TICKER=A
+make stock-report-md TICKER=META
+make stock-report-md TICKER=QQQ
+make stock-report-md TICKER=SMH
+make stock-report-md TICKER=APLD
 ```
 
-- `NVDA` demonstrates company-level DCF assumptions when trusted local inputs are ready.
+Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.
+
+- `NVDA` demonstrates company-level DCF assumptions and source-backed peer context when trusted local inputs are ready.
+- `A` demonstrates standalone DCF review where peer-relative valuation is still waiting on source-backed peers.
+- `META` demonstrates price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - `QQQ` and `SMH` demonstrate ETF/index monitor context where operating-company DCF is excluded, not failed.
 - `APLD` demonstrates partial-data handling where valuation stays blocked instead of being invented.
 
-Read the `Analysis Quality` and `Evaluation Function Check` sections first. They explain which functions are ready, blocked, excluded, or optional before the detailed tables.
+Read `At A Glance` first. It gives the mode, decision view, DCF state, peer context, optional context, method cue, and next local step before the detailed tables.
+
+Then read `Analysis Quality`, `Methodology`, and `Evaluation Function Check`. They explain which functions are ready, blocked, excluded, or optional. The At A Glance method cue and the `Methodology` section show the DCF formula path so the valuation workflow is not a black box.
+
+When a ticker is blocked or partial, use `Copyable Unlock Commands` next. Those are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
 
 ## Analysis Modes
 
@@ -74,7 +85,7 @@ make peer-mapping-queue TOP_N=10
 make optional-context-worklist TOP_N=10
 ```
 
-For staged local imports, use preview before apply:
+For local import drafts, use preview before apply:
 
 ```bash
 make templates
@@ -105,6 +116,6 @@ See `docs/analysis_capability_audit.md` for the deeper function-quality and prov
 
 ## What Powers The Analysis
 
-The shipped analysis comes from repo code under `src/` plus trusted local CSV inputs. Standard Python libraries support data handling, UI, and tests; optional `yfinance` is only a research-grade adapter.
+The shipped analysis comes from project code under `src/` plus trusted local CSV inputs. Standard Python libraries support data handling, UI, and tests; optional `yfinance` is only a research-grade adapter.
 
-Development plugins or assistant skills are helpers only. The shipped analysis rules, readiness gates, valuation gates, decision buckets, and research-only guardrails come from repo code under `src/` plus trusted local CSV inputs.
+Support tools and libraries are not the stock-analysis rules. The shipped readiness gates, valuation gates, decision buckets, and research-only guardrails come from project code under `src/` plus trusted local CSV inputs.

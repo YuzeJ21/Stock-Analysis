@@ -5,9 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stock-research-command-center"
 version = "0.1.0"
-description = "Local Python stock research command center for watchlists, portfolio review, and risk discipline."
+description = "CSV-first, research-only stock command center with readiness gates, single-stock reports, and transparent valuation blockers."
 readme = "README.md"
 requires-python = ">=3.10"
+keywords = ["stocks", "research", "streamlit", "readiness", "valuation", "csv"]
 dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",
@@ -22,6 +23,9 @@ research = [
 dev = [
   "pytest>=8.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/YuzeJ21/Stock-Analysis"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

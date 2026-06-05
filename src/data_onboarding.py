@@ -315,7 +315,7 @@ def _command_safety_fields(example_command: object) -> dict[str, object]:
         "credential_present": credential_present,
         "manual_fallback_command": "make templates",
         "command_safety_note": (
-            "SEC staging requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
             "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
@@ -828,7 +828,7 @@ def _price_action_text(ticker: str) -> str:
 def _fundamentals_action_text(ticker: str) -> str:
     return (
         f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
-        f"make sec-stage TICKERS={ticker}; otherwise stage trusted manual fundamentals in "
+        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
         "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
         "and make imports-apply."
     )
@@ -848,7 +848,7 @@ def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
             "with transparent peer mappings."
         )
     return (
-        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the staged local import "
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the local import draft workflow "
         "workflows so peer-relative valuation can calculate transparently."
     )
 
@@ -963,7 +963,7 @@ def _has_staged_peer_follow_through(row: TickerCoverage) -> bool:
     return (
         (not row.peer_ready)
         and str(row.focus_command or "").strip() == "make imports-validate"
-        and "staged peer mappings" in str(row.missing_required_for_peer_relative or "").lower()
+        and "peer mapping import drafts" in str(row.missing_required_for_peer_relative or "").lower()
     )
 
 
@@ -992,7 +992,7 @@ def _peer_support_follow_through(
             return (
                 f"Run make focus-fundamentals TICKER={peer} to inspect missing peer fundamentals needed for "
                 f"{ticker}'s peer-relative context. If SEC_USER_AGENT is configured, run "
-                f"make sec-stage TICKERS={peer}; otherwise stage trusted manual fundamentals in "
+                f"make sec-stage TICKERS={peer}; otherwise prepare trusted manual fundamentals import draft rows in "
                 "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
                 "and make imports-apply.",
                 "data/imports/fundamentals.csv",
@@ -1029,7 +1029,7 @@ def _action_for_coverage(row: TickerCoverage) -> str:
         return _price_action_text(row.ticker)
     if row.price_history_days < 21:
         return _price_action_text(row.ticker)
-    if "staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply" in str(row.missing_required_for_dcf or ""):
+    if "fundamentals import drafts still need make imports-validate, make imports-preview, and make imports-apply" in str(row.missing_required_for_dcf or ""):
         return _staged_fundamentals_action_text()
     if not row.has_fundamentals or not row.dcf_ready:
         return _fundamentals_action_text(row.ticker)
@@ -1055,7 +1055,7 @@ def _price_onboarding_reason(row: TickerCoverage) -> str:
 
 def _fundamentals_onboarding_reason(row: TickerCoverage) -> str:
     if _has_staged_fundamentals_follow_through(row):
-        return "Staged fundamentals are present but still need make imports-validate, make imports-preview, and make imports-apply before DCF inputs are live."
+        return "Fundamentals import drafts are present but still need make imports-validate, make imports-preview, and make imports-apply before DCF inputs are live."
     if not row.has_fundamentals:
         return "No local fundamentals row is present for this ticker yet."
     if row.missing_required_for_dcf:
@@ -1067,7 +1067,7 @@ def _missing_dcf_fields(missing_required_for_dcf: object) -> list[str]:
     return [
         field.strip()
         for field in str(missing_required_for_dcf or "").split(",")
-        if field.strip() and "staged fundamentals still need" not in field.strip().lower()
+        if field.strip() and "fundamentals import drafts still need" not in field.strip().lower()
     ]
 
 
@@ -1085,7 +1085,7 @@ def _peer_onboarding_reason(row: TickerCoverage) -> str:
     if not row.has_peer_mapping:
         return "No local peer mapping is configured for this ticker."
     if row.focus_command == "make imports-validate":
-        return "Staged peer mappings are present but still need make imports-validate, make imports-preview, and make imports-apply before peer-relative context is live."
+        return "Peer mapping import drafts are present but still need make imports-validate, make imports-preview, and make imports-apply before peer-relative context is live."
     if row.missing_required_for_peer_relative:
         return f"Peer-relative inputs are still incomplete: {row.missing_required_for_peer_relative}."
     return "Peer-relative inputs are still incomplete."
@@ -1207,7 +1207,7 @@ def build_ticker_coverage(
         if dcf_excluded:
             missing_dcf.append(f"excluded from company DCF: {asset_type}")
         elif has_staged_fundamentals:
-            missing_dcf.append("staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply")
+            missing_dcf.append("fundamentals import drafts still need make imports-validate, make imports-preview, and make imports-apply")
         elif not has_fundamentals:
             missing_dcf.append("fundamentals row")
         if has_fundamentals and not has_staged_fundamentals and not _has_number(financial_row, "free_cash_flow", "fcf"):
@@ -1223,7 +1223,7 @@ def build_ticker_coverage(
         if not has_peer_mapping:
             missing_peer.append("peer mapping")
         elif has_staged_peer_mapping:
-            missing_peer.append("staged peer mappings still need make imports-validate, make imports-preview, and make imports-apply")
+            missing_peer.append("peer mapping import drafts still need make imports-validate, make imports-preview, and make imports-apply")
         if has_peer_mapping and not peer_ready:
             if not has_staged_peer_mapping:
                 missing_peer.append("peer fundamentals or peer price/market-cap context")
@@ -1488,7 +1488,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     target_file=row.target_file if _has_staged_fundamentals_follow_through(row) else "data/imports/fundamentals.csv",
                     focus_command=focus_command,
                     example_command=example_command,
-                    safe_next_step="Review staged SEC-derived fields before import merge; leave unavailable fields blank.",
+                    safe_next_step="Review SEC-derived import draft fields before import merge; leave unavailable fields blank.",
                 )
             )
         if not row.usable_for_peer_relative:
@@ -1511,9 +1511,9 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     row.example_command or example_command,
                 )
             if focus_command == "make imports-validate":
-                safe_next_step = "Validate staged peer mappings before preview so schema and duplicate-key issues surface before merge."
+                safe_next_step = "Validate peer mapping import drafts before preview so schema and duplicate-key issues surface before merge."
             elif row.has_peer_mapping:
-                safe_next_step = "Finish the staged peer-data follow-through without guessing missing peer context."
+                safe_next_step = "Finish the peer-data import draft follow-through without guessing missing peer context."
             rows.append(
                 DataCoverageWizardRow(
                     priority=3,
@@ -1706,15 +1706,15 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
             else coverage.example_command
         )
         safe_next_step = (
-            "Do not run company DCF/SEC staging for ETFs, index proxies, or funds; use applicable market/risk context."
+            "Do not run company DCF/SEC import draft workflow for ETFs, index proxies, or funds; use applicable market/risk context."
             if dcf_excluded
             else
-            "Validate staged fundamentals before preview and apply; keep unavailable valuation fields blank."
+            "Validate fundamentals import draft before preview and apply; keep unavailable valuation fields blank."
             if _has_staged_fundamentals_follow_through(coverage)
-            else "Review staged SEC-derived fundamentals before import merge; keep unavailable fields blank."
+            else "Review SEC-derived fundamentals import draft before import merge; keep unavailable fields blank."
             if not coverage.dcf_ready
             else (
-                "Use data/imports/peers.csv for manual peer mappings; when mappings already exist, finish the staged peer-data follow-through without guessing missing context."
+                "Use data/imports/peers.csv for manual peer mappings; when mappings already exist, finish the peer-data import draft follow-through without guessing missing context."
             )
         )
         rows.append(
@@ -1872,9 +1872,9 @@ def build_sec_stage_queue(
                     coverage.ticker,
                 ),
                 safe_next_step=(
-                    "Validate staged fundamentals before preview and apply; keep unavailable valuation fields blank."
+                    "Validate fundamentals import draft before preview and apply; keep unavailable valuation fields blank."
                     if _has_staged_fundamentals_follow_through(coverage)
-                    else "Validate and preview staged fundamentals before apply; keep unavailable valuation fields blank."
+                    else "Validate and preview fundamentals import draft before apply; keep unavailable valuation fields blank."
                 ),
             )
         )
@@ -1931,7 +1931,7 @@ def build_peer_mapping_queue(
             workflow_group = "peer_valuation_unlock" if coverage.dcf_ready else "peer_metric_follow_through"
             next_action_summary = "Complete trusted peer fundamentals or peer price history before treating peer-relative context as ready."
             next_input_file = "data/imports/fundamentals.csv, data/imports/prices.csv"
-            validation_sequence = "make focus-peers TICKER=<ticker> -> add verified peer metrics -> make imports-validate -> make imports-preview -> make imports-apply"
+            validation_sequence = f"make focus-peers TICKER={coverage.ticker} -> add verified peer metrics -> make imports-validate -> make imports-preview -> make imports-apply"
             trusted_source_requirement = (
                 "Existing mappings still need verified peer fundamentals and price context before peer valuation is ready."
             )
@@ -1950,7 +1950,7 @@ def build_peer_mapping_queue(
                 target_file = coverage.target_file
                 focus_command = coverage.focus_command
                 example_command = coverage.example_command
-                safe_next_step = "Finish the staged peer-data follow-through for this mapped peer set before relying on peer-relative valuation."
+                safe_next_step = "Finish the peer-data import draft follow-through for this mapped peer set before relying on peer-relative valuation."
                 next_input_file = target_file
                 validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make status"
             else:
@@ -2043,9 +2043,9 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
                 coverage.ticker,
             )
             safe_next_step = (
-                "Validate staged fundamentals before preview and apply; keep unavailable valuation fields blank."
+                "Validate fundamentals import draft before preview and apply; keep unavailable valuation fields blank."
                 if _has_staged_fundamentals_follow_through(coverage)
-                else "Review staged SEC-derived fundamentals before import merge and keep unavailable fields blank."
+                else "Review SEC-derived fundamentals import draft before import merge and keep unavailable fields blank."
             )
         elif not coverage.peer_ready:
             current_unlock_stage = "peers"
@@ -2055,7 +2055,7 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
             focus_command = coverage.focus_command
             example_command = coverage.example_command
             safe_next_step = (
-                "Use manually researched peers only; when mappings already exist, finish the staged peer-data follow-through and keep missing peer context explicit."
+                "Use manually researched peers only; when mappings already exist, finish the peer-data import draft follow-through and keep missing peer context explicit."
             )
         elif not coverage.has_earnings or not coverage.has_analyst_estimates:
             current_unlock_stage = "optional_context"
@@ -2086,7 +2086,7 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
             target_file = ""
             focus_command = ""
             example_command = ""
-            safe_next_step = "Refresh prices and staged fundamentals only as real local data changes."
+            safe_next_step = "Refresh prices and fundamentals import drafts only as real local data changes."
 
         rows.append(
             TickerUnlockLadderRow(
@@ -2351,7 +2351,7 @@ def build_command_bundles(
                 target_file="data/imports/fundamentals.csv",
                 why_it_matters=why_it_matters,
                 safe_next_step=(
-                    "Keep SEC enrichment staged and review-only until make imports-validate, "
+                    "Keep SEC enrichment import draft and review-only until make imports-validate, "
                     "make imports-preview, and make imports-apply confirm the merge."
                 ),
             )
@@ -2530,25 +2530,25 @@ def build_command_bundle_runbook(
                     (
                         "If refresh fails, normalize first CSV",
                         fallback_command,
-                        "Use the staged manual import path for the first blocked ticker, then repeat for the remaining bundle names through make price-validate, make price-preview, and make price-apply.",
+                        "Use the manual price import draft path for the first blocked ticker, then repeat for the remaining bundle names through make price-validate, make price-preview, and make price-apply.",
                     )
                 )
             step_specs.extend(
                 [
                     (
-                        "If staged imports were used, validate prices",
+                        "If import drafts were used, validate prices",
                         "make price-validate",
-                        "Validate normalized staged prices before preview so schema and duplicate issues surface early.",
+                        "Validate normalized price import drafts before preview so schema and duplicate issues surface early.",
                     ),
                     (
-                        "If staged imports were used, preview merge",
+                        "If import drafts were used, preview merge",
                         "make price-preview",
-                        "Preview the staged price merge before apply and confirm the affected tickers and row counts look correct.",
+                        "Preview the price import draft merge before apply and confirm the affected tickers and row counts look correct.",
                     ),
                     (
-                        "If staged imports were used, apply merge",
+                        "If import drafts were used, apply merge",
                         "make price-apply",
-                        "Apply the staged price merge only after validation and preview look correct.",
+                        "Apply the price import draft merge only after validation and preview look correct.",
                     ),
                     ("Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
                     (
@@ -2562,19 +2562,19 @@ def build_command_bundle_runbook(
             step_specs = [
                 ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
                 (
-                    "Validate staged fundamentals",
+                    "Validate fundamentals import draft",
                     "make imports-validate",
-                    "Validate staged SEC fundamentals before preview so import issues surface before merge.",
+                    "Validate SEC fundamentals import draft before preview so import issues surface before merge.",
                 ),
                 (
                     "Preview fundamentals merge",
                     "make imports-preview",
-                    "Preview the staged fundamentals merge and confirm the DCF input rows before apply.",
+                    "Preview the fundamentals import draft merge and confirm the DCF input rows before apply.",
                 ),
                 (
                     "Apply fundamentals merge",
                     "make imports-apply",
-                    "Apply the staged fundamentals merge only after validation and preview are clean.",
+                    "Apply the fundamentals import draft merge only after validation and preview are clean.",
                 ),
                 (
                     "Refresh status outputs",
@@ -2591,19 +2591,19 @@ def build_command_bundle_runbook(
                     "Fill only manually researched peer mappings for the listed tickers and keep missing peer context explicit when you do not have a trusted comparison set.",
                 ),
                 (
-                    "Validate staged peer mappings",
+                    "Validate peer mapping import drafts",
                     "make imports-validate",
-                    "Validate staged peer mappings before preview so schema and duplicate-key issues surface before merge.",
+                    "Validate peer mapping import drafts before preview so schema and duplicate-key issues surface before merge.",
                 ),
                 (
                     "Preview peer mapping merge",
                     "make imports-preview",
-                    "Preview the staged peer mapping merge and confirm the composite ticker and peer_ticker keys before apply.",
+                    "Preview the peer mapping import draft merge and confirm the composite ticker and peer_ticker keys before apply.",
                 ),
                 (
                     "Apply peer mapping merge",
                     "make imports-apply",
-                    "Apply the staged peer mapping merge only after validation and preview are clean.",
+                    "Apply the peer mapping import draft merge only after validation and preview are clean.",
                 ),
                 (
                     "Refresh status outputs",
@@ -3102,7 +3102,7 @@ def main() -> None:
     parser.add_argument(
         "--sec-stage-queue",
         action="store_true",
-        help="Print prioritized SEC fundamentals staging candidates for DCF coverage.",
+        help="Print prioritized SEC fundamentals import draft workflow candidates for DCF coverage.",
     )
     parser.add_argument(
         "--peer-mapping-queue",
@@ -3122,7 +3122,7 @@ def main() -> None:
     parser.add_argument(
         "--command-bundles",
         action="store_true",
-        help="Print holdings-first local command bundles for prices, SEC staging, and peer mapping.",
+        help="Print holdings-first local command bundles for prices, SEC import draft workflow, and peer mapping.",
     )
     parser.add_argument(
         "--command-bundle-details",

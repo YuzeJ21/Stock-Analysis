@@ -5,6 +5,7 @@ import os
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 import pandas as pd
 import streamlit as st
@@ -19,7 +20,6 @@ from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
-from src.paths import path_context
 from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
@@ -62,6 +62,28 @@ DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
 }
+
+
+def dashboard_page_slug(page_title: str) -> str:
+    return str(page_title or "").strip().lower().replace(" / ", "-").replace(" ", "-")
+
+
+def dashboard_page_from_query(value: object) -> str:
+    raw = value[0] if isinstance(value, list) and value else value
+    slug = dashboard_page_slug(unquote(str(raw or "").strip()))
+    for title in USER_PAGE_TITLES:
+        if dashboard_page_slug(title) == slug:
+            return title
+    return "Home"
+
+
+def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
+    if selected_page == "Home":
+        return "Start here.", "Home shows what is ready, what is blocked, recent progress, and the safest next review path."
+    return (
+        f"Viewing {selected_page}.",
+        "Use this page for the selected workflow. If you feel lost, return to Home for the plain-language readiness summary.",
+    )
 IMPORT_HEALTH_DATASETS = [
     {
         "dataset": "prices",
@@ -217,24 +239,24 @@ OUTPUT_TAB_GUIDANCE = {
     "Final Watchlist": "Combined research-state view assembled from transparent pipeline outputs.",
 }
 STATE_COLORS = {
-    "Buyable Area": ("#dcfce7", "#14532d"),
+    "Research Ready": ("#dcfce7", "#14532d"),
     "Watch": ("#dbeafe", "#1e3a8a"),
     "Setup Forming": ("#fef9c3", "#713f12"),
-    "Pullback Add Candidate": ("#e0f2fe", "#075985"),
-    "Extended / No Chase": ("#ffedd5", "#9a3412"),
+    "Pullback Review Candidate": ("#e0f2fe", "#075985"),
+    "Extended": ("#ffedd5", "#9a3412"),
     "Risk Reduce": ("#fee2e2", "#991b1b"),
     "Broken": ("#fecaca", "#7f1d1d"),
     "Review Thesis": ("#fef3c7", "#78350f"),
     "Keep": ("#dcfce7", "#14532d"),
-    "Add Candidate": ("#dbeafe", "#1e3a8a"),
-    "Hold but Do Not Add": ("#e2e8f0", "#334155"),
-    "Avoid": ("#fee2e2", "#991b1b"),
+    "Constructive Review": ("#dbeafe", "#1e3a8a"),
+    "Hold Review Only": ("#e2e8f0", "#334155"),
+    "No Setup": ("#fee2e2", "#991b1b"),
     "Insufficient Data": ("#e2e8f0", "#334155"),
     "Strong Rotation": ("#dcfce7", "#14532d"),
     "Early Rotation": ("#dbeafe", "#1e3a8a"),
     "Overextended": ("#ffedd5", "#9a3412"),
     "Weak": ("#fee2e2", "#991b1b"),
-    "Broken / Avoid": ("#fecaca", "#7f1d1d"),
+    "Broken / No Setup": ("#fecaca", "#7f1d1d"),
     "Peer Data Unavailable": ("#e2e8f0", "#334155"),
     "Insufficient Peer Data": ("#e2e8f0", "#334155"),
     "valid": ("#dcfce7", "#14532d"),
@@ -336,7 +358,7 @@ COLUMN_LABELS = {
     "analyst_estimates_ready": "Analyst Estimates Ready",
     "asset_type": "Asset Type",
     "blocked_features": "Blocked Features",
-    "canonical_import_file": "Canonical Import File",
+    "canonical_import_file": "Standard Import File",
     "copy_only_note": "Copy-Only Note",
     "credential_present": "Credential Present",
     "credential_required": "Credential Required",
@@ -392,14 +414,46 @@ def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
         return None, f"Could not read `{path.name}`: {exc}"
     if frame.empty:
         return frame, f"`{path.name}` is present but currently empty."
-    return frame, None
+    return normalize_public_labels(frame), None
+
+
+def normalize_public_labels(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame is None or frame.empty:
+        return frame
+    normalized = frame.copy()
+    exact_columns = {"SetupStatus", "FinalState", "ReviewState", "PrimaryPurpose"}
+    exact_map = {
+        "Avoid": "No Setup",
+        "Extended / No Chase": "Extended",
+        "Broken / Avoid": "Broken / No Setup",
+    }
+    phrase_map = {
+        "Extended / No Chase": "Extended",
+        "Broken / Avoid": "Broken / No Setup",
+        "current setup `Avoid`": "current setup `No Setup`",
+        "setup `Avoid`": "setup `No Setup`",
+        "setup: Avoid": "setup: No Setup",
+        "Setup status: Avoid": "Setup status: No Setup",
+        "Compounder setup: Avoid": "Compounder setup: No Setup",
+    }
+    for column in normalized.columns:
+        if column in exact_columns:
+            normalized[column] = normalized[column].replace(exact_map)
+        if pd.api.types.is_object_dtype(normalized[column]) or pd.api.types.is_string_dtype(normalized[column]):
+            text = normalized[column].astype("string")
+            for old, new in phrase_map.items():
+                text = text.str.replace(old, new, regex=False)
+            normalized[column] = text.astype(object).where(text.notna(), normalized[column])
+    return normalized
 
 
 def load_pipeline_outputs(
     outputs_dir: Path = OUTPUTS_DIR,
+    *,
+    allow_refresh: bool = False,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
-    if any(frame is None for frame, _ in tables.values()):
+    if allow_refresh and any(frame is None for frame, _ in tables.values()):
         run_report_generator(BASE_DIR, output_dir=outputs_dir)
         tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
     return tables
@@ -407,18 +461,20 @@ def load_pipeline_outputs(
 
 def load_monthly_outputs(
     outputs_dir: Path = OUTPUTS_DIR,
+    *,
+    allow_refresh: bool = False,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in MONTHLY_FILES}
     picks_frame, _ = tables["monthly_research_picks.csv"]
     track_frame, _ = tables["monthly_picks_track_record.csv"]
     equity_frame, _ = tables["monthly_picks_equity_curve.csv"]
 
-    if picks_frame is None:
+    if allow_refresh and picks_frame is None:
         build_monthly_research_picks(BASE_DIR, output_dir=outputs_dir, top_n=_monthly_top_n())
         tables["monthly_research_picks.csv"] = load_output(outputs_dir / "monthly_research_picks.csv")
         picks_frame, _ = tables["monthly_research_picks.csv"]
 
-    if track_frame is None or equity_frame is None:
+    if allow_refresh and (track_frame is None or equity_frame is None):
         calculate_monthly_track_record(BASE_DIR, output_dir=outputs_dir, top_n=_monthly_top_n(), write_output=True)
         tables["monthly_picks_track_record.csv"] = load_output(outputs_dir / "monthly_picks_track_record.csv")
         tables["monthly_picks_equity_curve.csv"] = load_output(outputs_dir / "monthly_picks_equity_curve.csv")
@@ -489,11 +545,11 @@ def _is_dataset_level_staged_import_row(row: pd.Series, dataset: str) -> bool:
 def _staged_import_guidance(dataset: str) -> tuple[str, str]:
     if dataset == "peers":
         return (
-            "Advance staged peer import",
+            "Review peer import draft",
             "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local peer mappings.",
         )
     return (
-        "Advance staged fundamentals import",
+        "Review fundamentals import draft",
         "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals and DCF inputs.",
     )
 
@@ -521,12 +577,12 @@ def _normalize_dataset_level_staged_import_rows(frame: pd.DataFrame | None, acti
             staged_file = f"data/imports/{dataset}.csv"
             if dataset == "peers":
                 normalized.at[idx, "reason"] = (
-                    f"Staged import rows are present in {staged_file}; validate, preview, apply, "
+                    f"Local import draft rows are present in {staged_file}; validate, preview, apply, "
                     "then refresh status before relying on peer-relative context."
                 )
             else:
                 normalized.at[idx, "reason"] = (
-                    f"Staged import rows are present in {staged_file}; validate, preview, apply, "
+                    f"Local import draft rows are present in {staged_file}; validate, preview, apply, "
                     "then refresh status before relying on DCF coverage."
                 )
     return normalized
@@ -534,6 +590,8 @@ def _normalize_dataset_level_staged_import_rows(frame: pd.DataFrame | None, acti
 
 def load_data_source_status_tables(
     outputs_dir: Path = OUTPUTS_DIR,
+    *,
+    allow_refresh: bool = False,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in DATA_SOURCE_FILES}
     source_frame, _ = tables["data_source_status.csv"]
@@ -605,7 +663,7 @@ def load_data_source_status_tables(
             if _data_source_action_needs_refresh(row):
                 needs_refresh = True
                 break
-    if needs_refresh:
+    if allow_refresh and needs_refresh:
         payload = write_data_source_outputs(BASE_DIR, output_dir=outputs_dir)
         tables["data_source_status.csv"] = (pd.DataFrame(payload["data_sources"]), None)
         tables["data_gap_report.csv"] = (pd.DataFrame(payload["data_gaps"]), None)
@@ -614,6 +672,8 @@ def load_data_source_status_tables(
 
 def load_data_onboarding_tables(
     outputs_dir: Path = OUTPUTS_DIR,
+    *,
+    allow_refresh: bool = False,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in DATA_ONBOARDING_FILES}
     needs_refresh = any(frame is None for frame, _ in tables.values())
@@ -707,7 +767,7 @@ def load_data_onboarding_tables(
             normalized_commands = commands.astype(str).map(normalize_operator_command)
             if normalized_commands.ne(commands.astype(str).str.strip()).any():
                 needs_refresh = True
-    if needs_refresh:
+    if allow_refresh and needs_refresh:
         write_onboarding_outputs(BASE_DIR, output_dir=outputs_dir)
         for filename in DATA_ONBOARDING_FILES:
             tables[filename] = load_output(outputs_dir / filename)
@@ -716,6 +776,8 @@ def load_data_onboarding_tables(
 
 def load_research_health_tables(
     outputs_dir: Path = OUTPUTS_DIR,
+    *,
+    allow_refresh: bool = False,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in RESEARCH_HEALTH_FILES}
     wizard_frame, _ = tables.get("data_quality_wizard.csv", (None, None))
@@ -770,7 +832,7 @@ def load_research_health_tables(
                             if expected_example and example_command != expected_example:
                                 needs_refresh = True
                                 break
-    if needs_refresh:
+    if allow_refresh and needs_refresh:
         run_research_health(BASE_DIR, output_dir=outputs_dir)
         tables["data_quality_wizard.csv"] = load_output(outputs_dir / "data_quality_wizard.csv")
         for key in ("liquidity_risk", "correlation_risk"):
@@ -808,11 +870,15 @@ def load_peer_unlock_worklist(outputs_dir: Path = OUTPUTS_DIR) -> tuple[pd.DataF
 
 def load_action_queue(
     outputs_dir: Path = OUTPUTS_DIR,
+    *,
+    allow_refresh: bool = False,
 ) -> tuple[pd.DataFrame | None, str | None]:
     path = outputs_dir / ACTION_QUEUE_FILE
     if not path.exists():
-        write_action_queue_output(BASE_DIR, output_dir=outputs_dir)
-        return load_output(path)
+        if allow_refresh:
+            write_action_queue_output(BASE_DIR, output_dir=outputs_dir)
+            return load_output(path)
+        return None, f"`{ACTION_QUEUE_FILE}` has not been generated yet. Run `make action-queue` first."
     frame, message = load_output(path)
     if frame is None:
         return frame, message
@@ -864,7 +930,7 @@ def load_action_queue(
                 or normalized_reasons.str.contains("freshness is file-based only").any()
             ):
                 needs_refresh = True
-    if needs_refresh:
+    if allow_refresh and needs_refresh:
         write_action_queue_output(BASE_DIR, output_dir=outputs_dir)
         refreshed_frame, refreshed_message = load_output(path)
         return ensure_command_safety_columns(refreshed_frame), refreshed_message
@@ -873,6 +939,8 @@ def load_action_queue(
 
 def load_price_update_status(
     outputs_dir: Path = OUTPUTS_DIR,
+    *,
+    allow_write: bool = False,
 ) -> tuple[pd.DataFrame | None, str | None]:
     path = outputs_dir / PRICE_STATUS_FILE
     if not path.exists():
@@ -886,7 +954,7 @@ def load_price_update_status(
     if frame is None:
         return frame, message
     enriched = enrich_price_update_status_frame(frame)
-    if not enriched.equals(frame):
+    if allow_write and not enriched.equals(frame):
         enriched.to_csv(path, index=False)
     return enriched, message
 
@@ -994,7 +1062,7 @@ def command_safety_fields(example_command: object) -> dict[str, object]:
         "credential_present": credential_present,
         "manual_fallback_command": "make templates",
         "command_safety_note": (
-            "SEC staging requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
             "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
@@ -2028,6 +2096,43 @@ def format_missing(value: object, fallback: str = "Not available") -> str:
     return text
 
 
+PUBLIC_STATUS_LABELS = {
+    "avoid": "No Setup",
+    "broken": "Thesis Review Needed",
+    "broken / avoid": "Thesis Review Needed / No Setup",
+    "broken / no setup": "Thesis Review Needed / No Setup",
+    "ignore": "Not Prioritized",
+    "insufficient_data": "Insufficient data",
+    "insufficient_peer_data": "Insufficient peer data",
+    "missing_file": "Missing file",
+    "monitor_context": "Monitor context",
+    "not_ready": "Not ready",
+    "peer_data_unavailable": "Peer data unavailable",
+    "valid_with_warnings": "Valid with warnings",
+    "blocked_until_fundamentals_dcf": "Blocked until fundamentals / DCF",
+    "wait_for_core_data": "Waiting for price, fundamentals, and DCF",
+}
+
+
+def public_status_label(value: object, fallback: str = "Not available") -> str:
+    text = format_missing(value, fallback=fallback)
+    lowered = text.strip().lower()
+    if lowered in PUBLIC_STATUS_LABELS:
+        return PUBLIC_STATUS_LABELS[lowered]
+    replacements = {
+        "valuation_status=not_ready": "valuation status is not ready",
+        "peer_data_unavailable": "peer data unavailable",
+        "insufficient_data": "insufficient data",
+        "insufficient_peer_data": "insufficient peer data",
+        "monitor_context": "monitor context",
+        "blocked_until_fundamentals_dcf": "blocked until fundamentals / DCF",
+        "wait_for_core_data": "waiting for price, fundamentals, and DCF",
+    }
+    for old, new in replacements.items():
+        text = re.sub(rf"\b{re.escape(old)}\b", new, text, flags=re.IGNORECASE)
+    return text
+
+
 def ticker_focus_command(lane: str, ticker: object, fallback: str = "") -> str:
     ticker_text = format_missing(ticker, fallback="").upper()
     if not ticker_text:
@@ -2164,7 +2269,7 @@ def price_refresh_fallback_message(include_remote_failure_prefix: bool = False) 
 
 
 def price_refresh_cli_note_message() -> str:
-    return "CLI-only: " + price_refresh_fallback_message()
+    return "Terminal-only: " + price_refresh_fallback_message()
 
 
 def data_gap_report_notice(message: str | None) -> tuple[str, str]:
@@ -2204,7 +2309,7 @@ def format_percent(value: object, fallback: str = "Not enough history") -> str:
 
 
 def normalize_operator_copy(text: object) -> str:
-    normalized = format_missing(text)
+    normalized = public_status_label(text)
     if normalized == "Not available":
         return normalized
     display_labels = {
@@ -2233,6 +2338,38 @@ def normalize_operator_copy(text: object) -> str:
     return re.sub(r"\bmake status\b(?!-check)", "make status-check TOP_N=5", normalized)
 
 
+def friendly_dashboard_card_copy(text: object) -> str:
+    normalized = normalize_operator_copy(text)
+    friendly_replacements = [
+        (r"\bReview fundamentals import draft\b", "Review fundamentals import draft"),
+        (r"\bReview peer import draft\b", "Review peer import draft"),
+        (r"\bReview peer import draft\b", "Review peer import draft"),
+        (r"\bReview price import drafts import\b", "Review price import draft"),
+        (r"\bReview price import draft\b", "Review price import draft"),
+        (r"\bFundamentals import draft\b", "Fundamentals import draft"),
+        (r"\bfundamentals import draft\b", "fundamentals import draft"),
+        (r"\bPeer import draft\b", "Peer import draft"),
+        (r"\bpeer import draft\b", "peer import draft"),
+        (r"\bStaged peers import\b", "Peer import draft"),
+        (r"\bpeer import draft\b", "peer import draft"),
+        (r"\bStaged price import\b", "Price import draft"),
+        (r"\bstaged price import\b", "price import draft"),
+        (r"\bLocal import draft rows\b", "Local import draft rows"),
+        (r"\blocal import draft rows\b", "local import draft rows"),
+        (r"\blocal import draft workflows\b", "local import drafts"),
+        (r"\bstaged local workflow\b", "local import draft workflow"),
+        (r"\bstaged flow\b", "import draft flow"),
+        (r"\blive fundamentals import drafts\b", "live local fundamentals"),
+        (r"\bfundamentals import drafts\b", "fundamentals import draft"),
+        (r"\bpeer mapping import drafts\b", "peer mapping import draft"),
+        (r"\bstaged peer\b", "peer import draft"),
+        (r"\bpeer import drafts\b", "peer import draft"),
+    ]
+    for pattern, replacement in friendly_replacements:
+        normalized = re.sub(pattern, replacement, normalized)
+    return normalized
+
+
 def review_path_fallback(dataset: object) -> str:
     lowered = format_missing(dataset, fallback="").strip().lower()
     if lowered in {"fundamentals", "dcf", "sec"}:
@@ -2249,7 +2386,7 @@ def review_path_fallback(dataset: object) -> str:
 def command_family_fallback(command: object, default: str) -> str:
     lowered = format_missing(command, fallback="").strip().lower()
     if "imports-" in lowered or "runbook-" in lowered:
-        return "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+        return "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
     if "bundle-" in lowered:
         return "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
     return default
@@ -2266,7 +2403,7 @@ def _badge(text: object, tone: str = "neutral") -> str:
 
 
 def status_badge(status: object) -> str:
-    text = format_missing(status)
+    text = public_status_label(status)
     lowered = text.lower()
     if any(keyword in lowered for keyword in ("broken", "avoid", "risk reduce")):
         return _badge(text, "negative")
@@ -2389,14 +2526,18 @@ def tiny_badge_html(label: str) -> str:
 
 
 def signal_card_html(kicker: str, title: str, body: str, badges: list[str] | None = None, command: str = "") -> str:
-    footer_parts = "".join(tiny_badge_html(badge) for badge in (badges or []))
+    display_kicker = friendly_dashboard_card_copy(kicker)
+    display_title = friendly_dashboard_card_copy(title)
+    display_body = friendly_dashboard_card_copy(body)
+    display_badges = [friendly_dashboard_card_copy(badge) for badge in (badges or [])]
+    footer_parts = "".join(tiny_badge_html(badge) for badge in display_badges)
     if command:
         footer_parts += f"<span class='command-chip'>{html.escape(command)}</span>"
     return (
         "<div class='signal-card'>"
-        f"<div class='signal-kicker'>{html.escape(kicker)}</div>"
-        f"<div class='signal-title'>{html.escape(title)}</div>"
-        f"<div class='signal-body'>{html.escape(body)}</div>"
+        f"<div class='signal-kicker'>{html.escape(display_kicker)}</div>"
+        f"<div class='signal-title'>{html.escape(display_title)}</div>"
+        f"<div class='signal-body'>{html.escape(display_body)}</div>"
         f"<div class='signal-footer'>{footer_parts}</div>"
         "</div>"
     )
@@ -2620,7 +2761,7 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "body": (
                 "Schema: ticker, fiscal_period, report_date, eps_actual, eps_estimate, "
                 "revenue_actual, revenue_estimate, source, updated_at. "
-                "Stage raw trusted files under data/staged/earnings/ or canonical rows in data/imports/earnings.csv. "
+                "Place trusted files under data/staged/earnings/ or standard rows in data/imports/earnings.csv. "
                 "Rejected rows: data/rejected/earnings_import_rejected.csv."
             ),
             "badges": ["data/staged/earnings/", "missing trusted local CSV input"],
@@ -2632,7 +2773,7 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "body": (
                 "Schema: ticker, period, eps_estimate, revenue_estimate, price_target_mean, "
                 "price_target_high, price_target_low, rating_consensus, source, updated_at. "
-                "Stage raw trusted files under data/staged/analyst_estimates/ or canonical rows in data/imports/analyst_estimates.csv. "
+                "Place trusted files under data/staged/analyst_estimates/ or standard rows in data/imports/analyst_estimates.csv. "
                 "Rejected rows: data/rejected/analyst_estimates_import_rejected.csv."
             ),
             "badges": ["data/staged/analyst_estimates/", "missing trusted local CSV input"],
@@ -2657,6 +2798,88 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             ),
             "badges": ["schema only", "trusted rows required"],
             "command": "make imports-preview",
+        },
+    ]
+
+
+def first_optional_context_unlock_frame(dataset: str = "earnings") -> pd.DataFrame:
+    dataset_key = str(dataset or "earnings").strip().lower().replace(" ", "_").replace("-", "_")
+    if dataset_key not in {"earnings", "analyst_estimates"}:
+        dataset_key = "earnings"
+    if dataset_key == "earnings":
+        staged_path = "data/staged/earnings/"
+        import_file = "data/imports/earnings.csv"
+        import_command = "make import-earnings"
+        rejected_path = "data/rejected/earnings_import_rejected.csv"
+        label = "earnings"
+    else:
+        staged_path = "data/staged/analyst_estimates/"
+        import_file = "data/imports/analyst_estimates.csv"
+        import_command = "make import-analyst-estimates"
+        rejected_path = "data/rejected/analyst_estimates_import_rejected.csv"
+        label = "analyst estimates"
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Confirm optional context is worth adding",
+                "Why It Matters": "Earnings and analyst estimates are optional context; leave them locked unless you have a trusted local source.",
+                "Copy Command": "make optional-context-worklist TOP_N=25",
+                "Trusted Input": "Current optional-context worklist",
+            },
+            {
+                "Step": "2. Create schema-only templates",
+                "Why It Matters": "Templates are blank aids, not synthetic data or coverage.",
+                "Copy Command": "make templates",
+                "Trusted Input": "data/templates/",
+            },
+            {
+                "Step": f"3. Stage trusted {label} rows",
+                "Why It Matters": "Only import verified rows with source and updated_at metadata; leave unknown fields blank instead of guessing.",
+                "Copy Command": import_command,
+                "Trusted Input": f"{staged_path} or {import_file}",
+            },
+            {
+                "Step": "4. Validate before applying",
+                "Why It Matters": "Optional readiness should improve only after rows pass validation, preview, and apply.",
+                "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
+                "Trusted Input": f"Rejected rows: {rejected_path}",
+            },
+            {
+                "Step": "5. Rebuild optional readiness",
+                "Why It Matters": "Reports should show earnings or estimate context only after trusted rows are applied and readiness is regenerated.",
+                "Copy Command": "make optional-context-readiness && make onboarding TOP_N=10",
+                "Trusted Input": "Trusted local optional-context rows",
+            },
+        ]
+    )
+
+
+def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[str, object]]:
+    frame = first_optional_context_unlock_frame(dataset)
+    confirm = frame.iloc[0]
+    stage = frame.iloc[2]
+    validate = frame.iloc[3]
+    return [
+        {
+            "kicker": "FIRST OPTIONAL UNLOCK",
+            "title": format_missing(confirm.get("Step"), "Confirm optional context"),
+            "body": format_missing(confirm.get("Why It Matters"), ""),
+            "badges": ["optional", "trusted source only"],
+            "command": format_missing(confirm.get("Copy Command"), ""),
+        },
+        {
+            "kicker": "TRUSTED OPTIONAL INPUT",
+            "title": format_missing(stage.get("Trusted Input"), "Trusted optional rows"),
+            "body": format_missing(stage.get("Why It Matters"), ""),
+            "badges": ["schema only first", "no estimates fabricated"],
+            "command": format_missing(stage.get("Copy Command"), ""),
+        },
+        {
+            "kicker": "OPTIONAL READINESS PROOF",
+            "title": "Validate, preview, apply, then rebuild",
+            "body": format_missing(validate.get("Why It Matters"), ""),
+            "badges": ["not a recommendation", "source/freshness"],
+            "command": format_missing(validate.get("Copy Command"), ""),
         },
     ]
 
@@ -2761,10 +2984,10 @@ def import_validation_rejected_row_cards(import_frame: pd.DataFrame | None = Non
     return [
         {
             "kicker": "IMPORT GUARDRAIL",
-            "title": "Validate staged CSVs first",
+            "title": "Validate import drafts first",
             "body": (
-                f"Use make templates, then stage trusted rows under data/staged/ or data/imports/. "
-                f"Current staged file count: {summary['staged_files']}. "
+                f"Use make templates, then place trusted source files under data/staged/ or standard rows under data/imports/. "
+                f"Current import draft file count: {summary['staged_files']}. "
                 "Validation checks schemas and required fields before any local dataset is trusted."
             ),
             "badges": ["copy only", "csv-first"],
@@ -2876,7 +3099,7 @@ def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: 
     if dataset == "fundamentals":
         if asset_text in {"etf", "fund", "index", "index_proxy"}:
             return "make readiness -> confirm ETF/index DCF exclusion; no operating-company fundamentals import is required"
-        return f"make focus-fundamentals TICKER={ticker_text} -> make sec-stage-queue TOP_N=25 or stage trusted fundamentals -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-fundamentals TICKER={ticker_text} -> make sec-stage-queue TOP_N=25 or prepare trusted fundamentals import draft rows -> make imports-validate -> make imports-preview -> make imports-apply"
     if dataset == "peers":
         return f"make focus-peers TICKER={ticker_text} -> make templates -> fill data/imports/peers.csv with source-backed mappings -> make imports-validate -> make imports-preview -> make imports-apply"
     if dataset == "earnings":
@@ -2896,7 +3119,7 @@ def active_unlock_trusted_input_needed(dataset: str, ticker: object, asset_type:
     if dataset == "fundamentals":
         if asset_text in {"etf", "fund", "index", "index_proxy"}:
             return "No operating-company DCF input required; ETF/index proxy remains excluded from company DCF."
-        return f"Trusted fundamentals for {ticker_text}, preferably SEC-staged or manually sourced with required DCF fields."
+        return f"Trusted fundamentals for {ticker_text}, preferably SEC import draft or manually sourced with required DCF fields."
     if dataset == "peers":
         return f"Source-backed peer mappings and, when valuation is needed, peer fundamentals or market metrics for {ticker_text}."
     if dataset == "earnings":
@@ -3175,10 +3398,10 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
     dataset_text = ", ".join(f"{dataset_labels.get(str(key), str(key))}: {int(value)}" for key, value in dataset_counts.head(4).items())
     monitor_count = int(dataset_counts.get("monitor_context", 0))
     import_body = (
-        "Rows that require local data changes carry the relevant canonical import file, rejected report, and clean/header-only or missing-report status. "
+        "Rows that require local data changes carry the relevant standard import file, rejected report, and clean/header-only or missing-report status. "
         f"{monitor_count} monitor-context row(s) use stock-report review instead of import files."
         if monitor_count
-        else "Each active-universe row carries the relevant canonical import file, rejected report, and clean/header-only or missing-report status."
+        else "Each active-universe row carries the relevant standard import file, rejected report, and clean/header-only or missing-report status."
     )
     return [
         {
@@ -3236,7 +3459,7 @@ def stock_report_summary_cards(report_payload: dict[str, object]) -> list[dict[s
         },
         {
             "kicker": "VALUATION",
-            "title": format_missing(valuation.get("status"), "Not available"),
+            "title": public_status_label(valuation.get("status"), "Not available"),
             "body": f"Coverage: {format_missing(valuation.get('coverage'), 'Not available')}. Assumptions remain visible and informational only.",
             "badges": stock_report_readiness_badges(readiness)[:2],
         },
@@ -3314,6 +3537,8 @@ def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> li
 
 def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     financials = report_payload.get("financial_summary", {}) or {}
+    ticker = format_missing(report_payload.get("ticker"), "")
+    command = f"make focus-fundamentals TICKER={ticker}" if ticker else "make status-check TOP_N=5"
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
         **(report_payload.get("valuation_readiness", {}) or {}),
@@ -3360,7 +3585,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
             "title": title,
             "body": body,
             "badges": badges,
-            "command": "make focus-fundamentals TICKER=...",
+            "command": command,
         },
         {
             "kicker": "QUALITY CONTEXT",
@@ -3371,8 +3596,8 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
         {
             "kicker": "LOGIC SOURCE",
             "title": "Local fundamentals only",
-            "body": "This card reads the current report payload and local CSV-backed fundamentals. Fundamentals rules stay in repo code; plugins can help development review, but they do not provide the shipped analysis.",
-            "badges": ["repo-native", "local CSV"],
+            "body": "This card reads the current report payload and local CSV-backed fundamentals. Fundamentals rules stay in project code; support tools are not analysis logic.",
+            "badges": ["project rules", "local CSV"],
         },
     ]
 
@@ -3466,6 +3691,96 @@ def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> 
             }
         )
     return cards
+
+
+def stock_report_mode_guide_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    summary = stock_report_evaluation_summary_frame(report_payload)
+    current_mode = "Not classified"
+    if not summary.empty:
+        mode_rows = summary.loc[summary["Question"].eq("Evaluation mode")]
+        if not mode_rows.empty:
+            current_mode = format_missing(mode_rows.iloc[0].get("Answer"), current_mode)
+    descriptions = {
+        "DCF-ready review": "Fullest company review: price, fundamentals, DCF, and source-backed peer context are ready.",
+        "Standalone DCF review": "Company DCF can be reviewed, but peer-relative valuation remains blocked.",
+        "Price/setup review only": "Use trend/setup context only; company valuation waits for trusted fundamentals and DCF inputs.",
+        "Monitor-only context": "Use ETF/index/fund market or risk context; operating-company DCF is excluded, not failed.",
+        "Data-unlock only": "Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.",
+    }
+    cards: list[dict[str, object]] = []
+    for mode, body in descriptions.items():
+        is_current = mode == current_mode
+        if mode == "Data-unlock only" and is_current:
+            body = "Pause analysis for this ticker until the first trusted local input is available."
+        cards.append(
+            {
+                "kicker": "CURRENT MODE" if is_current else "OTHER MODE",
+                "title": mode,
+                "body": body,
+                "badges": ["current"] if is_current else ["reference"],
+            }
+        )
+    return cards
+
+
+def stock_report_at_a_glance_cards(
+    report_payload: dict[str, object],
+    coverage: pd.DataFrame | None = None,
+    peer_summary: dict[str, object] | None = None,
+) -> list[dict[str, object]]:
+    summary = stock_report_evaluation_summary_frame(report_payload)
+    answers = {
+        str(row.get("Question")): format_missing(row.get("Answer"), "Not available")
+        for _, row in summary.iterrows()
+    }
+    readiness = {
+        **(report_payload.get("readiness", {}) or {}),
+        **(report_payload.get("valuation_readiness", {}) or {}),
+    }
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    ticker = format_missing(report_payload.get("ticker"), "Selected ticker")
+    next_cards = stock_report_next_step_cards(report_payload, coverage, peer_summary)
+    next_command = format_missing(next_cards[0].get("command"), f"make stock-report-md TICKER={ticker}") if next_cards else f"make stock-report-md TICKER={ticker}"
+    next_title = format_missing(next_cards[0].get("title"), "Review the selected report") if next_cards else "Review the selected report"
+    dcf_status = public_status_label((valuation.get("dcf_result") or {}).get("status") or valuation.get("status"), "Not available")
+    peer_status = "Ready" if bool(readiness.get("peer_ready")) else "Locked until trusted peer inputs are ready"
+    optional_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready")) and bool(
+        readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready")
+    )
+    optional_status = "Ready" if optional_ready else "Locked until trusted optional rows exist"
+    return [
+        {
+            "kicker": "AT A GLANCE",
+            "title": answers.get("Evaluation mode", "Not classified"),
+            "body": answers.get("What this report can support", "Only ready local inputs should be interpreted."),
+            "badges": ["mode", "data-gated"],
+        },
+        {
+            "kicker": "VALUATION STATE",
+            "title": f"DCF: {dcf_status}",
+            "body": f"Peer context: {peer_status}. Optional context: {optional_status}.",
+            "badges": ["DCF", "peers", "optional"],
+        },
+        {
+            "kicker": "WITHHELD",
+            "title": "What not to infer",
+            "body": answers.get("What remains withheld", "Missing sections remain unavailable until trusted local inputs exist."),
+            "badges": ["no inference", "research-only"],
+        },
+        {
+            "kicker": "METHOD",
+            "title": "Project gates and DCF math",
+            "body": "Readiness gates decide what can appear. When DCF is ready, local free-cash-flow inputs flow through projected cash flows, discounted terminal value, cash/debt adjustment, and fair value per share.",
+            "badges": ["method visible", "local inputs"],
+        },
+        {
+            "kicker": "NEXT LOCAL STEP",
+            "title": next_title,
+            "body": "Copy the command if you want to inspect or unlock the next local input; the dashboard does not run it.",
+            "badges": ["copy-only", "local"],
+            "command": next_command,
+        },
+    ]
 
 
 def stock_report_inferred_asset_type(report_payload: dict[str, object]) -> str:
@@ -3572,8 +3887,45 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
             {"Function": "Optional context", "Current Status": optional_status, "What To Trust": "Earnings and estimates remain unavailable until trusted local rows exist."},
             {
                 "Function": "Logic source",
-                "Current Status": "Repo-native",
-                "What To Trust": "Rules live under src/; libraries and adapters support data/UI. Plugins can help development review, but shipped analysis comes from repo code and local data.",
+                "Current Status": "Project rules",
+                "What To Trust": "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data.",
+            },
+        ]
+    )
+
+
+def stock_report_methodology_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    readiness = _stock_report_payload_readiness(report_payload)
+    peer_ready = bool(readiness.get("peer_ready"))
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    dcf_status = format_missing(valuation.get("status"), "Not available")
+    peer_status = "ready for source-backed peer context" if peer_ready else "blocked until source-backed peer mappings"
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Readiness gate",
+                "Method": "Check local price, momentum, fundamentals, DCF, peer, earnings, and estimate readiness before analysis appears.",
+                "Plain Meaning": "Missing inputs are explained instead of filled.",
+            },
+            {
+                "Step": "2. Fundamental review",
+                "Method": "Read trusted local revenue, free cash flow, FCF margin, share count, cash, debt, and margin fields when present.",
+                "Plain Meaning": "Fundamentals describe business context only when verified rows exist.",
+            },
+            {
+                "Step": "3. DCF calculation",
+                "Method": f"DCF status: {dcf_status}. Base FCF is projected, discounted, combined with discounted terminal value, adjusted for cash/debt, and divided into fair value per share.",
+                "Plain Meaning": "DCF context appears only when required inputs and assumptions are present.",
+            },
+            {
+                "Step": "4. Peer context",
+                "Method": f"Peer context is {peer_status}.",
+                "Plain Meaning": "Peer valuation remains separate from standalone DCF and is not inferred from sector fallback.",
+            },
+            {
+                "Step": "5. Report explanation",
+                "Method": "Explain ready, blocked, excluded, and optional-context states in plain language.",
+                "Plain Meaning": "Unsupported analysis is explained instead of filled.",
             },
         ]
     )
@@ -3621,14 +3973,22 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
         },
         {
             "kicker": "LOGIC SOURCE",
-            "title": logic.get("status", "Repo-native"),
+            "title": logic.get("status", "Project rules"),
             "body": logic.get(
                 "trust",
-                "Rules live under src/; libraries and adapters support data/UI. Plugins can help development review, but shipped analysis comes from repo code and local data.",
+                    "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data.",
             ),
-            "badges": ["repo-native", "transparent"],
+            "badges": ["project rules", "transparent"],
         },
     ]
+
+
+def valuation_legacy_output_note() -> str:
+    return (
+        "Compatibility note: outputs/undervalued_candidates.csv is a legacy filename for "
+        "valuation-readiness and re-rating context. It is not an automatic undervalued-stock list; "
+        "rows missing trusted inputs remain blocked instead of being inferred."
+    )
 
 
 def preferred_single_stock_default(local_tickers: list[str], preferred: str = "NVDA") -> int:
@@ -3689,7 +4049,7 @@ def stock_report_local_context_cards(
                 if staged_peer_import
                 else f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for local peer-relative context."
             ),
-            "badges": ["manual research", "staged import" if staged_peer_import else "csv-first"],
+            "badges": ["manual research", "import draft" if staged_peer_import else "csv-first"],
             "command": peer_focus_command,
         },
         {
@@ -3713,10 +4073,7 @@ def stock_report_next_step_cards(
     peer_summary: dict[str, object] | None,
 ) -> list[dict[str, object]]:
     ticker = format_missing(report_payload.get("ticker"), "Selected ticker")
-    readiness = {
-        **(report_payload.get("readiness", {}) or {}),
-        **(report_payload.get("valuation_readiness", {}) or {}),
-    }
+    readiness = _stock_report_payload_readiness(report_payload)
     valuation = report_payload.get("valuation_snapshot", {}) or {}
     asset_type = format_missing(report_payload.get("asset_type"), "").lower()
     valuation_status = format_missing(valuation.get("status"), "").lower()
@@ -3782,7 +4139,7 @@ def stock_report_next_step_cards(
                 "title": "Fix price coverage",
                 "body": (
                     f"{ticker} still needs stronger verified local price history before broader trust. "
-                    "Use the manual staged price workflow if the free refresh path stays unreliable."
+                    "Use the manual price import draft workflow if the free refresh path stays unreliable."
                 ),
                 "badges": ["prices", "data moat"],
                 "command": ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker}"),
@@ -3798,16 +4155,16 @@ def stock_report_next_step_cards(
                     "Operating-company DCF and peer-relative valuation are excluded rather than failed."
                 ),
                 "badges": ["monitor context", "DCF excluded"],
-                "command": f"make stock-report TICKER={ticker}",
+                "command": f"make stock-report-md TICKER={ticker}",
             }
         )
     elif not readiness.get("dcf_ready") and not has_fundamentals:
         cards.append(
             {
                 "kicker": "NEXT STEP",
-                "title": "Advance staged fundamentals import" if staged_fundamentals_import else "Stage fundamentals",
+                "title": "Review fundamentals import draft" if staged_fundamentals_import else "Stage fundamentals",
                 "body": (
-                    f"{ticker} already has staged fundamentals in {fundamentals_target_file}. "
+                    f"{ticker} already has fundamentals import drafts in {fundamentals_target_file}. "
                     "Validate, preview, and apply them before trusting DCF coverage."
                     if staged_fundamentals_import
                     else (
@@ -3815,7 +4172,7 @@ def stock_report_next_step_cards(
                         "Stage SEC fundamentals before leaning on valuation."
                     )
                 ),
-                "badges": ["fundamentals", "staged import" if staged_fundamentals_import else "sec queue"],
+                "badges": ["fundamentals", "import draft" if staged_fundamentals_import else "sec queue"],
                 "command": fundamentals_command,
             }
         )
@@ -3823,9 +4180,9 @@ def stock_report_next_step_cards(
         cards.append(
             {
                 "kicker": "NEXT STEP",
-                "title": "Advance staged peer import" if staged_peer_import else "Add peer mappings",
+                "title": "Review peer import draft" if staged_peer_import else "Add peer mappings",
                 "body": (
-                    f"{ticker} already has staged peer mappings in {peer_target_file}. "
+                    f"{ticker} already has peer mapping import drafts in {peer_target_file}. "
                     "Validate, preview, and apply them before trusting peer-relative context."
                     if staged_peer_import
                     else (
@@ -3833,7 +4190,7 @@ def stock_report_next_step_cards(
                         "Add manually researched peers if this name matters for deeper relative work."
                     )
                 ),
-                "badges": ["peers", "staged import" if staged_peer_import else "manual research"],
+                "badges": ["peers", "import draft" if staged_peer_import else "manual research"],
                 "command": peer_command,
             }
         )
@@ -3844,10 +4201,10 @@ def stock_report_next_step_cards(
                 "title": "Review full report",
                 "body": (
                     f"{ticker} already has the minimum local context for a deeper single-name pass. "
-                    "Move through valuation, technical context, and source/freshness together."
+                    "Move through valuation, trend and risk context, and source/freshness together."
                 ),
                 "badges": ["ready", "single name"],
-                "command": f"make stock-report TICKER={ticker}",
+                "command": f"make stock-report-md TICKER={ticker}",
             }
         )
 
@@ -3861,6 +4218,26 @@ def stock_report_next_step_cards(
             "badges": ["DCF excluded", "monitor context"] if is_etf_like else stock_report_readiness_badges(readiness)[:2],
         }
     )
+    earnings_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready"))
+    estimates_ready = bool(readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready"))
+    if not earnings_ready or not estimates_ready:
+        missing_optional = []
+        if not earnings_ready:
+            missing_optional.append("earnings")
+        if not estimates_ready:
+            missing_optional.append("analyst estimates")
+        cards.append(
+            {
+                "kicker": "OPTIONAL CONTEXT",
+                "title": "Locked",
+                "body": (
+                    f"Missing optional context: {', '.join(missing_optional)}. "
+                    "Core supported analysis can still be reviewed when the mode allows it; optional rows should stay unavailable until trusted local CSVs exist."
+                ),
+                "badges": ["trusted rows only", "lower priority"],
+                "command": "make templates",
+            }
+        )
     return cards
 
 
@@ -3920,6 +4297,15 @@ def _technical_distance_label(value: object, label: str) -> str:
     return f"{relation} {label}"
 
 
+def _atr_or_volatility_source_label(source: object) -> str:
+    normalized = str(source or "").strip().lower()
+    if normalized == "atr":
+        return "ATR from high/low/close"
+    if normalized == "volatility_proxy":
+        return "Volatility proxy approximation"
+    return "Volatility source unavailable"
+
+
 def stock_report_technical_context_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     screener_context = report_payload.get("screener_context", {}) or {}
     momentum = screener_context.get("momentum_leaders", {}) or {}
@@ -3931,6 +4317,7 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
     relative_qqq = momentum.get("RelativeReturnVsQQQ")
     volume_ratio = momentum.get("VolumeRatio")
     volatility_proxy = momentum.get("ATRorVolatilityPct")
+    volatility_source = _atr_or_volatility_source_label(momentum.get("ATRorVolatilitySource"))
     ma_stack = [
         _technical_distance_label(momentum.get("DistanceFrom10EMA"), "10 EMA"),
         _technical_distance_label(momentum.get("DistanceFrom21EMA"), "21 EMA"),
@@ -3958,8 +4345,8 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
         {
             "kicker": "FLOW / VOLATILITY",
             "title": f"Volume {report_display_value(volume_ratio, 'number')}x",
-            "body": f"ATR / volatility proxy {report_display_value(volatility_proxy, 'percent')}. Missing values stay visible instead of guessed.",
-            "badges": ["local pipeline"],
+            "body": f"{volatility_source}: {report_display_value(volatility_proxy, 'percent')}. Proxy values are approximations; missing values stay visible instead of guessed.",
+            "badges": ["local pipeline", volatility_source],
         },
     ]
 
@@ -3980,6 +4367,7 @@ def stock_report_technical_context_frame(report_payload: dict[str, object]) -> p
         {"Metric": "Average Volume 20D", "Value": report_display_value(momentum.get("AvgVolume20D"), "integer")},
         {"Metric": "Volume Ratio", "Value": report_display_value(momentum.get("VolumeRatio"), "number")},
         {"Metric": "ATR / Volatility Proxy", "Value": report_display_value(momentum.get("ATRorVolatilityPct"), "percent")},
+        {"Metric": "Volatility Source", "Value": _atr_or_volatility_source_label(momentum.get("ATRorVolatilitySource"))},
     ]
     return pd.DataFrame(rows)
 
@@ -4005,6 +4393,29 @@ def stock_report_source_frame(source_rows: list[dict[str, object]]) -> pd.DataFr
             }
         )
     return pd.DataFrame(rows)
+
+
+def stock_report_source_detail_summary_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    readiness = report_payload.get("valuation_readiness", {}) or {}
+    source_rows = report_payload.get("data_freshness", []) or []
+    missing_warnings = report_payload.get("missing_data_warnings", []) or []
+    ready_count = sum(1 for value in readiness.values() if isinstance(value, bool) and value)
+    blocked_count = sum(1 for value in readiness.values() if isinstance(value, bool) and not value)
+    return pd.DataFrame(
+        [
+            {"Detail": "Ticker", "Value": format_missing(report_payload.get("ticker"))},
+            {"Detail": "Provider", "Value": format_missing(report_payload.get("provider_name"), "Not available")},
+            {"Detail": "Generated", "Value": format_date_short(report_payload.get("generated_at"), "Not available")},
+            {"Detail": "Ready feature flags", "Value": report_display_value(ready_count, "integer")},
+            {"Detail": "Blocked feature flags", "Value": report_display_value(blocked_count, "integer")},
+            {"Detail": "Source rows", "Value": report_display_value(len(source_rows), "integer")},
+            {"Detail": "Missing-data warnings", "Value": report_display_value(len(missing_warnings), "integer")},
+            {
+                "Detail": "Report data download",
+                "Value": "Use Download Report Data only if you need the optional structured local data file; most readers can use this page or the Markdown report.",
+            },
+        ]
+    )
 
 
 def stock_report_detail_frame(data: dict[str, object]) -> pd.DataFrame:
@@ -4064,21 +4475,21 @@ def data_health_overview_cards(
         for status in ["parse_error", "source_unavailable", "network_error", "no_rows", "failed"]
     )
     if price_status_frame is None:
-        price_title = "Price status not generated"
+        price_title = "Price status not ready yet"
         price_body = (
             "Use make runbook-prices-broader or make focus-price TICKER=... first. "
             "For downloaded files, run make price-normalize, make price-validate, "
             "make price-preview, and make price-apply."
         )
-        price_badges = ["make runbook-prices-broader", "manual fallback"]
+        price_badges = ["make runbook-prices-broader", "manual import option"]
         price_command = "make runbook-prices-broader"
     elif price_problem_count:
         price_title = f"{price_problem_count} price issue{'s' if price_problem_count != 1 else ''}"
         price_body = (
-            "Use raw downloaded CSVs only as user-provided inputs, then run make price-normalize, "
+            "Use downloaded price files only as user-provided inputs, then run make price-normalize, "
             "make price-validate, make price-preview, and make price-apply."
         )
-        price_badges = ["make price-status TOP_N=10", "manual fallback"]
+        price_badges = ["make price-status TOP_N=10", "manual import option"]
         price_command = "make price-status TOP_N=10"
     else:
         price_title = f"{price_counts.get('fetched', 0)} fetched"
@@ -4244,8 +4655,8 @@ def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> 
         {
             "kicker": "LEVEL 4",
             "title": f"{earnings_ready} earnings / {estimates_ready} estimates",
-            "body": "Earnings and analyst estimates are optional context. If they are empty, the app should say locked instead of producing weak conclusions.",
-            "badges": ["optional context", "no weak conclusions"],
+            "body": "Earnings and analyst estimates are optional context. If they are empty, the app should say locked instead of producing unsupported conclusions.",
+            "badges": ["optional context", "no unsupported conclusions"],
             "command": "make optional-context-worklist TOP_N=10",
         },
     ]
@@ -4270,11 +4681,11 @@ def data_health_action_path_cards(
             body_source = recommended_action
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
         elif target_file == "data/imports/peers.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
         elif target_file == "data/imports/prices.csv":
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
         if staged_follow_through:
             normalized_body = body_source.lower()
             if target_file == "data/imports/prices.csv":
@@ -4374,7 +4785,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
             {
                 "kicker": "COMMAND BUNDLES",
                 "title": "No command bundles yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local command bundles for prices, SEC staging, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local command bundles for prices, SEC import draft workflow, and peer mapping.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -4390,17 +4801,17 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
         if "runbook-" in command.lower():
-            lane_summary = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+            lane_summary = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=150)
             if target_file == "data/imports/fundamentals.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
             elif target_file == "data/imports/peers.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
             else:
-                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
             if staged_summary == "Not available":
                 staged_summary = default_staged_summary
             elif target_file == "data/imports/prices.csv" and (
@@ -4446,7 +4857,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             {
                 "kicker": "RUNBOOK",
                 "title": "No bundle runbook yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC import draft workflow, and peer mapping.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -4470,11 +4881,11 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(lane_rows.iloc[0].get("safe_next_step"), max_sentences=1, max_chars=150)
             if target_file == "data/imports/fundamentals.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
             elif target_file == "data/imports/peers.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
             else:
-                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
             if staged_summary == "Not available":
                 staged_summary = default_staged_summary
             elif target_file == "data/imports/prices.csv" and (
@@ -4516,7 +4927,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         surfaced_command = first_command or fallback_first_command
         lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
         if "runbook-" in surfaced_command.lower():
-            lane_summary = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+            lane_summary = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         body_summary = (
             goal_summary
             if goal_summary not in {"", "Not available"}
@@ -4542,7 +4953,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         {
             "kicker": "RUNBOOK",
             "title": "No bundle runbook yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
+            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC import draft workflow, and peer mapping.",
             "badges": ["read-only"],
             "command": "make onboarding",
         }
@@ -4553,8 +4964,8 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
     if price_worklist_frame is None or price_worklist_frame.empty:
         return [
             {
-                "kicker": "PRICE TARGETS",
-                "title": "No price targets yet",
+                "kicker": "PRICE HISTORY",
+                "title": "No price-history targets yet",
                 "body": "Run make onboarding to refresh the onboarding outputs and surface exact history targets for Monthly Picks, track record, and fuller 1Y local coverage.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
@@ -4581,7 +4992,7 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
         staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=140)
         follow_through = ""
         if target_file == "data/imports/prices.csv":
-            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
             if staged_summary in {"", "Not available"} or (
                 "make price-validate" not in staged_summary
                 or "make price-preview" not in staged_summary
@@ -4647,13 +5058,13 @@ def data_health_deep_research_target_cards(
                 else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
             )
             fallback_action = (
-                f"Staged fundamentals import is waiting in {target_file}. "
+                f"Fundamentals import draft is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_fundamentals_import
                 else command_family_fallback(command, "Review fundamentals path.")
             )
             if not staged_fundamentals_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": "DCF TARGET",
@@ -4691,13 +5102,13 @@ def data_health_deep_research_target_cards(
                 )
             )
             fallback_action = (
-                f"Staged peer import is waiting in {target_file}. "
+                f"Peer import draft is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_peer_import
                 else command_family_fallback(command, "Review peer path.")
             )
             if not staged_peer_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": "PEER TARGET",
@@ -4755,13 +5166,13 @@ def overview_deep_research_target_cards(
                 else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
             )
             fallback_action = (
-                f"Staged fundamentals import is waiting in {target_file}. "
+                f"Fundamentals import draft is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_fundamentals_import
                 else command_family_fallback(command, "Review fundamentals path.")
             )
             if not staged_fundamentals_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": "UNLOCK DCF",
@@ -4799,13 +5210,13 @@ def overview_deep_research_target_cards(
                 )
             )
             fallback_action = (
-                f"Staged peer import is waiting in {target_file}. "
+                f"Peer import draft is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_peer_import
                 else command_family_fallback(command, "Review peer path.")
             )
             if not staged_peer_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": "UNLOCK PEERS",
@@ -4839,8 +5250,8 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
     if price_worklist_frame is None or price_worklist_frame.empty:
         return [
             {
-                "kicker": "PRICE TARGET",
-                "title": "No price targets yet",
+                "kicker": "PRICE HISTORY",
+                "title": "No price-history targets yet",
                 "body": "Run make onboarding to refresh the onboarding outputs and surface the next exact history targets for Monthly Picks, track record, and fuller local coverage.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
@@ -4867,7 +5278,7 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
         staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=140)
         follow_through = ""
         if target_file == "data/imports/prices.csv":
-            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
             if staged_summary in {"", "Not available"} or (
                 "make price-validate" not in staged_summary
                 or "make price-preview" not in staged_summary
@@ -4975,8 +5386,8 @@ def data_health_tab_summary_cards(
             {
                 "kicker": "FETCHED",
                 "title": str(counts.get("fetched", 0)),
-                "body": "Rows fetched in the last machine-readable price refresh run.",
-                "badges": ["remote attempt"],
+                "body": "Rows fetched in the latest price refresh attempt.",
+                "badges": ["refresh attempt"],
                 "command": "make price-status TOP_N=10",
             },
             {
@@ -4990,21 +5401,21 @@ def data_health_tab_summary_cards(
                 "kicker": "ISSUES",
                 "title": str(problem_total),
                 "body": (
-                    "Parse, source, or network failures now surface here instead of hiding in logs. "
+                    "Price source or network issues appear here instead of being hidden. "
                     "For downloaded files, run make price-normalize, make price-validate, "
                     "make price-preview, and make price-apply."
                 ),
-                "badges": ["make price-status TOP_N=10", "manual fallback"],
+                "badges": ["make price-status TOP_N=10", "manual import option"],
                 "command": "make price-status TOP_N=10",
             },
         ]
-    if tab_name == "Staged Imports":
+    if tab_name == "Import Review":
         file_count = len(staged_imports.get("files", [])) if isinstance(staged_imports, dict) else 0
         return [
             {
-                "kicker": "STAGED FILES",
+                "kicker": "IMPORT DRAFTS",
                 "title": str(file_count),
-                "body": "Local staged imports waiting for review before any canonical CSV apply step.",
+                "body": "Local import drafts waiting for review before any standard local file update.",
                 "badges": ["preview first"],
                 "command": "make imports-preview",
             }
@@ -5055,13 +5466,13 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
             command = "make imports-validate"
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
         elif target_file == "data/imports/peers.csv":
             command = "make imports-validate"
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
         elif target_file == "data/imports/prices.csv":
             command = "make price-validate"
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
         action = compact_reason(
             row.get("recommended_action") or command_family_fallback(command, "Review local data coverage."),
             max_sentences=1,
@@ -5069,15 +5480,15 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         )
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+            action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         elif lowered_command == "make imports-validate":
             normalized_action = action.lower()
             if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
-                action = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                action = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
         elif lowered_command == "make price-validate":
             normalized_action = action.lower()
             if "make price-preview" not in normalized_action or "make price-apply" not in normalized_action:
-                action = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                action = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
         if staged_follow_through:
             normalized_action = action.lower()
             if target_file == "data/imports/prices.csv":
@@ -5111,7 +5522,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         return [
             {
                 "kicker": "UNLOCK GUIDE",
-                "title": "Not generated",
+                "title": "Unlock guide not ready yet",
                 "body": "Run the local unlock guide to see which verified CSV inputs unlock the most value next.",
                 "badges": ["make data-wizard"],
                 "command": "make data-wizard TOP_N=10",
@@ -5150,13 +5561,13 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
             command = "make imports-validate"
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
         elif target_file == "data/imports/peers.csv":
             command = "make imports-validate"
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
         elif target_file == "data/imports/prices.csv":
             command = "make price-validate"
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
         if staged_follow_through:
             normalized_action = recommended_action.lower()
             if target_file == "data/imports/prices.csv":
@@ -5175,15 +5586,15 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
                     recommended_action = staged_follow_through
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            recommended_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+            recommended_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         elif lowered_command == "make imports-validate":
             normalized_action = recommended_action.lower()
             if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
-                recommended_action = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                recommended_action = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
         elif lowered_command == "make price-validate":
             normalized_action = recommended_action.lower()
             if "make price-preview" not in normalized_action or "make price-apply" not in normalized_action:
-                recommended_action = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                recommended_action = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
         body_parts = [f"Start with {ticker}."]
         if current_status and current_status != "Not available":
             body_parts.append(f"Current blocker: {current_status}.")
@@ -5227,20 +5638,20 @@ def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str,
             (
                 f"{staged_rows} staged ticker rows are waiting for review before make universe-apply."
                 if staged_exists
-                else "No staged universe import is waiting. Build one with make universe-preview before make universe-apply."
+                else "No universe import draft is waiting. Build one with make universe-preview before make universe-apply."
             ),
             "make universe-preview",
             "warning" if staged_exists else "neutral",
         ),
         (
             "Safe expansion path",
-            "Run make universe-preview first, inspect the staged CSV, then run make universe-apply from the CLI only after review.",
+            "Run make universe-preview first, inspect the import draft CSV, then run make universe-apply yourself only after review.",
             "make universe-preview",
             "neutral",
         ),
         (
             "Manual fallback",
-            "If SMH or remote sources degrade, run make templates, then fill data/custom_universe.csv with verified tickers only before any staged universe apply step.",
+            "If SMH or remote sources degrade, run make templates, then fill data/custom_universe.csv with verified tickers only before any universe import apply step.",
             "make templates",
             "neutral",
         ),
@@ -5256,12 +5667,31 @@ def staged_universe_status_frame(staged: dict[str, Any]) -> pd.DataFrame:
         warning_text = format_missing(warnings, "No validation warnings")
     return pd.DataFrame(
         [
-            {"Field": "Staged file", "Value": format_missing(staged.get("path"), "Not staged")},
+            {"Field": "Import draft file", "Value": format_missing(staged.get("path"), "No import draft")},
             {"Field": "Rows", "Value": format_value(staged.get("row_count"), fallback="0")},
             {"Field": "Validation", "Value": format_missing(validation.get("status"), "Not available")},
             {"Field": "Warnings", "Value": warning_text},
         ]
     )
+
+
+def staged_universe_detail_frame(staged: dict[str, Any]) -> pd.DataFrame:
+    rows = staged_universe_status_frame(staged).to_dict("records")
+    validation = staged.get("validation", {}) if isinstance(staged, dict) else {}
+    if isinstance(validation, dict):
+        detail_fields = [
+            ("Missing Required Columns", "Missing required columns"),
+            ("Extra Columns", "Extra columns"),
+            ("Duplicate Tickers", "Duplicate tickers"),
+        ]
+        for key, label in detail_fields:
+            value = validation.get(key) or validation.get(key.lower().replace(" ", "_"))
+            if isinstance(value, list):
+                display = joined_notes(value)
+            else:
+                display = format_missing(value)
+            rows.append({"Field": label, "Value": display})
+    return pd.DataFrame(rows)
 
 
 def non_empty_count(frame: pd.DataFrame, columns: list[str]) -> int:
@@ -5682,7 +6112,7 @@ def readiness_panel_cards(summary: dict[str, object]) -> list[dict[str, object]]
     credential_title = "Credentials configured" if not missing_credentials else ", ".join(missing_credentials)
     configured_text = ", ".join(str(item) for item in configured_credentials) if configured_credentials else "none"
     credential_body = (
-        f"Configured: {configured_text}. Remote/staged helpers have the needed environment variables."
+        f"Configured: {configured_text}. Provider and import workflows have the needed environment variables."
         if not missing_credentials
         else (
             f"Missing: {', '.join(str(item) for item in missing_credentials)}. Configured: {configured_text}. "
@@ -5720,7 +6150,7 @@ def readiness_panel_cards(summary: dict[str, object]) -> list[dict[str, object]]
         {
             "kicker": "OPTIONAL CONTEXT",
             "title": f"{summary.get('earnings_ready', 0)} earnings / {summary.get('analyst_ready', 0)} estimates",
-            "body": "Earnings and analyst estimate sections stay unavailable until trusted canonical local CSV rows exist.",
+            "body": "Earnings and analyst estimate sections stay unavailable until trusted local CSV rows exist.",
             "badges": ["manual only"],
             "command": "make optional-context-readiness",
         },
@@ -5738,6 +6168,113 @@ def readiness_panel_cards(summary: dict[str, object]) -> list[dict[str, object]]
             "command": "make imports-validate",
         },
     ]
+
+
+def universe_layer_cards(summary: dict[str, object], decisions: pd.DataFrame | None = None) -> list[dict[str, object]]:
+    master = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
+    active = int(summary.get("active_universe") or summary.get("active_count") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or 0)
+    research_now = 0
+    monitor = 0
+    decision_buckets = summary.get("decision_buckets")
+    if isinstance(decision_buckets, dict):
+        research_now = int(decision_buckets.get("Research Now") or 0)
+        monitor = int(decision_buckets.get("Monitor") or 0)
+    elif decisions is not None and not decisions.empty and "decision_bucket" in decisions.columns:
+        buckets = decisions["decision_bucket"].fillna("").astype(str)
+        research_now = int(buckets.eq("Research Now").sum())
+        monitor = int(buckets.eq("Monitor").sum())
+
+    return [
+        {
+            "kicker": "MASTER UNIVERSE",
+            "title": f"{master:,} tracked ticker(s)",
+            "body": "This is the broad local catalog. A ticker being listed here does not mean every analysis module is ready.",
+            "badges": ["broad scope", "tracked first"],
+        },
+        {
+            "kicker": "ACTIVE RESEARCH LIST",
+            "title": f"{active:,} focused ticker(s)",
+            "body": "These names are prioritized in workflow cards, drilldowns, and operator queues so the page stays usable.",
+            "badges": ["focused scope", "shown first"],
+        },
+        {
+            "kicker": "ANALYSIS-READY SUBSET",
+            "title": f"{price_ready:,} price / {dcf_ready:,} DCF / {peer_ready:,} peer",
+            "body": "Analysis is module-specific: price-ready names can support market and momentum review, DCF-ready names can support intrinsic valuation, and peer-ready names can support source-backed relative context.",
+            "badges": ["module gated", "trusted data only"],
+        },
+        {
+            "kicker": "DECISION LAYER",
+            "title": f"{research_now:,} research now / {monitor:,} monitor",
+            "body": f"{blocked:,} ticker(s) remain blocked by missing inputs. Decisions summarize readiness and research workflow state, not unsupported instructions.",
+            "badges": ["readiness first", "research-only"],
+        },
+    ]
+
+
+def universe_layer_frame(summary: dict[str, object], decisions: pd.DataFrame | None = None) -> pd.DataFrame:
+    master = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
+    active = int(summary.get("active_universe") or summary.get("active_count") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    earnings_ready = int(summary.get("earnings_ready") or 0)
+    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
+    blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or 0)
+    research_now = 0
+    monitor = 0
+    decision_buckets = summary.get("decision_buckets")
+    if isinstance(decision_buckets, dict):
+        research_now = int(decision_buckets.get("Research Now") or 0)
+        monitor = int(decision_buckets.get("Monitor") or 0)
+    elif decisions is not None and not decisions.empty and "decision_bucket" in decisions.columns:
+        buckets = decisions["decision_bucket"].fillna("").astype(str)
+        research_now = int(buckets.eq("Research Now").sum())
+        monitor = int(buckets.eq("Monitor").sum())
+
+    rows = [
+        {
+            "Layer": "Master universe",
+            "Current count": f"{master:,} tracked ticker(s)",
+            "What it means": "Broad local catalog. Rows can be known even when analysis inputs are missing.",
+            "Safe next step": "Use filters, active scope, or single-stock lookup before reviewing large tables.",
+        },
+        {
+            "Layer": "Active research list",
+            "Current count": f"{active:,} focused ticker(s)",
+            "What it means": "Smaller list shown first in unlock queues and research briefs.",
+            "Safe next step": "Review Active-Universe Unlock Cockpit before expanding broad-market work.",
+        },
+        {
+            "Layer": "Price and momentum ready",
+            "Current count": f"{price_ready:,} price-ready ticker(s)",
+            "What it means": "Enough local price history for market, momentum, liquidity, or correlation checks where each gate passes.",
+            "Safe next step": "Use capped price coverage or single-ticker price workflows when this is blocked.",
+        },
+        {
+            "Layer": "Company valuation ready",
+            "Current count": f"{dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready ticker(s)",
+            "What it means": "DCF needs trusted fundamentals; peer valuation needs source-backed peer mapping and peer inputs.",
+            "Safe next step": "Use fundamentals and peer unlock guides; do not infer missing valuation inputs.",
+        },
+        {
+            "Layer": "Optional context ready",
+            "Current count": f"{earnings_ready:,} earnings / {estimates_ready:,} estimate ticker(s)",
+            "What it means": "Earnings and analyst estimates are optional trusted-local context, not required for every workflow.",
+            "Safe next step": "Leave unavailable until trusted local CSV rows exist.",
+        },
+        {
+            "Layer": "Research decision layer",
+            "Current count": f"{research_now:,} research now / {monitor:,} monitor / {blocked:,} blocked",
+            "What it means": "Decision buckets reflect readiness and review workflow state.",
+            "Safe next step": "Read primary blocker and next_best_action before opening detailed analysis.",
+        },
+    ]
+    return pd.DataFrame(rows)
 
 
 MARKET_READINESS_FILTERS = [
@@ -5780,7 +6317,7 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
         return [
             {
                 "kicker": "FEATURE READINESS",
-                "title": "Summary not generated",
+                "title": "Feature readiness not ready yet",
                 "body": "Run make readiness to build data/reports/feature_readiness_summary.csv before reviewing feature-level product status.",
                 "badges": ["blocked"],
                 "command": "make readiness",
@@ -5808,14 +6345,14 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
         if feature_key == "earnings":
             body = (
                 f"{body} Optional context is intentionally locked until trusted local rows exist. "
-                "Use schema-only templates, stage data/staged/earnings/, import to data/imports/earnings.csv, "
+                "Use schema-only templates, place files in data/staged/earnings/, import to data/imports/earnings.csv, "
                 "then run make imports-validate -> make imports-preview -> make imports-apply."
             )
             command = "make templates"
         elif feature_key == "analyst_estimates":
             body = (
                 f"{body} Optional context is intentionally locked until trusted local rows exist. "
-                "Use schema-only templates, stage data/staged/analyst_estimates/, import to data/imports/analyst_estimates.csv, "
+                "Use schema-only templates, place files in data/staged/analyst_estimates/, import to data/imports/analyst_estimates.csv, "
                 "then run make imports-validate -> make imports-preview -> make imports-apply."
             )
             command = "make templates"
@@ -5840,7 +6377,7 @@ def peer_readiness_product_cards(
         return [
             {
                 "kicker": "PEER READINESS",
-                "title": "Report not generated",
+                "title": "Peer readiness not ready yet",
                 "body": "Run make readiness to build data/reports/peer_readiness_report.csv before reviewing peer workflow blockers.",
                 "badges": ["blocked"],
                 "command": "make readiness",
@@ -5923,7 +6460,7 @@ def peer_readiness_product_cards(
         {
             "kicker": "PEER QUEUE",
             "title": f"{queue_rows} queued",
-            "body": "Use capped peer worklists and staged CSV validation before relying on peer-relative context.",
+            "body": "Use capped peer worklists and import draft CSV validation before relying on peer-relative context.",
             "badges": ["TOP_N safe", "preview first"],
             "command": "make peer-mapping-queue TOP_N=25",
         },
@@ -5979,7 +6516,7 @@ def peer_mapping_studio_summary_cards(
         {
             "kicker": "MISSING MAPPINGS",
             "title": f"{int(missing_mapping.sum())} tickers",
-            "body": f"Active-universe affected: {int((missing_mapping & active).sum())}. Add transparent mappings through staged peers CSV and preview before apply.",
+            "body": f"Active-universe affected: {int((missing_mapping & active).sum())}. Add transparent mappings through peer import drafts CSV and preview before apply.",
             "badges": ["manual peers", "source-backed"],
             "command": "make templates",
         },
@@ -6026,7 +6563,7 @@ def peer_function_quality_frame(
                     "Current Coverage": "Peer readiness not generated",
                     "Supported Today": "Nothing yet; run readiness before interpreting peer context.",
                     "Not Supported Yet": "Peer trend or valuation comparison.",
-                    "Logic Source": "Repo-native peer readiness checks after make readiness.",
+                    "Logic Source": "Project peer readiness checks after make readiness.",
                     "Next Step": "make readiness",
                 }
             ]
@@ -6051,7 +6588,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{missing_mapping} ticker(s) missing mappings; {queued} unlock row(s) queued",
                 "Supported Today": "Prioritizing which manual peer rows to add to data/imports/peers.csv.",
                 "Not Supported Yet": "Trusted peer comparison until relationships are source-backed or clearly marked as fallback context.",
-                "Logic Source": "Repo-native peer readiness and peer unlock worklist generation; peer-selection rules stay in this repository.",
+                "Logic Source": "Project peer readiness and peer unlock worklist generation; peer-selection rules stay in this repository.",
                 "Next Step": "make peer-mapping-queue TOP_N=25",
             },
             {
@@ -6059,7 +6596,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{int(trend_ready.sum())} ticker(s) trend-ready",
                 "Supported Today": "Relative price or momentum context when mapped peers have enough local price rows.",
                 "Not Supported Yet": "Peer-relative valuation or quality conclusions.",
-                "Logic Source": "Repo-native price/momentum readiness checks for mapped peers.",
+                "Logic Source": "Project price/momentum readiness checks for mapped peers.",
                 "Next Step": "make readiness",
             },
             {
@@ -6067,7 +6604,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{int(valuation_ready.sum())} ticker(s) valuation-ready; {valuation_blocked} still blocked",
                 "Supported Today": "Peer-relative valuation only after peer mappings and peer valuation inputs are ready.",
                 "Not Supported Yet": "Valuation conclusions when peer fundamentals, peer metrics, or mapped peer inputs are missing.",
-                "Logic Source": "Repo-native peer valuation readiness gates; missing peer inputs are withheld, not inferred.",
+                "Logic Source": "Project peer valuation readiness gates; missing peer inputs are withheld, not inferred.",
                 "Next Step": "make imports-validate",
             },
             {
@@ -6075,7 +6612,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{int(dcf_comparison_ready.sum())} ticker(s) DCF-peer-ready",
                 "Supported Today": "DCF peer context when both subject and mapped peer valuation inputs pass readiness.",
                 "Not Supported Yet": "Using DCF-ready subject companies as if peer-relative valuation is ready.",
-                "Logic Source": "Repo-native DCF and peer readiness intersection checks.",
+                "Logic Source": "Project DCF and peer readiness intersection checks.",
                 "Next Step": "make dcf-readiness",
             },
             {
@@ -6083,15 +6620,15 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{peer_price_missing} price-gap ticker(s); {peer_fundamentals_missing} fundamentals-gap ticker(s)",
                 "Supported Today": "Finding whether peer blockers are price rows, fundamentals rows, or peer metrics.",
                 "Not Supported Yet": "Treating sector or industry fallback as trusted manual peer valuation.",
-                "Logic Source": "Repo-native blocker classification with explicit fallback labeling.",
+                "Logic Source": "Project blocker classification with explicit fallback labeling.",
                 "Next Step": "make price-worklist TOP_N=25",
             },
             {
                 "Peer Area": "Dependencies",
                 "Current Coverage": "Support layer only.",
                 "Supported Today": "Data handling, table display, tests, and optional development review.",
-                "Not Supported Yet": "Replacing source-backed peer mappings or repo-native peer-readiness rules.",
-                "Logic Source": "Standard libraries and optional development helpers support review; peer logic runs from this repository.",
+                "Not Supported Yet": "Replacing source-backed peer mappings or project peer-readiness rules.",
+                "Logic Source": "Standard libraries and optional provider adapters support data handling; peer logic runs from this repository.",
                 "Next Step": "make project-status",
             },
         ]
@@ -6146,7 +6683,9 @@ def peer_unlock_operator_cards(
         frame.loc[monitor_proxy, "next_action_summary"] = (
             "ETF/index/fund rows use stock-report monitoring context; do not treat fallback sector or peer context as trusted peer data."
         )
-        frame.loc[monitor_proxy, "next_input_file"] = "outputs/stock_report_<ticker>.md"
+        frame.loc[monitor_proxy, "next_input_file"] = frame.loc[monitor_proxy, "ticker"].apply(
+            lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
+        )
         frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
             lambda ticker: f"make stock-report TICKER={ticker} -> review source/freshness and DCF exclusion"
         )
@@ -6212,6 +6751,87 @@ def peer_unlock_operator_cards(
             }
         )
     return cards
+
+
+def _first_peer_unlock_ticker(peer_unlock_worklist_frame: pd.DataFrame | None) -> str:
+    if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty or "ticker" not in peer_unlock_worklist_frame.columns:
+        return ""
+    frame = peer_unlock_worklist_frame.copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if "priority" in frame.columns:
+        frame["priority"] = pd.to_numeric(frame["priority"], errors="coerce").fillna(999).astype(int)
+    else:
+        frame["priority"] = 999
+    if "workflow_group" not in frame.columns:
+        frame["workflow_group"] = ""
+    mapping_mask = frame["workflow_group"].fillna("").astype(str).str.contains("peer_mapping|missing_peer_mapping|dcf_ready_peer_mapping", case=False, na=False)
+    candidates = frame.loc[mapping_mask].copy()
+    if candidates.empty:
+        candidates = frame.copy()
+    candidates = candidates.sort_values(["priority", "ticker"], kind="stable")
+    return format_missing(candidates.iloc[0].get("ticker"), "")
+
+
+def first_peer_mapping_unlock_frame(peer_unlock_worklist_frame: pd.DataFrame | None = None, next_ticker: str | None = None) -> pd.DataFrame:
+    ticker = str(next_ticker or _first_peer_unlock_ticker(peer_unlock_worklist_frame) or "").strip().upper()
+    has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
+    focus_command = f"make focus-peers TICKER={ticker}" if has_ticker else "make peer-mapping-queue TOP_N=25"
+    rows = [
+        {
+            "Step": "1. Pick the next peer-limited company",
+            "Why It Matters": "Start with one DCF-ready or active company so the peer set can be reviewed before any CSV change.",
+            "Copy Command": focus_command,
+            "Trusted Input": "Current peer unlock worklist",
+        },
+        {
+            "Step": "2. Add source-backed mappings only",
+            "Why It Matters": "Peer relationships must come from trusted research context; sector or industry fallback is not trusted peer data.",
+            "Copy Command": "make templates",
+            "Trusted Input": "data/imports/peers.csv",
+        },
+        {
+            "Step": "3. Validate before applying",
+            "Why It Matters": "Peer readiness should improve only after mapped rows pass validation, preview, and apply.",
+            "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
+            "Trusted Input": "Rejected rows: data/rejected/peers_import_rejected.csv",
+        },
+        {
+            "Step": "4. Rebuild peer readiness",
+            "Why It Matters": "Confirm peer_ready changed from real source-backed mappings before showing peer-relative valuation context.",
+            "Copy Command": "make readiness && make peer-mapping-queue TOP_N=25",
+            "Trusted Input": "Peer readiness and peer unlock worklist",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | None = None, next_ticker: str | None = None) -> list[dict[str, object]]:
+    frame = first_peer_mapping_unlock_frame(peer_unlock_worklist_frame, next_ticker)
+    first = frame.iloc[0]
+    mapping = frame.iloc[1]
+    return [
+        {
+            "kicker": "FIRST PEER UNLOCK",
+            "title": format_missing(first.get("Step"), "Pick the next company"),
+            "body": format_missing(first.get("Why It Matters"), ""),
+            "badges": ["one company first", "source-backed only"],
+            "command": format_missing(first.get("Copy Command"), ""),
+        },
+        {
+            "kicker": "TRUSTED PEER INPUT",
+            "title": format_missing(mapping.get("Trusted Input"), "data/imports/peers.csv"),
+            "body": format_missing(mapping.get("Why It Matters"), ""),
+            "badges": ["no guessed peers", "fallback is not input"],
+            "command": format_missing(mapping.get("Copy Command"), ""),
+        },
+        {
+            "kicker": "PEER READINESS PROOF",
+            "title": "Validate, preview, apply, then rebuild",
+            "body": "Do not show peer-relative valuation until source-backed mappings and required peer inputs pass readiness.",
+            "badges": ["peer valuation gated", "copy-only"],
+            "command": "make imports-validate && make imports-preview && make imports-apply",
+        },
+    ]
 
 
 def fundamentals_dcf_diagnostic_cards(
@@ -6313,14 +6933,83 @@ def fundamentals_dcf_diagnostic_cards(
         },
         {
             "kicker": "INPUT PATH",
-            "title": "SEC staging" if sec_configured else "Manual CSV fallback",
+            "title": "SEC import draft workflow" if sec_configured else "Manual CSV fallback",
             "body": (
-                f"Use {sec_stage_command} for staged SEC fundamentals when a trusted SEC_USER_AGENT is configured, "
+                f"Use {sec_stage_command} for SEC fundamentals import draft when a trusted SEC_USER_AGENT is configured, "
                 "or fill data/imports/fundamentals.csv with trusted rows. "
                 "Always run make imports-validate, make imports-preview, and make imports-apply before claiming readiness improved."
             ),
             "badges": ["source/freshness audit", "copy only"],
             "command": sec_stage_command,
+        },
+    ]
+
+
+def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | None = None) -> pd.DataFrame:
+    ticker = str(next_ticker or "").strip().upper()
+    has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
+    sec_command = f"make sec-stage TICKERS={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
+    focus_command = f"make focus-fundamentals TICKER={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
+    preferred_path = "SEC import draft path" if sec_configured else "Manual CSV path"
+    first_command = focus_command if has_ticker else "make sec-stage-queue TOP_N=25"
+    rows = [
+        {
+            "Step": "1. Pick the next company",
+            "Why It Matters": "Start with one price-ready company so missing fundamentals and DCF fields stay reviewable.",
+            "Copy Command": first_command,
+            "Trusted Input": "Current readiness and DCF reports",
+        },
+        {
+            "Step": "2. Choose the trusted input path",
+            "Why It Matters": (
+                "SEC_USER_AGENT is configured, so SEC import draft workflow can prepare rows for review."
+                if sec_configured
+                else "SEC_USER_AGENT is missing, so use trusted manual CSV rows instead of remote staging."
+            ),
+            "Copy Command": sec_command if sec_configured else "make templates",
+            "Trusted Input": "SEC company facts import draft workflow" if sec_configured else "data/imports/fundamentals.csv",
+        },
+        {
+            "Step": "3. Validate before applying",
+            "Why It Matters": "Readiness counts should improve only after trusted rows pass validation, preview, and apply.",
+            "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
+            "Trusted Input": "Rejected rows: data/rejected/fundamentals_import_rejected.csv",
+        },
+        {
+            "Step": "4. Rebuild readiness",
+            "Why It Matters": "Confirm fundamentals_ready and dcf_ready changed from real imported rows before reading valuation output.",
+            "Copy Command": "make readiness && make dcf-readiness",
+            "Trusted Input": preferred_path,
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def first_fundamentals_unlock_cards(sec_configured: bool, next_ticker: str | None = None) -> list[dict[str, object]]:
+    frame = first_fundamentals_unlock_frame(sec_configured, next_ticker)
+    first = frame.iloc[0]
+    input_row = frame.iloc[1]
+    return [
+        {
+            "kicker": "FIRST FUNDAMENTALS UNLOCK",
+            "title": format_missing(first.get("Step"), "Pick the next company"),
+            "body": format_missing(first.get("Why It Matters"), ""),
+            "badges": ["one company first", "trusted rows only"],
+            "command": format_missing(first.get("Copy Command"), ""),
+        },
+        {
+            "kicker": "TRUSTED INPUT PATH",
+            "title": format_missing(input_row.get("Trusted Input"), "Trusted input"),
+            "body": format_missing(input_row.get("Why It Matters"), ""),
+            "badges": ["SEC" if sec_configured else "manual CSV", "preview first"],
+            "command": format_missing(input_row.get("Copy Command"), ""),
+        },
+        {
+            "kicker": "READINESS PROOF",
+            "title": "Validate, preview, apply, then rebuild",
+            "body": "Do not treat fundamentals_ready or dcf_ready as improved until trusted rows pass the import workflow and readiness is regenerated.",
+            "badges": ["no fabricated data", "source/freshness"],
+            "command": "make imports-validate && make imports-preview && make imports-apply",
         },
     ]
 
@@ -6337,7 +7026,7 @@ def fundamentals_dcf_function_quality_frame(
                     "Current Coverage": "Readiness not generated",
                     "Supported Today": "Nothing yet; run readiness before interpreting fundamentals or DCF status.",
                     "Not Supported Yet": "Any company valuation conclusion.",
-                    "Logic Source": "Repo-native readiness checks after make readiness.",
+                    "Logic Source": "Project readiness checks after make readiness.",
                     "Next Step": "make readiness",
                 }
             ]
@@ -6377,7 +7066,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{fundamentals_ready_count} fundamentals-ready company row(s)",
                 "Supported Today": "Company snapshot and DCF input review when trusted local or SEC-backed rows exist.",
                 "Not Supported Yet": "Filling missing revenue, cash-flow, margin, or share-count fields by inference.",
-                "Logic Source": "Repo-native import/readiness checks using trusted local CSV and SEC-staged rows.",
+                "Logic Source": "Project import/readiness checks using trusted local CSV and SEC import draft rows.",
                 "Next Step": "make sec-stage-queue TOP_N=25",
             },
             {
@@ -6385,15 +7074,15 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{price_ready_missing_fundamentals} company row(s); {active_missing_fundamentals} active-universe row(s)",
                 "Supported Today": "Prioritizing which real fundamentals to stage, validate, preview, and apply next.",
                 "Not Supported Yet": "Company valuation, quality score, or DCF interpretation.",
-                "Logic Source": "Repo-native readiness gates surface missing fundamentals instead of creating placeholder values.",
-                "Next Step": "make focus-fundamentals TICKER=<ticker>",
+                "Logic Source": "Project readiness gates surface missing fundamentals instead of creating placeholder values.",
+                "Next Step": "make sec-stage-queue TOP_N=25",
             },
             {
                 "Function Area": "DCF-ready companies",
                 "Current Coverage": f"{dcf_ready_count} company row(s)",
                 "Supported Today": "Assumption and sensitivity review after required company DCF fields pass readiness.",
                 "Not Supported Yet": "Unsupported recommendations or conclusions when optional context remains unavailable.",
-                "Logic Source": "Repo-native DCF readiness and valuation logic in src/valuation.py.",
+                "Logic Source": "Project DCF readiness and valuation logic in src/valuation.py.",
                 "Next Step": "make dcf-readiness",
             },
             {
@@ -6401,7 +7090,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": missing_field_text,
                 "Supported Today": "Seeing exactly which input fields block company valuation.",
                 "Not Supported Yet": "Treating missing inputs as a negative company signal.",
-                "Logic Source": "Repo-native DCF readiness report; missing fields are displayed, not guessed.",
+                "Logic Source": "Project DCF readiness report; missing fields are displayed, not guessed.",
                 "Next Step": "make dcf-readiness",
             },
             {
@@ -6409,7 +7098,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{dcf_ready_peer_blocked_count} company row(s)",
                 "Supported Today": "Standalone DCF review while peer-relative valuation stays withheld.",
                 "Not Supported Yet": "Peer-relative valuation without source-backed peer mappings and peer inputs.",
-                "Logic Source": "Repo-native peer readiness checks; fallback sector context is not trusted peer valuation.",
+                "Logic Source": "Project peer readiness checks; fallback sector context is not trusted peer valuation.",
                 "Next Step": "make peer-mapping-queue TOP_N=10",
             },
             {
@@ -6417,7 +7106,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{excluded_count} row(s) excluded from operating-company DCF",
                 "Supported Today": "Market, theme, liquidity, or risk monitor context.",
                 "Not Supported Yet": "Operating-company fundamentals or DCF valuation.",
-                "Logic Source": "Repo-native asset-type gating marks DCF excluded, not failed.",
+                "Logic Source": "Project asset-type gating marks DCF excluded, not failed.",
                 "Next Step": "make stock-report TICKER=QQQ",
             },
         ]
@@ -6589,7 +7278,7 @@ def build_peer_mapping_studio_frame(
         "next_input_file": "data/imports/peers.csv",
         "validation_sequence": "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply",
         "example_command": "make peer-mapping-queue TOP_N=25",
-        "copy_only_note": "Copy commands only; review staged rows before applying local CSV changes.",
+        "copy_only_note": "Copy commands only; review import draft rows before applying local CSV changes.",
     }
     fallback_mask = missing_mapping & ~peer_ready
     for column, fallback in fallback_fields.items():
@@ -6616,7 +7305,9 @@ def build_peer_mapping_studio_frame(
         )
         frame.loc[monitor_proxy, "next_action"] = frame.loc[monitor_proxy, "next_action_summary"]
         frame.loc[monitor_proxy, "peer_valuation_status"] = "operating_company_dcf_excluded"
-        frame.loc[monitor_proxy, "next_input_file"] = "outputs/stock_report_<ticker>.md"
+        frame.loc[monitor_proxy, "next_input_file"] = frame.loc[monitor_proxy, "ticker"].apply(
+            lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
+        )
         frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
             lambda ticker: f"make stock-report TICKER={ticker} -> review source/freshness and DCF exclusion"
         )
@@ -6681,12 +7372,31 @@ def decision_next_action_summary(row: pd.Series) -> str:
     if blocker in {"peer", "peers"} and (dcf_ready or not peer_ready or stale_peer_action):
         return peer_mapping_unlock_action(ticker)
     if blocker == "fundamentals":
-        return f"Import trusted fundamentals for {ticker}; use SEC staging when configured or data/imports/fundamentals.csv, then validate and preview."
+        return f"Import trusted fundamentals for {ticker}; use SEC import draft workflow when configured or data/imports/fundamentals.csv, then validate and preview."
     if blocker == "price":
         return f"Refresh a capped price worklist before deeper analysis; start with make price-worklist TOP_N=25."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
         return f"Optional context for {ticker} stays unavailable until trusted local CSV rows are staged, validated, previewed, and applied."
     return compact_reason(row.get("next_best_action"), max_sentences=1, max_chars=180)
+
+
+def decision_next_action_title(row: pd.Series) -> str:
+    ticker = format_missing(row.get("ticker"), "selected ticker")
+    blocker = format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
+    asset_type = format_missing(row.get("asset_type"), row.get("asset_type_readiness", "")).lower()
+    if asset_type in {"etf", "index_proxy", "fund"}:
+        return f"Monitor context for {ticker}"
+    if blocker in {"peer", "peers"}:
+        return f"Peer mapping for {ticker}"
+    if blocker == "fundamentals":
+        return f"Fundamentals for {ticker}"
+    if blocker == "price":
+        return "Price coverage worklist"
+    if blocker in {"earnings", "analyst_estimates", "optional_context"}:
+        return f"Optional context for {ticker}"
+    if ticker != "selected ticker":
+        return f"Next research step for {ticker}"
+    return "Top safe research step"
 
 
 def decision_workflow_summary_cards(
@@ -6697,7 +7407,7 @@ def decision_workflow_summary_cards(
         return [
             {
                 "kicker": "DECISIONS",
-                "title": "Not generated",
+                "title": "Decision workflow not ready yet",
                 "body": "Run make pipeline or make readiness to refresh research decision outputs.",
                 "badges": ["blocked"],
                 "command": "make pipeline",
@@ -6757,20 +7467,18 @@ def decision_workflow_summary_cards(
         + " "
         + frame.get("primary_blocker", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
     )
+    subtype_text = frame.get("decision_subtype", pd.Series("", index=frame.index)).fillna("").astype(str)
     research_now_optional_locked = frame.loc[
         frame.get("decision_bucket", pd.Series("", index=frame.index)).fillna("").astype(str).eq("Research Now")
-        & optional_blocker_text.str.contains("earnings|analyst_estimates|optional_context", na=False)
-    ].copy()
-    core_ready_optional_locked = research_now_optional_locked.loc[
-        research_now_optional_locked.get("decision_subtype", pd.Series("", index=research_now_optional_locked.index))
-        .fillna("")
-        .astype(str)
-        .str.contains("Core Data Ready", case=False, na=False)
+        & (
+            subtype_text.str.contains("Optional Context Locked", case=False, na=False)
+            | optional_blocker_text.str.contains("earnings|analyst_estimates|optional_context", na=False)
+        )
     ].copy()
     optional_tickers = (
-        core_ready_optional_locked.get("ticker", pd.Series(dtype=object)).dropna().astype(str).str.upper().str.strip().head(5).tolist()
-        if not core_ready_optional_locked.empty
-        else research_now_optional_locked.get("ticker", pd.Series(dtype=object)).dropna().astype(str).str.upper().str.strip().head(5).tolist()
+        research_now_optional_locked.get("ticker", pd.Series(dtype=object)).dropna().astype(str).str.upper().str.strip().head(5).tolist()
+        if not research_now_optional_locked.empty
+        else []
     )
     cards = [
         {
@@ -6796,7 +7504,7 @@ def decision_workflow_summary_cards(
         },
         {
             "kicker": "NEXT DECISION ACTION",
-            "title": format_missing(top_action_row.get("ticker"), "Top safe action"),
+            "title": decision_next_action_title(top_action_row),
             "body": compact_reason(top_action, max_sentences=1, max_chars=180),
             "badges": ["copy command only", "no execution"],
             "command": purpose_unlock_command(
@@ -6808,17 +7516,12 @@ def decision_workflow_summary_cards(
     ]
     if not research_now_optional_locked.empty:
         ticker_text = ", ".join(optional_tickers) if optional_tickers else "Research Now rows"
-        core_ready_sentence = (
-            f"{len(core_ready_optional_locked)} Core Data Ready row(s): {ticker_text}. "
-            if not core_ready_optional_locked.empty
-            else ""
-        )
         cards.append(
             {
                 "kicker": "OPTIONAL CONTEXT LOCK",
                 "title": f"{len(research_now_optional_locked)} research row(s)",
                 "body": (
-                    f"{core_ready_sentence}Research Now rows have supported core or DCF context, but earnings or analyst-estimate context remains unavailable "
+                    f"Optional Context Locked row(s): {ticker_text}. Research Now rows have supported core or DCF context, but earnings or analyst-estimate context remains unavailable "
                     "until trusted local CSV rows exist."
                 ),
                 "badges": ["core research ok", "optional locked"],
@@ -6833,7 +7536,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         return [
             {
                 "kicker": "DECISION QUALITY",
-                "title": "Decision outputs not generated",
+                "title": "Decision outputs not ready yet",
                 "body": "Run the local pipeline before interpreting Research Now, Monitor, or Blocked by Data buckets.",
                 "badges": ["refresh first"],
                 "command": "make pipeline",
@@ -6867,10 +7570,77 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         },
         {
             "kicker": "LOGIC SOURCE",
-            "title": "Repo-native readiness gates",
-            "body": "Decision buckets are assembled from local readiness, blocker, and source/freshness outputs under src/; plugins can help development review, but shipped decisions come from repo code and local data.",
-            "badges": ["repo-native", "transparent"],
+            "title": "Project readiness gates",
+            "body": "Decision buckets are assembled from local readiness, blocker, and source/freshness outputs in project code; shipped decisions come from project code and local data.",
+            "badges": ["project rules", "transparent"],
             "command": "make project-status",
+        },
+    ]
+
+
+def decision_interpretation_ladder_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Read the bucket",
+                "What It Means": "Research Now, Monitor, and Blocked by Data are workflow states, not direct actions.",
+                "What To Check Next": "Confirm whether the row is deeper research, monitor context, or data-unlock work.",
+                "Safe Command": "make project-status",
+            },
+            {
+                "Step": "2. Read the subtype",
+                "What It Means": "Subtype explains why the broad bucket exists, such as DCF-ready but peer-blocked or ETF market proxy.",
+                "What To Check Next": "Use decision_subtype before comparing rows inside the same bucket.",
+                "Safe Command": "make research-decisions",
+            },
+            {
+                "Step": "3. Read the blocker",
+                "What It Means": "primary_blocker and missing_data explain which trusted local input is still missing.",
+                "What To Check Next": "Do not interpret valuation, peers, earnings, or estimates until the blocker is resolved.",
+                "Safe Command": "make onboarding TOP_N=10",
+            },
+            {
+                "Step": "4. Read confidence",
+                "What It Means": "Confidence is a data-quality state that drops when important context is missing.",
+                "What To Check Next": "Treat low or limited confidence as a reason to inspect sources, freshness, and gaps first.",
+                "Safe Command": "make research-health TOP_N=10",
+            },
+            {
+                "Step": "5. Copy the next action",
+                "What It Means": "next_best_action points to the safest local workflow step; it is not a dashboard action or recommendation.",
+                "What To Check Next": "Run the command manually only after reviewing source/freshness notes.",
+                "Safe Command": "make status-check TOP_N=5",
+            },
+        ]
+    )
+
+
+def decision_interpretation_ladder_cards() -> list[dict[str, object]]:
+    frame = decision_interpretation_ladder_frame()
+    bucket = frame.iloc[0]
+    blocker = frame.iloc[2]
+    next_action = frame.iloc[4]
+    return [
+        {
+            "kicker": "DECISION READING ORDER",
+            "title": format_missing(bucket.get("Step"), "Read the bucket"),
+            "body": format_missing(bucket.get("What It Means"), ""),
+            "badges": ["workflow state", "not advice"],
+            "command": format_missing(bucket.get("Safe Command"), ""),
+        },
+        {
+            "kicker": "BLOCKER BEFORE CONCLUSION",
+            "title": format_missing(blocker.get("Step"), "Read the blocker"),
+            "body": format_missing(blocker.get("What To Check Next"), ""),
+            "badges": ["missing data first", "no inference"],
+            "command": format_missing(blocker.get("Safe Command"), ""),
+        },
+        {
+            "kicker": "NEXT ACTION IS COPY-ONLY",
+            "title": format_missing(next_action.get("Step"), "Copy the next action"),
+            "body": format_missing(next_action.get("What It Means"), ""),
+            "badges": ["manual terminal workflow", "research-only"],
+            "command": format_missing(next_action.get("Safe Command"), ""),
         },
     ]
 
@@ -6967,7 +7737,7 @@ def purpose_family_label(asset_type: object, purpose_text: object = "", alignmen
     if "speculative" in combined or "optionality" in combined:
         return "Speculative"
     if "broken" in combined or "avoid" in combined:
-        return "Broken / Avoid"
+        return "Broken / No Setup"
     return "General"
 
 
@@ -7105,7 +7875,7 @@ def _active_brief_next_question(row: pd.Series) -> str:
     bucket = format_missing(row.get("decision_bucket"), "").lower()
     subtype = format_missing(row.get("decision_subtype"), "").lower()
     if "monitor" in bucket or "market proxy" in subtype or any(token in asset_type for token in ["etf", "fund", "index"]):
-        return f"What market, theme, liquidity, or risk signal should {ticker} monitor, and what would invalidate that proxy role?"
+        return f"What market, theme, liquidity, or risk context should {ticker} monitor, and what would invalidate that proxy role?"
     if blocker in {"peer", "peers"}:
         return f"Which source-backed peers should be added for {ticker} before peer-relative valuation is reviewed?"
     if blocker in {"fundamentals", "dcf"}:
@@ -7497,7 +8267,7 @@ def active_evaluation_next_step(row: pd.Series) -> str:
     if "review now" in lane or "monitor etf" in lane or "single-stock" in lane:
         return f"Open {ticker}'s stock report and compare purpose, setup, valuation limits, risk watchpoint, and invalidation condition."
     if "fundamentals" in lane or "dcf" in lane:
-        return f"Import or stage trusted fundamentals for {ticker}; validate, preview, and apply only after rejected-row reports are clean."
+        return f"Import or prepare trusted fundamentals import draft rows for {ticker}; validate, preview, and apply only after rejected-row reports are clean."
     if "price" in lane:
         return f"Repair local price coverage for {ticker} with a ticker-targeted refresh or staged manual OHLCV import."
     if "peer" in lane:
@@ -7540,7 +8310,7 @@ def active_evaluation_validation_sequence(row: pd.Series) -> str:
     if "peer" in lane and "monitor etf" not in lane:
         return f"make focus-peers TICKER={ticker} -> make templates -> fill data/imports/peers.csv with source-backed rows -> make imports-validate -> make imports-preview -> make imports-apply"
     if "fundamentals" in lane or "dcf" in lane:
-        return f"make focus-fundamentals TICKER={ticker} -> stage trusted fundamentals -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-fundamentals TICKER={ticker} -> prepare trusted fundamentals import draft rows -> make imports-validate -> make imports-preview -> make imports-apply"
     if "price" in lane:
         return f"make focus-price TICKER={ticker} -> run capped refresh or stage OHLCV -> make imports-validate -> make imports-preview -> make imports-apply"
     if "optional" in lane:
@@ -7698,7 +8468,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
         {
             "kicker": "QUEUE MIX",
             "title": lane_title,
-            "body": "Research Now rows stay separated from monitor rows and data-unlock rows so missing inputs do not look like weak conclusions.",
+            "body": "Research Now rows stay separated from monitor rows and data-unlock rows so missing inputs do not look like unsupported conclusions.",
             "badges": ["readiness gated", "data-honest"],
             "command": "make readiness",
         },
@@ -8268,7 +9038,7 @@ def purpose_evaluation_drilldown_cards(drilldown_frame: pd.DataFrame | None) -> 
             "kicker": "PEER / OPTIONAL LIMITS",
             "title": f"{peer_limited} peer-limited, {optional_locked} optional-context-limited",
             "body": "Peer valuation remains blocked until source-backed peer mappings and valuation inputs exist; earnings and estimates remain locked until trusted CSV rows are imported.",
-            "badges": ["no fabricated peers", "no weak conclusions"],
+            "badges": ["no fabricated peers", "no unsupported conclusions"],
             "command": "make templates",
         },
     ]
@@ -8531,7 +9301,9 @@ def safe_action_console_command(category: str, command: object = "") -> str:
     if category_key == "import validation / rejected rows":
         return command_text if lowered in {"make imports-validate", "make imports-preview", "make imports-apply", "make templates"} else "make imports-validate"
     if category_key == "single-stock review":
-        return command_text if "ticker=" in lowered else "make stock-report TICKER=META"
+        if "ticker=" in lowered:
+            return re.sub(r"\bmake stock-report\b", "make stock-report-md", command_text, count=1)
+        return "make stock-report-md TICKER=META"
     return command_text or "make project-status"
 
 
@@ -8564,7 +9336,7 @@ def next_action_console_output_to_check(category: str) -> str:
 def next_action_console_source_note(category: str) -> str:
     notes = {
         "Price Coverage Batch": "Uses local prices first, then capped Yahoo refresh or staged manual OHLCV CSVs with preview/apply safeguards.",
-        "Fundamentals / DCF Unlock": "Uses SEC Companyfacts staging when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
+        "Fundamentals / DCF Unlock": "Uses SEC Companyfacts import draft workflow when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
         "Peer Mapping Unlock": "Uses source-backed manual peer mappings or clearly labeled fallback context; no peer relationship is inferred as trusted.",
         "Earnings Import Setup": "Manual trusted local CSV only; feature stays unavailable until rows validate.",
         "Analyst Estimates Import Setup": "Manual trusted local CSV only; consensus context stays unavailable until rows validate.",
@@ -8725,6 +9497,19 @@ def build_next_action_console_frame(
             category = "Single-Stock Review" if "stock-report" in lowered or "focus-" in lowered else "Project Refresh"
             feature = "operator_workflow"
         command = safe_action_console_command(category, command)
+        source_context = format_missing(row.get("SourceContext"), "")
+        freshness_context = format_missing(row.get("FreshnessContext"), "")
+        source_note = next_action_console_source_note(category)
+        context_parts = [
+            part
+            for part in [
+                f"Source: {source_context}" if source_context and source_context != "Not available" else "",
+                f"Freshness: {freshness_context}" if freshness_context and freshness_context != "Not available" else "",
+            ]
+            if part
+        ]
+        if context_parts:
+            source_note = f"{source_note} {' '.join(context_parts)}"
         rows.append(
             {
                 "priority": 7,
@@ -8737,7 +9522,7 @@ def build_next_action_console_frame(
                 "command": command,
                 "output_to_check": next_action_console_output_to_check(category),
                 "why_it_matters": compact_reason(row.get("Reason"), max_sentences=1, max_chars=180),
-                "source_freshness_note": next_action_console_source_note(category),
+                "source_freshness_note": source_note,
                 "safety_note": next_action_console_safety_note(command),
             }
         )
@@ -8769,6 +9554,19 @@ def build_next_action_console_frame(
         return pd.DataFrame(columns=NEXT_ACTION_CONSOLE_COLUMNS)
 
     console = pd.DataFrame(rows)
+    duplicate_keys = console.duplicated(subset=["action_category", "command"], keep=False)
+    if duplicate_keys.any():
+        for (_category, _command), group in console.loc[duplicate_keys].groupby(["action_category", "command"], sort=False):
+            notes = [
+                str(value).strip()
+                for value in group.get("source_freshness_note", pd.Series(dtype=object)).fillna("").tolist()
+                if str(value).strip()
+            ]
+            if not notes:
+                continue
+            merged_note = " ".join(dict.fromkeys(notes))
+            first_index = group.index[0]
+            console.at[first_index, "source_freshness_note"] = merged_note
     console = console.drop_duplicates(subset=["action_category", "command"], keep="first")
     console["priority"] = pd.to_numeric(console["priority"], errors="coerce").fillna(999).astype(int)
     console = console.sort_values(["priority", "action_category"], kind="stable")
@@ -8836,7 +9634,7 @@ def market_next_action_cards(
                 {
                     "kicker": "PRICE DATA",
                     "title": f"{len(price_missing)} ticker(s) need prices",
-                    "body": "Refresh or stage prices for a small batch first; do not require the whole market to be ready.",
+                    "body": "Refresh prices or prepare a price import draft for a small batch first; do not require the whole market to be ready.",
                     "badges": ["blocked by data", "batch safe"],
                     "command": "make price-worklist TOP_N=25",
                 }
@@ -8850,7 +9648,7 @@ def market_next_action_cards(
                 {
                     "kicker": "FUNDAMENTALS",
                     "title": f"{len(fundamentals_missing)} price-ready company ticker(s) need fundamentals",
-                    "body": "Use SEC staging when SEC_USER_AGENT is configured, otherwise stage trusted manual CSV rows.",
+                    "body": "Use the SEC import draft workflow when SEC_USER_AGENT is configured, otherwise prepare trusted manual CSV rows for validation and preview.",
                     "badges": ["DCF unlock", "source-backed only"],
                     "command": "make sec-stage-queue TOP_N=25",
                 }
@@ -8895,7 +9693,7 @@ def market_next_action_cards(
         {
             "kicker": "REFRESH REPORTS",
             "title": "Regenerate readiness after imports",
-            "body": "After any staged import or provider refresh, regenerate pipeline and readiness outputs before interpreting conclusions.",
+            "body": "After any import draft or provider refresh, regenerate pipeline and readiness outputs before interpreting conclusions.",
             "badges": ["deterministic", "CSV-first"],
             "command": "make readiness",
         }
@@ -8940,7 +9738,7 @@ def market_blocker_summary_cards(ticker_readiness_frame: pd.DataFrame | None) ->
         {
             "kicker": "PEER BLOCKERS",
             "title": f"{len(peer_missing)} active ticker(s)",
-            "body": "Peer context requires transparent mappings and enough peer metrics; do not infer fake relationships.",
+            "body": "Peer context requires transparent mappings and enough peer metrics; unverified relationships stay locked.",
             "badges": ["manual review", "active universe"],
             "command": "make peer-mapping-queue TOP_N=25",
         },
@@ -9271,7 +10069,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
             "Status": f"SEC_USER_AGENT={'present' if sec_present else 'missing'}; STOOQ_API_KEY={'present' if stooq_present else 'missing'}",
             "Freshness": "Missing credentials should block only the remote workflow, not local CSV reports.",
             "Local source": ".zshrc or shell environment",
-            "Manual path": "staged CSV import folders remain available",
+            "Manual path": "import draft CSV import folders remain available",
             "Rejected rows": "not applicable",
             "Next command": "make project-status",
         },
@@ -9605,7 +10403,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": f"{len(ready_companies)} row(s)",
                 "Supported Today": "Reviewing assumptions, scenarios, and sensitivity when trusted local company inputs are present.",
                 "Not Supported Yet": "Direct recommendations or unsupported price targets.",
-                "Logic Source": "Repo-native DCF readiness and valuation logic in src/valuation.py plus dashboard/report guardrails.",
+                "Logic Source": "Project DCF readiness and valuation logic in src/valuation.py plus dashboard/report guardrails.",
             },
             {
                 "Valuation Area": "Blocked companies",
@@ -9614,7 +10412,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": f"{len(blocked_companies)} row(s)",
                 "Supported Today": "Finding the exact missing data needed before company valuation can be reviewed.",
                 "Not Supported Yet": "Calling a company undervalued, overvalued, or weak because inputs are missing.",
-                "Logic Source": "Repo-native readiness checks; missing fields are surfaced instead of inferred.",
+                "Logic Source": "Project readiness checks; missing fields are surfaced instead of inferred.",
             },
             {
                 "Valuation Area": "ETF / index / fund rows",
@@ -9623,7 +10421,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": f"{len(excluded_rows)} row(s)",
                 "Supported Today": "Monitor context such as market, theme, liquidity, or risk review.",
                 "Not Supported Yet": "Operating-company DCF or peer valuation.",
-                "Logic Source": "Repo-native asset-type gating marks DCF excluded, not failed.",
+                "Logic Source": "Project asset-type gating marks DCF excluded, not failed.",
             },
             {
                 "Valuation Area": "Peer-relative valuation",
@@ -9632,16 +10430,53 @@ def valuation_function_quality_frame(
                 "Current Coverage": "Available only when source-backed peer mappings and peer inputs are ready.",
                 "Supported Today": "Peer comparison after trusted peer rows and peer metrics exist.",
                 "Not Supported Yet": "Guessed peer relationships or peer valuation when peer inputs are missing.",
-                "Logic Source": "Repo-native peer readiness checks; no fabricated peer mappings.",
+                "Logic Source": "Project peer readiness checks; no fabricated peer mappings.",
             },
             {
                 "Valuation Area": "Dependencies",
                 "Quality Verdict": "Support layer, not valuation logic",
-                "Best Use Today": "Use libraries/adapters for data handling and UI while repo code owns valuation rules.",
+                "Best Use Today": "Use libraries/adapters for data handling and UI while project code owns valuation rules.",
                 "Current Coverage": "Support layer only.",
                 "Supported Today": "Data handling, UI display, tests, and optional research-grade data access.",
-                "Not Supported Yet": "Replacing repo-native valuation rules or trusted local valuation inputs.",
+                "Not Supported Yet": "Replacing project valuation rules or trusted local valuation inputs.",
                 "Logic Source": "Standard libraries and optional adapters support the workflow; valuation rules live in this repository.",
+            },
+        ]
+    )
+
+
+def valuation_method_contract_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Step": "Input contract",
+                "Plain Meaning": "DCF starts only after trusted local price and company fundamentals are present.",
+                "Required Local Fields": "price, revenue, free cash flow or FCF margin, shares outstanding, cash/debt or net debt when available.",
+                "Output Boundary": "If required fields are missing, the valuation row stays blocked instead of inferred.",
+            },
+            {
+                "Step": "Base cash flow",
+                "Plain Meaning": "The model uses explicit free cash flow, or derives base FCF from revenue times FCF margin.",
+                "Required Local Fields": "free_cash_flow, or revenue plus fcf_margin.",
+                "Output Boundary": "Missing cash-flow inputs block DCF assumptions and sensitivity.",
+            },
+            {
+                "Step": "Scenario projection",
+                "Plain Meaning": "Bear, base, and bull scenarios project FCF using visible growth, margin, WACC, terminal-growth, and forecast-year assumptions.",
+                "Required Local Fields": "revenue_growth or default scenario assumptions, fcf_margin, WACC, terminal growth, forecast years.",
+                "Output Boundary": "Scenario output is research math, not a price target or direct recommendation.",
+            },
+            {
+                "Step": "Fair value math",
+                "Plain Meaning": "Projected FCF and terminal value are discounted, adjusted for cash/debt or net debt, then divided by shares outstanding.",
+                "Required Local Fields": "projected FCF, WACC, terminal growth, cash, debt or net debt, shares outstanding.",
+                "Output Boundary": "Peer-relative valuation remains separate and appears only after source-backed peer inputs are ready.",
+            },
+            {
+                "Step": "ETF / fund boundary",
+                "Plain Meaning": "ETF, index, and fund rows can support monitor context, but operating-company DCF does not apply.",
+                "Required Local Fields": "monitor context can use price, liquidity, correlation, and theme data.",
+                "Output Boundary": "DCF is excluded, not failed, for monitor-context rows.",
             },
         ]
     )
@@ -9667,12 +10502,19 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
     missing_count = non_empty_count(frame, [column for column in frame.columns if "missing" in column.lower()])
     reason_count = non_empty_count(frame, [column for column in frame.columns if "reason" in column.lower()])
     row_count = len(frame)
+    if theme_count:
+        theme_body = (
+            f"Most common theme/sector context across {theme_count} row{'s' if theme_count != 1 else ''}. "
+            f"{reason_count} rows include reason text."
+        )
+    else:
+        theme_body = f"No populated theme or sector context is available in this output. {reason_count} rows include reason text."
     return [
         {
             "kicker": title.upper(),
             "title": f"{row_count} row{'s' if row_count != 1 else ''}",
-            "body": OUTPUT_TAB_GUIDANCE.get(title, "Local CSV output with transparent reasons and visible gaps."),
-            "badges": ["CSV output"],
+            "body": OUTPUT_TAB_GUIDANCE.get(title, "Saved local output with transparent reasons and visible gaps."),
+            "badges": ["Saved local output"],
         },
         {
             "kicker": "STATE",
@@ -9689,7 +10531,7 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
         {
             "kicker": "THEME",
             "title": theme,
-            "body": f"Most common theme/sector context across {theme_count} row{'s' if theme_count != 1 else ''}. {reason_count} rows include reason text.",
+            "body": theme_body,
             "badges": ["explainable"],
         },
     ]
@@ -9721,7 +10563,7 @@ def output_tab_function_quality_cards(title: str) -> list[dict[str, object]]:
             },
             {
                 "kicker": "WHAT IT CANNOT DO",
-                "title": "No automatic entry signal",
+                "title": "No automatic timing call",
                 "body": "Momentum leadership is research context only. It does not provide trade timing, account actions, or direct recommendations.",
                 "badges": ["research-only", "no execution"],
             },
@@ -9890,7 +10732,7 @@ def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str
             sections.append(
                 (
                     "Setup distribution",
-                    "Counts the current local setup states so you can see whether the universe is mostly watch-only, avoid, or developing new setups.",
+                    "Counts the current local setup states so you can see whether the universe is mostly watch-only, no-setup, or developing new setups.",
                     distribution_frame,
                     "bar",
                 )
@@ -9935,7 +10777,7 @@ def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str
             sections.append(
                 (
                     "Watchlist score snapshot",
-                    "Ranks the strongest locally scored watchlist names without inventing missing peer-relative or valuation data.",
+                    "Orders the strongest locally scored watchlist rows for review without inventing missing peer-relative or valuation data.",
                     score_frame,
                     "bar",
                 )
@@ -9979,11 +10821,11 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
     cards = [
         {
             "kicker": "BEST NEXT",
-            "title": "Preview universe update" if not staged_exists else "Apply staged universe",
+            "title": "Preview universe update" if not staged_exists else "Apply universe draft",
             "body": (
                 "Start with make universe-preview so larger source-driven changes stay reviewable before make universe-apply."
                 if not staged_exists
-                else f"{staged_rows} staged ticker rows are already visible in the dashboard; run make universe-apply only after reviewing the staged CSV and diagnostics."
+                else f"{staged_rows} draft ticker rows are already visible in the dashboard; run make universe-apply only after reviewing the CSV and review notes."
             ),
             "badges": ["preview first", "read-only"],
             "command": "make universe-preview" if not staged_exists else "make universe-apply",
@@ -9992,15 +10834,15 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
             "kicker": "CURRENT FILE",
             "title": f"{row_count} current rows",
             "body": (
-                f"{duplicate_count} duplicate ticker rows and {missing_theme_total} missing or unclassified themes are still visible in the canonical universe file."
+                f"{duplicate_count} duplicate ticker rows and {missing_theme_total} missing or unclassified themes are still visible in the main universe file."
             ),
             "badges": ["data/universe.csv", "coverage"],
             "command": "make templates" if missing_theme_total else "make universe-preview",
         },
         {
-            "kicker": "STAGED FLOW",
-            "title": "Apply stays CLI-only",
-            "body": "Run make universe-preview first, inspect the staged CSV and diagnostics, then run make universe-apply only after review.",
+            "kicker": "REVIEW FLOW",
+            "title": "Apply stays copy-only",
+            "body": "Run make universe-preview first, inspect the draft CSV and review notes, then run make universe-apply only after review.",
             "badges": ["backup on apply", "csv-first"],
             "command": "make universe-apply",
         },
@@ -10020,12 +10862,12 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
             "badges": ["data/universe.csv"],
         },
         {
-            "kicker": "STAGING",
-            "title": "Staged file present" if staged.get("exists") else "No staged universe",
+            "kicker": "IMPORT DRAFT",
+            "title": "Import draft present" if staged.get("exists") else "No universe import draft",
             "body": (
                 "Run make universe-preview before make universe-apply. Dashboard stays read-only for safety."
                 if staged.get("exists")
-                else "No staged universe is waiting; run make universe-preview before make universe-apply."
+                else "No universe import draft is waiting; run make universe-preview before make universe-apply."
             ),
             "badges": ["data/imports/universe.csv"],
             "command": "make universe-apply",
@@ -10033,7 +10875,7 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
         {
             "kicker": "WORKFLOW",
             "title": "Preview first",
-            "body": "Use source presets to build a candidate universe with make universe-preview, then run make universe-apply only after reviewing the staged CSV.",
+            "body": "Use source presets to build a candidate universe with make universe-preview, then run make universe-apply only after reviewing the draft CSV.",
             "badges": ["CSV-first", "backup on apply"],
             "command": "make universe-preview",
         },
@@ -10044,23 +10886,23 @@ def status_legend_rows() -> list[dict[str, str]]:
     return [
         {
             "Label": "Research Ready",
-            "Meaning": "Local price context and required research inputs are usable for the current workflow.",
+            "Meaning": "Enough trusted local inputs exist to review this ticker without first unlocking more data.",
         },
         {
             "Label": "Partial Coverage",
-            "Meaning": "Some useful data exists, but at least one research path is incomplete.",
+            "Meaning": "Some analysis is available, but one or more sections stay locked until more local data is added.",
         },
         {
             "Label": "Needs Price Data",
-            "Meaning": "Add or refresh verified OHLCV files before relying on momentum or track-record context.",
+            "Meaning": "Add or refresh trusted daily price history before reading momentum, risk, or track-record context.",
         },
         {
             "Label": "Needs Enrichment",
-            "Meaning": "Add verified local fundamentals, peer mappings, earnings, or estimate files as needed.",
+            "Meaning": "Add trusted fundamentals, peer mappings, earnings, or estimate files before valuation-style analysis.",
         },
         {
             "Label": "Insufficient Data",
-            "Meaning": "The app intentionally avoided calculating a result from incomplete inputs.",
+            "Meaning": "The app intentionally skipped analysis instead of filling gaps with guesses.",
         },
     ]
 
@@ -10077,7 +10919,7 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
         },
         {
             "Dashboard Label": "Missing peer mapping",
-            "What to do": "Use `make runbook-peers-broader` or `make focus-peers TICKER=...` first, then add manually researched mappings through `data/imports/peers.csv`, run `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make status-check TOP_N=5`. If mappings already exist, finish the staged peer fundamentals or peer price follow-through the queue points to.",
+            "What to do": "Use `make runbook-peers-broader` or `make focus-peers TICKER=...` first, then add manually researched mappings through `data/imports/peers.csv`, run `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make status-check TOP_N=5`. If mappings already exist, finish the peer fundamentals or peer price follow-through the queue points to.",
         },
         {
             "Dashboard Label": "Earnings unavailable",
@@ -10105,8 +10947,36 @@ def workflow_command_rows() -> list[dict[str, str]]:
         {"Step": "Data coverage", "Command": "make data-wizard TOP_N=5"},
         {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},
         {"Step": "Price import safety", "Command": "make price-validate && make price-preview && make price-apply"},
-        {"Step": "SEC fundamentals staging", "Command": "make focus-fundamentals TICKER=NVDA"},
+        {"Step": "SEC fundamentals import draft workflow", "Command": "make focus-fundamentals TICKER=NVDA"},
         {"Step": "Universe preview", "Command": "make universe-preview"},
+    ]
+
+
+def sidebar_relative_path_context(base_dir: Path, data_dir: Path, outputs_dir: Path) -> dict[str, str]:
+    root = Path(base_dir).resolve()
+
+    def _display_path(path: Path) -> str:
+        resolved = Path(path).resolve()
+        if resolved == root:
+            return "."
+        try:
+            return resolved.relative_to(root).as_posix()
+        except ValueError:
+            return resolved.name
+
+    return {
+        "project_root": _display_path(root),
+        "data_dir": _display_path(Path(data_dir)),
+        "outputs_dir": _display_path(Path(outputs_dir)),
+    }
+
+
+def sidebar_local_file_context_lines(base_dir: Path, data_dir: Path, outputs_dir: Path) -> list[str]:
+    context = sidebar_relative_path_context(base_dir, data_dir, outputs_dir)
+    return [
+        f"App folder: {context['project_root']}",
+        f"Trusted input CSVs: {context['data_dir']}",
+        f"Generated reports: {context['outputs_dir']}",
     ]
 
 
@@ -10137,25 +11007,25 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
         (
             "See The Workflow",
             "Use Overview after Home when you want grouped next actions across prices, fundamentals, peers, and reports.",
-            "Overview tab",
+            "Overview page",
             "neutral",
         ),
         (
             "Review Candidate Ideas",
             "Open Monthly Picks when local data supports candidate review. This is a research queue, not a conclusion list.",
-            "Monthly Picks tab",
+            "Monthly Picks page",
             "neutral",
         ),
         (
             "Analyze One Stock",
             "Use Single-Stock Report to see what analysis is ready, blocked, excluded, or monitor-only for a ticker.",
-            "Single-Stock Report tab",
+            "Single-Stock Report page",
             "neutral",
         ),
         (
             "Unlock Missing Data",
             "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis instead of being inferred.",
-            "Data Health tab",
+            "Data Health page",
             "warning",
         ),
     ]
@@ -10165,9 +11035,9 @@ def empty_state_command_rows() -> list[dict[str, str]]:
     return [
         {"Scenario": "No local prices or short history", "Next step": "Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize INPUT=... TICKER=... SOURCE=..., then run make price-validate, make price-preview, and make price-apply."},
         {"Scenario": "No local fundamentals for valuation", "Next step": "Use make runbook-fundamentals-broader or make focus-fundamentals TICKER=... first, then run make imports-validate, make imports-preview, and make imports-apply."},
-        {"Scenario": "No peer-relative context", "Next step": "Use make runbook-peers-broader or make focus-peers TICKER=... first. If mappings are missing, run make templates, then fill data/imports/peers.csv; if mappings already exist, follow the staged peer fundamentals or price blocker the queue prints."},
+        {"Scenario": "No peer-relative context", "Next step": "Use make runbook-peers-broader or make focus-peers TICKER=... first. If mappings are missing, run make templates, then fill data/imports/peers.csv; if mappings already exist, follow the peer fundamentals or price blocker the queue prints."},
         {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
-        {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then run make imports-validate, make imports-preview, and make imports-apply for staged local datasets, or use make price-validate, make price-preview, and make price-apply for staged price rows."},
+        {"Scenario": "No import drafts to review", "Next step": "Use templates or trusted price/fundamental import files first, then run make imports-validate, make imports-preview, and make imports-apply for local datasets, or use make price-validate, make price-preview, and make price-apply for price rows."},
     ]
 
 
@@ -10261,7 +11131,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         body = command_family_fallback(command, review_path_fallback(row.get("dataset")))
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            body = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+            body = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         if reason and reason != "Not available":
             body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
         elif recommended_action and recommended_action != "Not available":
@@ -10272,25 +11142,25 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
             normalized_body = body.lower()
             if "make imports-preview" not in normalized_body or "make imports-apply" not in normalized_body:
                 body = (
-                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
                     if reason and reason != "Not available"
-                    else "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                    else "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
                 )
         elif lowered_command == "make price-validate":
             normalized_body = body.lower()
             if "make price-preview" not in normalized_body or "make price-apply" not in normalized_body:
                 body = (
-                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
                     if reason and reason != "Not available"
-                    else "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                    else "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
                 )
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
         elif target_file == "data/imports/peers.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
         elif target_file == "data/imports/prices.csv":
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
         if staged_follow_through:
             normalized_body = body.lower()
             needs_staged_upgrade = False
@@ -10343,6 +11213,8 @@ def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str
                     "Step": format_missing(row.get("Step"), "Next"),
                     "Command": command,
                     "Reason": format_missing(row.get("Reason"), ""),
+                    "SourceContext": format_missing(row.get("SourceContext"), ""),
+                    "FreshnessContext": format_missing(row.get("FreshnessContext"), ""),
                 }
             )
         if rows:
@@ -10354,6 +11226,17 @@ def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str
         command_text = normalize_operator_command(command)
         normalized.append({"Step": f"Next {index}", "Command": command_text})
     return normalized
+
+
+def _project_status_context_lines(row: dict[str, object]) -> list[str]:
+    lines: list[str] = []
+    source_context = format_missing(row.get("SourceContext"), "")
+    freshness_context = format_missing(row.get("FreshnessContext"), "")
+    if source_context and source_context != "Not available":
+        lines.append(f"Source: {source_context}")
+    if freshness_context and freshness_context != "Not available":
+        lines.append(f"Freshness: {freshness_context}")
+    return lines
 
 
 def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: int, health_label: str) -> str:
@@ -10673,11 +11556,11 @@ def holdings_unlock_cards(
         )
         if staged_fundamentals_import:
             fallback_action = (
-                f"Staged fundamentals import is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
+                f"Fundamentals import draft is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
             )
         elif staged_peer_import:
             fallback_action = (
-                f"Staged peer import is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
+                f"Peer import draft is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
             )
         elif staged_price_import:
             fallback_action = (
@@ -10686,7 +11569,7 @@ def holdings_unlock_cards(
         else:
             fallback_action = command_family_fallback(command, f"Review {stage} path.")
             if "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
         if staged_price_import and (
             "make price-validate" not in next_action_summary
@@ -10720,7 +11603,7 @@ def holdings_deep_research_cards(
             {
                 "kicker": "HOLDINGS DCF / PEERS",
                 "title": "No holdings deep-research board yet",
-                "body": "Add holdings rows, then run make onboarding to refresh onboarding outputs and see which portfolio names next benefit from SEC staging or manual peer research.",
+                "body": "Add holdings rows, then run make onboarding to refresh onboarding outputs and see which portfolio names next benefit from SEC import draft workflow or manual peer research.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -10762,13 +11645,13 @@ def holdings_deep_research_cards(
                     ),
                 )
                 fallback_action = (
-                    "Staged fundamentals import ready. "
+                    "Fundamentals import draft ready. "
                     "Run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
                     if staged_import
                     else command_family_fallback(command, "Review fundamentals path.")
                 )
                 if not staged_import and "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                    fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
                 next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
                 if staged_import and (
                     "make imports-validate" not in next_action_summary
@@ -10779,7 +11662,7 @@ def holdings_deep_research_cards(
                 cards.append(
                     {
                         "kicker": ticker,
-                        "title": "Advance staged fundamentals import" if staged_import else "Unlock DCF",
+                        "title": "Review fundamentals import draft" if staged_import else "Unlock DCF",
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"SEC/fundamentals queue priority P{format_missing(row.get('priority'), '-')}. "
@@ -10809,13 +11692,13 @@ def holdings_deep_research_cards(
                     ),
                 )
                 fallback_action = (
-                    "Staged peer import ready. "
+                    "Peer import draft ready. "
                     "Run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
                     if staged_import
                     else command_family_fallback(command, "Review peer path.")
                 )
                 if not staged_import and "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                    fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
                 next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
                 if staged_import and (
                     "make imports-validate" not in next_action_summary
@@ -10826,7 +11709,7 @@ def holdings_deep_research_cards(
                 cards.append(
                     {
                         "kicker": ticker,
-                        "title": "Advance staged peer import" if staged_import else "Unlock Peer Relative",
+                        "title": "Review peer import draft" if staged_import else "Unlock Peer Relative",
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"Peer queue priority P{format_missing(row.get('priority'), '-')}. "
@@ -10932,11 +11815,11 @@ def theme_unlock_cards(
         )
         if staged_fundamentals_import:
             fallback_action = (
-                f"Staged fundamentals import is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped DCF coverage."
+                f"Fundamentals import draft is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped DCF coverage."
             )
         elif staged_peer_import:
             fallback_action = (
-                f"Staged peer import is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped peer-relative context."
+                f"Peer import draft is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped peer-relative context."
             )
         elif staged_price_import:
             fallback_action = (
@@ -11006,16 +11889,23 @@ def theme_deep_research_cards(
                     else ticker_focus_command(dataset_badge, top_row.get("ticker"), "make onboarding")
                 ),
             )
-            fallback_action = (
-                f"Staged {dataset_badge.lower()} import in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
-                if staged_import
-                else command_family_fallback(
+            if staged_import:
+                import_label = (
+                    "Fundamentals import draft"
+                    if dataset_badge == "fundamentals"
+                    else "Peer import draft"
+                )
+                fallback_action = (
+                    f"{import_label} in {target_file}; run make imports-validate, "
+                    "make imports-preview, then make imports-apply."
+                )
+            else:
+                fallback_action = command_family_fallback(
                     command,
                     "Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path.",
                 )
-            )
             if not staged_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
             next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
             if staged_import and (
                 "make imports-validate" not in next_action_summary
@@ -11027,9 +11917,9 @@ def theme_deep_research_cards(
                 {
                     "kicker": str(theme_name),
                     "title": (
-                        "Advance staged fundamentals import"
+                        "Review fundamentals import draft"
                         if staged_import and dataset_badge == "fundamentals"
-                        else "Advance staged peer import"
+                        else "Review peer import draft"
                         if staged_import and dataset_badge == "peers"
                         else goal
                     ),
@@ -11139,7 +12029,7 @@ def overview_research_pressure_cards(
                 f"{peer_summary.get('priority_1', 0)} holdings-first peer unlocks and "
                 f"{peer_summary.get('priority_2', 0)} theme-level follow-ons are visible in the local queue. "
                 + (
-                    f"{staged_peer_imports} staged peer import{'s' if staged_peer_imports != 1 else ''} already need make imports-validate, make imports-preview, and make imports-apply."
+                    f"{staged_peer_imports} peer import draft{'s' if staged_peer_imports != 1 else ''} already need make imports-validate, make imports-preview, and make imports-apply."
                     if staged_peer_imports
                     else (
                         f"{peer_follow_through} mapped peer set{'s' if peer_follow_through != 1 else ''} still need peer-relative follow-through beyond the initial mapping step."
@@ -11170,7 +12060,7 @@ def overview_deep_research_leverage_cards(
 
     def _peer_lane_title(row: pd.Series) -> str:
         if format_missing(row.get("target_file"), "") == "data/imports/peers.csv":
-            return "Staged peer import path"
+            return "Peer import draft path"
         command = preferred_row_command(row, "")
         has_peer_mapping = format_missing(row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}
         if has_peer_mapping:
@@ -11209,21 +12099,21 @@ def overview_deep_research_leverage_cards(
             lane_fallback = "make imports-validate" if staged_peer_import else ticker_focus_command("peers", top_row.get("ticker"), "make onboarding")
         command = preferred_row_command(top_row, lane_fallback)
         if staged_fundamentals_import:
-            card_title = "Staged fundamentals import path"
-            card_badges = ["staged import", f"leverage {leverage_score}"]
+            card_title = "Fundamentals import draft path"
+            card_badges = ["import draft", f"leverage {leverage_score}"]
         elif lane_name == "PEER LEVERAGE":
             card_title = _peer_lane_title(top_row)
             if command == "make imports-validate":
-                card_badges = ["staged import", f"leverage {leverage_score}"]
+                card_badges = ["import draft", f"leverage {leverage_score}"]
             elif format_missing(top_row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}:
                 card_badges = ["peer support data", f"leverage {leverage_score}"]
         if staged_fundamentals_import:
             fallback_action = (
-                f"Staged fundamentals import in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
+                f"Fundamentals import draft in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
             )
         elif staged_peer_import:
             fallback_action = (
-                f"Staged peer import in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
+                f"Peer import draft in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
             )
         else:
             fallback_action = command_family_fallback(
@@ -11231,7 +12121,7 @@ def overview_deep_research_leverage_cards(
                 "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path.",
             )
             if "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=140)
         if (staged_fundamentals_import or staged_peer_import) and (
             "make imports-validate" not in next_action_summary
@@ -11327,11 +12217,11 @@ def overview_deep_research_priority_bridge_cards(
             command = preferred_row_command(row, fallback_command or "Not available")
             if staged_fundamentals_import:
                 fallback_action = (
-                    "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
                 )
             elif staged_peer_import:
                 fallback_action = (
-                    "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
                 )
             else:
                 fallback_action = command_family_fallback(
@@ -11339,7 +12229,7 @@ def overview_deep_research_priority_bridge_cards(
                     "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path.",
                 )
                 if "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                    fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
             next_action_summary = compact_reason(
                 row.get("recommended_action") or fallback_action,
                 max_sentences=1,
@@ -11355,9 +12245,9 @@ def overview_deep_research_priority_bridge_cards(
                 {
                     "ticker": ticker,
                     "lane": (
-                        "Advance staged fundamentals import"
+                        "Review fundamentals import draft"
                         if staged_fundamentals_import
-                        else "Advance staged peer import"
+                        else "Review peer import draft"
                         if staged_peer_import
                         else lane
                     ),
@@ -11398,7 +12288,7 @@ def overview_deep_research_priority_bridge_cards(
                 "title": row["lane"],
                 "body": (
                     f"{'Current holding' if row['is_holding'] else 'Universe name'} in {row['theme']}. "
-                    f"Next surface: {row['next_surface']}. "
+                    f"Next page: {row['next_surface']}. "
                     f"{row['recommended_action']}"
                 ),
                 "badges": [
@@ -11769,7 +12659,7 @@ ARTIFACT_NOTICE_DEFAULTS: dict[str, tuple[str, str]] = {
         "make action-queue",
     ),
     "research_health": (
-        "Research health outputs are not available yet. Run make research-health to refresh those diagnostics, or make verify for the broader local validation pass.",
+        "Research health outputs are not available yet. Run make research-health to refresh those review notes, or make verify for the broader local validation pass.",
         "make research-health",
     ),
     "data_source_status": (
@@ -11821,7 +12711,7 @@ def overview_benchmark_pressure_cards(
         else "Ticker coverage is not available yet."
     )
     if parse_or_source_errors:
-        pressure_body += f" Latest refresh surfaced {parse_or_source_errors} source-side price issues, so manual staged imports may still be the safer path."
+        pressure_body += f" Latest refresh surfaced {parse_or_source_errors} price-source issue(s), so reviewed local import drafts may still be the safer path."
 
     benchmark_body = (
         f"Strongest current local theme is {strongest_theme} at {relative_spy} vs SPY."
@@ -11867,7 +12757,7 @@ def overview_next_command_cards(
             has_reason = bool(reason and reason != "Not available")
             lower_reason = reason.lower() if has_reason else ""
             body = (
-                "Repo-native next step from the current read-only project status snapshot."
+                "Project next step from the current read-only project status snapshot."
                 if command
                 else "No explicit command was available from project status."
             )
@@ -11880,19 +12770,19 @@ def overview_next_command_cards(
                 if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
                     body = reason
                 else:
-                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
                 badges = ["staged flow", "command"]
             elif lowered == "make price-validate":
                 if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
                     body = reason
                 else:
-                    body = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                    body = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
                 badges = ["staged flow", "command"]
             elif "bundle-" in lowered:
                 body = reason if has_reason else "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
                 badges = ["bundle first", "command"]
             elif "runbook-" in lowered:
-                body = reason if has_reason else "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                body = reason if has_reason else "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
                 badges = ["runbook", "command"]
             elif "onboarding" in lowered:
                 body = "Refresh local data coverage, onboarding outputs, and action guidance before broader research work."
@@ -11960,7 +12850,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
             {
                 "kicker": "DATA BUNDLE",
                 "title": "No command bundles yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local bundles for prices, SEC staging, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local bundles for prices, SEC import draft workflow, and peer mapping.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -11978,17 +12868,17 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
         if "runbook-" in command.lower():
-            lane_summary = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+            lane_summary = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=150)
             if target_file == "data/imports/fundamentals.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
             elif target_file == "data/imports/peers.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
             else:
-                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
             if staged_summary == "Not available":
                 staged_summary = default_staged_summary
             elif target_file == "data/imports/prices.csv" and (
@@ -12063,11 +12953,11 @@ def overview_bundle_handoff_cards(
     if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
         staged_summary = compact_reason(top_bundle.get("safe_next_step"), max_sentences=1, max_chars=150)
         if target_file == "data/imports/fundamentals.csv":
-            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
         elif target_file == "data/imports/peers.csv":
-            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
         else:
-            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
         if staged_summary == "Not available":
             staged_summary = default_staged_summary
         elif target_file == "data/imports/prices.csv" and (
@@ -12233,11 +13123,11 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(lane_rows.iloc[0].get("safe_next_step"), max_sentences=1, max_chars=150)
             if target_file == "data/imports/fundamentals.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
             elif target_file == "data/imports/peers.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
             else:
-                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
             if staged_summary == "Not available":
                 staged_summary = default_staged_summary
             elif target_file == "data/imports/prices.csv" and (
@@ -12278,7 +13168,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         surfaced_command = first_command or fallback_first_command
         lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
         if "runbook-" in surfaced_command.lower():
-            lane_summary = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+            lane_summary = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         body_summary = (
             goal_summary
             if goal_summary not in {"", "Not available"}
@@ -12322,9 +13212,10 @@ def overview_workflow_path_cards(
         for index, row in enumerate(command_rows[:3], start=1):
             command = format_missing(row.get("Command"), "make status-check TOP_N=5")
             reason = compact_reason(row.get("Reason"), max_sentences=2, max_chars=220)
+            context_lines = _project_status_context_lines(row)
             has_reason = bool(reason and reason != "Not available")
             lower_reason = reason.lower() if has_reason else ""
-            body = reason or "Repo-native next step from the current local workflow snapshot."
+            body = reason or "Project next step from the current local workflow snapshot."
             badges = ["today", "data first"] if index == 1 else ["workflow", "command"]
             lowered = command.lower()
             if "verify" in lowered:
@@ -12344,16 +13235,18 @@ def overview_workflow_path_cards(
                 if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
                     body = reason
                 else:
-                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
             elif lowered == "make price-validate":
                 badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
                 if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
                     body = reason
                 else:
-                    body = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                    body = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
             elif "runbook-" in lowered:
                 badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
-                body = reason if has_reason else "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+                body = reason if has_reason else "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            if context_lines:
+                body = "\n".join([body, *context_lines])
             cards.append(
                 {
                     "kicker": f"STEP {index}",
@@ -12392,10 +13285,10 @@ def overview_workflow_path_cards(
         first_body = "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
         first_badges = ["today", "bundle first"]
     elif "imports-" in lowered_first:
-        first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+        first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
         first_badges = ["today", "staged flow"]
     elif "runbook-" in lowered_first:
-        first_body = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+        first_body = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         first_badges = ["today", "staged flow"]
     if top_signal:
         signal_body = compact_reason(top_signal[0].get("body"), max_sentences=2, max_chars=240)
@@ -12492,7 +13385,7 @@ def overview_handoff_cards() -> list[dict[str, object]]:
         {
             "kicker": "NEXT DEEPER TAB",
             "title": "Data Health",
-            "body": "Use this when prices, fundamentals, peers, or staged imports are still blocking the local research workflow. It is the best place to inspect blockers before interpreting deeper outputs.",
+            "body": "Use this when prices, fundamentals, peers, or local import drafts are still blocking the local research workflow. It is the best place to inspect blockers before interpreting deeper outputs.",
             "badges": ["coverage", "read-only"],
             "command": "make onboarding",
         },
@@ -12549,7 +13442,7 @@ def overview_best_local_research_path_cards(
     queue_signal = top_priority_signals(action_queue, limit=1) if action_queue is not None else []
     queue_reason = compact_reason(queue_signal[0].get("body"), max_sentences=2, max_chars=220) if queue_signal else ""
     generic_reason_markers = (
-        "repo-native next step from the current read-only project status snapshot",
+        "project next step from the current read-only project status snapshot",
         "refresh local data coverage, onboarding outputs, and action guidance before broader research work",
     )
     if queue_reason and any(marker in command_reason.lower() for marker in generic_reason_markers):
@@ -12586,7 +13479,7 @@ def overview_best_local_research_path_cards(
             "command": command_text,
         },
         {
-            "kicker": "NEXT TAB",
+            "kicker": "NEXT PAGE",
             "title": tab_text,
             "body": (
                 f"Open {tab_text} after the command step so the next read matches the current local "
@@ -12721,12 +13614,12 @@ def overview_current_top_surfaces_cards(
         command_reason = (
             compact_reason(command_cards[0].get("body"), max_sentences=2, max_chars=220)
             if command_cards
-            else "Highest-value repo-native command from the current local workflow state."
+            else "Highest-value project command from the current local workflow state."
         )
     queue_signal = top_priority_signals(action_queue, limit=1) if action_queue is not None else []
     queue_reason = compact_reason(queue_signal[0].get("body"), max_sentences=2, max_chars=220) if queue_signal else ""
     generic_reason_markers = (
-        "repo-native next step from the current read-only project status snapshot",
+        "project next step from the current read-only project status snapshot",
         "refresh local data coverage, onboarding outputs, and action guidance before broader research work",
     )
     if queue_reason and (
@@ -12742,7 +13635,7 @@ def overview_current_top_surfaces_cards(
         if deep_reason and deep_reason != "Not available":
             command_reason = deep_reason
     if not command_reason or command_reason == "Not available":
-        command_reason = "Highest-value repo-native command from the current local workflow state."
+        command_reason = "Highest-value project command from the current local workflow state."
     if blocked_name == "No deep-research shortlist yet" and blocked_surface_command in {"", "Not available", "make onboarding"}:
         blocked_surface_command = command_text if str(command_text).startswith("make runbook-") else "make onboarding"
 
@@ -12752,10 +13645,10 @@ def overview_current_top_surfaces_cards(
             "title": ready_name,
             "body": (
                 (
-                    f"No locally ready name yet. Next surface: {next_tab} until the highest-leverage blocker is cleared."
+                    f"No locally ready name yet. Next page: {next_tab} until the highest-leverage blocker is cleared."
                 )
                 if ready_name == "No current ready names yet"
-                else f"Best currently usable local name. Next surface: {next_tab}."
+                else f"Best currently usable local name. Next page: {next_tab}."
             ),
             "badges": [str(item) for item in ready_cards[0].get("badges", [])][:2] or ["local coverage"],
             "command": ready_surface_command,
@@ -12785,9 +13678,9 @@ def overview_current_top_surfaces_cards(
             "command": command_text,
         },
         {
-            "kicker": "BEST NEXT TAB",
+            "kicker": "BEST NEXT PAGE",
             "title": next_tab,
-            "body": next_tab_reason or "Best follow-up surface after the next command for the current daily research pass.",
+            "body": next_tab_reason or "Best follow-up page after the next command for the current daily research pass.",
             "badges": [str(item) for item in ready_cards[2].get("badges", [])][:2] or ["guided", "read-only"],
         },
     ]
@@ -12818,7 +13711,7 @@ def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
         f"<div class='pick-meta'>{html.escape(theme)} · {html.escape(sector)} · {html.escape(purpose)}</div>"
         "</div>"
         "<div class='pick-score'>"
-        "<div class='pick-score-label'>Score</div>"
+        "<div class='pick-score-label'>Review Score</div>"
         f"<div class='pick-score-value'>{html.escape(score)}</div>"
         "</div>"
         "</div>"
@@ -12912,11 +13805,12 @@ def monthly_picks_next_step_cards(
             "command": "make monthly",
         }
     elif picks_frame.empty:
+        coverage_command = "make price-worklist TOP_N=10"
         primary = {
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                f"Current local filters did not support any monthly candidates. Run {coverage_command} to improve local price or fundamentals coverage instead of forcing weaker names into the list."
+                f"Current local filters did not support any monthly candidates. Run {coverage_command} to find the next broad coverage targets instead of forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
             "command": coverage_command,
@@ -13027,7 +13921,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "title": "Rank a local research-candidate queue",
             "body": (
                 "Monthly Picks can compare transparent local score components when enough price, setup, liquidity, "
-                "and optional fundamentals context exists. Scores are triage signals for deeper single-stock review."
+                "and optional fundamentals context exists. Scores are triage aids for deeper single-stock review."
             ),
             "badges": ["candidate review", "data-gated"],
         },
@@ -13039,12 +13933,12 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "LOGIC SOURCE",
-            "title": "Repo-native scoring logic",
+            "title": "Project scoring logic",
             "body": (
                 "Score components and report wording come from this repository's local pipeline outputs and src/monthly_picks.py. "
-                "Public libraries support data/UI. Plugins can help development review, but shipped scoring comes from repo code and local data."
+                "Public libraries support data/UI. Shipped scoring comes from project code and local data."
             ),
-            "badges": ["repo-native", "transparent"],
+            "badges": ["project rules", "transparent"],
         },
         {
             "kicker": "BEST USE",
@@ -13069,11 +13963,11 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
     estimates_label = "Estimates Present" if readiness.get("analyst_estimates_available") else "Estimates Missing"
     missing_count = len(warnings)
     main_copy = (
-        "Local structured report assembled from provider data and existing research-output context. "
+        "Local one-ticker report assembled from provider data and existing research-output context. "
         "Unavailable inputs stay visible and are not inferred."
     )
     cards = [
-        ("Valuation", format_missing(valuation.get("status"), "Not available"), format_missing(valuation.get("coverage"), "Coverage not available")),
+        ("Valuation", public_status_label(valuation.get("status"), "Not available"), format_missing(valuation.get("coverage"), "Coverage not available")),
         ("DCF", dcf_label, "Uses local fundamentals only"),
         ("Peer Relative", peer_label, "Requires manually researched peer mappings plus peer fundamentals or peer price/market-cap context"),
         ("Earnings", earnings_label, "Optional local earnings file"),
@@ -13124,7 +14018,7 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
         target_file = format_missing(row.get("target_file"), "")
         body_source = command_family_fallback(command, review_path_fallback(row.get("action_type")))
         if "runbook-" in command.lower():
-            body_source = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
+            body_source = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
         if recommended_action and recommended_action != reason:
             body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
         elif reason and reason != "Not available":
@@ -13133,25 +14027,25 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
             normalized_body = body_source.lower()
             if "make imports-preview" not in normalized_body or "make imports-apply" not in normalized_body:
                 body_source = (
-                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
                     if reason and reason != "Not available"
-                    else "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                    else "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
                 )
         elif lowered_command == "make price-validate":
             normalized_body = body_source.lower()
             if "make price-preview" not in normalized_body or "make price-apply" not in normalized_body:
                 body_source = (
-                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
                     if reason and reason != "Not available"
-                    else "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                    else "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
                 )
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
         elif target_file == "data/imports/peers.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
         elif target_file == "data/imports/prices.csv":
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
         if staged_follow_through:
             normalized_body = body_source.lower()
             needs_staged_upgrade = False
@@ -13223,7 +14117,7 @@ def priority_now_fallback_actions(
         actions.append(
             (
                 "Peer context needs local research",
-                "No peer-ready tickers detected. Run make runbook-peers-broader or make focus-peers TICKER=... first. Add verified mappings only when they are missing, and otherwise follow the staged peer-data blocker.",
+                "No peer-ready tickers detected. Run make runbook-peers-broader or make focus-peers TICKER=... first. Add verified mappings only when they are missing, and otherwise follow the peer-data import draft blocker.",
                 "make runbook-peers-broader",
                 "neutral",
             )
@@ -13593,6 +14487,14 @@ def filter_summary_text(
     filtered_count: int,
     total_count: int,
 ) -> str:
+    key_labels = {
+        "value-re-rating": "Value / Re-rating",
+        "monthly-research-picks": "Monthly Picks",
+        "final-watchlist": "Final Watchlist",
+        "momentum-leaders": "Momentum Leaders",
+        "market-direction": "Market Direction",
+        "portfolio-review": "Portfolio Review",
+    }
     labels: list[str] = []
     if search_value.strip():
         labels.append(f"search `{search_value.strip()}`")
@@ -13611,7 +14513,8 @@ def filter_summary_text(
 
     scope = f"{filtered_count} of {total_count} rows visible" if total_count else "No rows available"
     if not labels:
-        return f"{display_column_label(key.replace('-', ' ')) if '-' in key else key.title()}: {scope}. Use search or filters to narrow the table."
+        label = key_labels.get(key, display_column_label(key.replace("-", " ")) if "-" in key else key.title())
+        return f"{label}: {scope}. Use search or filters to narrow the table."
     return f"{scope}. Active filters: " + " | ".join(labels) + "."
 
 
@@ -13795,6 +14698,16 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
             width="stretch",
             hide_index=True,
         )
+    with st.expander("DCF method contract", expanded=False):
+        st.write(
+            "This is the compact input-to-output contract behind the DCF view. It keeps the formula path visible "
+            "and shows why missing fields block valuation instead of being filled."
+        )
+        st.dataframe(
+            clean_display_frame(valuation_method_contract_frame()),
+            width="stretch",
+            hide_index=True,
+        )
     render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
     render_signal_cards(valuation_decision_guide_cards(ready_companies, not_ready_companies, excluded))
     with st.expander("Detailed valuation decision guide", expanded=False):
@@ -13808,7 +14721,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
             {
                 "kicker": "DCF READINESS",
                 "title": f"{len(ready_companies)} ready / {len(not_ready_companies)} blocked / {len(excluded)} excluded",
-                "body": "Operating-company valuation conclusions are shown only for DCF-ready companies. ETFs/index proxies are excluded from DCF.",
+                "body": "Operating-company valuation context is shown only for DCF-ready companies. ETFs/index proxies are excluded from DCF.",
                 "badges": ["ready", "blocked", "excluded"],
                 "command": "make dcf-readiness",
             }
@@ -13825,7 +14738,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     if ready_companies.empty:
         render_notice_card(
             "DCF conclusions are blocked",
-            "No operating-company ticker currently has all required DCF inputs. The table below lists the exact missing fields instead of showing ranked valuation conclusions.",
+            "No operating-company ticker currently has all required DCF inputs. The table below lists the exact missing fields instead of showing ranked valuation context.",
             "make dcf-readiness",
             tone="warning",
         )
@@ -13841,7 +14754,8 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         with st.expander("ETF / index proxy exclusions", expanded=True):
             columns = _readiness_columns(excluded, ["ticker", "asset_type", "reason_not_ready"])
             st.dataframe(clean_display_frame(excluded[columns]), width="stretch", hide_index=True)
-    with st.expander("Advanced valuation output table", expanded=False):
+    with st.expander("Full valuation output table", expanded=False):
+        st.caption(valuation_legacy_output_note())
         diagnostic_columns = _readiness_columns(frame, ["Ticker", "ValuationStatus", "FinalValueCategory", "MissingDataFields", "Reason"])
         st.dataframe(clean_display_frame(frame[diagnostic_columns]), width="stretch", hide_index=True)
 
@@ -13850,6 +14764,9 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
     decisions, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
     if decisions is not None and not decisions.empty:
         render_section_header("Decision Quality", "How to interpret Research Now, Monitor, and Blocked by Data before reading the table.")
+        render_signal_cards(decision_interpretation_ladder_cards())
+        with st.expander("Decision interpretation ladder", expanded=False):
+            st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
         render_signal_cards(final_decision_quality_cards(decisions))
         render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock lanes.")
         render_signal_cards(decision_workflow_summary_cards(decisions))
@@ -13879,7 +14796,7 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
             "make research-decisions",
             tone="warning",
         )
-    with st.expander("Legacy final watchlist output", expanded=False):
+    with st.expander("Full research-state table", expanded=False):
         render_table(frame, "final-watchlist", show_reason_details)
 
 
@@ -14055,7 +14972,7 @@ def render_overview(
             unlock_priority_summary_frame,
         )
     )
-    render_section_header("Price Targets", "The next exact local history targets for Monthly Picks, track record, or fuller 1Y research coverage.")
+    render_section_header("Price History Targets", "The next exact local history rows needed for Monthly Picks, track record, or fuller 1Y research coverage.")
     render_signal_cards(overview_price_target_cards(price_worklist_frame))
     render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
     render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
@@ -14067,9 +14984,9 @@ def render_overview(
             peer_mapping_queue_frame,
         )
     )
-    render_section_header("Best Current Names", "Which currently usable names best warrant a deeper single-name review or a quick candidate check next.")
+    render_section_header("Current Review Queue", "Which currently usable names are easiest to review next with the local data already available.")
     render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
-    render_section_header("Current Top Surfaces", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next tab.")
+    render_section_header("Current Best Paths", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next page.")
     render_signal_cards(
         overview_current_top_surfaces_cards(
             coverage_frame,
@@ -14080,7 +14997,7 @@ def render_overview(
             action_queue_frame,
         )
     )
-    render_section_header("Today's Best Local Research Path", "One compact operator path: the strongest locally usable name, the next repo-native command, and the next tab to open after that.")
+    render_section_header("Today's Best Local Research Path", "One compact operator path: the strongest locally usable name, the next project command, and the next page to open after that.")
     render_signal_cards(
         overview_best_local_research_path_cards(
             coverage_frame,
@@ -14093,7 +15010,7 @@ def render_overview(
     with st.expander("More readiness and routing detail", expanded=False):
         render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need unlock work first.")
         render_signal_cards(overview_ready_blocked_cards(coverage_frame, ticker_unlock_ladder_frame, holdings))
-        render_section_header("Ready Name Handoff", "For the strongest currently usable name, show the next exact local command when context is still partial and the best follow-up tab.")
+        render_section_header("Ready Name Handoff", "For the strongest currently usable name, show the next exact local command when context is still partial and the best follow-up page.")
         render_signal_cards(
             overview_ready_name_handoff_cards(
                 coverage_frame,
@@ -14116,7 +15033,7 @@ def render_overview(
                 peer_mapping_queue_frame,
             )
         )
-        render_section_header("Deep Research Handoff", "For the top deep-research name, show the exact local command to run next and the best tab to use for queue confirmation.")
+        render_section_header("Deep Research Handoff", "For the top deep-research name, show the exact local command to run next and the best page to use for queue confirmation.")
         render_signal_cards(
             overview_deep_research_handoff_cards(
                 holdings,
@@ -14126,9 +15043,9 @@ def render_overview(
                 action_queue_frame,
             )
         )
-        render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging or manual peer research once price blockers are understood.")
+        render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals import draft workflow or manual peer research once price blockers are understood.")
         render_signal_cards(holdings_deep_research_cards(holdings, sec_stage_queue_frame, peer_mapping_queue_frame))
-        render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals staging or manual peer research once price-led blockers are already understood.")
+        render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals import draft workflow or manual peer research once price-led blockers are already understood.")
         render_signal_cards(theme_deep_research_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
 
     with st.expander("More market and workflow context", expanded=False):
@@ -14136,7 +15053,7 @@ def render_overview(
         render_signal_cards(overview_market_context_cards(market_direction_frame))
         render_section_header("Benchmark Pressure", "Whether weak coverage is mostly a local price-history issue or a broader benchmark-relative context issue.")
         render_signal_cards(overview_benchmark_pressure_cards(market_direction_frame, price_status_frame, project_status_payload))
-        render_section_header("Best Next Commands", "A few repo-native commands that best match the current local blockers and verification state.")
+        render_section_header("Best Next Commands", "A few project commands that best match the current local blockers and verification state.")
         render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
         render_section_header("Best Data Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, or peer-mapping pass.")
         render_signal_cards(overview_command_bundle_cards(command_bundles_frame))
@@ -14299,7 +15216,7 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
         {
             "kicker": "DECISIONS",
             "title": f"{research_now:,} research now / {monitor:,} monitor",
-            "body": f"{blocked:,} names are blocked by missing data. That is a data-quality signal, not a product failure.",
+            "body": f"{blocked:,} names are blocked by missing data. That is a data-quality state, not a product failure.",
             "badges": ["readiness gated"],
         },
     ]
@@ -14386,31 +15303,78 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "PROVENANCE",
-            "title": "Logic lives in this repo",
-            "body": "Readiness gates, indicators, DCF assumptions, peer checks, decisions, and report wording are implemented under src/.",
-            "badges": ["repo-native"],
+            "title": "Logic lives in the project",
+            "body": "Readiness gates, indicators, DCF assumptions, peer checks, decisions, and report wording are implemented in the project code.",
+            "badges": ["project rules"],
         },
         {
-            "kicker": "SKILL BOUNDARY",
-            "title": "Development helpers stay separate",
-            "body": "Assistant plugins or skills can help development review, but the analysis shown to users comes from repo code and local data.",
+            "kicker": "PRODUCT BOUNDARY",
+            "title": "Analysis comes from local code",
+            "body": "Project code powers the analysis. Standard packages help build and run the app, but research output comes from project rules and local data.",
             "badges": ["transparent"],
         },
     ]
+
+
+def _plain_home_demo_example_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Example": "NVDA",
+                "Comparison Role": "Richer company example",
+                "What It Shows": "Company report with trusted local DCF inputs and visible method cues.",
+                "Review Mode": "Standalone DCF review",
+                "What To Check": "DCF assumptions, sensitivity, blocked peer valuation, and source/freshness notes.",
+                "Copy Command": "make stock-report-md TICKER=NVDA",
+            },
+            {
+                "Example": "A",
+                "Comparison Role": "Standalone DCF but peer-locked",
+                "What It Shows": "Company report where standalone DCF can be reviewed while peer-relative valuation stays locked.",
+                "Review Mode": "Standalone DCF review",
+                "What To Check": "DCF assumptions versus the exact peer data-unlock step.",
+                "Copy Command": "make stock-report-md TICKER=A",
+            },
+            {
+                "Example": "META",
+                "Comparison Role": "Price/setup gated company",
+                "What It Shows": "Company report where price/setup context is useful but valuation remains gated.",
+                "Review Mode": "Price/setup review only",
+                "What To Check": "Supported company analysis, peer blocker, and next data-unlock command.",
+                "Copy Command": "make stock-report-md TICKER=META",
+            },
+            {
+                "Example": "QQQ / SMH",
+                "Comparison Role": "ETF/index monitor example",
+                "What It Shows": "ETF/index or sector monitor context.",
+                "Review Mode": "Monitor-only context",
+                "What To Check": "Operating-company DCF is excluded, not failed; review market/risk context only.",
+                "Copy Command": "make stock-report-md TICKER=QQQ",
+            },
+            {
+                "Example": "APLD",
+                "Comparison Role": "Blocked-data example",
+                "What It Shows": "Blocked-data report where missing price history prevents deeper analysis.",
+                "Review Mode": "Data-unlock only",
+                "What To Check": "No valuation conclusion appears; the next action starts with trusted local price rows.",
+                "Copy Command": "make stock-report-md TICKER=APLD",
+            },
+        ]
+    )
 
 
 def _plain_home_provenance_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "REPO LOGIC",
-            "title": "Rules are implemented under src/",
+            "title": "Rules are implemented in project code",
             "body": "Readiness, momentum, DCF, peer checks, decision buckets, and report wording are code in this repository.",
-            "badges": ["repo-native"],
+            "badges": ["project rules"],
         },
         {
             "kicker": "LIBRARIES",
-            "title": "Open-source packages support the app",
-            "body": "pandas, numpy, Streamlit, PyYAML, pytest, and similar packages provide data handling, UI, and tests. The analysis rules stay in this repository.",
+            "title": "Standard Python packages support the app",
+            "body": "pandas, numpy, Streamlit, PyYAML, pytest, and similar packages provide data handling, UI, and tests. Stock-analysis rules stay in this repository.",
             "badges": ["normal dependencies"],
         },
         {
@@ -14420,12 +15384,120 @@ def _plain_home_provenance_cards() -> list[dict[str, object]]:
             "badges": ["off by default"],
         },
         {
-            "kicker": "DEV HELPERS",
-            "title": "Not product logic",
-            "body": "Development plugins or assistant skills can help review the project, but shipped analysis comes from repo code and local data.",
-            "badges": ["not product logic"],
+            "kicker": "SUPPORT LAYER",
+            "title": "Not analysis rules",
+            "body": "Support tools and libraries are separate from the stock-analysis rules. Analysis and decisions come from project code and local data.",
+            "badges": ["support only"],
         },
     ]
+
+
+def methodology_ladder_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Readiness gate",
+                "What The Product Does": "Checks whether local or provider-assisted rows for prices, fundamentals, DCF inputs, peers, earnings, and estimates are complete enough.",
+                "What Users See": "Ready, partial, blocked, or excluded labels before analysis appears; input rows do not decide the conclusion by themselves.",
+                "Main Code": "src/readiness_engine.py",
+            },
+            {
+                "Step": "2. Supported calculations",
+                "What The Product Does": "Runs only project calculations the ready data can support: price/momentum, DCF scenarios, peer checks, or optional context.",
+                "What Users See": "Visible assumptions, sensitivity, and source/freshness notes when inputs are ready.",
+                "Main Code": "src/indicators.py, src/momentum_engine.py, src/value_engine.py, src/valuation.py",
+            },
+            {
+                "Step": "3. Blocked or excluded analysis",
+                "What The Product Does": "Withholds missing analysis instead of guessing fields or applying the wrong method to ETFs/index proxies.",
+                "What Users See": "Missing fields, excluded DCF labels, peer blockers, and trusted local input paths.",
+                "Main Code": "src/readiness_engine.py, src/stock_report.py",
+            },
+            {
+                "Step": "4. Decision wording",
+                "What The Product Does": "Assigns readiness-aware research workflow buckets after blockers, confidence limits, and exclusions are known.",
+                "What Users See": "Research Now, Monitor, or Blocked by Data with primary blocker and next_best_action.",
+                "Main Code": "src/research_decisions.py",
+            },
+            {
+                "Step": "5. Report explanation",
+                "What The Product Does": "Assembles the supported analysis, withheld sections, methodology notes, and next research step for one ticker without importing third-party analyst opinions.",
+                "What Users See": "A single-stock report that explains what ran, what did not run, and why.",
+                "Main Code": "src/stock_report.py, src/dashboard.py",
+            },
+        ]
+    )
+
+
+def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> pd.DataFrame:
+    summary = summary or {}
+    master = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
+    fundamentals_ready = int(summary.get("fundamentals_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+
+    def _count_text(count: int, label: str) -> str:
+        return f"{count:,}/{master:,} {label}" if master else f"{count:,} {label}"
+
+    return pd.DataFrame(
+        [
+            {
+                "Roadmap Area": "Product workflow",
+                "Current Status": "Implemented",
+                "Evidence": "Universe Layers, grouped Next Action Console, source/freshness notes, row limits, and copy-only commands are visible in the dashboard.",
+                "Next Safe Step": "Use Home or Overview to choose a capped or ticker-targeted command.",
+                "Copy Command": "make dashboard-smoke",
+            },
+            {
+                "Roadmap Area": "Fundamentals / DCF data unlock",
+                "Current Status": "Waiting on trusted data",
+                "Evidence": f"{_count_text(fundamentals_ready, 'fundamentals-ready')} and {_count_text(dcf_ready, 'DCF-ready')}; counts should improve only after SEC import draft workflow or trusted manual CSV imports.",
+                "Next Safe Step": "Inspect the top fundamentals blocker, then stage SEC or trusted manual fundamentals rows.",
+                "Copy Command": "make sec-stage-queue TOP_N=25",
+            },
+            {
+                "Roadmap Area": "Peer readiness",
+                "Current Status": "Workflow improved, data still sparse",
+                "Evidence": f"{_count_text(peer_ready, 'peer-ready')}; missing peer mappings and peer inputs stay explicit instead of inferred.",
+                "Next Safe Step": "Open the Peer Mapping Studio and add only source-backed peer rows.",
+                "Copy Command": "make peer-mapping-queue TOP_N=25",
+            },
+            {
+                "Roadmap Area": "Decision clarity",
+                "Current Status": "Readiness-gated",
+                "Evidence": "Research Now, Monitor, and Blocked by Data remain tied to required inputs, exclusions, primary blockers, and next actions.",
+                "Next Safe Step": "Regenerate decisions after trusted data changes, then review the decision table.",
+                "Copy Command": "make research-decisions",
+            },
+            {
+                "Roadmap Area": "Verification",
+                "Current Status": "Run on demand",
+                "Evidence": "Pipeline/onboarding/test commands prove the current local outputs still build and the dashboard still starts.",
+                "Next Safe Step": "Run scoped verification after product or trusted-data changes.",
+                "Copy Command": "make verify",
+            },
+        ]
+    )
+
+
+def roadmap_milestone_status_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
+    frame = roadmap_milestone_status_frame(summary)
+    cards: list[dict[str, object]] = []
+    for _, row in frame.iterrows():
+        status = format_missing(row.get("Current Status"), "Status")
+        area = format_missing(row.get("Roadmap Area"), "Roadmap")
+        evidence = format_missing(row.get("Evidence"), "")
+        next_step = format_missing(row.get("Next Safe Step"), "")
+        cards.append(
+            {
+                "kicker": status.upper(),
+                "title": area,
+                "body": f"{evidence} Next: {next_step}",
+                "badges": ["roadmap status", "data-honest"],
+                "command": format_missing(row.get("Copy Command"), ""),
+            }
+        )
+    return cards
 
 
 def _plain_home_function_quality_frame(summary: dict[str, object] | None = None) -> pd.DataFrame:
@@ -14454,7 +15526,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": "Strong when the local readiness reports are current; this is the first layer every page should respect.",
                 "Supported Today": "Strongest layer; decides whether deeper analysis is allowed.",
                 "Needs Trusted Data": "Ticker universe, prices, fundamentals, peers, earnings, and estimate readiness rows.",
-                "Logic Source": "Repo-native rules in src/readiness_engine.py.",
+                "Logic Source": "Project rules in src/readiness_engine.py.",
             },
             {
                 "Function Area": "Price / momentum",
@@ -14463,7 +15535,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": price_status,
                 "Supported Today": "Local setup, trend, liquidity, and market-context review when price history exists.",
                 "Needs Trusted Data": "Verified local OHLCV rows with enough history.",
-                "Logic Source": "Repo-native calculations in src/report_generator.py and dashboard helpers.",
+                "Logic Source": "Project calculations in src/indicators.py and src/momentum_engine.py.",
             },
             {
                 "Function Area": "Fundamentals / DCF",
@@ -14472,7 +15544,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": dcf_status,
                 "Supported Today": "DCF-ready company analysis with visible assumptions and sensitivity.",
                 "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source freshness.",
-                "Logic Source": "Repo-native assumptions in src/value_engine.py and src/valuation.py.",
+                "Logic Source": "Project assumptions in src/value_engine.py and src/valuation.py.",
             },
             {
                 "Function Area": "Peer comparison",
@@ -14481,7 +15553,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": peer_status,
                 "Supported Today": "Workflow-ready peer context after source-backed peer rows and peer metrics exist.",
                 "Needs Trusted Data": "Manual peer mappings plus peer fundamentals or peer market context.",
-                "Logic Source": "Repo-native peer readiness and valuation checks; no guessed peer mappings.",
+                "Logic Source": "Project peer readiness and valuation checks; no guessed peer mappings.",
             },
             {
                 "Function Area": "Earnings / estimates",
@@ -14490,7 +15562,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": f"{earnings_status} {estimates_status}",
                 "Supported Today": "Optional context only after trusted local rows exist; empty coverage means intentionally unavailable.",
                 "Needs Trusted Data": "Trusted local earnings and analyst-estimate CSV rows with validation/preview/apply review.",
-                "Logic Source": "Repo-native optional-context readiness and import workflow helpers.",
+                "Logic Source": "Project optional-context readiness and import workflow.",
             },
             {
                 "Function Area": "Single-stock report",
@@ -14499,13 +15571,13 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": "Clear for one ticker's ready, blocked, excluded, and monitor-only analysis.",
                 "Supported Today": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
                 "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source/freshness outputs.",
-                "Logic Source": "Repo-native report assembly in src/stock_report.py and src/dashboard.py.",
+                "Logic Source": "Project report assembly in src/stock_report.py and src/dashboard.py.",
             },
             {
                 "Function Area": "Dependencies",
                 "Quality Verdict": "Support layer, not analysis logic",
-                "Best Use Today": "Use packages and optional adapters to handle data and UI while repo code keeps the rules.",
-                "Current Status": "Support layer only; analysis rules remain repo-native.",
+                "Best Use Today": "Use packages and optional adapters to handle data and UI while project code keeps the rules.",
+                "Current Status": "Support layer only; analysis rules remain in project code.",
                 "Supported Today": "Data handling, UI, tests, and optional research-grade provider access.",
                 "Needs Trusted Data": "Local CSV inputs remain the source of truth by default.",
                 "Logic Source": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance support the app; analysis rules remain under src/.",
@@ -14546,12 +15618,28 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     )
     render_context_note(
         "Copy-only dashboard.",
-        "Cards and helper buttons display commands for you to copy into a terminal; the dashboard itself does not run refreshes, imports, or external account actions.",
+        "Cards display commands for you to copy into a terminal; the dashboard itself does not run refreshes, imports, or external account actions.",
     )
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary))
+
+    render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
+    st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
+    render_context_note(
+        "Example boundary.",
+        "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
+    )
+
+    render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
+    st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
+    st.caption("Full methodology: docs/METHODOLOGY.md")
+
+    render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
+    render_signal_cards(roadmap_milestone_status_cards(summary))
+    with st.expander("Roadmap status table", expanded=False):
+        st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
 
     render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and where the logic comes from.")
     render_signal_cards(_plain_home_capability_cards())
@@ -14560,7 +15648,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     with st.expander("Detailed analysis capability audit", expanded=False):
         st.write(
             "The public audit explains which functions are strong today, which data gaps still limit the product, "
-            "and why the analysis shown to users comes from repo code and local CSV inputs."
+            "and why the analysis shown to users comes from project code and local CSV inputs."
         )
         st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
         st.code("docs/analysis_capability_audit.md", language="text")
@@ -14597,7 +15685,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             tone="warning",
         )
 
-    with st.expander("Advanced commands", expanded=False):
+    with st.expander("Copyable commands", expanded=False):
         st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
         st.code(
             "\n".join(
@@ -14694,7 +15782,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         priority_signals = top_priority_signals(action_queue_frame, limit=2)
         if priority_signals:
             render_signal_cards(priority_signals)
-        render_section_header("Research Candidates", "Ranked research candidates, not allocation instructions.")
+        render_section_header("Research Candidates", "Ordered research candidates, not allocation instructions.")
         ordered_picks = picks_frame.sort_values(["Rank", "CompositeScore"], ascending=[True, False])
         st.markdown(
             "<div class='pick-grid'>"
@@ -14767,7 +15855,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             )
 
     with st.expander("Methodology", expanded=False):
-        st.write("Monthly rankings use local research outputs, local price history, optional local fundamentals, and transparent score components.")
+        st.write("Monthly review ordering uses local research outputs, local price history, optional local fundamentals, and transparent score components.")
         st.write("Missing inputs reduce confidence and remain visible in the output.")
         st.write("Track-record files are calculated only from local historical price data; insufficient history is shown explicitly.")
 
@@ -14806,8 +15894,8 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
 def render_single_stock_report(provider, show_source_details: bool) -> None:
     render_section_header(
         "Single-Stock Report",
-        "Structured research report workflow. Local CSV-backed data is the default. "
-        "Optional yfinance mode stays off by default and is labeled unofficial / research-grade.",
+        "One-ticker research workflow. Saved local data is the default. "
+        "Optional online research mode stays off by default and is labeled unofficial / research-grade.",
     )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
@@ -14821,7 +15909,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     use_yfinance = selection_cols[2].checkbox(
         "Use research-grade online data",
         value=False,
-        help="Optional yfinance mode. Leave this off for the CSV-first local-data path.",
+        help="Optional online provider mode. Leave this off for the saved local-data path.",
     )
     ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
     provider_name = "yfinance" if use_yfinance else "local"
@@ -14874,8 +15962,10 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     readiness = report_payload.get("valuation_readiness", {})
     render_section_header(
         f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
-        "A structured view of local research inputs. This is context only, not execution guidance.",
+        "A readable view of local research inputs. This is context only, not execution guidance.",
     )
+    render_section_header("At A Glance", "The same first-read status used by the Markdown report: mode, valuation state, withheld context, and next local command.")
+    render_signal_cards(stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     render_signal_cards(stock_report_summary_cards(report_payload))
     render_signal_cards(stock_report_analysis_quality_cards(report_payload))
     render_signal_cards(stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
@@ -14886,6 +15976,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         unsafe_allow_html=True,
     )
     st.markdown("#### Evaluation Summary")
+    render_context_note(
+        "Analysis mode guide.",
+        "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like unsupported conclusions.",
+    )
+    render_signal_cards(stock_report_mode_guide_cards(report_payload))
     render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
     st.dataframe(
         clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
@@ -14984,9 +16079,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         base_dcf = valuation["dcf_result"]
         render_context_note("Valuation view.", "DCF, peer-relative context, and sensitivity stay informational only. Missing assumptions remain visible instead of being guessed.")
         valuation_columns = st.columns(4)
-        valuation_columns[0].metric("Valuation Status", format_missing(valuation.get("status")))
+        valuation_columns[0].metric("Valuation Status", public_status_label(valuation.get("status")))
         valuation_columns[1].metric("Coverage", format_missing(valuation.get("coverage")))
-        valuation_columns[2].metric("DCF Status", format_missing(base_dcf.get("status")))
+        valuation_columns[2].metric("DCF Status", public_status_label(base_dcf.get("status")))
         valuation_columns[3].metric(
             "Base Fair Value / Share",
             report_display_value(base_dcf.get("fair_value_per_share"), "currency"),
@@ -15001,7 +16096,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             scenario_rows.append(
                 {
                     "Scenario": scenario["name"],
-                    "Status": result["status"],
+                    "Status": public_status_label(result.get("status")),
                     "Revenue Growth": report_display_value(assumptions.get("revenue_growth"), "percent"),
                     "FCF Margin": report_display_value(assumptions.get("fcf_margin"), "percent"),
                     "WACC": report_display_value(assumptions.get("wacc"), "percent"),
@@ -15015,7 +16110,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
 
         st.markdown("#### Peer-Relative Valuation")
         peer_columns = st.columns(4)
-        peer_columns[0].metric("Peer Status", format_missing(relative.get("status")))
+        peer_columns[0].metric("Peer Status", public_status_label(relative.get("status")))
         peer_columns[1].metric("Peer Group", format_missing(relative.get("peer_group"), "Not configured"))
         peer_columns[2].metric("Peer Count", report_display_value(relative.get("peer_count"), "integer"))
         peer_columns[3].metric(
@@ -15154,11 +16249,15 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
         if show_source_details:
-            with st.expander("Advanced source audit (JSON)", expanded=False):
-                st.json(report_payload, expanded=False)
+            with st.expander("Source and freshness details", expanded=False):
+                st.dataframe(
+                    clean_display_frame(stock_report_source_detail_summary_frame(report_payload)),
+                    width="stretch",
+                    hide_index=True,
+                )
 
     st.download_button(
-        "Download Report Data (JSON)",
+        "Download Report Data",
         data=st.session_state.get("single_stock_report_download", "{}"),
         file_name=f"{st.session_state.get('single_stock_report_ticker', 'stock').lower()}_stock_report.json",
         mime="application/json",
@@ -15191,6 +16290,29 @@ def render_market_command_center(
     peer_readiness_payload_cards = peer_readiness_product_cards(peer_readiness_frame, peer_mapping_queue_frame, peer_unlock_worklist_frame)
     fundamentals_dcf_payload_cards = fundamentals_dcf_diagnostic_cards(ticker_readiness_frame, dcf_readiness_frame)
     render_signal_cards(readiness_panel_cards(summary))
+    render_section_header(
+        "Universe Layers",
+        "What is tracked, what is actively reviewed, and what can support analysis today.",
+    )
+    render_signal_cards(universe_layer_cards(summary, decisions_frame))
+    st.caption(
+        "The master universe is not the same as the analysis-ready subset. Broad tables stay filtered and row-limited; commands shown here are copy-only."
+    )
+    st.dataframe(clean_display_frame(universe_layer_frame(summary, decisions_frame)), width="stretch", hide_index=True)
+    with st.expander("Methodology ladder: how analysis becomes report wording", expanded=False):
+        st.write(
+            "Local or provider-assisted inputs supply rows. This product checks readiness first, runs only supported "
+            "project calculations, withholds blocked analysis, then writes research workflow context from those states."
+        )
+        st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
+        st.caption("Full methodology: docs/METHODOLOGY.md")
+    render_section_header(
+        "Roadmap Milestone Status",
+        "Completed product workflow items versus trusted-data unlocks that must remain honest until real rows exist.",
+    )
+    render_signal_cards(roadmap_milestone_status_cards(summary))
+    with st.expander("Roadmap milestone table", expanded=False):
+        st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
     prior_ticker_readiness_frame, prior_ticker_readiness_message = load_prior_ticker_readiness_report()
     render_section_header(
         "What Changed Recently",
@@ -15234,6 +16356,7 @@ def render_market_command_center(
     render_section_header("Feature Readiness", "Which product modules are usable today, partially usable, blocked, or excluded.")
     render_signal_cards(feature_readiness_payload_cards)
     render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without unsupported conclusions.")
+    render_signal_cards(decision_interpretation_ladder_cards())
     render_signal_cards(decision_workflow_payload_cards)
     render_section_header("Active Universe Research Briefs", "Purpose, setup, valuation, risk, invalidation, and next research questions for active tickers using current trusted outputs.")
     active_briefs = active_research_brief_frame(ticker_readiness_frame, decisions_frame, purpose_classification_frame)
@@ -15421,7 +16544,7 @@ def render_market_command_center(
     )
     render_signal_cards(product_page_logic_audit_cards(product_logic_audit))
     st.caption(
-        "Audit rows are generated from current local CSV outputs and dashboard queue helpers; they do not execute imports, refreshes, or account actions."
+        "Audit rows are generated from current local CSV outputs and dashboard queues; they do not execute imports, refreshes, or account actions."
     )
     st.dataframe(clean_display_frame(product_logic_audit), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
@@ -15429,6 +16552,17 @@ def render_market_command_center(
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
     render_signal_cards(peer_mapping_studio_summary_cards(peer_readiness_frame, ticker_readiness_frame))
     render_signal_cards(peer_unlock_operator_cards(peer_unlock_worklist_frame, ticker_readiness_frame))
+    render_section_header(
+        "First Trusted Peer Mapping Unlock",
+        "The shortest safe path from missing peers to a source-backed peer readiness change.",
+    )
+    render_signal_cards(first_peer_mapping_unlock_cards(peer_unlock_worklist_frame))
+    with st.expander("First peer mapping unlock steps", expanded=False):
+        st.dataframe(
+            clean_display_frame(first_peer_mapping_unlock_frame(peer_unlock_worklist_frame)),
+            width="stretch",
+            hide_index=True,
+        )
     with st.expander("What peer analysis can support today", expanded=False):
         st.write(
             "This audit separates source-backed mappings, peer trend comparison, peer valuation comparison, "
@@ -15476,7 +16610,7 @@ def render_market_command_center(
         st.info("No peer workflow rows match the current filter. Try All peer-blocked or run make readiness.")
     else:
         st.caption(
-            f"Showing {len(peer_studio)} peer workflow row(s). Use make peer-mapping-queue TOP_N=25 or focus commands before editing staged peer CSVs."
+            f"Showing {len(peer_studio)} peer workflow row(s). Use make peer-mapping-queue TOP_N=25 or focus commands before editing peer import draft CSVs."
         )
         peer_columns = peer_mapping_studio_table_columns(peer_studio)
         st.dataframe(clean_display_frame(peer_studio[peer_columns]), width="stretch", hide_index=True)
@@ -15505,7 +16639,7 @@ def render_market_command_center(
     if action_console.empty:
         st.info("No grouped action console rows are available. Run make project-status and make onboarding TOP_N=10 to refresh action guidance.")
     else:
-        st.caption("Commands are capped, ticker-targeted, or preview/import oriented. Copy them into a terminal only after reviewing the source and safety notes.")
+        st.caption("Commands are capped, ticker-targeted, or preview/import oriented. Copy them only after reviewing the source and safety notes.")
         st.dataframe(clean_display_frame(action_console), width="stretch", hide_index=True)
     render_section_header(
         "Import Validation / Rejected Rows",
@@ -15515,7 +16649,7 @@ def render_market_command_center(
     st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
     render_section_header("Top Blocker Queues", "Small, safe worklist entry points for turning known tickers into analysis-ready tickers.")
     render_signal_cards(blocker_summary_cards)
-    render_section_header("Next Best Actions", "Practical command cards for the next local data unlock. These are copyable CLI commands only; the dashboard does not execute them.")
+    render_section_header("Next Best Actions", "Practical command cards for the next local data unlock. These are copyable commands only; the dashboard does not execute them.")
     render_signal_cards(next_best_action_cards)
 
     if ticker_readiness_frame is None or ticker_readiness_frame.empty:
@@ -15626,12 +16760,12 @@ def render_market_command_center(
     )
     metric_cols = st.columns(5)
     metric_cols[0].metric("Ticker", format_missing(snapshot.get("ticker")))
-    metric_cols[1].metric("State", format_missing(snapshot.get("status")))
+    metric_cols[1].metric("State", public_status_label(snapshot.get("status")))
     metric_cols[2].metric("Decision", format_missing(snapshot.get("decision_bucket")))
-    metric_cols[3].metric("DCF", format_missing(snapshot.get("dcf_status")))
+    metric_cols[3].metric("DCF", public_status_label(snapshot.get("dcf_status")))
     metric_cols[4].metric("Confidence", format_missing(snapshot.get("confidence")))
     render_signal_cards(single_stock_status_cards(snapshot))
-    render_section_header("Single-Stock Source/Freshness Audit", "Local source paths, staged import paths, credential state, and rejected-row reports for the selected ticker.")
+    render_section_header("Single-Stock Source/Freshness Audit", "Local source paths, import draft paths, credential state, and rejected-row reports for the selected ticker.")
     render_signal_cards(single_stock_source_audit_cards(snapshot))
     st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)
     detail_frame = single_stock_detail_frame(snapshot)
@@ -15647,7 +16781,11 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         st.warning("Local provider could not be initialized.")
         return
     if project_status_payload is None:
-        project_status_payload = build_project_status_payload(BASE_DIR, data_dir=DATA_DIR, output_dir=OUTPUTS_DIR, top_n=5)
+        render_notice_card(
+            "Project status snapshot is not preloaded",
+            "Data Health is using saved local results first so the page stays responsive. Copy `make project-status` when you want to refresh the next-step summary.",
+            "make project-status",
+        )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
     action_queue_frame, action_queue_message = load_action_queue()
     health_tables = load_research_health_tables()
@@ -15760,7 +16898,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             wizard_notice_body,
             wizard_notice_command,
         )
-    render_section_header("Priority Fixes", "Highest-priority local data actions. Apply/merge steps remain CLI-only and reviewable.")
+    render_section_header("Priority Fixes", "Highest-priority local data actions. Apply/merge steps remain copy-only and reviewable.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers lanes.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
@@ -15876,7 +17014,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             tone="warning",
         )
 
-    health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Staged Imports"])
+    health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])
 
     with health_tabs[0]:
         render_signal_cards(
@@ -15971,6 +17109,27 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 + ("yes" if sec_configured else "no")
                 + " | Manual fundamentals import: data/staged/fundamentals/ -> make import-fundamentals -> make imports-validate/preview/apply"
             )
+            next_fundamentals_ticker = None
+            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+                fp_worklist = fundamentals_peer_worklist_frame.copy()
+                if "ticker" in fp_worklist.columns:
+                    if "has_fundamentals" in fp_worklist.columns:
+                        missing_fundamentals = fp_worklist.loc[~bool_series(fp_worklist, "has_fundamentals")].copy()
+                    else:
+                        missing_fundamentals = fp_worklist
+                    if not missing_fundamentals.empty:
+                        next_fundamentals_ticker = format_missing(missing_fundamentals.iloc[0].get("ticker"), "")
+            render_section_header(
+                "First Trusted Fundamentals Unlock",
+                "The shortest safe path from missing company fundamentals to a readiness count that can honestly improve.",
+            )
+            render_signal_cards(first_fundamentals_unlock_cards(sec_configured, next_fundamentals_ticker))
+            with st.expander("First fundamentals unlock steps", expanded=False):
+                st.dataframe(
+                    clean_display_frame(first_fundamentals_unlock_frame(sec_configured, next_fundamentals_ticker)),
+                    width="stretch",
+                    hide_index=True,
+                )
             if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
                 dcf_columns = [
                     column
@@ -16008,6 +17167,26 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "Earnings and analyst estimates stay not available until verified local rows are imported and applied.",
             )
             render_signal_cards(optional_context_unlock_cards())
+            render_section_header(
+                "First Trusted Optional Context Unlock",
+                "Optional context should stay locked unless trusted earnings or estimate rows are available locally.",
+            )
+            render_signal_cards(first_optional_context_unlock_cards("earnings"))
+            render_signal_cards(first_optional_context_unlock_cards("analyst_estimates"))
+            with st.expander("First optional context unlock steps", expanded=False):
+                st.dataframe(
+                    clean_display_frame(
+                        pd.concat(
+                            [
+                                first_optional_context_unlock_frame("earnings").assign(Dataset="Earnings"),
+                                first_optional_context_unlock_frame("analyst_estimates").assign(Dataset="Analyst estimates"),
+                            ],
+                            ignore_index=True,
+                        )
+                    ),
+                    width="stretch",
+                    hide_index=True,
+                )
             optional_cols = st.columns(2)
             with optional_cols[0]:
                 st.markdown("#### Earnings Readiness")
@@ -16558,7 +17737,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     with health_tabs[4]:
         render_signal_cards(
             data_health_tab_summary_cards(
-                "Staged Imports",
+                "Import Review",
                 validation_rows,
                 coverage_frame,
                 status_frame,
@@ -16568,14 +17747,14 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         )
         render_section_header(
             "Import Validation / Rejected Rows",
-            "Trusted local CSV cockpit for staged folders, canonical import files, validation commands, and rejected-row reports.",
+            "Trusted local data review for import folders, standard import files, validation commands, and rejected-row reports.",
         )
         import_health = import_health_frame()
         render_signal_cards(import_validation_rejected_row_cards(import_health))
         st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
         if staged_imports["status"] == "no_staged_files":
             render_notice_card(
-                "No staged imports to review",
+                "No import drafts to review",
                 staged_imports["warnings"][0],
                 "make templates",
             )
@@ -16594,33 +17773,34 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
             preview = preview_import_merge(base_dir=BASE_DIR)
             if preview.get("preview"):
-                render_context_note("Preview only.", "Apply remains CLI-only for safer staged import review.")
+                render_context_note("Preview only.", "Apply remains copy-only for safer import draft review.")
                 st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
-        st.markdown("#### Staged Universe Import")
+        st.markdown("#### Universe Import Review")
         st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
-        with st.expander("Advanced staged universe details (JSON)", expanded=False):
-            st.json(staged_universe, expanded=False)
+        with st.expander("Universe import review details", expanded=False):
+            st.dataframe(staged_universe_detail_frame(staged_universe), width="stretch", hide_index=True)
 
-        st.markdown("#### Runtime Artifact Hygiene")
-        st.write("- `data/cache/` is ignored for local cache payloads.")
-        st.write("- `data/backups/` is ignored for safe import/apply backups.")
-        st.write("- `data/imports/*.csv` is ignored so staged imports stay local until reviewed.")
-        st.write("- `outputs/*stock_report.json` is ignored so exported reports do not dirty the repo.")
-        st.write("- `outputs/project_status*.{json,csv}` stays local and ignored so status refreshes do not dirty the repo.")
+        with st.expander("Files that stay local", expanded=False):
+            st.write("These working files are intentionally ignored so local refreshes and previews do not clutter the public project.")
+            st.write("- `data/cache/` keeps temporary downloaded data local.")
+            st.write("- `data/backups/` keeps import backup files local.")
+            st.write("- `data/imports/*.csv` keeps import drafts local until reviewed.")
+            st.write("- `outputs/*stock_report.json` keeps exported report data local.")
+            st.write("- `outputs/project_status*.{json,csv}` keeps status refreshes local.")
 
 
 def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     render_section_header(
         "Universe Manager",
-        "Review current universe coverage and use CLI-only apply commands for safer changes.",
+        "Review current universe coverage and use copyable apply commands for safer changes.",
     )
     current = universe_summary["current_universe"]
     staged = universe_summary["staged_universe"]
 
     render_section_header("Universe Workflow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
     render_action_cards(universe_workflow_cards(universe_summary))
-    render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, staged import state, and safer apply flow.")
+    render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, import draft state, and safer apply flow.")
     render_signal_cards(universe_action_path_cards(universe_summary))
 
     render_signal_cards(universe_manager_summary_cards(current, staged))
@@ -16639,7 +17819,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     if membership_rows:
         st.dataframe(pd.DataFrame(membership_rows), width="stretch", hide_index=True)
     else:
-        st.info("No source membership flags are currently present in the canonical universe file.")
+        st.info("No source membership flags are currently present in the main universe file.")
 
     st.markdown("### Available Presets")
     render_signal_cards(universe_preset_cards())
@@ -16663,12 +17843,12 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
             tone="warning",
         )
 
-    st.markdown("### Staged Universe Import Status")
+    st.markdown("### Universe Import Review")
     st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
-    with st.expander("Advanced staged universe details (JSON)", expanded=False):
-        st.json(staged, expanded=False)
+    with st.expander("Universe import review details", expanded=False):
+        st.dataframe(staged_universe_detail_frame(staged), width="stretch", hide_index=True)
 
-    st.markdown("### CLI Workflow")
+    st.markdown("### Copyable Commands")
     st.code(
         "\n".join(
             [
@@ -16690,59 +17870,53 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Navigation")
+        initial_page = dashboard_page_from_query(st.query_params.get("page"))
         selected_page = st.radio(
             "Choose a page",
             USER_PAGE_TITLES,
-            index=0,
+            index=USER_PAGE_TITLES.index(initial_page) if initial_page in USER_PAGE_TITLES else 0,
             help="Start with Home, then open a deeper page when you know what you want to review.",
         )
-        show_reason_details = st.checkbox("Show detailed reasons", value=False)
+        show_reason_details = st.checkbox("Show more explanation", value=False)
         show_source_details = False
         if selected_page == "Single-Stock Report":
             show_source_details = st.checkbox(
                 "Show report source details",
                 value=False,
-                help="Adds an advanced source audit under Sources & Gaps for troubleshooting. Most users can leave this off.",
+                help="Adds source and freshness troubleshooting under Sources & Gaps. Most users can leave this off.",
             )
         st.divider()
-        render_context_note(
-            "Start here.",
-            "Home explains what is ready, what is blocked, and where to go next.",
-            tone="success",
-        )
-        with st.expander("Start guide", expanded=False):
-            render_action_cards(dashboard_navigation_cards())
-        with st.expander("Advanced command help", expanded=False):
-            render_context_note("Safe local commands.", "Preview capped refreshes first. The dashboard shows copyable commands only and never runs imports, refreshes, or account actions.")
+        note_title, note_body = sidebar_navigation_note(selected_page)
+        render_context_note(note_title, note_body, tone="success")
+        st.markdown("#### Where to go next")
+        render_action_cards(dashboard_navigation_cards())
+        with st.expander("Help for using the app", expanded=False):
+            render_context_note(
+                "Safe local commands.",
+                "Preview capped refreshes first. The dashboard shows copyable commands only and never runs imports, refreshes, or account actions.",
+            )
             st.code(
-                "make help\nmake status-check TOP_N=5\nmake price-refresh-loop DRY_RUN=1\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report TICKER=NVDA\nmake dashboard-smoke",
+                "make help\nmake status-check TOP_N=5\nmake price-refresh-loop DRY_RUN=1\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report-md TICKER=NVDA\nmake dashboard-smoke",
                 language="bash",
             )
-        with st.expander("How to read status labels", expanded=False):
+            st.markdown("#### Status labels")
             st.markdown(
                 sidebar_guide_cards_html(status_legend_rows(), "Label", "Meaning"),
                 unsafe_allow_html=True,
             )
-        with st.expander("Missing-data guide", expanded=False):
+            st.markdown("#### If analysis is blocked")
             st.markdown(
                 sidebar_guide_cards_html(missing_data_guide_rows(), "Dashboard Label", "What to do"),
                 unsafe_allow_html=True,
             )
-        with st.expander("Local file paths", expanded=False):
-            context = path_context(BASE_DIR, DATA_DIR, OUTPUTS_DIR)
+            st.markdown("#### Where local files live")
             st.code(
-                "\n".join(
-                    [
-                        f"Project root: {context['project_root']}",
-                        f"Data dir: {context['data_dir']}",
-                        f"Outputs dir: {context['outputs_dir']}",
-                    ]
-                ),
+                "\n".join(sidebar_local_file_context_lines(BASE_DIR, DATA_DIR, OUTPUTS_DIR)),
                 language="text",
             )
 
     project_status_payload = None
-    if selected_page in {"Overview", "Data Health"}:
+    if selected_page == "Overview":
         project_status_payload = build_project_status_payload(BASE_DIR, data_dir=DATA_DIR, output_dir=OUTPUTS_DIR, top_n=5)
 
     universe_summary = None

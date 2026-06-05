@@ -95,7 +95,7 @@ def purpose_family_label(asset_type: object, purpose_text: object = "", alignmen
     if "speculative" in combined or "optionality" in combined:
         return "Speculative"
     if "broken" in combined or "avoid" in combined:
-        return "Broken / Avoid"
+        return "Broken / No Setup"
     return "General"
 
 

@@ -23,6 +23,7 @@ from src.value_engine import run as run_value
 
 NO_DAILY_PRICE_SUFFIX = ": no daily price history was available."
 MISSING_OHLCV_PREFIX = "Missing OHLCV data for "
+OPTIONAL_PROXY_OHLCV_PREFIX = "Optional benchmark/proxy OHLCV context unavailable for "
 MAX_PRINTED_WARNINGS = 50
 
 
@@ -38,10 +39,17 @@ def printable_warnings(warnings: list[str], *, max_warnings: int = MAX_PRINTED_W
         for warning in warnings
         if warning.startswith(MISSING_OHLCV_PREFIX)
     )
+    optional_proxy_tickers = sorted(
+        warning.removeprefix(OPTIONAL_PROXY_OHLCV_PREFIX).split(";", 1)[0].strip()
+        for warning in warnings
+        if warning.startswith(OPTIONAL_PROXY_OHLCV_PREFIX)
+    )
     other_warnings = [
         warning
         for warning in warnings
-        if not warning.endswith(NO_DAILY_PRICE_SUFFIX) and not warning.startswith(MISSING_OHLCV_PREFIX)
+        if not warning.endswith(NO_DAILY_PRICE_SUFFIX)
+        and not warning.startswith(MISSING_OHLCV_PREFIX)
+        and not warning.startswith(OPTIONAL_PROXY_OHLCV_PREFIX)
     ]
 
     printable = other_warnings[:max_warnings]
@@ -50,14 +58,21 @@ def printable_warnings(warnings: list[str], *, max_warnings: int = MAX_PRINTED_W
         printable.append(
             f"{len(missing_ohlcv_tickers)} tickers are missing OHLCV coverage"
             + (f" (sample: {sample})" if sample else "")
-            + "; run make price-worklist TOP_N=25 or make price-refresh TOP_N=25."
+            + "; start with make price-worklist TOP_N=25 or make price-refresh-loop DRY_RUN=1 before any capped refresh."
         )
     if no_price_tickers:
         sample = ", ".join(no_price_tickers[:10])
         printable.append(
             f"{len(no_price_tickers)} tickers have no daily price history available"
             + (f" (sample: {sample})" if sample else "")
-            + "; run make price-worklist TOP_N=25 or make price-refresh TOP_N=25."
+            + "; start with make price-worklist TOP_N=25 or make price-refresh-loop DRY_RUN=1 before any capped refresh."
+        )
+    if optional_proxy_tickers:
+        sample = ", ".join(optional_proxy_tickers[:10])
+        printable.append(
+            f"{len(optional_proxy_tickers)} optional benchmark/proxy tickers are missing OHLCV context"
+            + (f" (sample: {sample})" if sample else "")
+            + "; theme/sector comparison is limited, but each stock's own readiness state is unchanged."
         )
 
     total_suppressed = max(len(warnings) - len(printable), 0)

@@ -244,8 +244,17 @@ ALIASED_DATASET_COLUMNS: dict[str, dict[str, str]] = {
 }
 
 
+def _freshness_label(latest_timestamp: str | None) -> str:
+    if not latest_timestamp:
+        return "local CSV file"
+    parsed = pd.to_datetime(latest_timestamp, errors="coerce")
+    if not pd.isna(parsed):
+        return f"local CSV through {parsed.date().isoformat()}"
+    return f"local CSV through {latest_timestamp}"
+
+
 def _freshness_source(path: Path, latest_timestamp: str | None, notes: list[str]) -> dict[str, Any]:
-    freshness = f"local CSV through {latest_timestamp}" if latest_timestamp else "local CSV file"
+    freshness = _freshness_label(latest_timestamp)
     return make_source_metadata(
         provider=f"local:{path.name}",
         freshness=freshness,
@@ -340,7 +349,7 @@ def validate_local_dataset(dataset_name: str, file_path: Path | None) -> tuple[L
             available_optional_columns=available_optional,
             unknown_columns=unknown_columns,
             warnings=warnings,
-            source=_freshness_source(file_path, latest_timestamp, ["Local CSV-backed research data."]),
+            source=_freshness_source(file_path, latest_timestamp, ["Saved local research data."]),
             date_columns=[column for column in schema.date_columns if column in frame.columns],
             ticker_columns=[column for column in schema.ticker_columns if column in frame.columns],
             latest_data_timestamp=latest_timestamp,
@@ -367,7 +376,7 @@ def validate_local_dataset(dataset_name: str, file_path: Path | None) -> tuple[L
         available_optional_columns=[],
         unknown_columns=[],
         warnings=warnings,
-        source=_freshness_source(file_path, latest_timestamp, ["Local CSV-backed research data."]),
+        source=_freshness_source(file_path, latest_timestamp, ["Saved local research data."]),
         date_columns=date_columns,
         ticker_columns=ticker_columns,
         latest_data_timestamp=latest_timestamp,

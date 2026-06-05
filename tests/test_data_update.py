@@ -541,7 +541,7 @@ def test_enrich_price_update_status_frame_refreshes_stale_price_actions():
                 "status": "parse_error",
                 "requested_start": "2026-03-15",
                 "rows_merged": 0,
-                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                "recommended_action": "Retry later or use the manual price import draft workflow in data/imports/prices.csv.",
             }
         ]
     )
@@ -644,7 +644,7 @@ def test_refresh_price_update_status_output_rewrites_legacy_file(tmp_path: Path)
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                "recommended_action": "Retry later or use the manual price import draft workflow in data/imports/prices.csv.",
             }
         ]
     ).to_csv(path, index=False)
@@ -676,7 +676,7 @@ def test_refresh_price_update_status_output_rewrites_legacy_parse_error_message(
                 "error_category": "parse_error",
                 "error_message": "META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)",
                 "fallback_used": True,
-                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                "recommended_action": "Retry later or use the manual price import draft workflow in data/imports/prices.csv.",
             }
         ]
     ).to_csv(path, index=False)

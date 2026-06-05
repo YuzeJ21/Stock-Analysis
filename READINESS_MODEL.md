@@ -29,8 +29,8 @@ The feature does not apply to this ticker or asset type.
 | `liquidity_ready` | prices with volume | configurable default 60 rows preferred, at least enough for local estimate | numeric volume and close | `liquidity_risk.csv` | show liquidity calculations | show short-history warning | list unavailable tickers | not applicable |
 | `correlation_ready` | prices | enough overlapping return rows, default 60 preferred | parseable prices by date | `correlation_risk.csv` | show correlation context | show insufficient overlap | list unavailable tickers | not applicable |
 | `fundamentals_ready` | `data/fundamentals.csv` | at least one trusted row with source | ticker exists, numeric fields numeric, source required | fundamentals coverage, DCF readiness | show field coverage | show available subset | list missing fields | ETFs/funds may be excluded from company fundamentals use |
-| `dcf_ready` | prices, fundamentals, company-like asset type | price, free cash flow, shares, revenue, FCF margin or derivable margin | company-like only, numeric required fields | DCF readiness, `undervalued_candidates.csv` | show valuation only for ready companies | show partial fields | show missing fields, `valuation_status=not_ready` | ETFs/index proxies/funds excluded |
-| `peer_ready` | peers, universe, peer metrics | configurable peer count, default 2 | peer tickers exist, source required, no self-peer only | peer readiness, peer-relative valuation | show peer-relative context | show insufficient peer count | list missing peer reason | not applicable unless asset type unsupported |
+| `dcf_ready` | prices, fundamentals, company-like asset type | price, free cash flow, shares, revenue, FCF margin or derivable margin | company-like only, numeric required fields | DCF readiness, valuation-readiness context in legacy `undervalued_candidates.csv` | show valuation only for ready companies | show partial fields | show missing fields, `valuation_status=not_ready` | ETFs/index proxies/funds excluded |
+| `peer_ready` | peers, universe, peer price/fundamentals/valuation metrics | configurable peer count, default 2 | peer tickers exist, source required, no self-peer only | peer readiness, peer trend, peer-relative valuation | show peer-relative context only when the needed peer layer is ready | show trend-ready but valuation-blocked states separately | list missing peer mappings, peer prices, peer fundamentals, or peer valuation inputs | not applicable unless asset type unsupported |
 | `earnings_ready` | `data/earnings.csv` | trusted local earnings row with source and useful date or metrics | dates parseable, numerics numeric, source required | earnings readiness, stock report | show earnings summary | show sparse row note | show unavailable state | not applicable |
 | `analyst_estimates_ready` | `data/analyst_estimates.csv` | trusted local estimate row with source and useful metrics | numerics numeric, source required | analyst readiness, stock report | show estimate summary | show sparse row note | show unavailable state | not applicable |
 | `portfolio_ready` | holdings, prices, purpose metadata | holding row plus enough relevant data for review component | holding ticker parseable, position fields numeric when present | `portfolio_review.csv` | show review state | show missing components | mark holding blocked | not applicable |
@@ -43,3 +43,33 @@ The feature does not apply to this ticker or asset type.
 - Never rank blocked tickers as weak candidates.
 - Never show empty earnings or estimate charts as analysis.
 - ETFs and index proxies can support market/risk workflows but are excluded from operating-company DCF.
+
+## Peer Readiness Layers
+
+Peer readiness is intentionally layered so the product can show useful peer
+trend context without pretending peer valuation is ready.
+
+- `peer_price_ready`: enough mapped peers have trusted local price rows.
+- `peer_momentum_ready`: enough mapped peers have local price history for trend/momentum context.
+- `peer_fundamentals_ready`: enough mapped peers have trusted local fundamentals rows.
+- `peer_valuation_ready`: enough mapped peers have the valuation inputs needed for peer-relative valuation.
+- `peer_trend_comparison_ready`: peer price and momentum context are ready.
+- `peer_valuation_comparison_ready`: peer valuation inputs are ready.
+- `peer_dcf_comparison_ready`: peer DCF-style inputs are ready where applicable.
+
+Rules:
+
+- Missing source-backed peer mappings block all peer comparison.
+- Peer trend comparison may appear before peer valuation if price/momentum inputs are ready.
+- Peer valuation must stay blocked when peer fundamentals or valuation inputs are missing.
+- Sector or industry fallback context must be labeled as fallback and not trusted manual peer data.
+
+## Readiness Snapshot History
+
+The product can save a prior ticker-readiness snapshot before a refresh/import
+cycle so dashboard deltas are real rather than invented.
+
+- Snapshot command: `make readiness-snapshot`.
+- Prior snapshot path: `data/reports/ticker_readiness_report.previous.csv`.
+- Comparison flow: run `make readiness-snapshot`, perform a targeted refresh or import, then run `make readiness`.
+- If no prior snapshot exists, the dashboard should show a current-only baseline instead of fake deltas.

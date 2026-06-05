@@ -6,7 +6,7 @@ This roadmap reflects the current direction of the local Python/Streamlit stock 
 2. Analysis second.
 3. Research decision last.
 
-The next phase is not to add more indicators or AI-generated summaries. The next phase is to make the product page operational for a broad market universe while continuing to unlock decision-useful research through trusted fundamentals, peer metrics, earnings, and analyst estimates.
+The next phase is not to add more indicators or AI-generated summaries. The next phase should turn the product page into an operational broad-market command center while continuing to unlock decision-useful research through trusted fundamentals, peer metrics, earnings, and analyst estimates.
 
 ## 1. Completed Milestones
 
@@ -16,7 +16,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] CSV-first workflow.
 - [x] Central readiness reporting.
 - [x] Data-source status reporting.
-- [x] Staged/manual import paths.
+- [x] Preview-first/manual import paths.
 - [x] Price readiness for the current active universe.
 - [x] Master-vs-active universe separation.
 - [x] DCF gating.
@@ -29,6 +29,9 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Product-page readiness filters, row limits, and single-stock drilldown.
 - [x] Peer Mapping Studio V1 with peer blocker filters and safe command cards.
 - [x] Feature readiness summary and readiness-gated decision subtype reporting.
+- [x] Single-stock report mode with readiness, methodology, source/freshness audit, DCF/peer gating, and ETF/index DCF exclusion.
+- [x] Public-facing methodology documentation that explains readiness gates, fundamentals review, DCF formula path, peer boundaries, score limits, and report explanation.
+- [x] Public README/dashboard polish for visitor-friendly demo paths, screenshot preview, generated-data hygiene, deep links, and research-only guardrails.
 
 ## 2. Current Product State
 
@@ -48,11 +51,11 @@ Current readiness pattern:
 
 Use `make status-check TOP_N=5`, `make readiness`, or the dashboard Home page for exact current local counts.
 
-The product correctly avoids fake conclusions. The next improvement is product-page workflow clarity plus trusted data ingestion, not more indicators.
+The product correctly withholds unsupported conclusions. The next improvement is product-page workflow clarity plus trusted data ingestion, not more indicators.
 
 ## 3. Product-Page Roadmap
 
-Goal: make the Streamlit page feel like a research command center instead of a collection of CSV tables.
+Goal: turn the Streamlit page into a research command center instead of a collection of CSV tables.
 
 - Keep the top-level page focused on readiness, blockers, next actions, and single-stock drilldowns.
 - Group next actions by feature:
@@ -64,7 +67,8 @@ Goal: make the Streamlit page feel like a research command center instead of a c
   - Single-Stock Review
 - Keep dashboard commands copyable only; do not execute actions from the product page.
 - Keep broad-universe tables row-limited by default.
-- Add source/freshness notes wherever an action depends on local CSVs, staged imports, Yahoo price refresh, SEC staging, or manual trusted inputs.
+- Add source/freshness notes wherever an action depends on local CSVs, import drafts, Yahoo price refresh, SEC staging, or manual trusted inputs.
+- [x] Add source/freshness context to `project_status_next_steps.csv`, `make project-status`, and dashboard next-action cards.
 - Make active-universe vs master-universe language visible wherever counts differ.
 
 ## 4. Data-Unlock Roadmap
@@ -86,7 +90,7 @@ Goal: unlock fundamentals readiness without fabricating company data.
 
 Acceptance notes:
 
-- SEC staging should remain staged and reviewable.
+- SEC staging should remain preview-first and reviewable.
 - Manual imports must be source-backed.
 - Invalid rows must be rejected into CSV reports instead of silently dropped.
 
@@ -128,7 +132,7 @@ Acceptance notes:
 
 ### D. Decision-Bucket Refinement
 
-Goal: make decisions more informative than generic monitoring rows.
+Goal: improve decisions so they are more informative than generic monitoring rows.
 
 Baseline issue: the system previously produced generic `Monitor` decisions when price data was ready but core company research data was blocked. Recent work has started separating company data blockers from ETF monitoring, but the roadmap should continue refining this into durable reason codes and sub-buckets.
 
@@ -137,7 +141,7 @@ Add reason codes or sub-buckets:
 - `Monitor - Price/Momentum Ready`
 - `Monitor - ETF Market Proxy`
 - `Blocked by Data - Missing Fundamentals`
-- `Blocked by Data - Missing Peer Metrics`
+- `Blocked by Data - Missing Peer Mapping`
 - `Excluded - DCF Not Applicable`
 
 Rules:
@@ -150,40 +154,39 @@ Rules:
 
 ### A. Portfolio/Risk Completeness
 
-Goal: make risk readiness clearer and reduce avoidable warnings.
+Goal: clarify risk readiness and reduce avoidable warnings.
 
-- Fix the `ARKF` OHLCV missing warning or classify it as optional missing context.
+- [x] Classify missing sector/theme ETF OHLCV, such as `ARKF`, as optional benchmark/proxy context rather than a core ticker price blocker.
 - Improve liquidity/correlation readiness from the current broad baseline of 232/3,538 where appropriate.
-- Make ATR proxy usage explicit for `NVDA` and `TSLA`.
-- Keep proxy-based risk notes clearly labeled as approximations.
+- [x] Add ATR versus volatility-proxy provenance to momentum outputs, dashboard cards, monthly-pick reasons, and stock-report Markdown.
+- Keep proxy-based risk notes clearly labeled as approximations in generated outputs after the next pipeline/report refresh.
 
-### B. Single Stock Research Mode
+### B. Single-Stock Research Mode V2
 
-Goal: produce a data-honest single-ticker research report that uses the same readiness engine as the dashboard.
+Goal: keep improving the already implemented single-ticker report so it is the clearest product surface for stock evaluation.
 
-- Add ticker search in the dashboard.
-- Support the CLI command:
+Current status:
 
-```bash
-make stock-report TICKER=META
-```
+- `make stock-report-md TICKER=...` generates clean Markdown reports for visitor demos.
+- `make stock-report TICKER=...` remains available when optional report data is useful for inspection.
+- The dashboard includes a Single-Stock Report page and local deep links such as `?page=single-stock-report`.
+- Reports show readiness, analysis quality, methodology, evaluation function checks, valuation status, research decision, source/freshness audit, blocked inputs, and next research steps.
+- ETF/index/fund reports show operating-company DCF as excluded, not failed.
+- Reports now open with an `At A Glance` block so first-time visitors see mode, decision view, DCF state, peer context, optional context, and next local step before methodology detail.
+- The dashboard Single-Stock Report page includes an At A Glance methodology card explaining project readiness gates and the DCF formula path before detailed tables.
+- Reports include a mode guide comparing `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
+- Blocked and partial reports include `Copyable Unlock Commands` with capped, local, research-only commands for price, fundamentals/DCF, peer mapping, and optional-context imports.
 
-The report should generate:
+Next improvements:
 
-- Readiness.
-- Company snapshot.
-- Industry context.
-- Trend analysis.
-- Valuation status.
-- Research decision.
-- Source audit.
-- Markdown report.
+- [x] Add more visible examples of richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data reports on the dashboard Home page.
+- Keep methodology and assumptions visible while continuing to reduce engineer-heavy wording.
 
 Rules:
 
-- Must be data-honest.
+- Must stay data-honest.
 - Must show blocked, partial, ready, and excluded states.
-- Must not fabricate missing fundamentals, earnings, or analyst estimates.
+- Must not fabricate missing fundamentals, earnings, analyst estimates, peers, or valuation inputs.
 - Must not produce unsupported buy/sell instructions.
 
 ### C. Market-Wide Universe Layer
@@ -210,14 +213,14 @@ Goal: add trusted optional context workflows after fundamentals/DCF/peer readine
 Rules:
 
 - Earnings and analyst estimates are manual/trusted-local only until a provider interface is deliberately added.
-- Empty trusted rows should render as unavailable, not as weak conclusions.
+- Empty trusted rows should render as unavailable, not as unsupported conclusions.
 - Analyst consensus must not be treated as a recommendation.
 
 ## 7. Deprioritized Items
 
 The following are intentionally deprioritized:
 
-- More technical indicators.
+- More indicators.
 - AI-generated recommendations.
 - Monthly picks.
 - Full-market ranking.
@@ -230,9 +233,9 @@ Reason: the blocker is not the lack of indicators. The blocker is missing truste
 
 The next roadmap milestone is complete when:
 
-- The product page clearly separates the 3,538-ticker master universe, 12-ticker active universe, and analysis-ready subset.
-- The product page includes a grouped next-action console with safe capped or ticker-targeted commands.
-- Next-action rows include source/freshness context and make clear that dashboard commands are copyable only.
+- [x] The product page clearly separates the 3,538-ticker master universe, 12-ticker active universe, and analysis-ready subset through the top-level Universe Layers cards and table.
+- [x] The product page includes a grouped next-action console with safe capped or ticker-targeted commands.
+- [x] Next-action rows include source/freshness context and clearly state that dashboard commands are copyable only.
 - `SEC_USER_AGENT` is configured or manual fundamentals import is working.
 - `fundamentals_ready` improves beyond 23/3,538 with trusted data only.
 - `dcf_ready` improves beyond 23/3,538 with trusted data only.
@@ -256,4 +259,4 @@ The next roadmap milestone is complete when:
 - Do not fabricate analyst estimates.
 - Do not add broker integration.
 - Do not add auto-trading.
-- Do not make unsupported buy/sell recommendations.
+- Do not produce unsupported buy/sell recommendations.

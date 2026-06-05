@@ -145,12 +145,21 @@ def _decision_subtype(
     excluded: list[str],
     primary_blocker: str,
 ) -> str:
+    blocked_set = set(blocked)
+    partial_set = set(partial)
+    peer_limited = primary_blocker == "peers" or bool({"peer", "peers"} & (blocked_set | partial_set))
     if bucket == "Monitor" and asset_type in {"etf", "index_proxy", "fund"}:
         return "Monitor - ETF Market Proxy"
     if bucket == "Monitor" and ("price" in ready or "momentum" in ready):
         return "Monitor - Price/Momentum Ready"
-    if bucket == "Research Now" and "dcf" in ready and ("peer" in blocked or "peer" in partial):
+    if bucket == "Research Now" and "dcf" in ready and peer_limited:
         return "Research Candidate - DCF Ready But Peer Blocked"
+    if bucket == "Research Now" and (
+        primary_blocker in {"earnings", "analyst_estimates", "optional_context"}
+        or bool({"earnings", "analyst_estimates"} & blocked_set)
+        and not bool({"price", "fundamentals", "dcf", "peer"} & blocked_set)
+    ):
+        return "Research Candidate - Optional Context Locked"
     if bucket == "Research Now":
         return "Research Candidate - Core Data Ready"
     if bucket == "Blocked by Data":
@@ -371,7 +380,7 @@ def _purpose_supported_analysis(asset_type: str, watch_row: pd.Series, ready: li
     if family == "pullback" and {"price", "momentum"} <= set(ready):
         return "Purpose-specific support: pullback review can use setup, price support, and momentum stabilization context."
     if family == "broken":
-        return "Purpose-specific support: broken/avoid rows support thesis review and blocker diagnosis only."
+        return "Purpose-specific support: no-setup thesis-review rows support thesis review and blocker diagnosis only."
     return ""
 
 
@@ -427,11 +436,11 @@ def _risk_watchpoint(asset_type: str, watch_row: pd.Series, ready: list[str], bl
     if family == "pullback":
         return "Risk watchpoint: pullback purpose depends on support holding and momentum stabilizing; unsupported setup reads should stay locked."
     if family == "broken":
-        return "Risk watchpoint: broken/avoid purpose is a thesis-review label, not a transaction instruction."
+        return "Risk watchpoint: no-setup purpose is a thesis-review label, not a transaction instruction."
     if final_state in {"Broken", "Risk Reduce", "Review Thesis"}:
         return f"Risk watchpoint: final state is `{final_state}`. {reason}".strip()
-    if setup == "Extended / No Chase":
-        return "Risk watchpoint: setup is extended; avoid over-interpreting momentum without a pullback or consolidation context."
+    if setup == "Extended":
+        return "Risk watchpoint: setup is extended; do not over-interpret momentum without a pullback or consolidation context."
     if asset_type in {"etf", "index_proxy", "fund"}:
         return "Risk watchpoint: monitor liquidity, correlation, and theme exposure; company-specific DCF does not apply."
     if "peer" in blocked:
@@ -460,7 +469,7 @@ def _invalidation_condition(asset_type: str, watch_row: pd.Series, ready: list[s
     if family == "pullback":
         return "Invalidate pullback setup framing if price support fails or momentum does not stabilize after the pullback."
     if family == "broken":
-        return "Keep broken/avoid rows in thesis-review mode until data and setup evidence justify a different research classification."
+        return "Keep no-setup thesis-review rows in thesis-review mode until data and setup evidence justify a different research classification."
     if "momentum" in ready:
         return "Invalidate the current setup if price support fails, relative strength deteriorates, or the watchlist final state turns Broken."
     return "Invalidate only after the missing core inputs are available; current data is insufficient for a setup-level condition."
@@ -501,7 +510,7 @@ def _next_research_question(
             return "Which trusted fundamentals or DCF fields are needed to confirm whether the compounder thesis remains supported?"
         if family == "rerating":
             return "Which trusted fundamentals, DCF fields, or peer inputs are missing before a re-rating read is supportable?"
-        return "Which trusted fundamentals or DCF fields are missing, and can SEC staging or manual import fill them?"
+        return "Which trusted fundamentals or DCF fields are missing, and can SEC import draft workflow or manual import fill them?"
     if primary_blocker == "peers":
         return "Which source-backed peer mappings or peer metrics are needed before peer-relative analysis is shown?"
     if primary_blocker in {"earnings", "analyst_estimates", "optional_context"}:
@@ -534,7 +543,7 @@ def _review_priority_reason(
     if family == "pullback" and ("price" in blocked or "momentum" in blocked):
         return "Unlock priority: pullback purpose requires price and momentum context before setup quality can be reviewed."
     if family == "broken":
-        return "Review priority: broken/avoid purpose should remain thesis-review context until readiness supports a different classification."
+        return "Review priority: no-setup purpose should remain thesis-review context until readiness supports a different classification."
     if bucket == "Research Now" and ("peer" in blocked or "peer" in partial):
         return "High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation."
     if bucket == "Research Now":

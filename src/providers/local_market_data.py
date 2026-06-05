@@ -302,7 +302,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         source = self._source(
             self.prices_path,
             freshness=f"daily CSV through {latest['date'].date().isoformat()}",
-            notes=["Local CSV-backed research data."],
+            notes=["Saved local research data."],
         )
         return QuoteSnapshot(
             ticker=ticker,

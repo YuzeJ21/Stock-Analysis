@@ -7,7 +7,7 @@ from src.config import AppConfig
 
 def classify_momentum(row: pd.Series, config: AppConfig) -> tuple[str, str]:
     if pd.isna(row.get("close")):
-        return "Avoid", "Price data is missing."
+        return "No Setup", "Price data is missing."
 
     leader_pct = float(config.momentum_rules.get("min_rs_percentile_for_leader", 90))
     watch_pct = float(config.momentum_rules.get("min_rs_percentile_for_watch", 75))
@@ -45,27 +45,27 @@ def classify_momentum(row: pd.Series, config: AppConfig) -> tuple[str, str]:
         if broken_if_below_50:
             return "Broken", "Close is below the 50SMA."
         if reject_if_below_50:
-            return "Avoid", "Close is below the 50SMA, so the setup is rejected by rule."
+            return "No Setup", "Close is below the 50SMA, so the setup is not supported by rule."
     has_required_underperformance_history = pd.notna(history_days) and float(history_days) >= broken_underperform_days
     if broken_underperform_days > 0 and has_required_underperformance_history and pd.notna(rs_spy) and rs_spy < 0 and pd.notna(sma_200) and close < sma_200:
         return "Broken", "Trend is below the 200SMA and underperforming SPY."
     if pd.notna(dist_10) and dist_10 > ext_10:
-        return "Extended / No Chase", "Price is extended too far above the 10EMA."
+        return "Extended", "Price is extended too far above the 10EMA."
     if pd.notna(dist_21) and dist_21 > ext_21:
-        return "Extended / No Chase", "Price is extended too far above the 21EMA."
+        return "Extended", "Price is extended too far above the 21EMA."
     if all(pd.notna(value) for value in (rs_percentile, sma_50, sma_200, volume_ratio)) and rs_percentile >= leader_pct and close >= sma_50 and close >= sma_200 and volume_ratio >= volume_min:
-        return "Buyable Area", "Relative strength, trend, and volume are all supportive."
+        return "Research Ready", "Relative strength, trend, and volume are all supportive."
     near_support_emas = [window for window, ema_value in support_emas if close >= ema_value * 0.97 and close <= ema_value * 1.03]
     if all(pd.notna(value) for value in (rs_percentile, sma_50, volume_ratio)) and rs_percentile >= watch_pct and close >= sma_50 and volume_ratio <= weak_volume_max:
         return "Setup Forming", "Trend is constructive, but weak volume suggests the setup still needs confirmation."
     if all(pd.notna(value) for value in (rs_percentile, sma_50)) and rs_percentile >= watch_pct and close >= sma_50 and near_support_emas:
         support_text = ", ".join(f"{window}EMA" for window in near_support_emas)
-        return "Pullback Add Candidate", f"Trend is intact and the pullback is near configured support ({support_text})."
+        return "Pullback Review Candidate", f"Trend is intact and the pullback is near configured support ({support_text})."
     if all(pd.notna(value) for value in (rs_percentile, sma_50)) and rs_percentile >= watch_pct and close >= sma_50:
         return "Watch", "Trend is constructive but not in a cleaner setup zone."
     if all(pd.notna(value) for value in (ema_10, ema_21)) and close >= ema_21 * 0.97 and close <= ema_10 * 1.05:
         return "Setup Forming", "Price is consolidating around short-term support."
-    return "Avoid", "The current setup does not meet momentum criteria."
+    return "No Setup", "The current setup does not meet momentum criteria."
 
 
 def run(snapshot: pd.DataFrame, config: AppConfig) -> pd.DataFrame:
@@ -94,6 +94,7 @@ def run(snapshot: pd.DataFrame, config: AppConfig) -> pd.DataFrame:
                 "AvgVolume20D",
                 "VolumeRatio",
                 "ATRorVolatilityPct",
+                "ATRorVolatilitySource",
                 "SetupStatus",
                 "Reason",
             ]
@@ -126,6 +127,7 @@ def run(snapshot: pd.DataFrame, config: AppConfig) -> pd.DataFrame:
                 "AvgVolume20D": row.get("avg_volume_20"),
                 "VolumeRatio": row.get("volume_ratio"),
                 "ATRorVolatilityPct": row.get("atr_or_volatility_pct"),
+                "ATRorVolatilitySource": row.get("atr_or_volatility_source", "unavailable"),
                 "SetupStatus": setup_status,
                 "Reason": reason,
             }

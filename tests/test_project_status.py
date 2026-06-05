@@ -194,6 +194,8 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
     assert top_action["reason"] == "NVDA: parse failed"
     assert top_action["example_command"] == "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
     assert payload["recommended_next_command_rows"][0]["Reason"] == "NVDA: parse failed"
+    assert payload["recommended_next_command_rows"][0]["SourceContext"] == "data/imports/prices.csv"
+    assert payload["recommended_next_command_rows"][0]["FreshnessContext"] == "2026-05-21"
 
 
 def test_project_status_does_not_let_successful_price_status_hide_remaining_price_work(tmp_path: Path):
@@ -339,8 +341,10 @@ def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_step
     commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
     assert "make imports-validate" in commands
     staged_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
-    assert staged_row["Step"] == "Advance staged fundamentals import"
+    assert staged_row["Step"] == "Review fundamentals import draft"
     assert "make imports-apply" in staged_row["Reason"]
+    assert staged_row["SourceContext"] == "data/imports/fundamentals.csv"
+    assert staged_row["FreshnessContext"]
 
 
 def test_project_status_surfaces_fundamentals_input_path_when_sec_user_agent_missing(tmp_path: Path, monkeypatch):
@@ -382,6 +386,8 @@ def test_project_status_surfaces_fundamentals_input_path_when_sec_user_agent_mis
     assert input_path_row["Command"] == "make templates"
     assert "SEC_USER_AGENT is not configured" in input_path_row["Reason"]
     assert "data/imports/fundamentals.csv" in input_path_row["Reason"]
+    assert input_path_row["SourceContext"] == "SEC_USER_AGENT or data/imports/fundamentals.csv"
+    assert "credential/manual import state" in input_path_row["FreshnessContext"]
 
 
 def test_project_status_combines_staged_fundamentals_and_peer_imports_into_one_follow_through(tmp_path: Path):
@@ -445,7 +451,7 @@ def test_project_status_combines_staged_fundamentals_and_peer_imports_into_one_f
     staged_rows = [row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate"]
     assert len(staged_rows) == 1
     staged_row = staged_rows[0]
-    assert staged_row["Step"] == "Advance staged imports"
+    assert staged_row["Step"] == "Review import drafts"
     assert "data/imports/fundamentals.csv" in staged_row["Reason"]
     assert "data/imports/peers.csv" in staged_row["Reason"]
     assert "fundamentals and peers" in staged_row["Reason"]
@@ -468,7 +474,7 @@ def test_project_status_normalizes_legacy_parse_error_reason_from_price_status(t
                 "error_category": "parse_error",
                 "error_message": "NVDA: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)",
                 "fallback_used": True,
-                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                "recommended_action": "Retry later or use the manual price import draft workflow in data/imports/prices.csv.",
             }
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
@@ -509,6 +515,10 @@ def test_project_status_write_output_persists_machine_readable_files(tmp_path: P
 
     next_steps_frame = pd.read_csv(next_steps_path)
     assert next_steps_frame.iloc[0]["Command"] == "make focus-price TICKER=NVDA"
+    assert "SourceContext" in next_steps_frame.columns
+    assert "FreshnessContext" in next_steps_frame.columns
+    assert next_steps_frame["SourceContext"].fillna("").str.len().gt(0).any()
+    assert next_steps_frame["FreshnessContext"].fillna("").str.len().gt(0).any()
 
 
 def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -528,6 +538,8 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "command: make sec-stage tickers=nvda" in output
     assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
     assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
+    assert "source:" in output
+    assert "freshness:" in output
     assert "open price coverage bundle runbook: make runbook-prices" in output
 
 
@@ -567,6 +579,12 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
         sys.argv = argv_before
 
     assert "Project status summary:" in output
+    assert "Read-only operator snapshot." in output
+    assert "Commands below are copy-only local research helpers" in output
+    assert "Local folders:" in output
+    assert "data: data" in output
+    assert "outputs: outputs" in output
+    assert str(tmp_path) not in output
     assert "Tickers with prices: 1/2" in output
     assert "DCF-ready tickers: 1/2" in output
     assert "make focus-fundamentals TICKER=AMD" in output
@@ -635,7 +653,7 @@ def test_project_status_refresh_artifacts_writes_supporting_operator_outputs(tmp
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                "recommended_action": "Retry later or use the manual price import draft workflow in data/imports/prices.csv.",
             }
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)

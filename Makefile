@@ -1,14 +1,30 @@
-.PHONY: help status status-check test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help demo diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 help:
 	@echo "Stock Research Command Center convenience commands"
 	@echo ""
+	@echo "First-time path:"
+	@echo "  make demo             Print the clean visitor walkthrough"
+	@echo "  make status-check TOP_N=5"
+	@echo "  make stock-report-md TICKER=NVDA"
+	@echo "  make dashboard-smoke"
+	@echo "  make dashboard"
+	@echo "  make public-check     Run before sharing the GitHub link"
+	@echo ""
 	@echo "Core:"
+	@echo "  make demo             Print a short visitor demo path without refreshing broad local data"
+	@echo "  make diff-hygiene     Print a read-only staging guide that separates product work from generated data churn"
+	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
+	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
+	@echo "  make staged-hygiene-check Fail if staged files include generated churn or manual-review paths"
+	@echo "  make public-wording-check Scan public docs, dashboard copy, and sample reports for unsupported advice/execution wording"
+	@echo "  make public-check     Run share-safe checks before posting the repo link; does not refresh broad local data"
 	@echo "  make status [TOP_N=5] Refresh supporting artifacts, then print read-only local project status"
 	@echo "  make status-check [TICKERS=NVDA,MSFT] [TOP_N=5] Print the current read-only local project status without refreshing artifacts"
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
-	@echo "  make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] [MD_OUTPUT=outputs/stock_reports/nvda.md] Generate one local stock report JSON plus a readable Markdown report"
+	@echo "  make stock-report-md TICKER=NVDA [MD_OUTPUT=outputs/stock_reports/nvda.md] Generate a readable Markdown report for demos and review"
+	@echo "  make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] [MD_OUTPUT=outputs/stock_reports/nvda.md] Generate the report plus optional report data for inspection"
 	@echo "  make local-tickers    List tickers discoverable from local CSV datasets"
 	@echo "  make verify           Run deterministic local verification"
 	@echo "  make validate-all     Run extended local validation and dashboard smoke check"
@@ -64,7 +80,7 @@ help:
 	@echo "  make optional-context-worklist [TICKERS=NVDA,MSFT] [TOP_N=10] Show optional earnings and estimate gaps"
 	@echo "  make sec-stage-queue [TICKERS=NVDA,MSFT] [TOP_N=10] Show prioritized SEC fundamentals staging candidates"
 	@echo "  make peer-mapping-queue [TICKERS=NVDA,MSFT] [TOP_N=10] Show prioritized manual peer-mapping candidates"
-	@echo "  Most read-only onboarding views also accept TOP_N=10 for a shorter terminal summary"
+	@echo "  Most read-only onboarding views also accept TOP_N=10 for a shorter local summary"
 	@echo "  make templates        Write local CSV templates for peers, earnings, estimates, and manual fallbacks"
 	@echo "  make import-staging   Write header-only staging CSV files under data/imports"
 	@echo "  make validate-data    Validate local CSV datasets"
@@ -83,7 +99,7 @@ help:
 	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
 	@echo "  make price-validate && make price-preview && make price-apply"
 	@echo ""
-	@echo "Staged fundamentals and universe:"
+	@echo "Preview-first fundamentals and universe imports:"
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
 	@echo "  make sec-stage TICKERS=NVDA,MSFT"
 	@echo "  make dcf-readiness   Write data/dcf_readiness.csv"
@@ -97,6 +113,64 @@ help:
 	@echo "  make universe-refresh Import staged universe rows and refresh master/active reports"
 	@echo "  make universe-report  Write data/reports/universe_coverage_report.csv"
 	@echo "  make universe-active  Ensure data/universe_active.csv exists"
+
+demo:
+	@echo "Stock Research Command Center visitor demo"
+	@echo "Run these from the repository root so make can find the project targets."
+	@echo ""
+	@echo "1. Confirm the local snapshot:"
+	@echo "   make status-check TOP_N=5"
+	@echo ""
+	@echo "2. Generate readable sample reports:"
+	@echo "   make stock-report-md TICKER=NVDA"
+	@echo "   make stock-report-md TICKER=A"
+	@echo "   make stock-report-md TICKER=META"
+	@echo "   make stock-report-md TICKER=QQQ"
+	@echo "   make stock-report-md TICKER=SMH"
+	@echo "   make stock-report-md TICKER=APLD"
+	@echo ""
+	@echo "3. Smoke-test and open the dashboard:"
+	@echo "   make dashboard-smoke"
+	@echo "   make dashboard"
+	@echo ""
+	@echo "4. Before sharing or committing:"
+	@echo "   make public-check"
+	@echo "   make diff-hygiene"
+	@echo "   make diff-hygiene-files  # optional for large dirty trees"
+	@echo "   make staged-hygiene-check # after staging, before commit"
+	@echo ""
+	@echo "This demo is read-only except for local report files under outputs/stock_reports/."
+
+diff-hygiene:
+	@python3 scripts/diff_hygiene.py
+
+diff-hygiene-summary:
+	@python3 scripts/diff_hygiene.py --summary
+
+diff-hygiene-files:
+	@python3 scripts/diff_hygiene.py --write-files
+
+staged-hygiene-check:
+	@python3 scripts/diff_hygiene.py --staged-check
+
+public-wording-check:
+	@python3 scripts/public_wording_check.py
+
+public-check:
+	@echo "Public share check: diff hygiene"
+	@$(MAKE) --silent diff-hygiene-summary
+	@echo "Public share check: staged hygiene"
+	@$(MAKE) --silent staged-hygiene-check
+	@echo "Public share check: research-only wording"
+	@$(MAKE) --silent public-wording-check
+	@echo "Public share check: whitespace"
+	@git diff --check
+	@echo "Public share check: tests"
+	@$(MAKE) --silent test
+	@echo "Public share check: dashboard smoke"
+	@$(MAKE) --silent dashboard-smoke
+	@echo "Public share check: visitor demo"
+	@$(MAKE) --silent demo
 
 test:
 	python3 -m pytest tests -q
@@ -115,6 +189,12 @@ ifndef TICKER
 	$(error TICKER is required, for example: make stock-report TICKER=NVDA)
 endif
 	python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)
+
+stock-report-md:
+ifndef TICKER
+	$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)
+endif
+	@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)
 
 local-tickers:
 	python3 -m src.stock_report --list-local-tickers

@@ -36,7 +36,7 @@ def review_holdings(
         momentum_row = momentum_map.loc[ticker] if not momentum_map.empty and ticker in momentum_map.index else pd.Series(dtype=object)
 
         final_purpose = purpose_row.get("FinalPrimaryPurpose", declared_purpose)
-        setup_status = momentum_row.get("SetupStatus", "Avoid")
+        setup_status = momentum_row.get("SetupStatus", "No Setup")
         max_allowed = allowed_position_percent(final_purpose, holding.get("max_position_percent"), config)
         portfolio_threshold = config.get_pct(
             "portfolio_rules",
@@ -60,23 +60,23 @@ def review_holdings(
         elif bool(purpose_row.get("ConflictFlag")):
             review_state = "Review Thesis"
             reason_parts.append(str(purpose_row.get("ConflictReasons", "Purpose conflicts need review.")))
-        elif setup_status == "Pullback Add Candidate":
+        elif setup_status == "Pullback Review Candidate":
             add_only_profitable = bool(config.portfolio_rules.get("add_only_to_profitable_positions", True))
             do_not_add_loser = bool(config.portfolio_rules.get("do_not_add_to_losing_trading_positions", True))
             current_close = momentum_row.get("Close")
             cost_basis = holding.get("cost_basis")
             below_cost_basis = cost_basis not in (None, 0) and pd.notna(current_close) and current_close < cost_basis
             if below_cost_basis and (add_only_profitable or do_not_add_loser):
-                review_state = "Hold but Do Not Add"
-                reason_parts.append("Add-only rule blocked because the position is below cost basis.")
+                review_state = "Hold Review Only"
+                reason_parts.append("Position-increase review is blocked because the position is below cost basis.")
             else:
-                review_state = "Add Candidate"
+                review_state = "Constructive Review"
                 reason_parts.append("Setup is constructive and aligned with the holding purpose.")
-        elif setup_status in {"Watch", "Buyable Area", "Setup Forming"}:
+        elif setup_status in {"Watch", "Research Ready", "Setup Forming"}:
             review_state = "Keep"
             reason_parts.append("Holding purpose and trend remain broadly aligned.")
-        elif setup_status == "Extended / No Chase":
-            review_state = "Hold but Do Not Add"
+        elif setup_status == "Extended":
+            review_state = "Hold Review Only"
             reason_parts.append("Trend is positive but currently extended.")
         else:
             review_state = "Review Thesis"

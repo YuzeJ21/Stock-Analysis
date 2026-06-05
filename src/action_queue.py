@@ -39,9 +39,9 @@ ACTION_QUEUE_COLUMNS = [
 
 PROBLEM_PRICE_STATUSES = {"parse_error", "source_unavailable", "network_error", "no_rows", "failed"}
 STALE_PRICE_RECOMMENDED_ACTIONS = {
-    "use staged manual prices.",
-    "retry later or use staged manual prices in data/imports/prices.csv.",
-    "use staged manual prices in data/imports/prices.csv.",
+    "use the manual price import draft workflow.",
+    "retry later or use the manual price import draft workflow in data/imports/prices.csv.",
+    "use the manual price import draft workflow in data/imports/prices.csv.",
 }
 STALE_ONBOARDING_REASONS = {
     "prices",
@@ -69,14 +69,14 @@ def _command_safety_fields(example_command: object) -> dict[str, object]:
         "credential_present": credential_present,
         "manual_fallback_command": "make templates",
         "command_safety_note": (
-            "SEC staging requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
             "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
     }
 STALE_DATA_GAP_ACTIONS = {
     "fundamentals": {
-        "run sec staging for fundamentals, then validate, preview, and apply the staged import.",
+        "run sec import draft workflow for fundamentals, then validate, preview, and apply the import draft.",
     },
     "peers": {
         "add data/imports/peers.csv manually with real peer mappings, then validate and apply imports.",
@@ -364,7 +364,7 @@ def _fundamentals_focus_recommended_action(ticker: str) -> str:
         return "Run make status, then follow the printed fundamentals focus or runbook path."
     return (
         f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
-        f"make sec-stage TICKERS={ticker}; otherwise stage trusted manual fundamentals in "
+        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
         "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
         "and make imports-apply."
     )
@@ -380,7 +380,7 @@ def _peer_focus_recommended_action(ticker: str, *, missing_mapping: bool) -> str
             "with transparent peer mappings."
         )
     return (
-        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the staged local import "
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the local import draft workflow "
         "workflows so peer-relative valuation can calculate transparently."
     )
 
@@ -589,9 +589,9 @@ def _global_gap_title(dataset: str, focus_command: str, ticker: str) -> str:
         return f"Resolve {dataset} gap for {ticker}".strip()
     normalized_focus = str(focus_command or "").strip().lower()
     if dataset == "fundamentals" and normalized_focus == "make imports-validate":
-        return "Advance staged fundamentals import"
+        return "Review fundamentals import draft"
     if dataset == "peers" and normalized_focus == "make imports-validate":
-        return "Advance staged peer import"
+        return "Review peer import draft"
     return f"Resolve {dataset} gap".strip()
 
 

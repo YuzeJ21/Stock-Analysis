@@ -26,6 +26,7 @@ data/staged/universe/*.csv
 !data/staged/universe/.gitkeep
 outputs/*stock_report.json
 outputs/*_stock_report.json
+outputs/staging/
 outputs/data_source_status.csv
 outputs/data_gap_report.csv
 outputs/price_update_status.csv

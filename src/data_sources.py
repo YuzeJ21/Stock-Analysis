@@ -112,7 +112,7 @@ def _command_safety_fields(example_command: object) -> dict[str, object]:
         "credential_present": credential_present,
         "manual_fallback_command": "make templates",
         "command_safety_note": (
-            "SEC staging requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
             "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
@@ -197,7 +197,7 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
     if dataset == "fundamentals" and ticker:
         return (
             f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
-            f"make sec-stage TICKERS={ticker}; otherwise stage trusted manual fundamentals in "
+            f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
             "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
             "and make imports-apply."
         )
@@ -281,7 +281,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
     ),
     DataSourceRegistryEntry(
         dataset="fundamentals",
-        source_name="Local fundamentals CSV / SEC Companyfacts staging",
+        source_name="Local fundamentals CSV / SEC Companyfacts import draft workflow",
         source_type="local_csv_or_sec_staging",
         required_for="valuation, quality context, value/re-rating review",
         is_required=False,
@@ -294,10 +294,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/fundamentals.csv",
         fallback_action=(
             "Start with make status, then follow the printed fundamentals focus or runbook path. "
-            "Keep SEC staging staged and review-only through make imports-validate, "
+            "Keep the SEC import draft workflow reviewable and preview-first through make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
-        notes="SEC staging only provides candidate fundamentals; it does not provide prices, peers, earnings, or analyst estimates.",
+        notes="SEC import draft workflow only provides candidate fundamentals; it does not provide prices, peers, earnings, or analyst estimates.",
     ),
     DataSourceRegistryEntry(
         dataset="peers",
@@ -350,7 +350,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/analyst_estimates.csv",
         fallback_action="Run make templates, then fill data/imports/analyst_estimates.csv manually only if you want estimate coverage.",
-        notes="Analyst estimates are not created by SEC staging and are never inferred.",
+        notes="Analyst estimates are not created by SEC import draft workflow and are never inferred.",
     ),
     DataSourceRegistryEntry(
         dataset="universe",
@@ -386,7 +386,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/custom_universe.csv or data/imports/universe.csv",
         fallback_action=(
             "Run make templates, then fill data/custom_universe.csv with verified tickers only if the remote "
-            "SMH page is unavailable. Run make universe-preview before make universe-apply for any staged universe import."
+            "SMH page is unavailable. Run make universe-preview before make universe-apply for any universe import draft."
         ),
         notes="The remote SMH page can require redirect/cookie/location handling; this check does not fetch it.",
     ),
@@ -404,10 +404,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
-            "Run make universe-preview first, then review the staged S&P 500 / SMH "
-            "preset universe before make universe-apply."
+            "Run make universe-preview first, then review the S&P 500 / SMH "
+            "universe import draft before make universe-apply."
         ),
-        notes="Open-source/community source, not the official paid S&P feed; no live check is performed here.",
+        notes="Local optional S&P preset source; verify source and license before redistribution. No live check is performed here.",
     ),
     DataSourceRegistryEntry(
         dataset="nasdaq_symbols",
@@ -423,7 +423,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/imports/universe.csv",
         fallback_action=(
-            "Run make universe-preview first, then review the broader staged universe "
+            "Run make universe-preview first, then review the broader universe import draft "
             "before make universe-apply; all-Nasdaq mode can be large."
         ),
         notes="No live check is performed by data_sources; universe_builder handles parsing when explicitly invoked.",
@@ -503,7 +503,7 @@ def _remote_source_status(entry: DataSourceRegistryEntry, data_dir: Path) -> tup
             return "partial", "Manual universe fallback file is present.", 1
         return "source_unavailable", "Remote SMH source is not checked here; use the documented manual fallback if it fails.", 0
     if staged_universe.exists():
-        return "partial", "A staged universe file exists; run make universe-preview before make universe-apply.", 1
+        return "partial", "A universe import draft exists; run make universe-preview before make universe-apply.", 1
     return "optional_unofficial" if entry.is_unofficial else "partial", "Remote source is available only when universe_builder is explicitly run.", 0
 
 
@@ -542,7 +542,7 @@ def build_data_source_status(
             staged_ready = staged and staged["row_count"] > 0 and staged["status"] in {"valid", "valid_with_warnings"}
             if entry.dataset == "fundamentals" and staged_ready:
                 notes = (
-                    f"{entry.notes} Staged import rows are present in "
+                    f"{entry.notes} Local import draft rows are present in "
                     f"{_display_path(staged['path'], root)}; validate, preview, apply, "
                     "then refresh status before relying on canonical local data."
                 )
@@ -557,7 +557,7 @@ def build_data_source_status(
                     columns = ", ".join(staged["available_columns"])
                     warnings = "; ".join(staged["warnings"])
                     notes = (
-                        f"{entry.notes} Staged import rows are present; validate, preview, apply, "
+                        f"{entry.notes} Local import draft rows are present; validate, preview, apply, "
                         "then refresh status before relying on canonical local data."
                     )
                     fallback_action = _staged_import_follow_up(entry.dataset)

@@ -443,7 +443,7 @@ def build_sec_fundamentals_rows(
             "resolved_tickers": [],
             "unresolved_tickers": [],
             "rows": [],
-            "warnings": ["No tickers were provided for SEC staging."],
+            "warnings": ["No tickers were provided for SEC import draft workflow."],
         }
 
     resolved_user_agent = _require_user_agent(user_agent)
@@ -512,11 +512,11 @@ def write_sec_fundamentals_import(
 ) -> dict[str, Any]:
     output = Path(output_path)
     if output.name != "fundamentals.csv" or output.parent.name != "imports":
-        raise ValueError("SEC fundamentals staging may only write to a fundamentals.csv file inside a data/imports directory.")
+        raise ValueError("SEC fundamentals import draft workflow may only write to a fundamentals.csv file inside a data/imports directory.")
 
     canonical_like = output.parent.parent / "fundamentals.csv"
     if output.resolve() == canonical_like.resolve():
-        raise ValueError("SEC fundamentals staging must not write directly to canonical data/fundamentals.csv.")
+        raise ValueError("SEC fundamentals import draft workflow must not write directly to canonical data/fundamentals.csv.")
 
     schema = LOCAL_DATASET_SCHEMAS["fundamentals"]
     columns = list(schema.required_columns)
@@ -550,7 +550,7 @@ def write_sec_fundamentals_import(
     if output.exists() and not overwrite:
         existing_validation, existing_frame = validate_local_dataset("fundamentals", output)
         if existing_validation.status == "invalid":
-            raise ValueError("Existing staged fundamentals.csv is invalid. Fix or remove it before SEC staging.")
+            raise ValueError("Existing fundamentals import drafts.csv is invalid. Fix or remove it before SEC import draft workflow.")
         existing = existing_frame.copy() if existing_frame is not None else pd.DataFrame(columns=columns)
         for column in columns:
             if column not in existing.columns:

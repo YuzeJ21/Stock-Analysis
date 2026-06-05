@@ -2,148 +2,174 @@
 
 Research-only local report. It summarizes readiness and does not provide allocation instructions.
 
+## At A Glance
+- Mode: `Data-unlock only`.
+- Decision view: Blocked by Data - Missing Price.
+- DCF: Blocked until trusted fundamentals and DCF inputs are ready.
+- Peer context: Locked until source-backed peer inputs are ready.
+- Optional context: Locked until trusted earnings and analyst-estimate rows exist.
+- Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
+- Next local step: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
-- Current use: Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready.
-- Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and plugins can help development review, but shipped analysis comes from repo code and local data.
+- Current use: Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready.
+- Logic source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
 - Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.
 
+This is a data-unlock report because local price history is not ready for price-backed analysis yet.
+First blocker to resolve: No local price rows were found for APLD.
+
 ## Executive Summary
-APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
+- Bottom line: APLD is in `Data-unlock only` mode. Start with verified local price history before relying on momentum, liquidity, valuation, or peer context.
+- Use now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
+- Do not infer: Blocked features: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- Next step: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
+
+## Analysis Mode Guide
+- `DCF-ready review` (other): Fullest company review: price, fundamentals, DCF, and source-backed peer context are ready.
+- `Standalone DCF review` (other): Company DCF can be reviewed, but peer-relative valuation remains blocked.
+- `Price/setup review only` (other): Use trend/setup context only; company valuation waits for trusted fundamentals and DCF inputs.
+- `Monitor-only context` (other): Use ETF/index/fund market or risk context; operating-company DCF is excluded, not failed.
+- `Data-unlock only` (current): Pause analysis for this ticker until the first trusted local input is available.
 
 ## One-Minute Status
-APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
+APLD state: blocked. Decision: Blocked by Data - Missing Price. Primary blocker: price. DCF: blocked. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
 
 ## What We Can Analyze Now
-- Ready inputs: price, momentum, market_direction, liquidity, correlation.
+- Ready inputs: none yet.
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
-- Still locked or excluded: Blocked features: fundamentals, dcf, peer, earnings, analyst_estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- Still locked or excluded: Blocked features: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
 ## Analysis Quality
-- Analysis mode: Price/setup review only.
-- Why: Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist.
+- Analysis mode: Data-unlock only.
+- Why: Start with verified local price history before relying on momentum, liquidity, valuation, or peer context.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
+
+## Methodology
+- Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
+- Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
+- Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
+- DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
+- DCF method: standalone DCF stays blocked until trusted local price, revenue, free cash flow or FCF margin, shares outstanding, and DCF fields pass readiness checks.
+- Peer method: peer-relative valuation stays withheld until source-backed peer mappings and peer valuation inputs are ready.
+- Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
+- Report method: text is generated from local readiness, DCF, peer, decision, and source/freshness outputs; blocked or excluded sections are explained instead of filled.
 
 ## Evaluation Function Check
 - Readiness gate: strongest function; it decides ready, blocked, or excluded before any conclusion is shown.
-- Price and setup: ready for local trend/setup review.
-- Risk context: ready for local liquidity/correlation context.
+- Price and setup: locked until enough trusted price history is available.
+- Risk context: partial until liquidity and correlation inputs pass readiness checks.
 - Fundamentals / DCF: blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready.
 - Peer comparison: blocked until source-backed peer mappings and peer valuation inputs are ready.
 - Optional context: locked until trusted local earnings and analyst-estimate rows exist.
-- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`; standard libraries/adapters support data handling and UI, and plugins can help development review, but shipped analysis comes from repo code and local data.
+- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
 
 ## What This Stock Is
 - Ticker: APLD
 - Asset type: company
-- Current role: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is Ignore.
+- Current role: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is not prioritized.
 
 ## Decision
 - Bucket: Blocked by Data
-- Subtype: Blocked by Data - Missing Fundamentals
-- Primary blocker: fundamentals
-- Main reason: Company research is blocked by missing dcf, fundamentals data.
-- Next action: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
+- Subtype: Blocked by Data - Missing Price
+- Primary blocker: price
+- Main reason: Missing usable price data.
+- Next action: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
 
 ## Purpose Evaluation
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
-- Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is Ignore.
-- Alignment: Purpose alignment appears consistent with current setup `Avoid` for Core Compounder, subject to the missing-data limits below.
-- Operator summary: Purpose alignment appears consistent with current setup `Avoid` for Core Compounder, subject to the missing-data limits below; Blocked by Data - Missing Fundamentals. Next blocker: fundamentals. Withheld: fundamental quality and operating-company valuation, DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Invalidation: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
-- Setup: Compounder setup: Avoid; final state: Ignore. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Ignored names are left unranked.
+- Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is not prioritized.
+- Alignment: Purpose alignment for Core Compounder cannot be checked until usable price history exists.
+- Operator summary: Purpose alignment for Core Compounder cannot be checked until usable price history exists; Blocked by Data - Missing Price. Next blocker: price. Withheld: trend, setup, liquidity, volatility, and relative strength, fundamental quality and operating-company valuation, DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Invalidation: Invalidation cannot be defined from local price data until price history is available.
+- Setup: Setup cannot be evaluated because usable price history is missing.
 - Valuation boundary: Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete.
 
 ## Supported Analysis
-- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context.
+- Supported analysis: none yet; this row is an unlock checklist until core inputs are available.
 
 ## Blocked Analysis
-- Unsupported analysis: fundamental quality and operating-company valuation, DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
+- Unsupported analysis: trend, setup, liquidity, volatility, and relative strength, fundamental quality and operating-company valuation, DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
 
 ## Setup / Momentum
-- Compounder setup: Avoid; final state: Ignore. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Ignored names are left unranked.
-- 1M performance: 0.39970798910099226
-- 3M performance: 0.7164338740742906
-- 1Y performance: Not available
+- Setup cannot be evaluated because usable price history is missing.
 
 ## Risk Notes
-- Risk watchpoint: peer-relative context is incomplete, so valuation comparison and opportunity cost remain uncertain.
-- Invalidation condition: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
+- Risk watchpoint: Primary risk is analytical blindness from missing price history; do not interpret trend or volatility yet.
+- Invalidation condition: Invalidation cannot be defined from local price data until price history is available.
 
 ## Next Research Step
-- Next research question: Which trusted fundamentals or DCF fields are needed to confirm whether the compounder thesis remains supported?
-- Review priority: Unlock priority: price context exists, but fundamentals blocks deeper analysis.
-- Confidence explanation: Confidence is low: primary blocker is fundamentals; blocked features are fundamentals, dcf, peer, earnings, analyst_estimates.
+- Next research question: Can trusted local price rows be added before interpreting setup, risk, or relative strength?
+- Review priority: Unlock priority: price is the first blocker before setup, valuation, or risk interpretation should be trusted.
+- Confidence explanation: Confidence is blocked: primary blocker is price; blocked features are price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates.
 
 ## Data Readiness
-- Overall state: partial
-- Price ready: True
-- Momentum ready: True
-- Liquidity ready: True
-- Correlation ready: True
-- Fundamentals ready: False
-- DCF ready: False
-- Peer ready: False
-- Earnings ready: False
-- Analyst estimates ready: False
-- Blocked features: fundamentals, dcf, peer, earnings, analyst_estimates
+- Overall state: blocked
+- Asset type: company
+- Price ready: not ready
+- Momentum ready: not ready
+- Fundamentals ready: not ready
+- DCF ready: not ready
+- Peer ready: not ready
+- Earnings ready: not ready
+- Analyst estimates ready: not ready
+- Blocked features: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates
 - Excluded features: portfolio
 
 ## Price Coverage
-- Price rows: 615
-- First date: 2023-12-15
-- Last date: 2026-06-01
-- Missing price reason: Not available
+- Price rows: 0
+- Missing price reason: needs at least 5 valid price rows with positive close
 
 ## Valuation Readiness
-- DCF status: insufficient_data.
-- DCF missing fields: free_cash_flow, shares_outstanding, revenue, fcf_margin.
-- Reason not ready: missing free_cash_flow, shares_outstanding, revenue, fcf_margin.
-- DCF assumptions: hidden until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.
+- DCF status: insufficient data.
+- DCF missing inputs: free cash flow, shares outstanding, revenue, FCF margin, price.
+- Why DCF is blocked: missing free cash flow, shares outstanding, revenue, FCF margin, price.
+- DCF assumptions: withheld until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.
 - Sensitivity table: unavailable until the base DCF can be calculated.
-- Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready; current status=insufficient_data; peer count=0.
+- Relative valuation: withheld until trusted fundamentals and DCF readiness pass; background relative-multiple status=insufficient data; peer count=0.
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
 ## Peer Workflow
-- Peer blocker type: blocked_until_fundamentals_dcf
-- Mapping status: wait_for_core_data
+- Peer blocker type: blocked until fundamentals / DCF
+- Mapping status: waiting for price, fundamentals, and DCF
 - Peer count: 0
-- Trend comparison ready: False
-- Valuation comparison ready: False
-- DCF peer comparison ready: False
-- Sample peers: Not available
+- Trend comparison ready: not ready
+- Valuation comparison ready: not ready
 - Next peer action: Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
 
 ## Missing Data
-- 1Y performance is unavailable from the current local price history.
-- EPS is unavailable from the current local fundamentals dataset.
-- Free cash flow is unavailable from the current local fundamentals dataset.
-- No local analyst-estimate dataset is configured in the CSV-first pipeline.
-- No local earnings dataset is configured in the CSV-first pipeline.
-- Normalized growth target was reduced to keep it conservatively below WACC.
-- Revenue is unavailable from the current local fundamentals dataset.
-- Valuation missing field: cash
-- Valuation missing field: debt
-- Valuation missing field: ebitda
-- Valuation missing field: eps
-- Valuation missing field: fcf_margin
-- Valuation missing field: free_cash_flow
-- Valuation missing field: market_cap_or_price_and_shares
-- Valuation missing field: revenue
-- analyst_estimates has no local row for this ticker.
-- earnings has no local row for this ticker.
-- fundamentals has no local row for this ticker.
+- needs at least 5 valid price rows with positive close; DCF: free cash flow, shares outstanding, revenue, FCF margin, price; peers: needs at least 2 source-backed peer mappings; earnings: trusted local CSV input; analyst estimates: trusted local CSV input
 
-## Source / Freshness
-- local:prices.csv: research-grade / local, retrieved 2026-06-03T18:35:06.424153090+00:00; Local CSV-backed research data.
-- local:fundamentals.csv: research-grade / local, retrieved 2026-06-04T04:54:31+00:00; No local fundamentals row was found for this ticker.
-- local:earnings.csv: research-grade / local, retrieved 2026-06-04T04:54:31+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-06-04T04:54:31+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+## Data Unlock Summary
+- Price unlock: Price history is the first unlock. Run `make focus-price TICKER=APLD` or use the price import flow before interpreting setup.
+- Fundamentals / DCF unlock: Wait on fundamentals / DCF interpretation until price coverage starts. After `make focus-price TICKER=APLD` is resolved, run `make focus-fundamentals TICKER=APLD` for the next DCF fields.
+- Peer unlock: Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+- Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+- Import paths, rejected-row files, and credential state are listed in the Source/Freshness Audit below.
+
+## Copyable Unlock Commands
+- Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
+- Inspect this ticker: `make stock-report-md TICKER=APLD`.
+- Price first: `make focus-price TICKER=APLD`.
+- Price queue: `make price-worklist TICKERS=APLD TOP_N=10`.
+- Price import safety: `make price-validate && make price-preview && make price-apply`.
+- Fundamentals / DCF: `make focus-fundamentals TICKER=APLD`.
+- SEC/manual import review: `make sec-stage-queue TICKERS=APLD TOP_N=10`.
+- Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.
+- Peer mapping: `make focus-peers TICKER=APLD`.
+- Peer queue: `make peer-mapping-queue TICKERS=APLD TOP_N=10`.
+- Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.
+- Optional context queue: `make optional-context-worklist TICKERS=APLD TOP_N=10`.
+- Optional templates: `make templates`.
+- Earnings import: `make import-earnings`.
+- Analyst-estimates import: `make import-analyst-estimates`.
+- Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.
 
 ## Source/Freshness Audit
-- Prices: True; local source `data/prices.csv`; coverage 2023-12-15 to 2026-06-01; rows=615; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
-- Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing free_cash_flow, shares_outstanding, revenue, fcf_margin; SEC_USER_AGENT present; staged path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; staged path `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
-- Earnings: False; trusted local CSV only; staged path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
-- Analyst estimates: False; trusted local CSV only; staged path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
-- Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or staged import workflows.
-- Report command: `make stock-report TICKER=APLD`. Research-only output; copyable command only.
+- Prices: not ready; local source `data/prices.csv`; coverage unknown to unknown; rows=0; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
+- Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing free cash flow, shares outstanding, revenue, FCF margin, price; SEC_USER_AGENT present; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
+- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+- Earnings: not ready; trusted local CSV only; import draft path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
+- Analyst estimates: not ready; trusted local CSV only; import draft path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
+- Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.
+- Report command: `make stock-report-md TICKER=APLD`. Research-only Markdown output; copyable command only.

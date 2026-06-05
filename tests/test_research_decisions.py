@@ -12,7 +12,7 @@ def test_research_decisions_block_missing_price_instead_of_weak_recommendation()
                 "asset_type": "company",
                 "blocked_features": "price, momentum, dcf",
                 "missing_data": "needs at least 5 valid price rows with positive close",
-                "next_action": "Import staged price rows or refresh price provider for META.",
+                "next_action": "Import price rows through the preview-first workflow or refresh the price provider for META.",
             }
         ]
     )
@@ -25,7 +25,7 @@ def test_research_decisions_block_missing_price_instead_of_weak_recommendation()
     assert row["primary_blocker"] == "price"
     assert "Missing usable price data" in row["main_reason"]
     assert row["confidence"] <= 0.45
-    assert "Import staged price rows" in row["next_action"]
+    assert "Import price rows through the preview-first workflow" in row["next_action"]
     assert row["next_best_action"] == row["next_action"]
 
 
@@ -220,6 +220,70 @@ def test_research_decisions_keeps_mapped_peer_price_history_as_peer_blocker():
     assert row["next_action"] == "Add trusted price history for mapped peers: SNDK, WDC."
 
 
+def test_research_decisions_label_core_ready_rows_with_optional_context_locked():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "MSFT",
+                "name": "Microsoft",
+                "asset_type": "company",
+                "ready_features": "price, momentum, fundamentals, dcf, peer",
+                "partial_features": "",
+                "blocked_features": "earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "earnings and analyst estimates are unavailable",
+                "next_action": "Optional context missing for MSFT; leave unavailable unless trusted local CSVs exist.",
+            }
+        ]
+    )
+    watchlist = pd.DataFrame({"ticker": ["MSFT"], "watchlistscore": [82]})
+
+    row = build_research_decisions_frame(readiness, watchlist).iloc[0]
+    rendered = " ".join(str(value) for value in row.to_numpy()).lower()
+
+    assert row["decision_bucket"] == "Research Now"
+    assert row["decision_subtype"] == "Research Candidate - Optional Context Locked"
+    assert row["primary_blocker"] == "earnings"
+    assert "Optional context missing" in row["next_best_action"]
+    assert "earnings timing or surprise context" in row["unsupported_analysis"]
+    assert "analyst estimate trend context" in row["unsupported_analysis"]
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+
+
+def test_research_decisions_peer_limited_rows_win_over_optional_context_when_peers_plural():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "AAPL",
+                "name": "Apple",
+                "asset_type": "company",
+                "ready_features": "price, momentum, fundamentals, dcf",
+                "partial_features": "",
+                "blocked_features": "peers, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "peers: needs at least 2 source-backed peer mappings",
+                "next_action": "Add source-backed peer mappings for AAPL.",
+            }
+        ]
+    )
+    watchlist = pd.DataFrame({"ticker": ["AAPL"], "watchlistscore": [80]})
+
+    row = build_research_decisions_frame(readiness, watchlist).iloc[0]
+    rendered = " ".join(str(value) for value in row.to_numpy()).lower()
+
+    assert row["decision_bucket"] == "Research Now"
+    assert row["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
+    assert row["primary_blocker"] == "peers"
+    assert "data/imports/peers.csv" in row["next_best_action"]
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+
+
 def test_research_decisions_add_evaluation_fields_without_recommendation_language():
     readiness = pd.DataFrame(
         [
@@ -243,7 +307,7 @@ def test_research_decisions_add_evaluation_fields_without_recommendation_languag
                 "blocked_features": "price, momentum, fundamentals, dcf, peer",
                 "excluded_features": "portfolio",
                 "missing_data": "needs at least 5 valid price rows with positive close",
-                "next_action": "Import staged price rows or refresh price provider for APLD.",
+                "next_action": "Import price rows through the preview-first workflow or refresh the price provider for APLD.",
             },
         ]
     )
@@ -329,6 +393,50 @@ def test_research_decisions_surface_purpose_conflict_as_review_context_not_recom
     assert "sell" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+
+
+def test_research_decisions_render_no_setup_purpose_without_avoid_language():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "OLD",
+                "name": "Old Setup",
+                "asset_type": "company",
+                "ready_features": "price, momentum",
+                "partial_features": "",
+                "blocked_features": "fundamentals, dcf, peer",
+                "excluded_features": "",
+                "missing_data": "fundamentals unavailable",
+                "next_action": "Import trusted fundamentals for OLD.",
+            }
+        ]
+    )
+    watchlist = pd.DataFrame(
+        {
+            "ticker": ["OLD"],
+            "primarypurpose": ["Broken / Avoid"],
+            "setupstatus": ["Broken"],
+            "reviewstate": ["Broken"],
+            "finalstate": ["No Setup"],
+            "reason": ["Legacy label should render as thesis-review context."],
+        }
+    )
+
+    row = build_research_decisions_frame(readiness, watchlist).iloc[0]
+    rendered = " ".join(str(row[column]) for column in [
+        "supported_analysis",
+        "risk_watchpoint",
+        "invalidation_condition",
+        "review_priority_reason",
+    ]).lower()
+
+    assert "no-setup thesis-review rows support thesis review" in rendered
+    assert "no-setup purpose is a thesis-review label" in rendered
+    assert "keep no-setup thesis-review rows" in rendered
+    assert "no-setup purpose should remain thesis-review context" in rendered
+    assert "broken/avoid" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_research_decisions_normalize_watchlist_columns_for_evaluation_fields():
@@ -438,7 +546,7 @@ def test_research_decisions_tailor_rerating_and_speculative_boundaries():
                 "blocked_features": "price, momentum, fundamentals, dcf, peer",
                 "excluded_features": "portfolio",
                 "missing_data": "needs at least 5 valid price rows",
-                "next_action": "Import staged price rows for SPEC.",
+                "next_action": "Import price rows through the preview-first workflow for SPEC.",
             },
         ]
     )

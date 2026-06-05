@@ -13,17 +13,36 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     cleaned = dashboard.clean_display_frame(pd.DataFrame({"Ready": [True, False]}))
     assert cleaned.iloc[0]["Ready"] == "Yes"
     assert cleaned.iloc[1]["Ready"] == "No"
+    assert dashboard.public_status_label("insufficient_data") == "Insufficient data"
+    assert dashboard.public_status_label("peer_data_unavailable") == "Peer data unavailable"
+    assert dashboard.public_status_label("monitor_context") == "Monitor context"
+    assert dashboard.public_status_label("not_ready") == "Not ready"
+    assert dashboard.public_status_label("Broken") == "Thesis Review Needed"
+    assert dashboard.public_status_label("Avoid") == "No Setup"
 
     action_rows = dashboard.clean_display_frame(
         pd.DataFrame(
             {
                 "recommended_action": [
-                    "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals."
                 ]
             }
         )
     )
     assert "make status-check TOP_N=5" in action_rows.iloc[0]["Recommended Action"]
+
+    card_html = dashboard.signal_card_html(
+        "staged flow",
+        "Review peer import draft",
+        "Peer import draft ready; run make status before trusting peer mapping import drafts.",
+        ["staged flow"],
+        "make imports-preview",
+    )
+    assert "Review peer import draft" in card_html
+    assert "Peer import draft ready" in card_html
+    assert "make status-check TOP_N=5" in card_html
+    assert "import draft flow" in card_html
+    assert "staged peer" not in card_html.lower()
 
     workflow_rows = dashboard.clean_display_frame(
         pd.DataFrame(
@@ -33,6 +52,8 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
                 "peer_blocker_type": ["missing_peer_mapping"],
                 "peer_valuation_status": ["peer_valuation_blocked"],
                 "mapping_status": ["insufficient_mapping"],
+                "valuation_status": ["not_ready"],
+                "peer_relative_status": ["peer_data_unavailable"],
             }
         )
     )
@@ -43,9 +64,13 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert "missing peer mapping" in rendered
     assert "peer valuation blocked" in rendered
     assert "insufficient mapping" in rendered
+    assert "not ready" in rendered
+    assert "peer data unavailable" in rendered
     assert "dcf_ready_peer_mapping" not in rendered
     assert "active_universe" not in rendered
     assert "missing_peer_mapping" not in rendered
+    assert "peer_data_unavailable" not in rendered
+    assert "not_ready" not in rendered
     assert "Workflow Group" in workflow_rows.columns
     assert "Workflow Scope" in workflow_rows.columns
     assert "Peer Blocker Type" in workflow_rows.columns
@@ -53,11 +78,66 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert "workflow_scope" not in rendered_columns
 
 
+def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations():
+    frame = dashboard._plain_home_demo_example_frame()
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert list(frame["Example"]) == ["NVDA", "A", "META", "QQQ / SMH", "APLD"]
+    assert list(frame["Comparison Role"]) == [
+        "Richer company example",
+        "Standalone DCF but peer-locked",
+        "Price/setup gated company",
+        "ETF/index monitor example",
+        "Blocked-data example",
+    ]
+    assert "standalone dcf review" in rendered
+    assert "price/setup review only" in rendered
+    assert "monitor-only context" in rendered
+    assert "data-unlock only" in rendered
+    assert "visible method cues" in rendered
+    assert "peer-relative valuation stays locked" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "no valuation conclusion appears" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "make stock-report-md ticker=a" in rendered
+    assert "make stock-report-md ticker=apld" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
 def test_dashboard_badges_use_high_contrast_html():
     html = dashboard.status_badge("Watch")
     assert "background" in html
     assert "color" in html
     assert "Watch" in html
+    raw_status_html = dashboard.status_badge("insufficient_peer_data")
+    assert "Insufficient peer data" in raw_status_html
+    assert "insufficient_peer_data" not in raw_status_html
+
+
+def test_dashboard_page_query_supports_visitor_friendly_deep_links():
+    assert dashboard.dashboard_page_slug("Single-Stock Report") == "single-stock-report"
+    assert dashboard.dashboard_page_slug("Value / Re-rating") == "value-re-rating"
+    assert dashboard.dashboard_page_from_query("single-stock-report") == "Single-Stock Report"
+    assert dashboard.dashboard_page_from_query("Single-Stock%20Report") == "Single-Stock Report"
+    assert dashboard.dashboard_page_from_query(["data-health"]) == "Data Health"
+    assert dashboard.dashboard_page_from_query("Value / Re-rating") == "Value / Re-rating"
+    assert dashboard.dashboard_page_from_query("not-a-page") == "Home"
+    assert dashboard.dashboard_page_from_query(None) == "Home"
+
+
+def test_sidebar_navigation_note_matches_selected_page():
+    home_title, home_body = dashboard.sidebar_navigation_note("Home")
+    report_title, report_body = dashboard.sidebar_navigation_note("Single-Stock Report")
+
+    assert home_title == "Start here."
+    assert "what is ready" in home_body
+    assert "safest next review path" in home_body
+    assert report_title == "Viewing Single-Stock Report."
+    assert "selected workflow" in report_body
+    assert "return to Home" in report_body
+    assert "Home explains what is ready" not in report_body
 
 
 def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
@@ -104,14 +184,59 @@ def test_single_stock_default_prefers_demo_ticker_when_available():
 def test_single_stock_source_json_label_uses_visitor_friendly_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "Advanced source audit (JSON)" in source
+    assert "Source and freshness details" in source
+    assert "stock_report_source_detail_summary_frame(report_payload)" in source
+    assert "Source and freshness details (JSON)" not in source
+    assert "Advanced source audit (JSON)" not in source
     assert "Developer detail: raw report JSON" not in source
+    assert "st.json(report_payload" not in source
+    assert "One-ticker research workflow" in source
+    assert "Structured research workflow for one ticker" not in source
+    assert "A readable view of local research inputs" in source
+    assert "A structured view of local research inputs" not in source
+    assert "Saved local data is the default" in source
+    assert "Optional online research mode stays off by default" in source
+    assert "Local CSV-backed data is the default" not in source
+    assert "Optional yfinance mode stays off by default" not in source
+    assert "Optional online provider mode" in source
+    assert "saved local-data path" in source
     assert "Show report source details" in source
-    assert "Adds an advanced source audit under Sources & Gaps" in source
+    assert "Adds source and freshness troubleshooting under Sources & Gaps" in source
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
-    assert 'st.expander("Local file paths"' in source
+    assert "Show more explanation" in source
+    assert "#### Where to go next" in source
+    assert 'st.expander("Start guide"' not in source
+    assert 'st.expander("Help for using the app"' in source
+    assert 'st.expander("Help, commands, and paths"' not in source
+    assert 'st.expander("Advanced command help"' not in source
+    assert 'st.expander("How to read status labels"' not in source
+    assert 'st.expander("Missing-data guide"' not in source
+    assert 'st.expander("Local file paths"' not in source
+    assert "#### Status labels" in source
+    assert "#### If analysis is blocked" in source
+    assert "#### Where local files live" in source
+    assert "App folder:" in source
+    assert "Trusted input CSVs:" in source
+    assert "Generated reports:" in source
+    assert "Project root:" not in source
+    assert "Data dir:" not in source
+    assert "Outputs dir:" not in source
+    assert "#### Local file paths" not in source
     assert 'st.expander("Technical paths"' not in source
+    assert 'st.expander("Copyable commands"' in source
+    assert 'st.expander("Advanced commands"' not in source
+    assert 'st.expander("Full valuation output table"' in source
+    assert 'st.expander("Advanced valuation output table"' not in source
+    assert "### Copyable Commands" in source
+    assert "### Copyable Terminal Workflow" not in source
+    assert "### CLI Workflow" not in source
+    assert "CLI-only" not in source
+    assert "CLI only" not in source
+    assert "terminal-only" not in source
+    assert "make stock-report-md TICKER=NVDA\\nmake dashboard-smoke" in source
+    assert "make stock-report TICKER=NVDA\\nmake dashboard-smoke" not in source
+    assert "diagnostics" not in source.lower()
 
 
 def test_data_health_bundle_detail_copy_uses_operator_language():
@@ -133,12 +258,14 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "blocked fundamentals, peers, earnings, or estimates" in rendered
     assert "copy commands, then run them yourself" in rendered
     assert "do not run refreshes, imports, or external account actions" in rendered
-    assert "implemented under src/" in rendered
-    assert "repo-native" in rendered
-    assert "skill boundary" in rendered
-    assert "development helpers stay separate" in rendered
-    assert "assistant plugins or skills can help development review" in rendered
-    assert "analysis shown to users comes from repo code and local data" in rendered
+    assert "implemented in the project code" in rendered
+    assert "project rules" in rendered
+    assert "product boundary" in rendered
+    assert "project code powers the analysis" in rendered
+    assert "standard packages help build and run the app" in rendered
+    assert "assistant plugins or skills can help development review" not in rendered
+    assert "research output comes from project rules and local data" in rendered
+    assert "development helpers stay separate" not in rendered
     assert "public equity investing" not in rendered
     assert "investment banking" not in rendered
     assert "broker" not in rendered
@@ -153,19 +280,24 @@ def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 4
-    assert "rules are implemented under src/" in rendered
+    assert "rules are implemented in project code" in rendered
     assert "readiness, momentum, dcf, peer checks, decision buckets, and report wording" in rendered
-    assert "open-source packages support the app" in rendered
+    assert "standard python packages support the app" in rendered
+    assert "stock-analysis rules stay in this repository" in rendered
+    assert "support layer" in rendered
     assert "pandas" in rendered
     assert "streamlit" in rendered
-    assert "analysis rules stay in this repository" in rendered
+    assert "open-source packages support the app" not in rendered
     assert "yfinance is optional and research-grade" in rendered
     assert "csv-first local path is default" in rendered
-    assert "not product logic" in rendered
-    assert "development plugins or assistant skills can help review" in rendered
+    assert "not analysis rules" in rendered
+    assert "support tools and libraries are separate from the stock-analysis rules" in rendered
+    assert "development tools" not in rendered
+    assert "development tooling is separate from the shipped research logic" not in rendered
+    assert "development tooling is not shipped analysis" not in rendered
     assert "public equity investing" not in rendered
     assert "investment banking" not in rendered
-    assert "shipped analysis comes from repo code and local data" in rendered
+    assert "analysis and decisions come from project code and local data" in rendered
     assert "product engines" not in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
@@ -271,9 +403,9 @@ def test_stock_report_function_quality_cards_summarize_supported_analysis_and_pr
     assert "ready for standalone dcf assumptions and sensitivity review" in rendered
     assert "peer context: blocked until source-backed peer mappings" in rendered
     assert "empty optional files are not treated as conclusions" in rendered
-    assert "repo-native" in rendered
-    assert "plugins can help development review" in rendered
-    assert "shipped analysis comes from repo code and local data" in rendered
+    assert "project rules" in rendered
+    assert "shipped analysis comes from project code and local data" in rendered
+    assert "plugins can help development review" not in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
     assert "broker" not in rendered
@@ -324,11 +456,31 @@ def test_chart_panel_title_normalizes_spacing_and_trailing_punctuation():
 
 
 def test_state_styles_include_text_color_for_dark_mode():
-    styled = dashboard.style_frame(pd.DataFrame({"FinalState": ["Avoid"]}))._compute()
+    styled = dashboard.style_frame(pd.DataFrame({"FinalState": ["No Setup"]}))._compute()
     css_values = [item for styles in styled.ctx.values() for item in styles]
 
     assert ("color", "#991b1b") in css_values
     assert ("font-weight", "700") in css_values
+
+
+def test_normalize_public_labels_preserves_valuation_avoid_category():
+    frame = pd.DataFrame(
+        {
+            "SetupStatus": ["Avoid", "Extended / No Chase"],
+            "FinalState": ["Avoid", "Extended / No Chase"],
+            "PrimaryPurpose": ["Broken / Avoid", "Core Compounder"],
+            "FinalValueCategory": ["Avoid", "Insufficient Data"],
+            "Reason": ["Compounder setup: Avoid", "Valuation category is Avoid"],
+        }
+    )
+
+    normalized = dashboard.normalize_public_labels(frame)
+
+    assert normalized["SetupStatus"].tolist() == ["No Setup", "Extended"]
+    assert normalized["FinalState"].tolist() == ["No Setup", "Extended"]
+    assert normalized["PrimaryPurpose"].tolist() == ["Broken / No Setup", "Core Compounder"]
+    assert normalized["FinalValueCategory"].tolist() == ["Avoid", "Insufficient Data"]
+    assert normalized["Reason"].tolist() == ["Compounder setup: No Setup", "Valuation category is Avoid"]
 
 
 def test_missing_data_notice_translates_common_gaps():
@@ -464,6 +616,27 @@ def test_table_focus_cards_summarize_state_context_and_gaps_cleanly():
     assert "sell" not in rendered
 
 
+def test_output_tab_summary_cards_explain_missing_theme_context_without_zero_row_copy():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["A", "B"],
+            "FinalValueCategory": ["Insufficient Data", "Insufficient Data"],
+            "Reason": ["Missing peer inputs.", "Missing fundamentals."],
+            "MissingDataFields": ["peers", "fundamentals"],
+        }
+    )
+
+    cards = dashboard.output_tab_summary_cards("Value / Re-rating", frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no populated theme or sector context is available" in rendered
+    assert "saved local output" in rendered
+    assert "csv output" not in rendered
+    assert "across 0 rows" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_detail_columns_group_reasons_support_and_operational_fields():
     frame = pd.DataFrame(
         {
@@ -533,7 +706,7 @@ def test_filter_summary_text_stays_readable_and_compact():
         "monthly-research-picks",
         "nvda",
         "FinalState",
-        ["Watch", "Review Thesis", "Setup Forming", "Avoid"],
+        ["Watch", "Review Thesis", "Setup Forming", "No Setup"],
         "Theme",
         ["AI"],
         "SectorETF",
@@ -568,6 +741,24 @@ def test_filter_summary_text_handles_no_active_filters():
     assert "Market Direction" in text
     assert "9 of 9 rows visible" in text
     assert "Use search or filters" in text
+
+
+def test_filter_summary_text_uses_user_facing_value_page_name():
+    text = dashboard.filter_summary_text(
+        "value-re-rating",
+        "",
+        None,
+        [],
+        None,
+        [],
+        None,
+        [],
+        23,
+        23,
+    )
+
+    assert text.startswith("Value / Re-rating: 23 of 23 rows visible.")
+    assert "Value Re Rating" not in text
 
 
 def test_filter_summary_text_can_be_wrapped_in_context_note():
@@ -692,7 +883,7 @@ def _fake_data_source_outputs(_root, *, output_dir):
 
 def test_data_source_status_tables_handle_missing_outputs(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard, "write_data_source_outputs", _fake_data_source_outputs)
-    tables = dashboard.load_data_source_status_tables(tmp_path)
+    tables = dashboard.load_data_source_status_tables(tmp_path, allow_refresh=True)
 
     source_frame, source_message = tables["data_source_status.csv"]
     gap_frame, gap_message = tables["data_gap_report.csv"]
@@ -714,7 +905,7 @@ def test_pipeline_outputs_loader_regenerates_missing_core_outputs(tmp_path, monk
     try:
         dashboard.BASE_DIR = tmp_path
         dashboard.OUTPUTS_DIR = tmp_path
-        tables = dashboard.load_pipeline_outputs(tmp_path)
+        tables = dashboard.load_pipeline_outputs(tmp_path, allow_refresh=True)
     finally:
         dashboard.BASE_DIR = old_base
         dashboard.OUTPUTS_DIR = old_outputs
@@ -737,7 +928,7 @@ def test_monthly_outputs_loader_regenerates_missing_monthly_outputs(tmp_path, mo
     try:
         dashboard.BASE_DIR = tmp_path
         dashboard.OUTPUTS_DIR = tmp_path
-        tables = dashboard.load_monthly_outputs(tmp_path)
+        tables = dashboard.load_monthly_outputs(tmp_path, allow_refresh=True)
     finally:
         dashboard.BASE_DIR = old_base
         dashboard.OUTPUTS_DIR = old_outputs
@@ -749,6 +940,50 @@ def test_monthly_outputs_loader_regenerates_missing_monthly_outputs(tmp_path, mo
     assert (tmp_path / "monthly_research_picks.csv").exists()
     assert (tmp_path / "monthly_picks_track_record.csv").exists()
     assert (tmp_path / "monthly_picks_equity_curve.csv").exists()
+
+
+def test_dashboard_loaders_are_read_only_by_default(tmp_path, monkeypatch):
+    def fail_refresh(*_args, **_kwargs):
+        raise AssertionError("dashboard loader should not refresh artifacts by default")
+
+    monkeypatch.setattr(dashboard, "run_report_generator", fail_refresh)
+    monkeypatch.setattr(dashboard, "build_monthly_research_picks", fail_refresh)
+    monkeypatch.setattr(dashboard, "calculate_monthly_track_record", fail_refresh)
+    monkeypatch.setattr(dashboard, "write_data_source_outputs", fail_refresh)
+    monkeypatch.setattr(dashboard, "write_onboarding_outputs", fail_refresh)
+    monkeypatch.setattr(dashboard, "run_research_health", fail_refresh)
+    monkeypatch.setattr(dashboard, "write_action_queue_output", fail_refresh)
+
+    pipeline_tables = dashboard.load_pipeline_outputs(tmp_path)
+    monthly_tables = dashboard.load_monthly_outputs(tmp_path)
+    source_tables = dashboard.load_data_source_status_tables(tmp_path)
+    onboarding_tables = dashboard.load_data_onboarding_tables(tmp_path)
+    health_tables = dashboard.load_research_health_tables(tmp_path)
+    queue_frame, queue_message = dashboard.load_action_queue(tmp_path)
+
+    assert all(frame is None for frame, _message in pipeline_tables.values())
+    assert all(frame is None for frame, _message in monthly_tables.values())
+    assert all(frame is None for frame, _message in source_tables.values())
+    assert all(frame is None for frame, _message in onboarding_tables.values())
+    assert all(frame is None for frame, _message in health_tables.values())
+    assert queue_frame is None
+    assert "make action-queue" in queue_message
+
+
+def test_price_update_status_loader_does_not_rewrite_by_default(tmp_path):
+    path = tmp_path / "price_update_status.csv"
+    original = (
+        "ticker,status,rows_fetched,rows_merged,error_category,error_message,fallback_used,recommended_action\n"
+        "AMD,parse_error,0,0,parse_error,AMD parse failed,True,Run make focus-price TICKER=AMD\n"
+    )
+    path.write_text(original, encoding="utf-8")
+
+    frame, message = dashboard.load_price_update_status(tmp_path)
+
+    assert message is None
+    assert frame is not None
+    assert "focus_command" in frame.columns
+    assert path.read_text(encoding="utf-8") == original
 
 
 def test_data_source_status_table_columns_surface_command_fields():
@@ -764,7 +999,7 @@ def test_data_source_status_table_columns_surface_command_fields():
                 "credential_required": "SEC_USER_AGENT",
                 "credential_present": False,
                 "manual_fallback_command": "make templates",
-                "command_safety_note": "SEC staging requires credentials.",
+                "command_safety_note": "SEC import draft workflow requires credentials.",
                 "local_file": "data/fundamentals.csv",
                 "row_count": 6,
                 "validation_warnings": "as_of_date missing",
@@ -847,7 +1082,7 @@ def test_data_source_status_tables_refresh_stale_gap_report_columns(tmp_path):
     old_base = dashboard.BASE_DIR
     try:
         dashboard.BASE_DIR = tmp_path
-        tables = dashboard.load_data_source_status_tables(outputs_dir)
+        tables = dashboard.load_data_source_status_tables(outputs_dir, allow_refresh=True)
     finally:
         dashboard.BASE_DIR = old_base
 
@@ -906,7 +1141,7 @@ def test_data_source_status_tables_refresh_stale_source_status_columns(tmp_path)
     old_base = dashboard.BASE_DIR
     try:
         dashboard.BASE_DIR = tmp_path
-        tables = dashboard.load_data_source_status_tables(outputs_dir)
+        tables = dashboard.load_data_source_status_tables(outputs_dir, allow_refresh=True)
     finally:
         dashboard.BASE_DIR = old_base
 
@@ -967,7 +1202,7 @@ def test_data_source_status_tables_refresh_stale_example_commands(tmp_path, monk
         ]
     ).to_csv(outputs_dir / "data_source_status.csv", index=False)
 
-    tables = dashboard.load_data_source_status_tables(outputs_dir)
+    tables = dashboard.load_data_source_status_tables(outputs_dir, allow_refresh=True)
 
     source_frame, _ = tables["data_source_status.csv"]
     gap_frame, _ = tables["data_gap_report.csv"]
@@ -1026,7 +1261,7 @@ def test_data_source_status_tables_refresh_stale_action_text(tmp_path, monkeypat
         ]
     ).to_csv(outputs_dir / "data_source_status.csv", index=False)
 
-    tables = dashboard.load_data_source_status_tables(outputs_dir)
+    tables = dashboard.load_data_source_status_tables(outputs_dir, allow_refresh=True)
 
     source_frame, _ = tables["data_source_status.csv"]
     gap_frame, _ = tables["data_gap_report.csv"]
@@ -1041,7 +1276,7 @@ def test_data_source_status_tables_refresh_stale_action_text(tmp_path, monkeypat
 
 
 def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
-    frame, message = dashboard.load_price_update_status(tmp_path)
+    frame, message = dashboard.load_price_update_status(tmp_path, allow_write=True)
 
     assert frame is None
     assert "price_update_status.csv" in message
@@ -1077,7 +1312,7 @@ def test_load_price_update_status_enriches_legacy_command_fields(tmp_path):
         ]
     ).to_csv(path, index=False)
 
-    frame, message = dashboard.load_price_update_status(tmp_path)
+    frame, message = dashboard.load_price_update_status(tmp_path, allow_write=True)
 
     assert message is None
     assert frame is not None
@@ -1180,7 +1415,7 @@ def test_operator_workflow_table_columns_insert_safety_after_example_command():
                 "credential_required": "SEC_USER_AGENT",
                 "credential_present": False,
                 "manual_fallback_command": "make templates",
-                "command_safety_note": "SEC staging requires credentials.",
+                "command_safety_note": "SEC import draft workflow requires credentials.",
             }
         ]
     )
@@ -1255,7 +1490,7 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path, monkeypatch)
                 "ticker": "AMD",
                 "title": "Repair price history for AMD",
                 "status": "parse_error",
-                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                "recommended_action": "Retry later or use the manual price import draft workflow in data/imports/prices.csv.",
                 "example_command": "python3 -m src.data_update --tickers AMD",
                 "source_file": "data/imports/prices.csv",
                 "source_artifact": "outputs/price_update_status.csv",
@@ -1264,7 +1499,7 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path, monkeypatch)
         ]
     ).to_csv(tmp_path / "research_action_queue.csv", index=False)
 
-    frame, message = dashboard.load_action_queue(tmp_path)
+    frame, message = dashboard.load_action_queue(tmp_path, allow_refresh=True)
 
     assert message is None
     assert frame is not None
@@ -1325,7 +1560,7 @@ def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_c
         ]
     ).to_csv(tmp_path / "research_action_queue.csv", index=False)
 
-    frame, message = dashboard.load_action_queue(tmp_path)
+    frame, message = dashboard.load_action_queue(tmp_path, allow_refresh=True)
 
     assert message is None
     assert frame is not None
@@ -1349,7 +1584,7 @@ def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tm
                     "urgency": "high",
                     "action_type": "fundamentals",
                     "ticker": "",
-                    "title": "Advance staged fundamentals import",
+                    "title": "Review fundamentals import draft",
                     "status": "partial",
                     "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply.",
                     "focus_command": "make imports-validate",
@@ -1357,7 +1592,7 @@ def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tm
                     "target_file": "data/imports/fundamentals.csv",
                     "source_file": "data/imports/fundamentals.csv",
                     "source_artifact": "outputs/data_gap_report.csv",
-                    "reason": "Staged import rows are present in data/imports/fundamentals.csv.",
+                    "reason": "Local import draft rows are present in data/imports/fundamentals.csv.",
                 }
             ]
         ).to_csv(Path(output_dir) / "research_action_queue.csv", index=False)
@@ -1384,13 +1619,13 @@ def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tm
         ]
     ).to_csv(tmp_path / "research_action_queue.csv", index=False)
 
-    frame, message = dashboard.load_action_queue(tmp_path)
+    frame, message = dashboard.load_action_queue(tmp_path, allow_refresh=True)
 
     assert message is None
     assert frame is not None
     staged_rows = frame.loc[frame["focus_command"].astype(str).str.strip().eq("make imports-validate")]
     assert not staged_rows.empty
-    assert staged_rows.iloc[0]["title"] == "Advance staged fundamentals import"
+    assert staged_rows.iloc[0]["title"] == "Review fundamentals import draft"
     assert "data/imports/fundamentals.csv" in str(staged_rows.iloc[0]["reason"])
 
 
@@ -1450,7 +1685,7 @@ def test_load_action_queue_refreshes_stale_staged_peer_queue_artifact(tmp_path):
     old_base = dashboard.BASE_DIR
     try:
         dashboard.BASE_DIR = tmp_path
-        frame, message = dashboard.load_action_queue(outputs_dir)
+        frame, message = dashboard.load_action_queue(outputs_dir, allow_refresh=True)
     finally:
         dashboard.BASE_DIR = old_base
 
@@ -1461,9 +1696,9 @@ def test_load_action_queue_refreshes_stale_staged_peer_queue_artifact(tmp_path):
         & frame["action_type"].astype(str).str.strip().eq("peers")
     ]
     assert not staged_rows.empty
-    assert staged_rows.iloc[0]["title"] == "Advance staged peer import"
+    assert staged_rows.iloc[0]["title"] == "Review peer import draft"
     assert staged_rows.iloc[0]["target_file"] == "data/imports/peers.csv"
-    assert "staged import rows are present" in str(staged_rows.iloc[0]["reason"]).lower()
+    assert "local import draft rows are present" in str(staged_rows.iloc[0]["reason"]).lower()
 
 
 def test_load_action_queue_refreshes_stale_manual_peer_queue_artifact(tmp_path):
@@ -1501,7 +1736,7 @@ def test_load_action_queue_refreshes_stale_manual_peer_queue_artifact(tmp_path):
     old_base = dashboard.BASE_DIR
     try:
         dashboard.BASE_DIR = tmp_path
-        frame, message = dashboard.load_action_queue(outputs_dir)
+        frame, message = dashboard.load_action_queue(outputs_dir, allow_refresh=True)
     finally:
         dashboard.BASE_DIR = old_base
 
@@ -1538,7 +1773,7 @@ def _fake_research_health_outputs(_root, *, data_dir=None, output_dir):
         else:
             focus_command = f"make focus-fundamentals TICKER={ticker}"
             example_command = f"make sec-stage TICKERS={ticker}"
-            next_action = f"Run {focus_command}, then validate staged fundamentals before apply."
+            next_action = f"Run {focus_command}, then validate fundamentals import drafts before apply."
         rows.append(
             {
                 **row.to_dict(),
@@ -1644,7 +1879,7 @@ def _fake_onboarding_outputs(_root, *, output_dir):
             refreshed["example_command"] = f"make sec-stage TICKERS={ticker}"
             refreshed["recommended_action"] = (
                 f"Run make focus-fundamentals TICKER={ticker}, then make sec-stage TICKERS={ticker} "
-                "before validating staged fundamentals."
+                "before validating fundamentals import drafts."
             )
         elif dataset == "peers":
             refreshed["target_file"] = "data/imports/peers.csv"
@@ -1796,7 +2031,7 @@ def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path, m
         ]
     ).to_csv(tmp_path / "data_quality_wizard.csv", index=False)
 
-    tables = dashboard.load_research_health_tables(tmp_path)
+    tables = dashboard.load_research_health_tables(tmp_path, allow_refresh=True)
 
     frame, message = tables["data_quality_wizard.csv"]
     assert message is None
@@ -1841,7 +2076,7 @@ def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(t
         ]
     ).to_csv(tmp_path / "data_quality_wizard.csv", index=False)
 
-    tables = dashboard.load_research_health_tables(tmp_path)
+    tables = dashboard.load_research_health_tables(tmp_path, allow_refresh=True)
 
     frame, message = tables["data_quality_wizard.csv"]
     assert message is None
@@ -1878,7 +2113,7 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path,
         ]
     ).to_csv(tmp_path / "ticker_data_coverage.csv", index=False)
 
-    tables = dashboard.load_data_onboarding_tables(tmp_path)
+    tables = dashboard.load_data_onboarding_tables(tmp_path, allow_refresh=True)
 
     frame, message = tables["ticker_data_coverage.csv"]
     assert message is None
@@ -1915,7 +2150,7 @@ def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(t
         ]
     ).to_csv(tmp_path / "optional_context_worklist.csv", index=False)
 
-    tables = dashboard.load_data_onboarding_tables(tmp_path)
+    tables = dashboard.load_data_onboarding_tables(tmp_path, allow_refresh=True)
 
     frame, message = tables["optional_context_worklist.csv"]
     assert message is None
@@ -1971,7 +2206,7 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
         ]
     ).to_csv(tmp_path / "data_coverage_wizard.csv", index=False)
 
-    tables = dashboard.load_data_onboarding_tables(tmp_path)
+    tables = dashboard.load_data_onboarding_tables(tmp_path, allow_refresh=True)
 
     frame, message = tables["data_coverage_wizard.csv"]
     assert message is None
@@ -2060,7 +2295,7 @@ def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path, 
         ]
     ).to_csv(tmp_path / "command_bundle_runbook.csv", index=False)
 
-    tables = dashboard.load_data_onboarding_tables(tmp_path)
+    tables = dashboard.load_data_onboarding_tables(tmp_path, allow_refresh=True)
 
     bundle_frame, bundle_message = tables["command_bundles.csv"]
     detail_frame, detail_message = tables["command_bundle_details.csv"]
@@ -2104,7 +2339,7 @@ def test_load_data_onboarding_tables_refreshes_env_prefixed_sec_bundle_commands(
         ]
     ).to_csv(tmp_path / "command_bundles.csv", index=False)
 
-    tables = dashboard.load_data_onboarding_tables(tmp_path)
+    tables = dashboard.load_data_onboarding_tables(tmp_path, allow_refresh=True)
 
     bundle_frame, bundle_message = tables["command_bundles.csv"]
     assert bundle_message is None
@@ -2115,7 +2350,7 @@ def test_load_data_onboarding_tables_refreshes_env_prefixed_sec_bundle_commands(
 
 def test_onboarding_tables_handle_missing_outputs_and_summary(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard, "write_onboarding_outputs", _fake_onboarding_outputs)
-    tables = dashboard.load_data_onboarding_tables(tmp_path / "missing-onboarding-outputs")
+    tables = dashboard.load_data_onboarding_tables(tmp_path / "missing-onboarding-outputs", allow_refresh=True)
 
     for filename in (
         "ticker_data_coverage.csv",
@@ -2270,7 +2505,7 @@ def test_summarize_unlock_priority_summary_counts_group_types_and_stages():
 
 def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard, "run_research_health", _fake_research_health_outputs)
-    tables = dashboard.load_research_health_tables(tmp_path)
+    tables = dashboard.load_research_health_tables(tmp_path, allow_refresh=True)
 
     wizard_frame, wizard_message = tables["data_quality_wizard.csv"]
     liquidity_frame, liquidity_message = tables["liquidity_risk.csv"]
@@ -2299,7 +2534,7 @@ def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path, mon
 
 def test_action_queue_loader_and_summary_handle_missing_outputs(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard, "write_action_queue_output", _fake_action_queue_outputs)
-    frame, message = dashboard.load_action_queue(tmp_path)
+    frame, message = dashboard.load_action_queue(tmp_path, allow_refresh=True)
 
     assert frame is not None
     assert message is None
@@ -2317,7 +2552,7 @@ def test_action_queue_loader_and_summary_handle_missing_outputs(tmp_path, monkey
 def test_top_priority_signals_are_compact_and_sorted():
     queue = pd.DataFrame(
         [
-            {"priority": 2, "urgency": "high", "action_type": "fundamentals", "ticker": "NVDA", "title": "Improve fundamentals", "reason": "Need SEC staging.", "focus_command": "make focus-fundamentals TICKER=NVDA", "example_command": "make sec-stage"},
+            {"priority": 2, "urgency": "high", "action_type": "fundamentals", "ticker": "NVDA", "title": "Improve fundamentals", "reason": "Need SEC import draft workflow.", "focus_command": "make focus-fundamentals TICKER=NVDA", "example_command": "make sec-stage"},
             {"priority": 1, "urgency": "critical", "action_type": "prices", "ticker": "AMD", "title": "Repair prices", "reason": "No local prices.", "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.", "focus_command": "make focus-price TICKER=AMD", "example_command": "make price-refresh"},
         ]
     )
@@ -2341,7 +2576,7 @@ def test_top_priority_signals_use_lane_front_doors_when_commands_are_missing():
                 "ticker": "AMD",
                 "title": "Research peers",
                 "reason": "Peer mappings are missing.",
-                "recommended_action": "Add manually researched mappings through the staged imports flow.",
+                "recommended_action": "Add manually researched mappings through the local import draft flow.",
                 "focus_command": "",
                 "example_command": "",
             },
@@ -2399,7 +2634,7 @@ def test_top_priority_signals_use_command_family_fallbacks_when_row_copy_is_miss
                 "urgency": "critical",
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
-                "title": "Advance staged fundamentals",
+                "title": "Review fundamentals import draft",
                 "reason": "",
                 "recommended_action": "",
                 "focus_command": "make imports-validate",
@@ -2451,7 +2686,7 @@ def test_top_priority_signals_keep_staged_follow_through_visible():
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -2462,7 +2697,7 @@ def test_top_priority_signals_keep_staged_follow_through_visible():
                 "action_type": "peers",
                 "ticker": "TSLA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -2473,7 +2708,7 @@ def test_top_priority_signals_keep_staged_follow_through_visible():
                 "action_type": "prices",
                 "ticker": "AMD",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make price-validate",
                 "example_command": "",
                 "target_file": "data/imports/prices.csv",
@@ -2492,7 +2727,7 @@ def test_top_priority_signals_keep_staged_follow_through_visible():
     assert signals[2]["command"] == "make price-validate"
     assert "make price-preview" in signals[2]["body"].lower()
     assert "make price-apply" in signals[2]["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in " ".join(signal["body"] for signal in signals).lower()
+    assert "use local import draft workflows if the free refresh fails" not in " ".join(signal["body"] for signal in signals).lower()
 
 
 def test_operator_summary_helpers_normalize_legacy_status_copy():
@@ -2503,7 +2738,7 @@ def test_operator_summary_helpers_normalize_legacy_status_copy():
                 "urgency": "critical",
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
-                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals.",
                 "recommended_action": "",
             }
         ]
@@ -2514,7 +2749,7 @@ def test_operator_summary_helpers_normalize_legacy_status_copy():
                 "priority": 1,
                 "dataset": "fundamentals",
                 "ticker": "NVDA",
-                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals.",
                 "recommended_action": "",
             }
         ]
@@ -2525,7 +2760,7 @@ def test_operator_summary_helpers_normalize_legacy_status_copy():
                 "priority": 1,
                 "dataset": "fundamentals",
                 "ticker": "NVDA",
-                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals.",
                 "recommended_action": "",
             }
         ]
@@ -2728,7 +2963,7 @@ def test_project_status_action_cards_keep_staged_import_follow_through_visible()
                 "dataset": "fundamentals",
                 "ticker": "NVDA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -2738,7 +2973,7 @@ def test_project_status_action_cards_keep_staged_import_follow_through_visible()
                 "dataset": "peers",
                 "ticker": "TSLA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -2748,7 +2983,7 @@ def test_project_status_action_cards_keep_staged_import_follow_through_visible()
                 "dataset": "prices",
                 "ticker": "AMD",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make price-validate",
                 "example_command": "",
                 "target_file": "data/imports/prices.csv",
@@ -2767,7 +3002,7 @@ def test_project_status_action_cards_keep_staged_import_follow_through_visible()
     assert actions[2][2] == "make price-validate"
     assert "make price-preview" in actions[2][1].lower()
     assert "make price-apply" in actions[2][1].lower()
-    assert "use staged local imports if the free refresh fails" not in " ".join(action[1] for action in actions).lower()
+    assert "use local import draft workflows if the free refresh fails" not in " ".join(action[1] for action in actions).lower()
 
 
 def test_project_status_command_rows_prefer_structured_rows():
@@ -2777,6 +3012,8 @@ def test_project_status_command_rows_prefer_structured_rows():
                 "Step": "Fix top prices blocker (NVDA)",
                 "Command": "make focus-price TICKER=NVDA",
                 "Reason": "Short local price history still blocks downstream work.",
+                "SourceContext": "data/imports/prices.csv",
+                "FreshnessContext": "2026-05-21",
             },
             {
                 "Step": "Run Price Coverage Bundle (Broader Queue)",
@@ -2792,6 +3029,8 @@ def test_project_status_command_rows_prefer_structured_rows():
     assert rows[0]["Step"] == "Fix top prices blocker (NVDA)"
     assert rows[0]["Command"] == "make focus-price TICKER=NVDA"
     assert rows[0]["Reason"] == "Short local price history still blocks downstream work."
+    assert rows[0]["SourceContext"] == "data/imports/prices.csv"
+    assert rows[0]["FreshnessContext"] == "2026-05-21"
     assert rows[1]["Command"] == "make runbook-prices-broader"
 
 
@@ -3007,9 +3246,9 @@ def test_holdings_unlock_cards_keep_staged_import_front_doors_when_target_files_
     assert "make price-preview" in price_card["body"].lower()
     assert "make price-apply" in price_card["body"].lower()
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" in fundamentals_card["body"].lower()
     assert peer_card["command"] == "make imports-validate"
-    assert "staged peer import" in peer_card["body"].lower()
+    assert "peer import draft" in peer_card["body"].lower()
 
 
 def test_holdings_unlock_cards_upgrade_generic_staged_price_note_to_explicit_follow_through():
@@ -3020,7 +3259,7 @@ def test_holdings_unlock_cards_upgrade_generic_staged_price_note_to_explicit_fol
                 "ticker": "AMD",
                 "current_unlock_stage": "prices",
                 "next_unlock_goal": "Unlock Monthly Picks",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "",
                 "example_command": "",
                 "target_file": "data/imports/prices.csv",
@@ -3034,7 +3273,7 @@ def test_holdings_unlock_cards_upgrade_generic_staged_price_note_to_explicit_fol
     assert cards[0]["command"] == "make price-validate"
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in cards[0]["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in cards[0]["body"].lower()
 
 
 def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
@@ -3274,10 +3513,10 @@ def test_holdings_deep_research_cards_keep_staged_import_front_doors_when_comman
     fundamentals_card = next(card for card in cards if card["kicker"] == "NVDA")
     peer_card = next(card for card in cards if card["kicker"] == "TSLA")
 
-    assert fundamentals_card["title"] == "Advance staged fundamentals import"
+    assert fundamentals_card["title"] == "Review fundamentals import draft"
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "staged fundamentals" in fundamentals_card["body"].lower()
-    assert peer_card["title"] == "Advance staged peer import"
+    assert "fundamentals import draft" in fundamentals_card["body"].lower()
+    assert peer_card["title"] == "Review peer import draft"
 
 
 def test_holdings_deep_research_cards_upgrade_generic_staged_notes_to_explicit_follow_through():
@@ -3293,7 +3532,7 @@ def test_holdings_deep_research_cards_upgrade_generic_staged_notes_to_explicit_f
                 "priority": 1,
                 "ticker": "NVDA",
                 "theme": "AI",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -3307,7 +3546,7 @@ def test_holdings_deep_research_cards_upgrade_generic_staged_notes_to_explicit_f
                 "priority": 1,
                 "ticker": "TSLA",
                 "theme": "EV",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -3321,12 +3560,12 @@ def test_holdings_deep_research_cards_upgrade_generic_staged_notes_to_explicit_f
 
     assert "make imports-preview" in fundamentals_card["body"].lower()
     assert "make imports-apply" in fundamentals_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in fundamentals_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in fundamentals_card["body"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in peer_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in peer_card["body"].lower()
     assert peer_card["command"] == "make imports-validate"
-    assert "staged peer import ready" in peer_card["body"].lower()
+    assert "peer import draft ready" in peer_card["body"].lower()
 
 
 def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
@@ -3439,7 +3678,7 @@ def test_theme_unlock_cards_use_review_fallback_when_action_is_missing():
 
     assert cards[1]["kicker"] == "AI Semiconductors"
     assert cards[1]["command"] == "make runbook-peers-broader"
-    assert "staged local workflow next" in cards[1]["body"].lower()
+    assert "local import draft workflow next" in cards[1]["body"].lower()
     assert "not available" not in cards[1]["body"].lower()
 
 
@@ -3464,7 +3703,7 @@ def test_theme_unlock_cards_use_runbook_fallback_when_action_is_missing():
 
     assert cards[1]["kicker"] == "AI Semiconductors"
     assert cards[1]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[1]["body"].lower()
+    assert "local import draft workflow next" in cards[1]["body"].lower()
 
 
 def test_theme_unlock_cards_keep_staged_import_front_doors_when_target_files_are_present():
@@ -3518,9 +3757,9 @@ def test_theme_unlock_cards_keep_staged_import_front_doors_when_target_files_are
     assert "make price-preview" in price_card["body"].lower()
     assert "make price-apply" in price_card["body"].lower()
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" in fundamentals_card["body"].lower()
     assert peer_card["command"] == "make imports-validate"
-    assert "staged peer import" in peer_card["body"].lower()
+    assert "peer import draft" in peer_card["body"].lower()
 
 
 def test_theme_unlock_cards_upgrade_generic_staged_price_note_to_explicit_follow_through():
@@ -3533,7 +3772,7 @@ def test_theme_unlock_cards_upgrade_generic_staged_price_note_to_explicit_follow
                 "holdings_count": 1,
                 "top_priority_stage": "prices",
                 "next_unlock_goal": "Unlock Monthly Picks",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "",
                 "example_command": "",
                 "target_file": "data/imports/prices.csv",
@@ -3546,7 +3785,7 @@ def test_theme_unlock_cards_upgrade_generic_staged_price_note_to_explicit_follow
     assert cards[1]["command"] == "make price-validate"
     assert "make price-preview" in cards[1]["body"].lower()
     assert "make price-apply" in cards[1]["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in cards[1]["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in cards[1]["body"].lower()
     assert "not available" not in cards[1]["body"].lower()
 
 
@@ -3624,7 +3863,7 @@ def test_theme_deep_research_cards_surface_sec_and_peer_theme_blockers():
                 "ticker": "AMD",
                 "theme": "AI Semiconductors",
                 "is_holding": False,
-                "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
+                "recommended_action": "Run SEC import draft workflow for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
             },
         ]
     )
@@ -3781,14 +4020,14 @@ def test_theme_deep_research_cards_keep_staged_import_front_doors_when_commands_
     fundamentals_card = next(card for card in cards if card["kicker"] == "AI Semiconductors")
     peer_card = next(card for card in cards if card["kicker"] == "Semiconductor ETF")
 
-    assert fundamentals_card["title"] == "Advance staged fundamentals import"
+    assert fundamentals_card["title"] == "Review fundamentals import draft"
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" in fundamentals_card["body"].lower()
     assert "make imports-preview" in fundamentals_card["body"].lower()
     assert "make imports-apply" in fundamentals_card["body"].lower()
-    assert peer_card["title"] == "Advance staged peer import"
+    assert peer_card["title"] == "Review peer import draft"
     assert peer_card["command"] == "make imports-validate"
-    assert "staged peers import" in peer_card["body"].lower()
+    assert "peer import draft" in peer_card["body"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
 
@@ -3801,7 +4040,7 @@ def test_theme_deep_research_cards_upgrade_generic_staged_notes_to_explicit_foll
                 "ticker": "NVDA",
                 "theme": "AI Semiconductors",
                 "is_holding": True,
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -3815,7 +4054,7 @@ def test_theme_deep_research_cards_upgrade_generic_staged_notes_to_explicit_foll
                 "ticker": "SMH",
                 "theme": "Semiconductor ETF",
                 "is_holding": False,
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -3829,10 +4068,10 @@ def test_theme_deep_research_cards_upgrade_generic_staged_notes_to_explicit_foll
 
     assert "make imports-preview" in fundamentals_card["body"].lower()
     assert "make imports-apply" in fundamentals_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in fundamentals_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in fundamentals_card["body"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in peer_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in peer_card["body"].lower()
 
 
 def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers():
@@ -3881,7 +4120,7 @@ def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers()
     assert "1 holdings-first dcf unlocks" in rendered
     assert "2 missing peer mappings" in rendered
     assert "1 mapped follow-through" in rendered
-    assert "1 staged peer import already need make imports-validate, make imports-preview, and make imports-apply" in rendered
+    assert "1 peer import draft already need make imports-validate, make imports-preview, and make imports-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -3900,7 +4139,7 @@ def test_overview_deep_research_leverage_cards_rank_sec_and_peer_lanes():
                 "priority": 2,
                 "ticker": "AMD",
                 "theme": "AI Semiconductors",
-                "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
+                "recommended_action": "Run SEC import draft workflow for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
             },
         ]
     )
@@ -3995,9 +4234,9 @@ def test_overview_deep_research_leverage_cards_use_staged_peer_import_title_when
     cards = dashboard.overview_deep_research_leverage_cards(holdings, sec_queue, peer_queue)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "staged peer import path" in rendered
+    assert "peer import draft path" in rendered
     assert "make imports-validate" in rendered
-    assert "staged import" in rendered
+    assert "import draft" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4053,7 +4292,7 @@ def test_overview_deep_research_leverage_cards_use_runbook_fallback_when_action_
     dcf_card = next(card for card in cards if card["kicker"] == "DCF LEVERAGE")
 
     assert dcf_card["command"] == "make runbook-fundamentals"
-    assert "staged local workflow next" in dcf_card["body"].lower()
+    assert "local import draft workflow next" in dcf_card["body"].lower()
     assert "not available" not in dcf_card["body"].lower()
 
 
@@ -4135,14 +4374,14 @@ def test_overview_deep_research_leverage_cards_keep_staged_import_paths_when_com
     fundamentals_card = next(card for card in cards if card["kicker"] == "DCF LEVERAGE")
     peer_card = next(card for card in cards if card["kicker"] == "PEER LEVERAGE")
 
-    assert fundamentals_card["title"] == "Staged fundamentals import path"
+    assert fundamentals_card["title"] == "Fundamentals import draft path"
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" in fundamentals_card["body"].lower()
     assert "make imports-preview" in fundamentals_card["body"].lower()
     assert "make imports-apply" in fundamentals_card["body"].lower()
-    assert peer_card["title"] == "Staged peer import path"
+    assert peer_card["title"] == "Peer import draft path"
     assert peer_card["command"] == "make imports-validate"
-    assert "staged peer import" in peer_card["body"].lower()
+    assert "peer import draft" in peer_card["body"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
 
@@ -4155,7 +4394,7 @@ def test_overview_deep_research_leverage_cards_upgrade_generic_staged_notes_to_e
                 "priority": 1,
                 "ticker": "NVDA",
                 "theme": "AI Semiconductors",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -4168,7 +4407,7 @@ def test_overview_deep_research_leverage_cards_upgrade_generic_staged_notes_to_e
                 "priority": 1,
                 "ticker": "TSLA",
                 "theme": "EV",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -4182,10 +4421,10 @@ def test_overview_deep_research_leverage_cards_upgrade_generic_staged_notes_to_e
 
     assert "make imports-preview" in fundamentals_card["body"].lower()
     assert "make imports-apply" in fundamentals_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in fundamentals_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in fundamentals_card["body"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in peer_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in peer_card["body"].lower()
 
 
 def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortlist():
@@ -4202,7 +4441,7 @@ def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortli
                 "priority": 2,
                 "ticker": "AMD",
                 "theme": "AI Semiconductors",
-                "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
+                "recommended_action": "Run SEC import draft workflow for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
             },
         ]
     )
@@ -4224,7 +4463,7 @@ def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortli
     assert cards[0]["kicker"] == "NVDA"
     assert "unlock dcf" in rendered
     assert "unlock peer relative" in rendered
-    assert "next surface: data health" in rendered
+    assert "next page: data health" in rendered
     assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
     assert "current holding" in rendered
     assert "buy" not in rendered
@@ -4253,9 +4492,9 @@ def test_overview_deep_research_priority_bridge_cards_keep_staged_peer_command_w
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["kicker"] == "TSLA"
-    assert cards[0]["title"] == "Advance staged peer import"
+    assert cards[0]["title"] == "Review peer import draft"
     assert cards[0]["command"] == "make imports-validate"
-    assert "advance staged peer import" in rendered
+    assert "review peer import draft" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "buy" not in rendered
@@ -4383,13 +4622,13 @@ def test_overview_deep_research_priority_bridge_cards_keep_staged_import_paths_w
     fundamentals_card = next(card for card in cards if card["kicker"] == "NVDA")
     peer_card = next(card for card in cards if card["kicker"] == "TSLA")
 
-    assert fundamentals_card["title"] == "Advance staged fundamentals import"
+    assert fundamentals_card["title"] == "Review fundamentals import draft"
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" in fundamentals_card["body"].lower()
     assert "make imports-preview" in fundamentals_card["command_reason"].lower()
-    assert peer_card["title"] == "Advance staged peer import"
+    assert peer_card["title"] == "Review peer import draft"
     assert peer_card["command"] == "make imports-validate"
-    assert "staged peer import" in peer_card["body"].lower()
+    assert "peer import draft" in peer_card["body"].lower()
 
 
 def test_overview_deep_research_priority_bridge_cards_upgrade_generic_staged_notes_to_explicit_follow_through():
@@ -4400,7 +4639,7 @@ def test_overview_deep_research_priority_bridge_cards_upgrade_generic_staged_not
                 "priority": 1,
                 "ticker": "NVDA",
                 "theme": "AI Semiconductors",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -4413,7 +4652,7 @@ def test_overview_deep_research_priority_bridge_cards_upgrade_generic_staged_not
                 "priority": 1,
                 "ticker": "TSLA",
                 "theme": "EV",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -4427,11 +4666,11 @@ def test_overview_deep_research_priority_bridge_cards_upgrade_generic_staged_not
 
     assert "make imports-preview" in fundamentals_card["body"].lower()
     assert "make imports-apply" in fundamentals_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in fundamentals_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in fundamentals_card["body"].lower()
     assert "make imports-preview" in fundamentals_card["command_reason"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in peer_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in peer_card["body"].lower()
     assert "make imports-preview" in peer_card["command_reason"].lower()
     assert "make imports-preview" in peer_card["command_reason"].lower()
 
@@ -4482,7 +4721,7 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
                 "ticker": "NVDA",
                 "title": "Stage fundamentals",
                 "reason": "DCF inputs are still incomplete.",
-                "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
+                "recommended_action": "Run SEC import draft workflow for fundamentals, then validate and preview before applying.",
                 "example_command": "make sec-stage-queue",
             }
         ]
@@ -4557,7 +4796,7 @@ def test_overview_deep_research_handoff_cards_keep_staged_fundamentals_reason_an
     assert cards[0]["title"] == "NVDA"
     assert cards[0]["command"] == "make imports-validate"
     assert cards[1]["title"] == "make imports-validate"
-    assert "staged fundamentals import" in cards[1]["body"].lower()
+    assert "fundamentals import draft" in cards[1]["body"].lower()
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "buy" not in rendered
@@ -4586,7 +4825,7 @@ def test_overview_deep_research_handoff_cards_keep_runbook_fundamentals_reason_a
     assert cards[0]["title"] == "NVDA"
     assert cards[0]["command"] == "make runbook-fundamentals"
     assert cards[1]["title"] == "make runbook-fundamentals"
-    assert "staged local workflow next" in cards[1]["body"].lower()
+    assert "local import draft workflow next" in cards[1]["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4613,7 +4852,7 @@ def test_overview_deep_research_handoff_cards_keep_runbook_peer_reason_and_comma
     assert cards[0]["title"] == "TSLA"
     assert cards[0]["command"] == "make runbook-peers"
     assert cards[1]["title"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[1]["body"].lower()
+    assert "local import draft workflow next" in cards[1]["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4706,7 +4945,7 @@ def test_overview_ready_blocked_cards_tolerate_ladder_without_stage_columns():
     assert "sell" not in rendered
 
 
-def test_overview_best_current_name_cards_route_ready_names_to_next_surface():
+def test_overview_best_current_name_cards_route_ready_names_to_next_page():
     coverage = pd.DataFrame(
         [
             {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
@@ -4941,7 +5180,7 @@ def test_overview_ready_name_handoff_cards_use_runbook_fallback_when_no_ready_na
     assert "sell" not in rendered
 
 
-def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_tab():
+def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_page():
     coverage = pd.DataFrame(
         [
             {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
@@ -4999,6 +5238,8 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
     assert cards[3]["title"] == "Single-Stock Report"
     assert "normalize verified downloaded ohlcv rows" in rendered
     assert "best currently usable local name" in rendered
+    assert "next page" in rendered
+    assert "best next page" in rendered
     assert "top deeper-research blocker" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -5039,7 +5280,7 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
     assert "sell" not in rendered
 
 
-def test_overview_current_top_surfaces_cards_use_monthly_front_door_for_monthly_tab():
+def test_overview_current_top_surfaces_cards_use_monthly_front_door_for_monthly_page():
     coverage = pd.DataFrame(
         [
             {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
@@ -5145,7 +5386,7 @@ def test_overview_current_top_surfaces_cards_prefer_ready_name_reason_without_qu
                 "priority": 1,
                 "ticker": "AMD",
                 "theme": "Semiconductors",
-                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals.",
                 "focus_command": "make imports-validate",
                 "example_command": "make imports-preview",
                 "target_file": "data/imports/fundamentals.csv",
@@ -5188,7 +5429,7 @@ def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in
                 "priority": 1,
                 "ticker": "AMD",
                 "theme": "Semiconductors",
-                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals.",
                 "focus_command": "make imports-validate",
                 "example_command": "make imports-preview",
                 "target_file": "data/imports/fundamentals.csv",
@@ -5210,13 +5451,13 @@ def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in
 
     assert cards[1]["title"] == "AMD"
     assert cards[1]["command"] == "make imports-validate"
-    assert "advance staged fundamentals import" in cards[1]["body"].lower()
+    assert "review fundamentals import draft" in cards[1]["body"].lower()
     assert "make imports-apply" in cards[1]["body"].lower()
     assert "make status-check top_n=5" in rendered
     assert cards[3]["title"] == "Single-Stock Report"
     assert "open single-stock report after the command step" in cards[3]["body"].lower()
     assert "nvda" in cards[3]["body"].lower()
-    assert "live staged" in rendered
+    assert "live local" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5247,7 +5488,7 @@ def test_overview_current_top_surfaces_cards_use_runbook_fallback_when_no_ready_
     assert cards[2]["title"] == "make runbook-peers"
     assert cards[3]["title"] == "Data Health"
     assert "ordered lane runbook" in rendered
-    assert "staged local workflow" in rendered
+    assert "local import draft workflow" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5511,7 +5752,7 @@ def test_overview_next_command_cards_use_bundle_and_import_fallbacks_when_reason
     payload = {
         "recommended_next_command_rows": [
             {
-                "Step": "Advance staged fundamentals import",
+                "Step": "Review fundamentals import draft",
                 "Command": "make imports-validate",
                 "Reason": "",
             },
@@ -5539,14 +5780,14 @@ def test_overview_next_command_cards_keep_staged_follow_through_visible_when_rea
     payload = {
         "recommended_next_command_rows": [
             {
-                "Step": "Advance staged fundamentals import",
+                "Step": "Review fundamentals import draft",
                 "Command": "make imports-validate",
-                "Reason": "Use staged local imports if the free refresh fails.",
+                "Reason": "Use local import draft workflows if the free refresh fails.",
             },
             {
-                "Step": "Advance staged price import",
+                "Step": "Advance price import draft",
                 "Command": "make price-validate",
-                "Reason": "Use staged local imports if the free refresh fails.",
+                "Reason": "Use local import draft workflows if the free refresh fails.",
             },
         ]
     }
@@ -5559,7 +5800,7 @@ def test_overview_next_command_cards_keep_staged_follow_through_visible_when_rea
     assert cards[1]["title"] == "make price-validate"
     assert "make price-preview" in cards[1]["body"].lower()
     assert "make price-apply" in cards[1]["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in " ".join(card["body"] for card in cards).lower()
+    assert "use local import draft workflows if the free refresh fails" not in " ".join(card["body"] for card in cards).lower()
 
 
 def test_overview_next_command_cards_use_runbook_fallback_when_reason_is_missing():
@@ -5677,7 +5918,7 @@ def test_overview_workflow_path_cards_use_imports_and_bundle_fallbacks_when_acti
                 "urgency": "critical",
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
-                "title": "Advance staged fundamentals",
+                "title": "Review fundamentals import draft",
                 "reason": "",
                 "recommended_action": "",
                 "focus_command": "make imports-validate",
@@ -5734,9 +5975,9 @@ def test_overview_workflow_path_cards_surface_top_staged_follow_through_when_que
                 "urgency": "critical",
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
-                "title": "Advance staged fundamentals",
+                "title": "Review fundamentals import draft",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -5750,9 +5991,9 @@ def test_overview_workflow_path_cards_surface_top_staged_follow_through_when_que
                 "urgency": "critical",
                 "action_type": "prices",
                 "ticker": "AMD",
-                "title": "Advance staged prices",
+                "title": "Review price import drafts",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make price-validate",
                 "example_command": "",
                 "target_file": "data/imports/prices.csv",
@@ -5769,7 +6010,7 @@ def test_overview_workflow_path_cards_surface_top_staged_follow_through_when_que
     assert prices_cards[0]["title"] == "make price-validate"
     assert "make price-preview" in prices_cards[0]["body"].lower()
     assert "make price-apply" in prices_cards[0]["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in " ".join(
+    assert "use local import draft workflows if the free refresh fails" not in " ".join(
         str(value) for card in fundamentals_cards + prices_cards for value in card.values()
     ).lower()
 
@@ -5781,16 +6022,18 @@ def test_overview_workflow_path_cards_use_structured_project_status_steps():
                 "Step": "Fix top prices blocker (META)",
                 "Command": "make focus-price TICKER=META",
                 "Reason": "Provider rows could not be parsed cleanly, so price coverage is still the top blocker.",
+                "SourceContext": "data/imports/prices.csv",
+                "FreshnessContext": "2026-05-21",
             },
             {
-                "Step": "Advance staged fundamentals import",
+                "Step": "Review fundamentals import draft",
                 "Command": "make imports-validate",
-                "Reason": "Staged fundamentals already exist in data/imports/fundamentals.csv and should be validated before preview/apply.",
+                "Reason": "Fundamentals import drafts already exist in data/imports/fundamentals.csv and should be validated before preview/apply.",
             },
             {
                 "Step": "Deterministic verification",
                 "Command": "make verify",
-                "Reason": "Confirm local outputs still pass after the staged fundamentals follow-through.",
+                "Reason": "Confirm local outputs still pass after the fundamentals import drafts follow-through.",
             },
         ]
     }
@@ -5817,6 +6060,8 @@ def test_overview_workflow_path_cards_use_structured_project_status_steps():
     assert cards[2]["title"] == "make verify"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "source: data/imports/prices.csv" in rendered
+    assert "freshness: 2026-05-21" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5825,7 +6070,7 @@ def test_overview_workflow_path_cards_use_command_family_fallback_when_reason_is
     payload = {
         "recommended_next_command_rows": [
             {
-                "Step": "Advance staged peers import",
+                "Step": "Review peer import draft",
                 "Command": "make imports-validate",
                 "Reason": "",
             }
@@ -5845,14 +6090,14 @@ def test_overview_workflow_path_cards_keep_structured_staged_follow_through_visi
     payload = {
         "recommended_next_command_rows": [
             {
-                "Step": "Advance staged fundamentals import",
+                "Step": "Review fundamentals import draft",
                 "Command": "make imports-validate",
-                "Reason": "Use staged local imports if the free refresh fails.",
+                "Reason": "Use local import draft workflows if the free refresh fails.",
             },
             {
-                "Step": "Advance staged price import",
+                "Step": "Advance price import draft",
                 "Command": "make price-validate",
-                "Reason": "Use staged local imports if the free refresh fails.",
+                "Reason": "Use local import draft workflows if the free refresh fails.",
             },
         ]
     }
@@ -5865,7 +6110,7 @@ def test_overview_workflow_path_cards_keep_structured_staged_follow_through_visi
     assert cards[1]["title"] == "make price-validate"
     assert "make price-preview" in cards[1]["body"].lower()
     assert "make price-apply" in cards[1]["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in " ".join(
+    assert "use local import draft workflows if the free refresh fails" not in " ".join(
         card["body"] for card in cards[:2]
     ).lower()
 
@@ -5998,7 +6243,7 @@ def test_overview_workflow_reason_card_uses_imports_and_bundle_fallbacks_when_qu
                 "urgency": "critical",
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
-                "title": "Advance staged fundamentals",
+                "title": "Review fundamentals import draft",
                 "reason": "",
                 "recommended_action": "",
                 "focus_command": "make imports-validate",
@@ -6122,7 +6367,7 @@ def test_overview_workflow_reason_card_uses_runbook_fallback_when_structured_sum
     rendered = " ".join(str(value) for value in card.values()).lower()
 
     assert card["title"] == "make runbook-peers"
-    assert "staged local workflow" in rendered
+    assert "local import draft workflow" in rendered
     assert "not available" not in rendered
 
 
@@ -6144,7 +6389,7 @@ def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
     assert "sell" not in rendered
 
 
-def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
+def test_overview_best_local_research_path_cards_stitch_name_command_and_page():
     coverage = pd.DataFrame(
         [
             {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
@@ -6178,14 +6423,14 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
     assert cards[2]["title"] == "Single-Stock Report"
     assert "best current name" in rendered
     assert "next command" in rendered
-    assert "next tab" in rendered
+    assert "next page" in rendered
     assert "ticker-targeted stock report" in rendered
     assert "make verify" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
 
-def test_overview_best_local_research_path_cards_use_monthly_front_door_for_monthly_tab():
+def test_overview_best_local_research_path_cards_use_monthly_front_door_for_monthly_page():
     coverage = pd.DataFrame(
         [
             {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
@@ -6273,7 +6518,7 @@ def test_overview_best_local_research_path_cards_use_runbook_fallback_when_no_re
     assert cards[1]["title"] == "make runbook-peers"
     assert cards[2]["title"] == "Data Health"
     assert "ordered lane runbook" in rendered
-    assert "staged local workflow" in rendered
+    assert "local import draft workflow" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -6520,16 +6765,16 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     assert [card["kicker"] for card in cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO", "LOGIC SOURCE", "BEST USE"]
     assert "rank a local research-candidate queue" in rendered
     assert "transparent local score components" in rendered
-    assert "triage signals for deeper single-stock review" in rendered
+    assert "triage aids for deeper single-stock review" in rendered
     assert "price, setup, liquidity, and optional fundamentals" in rendered
     assert "no automatic portfolio decision" in rendered
     assert "does not provide allocation, position sizing, account actions, or direct recommendations" in rendered
     assert "empty slots and missing fields stay visible" in rendered
-    assert "repo-native scoring logic" in rendered
+    assert "project scoring logic" in rendered
     assert "src/monthly_picks.py" in rendered
     assert "libraries support data/ui" in rendered
-    assert "plugins can help development review" in rendered
-    assert "shipped scoring comes from repo code and local data" in rendered
+    assert "shipped scoring comes from project code and local data" in rendered
+    assert "plugins can help development review" not in rendered
     assert "make stock-report ticker=..." in rendered
     assert "valuation readiness" in rendered
     assert "source freshness" in rendered
@@ -6625,6 +6870,30 @@ def test_monthly_picks_coverage_gap_uses_data_wizard_without_blocker_queue():
     assert "make data-wizard top_n=10" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_monthly_picks_empty_candidates_use_broad_worklist_not_random_ticker():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "AIAI",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "focus_command": "make focus-price TICKER=AIAI",
+            }
+        ]
+    )
+
+    cards = dashboard.monthly_picks_next_step_cards(pd.DataFrame(), None, None, 5, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values())
+
+    assert cards[0]["title"] == "Improve candidate coverage"
+    assert cards[0]["command"] == "make price-worklist TOP_N=10"
+    assert "make price-worklist TOP_N=10" in rendered
+    assert "make focus-price TICKER=AIAI" not in rendered
 
 
 def test_monthly_picks_coverage_gap_uses_data_wizard_with_empty_queue():
@@ -6730,7 +6999,7 @@ def test_stock_report_summary_cards_are_readable_and_research_only():
         "provider_name": "LocalCSVMarketDataProvider",
         "price_snapshot": {"price": 100.0, "volume": None, "market_time": None},
         "performance": {"one_month": 0.12, "three_month": None, "one_year": 0.4},
-        "valuation_snapshot": {"status": "partial", "coverage": "limited"},
+        "valuation_snapshot": {"status": "insufficient_data", "coverage": "limited"},
         "valuation_readiness": {
             "dcf_ready": True,
             "peer_ready": False,
@@ -6745,6 +7014,8 @@ def test_stock_report_summary_cards_are_readable_and_research_only():
 
     assert len(cards) == 4
     assert "$100.00" in rendered
+    assert "Insufficient data" in rendered
+    assert "insufficient_data" not in rendered
     assert "Peers needed" in rendered
     assert "buy" not in rendered.lower()
     assert "sell" not in rendered.lower()
@@ -6798,6 +7069,7 @@ def test_stock_report_analysis_quality_cards_classify_supported_scope():
 def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     ready_cards = dashboard.stock_report_fundamentals_quality_cards(
         {
+            "ticker": "NVDA",
             "valuation_readiness": {"dcf_ready": True, "fundamentals_ready": True},
             "financial_summary": {
                 "revenue": 100_000_000,
@@ -6813,6 +7085,7 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     )
     partial_cards = dashboard.stock_report_fundamentals_quality_cards(
         {
+            "ticker": "META",
             "valuation_readiness": {"dcf_ready": False, "fundamentals_ready": True},
             "financial_summary": {
                 "revenue": 100_000_000,
@@ -6841,10 +7114,13 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     assert "fundamentals need data" in rendered
     assert "should not infer valuation from unavailable fundamentals" in rendered
     assert "margins, cash, and debt help explain business quality only when present" in rendered
-    assert "fundamentals rules stay in repo code" in rendered
-    assert "plugins can help development review" in rendered
-    assert "do not provide the shipped analysis" in rendered
-    assert "make focus-fundamentals ticker=..." in rendered
+    assert "fundamentals rules stay in project code" in rendered
+    assert "support tools are not analysis logic" in rendered
+    assert "fundamentals rules stay in project code; support tools are not analysis logic" in rendered
+    assert ready_cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
+    assert partial_cards[0]["command"] == "make focus-fundamentals TICKER=META"
+    assert locked_cards[0]["command"] == "make status-check TOP_N=5"
+    assert "ticker=..." not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -6953,6 +7229,107 @@ def test_stock_report_evaluation_summary_cards_surface_trust_boundary_before_tab
     assert "sell" not in rendered
 
 
+def test_stock_report_at_a_glance_cards_match_markdown_report_flow():
+    payload = {
+        "ticker": "META",
+        "asset_type": "company",
+        "valuation_snapshot": {"status": "insufficient_data", "dcf_result": {"status": "insufficient_data"}},
+        "valuation_readiness": {
+            "price_ready": True,
+            "dcf_ready": False,
+            "peer_ready": False,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": ["Fundamentals missing"],
+    }
+    coverage = pd.DataFrame(
+        [
+            {"dataset": "prices", "ticker_present": True},
+            {"dataset": "fundamentals", "ticker_present": False, "target_file": "data/fundamentals.csv"},
+            {"dataset": "peers", "ticker_present": False, "target_file": "data/peers.csv"},
+        ]
+    )
+
+    cards = dashboard.stock_report_at_a_glance_cards(payload, coverage, {"peer_dataset_present": False})
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "AT A GLANCE",
+        "VALUATION STATE",
+        "WITHHELD",
+        "METHOD",
+        "NEXT LOCAL STEP",
+    ]
+    assert cards[0]["title"] == "Price/setup review only"
+    assert "price/setup review and missing-data diagnosis" in rendered
+    assert "dcf: insufficient data" in rendered
+    assert "peer context: locked until trusted peer inputs are ready" in rendered
+    assert "optional context: locked until trusted optional rows exist" in rendered
+    assert "what not to infer" in rendered
+    assert "company valuation remains blocked" in rendered
+    assert "project gates and dcf math" in rendered
+    assert "projected cash flows" in rendered
+    assert "discounted terminal value" in rendered
+    assert "fair value per share" in rendered
+    assert cards[-1]["command"] == "make focus-fundamentals TICKER=META"
+    assert "copy the command" in rendered
+    assert "copy-only" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_mode_guide_cards_compare_all_modes_and_mark_current():
+    cards = dashboard.stock_report_mode_guide_cards(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": False},
+            "missing_data_warnings": ["Peers missing"],
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 5
+    assert [card["title"] for card in cards] == [
+        "DCF-ready review",
+        "Standalone DCF review",
+        "Price/setup review only",
+        "Monitor-only context",
+        "Data-unlock only",
+    ]
+    assert cards[1]["kicker"] == "CURRENT MODE"
+    assert cards[1]["badges"] == ["current"]
+    assert "company dcf can be reviewed, but peer-relative valuation remains blocked" in rendered
+    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "reference state for tickers with no trusted local inputs yet" in rendered
+    assert "pause analysis for this ticker" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_mode_guide_cards_use_strict_copy_for_current_data_unlock_mode():
+    cards = dashboard.stock_report_mode_guide_cards(
+        {
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "blocked"},
+            "valuation_readiness": {"price_ready": False, "dcf_ready": False, "peer_ready": False},
+            "missing_data_warnings": ["No local price rows were found."],
+        }
+    )
+    current_cards = [card for card in cards if card["kicker"] == "CURRENT MODE"]
+
+    assert len(current_cards) == 1
+    assert current_cards[0]["title"] == "Data-unlock only"
+    assert current_cards[0]["body"] == "Pause analysis for this ticker until the first trusted local input is available."
+
+
 def test_stock_report_function_quality_frame_explains_current_function_scope_and_source():
     frame = dashboard.stock_report_function_quality_frame(
         {
@@ -6976,10 +7353,41 @@ def test_stock_report_function_quality_frame_explains_current_function_scope_and
     assert "peer comparison" in rendered
     assert "blocked until source-backed peer mappings" in rendered
     assert "logic source" in rendered
-    assert "repo-native" in rendered
-    assert "plugins can help development review" in rendered
-    assert "shipped analysis comes from repo code and local data" in rendered
+    assert "project rules" in rendered
+    assert "shipped analysis comes from project code and local data" in rendered
+    assert "plugins can help development review" not in rendered
     assert "no open source was used" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_methodology_frame_explains_steps_and_dcf_gate():
+    frame = dashboard.stock_report_methodology_frame(
+        {
+            "asset_type": "company",
+            "price_snapshot": {"price": 100.0},
+            "performance": {"one_month": 0.12},
+            "financial_summary": {"revenue": 100_000_000, "free_cash_flow": 10_000_000, "shares_outstanding": 1_000_000},
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"dcf_ready": True, "peer_ready": False},
+        }
+    )
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == ["Step", "Method", "Plain Meaning"]
+    assert "1. readiness gate" in rendered
+    assert "2. fundamental review" in rendered
+    assert "3. dcf calculation" in rendered
+    assert "base fcf" in rendered
+    assert "discounted terminal value" in rendered
+    assert "fair value per share" in rendered
+    assert "4. peer context" in rendered
+    assert "blocked until source-backed peer mappings" in rendered
+    assert "5. report explanation" in rendered
+    assert "explained instead of filled" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7039,6 +7447,29 @@ def test_valuation_workflow_guidance_cards_explain_ready_blocked_and_excluded_st
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_value_re_rating_page_uses_context_not_ready_conclusion_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8").lower()
+
+    assert "operating-company valuation context is shown only for dcf-ready companies" in source
+    assert "instead of showing ranked valuation context" in source
+    assert "operating-company valuation conclusions are shown only for dcf-ready companies" not in source
+
+
+def test_valuation_legacy_output_note_explains_compatibility_filename():
+    note = dashboard.valuation_legacy_output_note().lower()
+
+    assert "outputs/undervalued_candidates.csv" in note
+    assert "legacy filename" in note
+    assert "valuation-readiness and re-rating context" in note
+    assert "not an automatic undervalued-stock list" in note
+    assert "missing trusted inputs remain blocked" in note
+    assert "broker" not in note
+    assert "order" not in note
+    assert "trading" not in note
+    assert "buy" not in note
+    assert "sell" not in note
 
 
 def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language():
@@ -7147,9 +7578,38 @@ def test_valuation_function_quality_frame_explains_scope_counts_and_provenance()
     assert "support layer, not valuation logic" in rendered
     assert "support layer only" in rendered
     assert "valuation rules live in this repository" in rendered
-    assert "replacing repo-native valuation rules or trusted local valuation inputs" in rendered
+    assert "replacing project valuation rules or trusted local valuation inputs" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_valuation_method_contract_frame_makes_dcf_formula_auditable_without_overclaiming():
+    frame = dashboard.valuation_method_contract_frame()
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == ["Step", "Plain Meaning", "Required Local Fields", "Output Boundary"]
+    assert frame["Step"].tolist() == [
+        "Input contract",
+        "Base cash flow",
+        "Scenario projection",
+        "Fair value math",
+        "ETF / fund boundary",
+    ]
+    assert "trusted local price and company fundamentals" in rendered
+    assert "price, revenue, free cash flow or fcf margin, shares outstanding" in rendered
+    assert "free_cash_flow, or revenue plus fcf_margin" in rendered
+    assert "bear, base, and bull scenarios project fcf" in rendered
+    assert "discounted" in rendered
+    assert "adjusted for cash/debt or net debt" in rendered
+    assert "divided by shares outstanding" in rendered
+    assert "peer-relative valuation remains separate" in rendered
+    assert "dcf is excluded, not failed" in rendered
+    assert "price target or direct recommendation" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7249,7 +7709,7 @@ def test_data_health_supported_ladder_cards_explain_analysis_levels_without_over
     assert "source-backed peer mappings and peer metrics" in rendered
     assert "sector fallback is not trusted peer valuation" in rendered
     assert "0 earnings / 0 estimates" in rendered
-    assert "locked instead of producing weak conclusions" in rendered
+    assert "locked instead of producing unsupported conclusions" in rendered
     assert "make dcf-readiness" in rendered
     assert "make peer-mapping-queue top_n=10" in rendered
     assert "make optional-context-worklist top_n=10" in rendered
@@ -7267,6 +7727,17 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Supported Analysis Ladder" in source
     assert "When Is A Stock Ready Enough?" not in source
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
+
+
+def test_data_health_page_does_not_block_initial_render_on_project_status_build():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert 'if selected_page == "Overview":' in source
+    assert 'if selected_page in {"Overview", "Data Health"}:' not in source
+    assert "Data Health is using saved local results first so the page stays responsive" in source
+    assert "Copy `make project-status` when you want to refresh the next-step summary" in source
+    assert "rendering from existing local CSV outputs" not in source
+    assert "separate project-status summary files" not in source
 
 
 def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
@@ -7408,7 +7879,11 @@ def test_stock_report_next_step_cards_prioritize_missing_prices_first():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Fix price coverage"
+    assert cards[-1]["title"] == "Locked"
+    assert cards[-1]["command"] == "make templates"
     assert "make focus-price ticker=nvda" in rendered
+    assert "missing optional context: earnings, analyst estimates" in rendered
+    assert "lower priority" in rendered
     assert "data gaps" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -7448,9 +7923,9 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
-    assert cards[0]["title"] == "Advance staged fundamentals import"
+    assert cards[0]["title"] == "Review fundamentals import draft"
     assert cards[0]["command"] == "make imports-validate"
-    assert "staged fundamentals" in cards[0]["body"].lower()
+    assert "fundamentals import drafts" in cards[0]["body"].lower()
 
     payload["valuation_readiness"]["dcf_ready"] = True
     coverage = pd.DataFrame(
@@ -7477,14 +7952,16 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
-    assert cards[0]["title"] == "Advance staged peer import"
+    assert cards[0]["title"] == "Review peer import draft"
     assert cards[0]["command"] == "make imports-validate"
-    assert "staged peer mappings" in cards[0]["body"].lower()
+    assert "peer mapping import drafts" in cards[0]["body"].lower()
 
     payload["valuation_readiness"]["peer_ready"] = True
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": True})
     assert cards[0]["title"] == "Review full report"
-    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
+    assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
+    assert cards[-1]["kicker"] == "OPTIONAL CONTEXT"
+    assert cards[-1]["command"] == "make templates"
 
 
 def test_stock_report_next_step_cards_keep_etf_reports_in_monitor_context():
@@ -7512,7 +7989,7 @@ def test_stock_report_next_step_cards_keep_etf_reports_in_monitor_context():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Review ETF / market proxy"
-    assert cards[0]["command"] == "make stock-report TICKER=QQQ"
+    assert cards[0]["command"] == "make stock-report-md TICKER=QQQ"
     assert "operating-company dcf and peer-relative valuation are excluded" in rendered
     assert "stage fundamentals" not in rendered
     assert "add peer mappings" not in rendered
@@ -7556,13 +8033,48 @@ def test_stock_report_next_step_cards_use_payload_price_readiness_when_coverage_
     rendered = " ".join(str(value) for card in etf_cards + company_cards for value in card.values()).lower()
 
     assert etf_cards[0]["title"] == "Review ETF / market proxy"
-    assert etf_cards[0]["command"] == "make stock-report TICKER=QQQ"
+    assert etf_cards[0]["command"] == "make stock-report-md TICKER=QQQ"
     assert etf_cards[1]["badges"] == ["DCF excluded", "monitor context"]
     assert company_cards[0]["title"] == "Add peer mappings"
     assert company_cards[0]["command"] == "make focus-peers TICKER=COHR"
+    assert company_cards[-1]["kicker"] == "OPTIONAL CONTEXT"
     assert "fix price coverage" not in rendered
     assert "make focus-price ticker=qqq" not in rendered
     assert "make focus-price ticker=cohr" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_next_step_cards_infer_price_ready_from_report_payload_without_coverage_table():
+    payload = {
+        "ticker": "NVDA",
+        "asset_type": "company",
+        "price_snapshot": {"price": 215.33, "volume": 168_346_300},
+        "performance": {"one_month": 0.079, "three_month": 0.165},
+        "financial_summary": {"revenue": 250_000_000_000, "free_cash_flow": 90_000_000_000, "shares_outstanding": 7_400_000_000},
+        "valuation_snapshot": {"status": "calculated", "dcf_result": {"status": "calculated"}},
+        "valuation_readiness": {
+            "dcf_ready": True,
+            "peer_ready": True,
+            "earnings_available": False,
+            "analyst_estimates_available": False,
+        },
+        "missing_data_warnings": ["earnings has no local row for this ticker.", "analyst estimates has no local row for this ticker."],
+    }
+
+    cards = dashboard.stock_report_next_step_cards(payload, None, {"peer_dataset_present": True})
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Review full report"
+    assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
+    assert cards[-1]["kicker"] == "OPTIONAL CONTEXT"
+    assert "optional context" in rendered
+    assert "trusted local csvs exist" in rendered
+    assert "fix price coverage" not in rendered
+    assert "make focus-price ticker=nvda" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7592,7 +8104,7 @@ def test_stock_report_next_step_cards_use_staged_import_front_doors_when_command
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
-    assert cards[0]["title"] == "Advance staged fundamentals import"
+    assert cards[0]["title"] == "Review fundamentals import draft"
     assert cards[0]["command"] == "make imports-validate"
 
     payload["valuation_readiness"]["dcf_ready"] = True
@@ -7608,7 +8120,7 @@ def test_stock_report_next_step_cards_use_staged_import_front_doors_when_command
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
-    assert cards[0]["title"] == "Advance staged peer import"
+    assert cards[0]["title"] == "Review peer import draft"
     assert cards[0]["command"] == "make imports-validate"
 
 
@@ -7675,6 +8187,7 @@ def test_stock_report_technical_context_cards_are_readable_and_research_only():
                 "DistanceFrom50SMA": -0.03,
                 "VolumeRatio": 1.2,
                 "ATRorVolatilityPct": 0.025,
+                "ATRorVolatilitySource": "volatility_proxy",
             },
             "final_watchlist": {
                 "FinalState": "Review Thesis",
@@ -7691,6 +8204,8 @@ def test_stock_report_technical_context_cards_are_readable_and_research_only():
     assert "review thesis" in rendered
     assert "vs spy 18.0%" in rendered
     assert "above 10 ema" in rendered
+    assert "volatility proxy approximation" in rendered
+    assert "proxy values are approximations" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -7722,6 +8237,41 @@ def test_stock_report_source_frame_hides_raw_missing_values():
     assert frame.iloc[0]["Retrieved"] == "2026-05-21"
     assert frame.iloc[0]["Official"] == "No"
     assert "CSV fallback" in frame.iloc[0]["Notes"]
+
+
+def test_stock_report_source_detail_summary_frame_replaces_raw_json_dump():
+    frame = dashboard.stock_report_source_detail_summary_frame(
+        {
+            "ticker": "NVDA",
+            "provider_name": "local",
+            "generated_at": "2026-06-04T12:00:00Z",
+            "valuation_readiness": {
+                "price_ready": True,
+                "dcf_ready": True,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "peer_count": 2,
+            },
+            "data_freshness": [{"provider": "local:prices.csv"}, {"provider": "local:fundamentals.csv"}],
+            "missing_data_warnings": ["No local earnings row."],
+        }
+    )
+
+    assert list(frame.columns) == ["Detail", "Value"]
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+    assert "nvda" in rendered
+    assert "local" in rendered
+    assert "2026-06-04" in rendered
+    assert "ready feature flags" in rendered
+    assert "blocked feature flags" in rendered
+    assert "source rows" in rendered
+    assert "missing-data warnings" in rendered
+    assert "report data download" in rendered
+    assert "optional structured local data file" in rendered
+    assert "most readers can use this page or the markdown report" in rendered
+    assert "machine-readable local report file" not in rendered
+    assert "price_ready" not in rendered
+    assert "data_freshness" not in rendered
 
 
 def test_stock_report_detail_frames_are_readable_not_raw_json():
@@ -7809,14 +8359,15 @@ def test_data_health_overview_cards_without_price_status_use_runbook_first_guida
     cards = dashboard.data_health_overview_cards(validation, None, action_queue, coverage)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "price status not generated" in rendered
+    assert "price status not ready yet" in rendered
+    assert "price status not generated" not in rendered
     assert cards[0]["command"] == "make validate-data"
     assert cards[1]["command"] == "make runbook-prices-broader"
     assert cards[2]["command"] == "make action-queue-check TOP_N=10"
     assert cards[3]["command"] == "make data-wizard TOP_N=10"
     assert "make runbook-prices-broader" in rendered
     assert "make focus-price" in rendered
-    assert "manual fallback" in rendered
+    assert "manual import option" in rendered
     assert "make price-normalize" in rendered
     assert "make price-validate" in rendered
     assert "make price-preview" in rendered
@@ -7884,7 +8435,7 @@ def test_data_health_overview_cards_surface_top_staged_action_follow_through():
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -7899,7 +8450,7 @@ def test_data_health_overview_cards_surface_top_staged_action_follow_through():
     assert action_card["command"] == "make imports-validate"
     assert "make imports-preview" in action_card["body"].lower()
     assert "make imports-apply" in action_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in action_card["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in action_card["body"].lower()
 
 
 def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
@@ -7922,7 +8473,7 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
 
     coverage_cards = dashboard.data_health_tab_summary_cards("Coverage", validation, coverage, status, price_status, staged_imports)
     price_cards = dashboard.data_health_tab_summary_cards("Price Refresh", validation, coverage, status, price_status, staged_imports)
-    staged_cards = dashboard.data_health_tab_summary_cards("Staged Imports", validation, coverage, status, price_status, staged_imports)
+    staged_cards = dashboard.data_health_tab_summary_cards("Import Review", validation, coverage, status, price_status, staged_imports)
     rendered = " ".join(
         str(value)
         for group in [coverage_cards, price_cards, staged_cards]
@@ -7935,12 +8486,14 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     assert coverage_cards[2]["command"] == "make runbook-peers-broader"
     assert coverage_cards[3]["command"] == "make onboarding"
     assert price_cards[0]["command"] == "make price-status TOP_N=10"
+    assert staged_cards[0]["kicker"] == "IMPORT DRAFTS"
+    assert "local import drafts waiting for review" in rendered
     assert price_cards[1]["command"] == "make price-status TOP_N=10"
     assert price_cards[2]["command"] == "make price-status TOP_N=10"
     assert staged_cards[0]["command"] == "make imports-preview"
     assert "1" in rendered
     assert "make price-status top_n=10" in rendered
-    assert "manual fallback" in rendered
+    assert "manual import option" in rendered
     assert "make price-normalize" in rendered
     assert "make price-validate" in rendered
     assert "make price-preview" in rendered
@@ -7982,7 +8535,7 @@ def test_data_health_fix_first_cards_prioritize_actions():
                 "dataset": "fundamentals",
                 "ticker": "MSFT",
                 "reason": "Needs verified local fundamentals.",
-                "recommended_action": "Run SEC staging, then validate and preview.",
+                "recommended_action": "Run SEC import draft workflow, then validate and preview.",
                 "focus_command": "make focus-fundamentals TICKER=MSFT",
                 "example_command": "make sec-stage TICKERS=MSFT",
             },
@@ -8049,7 +8602,7 @@ def test_data_health_fix_first_cards_normalize_legacy_status_copy():
                 "dataset": "fundamentals",
                 "ticker": "NVDA",
                 "reason": "Local fundamentals still need staged validation.",
-                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the staged fundamentals.",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the fundamentals import drafts.",
                 "focus_command": "make focus-fundamentals TICKER=NVDA",
                 "example_command": "",
             }
@@ -8116,7 +8669,7 @@ def test_data_health_fix_first_cards_keep_staged_follow_through_visible_when_tar
                 "dataset": "fundamentals",
                 "ticker": "NVDA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -8126,7 +8679,7 @@ def test_data_health_fix_first_cards_keep_staged_follow_through_visible_when_tar
                 "dataset": "peers",
                 "ticker": "TSLA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -8136,7 +8689,7 @@ def test_data_health_fix_first_cards_keep_staged_follow_through_visible_when_tar
                 "dataset": "prices",
                 "ticker": "AMD",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make price-validate",
                 "example_command": "",
                 "target_file": "data/imports/prices.csv",
@@ -8155,7 +8708,7 @@ def test_data_health_fix_first_cards_keep_staged_follow_through_visible_when_tar
     assert cards[2][2] == "make price-validate"
     assert "make price-preview" in cards[2][1].lower()
     assert "make price-apply" in cards[2][1].lower()
-    assert "use staged local imports if the free refresh fails" not in " ".join(card[1] for card in cards).lower()
+    assert "use local import draft workflows if the free refresh fails" not in " ".join(card[1] for card in cards).lower()
 
 
 def test_data_health_action_path_cards_surface_best_and_lane_commands():
@@ -8175,7 +8728,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "dataset": "fundamentals",
                 "ticker": "AMD",
                 "reason": "DCF inputs are still incomplete.",
-                "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
+                "recommended_action": "Run SEC import draft workflow for fundamentals, then validate and preview before applying.",
                 "focus_command": "make focus-fundamentals TICKER=AMD",
                 "example_command": "make sec-stage TICKERS=AMD",
             },
@@ -8244,7 +8797,7 @@ def test_data_health_action_path_cards_use_lane_and_queue_front_doors_when_comma
                 "dataset": "fundamentals",
                 "ticker": "AMD",
                 "reason": "DCF inputs are still incomplete.",
-                "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
+                "recommended_action": "Run SEC import draft workflow for fundamentals, then validate and preview before applying.",
             }
         ]
     )
@@ -8338,7 +8891,7 @@ def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_cop
                 "urgency": "critical",
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
-                "title": "Advance staged fundamentals",
+                "title": "Review fundamentals import draft",
                 "reason": "",
                 "recommended_action": "",
                 "focus_command": "make imports-validate",
@@ -8365,7 +8918,7 @@ def test_data_health_action_path_cards_keep_staged_follow_through_visible_when_t
                 "dataset": "fundamentals",
                 "ticker": "NVDA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -8375,7 +8928,7 @@ def test_data_health_action_path_cards_keep_staged_follow_through_visible_when_t
                 "dataset": "peers",
                 "ticker": "TSLA",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -8385,7 +8938,7 @@ def test_data_health_action_path_cards_keep_staged_follow_through_visible_when_t
                 "dataset": "prices",
                 "ticker": "AMD",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make price-validate",
                 "example_command": "",
                 "target_file": "data/imports/prices.csv",
@@ -8399,9 +8952,9 @@ def test_data_health_action_path_cards_keep_staged_follow_through_visible_when_t
                 "urgency": "critical",
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
-                "title": "Advance staged fundamentals",
+                "title": "Review fundamentals import draft",
                 "reason": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -8416,7 +8969,7 @@ def test_data_health_action_path_cards_keep_staged_follow_through_visible_when_t
     assert "make imports-preview" in cards[0]["body"].lower()
     assert any(card.get("command") == "make imports-validate" and "make imports-preview" in str(card.get("body", "")).lower() for card in cards[1:3])
     assert any(card.get("command") == "make price-validate" and "make price-preview" in str(card.get("body", "")).lower() for card in cards)
-    assert "use staged local imports if the free refresh fails" not in rendered
+    assert "use local import draft workflows if the free refresh fails" not in rendered
 
 
 def test_data_health_command_bundle_cards_surface_holdings_first_commands():
@@ -8439,7 +8992,7 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             },
             {
                 "bundle_name": "SEC Fundamentals Bundle",
@@ -8455,7 +9008,7 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "follow_up_command": "make imports-validate",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "This holding is the best next candidate for explicit local DCF inputs.",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             },
         ]
     )
@@ -8517,7 +9070,7 @@ def test_data_health_command_bundle_cards_use_staged_follow_through_when_summari
                 "runbook_shortcut_command": "make runbook-fundamentals",
                 "primary_command": "",
                 "target_file": "data/imports/fundamentals.csv",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -8576,7 +9129,7 @@ def test_data_health_command_bundle_cards_upgrade_generic_price_staged_note_to_e
                 "runbook_shortcut_command": "make runbook-prices",
                 "primary_command": "",
                 "target_file": "data/imports/prices.csv",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -8606,7 +9159,7 @@ def test_data_health_onboarding_fallback_cards_use_status_refresh():
     assert runbook_cards[0]["command"] == "make onboarding"
     assert runbook_cards[0]["title"] == "No bundle runbook yet"
     assert target_cards[0]["command"] == "make onboarding"
-    assert target_cards[0]["title"] == "No price targets yet"
+    assert target_cards[0]["title"] == "No price-history targets yet"
     assert "run make onboarding to refresh the onboarding outputs" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -8629,7 +9182,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "suggested_start_date": "2025-12-01",
                 "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
@@ -8645,14 +9198,14 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "suggested_start_date": "2025-12-01",
                 "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 3,
-                "step_label": "If staged imports were used, validate prices",
+                "step_label": "If import drafts were used, validate prices",
                 "command": "make price-validate",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
@@ -8661,14 +9214,14 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "suggested_start_date": "2025-12-01",
                 "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
-                "safe_next_step": "Validate normalized staged prices before preview so schema and duplicate issues surface early.",
+                "safe_next_step": "Validate normalized price import drafts before preview so schema and duplicate issues surface early.",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 4,
-                "step_label": "If staged imports were used, preview merge",
+                "step_label": "If import drafts were used, preview merge",
                 "command": "make price-preview",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
@@ -8677,14 +9230,14 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "suggested_start_date": "2025-12-01",
                 "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
-                "safe_next_step": "Preview the staged price merge before apply and confirm the affected tickers and row counts look correct.",
+                "safe_next_step": "Preview the price import draft merge before apply and confirm the affected tickers and row counts look correct.",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 5,
-                "step_label": "If staged imports were used, apply merge",
+                "step_label": "If import drafts were used, apply merge",
                 "command": "make price-apply",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
@@ -8693,7 +9246,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "suggested_start_date": "2025-12-01",
                 "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
-                "safe_next_step": "Apply the staged price merge only after validation and preview look correct.",
+                "safe_next_step": "Apply the price import draft merge only after validation and preview look correct.",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
@@ -8709,7 +9262,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "suggested_start_date": "2025-12-01",
                 "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
@@ -8801,12 +9354,12 @@ def test_data_health_command_bundle_runbook_cards_use_staged_follow_through_when
                 "lane": "fundamentals",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "make imports-validate",
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "",
                 "target_file": "data/imports/fundamentals.csv",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -8816,7 +9369,7 @@ def test_data_health_command_bundle_runbook_cards_use_staged_follow_through_when
     assert cards[0]["command"] == "make imports-validate"
     assert "make imports-preview" in cards[0]["body"].lower()
     assert "make imports-apply" in cards[0]["body"].lower()
-    assert "review staged import" in cards[0]["body"].lower()
+    assert "review import draft" in cards[0]["body"].lower()
 
 
 def test_data_health_command_bundle_runbook_cards_use_price_staged_follow_through_when_goal_summary_is_missing():
@@ -8827,7 +9380,7 @@ def test_data_health_command_bundle_runbook_cards_use_price_staged_follow_throug
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "make price-validate",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "",
@@ -8842,7 +9395,7 @@ def test_data_health_command_bundle_runbook_cards_use_price_staged_follow_throug
     assert cards[0]["command"] == "make price-validate"
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
-    assert "review staged import" in cards[0]["body"].lower()
+    assert "review import draft" in cards[0]["body"].lower()
 
 
 def test_data_health_command_bundle_runbook_cards_upgrade_generic_price_staged_note_to_explicit_follow_through():
@@ -8853,12 +9406,12 @@ def test_data_health_command_bundle_runbook_cards_upgrade_generic_price_staged_n
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "make price-validate",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "",
                 "target_file": "data/imports/prices.csv",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -8868,7 +9421,7 @@ def test_data_health_command_bundle_runbook_cards_upgrade_generic_price_staged_n
     assert cards[0]["command"] == "make price-validate"
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in cards[0]["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in cards[0]["body"].lower()
 
 
 def test_data_health_command_bundle_runbook_cards_use_staged_command_when_steps_are_blank():
@@ -8879,12 +9432,12 @@ def test_data_health_command_bundle_runbook_cards_use_staged_command_when_steps_
                 "lane": "fundamentals",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "",
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "",
                 "target_file": "data/imports/fundamentals.csv",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -8892,7 +9445,7 @@ def test_data_health_command_bundle_runbook_cards_use_staged_command_when_steps_
     cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make imports-validate"
-    assert "review staged import: make imports-validate" in cards[0]["body"].lower()
+    assert "review import draft: make imports-validate" in cards[0]["body"].lower()
     assert "make imports-preview" in cards[0]["body"].lower()
     assert "no runbook steps available" not in cards[0]["body"].lower()
 
@@ -8905,7 +9458,7 @@ def test_data_health_command_bundle_runbook_cards_use_price_staged_command_when_
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "",
@@ -8918,7 +9471,7 @@ def test_data_health_command_bundle_runbook_cards_use_price_staged_command_when_
     cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make price-validate"
-    assert "review staged import: make price-validate" in cards[0]["body"].lower()
+    assert "review import draft: make price-validate" in cards[0]["body"].lower()
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
     assert "no runbook steps available" not in cards[0]["body"].lower()
@@ -9052,7 +9605,7 @@ def test_data_health_price_target_cards_upgrade_generic_staged_note_to_explicit_
                 "focus_command": "make focus-price TICKER=META",
                 "example_command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
                 "target_file": "data/imports/prices.csv",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -9114,7 +9667,7 @@ def test_data_health_deep_research_target_cards_surface_dcf_and_peer_targets_saf
                 "theme": "AI Semis",
                 "price_history_days": 63,
                 "missing_required_for_dcf": "fundamentals row",
-                "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
+                "recommended_action": "Run SEC import draft workflow for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
                 "example_command": "make sec-stage TICKERS=NVDA",
             }
         ]
@@ -9156,8 +9709,8 @@ def test_data_health_deep_research_target_cards_preserve_staged_fundamentals_com
                 "is_holding": True,
                 "theme": "AI Semis",
                 "price_history_days": 63,
-                "missing_required_for_dcf": "staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply",
-                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "missing_required_for_dcf": "fundamentals import drafts still need make imports-validate, make imports-preview, and make imports-apply",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals.",
                 "focus_command": "make imports-validate",
                 "example_command": "make imports-preview",
                 "target_file": "data/imports/fundamentals.csv",
@@ -9273,7 +9826,7 @@ def test_data_health_deep_research_target_cards_keep_staged_import_paths_when_co
                 "is_holding": True,
                 "theme": "AI Semis",
                 "price_history_days": 63,
-                "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+                "missing_required_for_dcf": "fundamentals import drafts still need validate/preview/apply",
                 "recommended_action": "",
                 "focus_command": "",
                 "example_command": "",
@@ -9289,7 +9842,7 @@ def test_data_health_deep_research_target_cards_keep_staged_import_paths_when_co
                 "is_holding": True,
                 "theme": "EV",
                 "dcf_ready": True,
-                "missing_required_for_peer_relative": "staged peers still need validate/preview/apply",
+                "missing_required_for_peer_relative": "peer import drafts still need validate/preview/apply",
                 "recommended_action": "",
                 "focus_command": "",
                 "example_command": "",
@@ -9301,9 +9854,9 @@ def test_data_health_deep_research_target_cards_keep_staged_import_paths_when_co
     cards = dashboard.data_health_deep_research_target_cards(sec_queue, peer_queue)
 
     assert cards[0]["command"] == "make imports-validate"
-    assert "staged fundamentals import" in cards[0]["body"].lower()
+    assert "fundamentals import draft" in cards[0]["body"].lower()
     assert cards[1]["command"] == "make imports-validate"
-    assert "staged peer import" in cards[1]["body"].lower()
+    assert "peer import draft" in cards[1]["body"].lower()
 
 
 def test_overview_price_target_cards_surface_exact_history_targets_safely():
@@ -9388,7 +9941,7 @@ def test_overview_price_target_cards_upgrade_generic_staged_note_to_explicit_fol
                 "focus_command": "make focus-price TICKER=META",
                 "example_command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
                 "target_file": "data/imports/prices.csv",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -9413,7 +9966,7 @@ def test_overview_deep_research_target_cards_surface_dcf_and_peer_targets_safely
                 "theme": "AI Semis",
                 "price_history_days": 63,
                 "missing_required_for_dcf": "fundamentals row",
-                "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
+                "recommended_action": "Run SEC import draft workflow for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
                 "example_command": "make sec-stage TICKERS=NVDA",
             }
         ]
@@ -9455,8 +10008,8 @@ def test_overview_deep_research_target_cards_preserve_staged_fundamentals_comman
                 "is_holding": True,
                 "theme": "AI Semis",
                 "price_history_days": 63,
-                "missing_required_for_dcf": "staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply",
-                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "missing_required_for_dcf": "fundamentals import drafts still need make imports-validate, make imports-preview, and make imports-apply",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals.",
                 "focus_command": "make imports-validate",
                 "example_command": "make imports-preview",
                 "target_file": "data/imports/fundamentals.csv",
@@ -9572,7 +10125,7 @@ def test_overview_deep_research_target_cards_keep_staged_import_paths_when_comma
                 "is_holding": True,
                 "theme": "AI Semis",
                 "price_history_days": 63,
-                "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+                "missing_required_for_dcf": "fundamentals import drafts still need validate/preview/apply",
                 "recommended_action": "",
                 "focus_command": "",
                 "example_command": "",
@@ -9588,7 +10141,7 @@ def test_overview_deep_research_target_cards_keep_staged_import_paths_when_comma
                 "is_holding": True,
                 "theme": "EV",
                 "dcf_ready": True,
-                "missing_required_for_peer_relative": "staged peers still need validate/preview/apply",
+                "missing_required_for_peer_relative": "peer import drafts still need validate/preview/apply",
                 "recommended_action": "",
                 "focus_command": "",
                 "example_command": "",
@@ -9600,9 +10153,9 @@ def test_overview_deep_research_target_cards_keep_staged_import_paths_when_comma
     cards = dashboard.overview_deep_research_target_cards(sec_queue, peer_queue)
 
     assert cards[0]["command"] == "make imports-validate"
-    assert "staged fundamentals import" in cards[0]["body"].lower()
+    assert "fundamentals import draft" in cards[0]["body"].lower()
     assert cards[1]["command"] == "make imports-validate"
-    assert "staged peer import" in cards[1]["body"].lower()
+    assert "peer import draft" in cards[1]["body"].lower()
 
 
 def test_deep_research_target_fallback_cards_use_onboarding_refresh():
@@ -9622,7 +10175,7 @@ def test_deep_research_target_fallback_cards_use_onboarding_refresh():
     assert overview_cards[0]["command"] == "make onboarding"
     assert overview_cards[0]["title"] == "No DCF or peer targets yet"
     assert price_cards[0]["command"] == "make onboarding"
-    assert price_cards[0]["title"] == "No price targets yet"
+    assert price_cards[0]["title"] == "No price-history targets yet"
     assert "run make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -9662,7 +10215,7 @@ def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values
                 "blocking_dataset": "fundamentals",
                 "current_status": "free_cash_flow, shares_outstanding",
                 "why_it_matters": "DCF needs cash-flow inputs.",
-                "recommended_action": "Run SEC staging for candidate fundamentals, then validate and preview before applying.",
+                "recommended_action": "Run SEC import draft workflow for candidate fundamentals, then validate and preview before applying.",
                 "focus_command": "make focus-fundamentals TICKER=NVDA",
                 "example_command": "make sec-stage TICKERS=NVDA",
             },
@@ -9690,7 +10243,8 @@ def test_data_coverage_wizard_cards_handle_missing_output():
     rendered = " ".join(str(value) for card in cards for value in card.values())
 
     assert cards[0]["kicker"] == "UNLOCK GUIDE"
-    assert "Not generated" in rendered
+    assert "Unlock guide not ready yet" in rendered
+    assert "Not generated" not in rendered
     assert "local unlock guide" in rendered
     assert cards[0]["command"] == "make data-wizard TOP_N=10"
     assert "make data-wizard" in rendered
@@ -9831,7 +10385,7 @@ def test_data_coverage_wizard_cards_keep_staged_follow_through_visible_when_targ
                 "blocking_dataset": "fundamentals",
                 "current_status": "",
                 "why_it_matters": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/fundamentals.csv",
@@ -9843,7 +10397,7 @@ def test_data_coverage_wizard_cards_keep_staged_follow_through_visible_when_targ
                 "blocking_dataset": "peers",
                 "current_status": "",
                 "why_it_matters": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make imports-validate",
                 "example_command": "",
                 "target_file": "data/imports/peers.csv",
@@ -9855,7 +10409,7 @@ def test_data_coverage_wizard_cards_keep_staged_follow_through_visible_when_targ
                 "blocking_dataset": "prices",
                 "current_status": "",
                 "why_it_matters": "",
-                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "recommended_action": "Use local import draft workflows if the free refresh fails.",
                 "focus_command": "make price-validate",
                 "example_command": "",
                 "target_file": "data/imports/prices.csv",
@@ -9877,7 +10431,7 @@ def test_data_coverage_wizard_cards_keep_staged_follow_through_visible_when_targ
     assert monthly_card["command"] == "make price-validate"
     assert "make price-preview" in monthly_card["body"].lower()
     assert "make price-apply" in monthly_card["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in " ".join(card["body"] for card in cards).lower()
+    assert "use local import draft workflows if the free refresh fails" not in " ".join(card["body"] for card in cards).lower()
 
 
 def test_universe_preset_cards_include_preview_commands():
@@ -9928,11 +10482,13 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 3
-    assert cards[0]["title"] == "Apply staged universe"
+    assert cards[0]["title"] == "Apply universe draft"
     assert cards[0]["command"] == "make universe-apply"
     assert cards[2]["command"] == "make universe-apply"
     assert "12 current rows" in rendered
-    assert "apply stays cli-only" in rendered
+    assert "apply stays copy-only" in rendered
+    assert "cli-only" not in rendered
+    assert "terminal-only" not in rendered
     assert "make universe-preview" in rendered
     assert "make universe-apply" in rendered
     assert "buy" not in rendered
@@ -9958,7 +10514,7 @@ def test_universe_manager_summary_cards_surface_make_preview_and_apply():
     assert cards[2]["command"] == "make universe-preview"
     assert "make universe-preview" in rendered
     assert "make universe-apply" in rendered
-    assert "staged file present" in rendered
+    assert "import draft present" in rendered
 
 
 def test_staged_universe_status_frame_hides_raw_json_shape():
@@ -9971,17 +10527,69 @@ def test_staged_universe_status_frame_hides_raw_json_shape():
     )
 
     assert list(frame.columns) == ["Field", "Value"]
-    assert "Staged file" in frame["Field"].tolist()
+    assert "Import draft file" in frame["Field"].tolist()
     assert "data/imports/universe.csv" in frame["Value"].tolist()
     assert "valid_with_warnings" in frame["Value"].tolist()
     assert "manual review recommended" in frame["Value"].tolist()
 
 
-def test_dashboard_uses_advanced_label_for_staged_universe_json_details():
+def test_staged_universe_detail_frame_uses_readable_table_not_raw_json():
+    frame = dashboard.staged_universe_detail_frame(
+        {
+            "row_count": 4,
+            "path": "data/imports/universe.csv",
+            "validation": {
+                "status": "valid_with_warnings",
+                "warnings": ["manual review recommended"],
+                "missing_required_columns": ["sector"],
+                "extra_columns": ["notes"],
+                "duplicate_tickers": ["NVDA"],
+            },
+        }
+    )
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert list(frame.columns) == ["Field", "Value"]
+    assert "missing required columns" in rendered
+    assert "sector" in rendered
+    assert "extra columns" in rendered
+    assert "notes" in rendered
+    assert "duplicate tickers" in rendered
+    assert "nvda" in rendered
+    assert "{" not in rendered
+    assert "}" not in rendered
+
+
+def test_dashboard_uses_readable_universe_import_review_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "Advanced staged universe details (JSON)" in source
+    assert "Universe import review details" in source
+    assert "staged_universe_detail_frame" in source
+    assert "st.json(staged_universe" not in source
+    assert "st.json(staged" not in source
+    assert "Advanced universe import details" not in source
+    assert "Universe Import Review" in source
+    assert "Files that stay local" in source
+    assert "These working files are intentionally ignored so local refreshes and previews do not clutter the public project." in source
+    assert "Staged universe review details (JSON)" not in source
+    assert "Runtime Artifact Hygiene" not in source
+    assert "Advanced staged universe details (JSON)" not in source
     assert "Raw staged universe diagnostics" not in source
+
+
+def test_dashboard_import_copy_uses_plain_language_for_standard_files():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    visible_source = source.replace("canonical_import_file", "")
+
+    assert "Standard Import File" in source
+    assert "standard import file" in source
+    assert "standard import files" in source
+    assert "Local import drafts waiting for review before any standard local file update." in source
+    assert "main universe file" in source
+    assert "canonical import" not in visible_source.lower()
+    assert "canonical rows" not in visible_source.lower()
+    assert "canonical csv" not in visible_source.lower()
+    assert "canonical universe" not in visible_source.lower()
 
 
 def test_output_tab_summary_cards_explain_rows_status_and_gaps():
@@ -10021,7 +10629,7 @@ def test_output_tab_function_quality_cards_explain_broad_page_limits():
     assert "show theme and etf context" in rendered
     assert "no market timing instruction" in rendered
     assert "surface local setup strength" in rendered
-    assert "no automatic entry signal" in rendered
+    assert "no automatic timing call" in rendered
     assert "review holding purpose and risk" in rendered
     assert "no portfolio action instruction" in rendered
     assert "does not rebalance" in rendered
@@ -10134,6 +10742,133 @@ def test_market_wide_readiness_summary_prefers_central_dcf_count(monkeypatch):
     assert readiness_only_summary["price_ready"] == 2
     assert readiness_only_summary["momentum_ready"] == 2
     assert readiness_only_summary["peer_ready"] == 0
+
+
+def test_universe_layer_cards_separate_scope_from_analysis_readiness():
+    summary = {
+        "master_universe": 3538,
+        "active_universe": 12,
+        "price_ready": 240,
+        "dcf_ready": 23,
+        "peer_ready": 3,
+        "blocked_by_data": 3298,
+        "decision_buckets": {"Research Now": 23, "Monitor": 2, "Blocked by Data": 3513},
+    }
+
+    cards = dashboard.universe_layer_cards(summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values())
+
+    assert "3,538 tracked ticker(s)" in rendered
+    assert "12 focused ticker(s)" in rendered
+    assert "240 price / 23 DCF / 3 peer" in rendered
+    assert "module-specific" in rendered
+    assert "does not mean every analysis module is ready" in rendered
+    assert "research-only" in rendered
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
+
+
+def test_universe_layer_frame_gives_plain_language_next_steps():
+    summary = {
+        "master_count": 3538,
+        "active_count": 12,
+        "price_ready": 240,
+        "dcf_ready": 23,
+        "peer_ready": 3,
+        "earnings_ready": 0,
+        "analyst_estimates_ready": 0,
+        "blocked": 3298,
+        "decision_buckets": {"Research Now": 23, "Monitor": 2},
+    }
+
+    frame = dashboard.universe_layer_frame(summary)
+    rendered = " ".join(frame.astype(str).to_numpy().ravel().tolist())
+
+    assert frame["Layer"].tolist() == [
+        "Master universe",
+        "Active research list",
+        "Price and momentum ready",
+        "Company valuation ready",
+        "Optional context ready",
+        "Research decision layer",
+    ]
+    assert "3,538 tracked ticker(s)" in rendered
+    assert "23 DCF-ready / 3 peer-ready ticker(s)" in rendered
+    assert "Leave unavailable until trusted local CSV rows exist" in rendered
+    assert "do not infer missing valuation inputs" in rendered
+
+
+def test_methodology_ladder_explains_local_analysis_without_recommendations():
+    frame = dashboard.methodology_ladder_frame()
+    rendered = " ".join(frame.astype(str).to_numpy().ravel().tolist())
+
+    assert frame["Step"].tolist() == [
+        "1. Readiness gate",
+        "2. Supported calculations",
+        "3. Blocked or excluded analysis",
+        "4. Decision wording",
+        "5. Report explanation",
+    ]
+    assert "Checks whether local or provider-assisted rows for prices, fundamentals, DCF inputs, peers, earnings, and estimates are complete enough" in rendered
+    assert "input rows do not decide the conclusion by themselves" in rendered
+    assert "project calculations" in rendered
+    assert "confidence limits" in rendered
+    assert "without importing third-party analyst opinions" in rendered
+    assert "Withholds missing analysis instead of guessing fields" in rendered
+    assert "Research Now, Monitor, or Blocked by Data" in rendered
+    assert "src/stock_report.py" in rendered
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
+
+
+def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
+    summary = {
+        "master_universe": 3538,
+        "fundamentals_ready": 23,
+        "dcf_ready": 23,
+        "peer_ready": 3,
+    }
+
+    frame = dashboard.roadmap_milestone_status_frame(summary)
+    rendered = " ".join(frame.astype(str).to_numpy().ravel().tolist())
+
+    assert frame["Roadmap Area"].tolist() == [
+        "Product workflow",
+        "Fundamentals / DCF data unlock",
+        "Peer readiness",
+        "Decision clarity",
+        "Verification",
+    ]
+    assert "Implemented" in rendered
+    assert "Waiting on trusted data" in rendered
+    assert "23/3,538 fundamentals-ready" in rendered
+    assert "23/3,538 DCF-ready" in rendered
+    assert "3/3,538 peer-ready" in rendered
+    assert "counts should improve only after SEC import draft workflow or trusted manual CSV imports" in rendered
+    assert "make sec-stage-queue TOP_N=25" in rendered
+    assert "make peer-mapping-queue TOP_N=25" in rendered
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
+
+
+def test_roadmap_milestone_status_cards_surface_safe_commands():
+    cards = dashboard.roadmap_milestone_status_cards(
+        {
+            "master_universe": 3538,
+            "fundamentals_ready": 23,
+            "dcf_ready": 23,
+            "peer_ready": 3,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 5
+    assert cards[0]["command"] == "make dashboard-smoke"
+    assert any(card["command"] == "make verify" for card in cards)
+    assert "data-honest" in rendered
+    assert "waiting on trusted data" in rendered
+    assert "source-backed peer rows" in rendered
+    assert "unsupported" not in rendered
 
 
 def test_market_wide_readiness_summary_uses_current_report_ready_columns(monkeypatch):
@@ -10371,6 +11106,8 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
                 "Step": "Refresh next capped missing-price batch",
                 "Command": "make price-refresh TOP_N=25 PROVIDER=yahoo",
                 "Reason": "Advance the broad-universe price frontier safely.",
+                "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
+                "FreshnessContext": "capped refresh; verify source/freshness after merge",
             }
         ]
     }
@@ -10410,13 +11147,15 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "rejected-row reports" in rendered
     assert "when to use" in rendered
     assert "check after" in rendered
+    assert "data/imports/prices.csv fallback plus optional yahoo refresh" in rendered
+    assert "capped refresh; verify source/freshness after merge" in rendered
     assert "output_to_check" in console.columns
     assert "when_to_use" in console.columns
     assert "single-stock report" in rendered
     assert "active universe" in rendered
     assert "scope" in console.columns
     single_row = console.loc[console["action_category"].eq("Single-Stock Review")].iloc[0]
-    assert str(single_row["command"]).startswith("make stock-report TICKER=")
+    assert str(single_row["command"]).startswith("make stock-report-md TICKER=")
     assert "source_freshness_note" in " ".join(console.columns)
     assert "scope" in console.columns
     assert "dashboard does not execute" in rendered
@@ -10454,7 +11193,7 @@ def test_next_action_console_prioritizes_active_samples_without_hiding_broad_cou
     assert peer_row["sample_tickers"].split(",")[:2] == ["COHR", "LITE"]
     assert fundamentals_row["ticker_count"] == 1
     assert fundamentals_row["sample_tickers"] == "AAA"
-    assert single_row["command"] == "make stock-report TICKER=COHR"
+    assert single_row["command"] == "make stock-report-md TICKER=COHR"
     assert single_row["sample_tickers"].split(",")[:3] == ["COHR", "LITE", "QQQ"]
     assert "one ticker explained in plain language" in single_row["when_to_use"].lower()
     assert "markdown report" in single_row["output_to_check"].lower()
@@ -10471,7 +11210,8 @@ def test_next_action_console_sanitizes_uncapped_batch_commands():
     assert dashboard.safe_action_console_command("Fundamentals / DCF Unlock", "make sec-stage") == "make sec-stage-queue TOP_N=25"
     assert dashboard.safe_action_console_command("Peer Mapping Unlock", "make templates") == "make peer-mapping-queue TOP_N=25"
     assert dashboard.safe_action_console_command("Import Validation / Rejected Rows", "make imports-apply") == "make imports-apply"
-    assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report") == "make stock-report TICKER=META"
+    assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report") == "make stock-report-md TICKER=META"
+    assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report TICKER=NVDA") == "make stock-report-md TICKER=NVDA"
 
 
 def test_import_validation_rejected_row_cards_show_safe_manual_workflow():
@@ -10596,7 +11336,7 @@ def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_comman
                 "earnings_ready": False,
                 "analyst_estimates_ready": False,
                 "blocked_features": "price, fundamentals, dcf, peer",
-                "next_action": "Import staged price rows or refresh price provider for APLD.",
+                "next_action": "Import price rows through the preview-first workflow or refresh the price provider for APLD.",
             },
             {
                 "ticker": "BROAD",
@@ -10915,6 +11655,23 @@ def test_feature_readiness_cards_show_feature_level_product_status():
     assert "trade" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+    assert "sell" not in rendered
+
+
+def test_readiness_product_cards_use_plain_missing_output_language():
+    feature_cards = dashboard.feature_readiness_cards(None)
+    peer_cards = dashboard.peer_readiness_product_cards(None)
+    rendered = " ".join(str(value) for card in feature_cards + peer_cards for value in card.values()).lower()
+
+    assert feature_cards[0]["title"] == "Feature readiness not ready yet"
+    assert peer_cards[0]["title"] == "Peer readiness not ready yet"
+    assert feature_cards[0]["command"] == "make readiness"
+    assert peer_cards[0]["command"] == "make readiness"
+    assert "not generated" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_feature_readiness_cards_show_optional_context_as_locked_workflow():
@@ -11154,7 +11911,7 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
                 "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
                 "focus_command": "make focus-peers TICKER=A",
                 "example_command": "make peer-mapping-queue TOP_N=25",
-                "copy_only_note": "Copy commands only; review staged rows before applying local CSV changes.",
+                "copy_only_note": "Copy commands only; review import draft rows before applying local CSV changes.",
             },
             {
                 "ticker": "META",
@@ -11169,7 +11926,7 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
                 "validation_sequence": "make focus-fundamentals TICKER=<peer> -> make imports-validate",
                 "focus_command": "make focus-peers TICKER=META",
                 "example_command": "make peer-mapping-queue TOP_N=25",
-                "copy_only_note": "Copy commands only; review staged rows before applying local CSV changes.",
+                "copy_only_note": "Copy commands only; review import draft rows before applying local CSV changes.",
             },
         ]
     )
@@ -11226,6 +11983,57 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
     assert "data/imports/fundamentals.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_first_peer_mapping_unlock_frame_prioritizes_source_backed_mapping_workflow():
+    worklist = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "priority": 2,
+                "workflow_group": "peer_metric_follow_through",
+            },
+            {
+                "ticker": "META",
+                "priority": 1,
+                "workflow_group": "dcf_ready_peer_mapping",
+            },
+        ]
+    )
+
+    frame = dashboard.first_peer_mapping_unlock_frame(worklist)
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert frame["Step"].tolist() == [
+        "1. Pick the next peer-limited company",
+        "2. Add source-backed mappings only",
+        "3. Validate before applying",
+        "4. Rebuild peer readiness",
+    ]
+    assert frame.iloc[0]["Copy Command"] == "make focus-peers TICKER=META"
+    assert frame.iloc[1]["Copy Command"] == "make templates"
+    assert frame.iloc[1]["Trusted Input"] == "data/imports/peers.csv"
+    assert "sector or industry fallback is not trusted peer data" in rendered
+    assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "peer readiness should improve only after mapped rows pass validation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_first_peer_mapping_unlock_cards_keep_peer_valuation_gated():
+    cards = dashboard.first_peer_mapping_unlock_cards(next_ticker="COHR")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make focus-peers TICKER=COHR"
+    assert cards[1]["command"] == "make templates"
+    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply"
+    assert "no guessed peers" in rendered
+    assert "fallback is not input" in rendered
+    assert "do not show peer-relative valuation until source-backed mappings" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -11523,7 +12331,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "free_cash_flow" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
     assert "1 dcf-ready companies" in rendered
-    assert input_card["title"] == "SEC staging"
+    assert input_card["title"] == "SEC import draft workflow"
     assert input_card["command"] == "make sec-stage TICKERS=META"
     assert "make sec-stage tickers=meta" in rendered
     assert "tickers=<ticker>" not in rendered
@@ -11534,6 +12342,38 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "order" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_agent():
+    frame = dashboard.first_fundamentals_unlock_frame(False, "META")
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert frame["Step"].tolist() == [
+        "1. Pick the next company",
+        "2. Choose the trusted input path",
+        "3. Validate before applying",
+        "4. Rebuild readiness",
+    ]
+    assert frame.iloc[0]["Copy Command"] == "make focus-fundamentals TICKER=META"
+    assert frame.iloc[1]["Copy Command"] == "make templates"
+    assert frame.iloc[1]["Trusted Input"] == "data/imports/fundamentals.csv"
+    assert "sec_user_agent is missing" in rendered
+    assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "readiness counts should improve only after trusted rows pass validation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_first_fundamentals_unlock_cards_use_sec_path_when_configured():
+    cards = dashboard.first_fundamentals_unlock_cards(True, "NVDA")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
+    assert cards[1]["command"] == "make sec-stage TICKERS=NVDA"
+    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply"
+    assert "sec company facts import draft workflow" in rendered
+    assert "do not treat fundamentals_ready or dcf_ready as improved" in rendered
+    assert "no fabricated data" in rendered
 
 
 def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance():
@@ -11604,7 +12444,7 @@ def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance()
     assert "fallback sector context is not trusted peer valuation" in rendered
     assert "etf / index / fund rows" in rendered
     assert "1 row(s) excluded from operating-company dcf" in rendered
-    assert "repo-native" in rendered
+    assert "project asset-type gating" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -11752,7 +12592,7 @@ def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance(
     assert "1 price-gap ticker(s); 1 fundamentals-gap ticker(s)" in rendered
     assert "sector or industry fallback" in rendered
     assert "dependencies" in rendered
-    assert "replacing source-backed peer mappings or repo-native peer-readiness rules" in rendered
+    assert "replacing source-backed peer mappings or project peer-readiness rules" in rendered
     assert "peer logic runs from this repository" in rendered
     assert "copied peer-selection skills" not in rendered
     assert "no hidden peer-selection engine" not in rendered
@@ -11862,6 +12702,45 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
     assert "sell" not in rendered
 
 
+def test_decision_interpretation_ladder_explains_reading_order_without_recommendations():
+    frame = dashboard.decision_interpretation_ladder_frame()
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert frame["Step"].tolist() == [
+        "1. Read the bucket",
+        "2. Read the subtype",
+        "3. Read the blocker",
+        "4. Read confidence",
+        "5. Copy the next action",
+    ]
+    assert "workflow states, not direct actions" in rendered
+    assert "subtype explains why the broad bucket exists" in rendered
+    assert "do not interpret valuation, peers, earnings, or estimates until the blocker is resolved" in rendered
+    assert "confidence is a data-quality state" in rendered
+    assert "not a dashboard action or recommendation" in rendered
+    assert "make onboarding TOP_N=10".lower() in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_decision_interpretation_ladder_cards_keep_next_action_copy_only():
+    cards = dashboard.decision_interpretation_ladder_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make project-status"
+    assert cards[1]["command"] == "make onboarding TOP_N=10"
+    assert cards[2]["command"] == "make status-check TOP_N=5"
+    assert "decision reading order" in rendered
+    assert "blocker before conclusion" in rendered
+    assert "next action is copy-only" in rendered
+    assert "manual terminal workflow" in rendered
+    assert "research-only" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommendations():
     decisions = pd.DataFrame(
         [
@@ -11883,10 +12762,10 @@ def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommen
     assert "market, theme, etf/index, liquidity, or risk context" in rendered
     assert "blocked rows are data-unlock work" in rendered
     assert "not weak-company conclusions" in rendered
-    assert "repo-native readiness gates" in rendered
-    assert "local readiness, blocker, and source/freshness outputs under src/" in rendered
-    assert "plugins can help development review" in rendered
-    assert "shipped decisions come from repo code and local data" in rendered
+    assert "project readiness gates" in rendered
+    assert "local readiness, blocker, and source/freshness outputs in project code" in rendered
+    assert "shipped decisions come from project code and local data" in rendered
+    assert "plugins can help development review" not in rendered
     assert "not hidden recommendation engines" not in rendered
     assert "make onboarding top_n=10" in rendered
     assert "broker" not in rendered
@@ -11900,9 +12779,10 @@ def test_final_decision_quality_cards_handle_missing_outputs():
     cards = dashboard.final_decision_quality_cards(None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[0]["title"] == "Decision outputs not generated"
+    assert cards[0]["title"] == "Decision outputs not ready yet"
     assert cards[0]["command"] == "make pipeline"
     assert "run the local pipeline" in rendered
+    assert "not generated" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -11957,6 +12837,20 @@ def test_final_decision_table_guide_cards_explain_columns_before_rows():
     assert "sell" not in rendered
 
 
+def test_decision_workflow_summary_cards_use_plain_missing_output_language():
+    cards = dashboard.decision_workflow_summary_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Decision workflow not ready yet"
+    assert cards[0]["command"] == "make pipeline"
+    assert "not generated" not in rendered
+    assert "run make pipeline" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     decisions = pd.DataFrame(
         [
@@ -11977,7 +12871,7 @@ def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
             {
                 "ticker": "NVDA",
                 "decision_bucket": "Research Now",
-                "decision_subtype": "Research Candidate - Core Data Ready",
+                "decision_subtype": "Research Candidate - Optional Context Locked",
                 "primary_blocker": "earnings",
                 "next_best_action": "Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.",
             },
@@ -11995,7 +12889,7 @@ def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     next_card = next(card for card in cards if card["kicker"] == "NEXT DECISION ACTION")
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert next_card["title"] == "COHR"
+    assert next_card["title"] == "Peer mapping for COHR"
     assert next_card["command"] == "make focus-peers TICKER=COHR"
     assert "data/imports/peers.csv" in str(next_card["body"])
     assert "make imports-validate" in str(next_card["body"])
@@ -12005,7 +12899,22 @@ def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     assert "order" not in rendered
     assert "trade" not in rendered
     assert "buy" not in rendered
-    assert "sell" not in rendered
+
+
+def test_decision_next_action_title_names_the_work_not_only_the_ticker():
+    assert dashboard.decision_next_action_title(pd.Series({"ticker": "A", "primary_blocker": "peers"})) == "Peer mapping for A"
+    assert dashboard.decision_next_action_title(pd.Series({"ticker": "META", "primary_blocker": "fundamentals"})) == "Fundamentals for META"
+    assert dashboard.decision_next_action_title(pd.Series({"ticker": "APLD", "primary_blocker": "price"})) == "Price coverage worklist"
+    assert dashboard.decision_next_action_title(
+        pd.Series({"ticker": "QQQ", "primary_blocker": "", "asset_type": "etf"})
+    ) == "Monitor context for QQQ"
+
+
+def test_final_watchlist_expander_uses_product_language_not_legacy_label():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert 'st.expander("Full research-state table"' in source
+    assert "Legacy final watchlist output" not in source
 
 
 def test_decision_workflow_summary_cards_surface_research_now_optional_context_lock():
@@ -12014,7 +12923,7 @@ def test_decision_workflow_summary_cards_surface_research_now_optional_context_l
             {
                 "ticker": "AMD",
                 "decision_bucket": "Research Now",
-                "decision_subtype": "Research Candidate - Core Data Ready",
+                "decision_subtype": "Research Candidate - Optional Context Locked",
                 "primary_blocker": "earnings",
                 "blocked_features": "earnings, analyst_estimates",
                 "next_best_action": "Optional context missing for AMD; leave unavailable unless trusted local CSVs exist.",
@@ -12022,7 +12931,7 @@ def test_decision_workflow_summary_cards_surface_research_now_optional_context_l
             {
                 "ticker": "NVDA",
                 "decision_bucket": "Research Now",
-                "decision_subtype": "Research Candidate - Core Data Ready",
+                "decision_subtype": "Research Candidate - Optional Context Locked",
                 "primary_blocker": "earnings",
                 "blocked_features": "earnings, analyst_estimates",
                 "next_best_action": "Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.",
@@ -12037,7 +12946,7 @@ def test_decision_workflow_summary_cards_surface_research_now_optional_context_l
     assert optional_card["title"] == "2 research row(s)"
     assert optional_card["command"] == "make optional-context-worklist TOP_N=25"
     assert "amd, nvda" in rendered
-    assert "2 core data ready row(s)" in rendered
+    assert "optional context locked row(s): amd, nvda" in rendered
     assert "supported core or dcf context" in rendered
     assert "earnings or analyst-estimate context remains unavailable" in rendered
     assert "trusted local csv rows" in rendered
@@ -12073,6 +12982,48 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "make imports-preview" in empty_message
     assert "make imports-apply" in empty_message
     assert "make onboarding TOP_N=10" in empty_message
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_first_optional_context_unlock_frame_keeps_optional_rows_locked_until_trusted():
+    frame = dashboard.first_optional_context_unlock_frame("analyst_estimates")
+    rendered = " ".join(frame.astype(str).to_numpy().ravel()).lower()
+
+    assert frame["Step"].tolist() == [
+        "1. Confirm optional context is worth adding",
+        "2. Create schema-only templates",
+        "3. Stage trusted analyst estimates rows",
+        "4. Validate before applying",
+        "5. Rebuild optional readiness",
+    ]
+    assert frame.iloc[0]["Copy Command"] == "make optional-context-worklist TOP_N=25"
+    assert frame.iloc[1]["Copy Command"] == "make templates"
+    assert frame.iloc[2]["Copy Command"] == "make import-analyst-estimates"
+    assert "data/staged/analyst_estimates/" in rendered
+    assert "data/imports/analyst_estimates.csv" in rendered
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "templates are blank aids, not synthetic data or coverage" in rendered
+    assert "leave unknown fields blank instead of guessing" in rendered
+    assert "optional readiness should improve only after rows pass validation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_first_optional_context_unlock_cards_are_recommendation_free():
+    cards = dashboard.first_optional_context_unlock_cards("earnings")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make optional-context-worklist TOP_N=25"
+    assert cards[1]["command"] == "make import-earnings"
+    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply"
+    assert "data/staged/earnings/" in rendered
+    assert "data/imports/earnings.csv" in rendered
+    assert "trusted source only" in rendered
+    assert "no estimates fabricated" in rendered
+    assert "not a recommendation" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -12277,7 +13228,7 @@ def test_single_stock_status_cards_route_core_data_ready_optional_lock_to_workli
     snapshot = {
         "ticker": "AMD",
         "status": "partial",
-        "decision_subtype": "Research Candidate - Core Data Ready",
+        "decision_subtype": "Research Candidate - Optional Context Locked",
         "confidence": "medium",
         "main_reason": "Core data is ready for a supported research pass.",
         "next_action": "Optional context missing for AMD; leave unavailable unless trusted local CSVs exist.",
@@ -12302,7 +13253,7 @@ def test_single_stock_status_cards_route_core_data_ready_optional_lock_to_workli
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert status_card["command"] == "make optional-context-worklist TOP_N=25"
-    assert "research candidate - core data ready" in rendered
+    assert "research candidate - optional context locked" in rendered
     assert "optional context missing for amd" in rendered
     assert "trusted local csv input" in rendered
     assert "make templates" not in rendered
@@ -12442,7 +13393,7 @@ def test_dashboard_splits_momentum_to_ready_and_blocked_rows():
         {
             "Ticker": ["NVDA", "AMD"],
             "Close": [120.0, None],
-            "SetupStatus": ["Watch", "Avoid"],
+            "SetupStatus": ["Watch", "No Setup"],
             "Reason": ["Supported.", "Price data is missing."],
         }
     )
@@ -12545,12 +13496,12 @@ def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
 
 
 def test_momentum_setup_distribution_frame_counts_statuses_cleanly():
-    frame = pd.DataFrame({"SetupStatus": ["Watch", "Avoid", "Watch", None, ""]})
+    frame = pd.DataFrame({"SetupStatus": ["Watch", "No Setup", "Watch", None, ""]})
 
     chart = dashboard.momentum_setup_distribution_frame(frame)
 
     assert chart.loc["Watch", "Count"] == 2
-    assert chart.loc["Avoid", "Count"] == 1
+    assert chart.loc["No Setup", "Count"] == 1
     assert chart.loc["Not available", "Count"] == 2
 
 
@@ -12726,10 +13677,12 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert any(row["Command"] == "make validate-all" for row in workflow_rows)
     assert any(row["Command"] == "make dashboard-smoke" for row in workflow_rows)
     assert any(row["Command"] == "make daily" for row in workflow_rows)
-    assert "verified ohlcv files before relying on momentum or track-record context" in rendered
+    assert "trusted daily price history before reading momentum, risk, or track-record context" in rendered
+    assert "without first unlocking more data" in rendered
+    assert "valuation-style analysis" in rendered
     assert "make runbook-prices-broader" in rendered
-    assert "overview tab" in nav_rendered
-    assert "monthly picks tab" in nav_rendered
+    assert "overview page" in nav_rendered
+    assert "monthly picks page" in nav_rendered
     assert "research queue, not a conclusion list" in nav_rendered
     assert "use this first" in nav_rendered
     assert "analyze one stock" in nav_rendered
@@ -12744,7 +13697,7 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert any(row["Dashboard Label"] == "Earnings unavailable" for row in missing_rows)
     assert any(row["Dashboard Label"] == "Analyst estimates unavailable" for row in missing_rows)
     assert "make data-wizard top_n=5" in rendered
-    assert "data health tab" in nav_rendered
+    assert "data health page" in nav_rendered
     assert "make runbook-prices-broader" in empty_rendered
     assert "make runbook-fundamentals-broader" in empty_rendered
     assert "make runbook-peers-broader" in empty_rendered
@@ -12767,8 +13720,9 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
-    assert "staged peer fundamentals or price blocker" in empty_rendered
-    assert "staged peer fundamentals or peer price follow-through" in rendered
+    assert "peer fundamentals or price blocker" in empty_rendered
+    assert "peer fundamentals or peer price follow-through" in rendered
+    assert "staged peer fundamentals" not in rendered
 
 
 def test_sidebar_guide_cards_render_plain_language_without_tables():
@@ -12786,7 +13740,7 @@ def test_sidebar_guide_cards_render_plain_language_without_tables():
     assert "<table" not in rendered
     assert "<th" not in rendered
     assert "research ready" in rendered
-    assert "the app intentionally avoided calculating a result from incomplete inputs" in rendered
+    assert "the app intentionally skipped analysis instead of filling gaps with guesses" in rendered
     assert "make imports-validate" in rendered
     assert "missing peer mapping" in rendered
     assert "data/imports/peers.csv" in rendered
@@ -12802,6 +13756,32 @@ def test_sidebar_guide_cards_escape_untrusted_copy():
 
     assert "&lt;Ready&gt;" in html
     assert "&lt;trusted&gt;" in html
+
+
+def test_sidebar_relative_path_context_uses_public_safe_relative_paths(tmp_path: Path):
+    context = dashboard.sidebar_relative_path_context(tmp_path, tmp_path / "data", tmp_path / "outputs")
+
+    assert context == {
+        "project_root": ".",
+        "data_dir": "data",
+        "outputs_dir": "outputs",
+    }
+    assert str(tmp_path) not in " ".join(context.values())
+
+
+def test_sidebar_local_file_context_lines_use_plain_relative_labels(tmp_path: Path):
+    lines = dashboard.sidebar_local_file_context_lines(tmp_path, tmp_path / "data", tmp_path / "outputs")
+    rendered = "\n".join(lines)
+
+    assert lines == [
+        "App folder: .",
+        "Trusted input CSVs: data",
+        "Generated reports: outputs",
+    ]
+    assert "Project root:" not in rendered
+    assert "Data dir:" not in rendered
+    assert "Outputs dir:" not in rendered
+    assert str(tmp_path) not in rendered
 
 
 def test_priority_now_falls_back_to_status_first_ready_path():
@@ -12922,10 +13902,10 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
     assert "Home page" in navigation
-    assert "Overview tab" in navigation
-    assert "Monthly Picks tab" in navigation
-    assert "Single-Stock Report tab" in navigation
-    assert "Data Health tab" in navigation
+    assert "Overview page" in navigation
+    assert "Monthly Picks page" in navigation
+    assert "Single-Stock Report page" in navigation
+    assert "Data Health page" in navigation
 
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():
@@ -13025,7 +14005,7 @@ def test_price_refresh_fallback_message_uses_runbook_and_normalize_flow():
 def test_price_refresh_cli_note_message_uses_runbook_and_normalize_flow():
     note = dashboard.price_refresh_cli_note_message()
 
-    assert note.startswith("CLI-only:")
+    assert note.startswith("Terminal-only:")
     assert "make runbook-prices-broader" in note
     assert "make focus-price" in note
     assert "make price-normalize" in note
@@ -13057,7 +14037,7 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
                 "why_it_matters": "These tickers still block broader local research because price history is missing or too short.",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -13142,7 +14122,7 @@ def test_overview_command_bundle_cards_use_staged_follow_through_when_summaries_
                 "runbook_shortcut_command": "make runbook-fundamentals",
                 "primary_command": "",
                 "target_file": "data/imports/fundamentals.csv",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -13201,7 +14181,7 @@ def test_overview_command_bundle_cards_upgrade_generic_price_staged_note_to_expl
                 "runbook_shortcut_command": "make runbook-prices",
                 "primary_command": "",
                 "target_file": "data/imports/prices.csv",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -13434,12 +14414,12 @@ def test_overview_bundle_runbook_cards_use_staged_follow_through_when_goal_summa
                 "lane": "fundamentals",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "make imports-validate",
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "",
                 "target_file": "data/imports/fundamentals.csv",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -13449,7 +14429,7 @@ def test_overview_bundle_runbook_cards_use_staged_follow_through_when_goal_summa
     assert cards[0]["command"] == "make imports-validate"
     assert "make imports-preview" in cards[0]["body"].lower()
     assert "make imports-apply" in cards[0]["body"].lower()
-    assert "review staged import" in cards[0]["body"].lower()
+    assert "review import draft" in cards[0]["body"].lower()
 
 
 def test_overview_bundle_runbook_cards_use_price_staged_follow_through_when_goal_summary_is_missing():
@@ -13460,7 +14440,7 @@ def test_overview_bundle_runbook_cards_use_price_staged_follow_through_when_goal
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "make price-validate",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "",
@@ -13475,7 +14455,7 @@ def test_overview_bundle_runbook_cards_use_price_staged_follow_through_when_goal
     assert cards[0]["command"] == "make price-validate"
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
-    assert "review staged import" in cards[0]["body"].lower()
+    assert "review import draft" in cards[0]["body"].lower()
 
 
 def test_overview_bundle_runbook_cards_upgrade_generic_price_staged_note_to_explicit_follow_through():
@@ -13486,12 +14466,12 @@ def test_overview_bundle_runbook_cards_upgrade_generic_price_staged_note_to_expl
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "make price-validate",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "",
                 "target_file": "data/imports/prices.csv",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -13501,7 +14481,7 @@ def test_overview_bundle_runbook_cards_upgrade_generic_price_staged_note_to_expl
     assert cards[0]["command"] == "make price-validate"
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
-    assert "use staged local imports if the free refresh fails" not in cards[0]["body"].lower()
+    assert "use local import draft workflows if the free refresh fails" not in cards[0]["body"].lower()
 
 
 def test_overview_bundle_runbook_cards_use_staged_command_when_steps_are_blank():
@@ -13512,12 +14492,12 @@ def test_overview_bundle_runbook_cards_use_staged_command_when_steps_are_blank()
                 "lane": "fundamentals",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "",
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "",
                 "target_file": "data/imports/fundamentals.csv",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -13525,7 +14505,7 @@ def test_overview_bundle_runbook_cards_use_staged_command_when_steps_are_blank()
     cards = dashboard.overview_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make imports-validate"
-    assert "review staged import: make imports-validate" in cards[0]["body"].lower()
+    assert "review import draft: make imports-validate" in cards[0]["body"].lower()
     assert "make imports-preview" in cards[0]["body"].lower()
 
 
@@ -13537,7 +14517,7 @@ def test_overview_bundle_runbook_cards_use_price_staged_command_when_steps_are_b
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 1,
-                "step_label": "Review staged import",
+                "step_label": "Review import draft",
                 "command": "",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "",
@@ -13550,7 +14530,7 @@ def test_overview_bundle_runbook_cards_use_price_staged_command_when_steps_are_b
     cards = dashboard.overview_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make price-validate"
-    assert "review staged import: make price-validate" in cards[0]["body"].lower()
+    assert "review import draft: make price-validate" in cards[0]["body"].lower()
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
 
@@ -13598,7 +14578,7 @@ def test_overview_bundle_runbook_cards_use_runbook_fallback_when_summaries_are_m
     cards = dashboard.overview_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "local import draft workflow next" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -13616,7 +14596,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "follow_up_command": "make imports-validate",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -13646,7 +14626,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             },
             {
                 "bundle_name": "SEC Fundamentals Bundle",
@@ -13659,7 +14639,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             },
             {
                 "bundle_name": "SEC Fundamentals Bundle",
@@ -13769,7 +14749,7 @@ def test_overview_bundle_handoff_cards_use_staged_follow_through_when_bundle_row
                 "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
                 "follow_up_command": "",
                 "target_file": "data/imports/fundamentals.csv",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -13797,7 +14777,7 @@ def test_overview_bundle_handoff_cards_use_staged_summary_when_goal_summary_is_m
                 "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
                 "follow_up_command": "",
                 "target_file": "data/imports/fundamentals.csv",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+                "safe_next_step": "Keep SEC enrichment import draft and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -13834,7 +14814,7 @@ def test_overview_bundle_handoff_cards_use_runbook_fallback_when_summaries_are_m
     cards = dashboard.overview_bundle_handoff_cards(bundles, None, None)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "local import draft workflow next" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -13894,7 +14874,7 @@ def test_overview_bundle_handoff_cards_use_monthly_front_door_for_price_bundle_r
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
                 "why_it_matters": "These tickers still block broader local research because price history is missing or too short.",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -13976,7 +14956,7 @@ def test_overview_bundle_handoff_cards_use_monthly_front_door_when_goal_summary_
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
                 "why_it_matters": "These tickers still block Monthly Picks because price history is missing or too short.",
-                "safe_next_step": "Use staged local imports if the free refresh fails.",
+                "safe_next_step": "Use local import draft workflows if the free refresh fails.",
             }
         ]
     )
@@ -14175,7 +15155,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
                 "unsupported_analysis": "Unsupported analysis: operating-company DCF conclusions.",
                 "risk_watchpoint": "Risk watchpoint: monitor liquidity, correlation, and theme exposure.",
                 "invalidation_condition": "Invalidate market-proxy usefulness if liquidity or theme trend no longer supports the intended monitoring role.",
-                "next_research_question": "What market signal is this proxy intended to monitor?",
+                "next_research_question": "What market context is this proxy intended to monitor?",
                 "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context.",
                 "confidence_explanation": "Confidence is medium because monitoring uses ready market data.",
             },
@@ -14329,7 +15309,7 @@ def test_active_research_brief_frame_builds_schema_light_fallbacks_without_overc
     assert "next blocker: peers" not in qqq_summary
     assert (
         brief.loc[brief["ticker"].eq("QQQ"), "next_research_question"].iloc[0]
-        == "What market, theme, liquidity, or risk signal should QQQ monitor, and what would invalidate that proxy role?"
+        == "What market, theme, liquidity, or risk context should QQQ monitor, and what would invalidate that proxy role?"
     )
     assert "source-backed peers should be added for qqq" not in rendered
     assert cards[0]["command"] == "make stock-report TICKER=META"
@@ -14539,7 +15519,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
                 "ticker": "QQQ",
                 "exact_command": "make stock-report TICKER=QQQ",
                 "unlock_command": "make stock-report TICKER=QQQ",
-                "next_research_question": "What market signal should QQQ monitor?",
+                "next_research_question": "What market context should QQQ monitor?",
                 "copy_only_note": "Copy-only command; the dashboard does not execute imports or refreshes.",
             }
         ]
@@ -15188,7 +16168,7 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
                 "purpose_family": "ETF / Hedge",
                 "primary_blocker": "peers",
                 "data_confidence": "medium",
-                "next_research_question": "What market signal is this proxy intended to monitor?",
+                "next_research_question": "What market context is this proxy intended to monitor?",
                 "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context.",
                 "exact_command": "make stock-report TICKER=QQQ",
                 "unlock_command": "make focus-peers TICKER=QQQ",
@@ -15196,7 +16176,7 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
             {
                 "ticker": "AMD",
                 "decision_bucket": "Research Now",
-                "decision_subtype": "Research Candidate - Core Data Ready",
+                "decision_subtype": "Research Candidate - Optional Context Locked",
                 "purpose_family": "Compounder",
                 "primary_blocker": "earnings",
                 "data_confidence": "medium",
@@ -15328,7 +16308,7 @@ def test_purpose_evaluation_summary_cards_are_copy_only_and_data_honest():
                 "fundamentals_limited_count": 0,
                 "optional_context_locked_count": 0,
                 "top_unlock_command": "make stock-report TICKER=QQQ",
-                "top_next_research_question": "What market signal is this proxy intended to monitor?",
+                "top_next_research_question": "What market context is this proxy intended to monitor?",
                 "sample_tickers": "QQQ",
             },
         ]
@@ -15382,7 +16362,7 @@ def test_purpose_evaluation_drilldown_cards_surface_next_row_without_execution_l
                 "purpose_family": "ETF / Hedge",
                 "decision_bucket": "Monitor",
                 "primary_blocker": "peers",
-                "next_research_question": "What market signal is this proxy intended to monitor?",
+                "next_research_question": "What market context is this proxy intended to monitor?",
                 "unsupported_analysis": "Unsupported analysis: operating-company DCF.",
                 "exact_command": "make stock-report TICKER=QQQ",
                 "unlock_command": "make stock-report TICKER=QQQ",

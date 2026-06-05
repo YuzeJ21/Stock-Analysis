@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,11 @@ from src.providers.market_data import (
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.stock_report import (
+    _display_setup_text,
+    _format_inline_make_commands,
+    _stock_report_reader_guide_lines,
+    _stock_report_valuation_lines,
+    _stock_report_purpose_fields,
     build_readiness_only_markdown,
     build_stock_report,
     create_stock_report_payload,
@@ -26,6 +32,31 @@ from src.stock_report import (
 )
 
 RICH_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "rich_local_data"
+
+
+def test_stock_report_formats_bare_make_commands_as_copyable_inline_commands():
+    text = _format_inline_make_commands(
+        "Run make focus-fundamentals TICKER=META, then make imports-validate before review. "
+        "This should make the comparison easier to review. You can also run make dashboard."
+    )
+
+    assert "`make focus-fundamentals TICKER=META`" in text
+    assert "`make imports-validate`" in text
+    assert "`make dashboard`" in text
+    assert "make the comparison" in text
+    assert "`make the`" not in text
+    assert "Run make focus-fundamentals" not in text
+
+
+def test_stock_report_setup_text_relabels_not_ready_company_rows_as_data_limited():
+    text = _display_setup_text(
+        "Capped score at 50 because valuation readiness is `not_ready`; "
+        "treat as monitor-only until missing data is resolved."
+    )
+
+    assert "valuation readiness is not ready" in text
+    assert "treat as data-limited review until missing data is resolved" in text
+    assert "treat as monitor-only" not in text.lower()
 
 
 def _copy_rich_fixture(tmp_path: Path) -> Path:
@@ -107,6 +138,12 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     )
 
     report = build_stock_report("MSFT", provider)
+    report.screener_context = {
+        "momentum_leaders": {
+            "ATRorVolatilityPct": 0.031,
+            "ATRorVolatilitySource": "volatility_proxy",
+        }
+    }
     report_dict = report.to_dict()
     markdown = export_stock_report_markdown(report, tmp_path / "msft.md")
 
@@ -127,34 +164,199 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert any("research-grade" in " ".join(note["notes"]).lower() for note in report_dict["data_freshness"])
     assert "## How To Read This Report" in markdown
     assert "Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third" in markdown
-    assert "DCF-ready review for company-level assumptions and sensitivity" in markdown
-    assert "repo-native code under `src/`" in markdown
-    assert "plugins can help development review" in markdown
-    assert "shipped analysis comes from repo code and local data" in markdown
+    assert "Standalone DCF review: company DCF assumptions can be reviewed" in markdown
+    assert "project code implements readiness gates and report wording" in markdown
+    assert "shipped analysis comes from project code and local data" in markdown
+    assert "plugins can help development review" not in markdown
+    assert "freshness: daily snapshot" in markdown
+    assert "retrieved 20" not in markdown
     assert "research context only" in markdown
     assert "account actions" in markdown
+    assert "## At A Glance" in markdown
+    assert markdown.index("## At A Glance") < markdown.index("## How To Read This Report")
+    assert "- Mode: `Standalone DCF review`." in markdown
+    assert "- Decision view:" in markdown
+    assert "- DCF: Ready for scenario review." in markdown
+    assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
+    assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
+    assert "- Method: project readiness gates decide what can appear" in markdown
+    assert "discounted terminal value, cash/debt adjustment, and fair value per share when ready" in markdown
+    assert "- Next local step:" in markdown
     assert "## What We Can Analyze Now" in markdown
+    assert "## Executive Summary" in markdown
+    assert "Bottom line: MSFT is in `Standalone DCF review` mode" in markdown
+    assert "ATR / volatility: 3.1% (Volatility proxy approximation)." in markdown
+    assert "approximation from close-to-close volatility" in markdown
+    assert re.search(r"- 1M performance: -?\d+\.\d%", markdown)
+    assert re.search(r"- 3M performance: -?\d+\.\d%", markdown)
+    assert re.search(r"- 1Y performance: -?\d+\.\d%", markdown)
+    assert re.search(r"- 1M performance: -?0\.\d{3,}", markdown) is None
+    assert "Use now:" in markdown
+    assert "Do not infer:" in markdown
+    assert "Next step:" in markdown
+    assert "## Analysis Mode Guide" in markdown
+    assert "`Standalone DCF review` (current)" in markdown
+    assert (
+        "`Data-unlock only` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions."
+        in markdown
+    )
+    assert "Do not analyze yet" not in markdown
+    for mode in (
+        "DCF-ready review",
+        "Price/setup review only",
+        "Monitor-only context",
+        "Data-unlock only",
+    ):
+        assert f"`{mode}`" in markdown
     assert "Ready inputs:" in markdown
     assert "Supported now:" in markdown
     assert "Still locked or excluded:" in markdown
+    assert "Excluded features: Not available" not in markdown
+    assert "Missing price reason: Not available" not in markdown
+    assert "Peer blocker type: not available" not in markdown
     assert "## Analysis Quality" in markdown
     assert "Analysis mode: Standalone DCF review" in markdown
     assert "peer-relative valuation remains limited until trusted peer inputs are ready" in markdown
+    assert "## Methodology" in markdown
+    assert "Method order: readiness gate first, supported analysis second, valuation math third, explanation last" in markdown
+    assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in markdown
+    assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
+    assert "standalone DCF projects free cash flow under bear/base/bull assumptions" in markdown
+    assert "Report method: text is generated from local readiness, DCF, peer, decision, and source/freshness outputs" in markdown
     assert "## Evaluation Function Check" in markdown
     assert "Readiness gate: strongest function" in markdown
     assert "Price and setup: ready for local trend/setup review" in markdown
     assert "Fundamentals / DCF: ready for standalone DCF assumptions and sensitivity review" in markdown
     assert "Peer comparison: blocked until source-backed peer mappings and peer valuation inputs are ready" in markdown
-    assert "repo-native under `src/`" in markdown
-    assert "plugins can help development review" in markdown
-    assert "shipped analysis comes from repo code and local data" in markdown
+    assert "readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code" in markdown
+    assert "shipped analysis comes from project code and local data" in markdown
+    assert "plugins can help development review" not in markdown
     assert "no open source was used" not in markdown.lower()
     assert "Base DCF fair value per share" in markdown
+    assert "DCF input trace: base revenue=$250.0B; base FCF=$90.0B; FCF margin=36.0%; shares outstanding=7.4B" in markdown
+    assert "balance-sheet adjustment uses cash=$90.0B; debt=$40.0B" in markdown
     assert "Base DCF assumptions" in markdown
     assert "Scenario coverage: bear, base, bull" in markdown
     assert "Sensitivity table:" in markdown
+    assert "Reason not ready: Not available" not in markdown
+    assert "DCF missing fields: Not available" not in markdown
     assert "missing valuation inputs are not inferred" in markdown
     assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown
+    assert "## Data Unlock Summary" in markdown
+    assert "## Data Unlock Summary" in markdown.split("## Source/Freshness Audit")[0]
+    assert "Price unlock:" in markdown
+    assert "Fundamentals / DCF unlock:" in markdown
+    assert "Peer unlock:" in markdown
+    assert "Optional context unlock:" in markdown
+    assert "## Copyable Unlock Commands" in markdown
+    assert "## Copyable Unlock Commands" in markdown.split("## Source/Freshness Audit")[0]
+    assert "Copy-only: these are local research commands to copy when you choose" in markdown
+    assert "the report does not execute imports, refreshes, broker actions, or trades" in markdown
+    assert "`make stock-report-md TICKER=MSFT`" in markdown
+    assert "Report command: `make stock-report-md TICKER=MSFT`. Research-only Markdown output; copyable command only." in markdown
+    assert "Report command: `make stock-report TICKER=MSFT`" not in markdown
+    assert "`make focus-fundamentals TICKER=MSFT`" in markdown
+    assert "`make focus-peers TICKER=MSFT`" in markdown
+    assert "`make optional-context-worklist TICKERS=MSFT TOP_N=10`" in markdown
+    assert "`make imports-validate && make imports-preview && make imports-apply`" in markdown
+    assert "Import paths, rejected-row files, and credential state are listed in the Source/Freshness Audit below." in markdown
+    assert "import draft path `data/staged/prices/` or `data/imports/prices.csv`" in markdown
+    assert "import draft path `data/imports/peers.csv`" in markdown
+    assert "preview-first local import workflows" in markdown
+    assert "staged path" not in markdown
+    assert "staged import workflows" not in markdown
+
+
+def test_stock_report_purpose_fields_reconcile_report_local_peer_valuation():
+    fields = _stock_report_purpose_fields(
+        ticker="NVDA",
+        readiness={"asset_type": "company", "ready_features": "price, fundamentals, dcf, peer"},
+        decision={
+            "decision_bucket": "Research Now",
+            "decision_subtype": "Research Candidate - Optional Context Locked",
+            "primary_blocker": "earnings",
+            "data_confidence": "medium",
+            "main_reason": "Core data is ready for a supported research pass.",
+            "valuation_evaluation": (
+                "DCF inputs are ready, but valuation interpretation is constrained by Insufficient Data "
+                "and peer status `Peer Data Unavailable`."
+            ),
+        },
+        dcf_status_text="ready",
+        peer_ready=True,
+        relative_status="calculated",
+    )
+
+    valuation = fields["valuation_evaluation"].lower()
+    assert "report-local peer valuation is calculated" in valuation
+    assert "broad value labels may still remain limited" in valuation
+    assert "peer data unavailable" not in valuation
+    assert "buy" not in valuation
+    assert "sell" not in valuation
+
+
+def test_stock_report_valuation_lines_withhold_relative_valuation_when_dcf_readiness_is_blocked():
+    lines = _stock_report_valuation_lines(
+        valuation_snapshot={
+            "status": "calculated",
+            "dcf_result": {
+                "status": "calculated",
+                "fair_value_per_share": None,
+                "assumptions": {
+                    "method_name": "fcf_direct",
+                    "revenue_growth": 0.4,
+                    "fcf_margin": 0.45,
+                    "wacc": 0.09,
+                    "terminal_growth": 0.03,
+                    "forecast_years": 5,
+                },
+            },
+            "sensitivity_table": {"status": "insufficient_data"},
+            "relative_valuation": {
+                "status": "calculated",
+                "peer_count": 2,
+                "missing_fields": ["market_cap_or_price_and_shares"],
+                "peer_missing_data_warnings": ["Peer inputs for pe were unavailable for: GOOG."],
+            },
+            "scenarios": [{"name": "bear"}, {"name": "base"}, {"name": "bull"}],
+        },
+        valuation_readiness={"dcf_missing_fields": ["shares_outstanding"]},
+        dcf={"missing_dcf_fields": "missing shares_outstanding", "reason_not_ready": "missing shares_outstanding"},
+        dcf_status_text="blocked",
+        monitor_context=False,
+    )
+    rendered = " ".join(lines).lower()
+
+    assert "relative valuation: withheld until trusted fundamentals and dcf readiness pass" in rendered
+    assert "background relative-multiple status=calculated" in rendered
+    assert "relative valuation: calculated from trusted peer inputs" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_reader_guide_distinguishes_dcf_ready_from_standalone_dcf():
+    standalone = " ".join(
+        _stock_report_reader_guide_lines(
+            dcf_status_text="ready",
+            monitor_context=False,
+            price_ready=True,
+            peer_ready=False,
+        )
+    )
+    full = " ".join(
+        _stock_report_reader_guide_lines(
+            dcf_status_text="ready",
+            monitor_context=False,
+            price_ready=True,
+            peer_ready=True,
+        )
+    )
+
+    assert "Standalone DCF review" in standalone
+    assert "peer-relative valuation stays locked" in standalone
+    assert "DCF-ready review" not in standalone
+    assert "DCF-ready review" in full
+    assert "Standalone DCF review" not in full
 
 
 def test_build_stock_report_surfaces_missing_data_risks(tmp_path: Path):
@@ -312,6 +514,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
         "## How To Read This Report",
         "## Executive Summary",
         "## Analysis Quality",
+        "## Methodology",
         "## Evaluation Function Check",
         "## What This Stock Is",
         "## Data Readiness",
@@ -325,12 +528,16 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     ):
         assert heading in markdown
     assert "## One-Minute Status" in markdown
+    assert "Bottom line: QQQ is in `Monitor-only context` mode" in markdown
+    assert "`Monitor-only context` (current)" in markdown
     assert "Decision: Monitor - ETF Market Proxy" in markdown
     assert "Monitor - ETF Market Proxy" in markdown
     assert "Research-only local report" in markdown
     assert "Monitor-only context when local price, liquidity, correlation, or theme inputs are ready" in markdown
-    assert "plugins can help development review" in markdown
-    assert "shipped analysis comes from repo code and local data" in markdown
+    assert "shipped analysis comes from project code and local data" in markdown
+    assert "plugins can help development review" not in markdown
+    assert "freshness:" in markdown
+    assert "retrieved 20" not in markdown
     assert "allocation instructions" in markdown
     assert "trade instruction" not in markdown.lower()
     assert "transaction execution" not in markdown.lower()
@@ -340,7 +547,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Operating-company DCF and peer valuation are excluded, not failed" in markdown
     assert "Fundamentals / DCF: excluded for ETF/index/fund monitor context, not failed" in markdown
     assert "Peer comparison: excluded for monitor context" in markdown
-    assert "Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`" in markdown
+    assert "Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code" in markdown
     assert "DCF applicability: excluded" in markdown
     assert "not a failed valuation input" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
@@ -366,10 +573,11 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "data/staged/earnings/" in markdown
     assert "make import-analyst-estimates" in markdown
     assert "STOOQ_API_KEY" in markdown
-    assert "DCF excluded for etf" in markdown
+    assert "DCF excluded for etf" not in markdown
     assert "Peer Workflow" in markdown
-    assert "Primary blocker: monitor_context" in markdown
-    assert "Peer blocker type: monitor_context" in markdown
+    assert "Primary blocker: monitor context" in markdown
+    assert "Peer blocker type: monitor context" in markdown
+    assert "Missing price reason: none" in markdown
     assert "No peer import is required" in markdown
     assert "Add source-backed peer mappings for QQQ" not in markdown
     assert "buy" not in markdown.lower()
@@ -464,14 +672,14 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
                 "price_ready": False,
                 "blocked_features": "price, momentum, dcf",
                 "missing_data": "needs at least 5 valid price rows with positive close",
-                "next_action": "Import staged price rows or refresh price provider for APLD.",
+                "next_action": "Import price rows through the preview-first workflow or refresh the price provider for APLD.",
             },
             "decision": {
                 "decision_bucket": "Blocked by Data",
                 "decision_subtype": "Blocked by Data - Missing Price",
                 "primary_blocker": "price",
                 "main_reason": "Missing usable price data.",
-                "next_best_action": "Import staged price rows or refresh price provider for APLD.",
+                "next_best_action": "Import price rows through the preview-first workflow or refresh the price provider for APLD.",
                 "purpose_thesis": "Purpose: Speculative Optionality. Interpretation is blocked until price history is available.",
                 "purpose_alignment": "Purpose alignment for Speculative Optionality cannot be checked until usable price history exists.",
                 "setup_evaluation": "Setup cannot be evaluated because usable price history is missing.",
@@ -495,25 +703,52 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
         "No local price rows were found for APLD.",
     )
 
-    assert "readiness-only report" in markdown
+    assert "data-unlock report" in markdown
+    assert "First blocker to resolve: No local price rows were found for APLD." in markdown
+    assert "full stock-report provider" not in markdown
+    assert "Provider blocker" not in markdown
+    assert "could not assemble price-backed analysis" not in markdown
     assert "# APLD Single-Stock Research Report" in markdown
+    assert "## At A Glance" in markdown
+    assert markdown.index("## At A Glance") < markdown.index("## How To Read This Report")
+    assert "- Mode: `Data-unlock only`." in markdown
+    assert "- DCF: Blocked until trusted fundamentals and DCF inputs are ready." in markdown
+    assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
+    assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
+    assert "- Method: project readiness gates decide what can appear" in markdown
+    assert "discounted terminal value, cash/debt adjustment, and fair value per share when ready" in markdown
     assert "## How To Read This Report" in markdown
     assert "Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready" in markdown
     assert "Read top-down: readiness state first" in markdown
     assert "## Executive Summary" in markdown
+    assert "Bottom line: APLD is in `Data-unlock only` mode" in markdown
+    assert "Ready inputs: none yet." in markdown
+    assert "Next step: Add or refresh trusted local price history for APLD" in markdown
+    assert "`Data-unlock only` (current)" in markdown
+    assert (
+        "`Data-unlock only` (current): Pause analysis for this ticker until the first trusted local input is available."
+        in markdown
+    )
     assert "## What This Stock Is" in markdown
     assert "## Analysis Quality" in markdown
+    assert "## Methodology" in markdown
     assert "## Evaluation Function Check" in markdown
     assert "Analysis mode: Data-unlock only" in markdown
+    assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
+    assert "standalone DCF stays blocked until trusted local price, revenue, free cash flow or FCF margin" in markdown
+    assert "DCF assumptions: withheld until price, fundamentals, free cash flow or FCF margin" in markdown
+    assert "DCF assumptions: hidden" not in markdown
     assert "Start with verified local price history before relying on momentum" in markdown
     assert "Price and setup: locked until enough trusted price history is available" in markdown
     assert "Fundamentals / DCF: blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready" in markdown
     assert "Optional context: locked until trusted local earnings and analyst-estimate rows exist" in markdown
-    assert "plugins can help development review" in markdown
-    assert "shipped analysis comes from repo code and local data" in markdown
+    assert "shipped analysis comes from project code and local data" in markdown
+    assert "plugins can help development review" not in markdown
     assert "## Data Readiness" in markdown
     assert "## Valuation Readiness" in markdown
-    assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown
+    assert "DCF missing inputs:" in markdown
+    assert "Why DCF is blocked:" in markdown
+    assert "Relative valuation: withheld until trusted fundamentals and DCF readiness pass" in markdown
     assert "## Risk Notes" in markdown
     assert "## Next Research Step" in markdown
     assert "allocation instructions" in markdown
@@ -538,11 +773,26 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "analytical blindness" in markdown
     assert "Unlock priority: price is the first blocker" in markdown
     assert "primary blocker is price" in markdown
+    assert "## Data Unlock Summary" in markdown
+    assert "Price history is the first unlock" in markdown
+    assert "make focus-price TICKER=APLD" in markdown
+    assert "## Copyable Unlock Commands" in markdown
+    assert "`make price-worklist TICKERS=APLD TOP_N=10`" in markdown
+    assert "`make price-validate && make price-preview && make price-apply`" in markdown
+    assert "`make focus-fundamentals TICKER=APLD`" in markdown
+    assert "`make peer-mapping-queue TICKERS=APLD TOP_N=10`" in markdown
+    assert "`make optional-context-worklist TICKERS=APLD TOP_N=10`" in markdown
+    assert "the report does not execute imports, refreshes, broker actions, or trades" in markdown
+    assert "Wait on fundamentals / DCF interpretation until price coverage starts" in markdown
+    assert "After `make focus-price TICKER=APLD` is resolved, run `make focus-fundamentals TICKER=APLD`" in markdown
+    assert "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown
     assert "## Source/Freshness Audit" in markdown
+    assert "Report command: `make stock-report-md TICKER=APLD`. Research-only Markdown output; copyable command only." in markdown
+    assert "Report command: `make stock-report TICKER=APLD`" not in markdown
     assert "data/staged/prices/" in markdown
     assert "data/rejected/price_import_rejected.csv" in markdown
     assert "Peer Workflow" in markdown
-    assert "blocked_until_fundamentals_dcf" in markdown
+    assert "blocked until fundamentals / DCF" in markdown
     assert "Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown
     assert "Add source-backed peer mappings after price data exists" not in markdown
     assert "No local price rows were found for APLD" in markdown
@@ -591,6 +841,43 @@ def test_stock_report_cli_fails_gracefully_for_missing_local_ticker(tmp_path: Pa
     try:
         with pytest.raises(SystemExit, match="Stock report generation failed: No local price rows were found for AAPL"):
             main()
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_quiet_mode_writes_markdown_without_full_json(tmp_path: Path, capsys):
+    _copy_rich_fixture(tmp_path)
+    markdown_path = tmp_path / "outputs" / "stock_reports" / "alfa.md"
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--ticker",
+        "ALFA",
+        "--provider",
+        "local",
+        "--markdown-output",
+        str(markdown_path),
+        "--quiet",
+    ]
+    try:
+        main()
+        output = capsys.readouterr().out
+        assert "Markdown report:" in output
+        assert "outputs/stock_reports/alfa.md" in output
+        assert str(tmp_path) not in output
+        assert "Project root:" not in output
+        assert "Data dir:" not in output
+        assert "Outputs dir:" not in output
+        assert '"ticker": "ALFA"' not in output
+        assert markdown_path.exists()
+        markdown = markdown_path.read_text(encoding="utf-8")
+        assert "Relative valuation: calculated; peer count=2" in markdown
+        assert "Relative valuation: blocked until trusted peer mappings" not in markdown
     finally:
         sys.argv = previous_argv
         os.chdir(previous_cwd)

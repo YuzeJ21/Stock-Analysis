@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -105,6 +106,118 @@ def _clean_number(value: float | int | None) -> float | None:
     return float(value)
 
 
+FIELD_LABELS = {
+    "analyst_estimates": "analyst estimates",
+    "correlation": "correlation",
+    "dcf": "DCF",
+    "earnings": "earnings",
+    "fundamentals": "fundamentals",
+    "liquidity": "liquidity",
+    "market_direction": "market direction",
+    "momentum": "momentum",
+    "peer": "peer",
+    "portfolio": "portfolio",
+    "DebtToEquity": "debt to equity",
+    "EPSGrowth": "EPS growth",
+    "EVToEBITDA": "EV/EBITDA",
+    "EVToSales": "EV/sales",
+    "FCFYield": "FCF yield",
+    "ForwardPE": "forward P/E",
+    "GrossMargin": "gross margin",
+    "PE": "P/E",
+    "PriceToFCF": "price to free cash flow",
+    "fcf_margin": "FCF margin",
+    "free_cash_flow": "free cash flow",
+    "market_cap_or_price_and_shares": "market cap, price, and share count",
+    "price": "price",
+    "revenue": "revenue",
+    "shares_outstanding": "shares outstanding",
+}
+
+
+def _display_field_name(value: Any) -> str:
+    text = _display_value(value, "")
+    if not text:
+        return "missing field"
+    if text in FIELD_LABELS:
+        return FIELD_LABELS[text]
+    normalized = text.strip().strip("`.,;:")
+    if normalized in FIELD_LABELS:
+        return FIELD_LABELS[normalized]
+    if "_" in normalized:
+        return normalized.replace("_", " ")
+    spaced = re.sub(r"(?<!^)(?=[A-Z][a-z])", " ", normalized)
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", spaced)
+    return spaced.lower() if spaced else text
+
+
+def _format_inline_make_commands(text: str) -> str:
+    """Render bare make commands in prose as inline copyable commands."""
+    simple_targets = {
+        "coverage",
+        "daily",
+        "dashboard",
+        "demo",
+        "monthly",
+        "onboarding",
+        "pipeline",
+        "readiness",
+        "templates",
+        "test",
+        "verify",
+    }
+    command_pattern = re.compile(
+        r"(?<!`)\bmake\s+(?P<target>[A-Za-z0-9_-]+)(?P<args>(?:\s+[A-Z_]+=[A-Za-z0-9_:/.-]+)*)(?!`)"
+    )
+
+    def wrap_if_make_target(match: re.Match[str]) -> str:
+        target = match.group("target")
+        if "-" not in target and target not in simple_targets:
+            return match.group(0)
+        return f"`{match.group(0)}`"
+
+    return command_pattern.sub(wrap_if_make_target, text)
+
+
+def _humanize_schema_terms(value: Any) -> str:
+    text = _display_value(value)
+    if text == "Not available":
+        return text
+    for raw, label in sorted(FIELD_LABELS.items(), key=lambda item: len(item[0]), reverse=True):
+        text = re.sub(rf"(?<![A-Za-z0-9_]){re.escape(raw)}(?![A-Za-z0-9_])", label, text)
+    text = text.replace("missing DCF", "missing DCF")
+    return _format_inline_make_commands(text)
+
+
+def _display_field_list(value: Any, fallback: str = "Not available") -> str:
+    if value is None:
+        return fallback
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return fallback
+        prefix = ""
+        lowered = text.lower()
+        if lowered.startswith("missing "):
+            prefix = "missing "
+            text = text[8:].strip()
+        parts = [part.strip() for part in re.split(r"[,;]", text) if part.strip()]
+        if not parts:
+            return fallback
+        return prefix + ", ".join(_display_field_name(part) for part in parts)
+    if isinstance(value, (list, tuple, set)):
+        parts = [_display_field_name(part) for part in value if _display_value(part, "")]
+        return ", ".join(parts) if parts else fallback
+    return _humanize_schema_terms(value)
+
+
+def _display_report_list(value: Any, empty_label: str = "none") -> str:
+    text = _humanize_schema_terms(_display_value(value, ""))
+    if not text or text == "Not available":
+        return empty_label
+    return text
+
+
 def _performance_from_history(history: pd.DataFrame) -> PerformanceSummary:
     if history.empty or "close" not in history.columns:
         return PerformanceSummary(one_month=None, three_month=None, one_year=None)
@@ -178,10 +291,10 @@ def _build_missing_data_warnings(
     warnings.extend(estimates.notes)
     warnings.extend(valuation.warnings)
     warnings.extend(valuation.relative_valuation.peer_missing_data_warnings)
-    warnings.extend([f"Valuation missing field: {field}" for field in valuation.missing_fields])
+    warnings.extend([f"Valuation missing field: {_display_field_name(field)}" for field in valuation.missing_fields])
     for row in dataset_coverage:
         if row.get("dataset_name") in core_datasets and not row.get("ticker_present"):
-            warnings.append(f"{row['dataset_name']} has no local row for this ticker.")
+            warnings.append(f"{_display_field_name(row['dataset_name'])} has no local row for this ticker.")
     return sorted(set(warnings))
 
 
@@ -371,8 +484,69 @@ def _display_value(value: Any, fallback: str = "Not available") -> str:
     return fallback if not text or text.lower() in {"nan", "none", "nat", "null"} else text
 
 
+def _display_setup_text(value: Any, fallback: str = "Not available") -> str:
+    text = _display_value(value, fallback)
+    replacements = {
+        "Extended / No Chase": "Extended",
+        "Broken / Avoid": "No Setup / Thesis Review Needed",
+        "Broken / No Setup": "No Setup / Thesis Review Needed",
+        "current setup `Avoid`": "current setup `No Setup`",
+        "setup `Avoid`": "setup `No Setup`",
+        "setup: Avoid": "setup: No Setup",
+        "Setup status: Avoid": "Setup status: No Setup",
+        "Compounder setup: Avoid": "Compounder setup: No Setup",
+        "current state is Broken": "current state needs thesis review",
+        "final state: Broken": "final state: Thesis Review Needed",
+        "final state `Broken`": "final state `Thesis Review Needed`",
+        "Final state `Broken`": "Final state `Thesis Review Needed`",
+        "Compounder setup: Broken": "Compounder setup: Thesis Review Needed",
+        "Setup status: Broken": "Setup status: Thesis Review Needed",
+        "ReviewState: Broken": "ReviewState: Thesis Review Needed",
+        "reviewstate: Broken": "reviewstate: Thesis Review Needed",
+        "Trend is broken": "Trend support failed",
+        "trend is broken": "trend support failed",
+        "Holding trend is broken": "Holding trend support failed",
+        "holding trend is broken": "holding trend support failed",
+        "Already invalidated for trend/purpose review": "Already flagged for trend/purpose review",
+        "final state is `Broken`": "final state is `Thesis Review Needed`",
+        "valuation_status=not_ready": "valuation is not ready",
+        "valuation status is not ready": "valuation is not ready",
+        "valuation readiness is `not_ready`": "valuation readiness is not ready",
+        "treat as monitor-only until missing data is resolved": "treat as data-limited review until missing data is resolved",
+        "current state is Ignore": "current state is not prioritized",
+        "final state: Ignore": "final state: Not Prioritized",
+        "final state `Ignore`": "final state `Not Prioritized`",
+        "Ignored names are left unranked": "Not-prioritized names are left unranked",
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    return _humanize_schema_terms(text)
+
+
+def _display_report_status(value: Any, fallback: str = "not available") -> str:
+    if isinstance(value, bool):
+        return "ready" if value else "not ready"
+    text = _display_setup_text(value, fallback)
+    normalized = text.strip().lower()
+    replacements = {
+        "true": "ready",
+        "false": "not ready",
+        "monitor_context": "monitor context",
+        "blocked_until_fundamentals_dcf": "blocked until fundamentals / DCF",
+        "wait_for_core_data": "waiting for price, fundamentals, and DCF",
+        "insufficient_data": "insufficient data",
+        "peer_data_unavailable": "peer data unavailable",
+        "not_ready": "not ready",
+    }
+    if normalized in replacements:
+        return replacements[normalized]
+    if "_" in text and text == normalized:
+        return text.replace("_", " ")
+    return text
+
+
 def _sentence_value(value: Any, fallback: str = "Not available") -> str:
-    return _display_value(value, fallback).rstrip(".")
+    return _format_inline_make_commands(_display_value(value, fallback)).rstrip(".")
 
 
 def _brief_value(value: Any, *prefixes: str, fallback: str = "Not available") -> str:
@@ -381,6 +555,41 @@ def _brief_value(value: Any, *prefixes: str, fallback: str = "Not available") ->
         if text.lower().startswith(prefix.lower()):
             return text[len(prefix) :].strip()
     return text
+
+
+def _atr_or_volatility_source_label(source: Any) -> str:
+    normalized = str(source or "").strip().lower()
+    if normalized == "atr":
+        return "ATR from high/low/close"
+    if normalized == "volatility_proxy":
+        return "Volatility proxy approximation"
+    return "Volatility source unavailable"
+
+
+def _stock_report_volatility_lines(payload: dict[str, Any]) -> list[str]:
+    momentum = ((payload.get("screener_context") or {}).get("momentum_leaders") or {})
+    volatility_value = momentum.get("ATRorVolatilityPct")
+    if _display_value(volatility_value) == "Not available":
+        return ["- ATR / volatility: Not available; missing values stay visible instead of guessed."]
+    source_label = _atr_or_volatility_source_label(momentum.get("ATRorVolatilitySource"))
+    if source_label == "Volatility proxy approximation":
+        suffix = " This is an approximation from close-to-close volatility because high/low ATR inputs were unavailable."
+    elif source_label == "Volatility source unavailable":
+        suffix = " Source provenance was not recorded in this generated output; rerun the local pipeline to classify ATR versus proxy."
+    else:
+        suffix = " This comes from the available local OHLC price fields."
+    return [f"- ATR / volatility: {_format_pct(volatility_value)} ({source_label}).{suffix}"]
+
+
+def _source_freshness_summary(item: dict[str, Any]) -> str:
+    freshness = _display_value(item.get("freshness"))
+    if freshness != "Not available":
+        return f"freshness: {freshness}"
+    provider = _display_value(item.get("provider"))
+    if provider.startswith("local:"):
+        return "freshness: local file metadata"
+    retrieved = _display_value(item.get("retrieved_at"))
+    return f"retrieved: {retrieved}"
 
 
 def _format_pct(value: Any) -> str:
@@ -406,8 +615,52 @@ def _format_money(value: Any) -> str:
     return f"${numeric:,.2f}"
 
 
+def _format_compact_number(value: Any) -> str:
+    if value is None:
+        return "Not available"
+    try:
+        if pd.isna(value):
+            return "Not available"
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return _display_value(value)
+    abs_value = abs(numeric)
+    for scale, suffix in ((1_000_000_000_000, "T"), (1_000_000_000, "B"), (1_000_000, "M")):
+        if abs_value >= scale:
+            return f"{numeric / scale:.1f}{suffix}"
+    return f"{numeric:,.0f}"
+
+
+def _format_compact_money(value: Any) -> str:
+    formatted = _format_compact_number(value)
+    return formatted if formatted == "Not available" or formatted.startswith("$") else f"${formatted}"
+
+
 def _has_report_value(value: Any) -> bool:
     return _display_value(value) != "Not available"
+
+
+def _dcf_input_trace_line(assumptions: dict[str, Any]) -> str:
+    base_revenue = _format_compact_money(assumptions.get("base_revenue"))
+    base_free_cash_flow = _format_compact_money(assumptions.get("base_free_cash_flow"))
+    fcf_margin = _format_pct(assumptions.get("fcf_margin"))
+    shares = _format_compact_number(assumptions.get("shares_outstanding"))
+    net_debt = assumptions.get("net_debt")
+    if _has_report_value(net_debt):
+        balance_sheet_adjustment = f"net debt={_format_compact_money(net_debt)}"
+    else:
+        balance_sheet_adjustment = (
+            f"cash={_format_compact_money(assumptions.get('cash'))}; "
+            f"debt={_format_compact_money(assumptions.get('debt'))}"
+        )
+    return (
+        "- DCF input trace: "
+        f"base revenue={base_revenue}; "
+        f"base FCF={base_free_cash_flow}; "
+        f"FCF margin={fcf_margin}; "
+        f"shares outstanding={shares}; "
+        f"balance-sheet adjustment uses {balance_sheet_adjustment}."
+    )
 
 
 def _stock_report_valuation_lines(
@@ -429,7 +682,7 @@ def _stock_report_valuation_lines(
     sensitivity = valuation_snapshot.get("sensitivity_table", {}) if isinstance(valuation_snapshot, dict) else {}
     relative = valuation_snapshot.get("relative_valuation", {}) if isinstance(valuation_snapshot, dict) else {}
     scenarios = valuation_snapshot.get("scenarios", []) if isinstance(valuation_snapshot, dict) else []
-    missing_fields = dcf.get("missing_dcf_fields") or ", ".join(valuation_readiness.get("dcf_missing_fields", []))
+    missing_fields = dcf.get("missing_dcf_fields") or valuation_readiness.get("dcf_missing_fields", [])
     fair_value = dcf_result.get("fair_value_per_share") if isinstance(dcf_result, dict) else None
     scenario_names = [
         _display_value(item.get("name"))
@@ -437,14 +690,14 @@ def _stock_report_valuation_lines(
         if isinstance(item, dict) and _display_value(item.get("name")) != "Not available"
     ]
     lines = [
-        f"- DCF status: {_display_value(valuation_snapshot.get('status') if isinstance(valuation_snapshot, dict) else None)}.",
-        f"- DCF missing fields: {_display_value(missing_fields)}.",
-        f"- Reason not ready: {_display_value(dcf.get('reason_not_ready'))}.",
+        f"- DCF status: {_display_report_status(valuation_snapshot.get('status') if isinstance(valuation_snapshot, dict) else None)}.",
     ]
-    if dcf_result.get("status") == "calculated":
+    dcf_is_ready_calculated = dcf_result.get("status") == "calculated" and dcf_status_text.lower() == "ready"
+    if dcf_is_ready_calculated:
         lines.extend(
             [
                 f"- Base DCF fair value per share: {_format_money(fair_value)}.",
+                _dcf_input_trace_line(assumptions),
                 (
                     "- Base DCF assumptions: "
                     f"method={_display_value(assumptions.get('method_name'))}, "
@@ -462,7 +715,13 @@ def _stock_report_valuation_lines(
             ]
         )
     else:
-        lines.append("- DCF assumptions: hidden until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.")
+        lines.extend(
+            [
+                f"- DCF missing inputs: {_display_field_list(missing_fields)}.",
+                f"- Why DCF is blocked: {_display_field_list(dcf.get('reason_not_ready'))}.",
+            ]
+        )
+        lines.append("- DCF assumptions: withheld until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.")
         lines.append("- Sensitivity table: unavailable until the base DCF can be calculated.")
 
     relative_status = _display_value(relative.get("status") if isinstance(relative, dict) else None)
@@ -470,13 +729,32 @@ def _stock_report_valuation_lines(
     peer_missing = []
     if isinstance(relative, dict):
         peer_missing = list(relative.get("missing_fields") or []) + list(relative.get("peer_missing_data_warnings") or [])
-    if relative_status.lower() in {"insufficient_data", "not available", "peer_data_unavailable"} or peer_count in {"0", "Not available"} or peer_missing:
+    relative_status_key = relative_status.lower()
+    relative_status_display = _display_report_status(relative_status)
+    peer_inputs_missing = peer_count in {"0", "Not available"}
+    if dcf_status_text.lower() != "ready":
+        lines.append(
+            "- Relative valuation: withheld until trusted fundamentals and DCF readiness pass; "
+            f"background relative-multiple status={relative_status_display}; peer count={peer_count}."
+        )
+    elif relative_status_key in {"insufficient_data", "not available", "peer_data_unavailable"} or peer_inputs_missing:
         lines.append(
             f"- Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready; "
-            f"current status={relative_status}; peer count={peer_count}."
+            f"current status={relative_status_display}; peer count={peer_count}."
+        )
+    elif relative_status_key == "partial":
+        limitation = f" Missing peer valuation fields: {'; '.join(peer_missing)}." if peer_missing else ""
+        lines.append(
+            f"- Relative valuation: partial from available trusted peer inputs; peer count={peer_count}."
+            f"{limitation}"
+        )
+    elif peer_missing:
+        lines.append(
+            f"- Relative valuation: {relative_status_display} from trusted peer inputs, with caveats; "
+            f"peer count={peer_count}. Missing peer valuation fields: {'; '.join(peer_missing)}."
         )
     else:
-        lines.append(f"- Relative valuation: {relative_status}; peer count={peer_count}.")
+        lines.append(f"- Relative valuation: {relative_status_display}; peer count={peer_count}.")
     lines.append("- Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.")
     return lines
 
@@ -492,7 +770,7 @@ def _stock_report_operator_summary(
     bucket = _display_value(decision.get("decision_bucket"), "").lower()
     subtype = _display_value(decision.get("decision_subtype") or decision.get("decision_bucket"), "Decision not classified")
     purpose_status = _brief_value(
-        decision.get("purpose_alignment") or decision.get("purpose_thesis"),
+        _display_setup_text(decision.get("purpose_alignment") or decision.get("purpose_thesis")),
         "Purpose alignment:",
         "Purpose:",
         fallback="Purpose status unavailable",
@@ -517,7 +795,7 @@ def _stock_report_operator_summary(
         "Unsupported analysis:",
         fallback="Unavailable inputs remain withheld rather than inferred.",
     )
-    invalidation = _display_value(
+    invalidation = _display_setup_text(
         decision.get("invalidation_condition"),
         f"Invalidate this research read if {ticker} no longer passes the required readiness checks.",
     )
@@ -534,6 +812,8 @@ def _stock_report_purpose_fields(
     readiness: dict[str, Any],
     decision: dict[str, Any],
     dcf_status_text: str,
+    peer_ready: Any = None,
+    relative_status: str | None = None,
 ) -> dict[str, str]:
     asset_type = _display_value(readiness.get("asset_type"), "company").lower()
     monitor_context = _stock_report_is_monitor_context(readiness=readiness, decision=decision, dcf_status_text=dcf_status_text)
@@ -551,14 +831,14 @@ def _stock_report_purpose_fields(
     if monitor_context:
         fallback = {
             "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market, theme, liquidity, or risk context; operating-company valuation remains excluded.",
-            "purpose_alignment": "Purpose alignment: monitor context is evaluated only from ready local price, momentum, liquidity, correlation, and theme signals.",
+            "purpose_alignment": "Purpose alignment: monitor context is evaluated only from ready local price, momentum, liquidity, correlation, and theme context.",
             "setup_evaluation": f"Setup status: {subtype}; treat setup as monitor context rather than an operating-company recommendation.",
             "valuation_evaluation": "Operating-company DCF and peer valuation are excluded for this asset type; use market/risk context instead of valuation conclusions.",
             "supported_analysis": f"Supported analysis: {ready}; ETF/index/fund monitoring context.",
             "unsupported_analysis": "Unsupported analysis: operating-company DCF and peer valuation are excluded, not failed inputs.",
-            "risk_watchpoint": "Risk watchpoint: monitor liquidity, correlation, theme exposure, and whether the proxy still represents the intended market signal.",
+            "risk_watchpoint": "Risk watchpoint: monitor liquidity, correlation, theme exposure, and whether the proxy still represents the intended market context.",
             "invalidation_condition": "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.",
-            "next_research_question": f"What market, theme, liquidity, or risk signal should {ticker} monitor, and what would invalidate that proxy role?",
+            "next_research_question": f"What market, theme, liquidity, or risk context should {ticker} monitor, and what would invalidate that proxy role?",
             "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.",
             "confidence_explanation": f"Confidence is {confidence}: only ready local monitor inputs are used. Operating-company DCF and peer valuation are excluded.",
         }
@@ -592,7 +872,19 @@ def _stock_report_purpose_fields(
             "confidence_explanation": f"Confidence is {confidence}: only ready local inputs are used; missing inputs are not inferred.",
         }
 
-    return {key: _display_value(decision.get(key), value) for key, value in fallback.items()}
+    result = {key: _display_setup_text(decision.get(key), value) for key, value in fallback.items()}
+    relative_status_key = _display_value(relative_status, "").lower()
+    if (
+        not monitor_context
+        and bool(peer_ready)
+        and relative_status_key in {"calculated", "partial"}
+        and "peer data unavailable" in result.get("valuation_evaluation", "").lower()
+    ):
+        result["valuation_evaluation"] = (
+            f"Report-local peer valuation is {relative_status_key} from trusted peer inputs; "
+            "broad value labels may still remain limited when optional value-engine fields are missing."
+        )
+    return result
 
 
 def _stock_report_is_monitor_context(*, readiness: dict[str, Any], decision: dict[str, Any], dcf_status_text: str = "") -> bool:
@@ -623,6 +915,11 @@ def _stock_report_next_action(
 ) -> str:
     if _stock_report_is_monitor_context(readiness=readiness, decision=decision, dcf_status_text=dcf_status_text):
         return _stock_report_monitor_next_action(ticker)
+    if not bool(readiness.get("price_ready")):
+        return (
+            f"Add or refresh trusted local price history for {ticker}; run `make focus-price TICKER={ticker}` "
+            "before interpreting setup, fundamentals, DCF, or peer context."
+        )
     primary_blocker = str(decision.get("primary_blocker", "")).strip().lower()
     peer_action = peer.get("next_peer_action") or peer.get("missing_peer_reason")
     if primary_blocker in {"peer", "peers"} and _display_value(peer_action) != "Not available":
@@ -737,15 +1034,65 @@ def _stock_report_function_quality_lines(
         f"- Fundamentals / DCF: {valuation_status}.",
         f"- Peer comparison: {peer_status}.",
         f"- Optional context: {optional_status}.",
-        "- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are repo-native under `src/`; standard libraries/adapters support data handling and UI, and plugins can help development review, but shipped analysis comes from repo code and local data.",
+        "- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.",
     ]
 
 
-def _stock_report_reader_guide_lines(*, dcf_status_text: str, monitor_context: bool, price_ready: bool) -> list[str]:
+def _stock_report_methodology_lines(
+    *,
+    readiness: dict[str, Any],
+    dcf_status_text: str,
+    peer_ready: Any,
+) -> list[str]:
+    asset_type = _display_value(readiness.get("asset_type"), "").lower()
+    monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    if monitor_context:
+        valuation_method = (
+            "operating-company DCF is excluded because this ticker is treated as ETF/index/fund monitor context; "
+            "use ready price, liquidity, correlation, theme, or risk context instead"
+        )
+    elif dcf_status_text == "ready":
+        valuation_method = (
+            "standalone DCF projects free cash flow under bear/base/bull assumptions, discounts projected cash flows "
+            "and terminal value by WACC, adjusts for cash/debt or net debt, and divides by shares outstanding"
+        )
+    else:
+        valuation_method = (
+            "standalone DCF stays blocked until trusted local price, revenue, free cash flow or FCF margin, "
+            "shares outstanding, and DCF fields pass readiness checks"
+        )
+
+    if monitor_context:
+        peer_method = "peer-relative company valuation is excluded for monitor context"
+    elif bool(peer_ready):
+        peer_method = "peer-relative valuation can be reviewed because source-backed peer inputs are ready"
+    else:
+        peer_method = "peer-relative valuation stays withheld until source-backed peer mappings and peer valuation inputs are ready"
+    return [
+        "- Method order: readiness gate first, supported analysis second, valuation math third, explanation last.",
+        "- Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.",
+        "- Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.",
+        "- DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.",
+        f"- DCF method: {valuation_method}.",
+        f"- Peer method: {peer_method}.",
+        "- Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.",
+        "- Report method: text is generated from local readiness, DCF, peer, decision, and source/freshness outputs; blocked or excluded sections are explained instead of filled.",
+    ]
+
+
+def _stock_report_reader_guide_lines(
+    *,
+    dcf_status_text: str,
+    monitor_context: bool,
+    price_ready: bool,
+    peer_ready: Any = None,
+) -> list[str]:
     if monitor_context:
         current_use = "Monitor-only context when local price, liquidity, correlation, or theme inputs are ready."
-    elif dcf_status_text == "ready":
+    elif dcf_status_text == "ready" and bool(peer_ready):
         current_use = "DCF-ready review for company-level assumptions and sensitivity when trusted local fundamentals are ready."
+    elif dcf_status_text == "ready":
+        current_use = "Standalone DCF review: company DCF assumptions can be reviewed, while peer-relative valuation stays locked until source-backed peer inputs are ready."
     elif price_ready:
         current_use = "Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready."
     elif dcf_status_text == "blocked":
@@ -755,9 +1102,104 @@ def _stock_report_reader_guide_lines(*, dcf_status_text: str, monitor_context: b
     return [
         "- Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.",
         f"- Current use: {current_use}",
-        "- Logic source: repo-native code under `src/`; libraries and adapters support data handling/UI, and plugins can help development review, but shipped analysis comes from repo code and local data.",
+        "- Logic source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.",
         "- Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.",
     ]
+
+
+def _stock_report_executive_summary_lines(
+    *,
+    ticker: str,
+    analysis_quality_lines: list[str],
+    supported_now: str,
+    locked_now: str,
+    next_action: str,
+) -> list[str]:
+    mode = "Not classified"
+    why = "Only ready local inputs should be interpreted."
+    for line in analysis_quality_lines:
+        if "Analysis mode:" in line:
+            mode = _brief_value(line, "- Analysis mode:").rstrip(".")
+        elif line.startswith("- Why:"):
+            why = _brief_value(line, "- Why:").rstrip(".")
+    next_step = _sentence_value(next_action, "No next local action is available")
+    return [
+        f"- Bottom line: {ticker} is in `{mode}` mode. {why}.",
+        f"- Use now: {_sentence_value(supported_now)}.",
+        f"- Do not infer: {_sentence_value(locked_now)}.",
+        f"- Next step: {next_step}.",
+    ]
+
+
+def _stock_report_at_a_glance_lines(
+    *,
+    mode: str,
+    decision: dict[str, Any],
+    dcf_status_text: str,
+    readiness: dict[str, Any],
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+    next_action: str,
+) -> list[str]:
+    asset_type = _display_value(readiness.get("asset_type"), "").lower()
+    monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    peer_status = (
+        "Excluded for monitor context"
+        if monitor_context
+        else "Ready for source-backed peer review"
+        if bool(peer_ready)
+        else "Locked until source-backed peer inputs are ready"
+    )
+    optional_status = (
+        "Ready"
+        if bool(earnings_ready) and bool(estimates_ready)
+        else "Locked until trusted earnings and analyst-estimate rows exist"
+    )
+    dcf_status = (
+        "Excluded for ETF/index/fund monitor context"
+        if monitor_context
+        else "Ready for scenario review"
+        if dcf_status_text == "ready"
+        else "Blocked until trusted fundamentals and DCF inputs are ready"
+    )
+    decision_label = _display_value(
+        decision.get("decision_subtype") or decision.get("decision_bucket"),
+        "Not classified",
+    )
+    return [
+        f"- Mode: `{mode}`.",
+        f"- Decision view: {decision_label}.",
+        f"- DCF: {dcf_status}.",
+        f"- Peer context: {peer_status}.",
+        f"- Optional context: {optional_status}.",
+        "- Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.",
+        f"- Next local step: {_sentence_value(_humanize_schema_terms(next_action), 'No next local action is available')}.",
+    ]
+
+
+def _stock_report_mode_from_quality_lines(analysis_quality_lines: list[str]) -> str:
+    for line in analysis_quality_lines:
+        if "Analysis mode:" in line:
+            return _brief_value(line, "- Analysis mode:").rstrip(".")
+    return "Not classified"
+
+
+def _stock_report_mode_guide_lines(current_mode: str) -> list[str]:
+    descriptions = {
+        "DCF-ready review": "Fullest company review: price, fundamentals, DCF, and source-backed peer context are ready.",
+        "Standalone DCF review": "Company DCF can be reviewed, but peer-relative valuation remains blocked.",
+        "Price/setup review only": "Use trend/setup context only; company valuation waits for trusted fundamentals and DCF inputs.",
+        "Monitor-only context": "Use ETF/index/fund market or risk context; operating-company DCF is excluded, not failed.",
+        "Data-unlock only": "Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.",
+    }
+    lines = []
+    for mode, description in descriptions.items():
+        marker = "current" if mode == current_mode else "other"
+        if mode == "Data-unlock only" and mode == current_mode:
+            description = "Pause analysis for this ticker until the first trusted local input is available."
+        lines.append(f"- `{mode}` ({marker}): {description}")
+    return lines
 
 
 def _stock_report_source_audit_lines(
@@ -787,17 +1229,155 @@ def _stock_report_source_audit_lines(
         peer_status = "blocked until fundamentals / DCF"
         peer_action = "Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready"
     else:
-        peer_status = _display_value(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "ready")
+        peer_status = _display_report_status(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "ready")
         peer_action = _sentence_value(peer.get("next_peer_action") or peer.get("missing_peer_reason"))
+    dcf_reason = _display_field_list(dcf.get("reason_not_ready") or dcf.get("missing_dcf_fields"), "")
+    dcf_reason_clause = f"; reason {dcf_reason}" if dcf_reason and dcf_reason != "Not available" else ""
     return [
-        f"- Prices: {_display_value(readiness.get('price_ready'))}; local source `data/prices.csv`; coverage {price_window}; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.",
-        f"- Fundamentals / DCF: {dcf_status_text}; local source `data/fundamentals.csv`; reason {_display_value(dcf.get('reason_not_ready') or dcf.get('missing_dcf_fields'))}; SEC_USER_AGENT {sec_status}; staged path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.",
-        f"- Peers: {peer_status}; local source `data/peers.csv`; staged path `data/imports/peers.csv`; next peer action {peer_action}.",
-        f"- Earnings: {_display_value(earnings_ready)}; trusted local CSV only; staged path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
-        f"- Analyst estimates: {_display_value(estimates_ready)}; trusted local CSV only; staged path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
-        f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; missing remote credentials should not break local CSV reports or staged import workflows.",
-        f"- Report command: `make stock-report TICKER={ticker}`. Research-only output; copyable command only.",
+        f"- Prices: {_display_report_status(readiness.get('price_ready'))}; local source `data/prices.csv`; coverage {price_window}; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.",
+        f"- Fundamentals / DCF: {_display_report_status(dcf_status_text)}; local source `data/fundamentals.csv`{dcf_reason_clause}; SEC_USER_AGENT {sec_status}; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.",
+        f"- Peers: {peer_status}; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action {peer_action}.",
+        f"- Earnings: {_display_report_status(earnings_ready)}; trusted local CSV only; import draft path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
+        f"- Analyst estimates: {_display_report_status(estimates_ready)}; trusted local CSV only; import draft path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
+        f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; missing remote credentials should not break local CSV reports or preview-first local import workflows.",
+        f"- Report command: `make stock-report-md TICKER={ticker}`. Research-only Markdown output; copyable command only.",
     ]
+
+
+def _stock_report_data_unlock_lines(
+    *,
+    ticker: str,
+    readiness: dict[str, Any],
+    coverage: dict[str, Any],
+    dcf: dict[str, Any],
+    peer: dict[str, Any],
+    earnings_ready: Any,
+    estimates_ready: Any,
+    dcf_status_text: str,
+) -> list[str]:
+    monitor_context = _stock_report_is_monitor_context(readiness=readiness, decision={}, dcf_status_text=dcf_status_text)
+    price_ready = bool(readiness.get("price_ready"))
+    peer_ready = bool(peer.get("peer_ready") or readiness.get("peer_ready"))
+    optional_ready = bool(earnings_ready and estimates_ready)
+    price_rows = _display_value(coverage.get("price_rows"), "0")
+    dcf_reason = _display_field_list(
+        dcf.get("reason_not_ready") or dcf.get("missing_dcf_fields"),
+        "No missing DCF fields flagged",
+    )
+    peer_reason = _sentence_value(peer.get("next_peer_action") or peer.get("missing_peer_reason"))
+
+    if price_ready:
+        price_line = f"Price history is usable now ({price_rows} local row(s)); keep it fresh before relying on setup or risk context."
+    else:
+        price_line = f"Price history is the first unlock. Run `make focus-price TICKER={ticker}` or use the price import flow before interpreting setup."
+
+    if monitor_context:
+        dcf_line = "Operating-company DCF is excluded for this ETF/index/fund monitor context; no fundamentals import is required for company valuation."
+    elif dcf_status_text == "ready":
+        dcf_line = "Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source freshness before interpreting valuation context."
+    elif not price_ready:
+        dcf_line = (
+            f"Wait on fundamentals / DCF interpretation until price coverage starts. "
+            f"After `make focus-price TICKER={ticker}` is resolved, run `make focus-fundamentals TICKER={ticker}` for the next DCF fields."
+        )
+    else:
+        dcf_line = f"Fundamentals / DCF are blocked: {dcf_reason}. Run `make focus-fundamentals TICKER={ticker}` before looking for valuation context."
+
+    if monitor_context:
+        peer_line = "Peer valuation is excluded for monitor context; peer rows are optional context, not a required unlock."
+    elif peer_ready:
+        peer_line = "Peer context is usable now; review mapped peers and freshness before interpreting peer-relative context."
+    elif dcf_status_text != "ready":
+        peer_line = "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready."
+    else:
+        peer_suffix = "" if "data/imports/peers.csv" in peer_reason else " Add source-backed mappings in `data/imports/peers.csv`."
+        peer_line = f"Peer context is the next unlock after DCF: {peer_reason}.{peer_suffix}"
+
+    if optional_ready:
+        optional_line = "Earnings and analyst-estimate context is available from trusted local rows; treat it as context, not a recommendation."
+    else:
+        optional_line = (
+            "Earnings and analyst estimates remain optional and locked until trusted local rows are imported with "
+            "`make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`."
+        )
+
+    return [
+        f"- Price unlock: {price_line}",
+        f"- Fundamentals / DCF unlock: {dcf_line}",
+        f"- Peer unlock: {peer_line}",
+        f"- Optional context unlock: {optional_line}",
+        "- Import paths, rejected-row files, and credential state are listed in the Source/Freshness Audit below.",
+    ]
+
+
+def _stock_report_unlock_command_lines(
+    *,
+    ticker: str,
+    readiness: dict[str, Any],
+    dcf_status_text: str,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+) -> list[str]:
+    asset_type = _display_value(readiness.get("asset_type"), "").lower()
+    monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    price_ready = bool(readiness.get("price_ready"))
+    fundamentals_ready = bool(readiness.get("fundamentals_ready"))
+    peer_is_ready = bool(peer_ready)
+    optional_ready = bool(earnings_ready) and bool(estimates_ready)
+
+    lines = [
+        "- Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.",
+        f"- Inspect this ticker: `make stock-report-md TICKER={ticker}`.",
+    ]
+    if not price_ready:
+        lines.extend(
+            [
+                f"- Price first: `make focus-price TICKER={ticker}`.",
+                f"- Price queue: `make price-worklist TICKERS={ticker} TOP_N=10`.",
+                "- Price import safety: `make price-validate && make price-preview && make price-apply`.",
+            ]
+        )
+    else:
+        lines.append(f"- Price freshness: `make focus-price TICKER={ticker}`.")
+
+    if monitor_context:
+        lines.append("- Fundamentals / DCF: no operating-company DCF command is required for ETF/index/fund monitor context.")
+    elif not fundamentals_ready or dcf_status_text != "ready":
+        lines.extend(
+            [
+                f"- Fundamentals / DCF: `make focus-fundamentals TICKER={ticker}`.",
+                f"- SEC/manual import review: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
+                "- Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.",
+            ]
+        )
+    else:
+        lines.append(f"- DCF review: `make focus-fundamentals TICKER={ticker}`.")
+
+    if monitor_context:
+        lines.append("- Peers: no peer-valuation command is required for ETF/index/fund monitor context.")
+    elif not peer_is_ready:
+        lines.extend(
+            [
+                f"- Peer mapping: `make focus-peers TICKER={ticker}`.",
+                f"- Peer queue: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
+                "- Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.",
+            ]
+        )
+    else:
+        lines.append(f"- Peer review: `make focus-peers TICKER={ticker}`.")
+
+    if not optional_ready:
+        lines.extend(
+            [
+                f"- Optional context queue: `make optional-context-worklist TICKERS={ticker} TOP_N=10`.",
+                "- Optional templates: `make templates`.",
+                "- Earnings import: `make import-earnings`.",
+                "- Analyst-estimates import: `make import-analyst-estimates`.",
+                "- Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.",
+            ]
+        )
+    return lines
 
 
 def _load_local_context(ticker: str, output_dir: Path, data_dir: Path) -> dict[str, Any]:
@@ -841,13 +1421,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     for item in freshness:
         provider = _display_value(item.get("provider"))
         official = "official" if item.get("official") else "research-grade / local"
-        retrieved = _display_value(item.get("retrieved_at"))
+        freshness_summary = _source_freshness_summary(item)
         notes = "; ".join(str(note) for note in item.get("notes", []) if str(note).strip())
-        source_lines.append(f"- {provider}: {official}, retrieved {retrieved}" + (f"; {notes}" if notes else ""))
+        source_lines.append(f"- {provider}: {official}; {freshness_summary}" + (f"; {notes}" if notes else ""))
     if not source_lines:
         source_lines.append("- Not available")
 
-    missing_lines = [f"- {warning}" for warning in payload.get("missing_data_warnings", [])[:20]]
+    missing_lines = [f"- {_humanize_schema_terms(warning)}" for warning in payload.get("missing_data_warnings", [])[:20]]
     if not missing_lines:
         missing_lines.append("- None reported by the local provider.")
 
@@ -890,22 +1470,24 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     if monitor_context:
         one_minute_parts.append("Monitor context: operating-company DCF and peer valuation are excluded.")
     else:
-        one_minute_parts.append(f"Primary blocker: {_display_value(decision.get('primary_blocker'))}.")
+        one_minute_parts.append(f"Primary blocker: {_display_report_status(decision.get('primary_blocker'))}.")
     peer_blocker = peer.get("peer_blocker_type") or peer.get("missing_peer_reason")
     core_data_before_peers = not monitor_context and dcf_status_text != "ready"
     if core_data_before_peers:
         one_minute_parts.append("Peer workflow: waits for trusted price, fundamentals, and DCF inputs first.")
-    elif peer_blocker and not monitor_context:
-        one_minute_parts.append(f"Peer workflow: {_display_value(peer_blocker)}.")
+    elif not monitor_context and bool(peer_ready):
+        one_minute_parts.append("Peer workflow: ready for source-backed peer context.")
+    elif peer_blocker and not monitor_context and _display_value(peer_blocker) != "Not available":
+        one_minute_parts.append(f"Peer workflow: {_display_report_status(peer_blocker)}.")
     if optional_locked:
         one_minute_parts.append("Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.")
-    one_minute_next = _stock_report_next_action(
+    one_minute_next = _humanize_schema_terms(_stock_report_next_action(
         ticker=report.ticker,
         readiness=readiness,
         decision=decision,
         peer=peer,
         dcf_status_text=dcf_status_text,
-    )
+    ))
     if one_minute_next != "Not available":
         one_minute_parts.append(f"Next: {_sentence_value(one_minute_next)}.")
     one_minute_summary = " ".join(part for part in one_minute_parts if part)
@@ -914,22 +1496,40 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         readiness=readiness,
         decision=decision,
         dcf_status_text=dcf_status_text,
+        peer_ready=peer_ready,
+        relative_status=payload.get("valuation_snapshot", {}).get("relative_valuation", {}).get("status"),
     )
     purpose_decision = {**decision, **purpose_fields}
     operator_summary = _stock_report_operator_summary(ticker=report.ticker, readiness=readiness, decision=purpose_decision)
-    decision_primary_blocker = "monitor_context" if monitor_context else _display_value(decision.get("primary_blocker"))
+    decision_primary_blocker = "monitor context" if monitor_context else _display_report_status(decision.get("primary_blocker"))
     if monitor_context:
-        peer_blocker_display = "monitor_context"
-        mapping_status_display = "monitor_context"
+        peer_blocker_display = "monitor context"
+        mapping_status_display = "monitor context"
         peer_next_action_display = "No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context."
     elif core_data_before_peers:
-        peer_blocker_display = "blocked_until_fundamentals_dcf"
-        mapping_status_display = "wait_for_core_data"
+        peer_blocker_display = "blocked until fundamentals / DCF"
+        mapping_status_display = "waiting for price, fundamentals, and DCF"
         peer_next_action_display = "Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready."
     else:
-        peer_blocker_display = _display_value(peer.get("peer_blocker_type"))
-        mapping_status_display = _display_value(peer.get("mapping_status"))
+        peer_blocker_display = _display_report_status(peer.get("peer_blocker_type"))
+        mapping_status_display = _display_report_status(peer.get("mapping_status"))
         peer_next_action_display = _display_value(peer.get("next_peer_action") or peer.get("missing_peer_reason"))
+        if (peer.get("peer_ready") or readiness.get("peer_ready")) and peer_blocker_display == "not available":
+            peer_blocker_display = "ready"
+        elif peer_blocker_display == "not available":
+            peer_blocker_display = "waiting for source-backed peer inputs"
+        if mapping_status_display == "not available":
+            mapping_status_display = "not configured"
+        if peer_next_action_display == "Not available":
+            peer_next_action_display = "Add source-backed peer mappings and peer inputs before peer-relative valuation."
+        if (peer.get("peer_ready") or readiness.get("peer_ready")) and peer_blocker_display == "not available":
+            peer_blocker_display = "ready"
+        elif peer_blocker_display == "not available":
+            peer_blocker_display = "waiting for source-backed peer inputs"
+        if mapping_status_display == "not available":
+            mapping_status_display = "not configured"
+        if peer_next_action_display == "Not available":
+            peer_next_action_display = "Add source-backed peer mappings and peer inputs before peer-relative valuation."
     source_audit_lines = _stock_report_source_audit_lines(
         ticker=report.ticker,
         readiness=readiness,
@@ -947,9 +1547,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
     )
-    ready_features = _display_value(readiness.get("ready_features"))
-    blocked_features = _display_value(readiness.get("blocked_features"))
-    excluded_features = _display_value(readiness.get("excluded_features"))
+    ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
+    blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
+    excluded_features = _display_report_list(readiness.get("excluded_features"), "none")
     if monitor_context:
         supported_now = (
             "Monitor context is supported where local price, liquidity, correlation, and theme data are available. "
@@ -983,10 +1583,53 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    methodology_lines = _stock_report_methodology_lines(
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer_ready,
+    )
+    executive_summary_lines = _stock_report_executive_summary_lines(
+        ticker=report.ticker,
+        analysis_quality_lines=analysis_quality_lines,
+        supported_now=supported_now,
+        locked_now=locked_now,
+        next_action=one_minute_next,
+    )
+    report_mode = _stock_report_mode_from_quality_lines(analysis_quality_lines)
+    at_a_glance_lines = _stock_report_at_a_glance_lines(
+        mode=report_mode,
+        decision=decision,
+        dcf_status_text=dcf_status_text,
+        readiness=readiness,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        next_action=one_minute_next,
+    )
+    mode_guide_lines = _stock_report_mode_guide_lines(report_mode)
     reader_guide_lines = _stock_report_reader_guide_lines(
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
         price_ready=bool(readiness.get("price_ready")),
+        peer_ready=peer_ready,
+    )
+    data_unlock_lines = _stock_report_data_unlock_lines(
+        ticker=report.ticker,
+        readiness=readiness,
+        coverage=coverage,
+        dcf=dcf,
+        peer=peer,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        dcf_status_text=dcf_status_text,
+    )
+    unlock_command_lines = _stock_report_unlock_command_lines(
+        ticker=report.ticker,
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
     )
 
     report_lines = [
@@ -994,11 +1637,17 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "Research-only local report. It summarizes readiness and does not provide allocation instructions.",
         "",
+        "## At A Glance",
+        *at_a_glance_lines,
+        "",
         "## How To Read This Report",
         *reader_guide_lines,
         "",
         "## Executive Summary",
-        one_minute_summary,
+        *executive_summary_lines,
+        "",
+        "## Analysis Mode Guide",
+        *mode_guide_lines,
         "",
         "## One-Minute Status",
         one_minute_summary,
@@ -1010,6 +1659,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Analysis Quality",
         *analysis_quality_lines,
+        "",
+        "## Methodology",
+        *methodology_lines,
         "",
         "## Evaluation Function Check",
         *function_quality_lines,
@@ -1023,8 +1675,8 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Bucket: {_display_value(decision.get('decision_bucket'))}",
         f"- Subtype: {_display_value(decision.get('decision_subtype'))}",
         f"- Primary blocker: {decision_primary_blocker}",
-        f"- Main reason: {_display_value(decision.get('main_reason'))}",
-        f"- Next action: {one_minute_next}",
+        f"- Main reason: {_humanize_schema_terms(_display_value(decision.get('main_reason')))}",
+        f"- Next action: {_humanize_schema_terms(one_minute_next)}",
         "",
         "## Purpose Evaluation",
         "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
@@ -1042,9 +1694,10 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Setup / Momentum",
         f"- {_brief_value(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
-        f"- 1M performance: {_display_value(payload.get('performance', {}).get('one_month'))}",
-        f"- 3M performance: {_display_value(payload.get('performance', {}).get('three_month'))}",
-        f"- 1Y performance: {_display_value(payload.get('performance', {}).get('one_year'))}",
+        f"- 1M performance: {_format_pct(payload.get('performance', {}).get('one_month'))}",
+        f"- 3M performance: {_format_pct(payload.get('performance', {}).get('three_month'))}",
+        f"- 1Y performance: {_format_pct(payload.get('performance', {}).get('one_year'))}",
+        *_stock_report_volatility_lines(payload),
         "",
         "## Risk Notes",
         f"- Risk watchpoint: {_brief_value(purpose_fields.get('risk_watchpoint'), 'Risk watchpoint:')}",
@@ -1057,23 +1710,23 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Data Readiness",
         f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",
-        f"- Price ready: {_display_value(readiness.get('price_ready'))}",
-        f"- Momentum ready: {_display_value(readiness.get('momentum_ready'))}",
-        f"- Liquidity ready: {_display_value(readiness.get('liquidity_ready'))}",
-        f"- Correlation ready: {_display_value(readiness.get('correlation_ready'))}",
-        f"- Fundamentals ready: {_display_value(readiness.get('fundamentals_ready'))}",
-        f"- DCF ready: {_display_value(dcf_ready)}",
-        f"- Peer ready: {_display_value(peer_ready)}",
-        f"- Earnings ready: {_display_value(earnings_ready)}",
-        f"- Analyst estimates ready: {_display_value(estimates_ready)}",
-        f"- Blocked features: {_display_value(readiness.get('blocked_features'))}",
-        f"- Excluded features: {_display_value(readiness.get('excluded_features'))}",
+        f"- Price ready: {_display_report_status(readiness.get('price_ready'))}",
+        f"- Momentum ready: {_display_report_status(readiness.get('momentum_ready'))}",
+        f"- Liquidity ready: {_display_report_status(readiness.get('liquidity_ready'))}",
+        f"- Correlation ready: {_display_report_status(readiness.get('correlation_ready'))}",
+        f"- Fundamentals ready: {_display_report_status(readiness.get('fundamentals_ready'))}",
+        f"- DCF ready: {_display_report_status(dcf_ready)}",
+        f"- Peer ready: {_display_report_status(peer_ready)}",
+        f"- Earnings ready: {_display_report_status(earnings_ready)}",
+        f"- Analyst estimates ready: {_display_report_status(estimates_ready)}",
+        f"- Blocked features: {_display_report_list(readiness.get('blocked_features'), 'none')}",
+        f"- Excluded features: {_display_report_list(readiness.get('excluded_features'), 'none')}",
         "",
         "## Price Coverage",
         f"- Price rows: {_display_value(coverage.get('price_rows'))}",
         f"- First date: {_display_value(coverage.get('first_price_date'))}",
         f"- Last date: {_display_value(coverage.get('last_price_date'))}",
-        f"- Missing price reason: {_display_value(coverage.get('missing_price_reason'))}",
+        f"- Missing price reason: {_display_report_list(coverage.get('missing_price_reason'), 'none')}",
         "",
         "## Valuation Readiness",
         *valuation_lines,
@@ -1082,10 +1735,10 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
         f"- Peer count: {_display_value(peer.get('peer_count'))}",
-        f"- Trend comparison ready: {_display_value(peer.get('peer_trend_comparison_ready'))}",
-        f"- Valuation comparison ready: {_display_value(peer.get('peer_valuation_comparison_ready'))}",
-        f"- DCF peer comparison ready: {_display_value(peer.get('peer_dcf_comparison_ready'))}",
-        f"- Sample peers: {_display_value(peer.get('sample_peers'))}",
+        f"- Trend comparison ready: {_display_report_status(peer.get('peer_trend_comparison_ready'))}",
+        f"- Valuation comparison ready: {_display_report_status(peer.get('peer_valuation_comparison_ready'))}",
+        f"- DCF peer comparison ready: {_display_report_status(peer.get('peer_dcf_comparison_ready'))}",
+        f"- Sample peers: {_display_report_list(peer.get('sample_peers'), 'none configured')}",
         f"- Next peer action: {peer_next_action_display}",
         "",
         "## Missing Data",
@@ -1093,6 +1746,12 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Source / Freshness",
         *source_lines,
+        "",
+        "## Data Unlock Summary",
+        *data_unlock_lines,
+        "",
+        "## Copyable Unlock Commands",
+        *unlock_command_lines,
         "",
         "## Source/Freshness Audit",
         *source_audit_lines,
@@ -1129,32 +1788,34 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
     )
     purpose_decision = {**decision, **purpose_fields}
     operator_summary = _stock_report_operator_summary(ticker=symbol, readiness=readiness, decision=purpose_decision)
-    decision_primary_blocker = "monitor_context" if monitor_context else _display_value(decision.get("primary_blocker"))
+    decision_primary_blocker = "monitor context" if monitor_context else _display_report_status(decision.get("primary_blocker"))
     core_data_before_peers = not monitor_context and dcf_status_text != "ready"
     if monitor_context:
-        peer_blocker_display = "monitor_context"
-        mapping_status_display = "monitor_context"
+        peer_blocker_display = "monitor context"
+        mapping_status_display = "monitor context"
         peer_next_action_display = "No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context."
     elif core_data_before_peers:
-        peer_blocker_display = "blocked_until_fundamentals_dcf"
-        mapping_status_display = "wait_for_core_data"
+        peer_blocker_display = "blocked until fundamentals / DCF"
+        mapping_status_display = "waiting for price, fundamentals, and DCF"
         peer_next_action_display = "Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready."
     else:
-        peer_blocker_display = _display_value(peer.get("peer_blocker_type"))
-        mapping_status_display = _display_value(peer.get("mapping_status"))
+        peer_blocker_display = _display_report_status(peer.get("peer_blocker_type"))
+        mapping_status_display = _display_report_status(peer.get("mapping_status"))
         peer_next_action_display = _display_value(peer.get("next_peer_action") or peer.get("missing_peer_reason"))
     one_minute_summary = " ".join(
         part
         for part in [
             f"{symbol} state: {_display_value(readiness.get('overall_readiness_state'))}.",
             f"Decision: {_display_value(decision.get('decision_subtype') or decision.get('decision_bucket'))}.",
-            "Monitor context: operating-company DCF and peer valuation are excluded." if monitor_context else f"Primary blocker: {_display_value(decision.get('primary_blocker'))}.",
+            "Monitor context: operating-company DCF and peer valuation are excluded." if monitor_context else f"Primary blocker: {_display_report_status(decision.get('primary_blocker'))}.",
             f"DCF: {dcf_status_text}.",
             ""
             if monitor_context
+            else "Peer workflow: ready for source-backed peer context."
+            if bool(peer.get("peer_ready") or readiness.get("peer_ready"))
             else "Peer workflow: waits for trusted price, fundamentals, and DCF inputs first."
             if core_data_before_peers
-            else f"Peer workflow: {_display_value(peer.get('peer_blocker_type') or peer.get('missing_peer_reason'))}.",
+            else f"Peer workflow: {_display_report_status(peer.get('peer_blocker_type') or peer.get('missing_peer_reason'))}.",
             "Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.",
             f"Next: {_sentence_value(next_action)}.",
         ]
@@ -1175,9 +1836,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
     )
-    ready_features = _display_value(readiness.get("ready_features"))
-    blocked_features = _display_value(readiness.get("blocked_features"))
-    excluded_features = _display_value(readiness.get("excluded_features"))
+    ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
+    blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
+    excluded_features = _display_report_list(readiness.get("excluded_features"), "none")
     if monitor_context:
         supported_now = (
             "Monitor context is supported where local price, liquidity, correlation, and theme data are available. "
@@ -1211,24 +1872,73 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    methodology_lines = _stock_report_methodology_lines(
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+    )
+    executive_summary_lines = _stock_report_executive_summary_lines(
+        ticker=symbol,
+        analysis_quality_lines=analysis_quality_lines,
+        supported_now=supported_now,
+        locked_now=locked_now,
+        next_action=next_action,
+    )
+    report_mode = _stock_report_mode_from_quality_lines(analysis_quality_lines)
+    at_a_glance_lines = _stock_report_at_a_glance_lines(
+        mode=report_mode,
+        decision=decision,
+        dcf_status_text=dcf_status_text,
+        readiness=readiness,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        next_action=next_action,
+    )
+    mode_guide_lines = _stock_report_mode_guide_lines(report_mode)
     reader_guide_lines = _stock_report_reader_guide_lines(
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
         price_ready=bool(readiness.get("price_ready")),
+        peer_ready=readiness.get("peer_ready"),
+    )
+    data_unlock_lines = _stock_report_data_unlock_lines(
+        ticker=symbol,
+        readiness=readiness,
+        coverage=coverage,
+        dcf=dcf,
+        peer=peer,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        dcf_status_text=dcf_status_text,
+    )
+    unlock_command_lines = _stock_report_unlock_command_lines(
+        ticker=symbol,
+        readiness=readiness,
+        dcf_status_text=dcf_status_text,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
     )
     lines = [
         f"# {symbol} Single-Stock Research Report",
         "",
         "Research-only local report. It summarizes readiness and does not provide allocation instructions.",
         "",
+        "## At A Glance",
+        *at_a_glance_lines,
+        "",
         "## How To Read This Report",
         *reader_guide_lines,
         "",
-        "This is a readiness-only report because the full stock-report provider could not assemble price-backed analysis.",
-        f"Provider blocker: {_display_value(failure_reason)}",
+        "This is a data-unlock report because local price history is not ready for price-backed analysis yet.",
+        f"First blocker to resolve: {_display_value(failure_reason)}",
         "",
         "## Executive Summary",
-        one_minute_summary,
+        *executive_summary_lines,
+        "",
+        "## Analysis Mode Guide",
+        *mode_guide_lines,
         "",
         "## One-Minute Status",
         one_minute_summary,
@@ -1240,6 +1950,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## Analysis Quality",
         *analysis_quality_lines,
+        "",
+        "## Methodology",
+        *methodology_lines,
         "",
         "## Evaluation Function Check",
         *function_quality_lines,
@@ -1253,7 +1966,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Bucket: {_display_value(decision.get('decision_bucket'))}",
         f"- Subtype: {_display_value(decision.get('decision_subtype'))}",
         f"- Primary blocker: {decision_primary_blocker}",
-        f"- Main reason: {_display_value(decision.get('main_reason') or readiness.get('missing_data'))}",
+        f"- Main reason: {_humanize_schema_terms(_display_value(decision.get('main_reason') or readiness.get('missing_data')))}",
         f"- Next action: {next_action}",
         "",
         "## Purpose Evaluation",
@@ -1285,19 +1998,19 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "## Data Readiness",
         f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",
         f"- Asset type: {_display_value(readiness.get('asset_type'))}",
-        f"- Price ready: {_display_value(readiness.get('price_ready'))}",
-        f"- Momentum ready: {_display_value(readiness.get('momentum_ready'))}",
-        f"- Fundamentals ready: {_display_value(readiness.get('fundamentals_ready'))}",
-        f"- DCF ready: {_display_value(readiness.get('dcf_ready'))}",
-        f"- Peer ready: {_display_value(readiness.get('peer_ready'))}",
-        f"- Earnings ready: {_display_value(readiness.get('earnings_ready'))}",
-        f"- Analyst estimates ready: {_display_value(readiness.get('analyst_estimates_ready'))}",
-        f"- Blocked features: {_display_value(readiness.get('blocked_features'))}",
-        f"- Excluded features: {_display_value(readiness.get('excluded_features'))}",
+        f"- Price ready: {_display_report_status(readiness.get('price_ready'))}",
+        f"- Momentum ready: {_display_report_status(readiness.get('momentum_ready'))}",
+        f"- Fundamentals ready: {_display_report_status(readiness.get('fundamentals_ready'))}",
+        f"- DCF ready: {_display_report_status(readiness.get('dcf_ready'))}",
+        f"- Peer ready: {_display_report_status(readiness.get('peer_ready'))}",
+        f"- Earnings ready: {_display_report_status(readiness.get('earnings_ready'))}",
+        f"- Analyst estimates ready: {_display_report_status(readiness.get('analyst_estimates_ready'))}",
+        f"- Blocked features: {_display_report_list(readiness.get('blocked_features'), 'none')}",
+        f"- Excluded features: {_display_report_list(readiness.get('excluded_features'), 'none')}",
         "",
         "## Price Coverage",
         f"- Price rows: {_display_value(coverage.get('price_rows'))}",
-        f"- Missing price reason: {_display_value(coverage.get('missing_price_reason'))}",
+        f"- Missing price reason: {_display_report_list(coverage.get('missing_price_reason'), 'none')}",
         "",
         "## Valuation Readiness",
         *valuation_lines,
@@ -1306,12 +2019,18 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
         f"- Peer count: {_display_value(peer.get('peer_count'))}",
-        f"- Trend comparison ready: {_display_value(peer.get('peer_trend_comparison_ready'))}",
-        f"- Valuation comparison ready: {_display_value(peer.get('peer_valuation_comparison_ready'))}",
+        f"- Trend comparison ready: {_display_report_status(peer.get('peer_trend_comparison_ready'))}",
+        f"- Valuation comparison ready: {_display_report_status(peer.get('peer_valuation_comparison_ready'))}",
         f"- Next peer action: {peer_next_action_display}",
         "",
         "## Missing Data",
-        f"- {_display_value(readiness.get('missing_data'))}",
+        f"- {_humanize_schema_terms(_display_value(readiness.get('missing_data')))}",
+        "",
+        "## Data Unlock Summary",
+        *data_unlock_lines,
+        "",
+        "## Copyable Unlock Commands",
+        *unlock_command_lines,
         "",
         "## Source/Freshness Audit",
         *_stock_report_source_audit_lines(
@@ -1453,12 +2172,13 @@ def _resolve_sec_tickers(args: argparse.Namespace, base_dir: Path, data_dir: Pat
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate a structured stock report.")
+    parser = argparse.ArgumentParser(description="Generate a readable local single-stock research report.")
     parser.add_argument("--ticker", help="Ticker symbol to analyze")
     parser.add_argument("--provider", default="local", choices=["local", "mock", "yfinance"], help="Research data provider")
     parser.add_argument("--output", help="Optional JSON output path")
     parser.add_argument("--markdown-output", help="Optional Markdown report path. Defaults to outputs/stock_reports/{TICKER}.md for ticker reports.")
     parser.add_argument("--no-markdown", action="store_true", help="Do not write the default Markdown single-stock report.")
+    parser.add_argument("--quiet", action="store_true", help="Print only paths/status for ticker reports instead of the optional report data.")
     parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
@@ -1466,17 +2186,17 @@ def main() -> None:
     parser.add_argument("--validate-local-data", action="store_true", help="Validate local CSV datasets and report schema coverage.")
     parser.add_argument("--write-local-data-templates", action="store_true", help="Write header-only local enrichment CSV templates under data/templates.")
     parser.add_argument("--write-import-staging", action="store_true", help="Write header-only staging CSV files under data/imports.")
-    parser.add_argument("--validate-imports", action="store_true", help="Validate staged CSV imports under data/imports.")
-    parser.add_argument("--preview-import-merge", action="store_true", help="Preview staged CSV merge effects without changing canonical data files.")
-    parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge staged CSV imports into canonical local data files.")
+    parser.add_argument("--validate-imports", action="store_true", help="Validate import draft CSV imports under data/imports.")
+    parser.add_argument("--preview-import-merge", action="store_true", help="Preview draft CSV merge effects without changing canonical data files.")
+    parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge import draft CSV imports into canonical local data files.")
     parser.add_argument("--sec-stage-fundamentals", action="store_true", help="Fetch official SEC Companyfacts data and stage candidate fundamentals under data/imports/fundamentals.csv.")
-    parser.add_argument("--tickers", help="Comma-separated tickers for SEC staging.")
-    parser.add_argument("--from-local-tickers", action="store_true", help="Use locally discoverable tickers for SEC staging.")
-    parser.add_argument("--from-universe", action="store_true", help="Use tickers from data/universe.csv for SEC staging.")
-    parser.add_argument("--from-holdings", action="store_true", help="Use tickers from data/holdings.csv for SEC staging.")
+    parser.add_argument("--tickers", help="Comma-separated tickers for SEC import draft workflow.")
+    parser.add_argument("--from-local-tickers", action="store_true", help="Use locally discoverable tickers for SEC import draft workflow.")
+    parser.add_argument("--from-universe", action="store_true", help="Use tickers from data/universe.csv for SEC import draft workflow.")
+    parser.add_argument("--from-holdings", action="store_true", help="Use tickers from data/holdings.csv for SEC import draft workflow.")
     parser.add_argument("--sec-user-agent", help="Identifying User-Agent required by the SEC, for example 'Name email@example.com'.")
     parser.add_argument("--sec-refresh", action="store_true", help="Refresh SEC ticker-map and Companyfacts cache entries instead of reusing local cache.")
-    parser.add_argument("--overwrite", action="store_true", help="Overwrite staged SEC fundamentals.csv instead of upserting by ticker.")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite SEC fundamentals import draft.csv instead of upserting by ticker.")
     parser.add_argument("--template-dir", help="Optional destination directory for local CSV templates.")
     parser.add_argument("--json", action="store_true", help="Print CLI output as JSON for the supported validation/import/template commands.")
     args = parser.parse_args()
@@ -1486,6 +2206,12 @@ def main() -> None:
 
     def print_paths() -> None:
         print(format_path_context(cli_base_dir, cli_data_dir, cli_output_dir))
+
+    def display_cli_path(path: Path) -> str:
+        try:
+            return str(path.relative_to(cli_base_dir))
+        except ValueError:
+            return str(path)
 
     if args.write_local_data_templates:
         template_results = write_local_data_templates(
@@ -1598,7 +2324,7 @@ def main() -> None:
         requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
         if not requested_tickers:
             raise SystemExit(
-                "SEC staging requires at least one ticker source. Use --tickers, --from-local-tickers, "
+                "SEC import draft workflow requires at least one ticker source. Use --tickers, --from-local-tickers, "
                 "--from-universe, or --from-holdings."
             )
         try:
@@ -1614,7 +2340,7 @@ def main() -> None:
                 overwrite=args.overwrite,
             )
         except (RuntimeError, ValueError) as exc:
-            raise SystemExit(f"SEC staging failed: {exc}") from exc
+            raise SystemExit(f"SEC import draft workflow failed: {exc}") from exc
         payload = {
             **result,
             **write_result,
@@ -1711,15 +2437,18 @@ def main() -> None:
                 local_context=local_context,
                 failure_reason=str(exc),
             )
-            print_paths()
-            print(f"Readiness-only Markdown report: {markdown_path}")
-            print(f"Full stock report blocked: {exc}")
+            if not args.quiet:
+                print_paths()
+            print(f"Data-unlock Markdown report: {display_cli_path(markdown_path)}")
+            print(f"First blocker to resolve: {exc}")
             return
         raise SystemExit(f"Stock report generation failed: {exc}") from exc
-    print_paths()
+    if not args.quiet:
+        print_paths()
     if markdown_path is not None:
-        print(f"Markdown report: {markdown_path}")
-    print(payload)
+        print(f"Markdown report: {display_cli_path(markdown_path)}")
+    if not args.quiet:
+        print(payload)
 
 
 if __name__ == "__main__":

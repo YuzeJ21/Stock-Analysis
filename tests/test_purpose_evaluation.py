@@ -28,7 +28,7 @@ def test_purpose_evaluation_summary_groups_current_decisions_without_fabricated_
                 "primary_blocker": "none",
                 "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market context.",
                 "purpose_alignment": "Purpose alignment: ETF / Defensive / Hedge is evaluated as market/risk context.",
-                "next_research_question": "What market signal is this proxy intended to monitor?",
+                "next_research_question": "What market context is this proxy intended to monitor?",
             },
             {
                 "ticker": "BROAD",

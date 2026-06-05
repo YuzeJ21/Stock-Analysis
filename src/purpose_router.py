@@ -8,12 +8,12 @@ from src.risk import allowed_position_percent
 
 PURPOSES = {
     "Momentum Leader",
-    "Pullback Add Candidate",
+    "Pullback Review Candidate",
     "Core Compounder",
     "Re-rating / Undervalued",
     "Speculative Optionality",
     "ETF / Defensive / Hedge",
-    "Broken / Avoid",
+    "Broken / No Setup",
 }
 
 VALUE_REQUIRED_FIELDS = {"revenue_growth", "eps_growth", "fcf_margin", "debt_to_equity", "pe", "forward_pe"}
@@ -85,7 +85,7 @@ def route_purposes(
         final_purpose = computed
         if pd.notna(row.get("distance_from_50sma")) and row.get("distance_from_50sma") < 0 and pd.notna(row.get("close")) and pd.notna(row.get("sma_200")) and row.get("close") < row.get("sma_200"):
             if not in_holdings:
-                final_purpose = "Broken / Avoid"
+                final_purpose = "Broken / No Setup"
             conflict_reasons.append("Trend is broken below both 50SMA and 200SMA.")
 
         if computed == "Momentum Leader" and (pd.isna(row.get("relative_return_vs_spy")) or row.get("relative_return_vs_spy") <= 0):
@@ -102,7 +102,7 @@ def route_purposes(
                 conflict_reasons.append("Marked as Speculative Optionality but position size is too large.")
 
         if final_purpose not in PURPOSES:
-            final_purpose = declared or default_purpose or "Broken / Avoid"
+            final_purpose = declared or default_purpose or "Broken / No Setup"
             conflict_reasons.append("Purpose was outside the allowed purpose set and was normalized.")
 
         if row.get("history_days", 0) < 50:

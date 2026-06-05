@@ -66,16 +66,16 @@ class MonthlyPickConfig:
 
 
 STATE_SCORES = {
-    "Buyable Area": 100.0,
-    "Pullback Add Candidate": 92.0,
+    "Research Ready": 100.0,
+    "Pullback Review Candidate": 92.0,
     "Watch": 82.0,
     "Setup Forming": 76.0,
-    "Extended / No Chase": 60.0,
+    "Extended": 60.0,
     "Review Thesis": 48.0,
     "Risk Reduce": 25.0,
     "Broken": 5.0,
     "Ignore": 0.0,
-    "Avoid": 0.0,
+    "No Setup": 0.0,
 }
 
 VALUE_CATEGORY_SCORES = {
@@ -204,7 +204,7 @@ def _risk_penalty(row: pd.Series, value_row: pd.Series, missing_fields: list[str
     penalty = 0.0
     setup = str(row.get("SetupStatus", ""))
     final_state = str(row.get("FinalState", ""))
-    if setup in {"Avoid", "Broken"}:
+    if setup in {"No Setup", "Broken"}:
         penalty += 25.0
     if final_state in {"Risk Reduce", "Broken", "Ignore"}:
         penalty += 35.0
@@ -454,10 +454,18 @@ def _build_reason(
         name: "Not available" if value is None or pd.isna(value) else f"{float(value):.2f}"
         for name, value in components.items()
     }
+    volatility_source = str(row.get("ATRorVolatilitySource", "") or "").strip().lower()
+    if volatility_source == "atr":
+        risk_source = "Risk penalty uses ATR from available high/low/close fields when volatility is present."
+    elif volatility_source == "volatility_proxy":
+        risk_source = "Risk penalty uses a close-to-close volatility proxy approximation when ATR inputs are unavailable."
+    else:
+        risk_source = "Risk penalty leaves volatility source unavailable when local inputs do not support it."
     parts = [
         f"Composite score uses transparent local components: momentum {component_text['momentum']}, final-state {component_text['final_state']}, quality {component_text['quality']}, valuation {component_text['valuation']}, liquidity {component_text['liquidity']}.",
         f"Risk penalty is {risk_penalty:.1f}.",
-        "This row is a research candidate, not a trade instruction.",
+        risk_source,
+        "This research candidate row is context only, not an allocation instruction.",
     ]
     rank_reason = row.get("RankReason")
     if pd.notna(rank_reason) and str(rank_reason).strip():

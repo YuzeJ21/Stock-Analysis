@@ -169,7 +169,7 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert nvda["example_command"] == "make sec-stage TICKERS=AMD"
     assert "missing peer fundamentals needed for NVDA" in nvda["next_best_action"]
     assert "If SEC_USER_AGENT is configured" in nvda["next_best_action"]
-    assert "stage trusted manual fundamentals" in nvda["next_best_action"]
+    assert "prepare trusted manual fundamentals import draft rows" in nvda["next_best_action"]
 
 
 def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_path: Path):
@@ -208,7 +208,7 @@ def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_pa
     nvda_peer_action = peer_actions["NVDA"]
     assert nvda_peer_action["focus_command"] == "make imports-validate"
     assert nvda_peer_action["example_command"] == "make imports-preview"
-    assert "staged peer mappings are present" in nvda_peer_action["reason"].lower()
+    assert "peer mapping import drafts are present" in nvda_peer_action["reason"].lower()
 
     assert peer_wizard_rows
     assert peer_wizard_rows[0]["focus_command"] == "make imports-validate"
@@ -294,7 +294,7 @@ def test_staged_fundamentals_surface_validate_flow_in_coverage_and_wizard(tmp_pa
     amd_action = fundamentals_actions["AMD"]
     assert amd_action["focus_command"] == "make imports-validate"
     assert amd_action["example_command"] == "make imports-preview"
-    assert "staged fundamentals" in amd_action["reason"].lower()
+    assert "fundamentals import drafts" in amd_action["reason"].lower()
 
     assert fundamentals_wizard_rows
     assert fundamentals_wizard_rows[0]["focus_command"] == "make imports-validate"
@@ -354,7 +354,7 @@ def test_data_coverage_wizard_normalizes_stale_peer_example_commands():
             missing_required_for_dcf="",
             missing_required_for_peer_relative="peer support data incomplete",
             next_best_action=(
-                "Run make focus-peers TICKER=AMD, then add peer fundamentals/prices through the staged local import "
+                "Run make focus-peers TICKER=AMD, then add peer fundamentals/prices through the local import draft workflow "
                 "workflows so peer-relative valuation can calculate transparently."
             ),
             target_file="data/imports/fundamentals.csv, data/imports/prices.csv",
@@ -1387,7 +1387,7 @@ def test_data_onboarding_cli_command_bundle_runbook_text_surfaces_goal_summary(t
     assert "unlock monthly picks" in output
     assert "if refresh fails, normalize first csv" in output
     assert "fallback:" in output
-    assert "if staged imports were used, validate prices" in output
+    assert "if import drafts were used, validate prices" in output
     assert "make price-validate" in output
     assert "make price-preview" in output
     assert "make price-apply" in output
@@ -1455,7 +1455,7 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert price_steps[1]["step_label"] == "If refresh fails, normalize first CSV"
     assert "make price-normalize" in price_steps[1]["command"]
     assert "make price-normalize" in price_steps[1]["fallback_manual_command"]
-    assert price_steps[2]["step_label"] == "If staged imports were used, validate prices"
+    assert price_steps[2]["step_label"] == "If import drafts were used, validate prices"
     assert price_steps[2]["command"] == "make price-validate"
     assert price_steps[3]["command"] == "make price-preview"
     assert price_steps[4]["command"] == "make price-apply"
@@ -1470,7 +1470,7 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     fundamentals_scope = fundamentals_steps[0]["scope"]
     fundamentals_steps = [row for row in fundamentals_steps if row["scope"] == fundamentals_scope]
     assert [row["step_order"] for row in fundamentals_steps] == [1, 2, 3, 4, 5]
-    assert fundamentals_steps[1]["step_label"] == "Validate staged fundamentals"
+    assert fundamentals_steps[1]["step_label"] == "Validate fundamentals import draft"
     assert fundamentals_steps[1]["command"] == "make imports-validate"
     assert fundamentals_steps[2]["step_label"] == "Preview fundamentals merge"
     assert fundamentals_steps[2]["command"] == "make imports-preview"
@@ -1486,7 +1486,7 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert [row["step_order"] for row in peer_steps] == [1, 2, 3, 4, 5, 6]
     assert peer_steps[1]["step_label"] == "Fill peer mappings manually"
     assert peer_steps[1]["command"] == "data/imports/peers.csv"
-    assert peer_steps[2]["step_label"] == "Validate staged peer mappings"
+    assert peer_steps[2]["step_label"] == "Validate peer mapping import drafts"
     assert peer_steps[2]["command"] == "make imports-validate"
     assert peer_steps[3]["step_label"] == "Preview peer mapping merge"
     assert peer_steps[3]["command"] == "make imports-preview"

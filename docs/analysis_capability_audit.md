@@ -8,7 +8,9 @@ The current functions are good enough for a transparent local research prototype
 
 They are not good enough for broad-universe valuation conclusions without more trusted data. Missing fundamentals, peer mappings, earnings, or analyst estimates are intentionally shown as locked or blocked states instead of being turned into weak analysis.
 
-The shipped analysis logic is repo-native. Open-source Python packages support data handling, UI, tests, and optional provider access, but they are not the stock-analysis rules. Development plugins or assistant skills can help review the project, but they are not shipped product logic or trusted runtime data.
+The shipped analysis logic is implemented in this repository. Standard Python packages support data handling, UI, tests, and optional provider access, but they are not the stock-analysis rules.
+
+In plain terms: local or provider-assisted data supplies rows; this product checks those rows, calculates supported metrics, gates DCF and peer valuation, and writes the explanation. It does not import a third-party analyst opinion and relabel it as local analysis.
 
 ## What Is Strong Today
 
@@ -18,7 +20,8 @@ The shipped analysis logic is repo-native. Open-source Python packages support d
 - **DCF workflow:** DCF uses explicit assumptions, conservative caps, scenario outputs, and sensitivity tables when required inputs are available.
 - **Peer workflow:** peer comparison is withheld until source-backed peer mappings and peer metrics exist.
 - **ETF/index handling:** operating-company DCF is excluded for ETF/index/fund monitor context instead of being shown as failed.
-- **Single-stock report:** one ticker can be reviewed with readiness, supported analysis, blocked analysis, valuation state, risk notes, next step, and source/freshness notes.
+- **Single-stock report:** one ticker can be reviewed with At A Glance status, readiness, supported analysis, blocked analysis, valuation state, methodology, risk notes, copyable local unlock commands, next step, and source/freshness notes.
+- **Methodology visibility:** reports and docs show the local calculation path so visitors can see what is checked, calculated, blocked, or excluded.
 
 ## Function Quality Matrix
 
@@ -29,8 +32,21 @@ The shipped analysis logic is repo-native. Open-source Python packages support d
 | Fundamentals and DCF | Good for DCF-ready companies only. | Review assumptions, scenarios, and sensitivity with trusted local inputs. | Trusted fundamentals with revenue, free cash flow or FCF margin, shares outstanding, price, cash, and debt where available. | It does not label not-ready companies undervalued or overvalued. | `src/value_engine.py`, `src/valuation.py` |
 | Peer comparison | Workflow-ready, coverage-limited. | Use as a peer data-unlock workflow until source-backed peers and peer metrics are ready. | Source-backed peer mappings plus peer price/fundamentals rows. | It does not treat sector or industry fallback as trusted peer valuation. | `src/readiness_engine.py`, `src/valuation.py` |
 | ETF/index monitor context | Good for monitor context only. | Review market, theme, liquidity, and risk context without operating-company DCF. | Price, liquidity, correlation, and theme context. | It does not run operating-company DCF for ETFs, index proxies, or funds. | `src/research_decisions.py`, `src/stock_report.py` |
-| Single-stock report | Strongest visitor-facing workflow. | See one ticker's ready, blocked, excluded, optional, and source/freshness states step by step. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not provide allocation instructions or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
-| Dependencies | Support layer, not analysis logic. | Handle data frames, UI, tests, YAML config, and optional research-grade provider access. | Local CSV inputs remain the source of truth by default. | They do not replace repo-native analysis rules or trusted local data. | `pyproject.toml` |
+| Single-stock report | Strongest visitor-facing workflow. | See one ticker's At A Glance mode, ready, blocked, excluded, optional, methodology, copyable unlock commands, and source/freshness states step by step. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not execute imports, broker actions, trades, allocation instructions, or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
+| Methodology and explanation | Strong for transparency. | Trace readiness gates, DCF formula path, peer boundaries, and report wording back to project code. | Trusted local inputs remain required before calculation output appears. | It does not hide missing inputs behind model prose or unsupported conclusions. | `docs/METHODOLOGY.md`, `src/stock_report.py`, `src/dashboard.py` |
+| Dependencies | Support layer, not analysis logic. | Handle data frames, UI, tests, YAML config, and optional research-grade provider access. | Local CSV inputs remain the source of truth by default. | They do not replace project analysis rules or trusted local data. | `pyproject.toml` |
+
+## Input-To-Output Contract
+
+The product follows the same inspectable path for every ticker:
+
+1. Load local CSV inputs and source/freshness metadata.
+2. Validate whether each feature is `ready`, `partial`, `blocked`, or `excluded`.
+3. Run only calculations supported by ready inputs, such as price setup, ATR/proxy volatility, DCF scenarios, or peer context.
+4. Reduce confidence or withhold sections when required inputs are missing.
+5. Write the report from those local states: At A Glance first, supported analysis next, blocked or excluded analysis next, and copyable local data-unlock commands near the source/freshness audit.
+
+That contract is why a full-data company can show fundamentals, DCF assumptions, sensitivity, and peer context, while a partial-data company shows only the supported setup or blocker explanation.
 
 ## What Is Intentionally Limited
 
@@ -56,13 +72,15 @@ The product now uses the same plain modes across the dashboard and single-stock 
 
 The analysis logic is implemented in this repository under `src/`. The shipped product is not a wrapper around external investing services, ranking services, account-execution tools, or broker workflows:
 
-- `src/indicators.py`: moving averages, returns, relative strength, ATR/volatility proxy.
+- `src/indicators.py`: moving averages, returns, relative strength, and ATR versus close-to-close volatility-proxy labeling.
 - `src/momentum_engine.py`: rule-based setup classification.
 - `src/value_engine.py`: fundamentals quality, valuation context, value-trap flags, and peer-relative context.
 - `src/valuation.py`: DCF assumptions, scenarios, sensitivity, and relative-valuation calculations.
 - `src/readiness_engine.py`: ticker/feature readiness gates and peer unlock worklists.
 - `src/research_decisions.py`: readiness-aware research buckets, blockers, confidence, and next actions.
 - `src/stock_report.py`: single-stock report assembly and Markdown output.
+
+For the plain-English methodology and formula path, see `docs/METHODOLOGY.md`. The DCF path is documented as base FCF, projected FCF, discounted cash flows plus discounted terminal value, enterprise value, equity value, and fair value per share. If any required input is unavailable, the output stays blocked or excluded instead of filling the gap with an inferred value.
 
 The project uses standard Python libraries for support work. Based on `pyproject.toml`, shipped dependencies are:
 
@@ -77,13 +95,11 @@ The project uses standard Python libraries for support work. Based on `pyproject
 
 These dependencies support the workflow; they are not the analysis rules, recommendation logic, valuation gates, or account-execution systems.
 
-## Development Helper Boundary
+## Support Tooling Boundary
 
-Development-side plugins or assistant skills are optional helpers outside the shipped product. They are not shipped analysis rules, embedded valuation logic, recommendation logic, broker integrations, or sources of trusted runtime data.
+Support tools and libraries are outside the stock-analysis rules. They are not embedded valuation logic, recommendation logic, broker integrations, or sources of trusted runtime data.
 
-If those plugins are used during development, their output still has to be translated into deterministic repo code, local CSV schemas, tests, and research-only wording before it belongs in the product. The public product should be judged by the files in this repository, the local data it is given, and the tests that verify readiness gates and guardrails.
-
-The Public Equity Investing and Investment Banking plugins are not listed in `pyproject.toml` and are not runtime dependencies of this product. If used during development review, they remain helper context only; they do not supply trusted prices, fundamentals, peer mappings, earnings, analyst estimates, valuation inputs, or shipped recommendations.
+Any external review or research input still has to be translated into deterministic project code, local CSV schemas, tests, and research-only wording before it belongs in the product. The public product should be judged by the files in this repository, the local data it is given, and the tests that verify readiness gates and guardrails.
 
 ## Supported-Today Assessment
 

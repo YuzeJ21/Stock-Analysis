@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.config import AppConfig
+from src.indicators import build_indicator_snapshot
 from src.report_generator import printable_warnings, run
 
 
@@ -63,6 +64,48 @@ def _write_compact_pipeline_project(base_dir: Path) -> None:
     pd.DataFrame(rows).to_csv(data_dir / "prices.csv", index=False)
 
 
+def test_indicator_snapshot_labels_atr_source_when_high_low_are_available():
+    config = AppConfig.load(Path("config.yaml"))
+    dates = pd.date_range("2026-01-01", periods=20, freq="D")
+    prices = pd.DataFrame(
+        {
+            "date": dates,
+            "ticker": ["NVDA"] * len(dates),
+            "high": [101 + index for index in range(len(dates))],
+            "low": [99 + index for index in range(len(dates))],
+            "close": [100 + index for index in range(len(dates))],
+            "volume": [1_000_000] * len(dates),
+        }
+    )
+    universe = pd.DataFrame({"ticker": ["NVDA"], "theme": ["AI"], "sector_etf": ["SMH"]})
+
+    snapshot, warnings = build_indicator_snapshot(prices, universe, pd.DataFrame(), config)
+
+    row = snapshot.loc[snapshot["ticker"] == "NVDA"].iloc[0]
+    assert row["atr_or_volatility_source"] == "atr"
+    assert not any("volatility proxy" in warning.lower() for warning in warnings)
+
+
+def test_indicator_snapshot_labels_volatility_proxy_as_approximation_when_atr_missing():
+    config = AppConfig.load(Path("config.yaml"))
+    dates = pd.date_range("2026-01-01", periods=20, freq="D")
+    prices = pd.DataFrame(
+        {
+            "date": dates,
+            "ticker": ["NVDA"] * len(dates),
+            "close": [100 + index for index in range(len(dates))],
+            "volume": [1_000_000] * len(dates),
+        }
+    )
+    universe = pd.DataFrame({"ticker": ["NVDA"], "theme": ["AI"], "sector_etf": ["SMH"]})
+
+    snapshot, warnings = build_indicator_snapshot(prices, universe, pd.DataFrame(), config)
+
+    row = snapshot.loc[snapshot["ticker"] == "NVDA"].iloc[0]
+    assert row["atr_or_volatility_source"] == "volatility_proxy"
+    assert any("close-to-close volatility proxy as an approximation" in warning for warning in warnings)
+
+
 def test_report_generator_creates_outputs(tmp_path: Path):
     _write_compact_pipeline_project(tmp_path)
     result = run(tmp_path)
@@ -70,26 +113,26 @@ def test_report_generator_creates_outputs(tmp_path: Path):
     banned_phrases = ("buy now", "sell now", "strong buy", "guaranteed")
     allowed_purposes = {
         "Momentum Leader",
-        "Pullback Add Candidate",
+        "Pullback Review Candidate",
         "Core Compounder",
         "Re-rating / Undervalued",
         "Speculative Optionality",
         "ETF / Defensive / Hedge",
-        "Broken / Avoid",
+        "Broken / No Setup",
     }
     allowed_momentum_states = {
         "Watch",
         "Setup Forming",
-        "Buyable Area",
-        "Extended / No Chase",
-        "Pullback Add Candidate",
+        "Research Ready",
+        "Extended",
+        "Pullback Review Candidate",
         "Broken",
-        "Avoid",
+        "No Setup",
     }
     allowed_portfolio_states = {
         "Keep",
-        "Add Candidate",
-        "Hold but Do Not Add",
+        "Constructive Review",
+        "Hold Review Only",
         "Risk Reduce",
         "Broken",
         "Review Thesis",
@@ -145,6 +188,8 @@ def test_report_generator_creates_outputs(tmp_path: Path):
     assert market["MacroNarrativeCaution"].fillna("").str.contains("upstream", case=False).all()
     assert set(market["ThemeStatus"].dropna()) <= allowed_market_states
     assert set(momentum["SetupStatus"].dropna()) <= allowed_momentum_states
+    assert "ATRorVolatilitySource" in momentum.columns
+    assert set(momentum["ATRorVolatilitySource"].dropna()) <= {"atr", "volatility_proxy", "unavailable"}
     assert set(portfolio["ReviewState"].dropna()) <= allowed_portfolio_states
     assert "MissingDataFields" in value.columns
     assert set(value["FinalValueCategory"].dropna()) <= allowed_value_categories
@@ -175,6 +220,7 @@ def test_printable_warnings_summarizes_broad_universe_missing_prices():
         "Missing OHLCV data for A",
         "Missing OHLCV data for AA",
         "Missing OHLCV data for ZZZ",
+        "Optional benchmark/proxy OHLCV context unavailable for ARKF; theme/sector comparison is unavailable, but the ticker's own readiness state is unchanged.",
     ]
 
     printable = printable_warnings(warnings, max_warnings=3)
@@ -182,8 +228,61 @@ def test_printable_warnings_summarizes_broad_universe_missing_prices():
     assert not any(warning == "Missing OHLCV data for ZZZ" for warning in printable)
     assert any("3 tickers are missing OHLCV coverage" in warning for warning in printable)
     assert any("3 tickers have no daily price history available" in warning for warning in printable)
+    assert any("1 optional benchmark/proxy tickers are missing OHLCV context" in warning for warning in printable)
+    assert any("each stock's own readiness state is unchanged" in warning for warning in printable)
     assert any("make price-worklist TOP_N=25" in warning for warning in printable)
-    assert len(printable) <= 4
+    assert any("make price-refresh-loop DRY_RUN=1" in warning for warning in printable)
+    assert not any("make price-refresh TOP_N=25" in warning for warning in printable)
+    assert len(printable) <= 5
+
+
+def test_report_generator_classifies_missing_sector_etf_as_optional_proxy_context(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sector_etf,default_purpose,market_cap_bucket\n"
+        "HOOD,Fintech,ARKF,Core Compounder,Large\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text(
+        "Ticker,Shares,CostBasis,PositionPercent,PrimaryPurpose,SecondaryTags,OriginalThesis,MaxPositionPercent,InvalidationOverride\n",
+        encoding="utf-8",
+    )
+    (data_dir / "theme_map.csv").write_text(
+        "Theme,ETF,Description\n"
+        "Fintech,ARKF,Financial technology context\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text("ticker\n", encoding="utf-8")
+    dates = pd.date_range("2026-01-01", periods=30, freq="D")
+    rows = []
+    for ticker, start_price in {"HOOD": 20.0, "SPY": 100.0, "QQQ": 120.0}.items():
+        for index, date in enumerate(dates):
+            close = start_price + index * 0.1
+            rows.append(
+                {
+                    "date": date.strftime("%Y-%m-%d"),
+                    "ticker": ticker,
+                    "open": close - 0.1,
+                    "high": close + 0.2,
+                    "low": close - 0.2,
+                    "close": close,
+                    "volume": 1_000_000,
+                }
+            )
+    pd.DataFrame(rows).to_csv(data_dir / "prices.csv", index=False)
+
+    result = run(tmp_path)
+
+    assert not any(warning == "Missing OHLCV data for ARKF" for warning in result["warnings"])
+    assert any(
+        warning.startswith("Optional benchmark/proxy OHLCV context unavailable for ARKF")
+        for warning in result["warnings"]
+    )
+    printable = printable_warnings(result["warnings"])
+    assert any("optional benchmark/proxy tickers are missing OHLCV context" in warning for warning in printable)
 
 
 def test_report_generator_handles_missing_price_file_gracefully(tmp_path: Path):
