@@ -10952,6 +10952,7 @@ def single_stock_readiness_snapshot(
         "decision_subtype": decision_row.get("decision_subtype", "Not available"),
         "primary_blocker": decision_row.get("primary_blocker", "Not available"),
         "confidence": decision_row.get("confidence", "Not available"),
+        "data_confidence": decision_row.get("data_confidence", decision_row.get("confidence", "Not available")),
         "main_reason": decision_row.get("main_reason") or readiness_row.get("missing_data") or "Readiness state available.",
         "operator_summary": operator_summary,
         "next_action": next_action,
@@ -11504,6 +11505,11 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
         peer_body = "Peer-relative valuation should wait until trusted fundamentals and DCF inputs are ready."
         peer_command = stock_report_md_command(ticker)
     next_command = single_stock_next_command(snapshot)
+    data_confidence = first_meaningful_text(
+        snapshot.get("data_confidence"),
+        snapshot.get("confidence"),
+        fallback="Not available",
+    )
     status_body = format_missing(snapshot.get("main_reason"), "Readiness state available.")
     if next_command == "make optional-context-worklist TOP_N=25":
         next_action_text = compact_reason(snapshot.get("next_action"), max_sentences=1, max_chars=160)
@@ -11524,7 +11530,7 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
             "body": status_body,
             "badges": [
                 f"decision: {format_missing(snapshot.get('decision_subtype'))}",
-                f"confidence: {format_missing(snapshot.get('confidence'))}",
+                f"data confidence: {data_confidence}",
             ],
             "command": next_command,
         },

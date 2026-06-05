@@ -14451,6 +14451,7 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
             "decision_subtype": ["Research Candidate - DCF Ready But Peer Blocked", "Monitor - ETF Market Proxy"],
             "primary_blocker": ["peers", "none"],
             "confidence": ["medium", "medium"],
+            "data_confidence": ["medium-high", "limited"],
             "main_reason": ["DCF-ready with missing optional context.", "ETF market proxy."],
             "next_best_action": ["Review valuation assumptions.", "Use as market proxy."],
             "purpose_alignment": [
@@ -14494,6 +14495,8 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert company["decision_bucket"] == "Research Now"
     assert company["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
     assert company["primary_blocker"] == "peers"
+    assert company["data_confidence"] == "medium-high"
+    assert etf["data_confidence"] == "limited"
     assert "Operator summary:" in company["operator_summary"]
     assert "Next blocker: peers" in company["operator_summary"]
     assert "peer-relative valuation remains withheld" in company["operator_summary"]
@@ -14522,6 +14525,7 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
         "status": "partial",
         "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
         "confidence": "medium",
+        "data_confidence": "medium-high",
         "main_reason": "Core data is ready for a supported research pass.",
         "next_action": "Add source-backed peer mappings and peer metrics for NVDA.",
         "ready_features": "price, momentum, dcf",
@@ -14542,18 +14546,53 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
 
     cards = dashboard.single_stock_status_cards(snapshot)
     detail = dashboard.single_stock_detail_frame(snapshot)
+    status_card = next(card for card in cards if card["kicker"] == "TICKER STATUS")
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "nvda: partial" in rendered
     assert "Operator summary" in detail["Field"].tolist()
     assert "one-minute read" in rendered
     assert "decision: research candidate - dcf ready but peer blocked" in rendered
+    assert "data confidence: medium-high" in rendered
+    assert "confidence: medium" not in status_card["badges"]
     assert "ready: price, momentum, dcf" in rendered
     assert "missing_peer_mapping" in rendered
     assert "make focus-peers ticker=nvda" in rendered
     assert "add source-backed peer mappings and peer metrics for nvda." not in rendered
     assert "2025-01-01 to 2026-05-22" in rendered
     assert "trusted local csv input" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_status_cards_fall_back_to_legacy_confidence_for_old_outputs():
+    snapshot = {
+        "ticker": "META",
+        "status": "partial",
+        "decision_subtype": "Research Candidate - Optional Context Locked",
+        "confidence": "medium",
+        "main_reason": "Core data is ready for a supported research pass.",
+        "next_action": "Optional context missing for META.",
+        "ready_features": "price, momentum, fundamentals, dcf, peer",
+        "blocked_features": "earnings, analyst_estimates",
+        "excluded_features": "",
+        "missing_data": "earnings: trusted local CSV input",
+        "price_ready": True,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "dcf_status": "ready",
+        "peer_ready": True,
+    }
+
+    cards = dashboard.single_stock_status_cards(snapshot)
+    status_card = next(card for card in cards if card["kicker"] == "TICKER STATUS")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "data confidence: medium" in rendered
+    assert "confidence: medium" not in status_card["badges"]
+    assert "make optional-context-worklist top_n=25" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
