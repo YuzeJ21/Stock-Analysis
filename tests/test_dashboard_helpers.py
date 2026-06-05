@@ -586,9 +586,11 @@ def test_missing_data_notice_translates_common_gaps():
 
 def test_missing_data_summary_limits_noisy_fields():
     text = dashboard.summarize_missing_fields("Return1M, Return3M, Return6M, EPSGrowth, FCFMargin, ForwardPE", max_items=3)
+    mixed = dashboard.summarize_missing_fields("revenue; free_cash_flow|shares_outstanding", max_items=5)
 
     assert "Not enough price history" in text
     assert "+1 more" in text
+    assert mixed == "revenue, free_cash_flow, shares_outstanding"
 
 
 def test_monthly_pick_availability_message_handles_less_than_top_n():
@@ -13095,7 +13097,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
             {
                 "ticker": "META",
                 "asset_type": "company",
-                "missing_dcf_fields": "shares_outstanding, free_cash_flow",
+                "missing_dcf_fields": "shares_outstanding; free_cash_flow|revenue",
                 "sec_user_agent_configured": True,
             },
             {"ticker": "A", "asset_type": "company", "missing_dcf_fields": "", "sec_user_agent_configured": True},
@@ -13113,6 +13115,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "meta" in rendered
     assert "shares_outstanding" in rendered
     assert "free_cash_flow" in rendered
+    assert "revenue" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
     assert "1 dcf-ready companies" in rendered
     assert input_card["title"] == "SEC import draft workflow"
@@ -13531,7 +13534,7 @@ def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance()
     )
     dcf = pd.DataFrame(
         [
-            {"ticker": "META", "asset_type": "company", "missing_dcf_fields": "shares_outstanding, free_cash_flow"},
+            {"ticker": "META", "asset_type": "company", "missing_dcf_fields": "shares_outstanding; free_cash_flow|revenue"},
             {"ticker": "A", "asset_type": "company", "missing_dcf_fields": ""},
             {"ticker": "QQQ", "asset_type": "etf", "missing_dcf_fields": ""},
         ]
@@ -13559,6 +13562,7 @@ def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance()
     assert "missing dcf fields" in rendered
     assert "shares_outstanding: 1" in rendered
     assert "free_cash_flow: 1" in rendered
+    assert "revenue: 1" in rendered
     assert "treating missing inputs as a negative company signal" in rendered
     assert "dcf-ready but peer-blocked" in rendered
     assert "peer-relative valuation stays withheld" in rendered

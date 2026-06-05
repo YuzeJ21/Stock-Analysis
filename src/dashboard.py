@@ -2611,7 +2611,7 @@ def summarize_missing_fields(value: object, max_items: int = 5) -> str:
     text = format_missing(value, fallback="No explicit missing-data warnings")
     if text == "No explicit missing-data warnings":
         return text
-    items = [_translated_missing_item(item.strip()) for item in text.split(",") if item.strip()]
+    items = [_translated_missing_item(item.strip()) for item in re.split(r"[,;|]", text) if item.strip()]
     if not items:
         return "No explicit missing-data warnings"
     unique_items = list(dict.fromkeys(items))
@@ -7593,7 +7593,7 @@ def fundamentals_dcf_diagnostic_cards(
                 dcf_frame["missing_dcf_fields"]
                 .fillna("")
                 .astype(str)
-                .str.split(",")
+                .str.split(r"[,;|]", regex=True)
                 .explode()
                 .str.strip()
             )
@@ -8095,7 +8095,7 @@ def fundamentals_dcf_function_quality_frame(
         asset_type = dcf_frame.get("asset_type", pd.Series("", index=dcf_frame.index)).fillna("").astype(str).str.lower()
         excluded_count = int(asset_type.ne("company").sum())
         if "missing_dcf_fields" in dcf_frame.columns:
-            missing_counts = dcf_frame["missing_dcf_fields"].fillna("").astype(str).str.split(",").explode().str.strip()
+            missing_counts = dcf_frame["missing_dcf_fields"].fillna("").astype(str).str.split(r"[,;|]", regex=True).explode().str.strip()
             missing_counts = missing_counts.loc[missing_counts.ne("")]
             if not missing_counts.empty:
                 missing_field_text = ", ".join(f"{field}: {count}" for field, count in missing_counts.value_counts().head(4).items())
