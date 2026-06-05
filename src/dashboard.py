@@ -11190,6 +11190,91 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
     return cards
 
 
+def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
+    asset_type = format_missing(snapshot.get("asset_type"), "").lower()
+    dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    price_ready = bool(snapshot.get("price_ready"))
+    peer_ready = bool(snapshot.get("peer_ready"))
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+
+    if not snapshot or snapshot.get("status") == "missing":
+        first_read = "Ticker is not available in the current readiness outputs."
+        analyze_now = "No single-stock analysis is shown until the ticker appears in local readiness files."
+        still_locked = "Universe metadata, prices, fundamentals, DCF, peers, earnings, and analyst estimates."
+        command = format_missing(snapshot.get("next_action") if snapshot else "", "make universe-report")
+        badges = ["missing ticker", "readiness first"]
+    elif not price_ready:
+        first_read = "Start with trusted price history."
+        analyze_now = "The app can identify the ticker, but it withholds setup, trend, valuation, and peer context until price rows exist."
+        still_locked = "Prices, momentum, DCF, peers, earnings, and analyst estimates."
+        command = f"make focus-price TICKER={ticker}"
+        badges = ["price first", "no inference"]
+    elif monitor_context:
+        first_read = "Use this as monitor context."
+        analyze_now = "Local price rows can support market, theme, liquidity, and risk context."
+        still_locked = "Operating-company DCF and peer valuation are excluded, not failed, for ETF/index/fund context."
+        command = stock_report_md_command(ticker)
+        badges = ["monitor context", "DCF excluded"]
+    elif dcf_status == "blocked":
+        first_read = "Review setup first; valuation is still locked."
+        analyze_now = "Price and setup context can be reviewed from trusted local rows."
+        still_locked = f"DCF is blocked by missing trusted fundamentals: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=130)}"
+        command = f"make focus-fundamentals TICKER={ticker}"
+        badges = ["fundamentals needed", "no valuation conclusion"]
+    elif dcf_status == "ready" and not peer_ready:
+        first_read = "Standalone DCF is reviewable; peers are still locked."
+        analyze_now = "DCF assumptions, sensitivity, source freshness, and company setup can be reviewed from trusted local inputs."
+        still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
+        command = f"make focus-peers TICKER={ticker}"
+        badges = ["DCF ready", "peer gated"]
+    elif not earnings_ready or not estimates_ready:
+        first_read = "Core analysis is reviewable; optional context is locked."
+        analyze_now = "Prices, fundamentals, standalone DCF, and peer context are available from trusted local inputs."
+        still_locked = "Earnings and analyst-estimate sections remain unavailable until trusted optional CSV rows pass validation."
+        command = "make optional-context-worklist TOP_N=25"
+        badges = ["core ready", "optional locked"]
+    else:
+        first_read = "Supported single-stock review is available."
+        analyze_now = "Price, fundamentals, DCF, peer context, earnings, estimates, source freshness, and assumptions can be reviewed."
+        still_locked = "No core lock detected; still review source freshness and methodology notes before interpreting outputs."
+        command = stock_report_md_command(ticker)
+        badges = ["review ready", "source check"]
+
+    return [
+        {
+            "kicker": "FIRST READ",
+            "title": first_read,
+            "body": format_missing(snapshot.get("one_minute_summary"), analyze_now),
+            "badges": badges,
+            "command": command,
+        },
+        {
+            "kicker": "ANALYZE NOW",
+            "title": "What this page can support",
+            "body": analyze_now,
+            "badges": ["plain English", "local logic"],
+            "command": stock_report_md_command(ticker) if price_ready else command,
+        },
+        {
+            "kicker": "STILL LOCKED",
+            "title": "What stays unavailable",
+            "body": still_locked,
+            "badges": ["trusted inputs only", "no guesswork"],
+            "command": command,
+        },
+        {
+            "kicker": "COPY ONLY",
+            "title": "Copy the next command when ready",
+            "body": "The dashboard explains the next local step, but it does not run refreshes, imports, or external account actions.",
+            "badges": ["manual step", "research only"],
+            "command": command,
+        },
+    ]
+
+
 def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
@@ -18334,6 +18419,8 @@ def render_market_command_center(
     metric_cols[3].metric("DCF", public_status_label(snapshot.get("dcf_status")))
     metric_cols[4].metric("Confidence", format_missing(snapshot.get("confidence")))
     render_signal_cards(single_stock_status_cards(snapshot))
+    render_section_header("Single-Stock Quick Read", "The first interpretation lane before tables: what this page can support, what stays locked, and the next copy-only command.")
+    render_signal_cards(single_stock_quick_read_cards(snapshot))
     render_section_header("Single-Stock Reader Guide", "Plain-English answer for what is ready, what is locked, and the next copy-only step.")
     render_signal_cards(single_stock_reader_guide_cards(snapshot))
     with st.expander("Single-stock reader guide table", expanded=False):

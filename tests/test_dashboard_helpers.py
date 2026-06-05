@@ -14488,6 +14488,86 @@ def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
     assert "sell" not in etf_rendered + blocked_rendered
 
 
+def test_single_stock_quick_read_cards_route_dcf_ready_peer_locked():
+    snapshot = {
+        "ticker": "NVDA",
+        "status": "partial",
+        "asset_type": "company",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "one_minute_summary": "NVDA is partial; DCF inputs are ready, but peer context is locked.",
+    }
+
+    cards = dashboard.single_stock_quick_read_cards(snapshot)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED", "COPY ONLY"]
+    assert cards[0]["title"] == "Standalone DCF is reviewable; peers are still locked."
+    assert cards[0]["command"] == "make focus-peers TICKER=NVDA"
+    assert "dcf assumptions, sensitivity, source freshness" in rendered
+    assert "peer-relative valuation waits for source-backed peer mappings" in rendered
+    assert "does not run refreshes, imports, or external account actions" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_quick_read_cards_cover_monitor_blocked_and_optional_states():
+    etf = {
+        "ticker": "QQQ",
+        "status": "partial",
+        "asset_type": "etf",
+        "price_ready": True,
+        "dcf_status": "excluded",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+    }
+    blocked = {
+        "ticker": "APLD",
+        "status": "blocked",
+        "asset_type": "company",
+        "price_ready": False,
+        "dcf_status": "blocked",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+    }
+    optional = {
+        "ticker": "A",
+        "status": "partial",
+        "asset_type": "company",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": True,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+    }
+
+    etf_rendered = " ".join(str(value) for card in dashboard.single_stock_quick_read_cards(etf) for value in card.values()).lower()
+    blocked_rendered = " ".join(str(value) for card in dashboard.single_stock_quick_read_cards(blocked) for value in card.values()).lower()
+    optional_rendered = " ".join(str(value) for card in dashboard.single_stock_quick_read_cards(optional) for value in card.values()).lower()
+
+    assert "use this as monitor context" in etf_rendered
+    assert "operating-company dcf and peer valuation are excluded, not failed" in etf_rendered
+    assert "make stock-report-md ticker=qqq" in etf_rendered
+    assert "start with trusted price history" in blocked_rendered
+    assert "make focus-price ticker=apld" in blocked_rendered
+    assert "core analysis is reviewable; optional context is locked" in optional_rendered
+    assert "make optional-context-worklist top_n=25" in optional_rendered
+    rendered = etf_rendered + blocked_rendered + optional_rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_single_stock_methodology_bridge_cards_explain_source_vs_product_logic():
     snapshot = {
         "ticker": "NVDA",
