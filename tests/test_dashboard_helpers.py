@@ -12973,6 +12973,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
             {
                 "priority": 1,
                 "ticker": "META",
+                "in_active_universe": True,
                 "has_fundamentals": "False",
                 "missing_required_for_dcf": "free_cash_flow, shares_outstanding",
                 "focus_command": "make focus-fundamentals TICKER=META",
@@ -12980,6 +12981,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
             {
                 "priority": 2,
                 "ticker": "NVDA",
+                "in_active_universe": False,
                 "has_fundamentals": True,
                 "missing_required_for_dcf": "",
                 "focus_command": "make stock-report-md TICKER=NVDA",
@@ -12992,16 +12994,20 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
 
     assert list(frame.columns) == [
         "Ticker",
+        "Priority Scope",
         "Current State",
         "Missing Trusted Inputs",
+        "Trusted Input Path",
         "What This Unlocks",
         "Copy-Only Command",
         "Validation Path",
     ]
     assert frame["Ticker"].tolist() == ["META"]
+    assert frame.iloc[0]["Priority Scope"] == "Priority 1; active universe"
     assert frame.iloc[0]["Copy-Only Command"] == "make focus-fundamentals TICKER=META"
     assert "price may be ready, but company fundamentals are still locked" in rendered
     assert "free cash flow, shares outstanding" in rendered
+    assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
     assert "dcf readiness checks" in rendered
     assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
     assert "broker" not in rendered
@@ -13017,6 +13023,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
             {
                 "priority": 1,
                 "ticker": "A",
+                "workflow_scope": "active_universe",
                 "has_peer_mapping": "False",
                 "peer_ready": False,
                 "missing_required_for_peer_relative": "peer mapping, peer fundamentals",
@@ -13025,6 +13032,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
             {
                 "priority": 2,
                 "ticker": "NVDA",
+                "workflow_scope": "master_universe",
                 "has_peer_mapping": True,
                 "peer_ready": True,
                 "missing_required_for_peer_relative": "",
@@ -13038,16 +13046,20 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
 
     assert list(frame.columns) == [
         "Ticker",
+        "Priority Scope",
         "Current State",
         "Trusted Peer Requirement",
+        "Trusted Input Path",
         "What This Unlocks",
         "Copy-Only Command",
         "Validation Path",
     ]
     assert frame["Ticker"].tolist() == ["A"]
+    assert frame.iloc[0]["Priority Scope"] == "Priority 1; active universe"
     assert frame.iloc[0]["Copy-Only Command"] == "make focus-peers TICKER=A"
     assert "peer valuation locked until trusted peer inputs exist" in rendered
     assert "peer mapping, peer fundamentals" in rendered
+    assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "peer trend context first and peer valuation only after peer valuation inputs also pass" in rendered
     assert "fill data/imports/peers.csv" in rendered
     assert "broker" not in rendered

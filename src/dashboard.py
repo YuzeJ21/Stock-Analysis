@@ -7654,8 +7654,10 @@ def data_health_fundamentals_unlock_frame(
 ) -> pd.DataFrame:
     columns = [
         "Ticker",
+        "Priority Scope",
         "Current State",
         "Missing Trusted Inputs",
+        "Trusted Input Path",
         "What This Unlocks",
         "Copy-Only Command",
         "Validation Path",
@@ -7690,11 +7692,16 @@ def data_health_fundamentals_unlock_frame(
         command = format_missing(row.get("focus_command"), f"make focus-fundamentals TICKER={ticker}")
         if not command.startswith("make focus-fundamentals"):
             command = f"make focus-fundamentals TICKER={ticker}"
+        priority = format_missing(row.get("priority"), "not ranked")
+        active_scope = str(row.get("in_active_universe", "")).strip().lower() in {"true", "1", "yes", "y"}
+        scope = format_missing(row.get("workflow_scope"), "active universe" if active_scope else "master universe").replace("_", " ")
         rows.append(
             {
                 "Ticker": ticker,
+                "Priority Scope": f"Priority {priority}; {scope}",
                 "Current State": "Price may be ready, but company fundamentals are still locked",
                 "Missing Trusted Inputs": missing_inputs,
+                "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
                 "What This Unlocks": "Trusted fundamentals can unlock DCF readiness checks, scenario assumptions, and fair value/share review when all required fields pass.",
                 "Copy-Only Command": command,
                 "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
@@ -7710,8 +7717,10 @@ def data_health_peer_unlock_frame(
 ) -> pd.DataFrame:
     columns = [
         "Ticker",
+        "Priority Scope",
         "Current State",
         "Trusted Peer Requirement",
+        "Trusted Input Path",
         "What This Unlocks",
         "Copy-Only Command",
         "Validation Path",
@@ -7750,11 +7759,16 @@ def data_health_peer_unlock_frame(
         command = format_missing(row.get("focus_command"), f"make focus-peers TICKER={ticker}")
         if not command.startswith("make focus-peers"):
             command = f"make focus-peers TICKER={ticker}"
+        priority = format_missing(row.get("priority"), "not ranked")
+        active_scope = str(row.get("in_active_universe", "")).strip().lower() in {"true", "1", "yes", "y"}
+        scope = format_missing(row.get("workflow_scope"), "active universe" if active_scope else "master universe").replace("_", " ")
         rows.append(
             {
                 "Ticker": ticker,
+                "Priority Scope": f"Priority {priority}; {scope}",
                 "Current State": "Peer valuation locked until trusted peer inputs exist",
                 "Trusted Peer Requirement": requirement,
+                "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
                 "What This Unlocks": "Source-backed peer mappings can unlock peer trend context first and peer valuation only after peer valuation inputs also pass.",
                 "Copy-Only Command": command,
                 "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
