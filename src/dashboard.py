@@ -7790,6 +7790,49 @@ def data_health_fundamentals_unlock_frame(
     return pd.DataFrame(rows, columns=columns)
 
 
+def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if fundamentals_unlock_frame is None or fundamentals_unlock_frame.empty:
+        return [
+            {
+                "kicker": "FUNDAMENTALS QUEUE",
+                "title": "No fundamentals unlock rows",
+                "body": "No price-ready fundamentals-locked rows are visible in the current worklist. Regenerate readiness before assuming coverage improved.",
+                "badges": ["current output", "no inference"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = fundamentals_unlock_frame.copy()
+    first = frame.iloc[0]
+    ticker = format_missing(first.get("Ticker"), "Ticker")
+    locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
+    missing = compact_reason(first.get("Missing Trusted Inputs"), max_sentences=1, max_chars=140)
+    command = format_missing(first.get("Copy-Only Command"), f"make focus-fundamentals TICKER={ticker}")
+    return [
+        {
+            "kicker": "FUNDAMENTALS QUEUE",
+            "title": f"{len(frame)} row(s) need trusted fundamentals",
+            "body": "Open this before interpreting company valuation. Price/setup can be reviewed, but company fundamentals and DCF stay gated.",
+            "badges": ["price-ready", "fundamentals locked"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "NEXT FUNDAMENTALS ROW",
+            "title": ticker,
+            "body": f"Missing trusted inputs: {missing}. Still locked: {locked}.",
+            "badges": ["one ticker first", "no valuation inference"],
+            "command": command,
+        },
+        {
+            "kicker": "TRUSTED INPUT PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "data/imports/fundamentals.csv"),
+            "body": format_missing(first.get("Validation Path"), "make imports-validate -> make imports-preview -> make imports-apply"),
+            "badges": ["validate", "preview before apply"],
+            "command": "make imports-validate && make imports-preview && make imports-apply",
+        },
+    ]
+
+
 def data_health_peer_unlock_frame(
     peer_mapping_queue_frame: pd.DataFrame | None,
     fundamentals_peer_worklist_frame: pd.DataFrame | None = None,
@@ -7859,6 +7902,49 @@ def data_health_peer_unlock_frame(
             }
         )
     return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if peer_unlock_frame is None or peer_unlock_frame.empty:
+        return [
+            {
+                "kicker": "PEER QUEUE",
+                "title": "No peer unlock rows",
+                "body": "No peer-locked rows are visible in the current queue. Regenerate readiness before assuming peer valuation is available.",
+                "badges": ["current output", "no guessed peers"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = peer_unlock_frame.copy()
+    first = frame.iloc[0]
+    ticker = format_missing(first.get("Ticker"), "Ticker")
+    locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
+    requirement = compact_reason(first.get("Trusted Peer Requirement"), max_sentences=1, max_chars=140)
+    command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
+    return [
+        {
+            "kicker": "PEER QUEUE",
+            "title": f"{len(frame)} row(s) need trusted peer inputs",
+            "body": "Open this before reading peer-relative valuation. Standalone DCF can be reviewed only when DCF is ready; peer premium/discount stays locked.",
+            "badges": ["peer gated", "source-backed only"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "NEXT PEER ROW",
+            "title": ticker,
+            "body": f"Trusted peer requirement: {requirement}. Still locked: {locked}.",
+            "badges": ["one ticker first", "no fallback valuation"],
+            "command": command,
+        },
+        {
+            "kicker": "TRUSTED PEER PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "data/imports/peers.csv"),
+            "body": format_missing(first.get("Validation Path"), "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply"),
+            "badges": ["validate", "preview before apply"],
+            "command": "make templates",
+        },
+    ]
 
 
 def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | None = None) -> pd.DataFrame:
@@ -18506,6 +18592,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                         "Price-Ready, Fundamentals-Locked Companies",
                         "Plain-English fundamentals unlock queue before the raw worklist fields.",
                     )
+                    render_signal_cards(data_health_fundamentals_unlock_cards(fundamentals_unlock))
                     st.dataframe(clean_display_frame(fundamentals_unlock), width="stretch", hide_index=True)
             render_section_header("DCF Readiness", "Operating-company DCF gating, ETF exclusions, SEC setup, and manual fundamentals import availability.")
             metric_cols = st.columns(3)
@@ -18650,6 +18737,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                         "DCF-Ready, Peer-Locked Companies",
                         "Plain-English peer unlock queue before the raw peer mapping fields.",
                     )
+                    render_signal_cards(data_health_peer_unlock_cards(peer_unlock))
                     st.dataframe(clean_display_frame(peer_unlock), width="stretch", hide_index=True)
                 render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
                 render_signal_cards(data_health_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))

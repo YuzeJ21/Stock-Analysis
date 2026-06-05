@@ -13157,6 +13157,50 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert "sell" not in rendered
 
 
+def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table():
+    unlock_frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "META",
+                "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
+                "Missing Trusted Inputs": "free cash flow, shares outstanding",
+                "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
+                "Copy-Only Command": "make focus-fundamentals TICKER=META",
+                "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_fundamentals_unlock_cards(unlock_frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["FUNDAMENTALS QUEUE", "NEXT FUNDAMENTALS ROW", "TRUSTED INPUT PATH"]
+    assert "1 row(s) need trusted fundamentals" in rendered
+    assert "open this before interpreting company valuation" in rendered
+    assert "price/setup can be reviewed" in rendered
+    assert "meta" in rendered
+    assert "free cash flow, shares outstanding" in rendered
+    assert "fair value/share, and peer-relative valuation stay locked" in rendered
+    assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
+    assert "make focus-fundamentals ticker=meta" in rendered
+    assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_fundamentals_unlock_cards_handle_empty_queue_without_fake_counts():
+    cards = dashboard.data_health_fundamentals_unlock_cards(pd.DataFrame())
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert "no fundamentals unlock rows" in rendered
+    assert "regenerate readiness before assuming coverage improved" in rendered
+    assert cards[0]["command"] == "make readiness"
+
+
 def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements():
     peer_queue = pd.DataFrame(
         [
@@ -13211,6 +13255,49 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
+    unlock_frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "A",
+                "What Is Still Locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked until source-backed peer inputs pass readiness.",
+                "Trusted Peer Requirement": "peer mapping, peer fundamentals",
+                "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
+                "Copy-Only Command": "make focus-peers TICKER=A",
+                "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_peer_unlock_cards(unlock_frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["PEER QUEUE", "NEXT PEER ROW", "TRUSTED PEER PATH"]
+    assert "1 row(s) need trusted peer inputs" in rendered
+    assert "open this before reading peer-relative valuation" in rendered
+    assert "peer premium/discount stays locked" in rendered
+    assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered
+    assert "data/imports/peers.csv with source-backed peer mappings" in rendered
+    assert "make focus-peers ticker=a" in rendered
+    assert "make templates" in rendered
+    assert "fallback valuation" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_peer_unlock_cards_handle_empty_queue_without_fake_counts():
+    cards = dashboard.data_health_peer_unlock_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert "no peer unlock rows" in rendered
+    assert "regenerate readiness before assuming peer valuation is available" in rendered
+    assert cards[0]["command"] == "make readiness"
 
 
 def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_agent():
