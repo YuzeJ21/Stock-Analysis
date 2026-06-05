@@ -498,8 +498,6 @@ def _next_research_question(
             return "Which source-backed peers and peer metrics would confirm or challenge the standalone DCF and setup read?"
         return "Do purpose, setup, valuation assumptions, and risk watchpoints agree enough to justify deeper manual research?"
     if bucket == "Monitor" and asset_type in {"etf", "index_proxy", "fund"}:
-        if peer_limited:
-            return "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy?"
         return "What market, sector, or hedge signal is this proxy intended to monitor, and is that signal still supported by local price/risk data?"
     if primary_blocker == "price":
         if family == "speculative":

@@ -504,7 +504,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
                 "unsupported_analysis": "Unsupported analysis: operating-company DCF conclusions.",
                 "risk_watchpoint": "Risk watchpoint: monitor liquidity, correlation, and theme exposure; company-specific DCF does not apply.",
                 "invalidation_condition": "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.",
-                "next_research_question": "What market, sector, or hedge signal is this proxy intended to monitor, and is that signal still supported by local price/risk data?",
+                "next_research_question": "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy?",
                 "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.",
                 "confidence_explanation": "Confidence is medium: monitoring is supported by price, momentum, market_direction, while optional context remains unavailable.",
             },
@@ -583,6 +583,8 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Unsupported analysis" in markdown
     assert "operating-company DCF conclusions" in markdown
     assert "Invalidate market-proxy usefulness" in markdown
+    assert "What market, theme, liquidity, or risk context should QQQ monitor" in markdown
+    assert "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy" not in markdown
     assert "Monitor priority" in markdown
     assert "## Source/Freshness Audit" in markdown
     assert "data/staged/earnings/" in markdown

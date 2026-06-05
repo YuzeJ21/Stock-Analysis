@@ -960,6 +960,12 @@ def _stock_report_purpose_fields(
         }
 
     result = {key: _display_setup_text(decision.get(key), value) for key, value in fallback.items()}
+    if monitor_context:
+        peer_question_terms = ("source-backed peer", "peer mapping", "peer metric", "peer-relative")
+        current_question = result.get("next_research_question", "").lower()
+        if any(term in current_question for term in peer_question_terms):
+            result["next_research_question"] = fallback["next_research_question"]
+        return result
     relative_status_key = _display_value(relative_status, "").lower()
     if (
         not monitor_context
