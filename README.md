@@ -14,7 +14,7 @@ This project turns a broad stock universe into a research workflow:
 - Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
 - Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
 - Generates transparent CSV outputs for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
-- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source/freshness notes, and copyable local unlock commands.
+- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source/freshness notes, and copyable local unlock commands, plus a plain-English Reader Guide.
 
 ## Why It Matters
 
@@ -29,7 +29,7 @@ When trusted local data is available, the command center can produce:
 - DCF readiness and conservative scenario valuation.
 - Peer-context readiness without pretending missing peer valuation exists.
 - ETF/index monitor reports where operating-company DCF is excluded.
-- Single-stock reports with At A Glance status, methodology, risks, blockers, copyable local unlock commands, and source/freshness notes.
+- Single-stock reports with At A Glance status, methodology, risks, blockers, copyable local unlock commands, source/freshness notes, and a Reader Guide.
 
 Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
@@ -104,13 +104,13 @@ Example map:
 
 | Example | What it demonstrates | What to check |
 | --- | --- | --- |
-| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | At A Glance status, assumptions, sensitivity, peer caveats, source/freshness notes. |
-| [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | DCF assumptions versus the next peer data-unlock step. |
-| [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Supported setup analysis versus valuation blockers and caveats. |
-| [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Operating-company DCF is excluded, not failed. |
-| [APLD](outputs/stock_reports/apld.md) | Blocked-data handling. | No valuation conclusion appears until trusted price rows exist. |
+| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | Reader Guide, assumptions, sensitivity, peer caveats, source/freshness notes. |
+| [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | Reader Guide, DCF assumptions, and the next peer data-unlock step. |
+| [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Reader Guide, supported setup analysis, valuation blockers, and caveats. |
+| [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |
+| [APLD](outputs/stock_reports/apld.md) | Blocked-data handling. | Reader Guide. No valuation conclusion appears until trusted price rows exist. |
 
-In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then explain methodology and only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.
+In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then a `Reader Guide` that answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and which copy-only command to run. They only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.
 
 Dashboard pages also support simple local deep links such as `http://localhost:8501/?page=single-stock-report`.
 

@@ -224,6 +224,7 @@ missing trusted inputs must stay `not_ready`, meaning not enough trusted data ex
 Single-stock reports are assembled from the same gates and calculations:
 
 - At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step.
+- Reader Guide: answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and the next copy-only command.
 - What can be analyzed now.
 - Which mode applies: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data-unlock only.
 - Which calculations ran and which assumptions were used.
@@ -232,7 +233,7 @@ Single-stock reports are assembled from the same gates and calculations:
 - Copyable Unlock Commands for local, capped, research-only follow-up workflows.
 - Which sources were used and how fresh they are.
 
-The report should be read top-down: At A Glance first, supported analysis second, blocked or excluded analysis third, copyable local unlock commands next, then source/freshness and valuation detail. The commands are displayed for the operator to copy manually; the report does not execute imports, refreshes, broker actions, or trades.
+The report should be read top-down: At A Glance first, Reader Guide second, supported analysis third, blocked or excluded analysis fourth, copyable local unlock commands next, then source/freshness and valuation detail. The commands are displayed for the operator to copy manually; the report does not execute imports, refreshes, broker actions, or trades.
 
 When a company ticker has the full trusted local input stack, the single-stock report can show:
 
