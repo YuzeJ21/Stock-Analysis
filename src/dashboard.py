@@ -8714,8 +8714,13 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
             }
         ]
 
+    confidence_source = (
+        decisions_frame.get("data_confidence")
+        if "data_confidence" in decisions_frame.columns
+        else decisions_frame.get("confidence", pd.Series(dtype=object))
+    )
     confidence_values = (
-        decisions_frame.get("confidence", pd.Series(dtype=object))
+        confidence_source
         .fillna("")
         .astype(str)
         .str.strip()

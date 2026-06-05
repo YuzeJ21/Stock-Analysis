@@ -13985,6 +13985,40 @@ def test_final_decision_table_guide_cards_explain_columns_before_rows():
     assert "sell" not in rendered
 
 
+def test_final_decision_table_guide_cards_prefer_data_confidence_column():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "decision_bucket": "Research Now",
+                "confidence": "high",
+                "data_confidence": "limited",
+                "primary_blocker": "peers",
+                "next_best_action": "Add source-backed peer mappings.",
+            },
+            {
+                "ticker": "APLD",
+                "decision_bucket": "Blocked by Data",
+                "confidence": "high",
+                "data_confidence": "low",
+                "primary_blocker": "price",
+                "next_best_action": "Run make price-refresh-loop DRY_RUN=1.",
+            },
+        ]
+    )
+
+    cards = dashboard.final_decision_table_guide_cards(decisions)
+    confidence_card = next(card for card in cards if card["kicker"] == "DATA CONFIDENCE")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert confidence_card["title"] == "2 low-data-confidence row(s)"
+    assert "data confidence falls when core inputs" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_decision_workflow_summary_cards_use_plain_missing_output_language():
     cards = dashboard.decision_workflow_summary_cards(None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
