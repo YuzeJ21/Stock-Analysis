@@ -14904,7 +14904,7 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
     estimates_label = "Estimates Present" if readiness.get("analyst_estimates_available") else "Estimates Missing"
     missing_count = len(warnings)
     main_copy = (
-        "Local one-ticker report assembled from provider data and existing research-output context. "
+        "Local one-ticker report assembled from saved price, fundamentals, readiness, and decision rows. "
         "Unavailable inputs stay visible and are not inferred."
     )
     cards = [
@@ -17318,7 +17318,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         )
 
         if report_payload.get("screener_context"):
-            with st.expander("Existing research-output context", expanded=False):
+            with st.expander("Saved readiness and decision context", expanded=False):
                 st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
         if show_source_details:

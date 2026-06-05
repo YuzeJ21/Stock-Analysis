@@ -6973,6 +6973,8 @@ def test_stock_report_brief_html_summarizes_readiness_without_advice():
     )
 
     assert "NVDA research snapshot" in html
+    assert "saved price, fundamentals, readiness, and decision rows" in html
+    assert "provider data and existing research-output context" not in html
     assert "DCF Ready" in html
     assert "Peers Need Data" in html
     assert "peer fundamentals or peer price/market-cap context" in html
