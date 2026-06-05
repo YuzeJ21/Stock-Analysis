@@ -4060,6 +4060,53 @@ def stock_report_dcf_calculation_path_cards(report_payload: dict[str, object]) -
     ]
 
 
+def stock_report_peer_relative_display_ready(report_payload: dict[str, object]) -> bool:
+    readiness = _stock_report_payload_readiness(report_payload)
+    if not bool(readiness.get("peer_ready")):
+        return False
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    relative = valuation.get("relative_valuation", {}) or {}
+    status = format_missing(relative.get("status"), "").lower()
+    peer_count = pd.to_numeric(pd.Series([relative.get("peer_count")]), errors="coerce").fillna(0).iloc[0]
+    blocked_statuses = {"", "not available", "insufficient_data", "insufficient data", "peer_data_unavailable", "blocked"}
+    return bool(status not in blocked_statuses and peer_count > 0)
+
+
+def stock_report_peer_relative_comparison_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    columns = ["Metric", "Subject", "Peer Median", "Discount / Premium"]
+    if not stock_report_peer_relative_display_ready(report_payload):
+        return pd.DataFrame(columns=columns)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    relative = valuation.get("relative_valuation", {}) or {}
+    rows: list[dict[str, object]] = []
+    metric_labels = {"pe": "P/E", "ps": "P/S", "p_fcf": "P/FCF", "ev_ebitda": "EV/EBITDA"}
+    for metric_key, label in metric_labels.items():
+        subject = (relative.get("subject_multiples") or {}).get(metric_key)
+        peer_median = (relative.get("peer_median_multiples") or {}).get(metric_key)
+        discount = (relative.get("relative_discount_premium_by_metric") or {}).get(metric_key)
+        if subject is None and peer_median is None and discount is None:
+            continue
+        rows.append(
+            {
+                "Metric": label,
+                "Subject": report_display_value(subject, "number"),
+                "Peer Median": report_display_value(peer_median, "number"),
+                "Discount / Premium": report_display_value(discount, "percent"),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def stock_report_peer_relative_empty_message(report_payload: dict[str, object]) -> str:
+    readiness = _stock_report_payload_readiness(report_payload)
+    asset_type = format_missing(report_payload.get("asset_type") or readiness.get("asset_type"), "").lower()
+    if asset_type in {"etf", "index_proxy", "fund"}:
+        return "Operating-company peer valuation is excluded for ETF/index/fund monitor context."
+    if bool(readiness.get("dcf_ready")):
+        return "Peer-relative multiples are withheld until trusted peer mappings and peer valuation inputs pass readiness."
+    return "Peer-relative multiples wait until trusted fundamentals, DCF readiness, peer mappings, and peer valuation inputs are ready."
+
+
 def stock_report_function_quality_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     frame = stock_report_function_quality_frame(report_payload)
     status_by_function = {
@@ -17234,26 +17281,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         )
         st.markdown(status_badge(relative.get("peer_relative_status", "insufficient_peer_data")), unsafe_allow_html=True)
 
-        comparison_rows = []
-        metric_labels = {"pe": "P/E", "ps": "P/S", "p_fcf": "P/FCF", "ev_ebitda": "EV/EBITDA"}
-        for metric_key, label in metric_labels.items():
-            subject = relative.get("subject_multiples", {}).get(metric_key)
-            peer_median = relative.get("peer_median_multiples", {}).get(metric_key)
-            discount = relative.get("relative_discount_premium_by_metric", {}).get(metric_key)
-            if subject is None and peer_median is None and discount is None:
-                continue
-            comparison_rows.append(
-                {
-                    "Metric": label,
-                    "Subject": report_display_value(subject, "number"),
-                    "Peer Median": report_display_value(peer_median, "number"),
-                    "Discount / Premium": report_display_value(discount, "percent"),
-                }
-            )
-        if comparison_rows:
-            st.dataframe(pd.DataFrame(comparison_rows), width="stretch", hide_index=True)
+        comparison_frame = stock_report_peer_relative_comparison_frame(report_payload)
+        if not comparison_frame.empty:
+            st.dataframe(comparison_frame, width="stretch", hide_index=True)
         else:
-            st.info("Peer-relative multiples are unavailable until local peers and peer fundamentals/prices are present.")
+            st.info(stock_report_peer_relative_empty_message(report_payload))
 
         sensitivity = valuation["sensitivity_table"]
         if sensitivity["status"] == "calculated" and sensitivity["fair_value_grid"]:

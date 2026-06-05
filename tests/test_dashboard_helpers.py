@@ -7170,6 +7170,49 @@ def test_stock_report_dcf_calculation_path_cards_explain_ready_blocked_and_exclu
     assert "sell" not in rendered
 
 
+def test_stock_report_peer_relative_comparison_frame_is_readiness_gated():
+    relative = {
+        "status": "calculated",
+        "peer_count": 2,
+        "subject_multiples": {"pe": 20.0, "ps": 8.0},
+        "peer_median_multiples": {"pe": 25.0, "ps": 10.0},
+        "relative_discount_premium_by_metric": {"pe": -0.2, "ps": -0.2},
+    }
+    ready_payload = {
+        "asset_type": "company",
+        "valuation_readiness": {"dcf_ready": True, "peer_ready": True},
+        "valuation_snapshot": {"relative_valuation": relative},
+    }
+    blocked_payload = {
+        "asset_type": "company",
+        "valuation_readiness": {"dcf_ready": True, "peer_ready": False},
+        "valuation_snapshot": {"relative_valuation": relative},
+    }
+    etf_payload = {
+        "asset_type": "etf",
+        "valuation_readiness": {"dcf_ready": False, "peer_ready": False},
+        "valuation_snapshot": {"relative_valuation": relative},
+    }
+
+    ready_frame = dashboard.stock_report_peer_relative_comparison_frame(ready_payload)
+    blocked_frame = dashboard.stock_report_peer_relative_comparison_frame(blocked_payload)
+    rendered = " ".join(ready_frame.astype(str).to_numpy().flatten()).lower()
+
+    assert dashboard.stock_report_peer_relative_display_ready(ready_payload) is True
+    assert dashboard.stock_report_peer_relative_display_ready(blocked_payload) is False
+    assert list(ready_frame.columns) == ["Metric", "Subject", "Peer Median", "Discount / Premium"]
+    assert "p/e" in rendered
+    assert "25" in rendered
+    assert blocked_frame.empty
+    assert "withheld until trusted peer mappings and peer valuation inputs pass readiness" in dashboard.stock_report_peer_relative_empty_message(blocked_payload).lower()
+    assert "excluded for etf/index/fund monitor context" in dashboard.stock_report_peer_relative_empty_message(etf_payload).lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     ready_cards = dashboard.stock_report_fundamentals_quality_cards(
         {
