@@ -157,6 +157,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
 
 ## Peer Workflow
+- What this means: peer-relative company valuation is excluded for ETF/index/fund monitor context.
+- What can be reviewed now: market, theme, liquidity, or risk proxy context from the ticker's own ready local inputs.
+- What is still locked: operating-company peer valuation is not a repair item for this monitor role.
+- Trusted input path: no peer import is required for monitor context; do not add guessed peers to force valuation.
 - Peer blocker type: monitor context
 - Mapping status: monitor context
 - Peer count: 0

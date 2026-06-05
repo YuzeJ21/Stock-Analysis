@@ -545,6 +545,10 @@ def _display_report_status(value: Any, fallback: str = "not available") -> str:
     return text
 
 
+def _is_ready_flag(value: Any) -> bool:
+    return _display_report_status(value).lower() == "ready"
+
+
 def _display_dcf_method(value: Any) -> str:
     method = _display_value(value, "")
     labels = {
@@ -1575,6 +1579,54 @@ def _stock_report_data_unlock_lines(
     ]
 
 
+def _stock_report_peer_unlock_lines(
+    *,
+    ticker: str,
+    peer: dict[str, Any],
+    dcf_status_text: str,
+    monitor_context: bool,
+    peer_ready: Any,
+    next_peer_action: str,
+) -> list[str]:
+    trend_ready = _is_ready_flag(peer.get("peer_trend_comparison_ready"))
+    valuation_ready = any(
+        _is_ready_flag(value)
+        for value in (peer.get("peer_valuation_comparison_ready"), peer.get("peer_dcf_comparison_ready"), peer_ready)
+    )
+    peer_count = _display_value(peer.get("peer_count"), "0")
+    mapping_status = _display_report_status(peer.get("mapping_status"), "not ready")
+    blocker = _display_report_status(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "not ready")
+    if monitor_context:
+        return [
+            "- What this means: peer-relative company valuation is excluded for ETF/index/fund monitor context.",
+            "- What can be reviewed now: market, theme, liquidity, or risk proxy context from the ticker's own ready local inputs.",
+            "- What is still locked: operating-company peer valuation is not a repair item for this monitor role.",
+            "- Trusted input path: no peer import is required for monitor context; do not add guessed peers to force valuation.",
+        ]
+    if dcf_status_text.lower() != "ready":
+        return [
+            "- What this means: peer valuation waits behind price, fundamentals, and standalone DCF readiness.",
+            "- What can be reviewed now: only the ready local inputs listed above; peer rows should not create valuation context yet.",
+            "- What is still locked: peer trend and peer valuation remain withheld until core company inputs are ready.",
+            f"- Trusted input path: resolve fundamentals / DCF first, then use `make focus-peers TICKER={ticker}` if peer context is still needed.",
+        ]
+    if valuation_ready:
+        return [
+            "- What this means: peer context is ready from source-backed peer inputs; review mapped peers and freshness before interpreting relative valuation.",
+            f"- What can be reviewed now: peer trend status={_display_report_status(trend_ready)}; peer valuation status={_display_report_status(valuation_ready)}; peer count={peer_count}.",
+            "- What is still locked: any missing peer metric listed below stays unavailable and should not be inferred from sector or industry fallback.",
+            f"- Trusted input path: review `data/peers.csv` and rerun `make focus-peers TICKER={ticker}` before relying on peer-relative context.",
+        ]
+    return [
+        f"- What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by {blocker}.",
+        f"- What can be reviewed now: DCF assumptions and sensitivity; peer trend status={_display_report_status(trend_ready)}; mapped peer count={peer_count}.",
+        "- What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison until source-backed peer mappings and peer valuation inputs pass readiness.",
+        f"- Trusted input path: add source-backed rows in `data/imports/peers.csv`, then run `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.",
+        f"- Next peer action: {_sentence_value(next_peer_action, f'Run make focus-peers TICKER={ticker}')}.",
+        f"- Fallback boundary: sector or industry context is fallback only; it is not trusted manual peer data. Current mapping status={mapping_status}.",
+    ]
+
+
 def _stock_report_unlock_command_lines(
     *,
     ticker: str,
@@ -1823,6 +1875,14 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    peer_unlock_lines = _stock_report_peer_unlock_lines(
+        ticker=report.ticker,
+        peer=peer,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer_ready,
+        next_peer_action=peer_next_action_display,
+    )
     ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
     blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
     excluded_features = _display_report_list(readiness.get("excluded_features"), "none")
@@ -2038,6 +2098,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         *valuation_boundary_lines,
         "",
         "## Peer Workflow",
+        *peer_unlock_lines,
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
         f"- Peer count: {_display_value(peer.get('peer_count'))}",
@@ -2156,6 +2217,14 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
+    )
+    peer_unlock_lines = _stock_report_peer_unlock_lines(
+        ticker=symbol,
+        peer=peer,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        next_peer_action=peer_next_action_display,
     )
     ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
     blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
@@ -2367,6 +2436,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         *valuation_boundary_lines,
         "",
         "## Peer Workflow",
+        *peer_unlock_lines,
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
         f"- Peer count: {_display_value(peer.get('peer_count'))}",

@@ -168,6 +168,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
 
 ## Peer Workflow
+- What this means: peer context is ready from source-backed peer inputs; review mapped peers and freshness before interpreting relative valuation.
+- What can be reviewed now: peer trend status=ready; peer valuation status=ready; peer count=2.
+- What is still locked: any missing peer metric listed below stays unavailable and should not be inferred from sector or industry fallback.
+- Trusted input path: review `data/peers.csv` and rerun `make focus-peers TICKER=NVDA` before relying on peer-relative context.
 - Peer blocker type: ready
 - Mapping status: mapped
 - Peer count: 2

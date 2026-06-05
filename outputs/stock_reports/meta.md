@@ -164,6 +164,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
 
 ## Peer Workflow
+- What this means: peer valuation waits behind price, fundamentals, and standalone DCF readiness.
+- What can be reviewed now: only the ready local inputs listed above; peer rows should not create valuation context yet.
+- What is still locked: peer trend and peer valuation remain withheld until core company inputs are ready.
+- Trusted input path: resolve fundamentals / DCF first, then use `make focus-peers TICKER=META` if peer context is still needed.
 - Peer blocker type: blocked until fundamentals / DCF
 - Mapping status: waiting for price, fundamentals, and DCF
 - Peer count: 2
