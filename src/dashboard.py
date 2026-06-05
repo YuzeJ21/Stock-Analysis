@@ -4380,6 +4380,13 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "badges": ["no guessing", "research-only"],
             "command": "make stock-report-md TICKER=QQQ",
         },
+        {
+            "kicker": "OUTPUT BOUNDARY",
+            "title": "No hidden final call",
+            "body": "The report explains source inputs, product calculations, blocked sections, and the next local research step. It does not convert partial data into a portfolio action.",
+            "badges": ["transparent method", "no overclaim"],
+            "command": "make stock-report-md TICKER=APLD",
+        },
     ]
 
 

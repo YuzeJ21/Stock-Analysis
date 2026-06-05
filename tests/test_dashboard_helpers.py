@@ -8445,14 +8445,18 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     cards = dashboard.single_stock_report_intro_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["WHAT YOU WILL SEE", "DATA VS LOGIC", "LOCKED CONTEXT"]
+    assert [card["kicker"] for card in cards] == ["WHAT YOU WILL SEE", "DATA VS LOGIC", "LOCKED CONTEXT", "OUTPUT BOUNDARY"]
     assert "ready, blocked, or excluded first" in rendered
     assert "inputs are separated from calculations" in rendered
     assert "local/provider rows supply prices and fundamentals" in rendered
     assert "runs dcf math when inputs are complete" in rendered
     assert "peer valuation, earnings, and analyst-estimate context stay locked" in rendered
     assert "etf/index/fund dcf is excluded, not failed" in rendered
+    assert "no hidden final call" in rendered
+    assert "source inputs, product calculations, blocked sections" in rendered
+    assert "does not convert partial data into a portfolio action" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
+    assert "make stock-report-md ticker=apld" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
