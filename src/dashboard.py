@@ -4786,9 +4786,10 @@ def data_health_valuation_unlock_snapshot_cards(
             "title": f"{fundamentals_missing_count} price-ready {fundamentals_company_label}",
             "body": (
                 f"{active_fundamentals_missing} active-universe row(s) already have price coverage but still need trusted fundamentals. "
+                "Use SEC/manual fundamentals through data/imports/fundamentals.csv, then validate, preview, and apply. "
                 "Do not treat missing fundamentals as a negative company signal."
             ),
-            "badges": ["price-ready first", "not a conclusion"],
+            "badges": ["price-ready first", "data/imports/fundamentals.csv", "not a conclusion"],
             "command": next_fundamentals,
         },
         {
@@ -4796,9 +4797,10 @@ def data_health_valuation_unlock_snapshot_cards(
             "title": f"{peer_blocked_count} DCF-ready {peer_company_label}",
             "body": (
                 f"{active_peer_blocked} active-universe DCF-ready row(s) still need trusted peer mappings or peer inputs. "
+                "Use data/imports/peers.csv for source-backed mappings and run validate, preview, apply before peer valuation appears. "
                 "Standalone DCF can be reviewed without pretending peer valuation is ready."
             ),
-            "badges": ["peer valuation gated", "source-backed only"],
+            "badges": ["peer valuation gated", "data/imports/peers.csv", "source-backed only"],
             "command": next_peer,
         },
         {

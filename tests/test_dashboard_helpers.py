@@ -7933,8 +7933,13 @@ def test_data_health_valuation_unlock_snapshot_surfaces_fundamentals_and_peer_qu
     assert "5 setup / 2 dcf / 1 peer" in rendered
     assert "2 price-ready companies" in rendered
     assert "1 active-universe row(s) already have price coverage" in rendered
+    assert "data/imports/fundamentals.csv" in rendered
+    assert "validate, preview, and apply" in rendered
     assert "do not treat missing fundamentals as a negative company signal" in rendered
     assert "1 dcf-ready company" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "source-backed mappings" in rendered
+    assert "run validate, preview, apply before peer valuation appears" in rendered
     assert "standalone dcf can be reviewed without pretending peer valuation is ready" in rendered
     assert "0 earnings / 0 estimates / 1 monitor proxies" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
