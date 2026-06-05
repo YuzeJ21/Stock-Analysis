@@ -12704,6 +12704,34 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "sell" not in rendered
 
 
+def test_data_health_dcf_metric_counts_split_blocked_companies_from_exclusions():
+    dcf = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "asset_type": "company", "is_dcf_ready": True},
+            {"ticker": "META", "asset_type": "company", "is_dcf_ready": False},
+            {"ticker": "QQQ", "asset_type": "etf", "is_dcf_ready": False},
+            {"ticker": "SMH", "asset_type": "fund", "is_dcf_ready": False},
+        ]
+    )
+
+    counts = dashboard.data_health_dcf_metric_counts(dcf)
+
+    assert counts == {"ready": 1, "blocked_company": 1, "excluded": 2}
+
+
+def test_data_health_dcf_metric_counts_treat_missing_asset_type_as_company():
+    dcf = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "is_dcf_ready": True},
+            {"ticker": "META", "is_dcf_ready": False},
+        ]
+    )
+
+    counts = dashboard.data_health_dcf_metric_counts(dcf)
+
+    assert counts == {"ready": 1, "blocked_company": 1, "excluded": 0}
+
+
 def test_fundamentals_peer_unlock_story_cards_bridge_dcf_and_peer_workflow():
     readiness = pd.DataFrame(
         [

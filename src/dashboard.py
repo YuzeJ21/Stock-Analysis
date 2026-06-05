@@ -4824,6 +4824,25 @@ def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> 
     ]
 
 
+def data_health_dcf_metric_counts(dcf_readiness_frame: pd.DataFrame | None) -> dict[str, int]:
+    if dcf_readiness_frame is None or dcf_readiness_frame.empty:
+        return {"ready": 0, "blocked_company": 0, "excluded": 0}
+    frame = dcf_readiness_frame.copy()
+    if "asset_type" in frame.columns:
+        asset_type = frame["asset_type"].fillna("").astype(str).str.lower().str.strip()
+        company = asset_type.eq("company") | asset_type.eq("")
+        excluded = asset_type.ne("") & ~asset_type.eq("company")
+    else:
+        company = pd.Series(True, index=frame.index)
+        excluded = pd.Series(False, index=frame.index)
+    ready = bool_series(frame, "is_dcf_ready") if "is_dcf_ready" in frame.columns else bool_series(frame, "dcf_ready")
+    return {
+        "ready": int((company & ready).sum()),
+        "blocked_company": int((company & ~ready).sum()),
+        "excluded": int(excluded.sum()),
+    }
+
+
 def data_health_valuation_unlock_snapshot_cards(
     ticker_readiness_frame: pd.DataFrame | None,
     readiness_summary: dict[str, object],
@@ -17764,17 +17783,10 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             render_section_header("DCF Readiness", "Operating-company DCF gating, ETF exclusions, SEC setup, and manual fundamentals import availability.")
             metric_cols = st.columns(3)
             sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip())
-            if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
-                ready_count = int(dcf_readiness_frame.get("is_dcf_ready", pd.Series(dtype=bool)).astype(bool).sum())
-                not_ready_count = int(len(dcf_readiness_frame) - ready_count)
-                excluded_count = int(dcf_readiness_frame.get("asset_type", pd.Series(dtype=object)).astype(str).ne("company").sum())
-            else:
-                ready_count = 0
-                not_ready_count = 0
-                excluded_count = 0
-            metric_cols[0].metric("DCF-ready tickers", ready_count)
-            metric_cols[1].metric("Not ready / excluded", not_ready_count)
-            metric_cols[2].metric("ETF / index excluded", excluded_count)
+            dcf_metric_counts = data_health_dcf_metric_counts(dcf_readiness_frame)
+            metric_cols[0].metric("DCF-ready tickers", dcf_metric_counts["ready"])
+            metric_cols[1].metric("Company DCF blocked", dcf_metric_counts["blocked_company"])
+            metric_cols[2].metric("ETF / index excluded", dcf_metric_counts["excluded"])
             st.caption(
                 "SEC_USER_AGENT configured: "
                 + ("yes" if sec_configured else "no")
