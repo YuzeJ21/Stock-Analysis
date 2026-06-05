@@ -1044,6 +1044,33 @@ def _stock_report_monitor_next_action(ticker: str) -> str:
     return f"Review {ticker} as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded."
 
 
+def _stock_report_decision_boundary(*, readiness: dict[str, Any], decision: dict[str, Any]) -> str:
+    explicit = _display_value(decision.get("decision_boundary"), "")
+    if explicit:
+        return _humanize_schema_terms(explicit)
+    bucket = _display_value(decision.get("decision_bucket"), "").lower()
+    subtype = _display_value(decision.get("decision_subtype"), "").lower()
+    asset_type = _display_value(readiness.get("asset_type"), "").lower()
+    blocker = _display_value(decision.get("primary_blocker") or readiness.get("missing_data"), "required inputs")
+    if "research now" in bucket and "peer blocked" in subtype:
+        return (
+            "Workflow state only: standalone company and DCF review can continue, but peer-relative valuation "
+            "stays locked until trusted peer inputs are ready."
+        )
+    if "research now" in bucket:
+        return "Workflow state only: ready for deeper manual research using supported local evidence, not a final conclusion."
+    if "monitor" in bucket or asset_type in {"etf", "index_proxy", "fund"}:
+        return (
+            "Monitor context only: use market, theme, liquidity, or risk context; operating-company DCF and "
+            "peer-relative company valuation stay excluded."
+        )
+    if "blocked" in bucket:
+        return f"Data-unlock state: {blocker} blocks evaluation, so conclusions stay withheld."
+    if "excluded" in bucket:
+        return "Method-exclusion state: the analysis is intentionally omitted, not treated as a failed calculation."
+    return "Review state only: use readiness, blockers, and source/freshness before drawing a conclusion."
+
+
 def _stock_report_next_action(
     *,
     ticker: str,
@@ -1921,6 +1948,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Decision",
         f"- Bucket: {_display_value(decision.get('decision_bucket'))}",
         f"- Subtype: {_display_value(decision.get('decision_subtype'))}",
+        f"- Boundary: {_stock_report_decision_boundary(readiness=readiness, decision=decision)}",
         f"- Primary blocker: {decision_primary_blocker}",
         f"- Main reason: {_humanize_schema_terms(_display_value(decision.get('main_reason')))}",
         f"- Next action: {_humanize_schema_terms(one_minute_next)}",
@@ -2256,6 +2284,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "## Decision",
         f"- Bucket: {_display_value(decision.get('decision_bucket'))}",
         f"- Subtype: {_display_value(decision.get('decision_subtype'))}",
+        f"- Boundary: {_stock_report_decision_boundary(readiness=readiness, decision=decision)}",
         f"- Primary blocker: {decision_primary_blocker}",
         f"- Main reason: {_humanize_schema_terms(_display_value(decision.get('main_reason') or readiness.get('missing_data')))}",
         f"- Next action: {next_action}",

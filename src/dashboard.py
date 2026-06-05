@@ -16039,6 +16039,7 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
             [
                 "ticker",
                 "decision_bucket",
+                "decision_boundary",
                 "confidence",
                 "main_reason",
                 "supporting_features",

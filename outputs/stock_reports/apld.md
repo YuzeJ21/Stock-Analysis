@@ -89,6 +89,7 @@ APLD state: blocked. Decision: Blocked by Data - Missing Price. Primary blocker:
 ## Decision
 - Bucket: Blocked by Data
 - Subtype: Blocked by Data - Missing Price
+- Boundary: Data-unlock state: price blocks evaluation, so conclusions stay withheld.
 - Primary blocker: price
 - Main reason: Missing usable price data.
 - Next action: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.

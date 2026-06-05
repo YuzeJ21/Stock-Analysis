@@ -22,6 +22,7 @@ DECISION_COLUMNS = [
     "theme",
     "decision_bucket",
     "decision_subtype",
+    "decision_boundary",
     "confidence",
     "main_reason",
     "primary_blocker",
@@ -202,6 +203,46 @@ def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -
             "then run make imports-validate, make imports-preview, and make imports-apply."
         )
     return text
+
+
+def _decision_boundary(bucket: str, subtype: str, primary_blocker: str, asset_type: str) -> str:
+    if bucket == "Research Now":
+        if "Peer Blocked" in subtype:
+            return (
+                "Workflow state only: core company and DCF review can continue, but peer-relative valuation "
+                "stays locked until trusted peer mappings and peer valuation inputs are available."
+            )
+        if "Optional Context Locked" in subtype:
+            return (
+                "Workflow state only: core research can continue, but earnings and analyst-estimate context "
+                "stays locked until trusted optional rows are imported."
+            )
+        return (
+            "Workflow state only: ready for deeper manual research using supported local evidence; "
+            "not a final conclusion or instruction."
+        )
+    if bucket == "Monitor":
+        if asset_type in {"etf", "index_proxy", "fund"}:
+            return (
+                "Monitor context only: useful for market, theme, liquidity, or risk review; "
+                "operating-company DCF and peer-relative company valuation are excluded."
+            )
+        return (
+            "Monitor context only: price or momentum context can be reviewed, but deeper company evaluation "
+            "waits for missing trusted inputs."
+        )
+    if bucket == "Blocked by Data":
+        blocker = primary_blocker if primary_blocker and primary_blocker != "none" else "required inputs"
+        return (
+            f"Data-unlock state: {blocker} blocks evaluation, so valuation conclusions and thesis-level "
+            "interpretation stay withheld."
+        )
+    if bucket == "Excluded":
+        return (
+            "Method-exclusion state: this analysis is intentionally omitted for the ticker or asset type, "
+            "not treated as a failed calculation."
+        )
+    return "Review state only: use readiness, blockers, and source/freshness before drawing a conclusion."
 
 
 def _text_value(value: Any, fallback: str = "Not available") -> str:
@@ -728,6 +769,7 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
                 "theme": row.get("theme", ""),
                 "decision_bucket": bucket,
                 "decision_subtype": subtype,
+                "decision_boundary": _decision_boundary(bucket, subtype, primary_blocker, asset_type),
                 "confidence": round(float(confidence), 3),
                 "main_reason": main_reason,
                 "primary_blocker": primary_blocker,

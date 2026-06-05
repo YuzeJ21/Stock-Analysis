@@ -690,6 +690,8 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     assert "## Analysis Quality" in markdown
     assert "Analysis mode: Standalone DCF review" in markdown
     assert "peer-relative valuation remains limited until trusted peer inputs are ready" in markdown
+    assert "- Boundary: Workflow state only: standalone company and DCF review can continue" in markdown
+    assert "peer-relative valuation stays locked until trusted peer inputs are ready" in markdown
     assert f"- Next action: {peer_action}" in markdown
     assert "Operator summary:" in markdown
     assert "Next blocker: peers" in markdown
@@ -756,6 +758,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Mode: `Data-unlock only`." in markdown
     assert "- DCF: Blocked until trusted fundamentals and DCF inputs are ready." in markdown
     assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
+    assert "- Boundary: Data-unlock state: price blocks evaluation, so conclusions stay withheld." in markdown
     assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
     assert "- Method: project readiness gates decide what can appear" in markdown
     assert "discounted terminal value, cash/debt adjustment, and fair value per share when ready" in markdown

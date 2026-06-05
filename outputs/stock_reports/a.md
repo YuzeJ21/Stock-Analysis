@@ -86,6 +86,7 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 ## Decision
 - Bucket: Research Now
 - Subtype: Research Candidate - DCF Ready But Peer Blocked
+- Boundary: Workflow state only: standalone company and DCF review can continue, but peer-relative valuation stays locked until trusted peer inputs are ready.
 - Primary blocker: peers
 - Main reason: Core data is ready for a supported research pass.
 - Next action: Add trusted price history for mapped peers: DHR, TMO, WAT.

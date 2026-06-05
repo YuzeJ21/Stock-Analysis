@@ -13781,6 +13781,15 @@ def test_final_watchlist_expander_uses_product_language_not_legacy_label():
     assert "Legacy final watchlist output" not in source
 
 
+def test_final_decision_table_surfaces_row_level_decision_boundary():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    final_decision_section = source[source.index("def render_final_decision_tab") : source.index("def get_local_provider")]
+
+    assert '"decision_boundary"' in final_decision_section
+    assert final_decision_section.index('"decision_bucket"') < final_decision_section.index('"decision_boundary"')
+
+
 def test_decision_workflow_summary_cards_surface_research_now_optional_context_lock():
     decisions = pd.DataFrame(
         [

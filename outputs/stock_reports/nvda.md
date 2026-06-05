@@ -86,6 +86,7 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 ## Decision
 - Bucket: Research Now
 - Subtype: Research Candidate - Core Data Ready
+- Boundary: Workflow state only: ready for deeper manual research using supported local evidence, not a final conclusion.
 - Primary blocker: earnings
 - Main reason: Core data is ready for a supported research pass.
 - Next action: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.

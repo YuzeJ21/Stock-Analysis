@@ -86,6 +86,7 @@ META state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 ## Decision
 - Bucket: Blocked by Data
 - Subtype: Blocked by Data - Missing Fundamentals
+- Boundary: Data-unlock state: fundamentals blocks evaluation, so conclusions stay withheld.
 - Primary blocker: fundamentals
 - Main reason: Company research is blocked by missing DCF data.
 - Next action: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow.

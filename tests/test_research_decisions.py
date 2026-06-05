@@ -22,6 +22,8 @@ def test_research_decisions_block_missing_price_instead_of_weak_recommendation()
 
     assert row["decision_bucket"] == "Blocked by Data"
     assert row["decision_subtype"] == "Blocked by Data - Missing Price"
+    assert "Data-unlock state" in row["decision_boundary"]
+    assert "valuation conclusions and thesis-level interpretation stay withheld" in row["decision_boundary"]
     assert row["primary_blocker"] == "price"
     assert "Missing usable price data" in row["main_reason"]
     assert row["confidence"] <= 0.45
@@ -51,6 +53,8 @@ def test_research_decisions_monitor_etf_and_exclude_company_dcf():
 
     assert row["decision_bucket"] == "Monitor"
     assert row["decision_subtype"] == "Monitor - ETF Market Proxy"
+    assert "Monitor context only" in row["decision_boundary"]
+    assert "operating-company DCF and peer-relative company valuation are excluded" in row["decision_boundary"]
     assert row["primary_blocker"] == "optional_context"
     assert "excluded from company DCF" in row["main_reason"]
     assert "dcf" in row["excluded_features"]
@@ -138,6 +142,8 @@ def test_research_decisions_only_research_now_when_core_data_is_ready():
 
     assert row["decision_bucket"] == "Research Now"
     assert row["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
+    assert "Workflow state only" in row["decision_boundary"]
+    assert "peer-relative valuation stays locked" in row["decision_boundary"]
     assert row["confidence"] > 0.5
     assert row["analysis_score"] == 0.8
     assert row["evaluation_status"].startswith("Ready for a supported research brief")
@@ -188,7 +194,9 @@ def test_research_decisions_peer_blocker_next_action_uses_exact_import_flow():
         "then run make imports-validate, make imports-preview, and make imports-apply."
     )
     assert row["next_best_action"] == row["next_action"]
+    assert "peer-relative valuation stays locked" in row["decision_boundary"]
     assert "peer metrics for cohr" not in rendered
+    assert "final conclusion" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered

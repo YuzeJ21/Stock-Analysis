@@ -86,6 +86,7 @@ SMH state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 ## Decision
 - Bucket: Monitor
 - Subtype: Monitor - ETF Market Proxy
+- Boundary: Monitor context only: use market, theme, liquidity, or risk context; operating-company DCF and peer-relative company valuation stay excluded.
 - Primary blocker: monitor context
 - Main reason: etf is usable for market/risk monitoring and excluded from company DCF.
 - Next action: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
