@@ -4480,21 +4480,21 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
 def single_stock_report_intro_cards() -> list[dict[str, object]]:
     return [
         {
-            "kicker": "WHAT YOU WILL SEE",
+            "kicker": "WHAT THIS MEANS",
             "title": "Ready, blocked, or excluded first",
             "body": "The report starts by saying which analysis is supported for the ticker before showing valuation, trend, peers, or optional context.",
             "badges": ["readiness first", "plain English"],
             "command": "make stock-report-md TICKER=NVDA",
         },
         {
-            "kicker": "DATA VS LOGIC",
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
             "title": "Inputs are separated from calculations",
             "body": "Local/provider rows supply prices and fundamentals. This product decides readiness, runs DCF math when inputs are complete, and withholds conclusions when trusted inputs are missing.",
             "badges": ["local inputs", "project logic"],
             "command": "make stock-report-md TICKER=A",
         },
         {
-            "kicker": "LOCKED CONTEXT",
+            "kicker": "WHAT IS STILL LOCKED",
             "title": "Missing data stays visible",
             "body": "Peer valuation, earnings, and analyst-estimate context stay locked unless trusted local rows exist. ETF/index/fund DCF is excluded, not failed.",
             "badges": ["no guessing", "research-only"],

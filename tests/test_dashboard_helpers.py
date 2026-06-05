@@ -8539,7 +8539,12 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     cards = dashboard.single_stock_report_intro_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["WHAT YOU WILL SEE", "DATA VS LOGIC", "LOCKED CONTEXT", "OUTPUT BOUNDARY"]
+    assert [card["kicker"] for card in cards] == [
+        "WHAT THIS MEANS",
+        "WHAT YOU CAN ANALYZE NOW",
+        "WHAT IS STILL LOCKED",
+        "OUTPUT BOUNDARY",
+    ]
     assert "ready, blocked, or excluded first" in rendered
     assert "inputs are separated from calculations" in rendered
     assert "local/provider rows supply prices and fundamentals" in rendered
