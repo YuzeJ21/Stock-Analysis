@@ -4706,7 +4706,7 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
     estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
     return [
         {
-            "kicker": "DATA HEALTH GUIDE",
+            "kicker": "WHAT THIS MEANS",
             "title": "Use this page to unlock analysis",
             "body": (
                 "Data Health is not an error page. It shows what you can analyze now, what is still locked, "
@@ -4716,7 +4716,7 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
             "command": "make status-check TOP_N=5",
         },
         {
-            "kicker": "CORE COVERAGE",
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
             "title": f"{price_ready} price-ready / {fundamentals_ready} fundamentals-ready / {dcf_ready} DCF-ready",
             "body": (
                 "What this means: price coverage unlocks setup review first. Trusted fundamentals unlock company-level "
@@ -4726,7 +4726,7 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
             "command": "make sec-stage-queue TOP_N=25",
         },
         {
-            "kicker": "CONTEXT COVERAGE",
+            "kicker": "WHAT IS STILL LOCKED",
             "title": f"{peer_ready} peer-ready / {earnings_ready} earnings / {estimates_ready} estimates",
             "body": "What is still locked: peer, earnings, and estimate context stays unavailable until trusted rows exist. The app does not infer these inputs.",
             "badges": ["trusted rows only", "no inference"],

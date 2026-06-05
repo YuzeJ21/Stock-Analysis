@@ -7830,6 +7830,11 @@ def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_l
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
+    assert [card["kicker"] for card in cards] == [
+        "WHAT THIS MEANS",
+        "WHAT YOU CAN ANALYZE NOW",
+        "WHAT IS STILL LOCKED",
+    ]
     assert cards[0]["title"] == "Use this page to unlock analysis"
     assert "not an error page" in rendered
     assert "what you can analyze now" in rendered
