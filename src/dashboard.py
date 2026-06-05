@@ -4107,6 +4107,26 @@ def stock_report_peer_relative_empty_message(report_payload: dict[str, object]) 
     return "Peer-relative multiples wait until trusted fundamentals, DCF readiness, peer mappings, and peer valuation inputs are ready."
 
 
+def stock_report_peer_relative_summary(report_payload: dict[str, object]) -> dict[str, object]:
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    relative = valuation.get("relative_valuation", {}) or {}
+    if not stock_report_peer_relative_display_ready(report_payload):
+        return {
+            "peer_status": "Withheld",
+            "peer_group": "Not reader-ready",
+            "peer_count": report_display_value(relative.get("peer_count"), "integer"),
+            "relative_score": "Locked",
+            "note": stock_report_peer_relative_empty_message(report_payload),
+        }
+    return {
+        "peer_status": public_status_label(relative.get("status")),
+        "peer_group": format_missing(relative.get("peer_group"), "Not configured"),
+        "peer_count": report_display_value(relative.get("peer_count"), "integer"),
+        "relative_score": report_display_value(relative.get("relative_opportunity_score"), "number"),
+        "note": "Trusted peer-relative context is available; review caveats and source freshness before interpretation.",
+    }
+
+
 def stock_report_function_quality_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     frame = stock_report_function_quality_frame(report_payload)
     status_by_function = {
@@ -17271,14 +17291,13 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
 
         st.markdown("#### Peer-Relative Valuation")
+        peer_summary = stock_report_peer_relative_summary(report_payload)
         peer_columns = st.columns(4)
-        peer_columns[0].metric("Peer Status", public_status_label(relative.get("status")))
-        peer_columns[1].metric("Peer Group", format_missing(relative.get("peer_group"), "Not configured"))
-        peer_columns[2].metric("Peer Count", report_display_value(relative.get("peer_count"), "integer"))
-        peer_columns[3].metric(
-            "Relative Score",
-            report_display_value(relative.get("relative_opportunity_score"), "number"),
-        )
+        peer_columns[0].metric("Peer Status", peer_summary["peer_status"])
+        peer_columns[1].metric("Peer Group", peer_summary["peer_group"])
+        peer_columns[2].metric("Peer Count", peer_summary["peer_count"])
+        peer_columns[3].metric("Relative Score", peer_summary["relative_score"])
+        st.caption(str(peer_summary["note"]))
         st.markdown(status_badge(relative.get("peer_relative_status", "insufficient_peer_data")), unsafe_allow_html=True)
 
         comparison_frame = stock_report_peer_relative_comparison_frame(report_payload)

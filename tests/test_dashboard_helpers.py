@@ -7196,10 +7196,21 @@ def test_stock_report_peer_relative_comparison_frame_is_readiness_gated():
 
     ready_frame = dashboard.stock_report_peer_relative_comparison_frame(ready_payload)
     blocked_frame = dashboard.stock_report_peer_relative_comparison_frame(blocked_payload)
+    ready_summary = dashboard.stock_report_peer_relative_summary(ready_payload)
+    blocked_summary = dashboard.stock_report_peer_relative_summary(blocked_payload)
+    etf_summary = dashboard.stock_report_peer_relative_summary(etf_payload)
     rendered = " ".join(ready_frame.astype(str).to_numpy().flatten()).lower()
 
     assert dashboard.stock_report_peer_relative_display_ready(ready_payload) is True
     assert dashboard.stock_report_peer_relative_display_ready(blocked_payload) is False
+    assert ready_summary["peer_status"] == "calculated"
+    assert ready_summary["relative_score"] == "Not available"
+    assert blocked_summary["peer_status"] == "Withheld"
+    assert blocked_summary["peer_group"] == "Not reader-ready"
+    assert blocked_summary["relative_score"] == "Locked"
+    assert "withheld until trusted peer mappings" in str(blocked_summary["note"]).lower()
+    assert etf_summary["peer_status"] == "Withheld"
+    assert "excluded for etf/index/fund monitor context" in str(etf_summary["note"]).lower()
     assert list(ready_frame.columns) == ["Metric", "Subject", "Peer Median", "Discount / Premium"]
     assert "p/e" in rendered
     assert "25" in rendered
