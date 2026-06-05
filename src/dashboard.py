@@ -7910,7 +7910,10 @@ def data_health_peer_unlock_frame(
                 "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
                 "What This Unlocks": "Source-backed peer mappings can unlock peer trend context first and peer valuation only after peer valuation inputs also pass.",
                 "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
-                "Next Safe Sequence": f"1. Inspect `{command}`. 2. Add source-backed peer rows in data/imports/peers.csv. 3. Validate, preview, and apply before reading peer valuation.",
+                "Next Safe Sequence": (
+                    f"1. Inspect `{command}`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. "
+                    "3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply` before reading peer valuation."
+                ),
                 "Copy-Only Command": command,
                 "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
             }

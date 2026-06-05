@@ -13335,7 +13335,11 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "peer trend context first and peer valuation only after peer valuation inputs also pass" in rendered
     assert "do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
-    assert "add source-backed peer rows in data/imports/peers.csv" in rendered
+    assert "make templates" in rendered
+    assert "add source-backed peer rows in `data/imports/peers.csv`" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "fill data/imports/peers.csv" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13353,7 +13357,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
                 "Trusted Peer Requirement": "peer mapping, peer fundamentals",
                 "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
                 "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
-                "Next Safe Sequence": "1. Inspect `make focus-peers TICKER=A`. 2. Add source-backed peer rows in data/imports/peers.csv. 3. Validate, preview, and apply before reading peer valuation.",
+                "Next Safe Sequence": "1. Inspect `make focus-peers TICKER=A`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. 3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply` before reading peer valuation.",
                 "Copy-Only Command": "make focus-peers TICKER=A",
                 "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
             }
@@ -13369,7 +13373,10 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "peer premium/discount stays locked" in rendered
     assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered
     assert "boundary: do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
-    assert "add source-backed peer rows in data/imports/peers.csv" in rendered
+    assert "add source-backed peer rows in `data/imports/peers.csv`" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make templates" in rendered
