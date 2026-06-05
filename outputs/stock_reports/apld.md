@@ -137,7 +137,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Missing price reason: needs at least 5 valid price rows with positive close
 
 ## Valuation Readiness
-- DCF status: insufficient data.
+- DCF status: blocked.
 - DCF missing inputs: free cash flow, shares outstanding, revenue, FCF margin, price.
 - Why DCF is blocked: missing free cash flow, shares outstanding, revenue, FCF margin, price.
 - DCF assumptions: withheld until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.

@@ -347,6 +347,8 @@ def test_stock_report_valuation_lines_withhold_relative_valuation_when_dcf_readi
     )
     rendered = " ".join(lines).lower()
 
+    assert "dcf status: blocked" in rendered
+    assert "dcf status: calculated" not in rendered
     assert "relative valuation: withheld until trusted fundamentals and dcf readiness pass" in rendered
     assert "background relative-multiple status=calculated" in rendered
     assert "relative valuation: calculated from trusted peer inputs" not in rendered

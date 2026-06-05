@@ -141,7 +141,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Missing price reason: none
 
 ## Valuation Readiness
-- DCF status: calculated.
+- DCF status: blocked.
 - DCF missing inputs: shares outstanding.
 - Why DCF is blocked: missing shares outstanding.
 - DCF assumptions: withheld until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.

@@ -698,10 +698,11 @@ def _stock_report_valuation_lines(
         for item in scenarios
         if isinstance(item, dict) and _display_value(item.get("name")) != "Not available"
     ]
-    lines = [
-        f"- DCF status: {_display_report_status(valuation_snapshot.get('status') if isinstance(valuation_snapshot, dict) else None)}.",
-    ]
     dcf_is_ready_calculated = dcf_result.get("status") == "calculated" and dcf_status_text.lower() == "ready"
+    dcf_status_display = "calculated" if dcf_is_ready_calculated else dcf_status_text
+    lines = [
+        f"- DCF status: {_display_report_status(dcf_status_display)}.",
+    ]
     if dcf_is_ready_calculated:
         lines.extend(
             [
