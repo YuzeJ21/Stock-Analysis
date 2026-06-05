@@ -13050,6 +13050,8 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
         "Ticker",
         "Priority Scope",
         "Current State",
+        "What You Can Analyze Now",
+        "What Is Still Locked",
         "Missing Trusted Inputs",
         "Trusted Input Path",
         "What This Unlocks",
@@ -13060,6 +13062,9 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert frame.iloc[0]["Priority Scope"] == "Priority 1; active universe"
     assert frame.iloc[0]["Copy-Only Command"] == "make focus-fundamentals TICKER=META"
     assert "price may be ready, but company fundamentals are still locked" in rendered
+    assert "use ready price/setup/risk context only" in rendered
+    assert "do not read company valuation yet" in rendered
+    assert "fair value/share, and peer-relative valuation stay locked" in rendered
     assert "free cash flow, shares outstanding" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
     assert "dcf readiness checks" in rendered
@@ -13102,6 +13107,8 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
         "Ticker",
         "Priority Scope",
         "Current State",
+        "What You Can Analyze Now",
+        "What Is Still Locked",
         "Trusted Peer Requirement",
         "Trusted Input Path",
         "What This Unlocks",
@@ -13112,6 +13119,8 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert frame.iloc[0]["Priority Scope"] == "Priority 1; active universe"
     assert frame.iloc[0]["Copy-Only Command"] == "make focus-peers TICKER=A"
     assert "peer valuation locked until trusted peer inputs exist" in rendered
+    assert "review standalone dcf assumptions and sensitivity if dcf is ready" in rendered
+    assert "peer-relative premium/discount, peer valuation comparison, and peer dcf comparison stay locked" in rendered
     assert "peer mapping, peer fundamentals" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "peer trend context first and peer valuation only after peer valuation inputs also pass" in rendered
