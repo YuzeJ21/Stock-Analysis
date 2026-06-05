@@ -10703,6 +10703,92 @@ def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[st
     return cards
 
 
+def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame:
+    ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
+    asset_type = format_missing(snapshot.get("asset_type"), "").lower()
+    dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    price_ready = bool(snapshot.get("price_ready"))
+    peer_ready = bool(snapshot.get("peer_ready"))
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+
+    if not price_ready:
+        can_analyze = "Ticker is known, but setup, valuation, and trend review are locked until trusted price rows exist."
+        locked = "Prices, momentum, DCF, peer context, earnings, and analyst estimates."
+        next_input = "Trusted local price history."
+        command = f"make focus-price TICKER={ticker}"
+    elif monitor_context:
+        can_analyze = "Market, theme, liquidity, or risk monitor context when local price rows are ready."
+        locked = "Operating-company DCF and peer valuation are excluded for ETF/index/fund monitor context."
+        next_input = "No company DCF input is required; refresh readiness or open the Markdown report for monitor context."
+        command = stock_report_md_command(ticker)
+    elif dcf_status == "blocked":
+        can_analyze = "Price/setup context can be reviewed; company valuation remains locked."
+        locked = f"DCF is blocked by missing trusted inputs: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=140)}"
+        next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
+        command = f"make focus-fundamentals TICKER={ticker}"
+    elif dcf_status == "ready" and not peer_ready:
+        can_analyze = "Standalone DCF assumptions, scenario math, sensitivity, and source freshness can be reviewed."
+        locked = "Peer-relative valuation remains locked until source-backed peer mappings and peer valuation inputs pass readiness."
+        next_input = "Trusted peer mappings in data/imports/peers.csv plus peer inputs when needed."
+        command = f"make focus-peers TICKER={ticker}"
+    elif not earnings_ready or not estimates_ready:
+        can_analyze = "Price, fundamentals, standalone DCF, and peer context can be reviewed from trusted local inputs."
+        locked = "Earnings and analyst-estimate context stays unavailable until trusted optional CSV rows exist."
+        next_input = "Trusted local earnings or analyst estimate rows, only if you have a source you trust."
+        command = "make optional-context-worklist TOP_N=25"
+    else:
+        can_analyze = "Supported single-stock review is available from current trusted local inputs."
+        locked = "No core analysis lock detected; continue to source/freshness and assumption review."
+        next_input = "Review the Markdown report and source/freshness notes before interpreting the result."
+        command = stock_report_md_command(ticker)
+
+    rows = [
+        {
+            "Question": "What can I analyze now?",
+            "Answer": can_analyze,
+            "Trusted Input Needed": "Use only current local/provider rows that already passed readiness.",
+            "Copy-Only Command": stock_report_md_command(ticker) if price_ready else command,
+        },
+        {
+            "Question": "What is still locked or excluded?",
+            "Answer": locked,
+            "Trusted Input Needed": next_input,
+            "Copy-Only Command": command,
+        },
+        {
+            "Question": "What should I do next?",
+            "Answer": compact_reason(snapshot.get("next_action"), max_sentences=1, max_chars=180),
+            "Trusted Input Needed": next_input,
+            "Copy-Only Command": command,
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    frame = single_stock_reader_guide_frame(snapshot)
+    cards: list[dict[str, object]] = []
+    kicker_map = {
+        "What can I analyze now?": "ANALYZE NOW",
+        "What is still locked or excluded?": "LOCKED / EXCLUDED",
+        "What should I do next?": "NEXT STEP",
+    }
+    for _, row in frame.iterrows():
+        question = format_missing(row.get("Question"))
+        cards.append(
+            {
+                "kicker": kicker_map.get(question, "SINGLE-STOCK GUIDE"),
+                "title": question,
+                "body": format_missing(row.get("Answer")),
+                "badges": ["plain English", "copy only"],
+                "command": format_missing(row.get("Copy-Only Command")),
+            }
+        )
+    return cards
+
+
 def single_stock_detail_frame(snapshot: dict[str, object]) -> pd.DataFrame:
     return pd.DataFrame(
         [
@@ -17668,6 +17754,10 @@ def render_market_command_center(
     metric_cols[3].metric("DCF", public_status_label(snapshot.get("dcf_status")))
     metric_cols[4].metric("Confidence", format_missing(snapshot.get("confidence")))
     render_signal_cards(single_stock_status_cards(snapshot))
+    render_section_header("Single-Stock Reader Guide", "Plain-English answer for what is ready, what is locked, and the next copy-only step.")
+    render_signal_cards(single_stock_reader_guide_cards(snapshot))
+    with st.expander("Single-stock reader guide table", expanded=False):
+        st.dataframe(clean_display_frame(single_stock_reader_guide_frame(snapshot)), width="stretch", hide_index=True)
     render_section_header("Single-Stock Source/Freshness Audit", "Local source paths, import draft paths, credential state, and rejected-row reports for the selected ticker.")
     render_signal_cards(single_stock_source_audit_cards(snapshot))
     st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)

@@ -13924,6 +13924,74 @@ def test_single_stock_status_cards_route_core_data_ready_optional_lock_to_workli
     assert "sell" not in rendered
 
 
+def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
+    snapshot = {
+        "ticker": "A",
+        "asset_type": "company",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "next_action": "Add source-backed peer mappings before peer-relative valuation.",
+    }
+
+    frame = dashboard.single_stock_reader_guide_frame(snapshot)
+    cards = dashboard.single_stock_reader_guide_cards(snapshot)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten().tolist() + [str(value) for card in cards for value in card.values()]).lower()
+
+    assert list(frame.columns) == ["Question", "Answer", "Trusted Input Needed", "Copy-Only Command"]
+    assert [card["kicker"] for card in cards] == ["ANALYZE NOW", "LOCKED / EXCLUDED", "NEXT STEP"]
+    assert "standalone dcf assumptions, scenario math, sensitivity" in rendered
+    assert "peer-relative valuation remains locked" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "make focus-peers ticker=a" in rendered
+    assert "make stock-report-md ticker=a" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
+    etf = {
+        "ticker": "QQQ",
+        "asset_type": "etf",
+        "price_ready": True,
+        "dcf_status": "excluded",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "next_action": "Review QQQ as ETF/index/fund monitor context.",
+    }
+    blocked = {
+        "ticker": "APLD",
+        "asset_type": "company",
+        "price_ready": False,
+        "dcf_status": "blocked",
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "next_action": "Add trusted price rows first.",
+    }
+
+    etf_rendered = " ".join(dashboard.single_stock_reader_guide_frame(etf).astype(str).to_numpy().flatten()).lower()
+    blocked_rendered = " ".join(dashboard.single_stock_reader_guide_frame(blocked).astype(str).to_numpy().flatten()).lower()
+
+    assert "market, theme, liquidity, or risk monitor context" in etf_rendered
+    assert "operating-company dcf and peer valuation are excluded" in etf_rendered
+    assert "make stock-report-md ticker=qqq" in etf_rendered
+    assert "trusted price rows exist" in blocked_rendered
+    assert "prices, momentum, dcf, peer context" in blocked_rendered
+    assert "make focus-price ticker=apld" in blocked_rendered
+    assert "broker" not in etf_rendered + blocked_rendered
+    assert "order" not in etf_rendered + blocked_rendered
+    assert "trading" not in etf_rendered + blocked_rendered
+    assert "buy" not in etf_rendered + blocked_rendered
+    assert "sell" not in etf_rendered + blocked_rendered
+
+
 def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_commands(monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "Research Tester tester@example.com")
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)
