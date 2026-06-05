@@ -3087,7 +3087,7 @@ def active_unlock_command(ticker: object, dataset: str, asset_type: object = "")
         return "make import-earnings"
     if dataset == "analyst_estimates":
         return "make import-analyst-estimates"
-    return f"make stock-report TICKER={ticker_text}"
+    return stock_report_md_command(ticker_text)
 
 
 def stock_report_md_command(ticker: object, fallback: str = "TICKER") -> str:
@@ -3699,7 +3699,7 @@ def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> 
                 "title": "Refresh report",
                 "body": "Generate a local stock report before reviewing supported or withheld analysis.",
                 "badges": ["no guessing"],
-                "command": "make stock-report TICKER=NVDA",
+                "command": stock_report_md_command("NVDA"),
             }
         ]
     kicker_by_question = {
@@ -7083,9 +7083,9 @@ def peer_unlock_operator_cards(
             lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
         )
         frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
-            lambda ticker: f"make stock-report TICKER={ticker} -> review source/freshness and DCF exclusion"
+            lambda ticker: f"{stock_report_md_command(ticker)} -> review source/freshness and DCF exclusion"
         )
-        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(stock_report_md_command)
         frame.loc[monitor_proxy, "copy_only_note"] = "Copy command only; review monitor context without peer valuation conclusions."
     workflow_counts = frame.get("workflow_group", pd.Series("peer_workflow", index=frame.index)).fillna("peer_workflow").astype(str).value_counts()
     scope_counts = frame.get("workflow_scope", pd.Series("unknown_scope", index=frame.index)).fillna("unknown_scope").astype(str).value_counts()
@@ -7713,7 +7713,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Supported Today": "Market, theme, liquidity, or risk monitor context.",
                 "Not Supported Yet": "Operating-company fundamentals or DCF valuation.",
                 "Logic Source": "Project asset-type gating marks DCF excluded, not failed.",
-                "Next Step": "make stock-report TICKER=QQQ",
+                "Next Step": stock_report_md_command("QQQ"),
             },
         ]
     )
@@ -7915,9 +7915,9 @@ def build_peer_mapping_studio_frame(
             lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
         )
         frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
-            lambda ticker: f"make stock-report TICKER={ticker} -> review source/freshness and DCF exclusion"
+            lambda ticker: f"{stock_report_md_command(ticker)} -> review source/freshness and DCF exclusion"
         )
-        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(stock_report_md_command)
         frame.loc[monitor_proxy, "copy_only_note"] = "Copy command only; monitor context is not peer valuation."
     if "ticker" in frame.columns:
         frame = frame.sort_values(["priority", "workflow_scope_rank", "workflow_group", "ticker"], kind="stable").copy()
@@ -8165,7 +8165,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
             "title": f"{monitor} row(s)",
             "body": "Useful for market, theme, ETF/index, liquidity, or risk context where operating-company valuation may be excluded.",
             "badges": ["context", "DCF may be excluded"],
-            "command": "make stock-report TICKER=QQQ",
+            "command": stock_report_md_command("QQQ"),
         },
         {
             "kicker": "BLOCKED BY DATA",
@@ -8374,12 +8374,12 @@ def purpose_unlock_command(ticker: object, primary_blocker: object, exact_comman
         return f"make focus-peers TICKER={symbol}"
     if blocker in {"earnings", "analyst_estimates", "analyst estimates"}:
         return "make templates"
-    return format_missing(exact_command, f"make stock-report TICKER={symbol}")
+    return format_missing(exact_command, stock_report_md_command(symbol))
 
 
 def active_brief_unlock_command(row: pd.Series) -> str:
     symbol = format_missing(row.get("ticker"), "").upper()
-    fallback = format_missing(row.get("exact_command"), f"make stock-report TICKER={symbol}" if symbol else "make project-status")
+    fallback = format_missing(row.get("exact_command"), stock_report_md_command(symbol) if symbol else "make project-status")
     asset_type = format_missing(row.get("asset_type"), "").lower()
     bucket = format_missing(row.get("decision_bucket"), "").lower()
     subtype = format_missing(row.get("decision_subtype"), "").lower()
@@ -8653,7 +8653,7 @@ def active_research_brief_frame(
     for column in ACTIVE_RESEARCH_BRIEF_COLUMNS:
         if column not in frame.columns and column not in {"exact_command", "purpose_family", "purpose_status", "unlock_command"}:
             frame[column] = "Not available"
-    frame["exact_command"] = frame["ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+    frame["exact_command"] = frame["ticker"].apply(stock_report_md_command)
     frame["purpose_family"] = frame.apply(
         lambda row: purpose_family_label(
             row.get("asset_type"),
@@ -8781,7 +8781,7 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
                 max_chars=180,
             ),
             "badges": ["purpose alignment", format_missing(top_row.get("decision_bucket"), "bucket")],
-            "command": format_missing(top_row.get("exact_command"), "make stock-report TICKER=META"),
+            "command": format_missing(top_row.get("exact_command"), stock_report_md_command("META")),
         },
         {
             "kicker": "PURPOSE GROUPS",
@@ -8885,7 +8885,7 @@ def active_evaluation_next_step(row: pd.Series) -> str:
 
 def active_evaluation_review_command(row: pd.Series) -> str:
     ticker = format_missing(row.get("ticker"), "TICKER").upper()
-    return f"make stock-report TICKER={ticker}"
+    return stock_report_md_command(ticker)
 
 
 def active_evaluation_unlock_command(row: pd.Series) -> str:
@@ -8921,7 +8921,7 @@ def active_evaluation_validation_sequence(row: pd.Series) -> str:
         return f"make focus-price TICKER={ticker} -> run capped refresh or stage OHLCV -> make imports-validate -> make imports-preview -> make imports-apply"
     if "optional" in lane:
         return "make templates -> fill trusted earnings or analyst estimates CSV -> make imports-validate -> make imports-preview -> make imports-apply"
-    return f"make stock-report TICKER={ticker} -> compare purpose, supported analysis, unsupported analysis, and source/freshness notes"
+    return f"{stock_report_md_command(ticker)} -> compare purpose, supported analysis, unsupported analysis, and source/freshness notes"
 
 
 def active_evaluation_withheld_conclusion(row: pd.Series) -> str:
@@ -9378,7 +9378,7 @@ def product_page_logic_audit_frame(
             primary_blocker.isin({"peer", "peers"})
             & ~purpose_family.str.contains("etf|hedge|fund|index", case=False, na=False)
         )
-        review_visible = review_command.str.contains(r"make stock-report TICKER=[A-Z0-9.:-]+", case=False, regex=True, na=False)
+        review_visible = review_command.str.contains(r"make stock-report(?:-md)? TICKER=[A-Z0-9.:-]+", case=False, regex=True, na=False)
         peer_unlock_visible = unlock_command.str.contains(r"make focus-peers TICKER=[A-Z0-9.:-]+", case=False, regex=True, na=False)
         purpose_drilldown_mismatches = int((company_peer_limited & ~(review_visible & peer_unlock_visible)).sum())
         purpose_peer_rows = int(company_peer_limited.sum())
@@ -9390,7 +9390,7 @@ def product_page_logic_audit_frame(
             "check": "Purpose drilldown actionability",
             "status": "pass" if purpose_drilldown_mismatches == 0 else "review",
             "evidence": f"{purpose_drilldown_mismatches} of {purpose_peer_rows} peer-limited company drilldown row(s) lack exact review and peer-unlock commands.",
-            "operator_action": "Purpose drilldown peer-limited company rows should show both stock-report review and focus-peers unlock commands.",
+            "operator_action": "Purpose drilldown peer-limited company rows should show both stock-report-md review and focus-peers unlock commands.",
             "source": "dashboard purpose evaluation drilldown",
         }
     )
@@ -13505,7 +13505,7 @@ def overview_best_current_name_cards(
                     "dcf ready" if bool(row.get("dcf_ready_bool")) else "momentum ready",
                     "peer ready" if bool(row.get("peer_ready_bool")) else "partial context",
                 ],
-                "command": f"make stock-report TICKER={ticker}" if next_surface == "Single-Stock Report" else "make monthly",
+                "command": stock_report_md_command(ticker) if next_surface == "Single-Stock Report" else "make monthly",
             }
         )
     return cards
@@ -14335,7 +14335,7 @@ def overview_handoff_cards() -> list[dict[str, object]]:
             "title": "Single-Stock Report",
             "body": "Use this for a single-name deep dive after local coverage can support price, valuation, peer, and missing-assumption context in one place.",
             "badges": ["single name", "deep dive"],
-            "command": "make stock-report TICKER=NVDA",
+            "command": stock_report_md_command("NVDA"),
         },
         {
             "kicker": "NEXT DEEPER TAB",
@@ -14442,7 +14442,7 @@ def overview_ready_name_handoff_cards(
 
     surface = str(best_name.get("title", ""))
     if surface == "Single-Stock Report":
-        command_text = format_missing(best_name.get("command"), "make stock-report TICKER=NVDA")
+        command_text = format_missing(best_name.get("command"), stock_report_md_command("NVDA"))
         badges = ["single name", "ready flow"]
         body = (
             "Open the ticker-targeted stock report in Single-Stock Report first so the deeper read stays tied to the selected local name. "
@@ -14885,7 +14885,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "kicker": "BEST USE",
             "title": "Open single-stock review next",
             "body": (
-                "Use a candidate as a starting point for make stock-report TICKER=..., then read valuation readiness, "
+                "Use a candidate as a starting point for make stock-report-md TICKER=..., then read valuation readiness, "
                 "fundamental gaps, peer gaps, and source freshness before forming any personal research view."
             ),
             "badges": ["next step", "single-stock depth"],
@@ -16765,7 +16765,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
                     "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
                     "make readiness",
                     "make project-status",
-                    "make stock-report TICKER=NVDA",
+                    "make stock-report-md TICKER=NVDA",
                     "make dashboard-smoke",
                 ]
             ),

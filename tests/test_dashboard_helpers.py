@@ -5002,7 +5002,7 @@ def test_overview_best_current_name_cards_route_ready_names_to_next_page():
     assert len(cards) == 2
     assert cards[0]["kicker"] == "NVDA"
     assert cards[0]["title"] == "Single-Stock Report"
-    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
+    assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[1]["title"] == "Monthly Picks"
     assert cards[1]["command"] == "make monthly"
     assert "holding" in rendered
@@ -5113,8 +5113,8 @@ def test_overview_ready_name_handoff_cards_route_stock_report_names_to_ticker_re
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
-    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
-    assert cards[1]["title"] == "make stock-report TICKER=NVDA"
+    assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
+    assert cards[1]["title"] == "make stock-report-md TICKER=NVDA"
     assert cards[2]["title"] == "Single-Stock Report"
     assert "strongest currently usable local name" in rendered
     assert "ticker-targeted stock report" in rendered
@@ -5272,10 +5272,10 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_p
 
     assert len(cards) == 4
     assert cards[0]["title"] == "NVDA"
-    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
+    assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[1]["title"] == "NVDA"
     assert cards[1]["command"] == "make sec-stage TICKERS=NVDA"
-    assert cards[2]["title"] == "make stock-report TICKER=NVDA"
+    assert cards[2]["title"] == "make stock-report-md TICKER=NVDA"
     assert cards[3]["title"] == "Single-Stock Report"
     assert "normalize verified downloaded ohlcv rows" in rendered
     assert "best currently usable local name" in rendered
@@ -5406,7 +5406,7 @@ def test_overview_current_top_surfaces_cards_prefer_staged_peer_handoff_reason()
     cards = dashboard.overview_current_top_surfaces_cards(coverage, holdings, None, peer_queue, payload, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[2]["title"] == "make stock-report TICKER=NVDA"
+    assert cards[2]["title"] == "make stock-report-md TICKER=NVDA"
     assert cards[1]["command"] == "make imports-validate"
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -5447,8 +5447,8 @@ def test_overview_current_top_surfaces_cards_prefer_ready_name_reason_without_qu
     cards = dashboard.overview_current_top_surfaces_cards(coverage, holdings, sec_queue, None, payload, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[2]["title"] == "make stock-report TICKER=NVDA"
-    assert cards[0]["command"] == "make stock-report TICKER=NVDA"
+    assert cards[2]["title"] == "make stock-report-md TICKER=NVDA"
+    assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
     assert "ticker-targeted stock report" in cards[2]["body"].lower()
     assert "single-stock report" in cards[2]["body"].lower()
     assert "make imports-apply" in rendered
@@ -6420,7 +6420,7 @@ def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
     assert cards[0]["title"] == "Data Health"
     assert cards[0]["command"] == "make onboarding"
     assert cards[1]["title"] == "Single-Stock Report"
-    assert cards[1]["command"] == "make stock-report TICKER=NVDA"
+    assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[2]["title"] == "Monthly Picks"
     assert cards[2]["command"] == "make monthly"
     assert "blocking the local research workflow" in rendered
@@ -6459,7 +6459,7 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_page():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
-    assert cards[1]["title"] == "make stock-report TICKER=NVDA"
+    assert cards[1]["title"] == "make stock-report-md TICKER=NVDA"
     assert cards[1]["badges"] == ["single name", "ready flow"]
     assert cards[2]["title"] == "Single-Stock Report"
     assert "best current name" in rendered
@@ -6816,7 +6816,7 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     assert "libraries support data/ui" in rendered
     assert "shipped scoring comes from project code and local data" in rendered
     assert "plugins can help development review" not in rendered
-    assert "make stock-report ticker=..." in rendered
+    assert "make stock-report-md ticker=..." in rendered
     assert "valuation readiness" in rendered
     assert "source freshness" in rendered
     assert "broker" not in rendered
@@ -12633,8 +12633,8 @@ def test_peer_mapping_studio_keeps_etf_missing_mappings_in_monitor_context():
     rendered = " ".join(str(value) for value in studio.to_numpy().ravel()).lower()
 
     assert qqq["workflow_group"] == "monitor_proxy_context"
-    assert qqq["focus_command"] == "make stock-report TICKER=QQQ"
-    assert qqq["validation_sequence"].startswith("make stock-report TICKER=QQQ")
+    assert qqq["focus_command"] == "make stock-report-md TICKER=QQQ"
+    assert qqq["validation_sequence"].startswith("make stock-report-md TICKER=QQQ")
     assert qqq["next_action"] == "ETF/index/fund rows use stock-report monitoring context; fallback sector or peer context is not trusted peer data."
     assert qqq["peer_valuation_status"] == "operating_company_dcf_excluded"
     assert "make focus-peers ticker=cohr" in rendered
@@ -16032,7 +16032,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
 
     assert list(brief["ticker"]) == ["META", "QQQ"]
     assert "BROAD" not in set(brief["ticker"])
-    assert brief.loc[brief["ticker"].eq("META"), "exact_command"].iloc[0] == "make stock-report TICKER=META"
+    assert brief.loc[brief["ticker"].eq("META"), "exact_command"].iloc[0] == "make stock-report-md TICKER=META"
     assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
     assert brief.loc[brief["ticker"].eq("META"), "purpose_status"].iloc[0] == "Purpose review needed"
     assert "Operator summary: Purpose review needed" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
@@ -16058,7 +16058,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "next question" in rendered_cards
     assert "make focus-peers ticker=meta" in rendered_cards
     assert "peer-limited" in rendered_cards
-    assert "make stock-report ticker=meta" in rendered_cards
+    assert "make stock-report-md ticker=meta" in rendered_cards
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -16159,7 +16159,7 @@ def test_active_research_brief_frame_builds_schema_light_fallbacks_without_overc
     assert "invalidation:" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
     assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
     assert brief.loc[brief["ticker"].eq("META"), "data_confidence"].iloc[0] == "medium"
-    assert brief.loc[brief["ticker"].eq("QQQ"), "unlock_command"].iloc[0] == "make stock-report TICKER=QQQ"
+    assert brief.loc[brief["ticker"].eq("QQQ"), "unlock_command"].iloc[0] == "make stock-report-md TICKER=QQQ"
     qqq_summary = brief.loc[brief["ticker"].eq("QQQ"), "evaluation_summary"].iloc[0].lower()
     assert "monitor role: market, theme, liquidity, or risk proxy" in qqq_summary
     assert "operating-company dcf and peer valuation are excluded" in qqq_summary
@@ -16169,7 +16169,7 @@ def test_active_research_brief_frame_builds_schema_light_fallbacks_without_overc
         == "What market, theme, liquidity, or risk context should QQQ monitor, and what would invalidate that proxy role?"
     )
     assert "source-backed peers should be added for qqq" not in rendered
-    assert cards[0]["command"] == "make stock-report TICKER=META"
+    assert cards[0]["command"] == "make stock-report-md TICKER=META"
     assert cards[3]["command"] == "make focus-peers TICKER=META"
     assert cards[4]["title"] == "1 peer-limited brief(s)"
     assert "peer-relative valuation is withheld" in rendered
@@ -17085,19 +17085,19 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     assert list(queue["ticker"]) == ["META", "AMD", "QQQ", "APLD"]
     assert queue.iloc[0]["evaluation_lane"] == "Review standalone thesis, then unlock peers"
     assert queue.iloc[0]["data_confidence"] == "medium"
-    assert queue.iloc[0]["exact_command"] == "make stock-report TICKER=META"
+    assert queue.iloc[0]["exact_command"] == "make stock-report-md TICKER=META"
     assert queue.iloc[0]["data_unlock_command"] == "make focus-peers TICKER=META"
-    assert queue.iloc[0]["review_command"] == "make stock-report TICKER=META"
+    assert queue.iloc[0]["review_command"] == "make stock-report-md TICKER=META"
     assert queue.iloc[0]["validation_sequence"].startswith("make focus-peers TICKER=META")
     assert "priority rationale" in queue.iloc[0]["reason"].lower()
     assert "core company evidence is reviewable" in queue.iloc[0]["reason"].lower()
     assert queue.iloc[1]["evaluation_lane"] == "Review supported thesis; optional context locked"
-    assert queue.iloc[1]["exact_command"] == "make stock-report TICKER=AMD"
+    assert queue.iloc[1]["exact_command"] == "make stock-report-md TICKER=AMD"
     assert queue.iloc[1]["data_unlock_command"] == "make templates"
     assert queue.iloc[2]["evaluation_lane"] == "Monitor ETF / market proxy"
-    assert queue.iloc[2]["exact_command"] == "make stock-report TICKER=QQQ"
+    assert queue.iloc[2]["exact_command"] == "make stock-report-md TICKER=QQQ"
     assert queue.iloc[2]["data_unlock_command"] == ""
-    assert queue.iloc[2]["validation_sequence"].startswith("make stock-report TICKER=QQQ")
+    assert queue.iloc[2]["validation_sequence"].startswith("make stock-report-md TICKER=QQQ")
     assert "monitor context" in queue.iloc[2]["reason"].lower()
     assert "peer valuation stay excluded" in queue.iloc[2]["reason"].lower()
     assert "primary blocker: peers" not in queue.iloc[2]["reason"].lower()
@@ -17118,7 +17118,7 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     assert "not an action list" in rendered_cards
     assert "recommendation" not in rendered_cards
     assert "no dashboard execution" in rendered_cards
-    assert "make stock-report ticker=meta" in rendered_cards
+    assert "make stock-report-md ticker=meta" in rendered_cards
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
