@@ -9163,6 +9163,24 @@ def decision_next_action_summary(row: pd.Series) -> str:
     return compact_reason(row.get("next_best_action"), max_sentences=1, max_chars=180)
 
 
+def decision_next_action_proof(row: pd.Series) -> str:
+    ticker = format_missing(row.get("ticker"), "").upper()
+    blocker = format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
+    asset_type = format_missing(row.get("asset_type"), row.get("asset_type_readiness", "")).lower()
+    report_command = stock_report_md_command(ticker) if ticker else "make project-status"
+    if asset_type in {"etf", "index_proxy", "fund"}:
+        return f"Proof after review: run `{report_command}` and confirm operating-company DCF is excluded, not failed."
+    if blocker == "price":
+        return f"Proof after unlock: run `make price-coverage TOP_N=25`, `make readiness`, then `{report_command}`."
+    if blocker in {"fundamentals", "dcf"}:
+        return f"Proof after unlock: run `make dcf-readiness`, `make readiness`, then `{report_command}`."
+    if blocker in {"peer", "peers"}:
+        return f"Proof after unlock: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `{report_command}`."
+    if blocker in {"earnings", "analyst_estimates", "optional_context"}:
+        return f"Proof after unlock: run `make optional-context-readiness`, `make readiness`, then `{report_command}`."
+    return f"Proof before interpretation: run `make readiness`, then `{report_command}`."
+
+
 def decision_next_action_title(row: pd.Series) -> str:
     ticker = format_missing(row.get("ticker"), "selected ticker")
     blocker = format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
@@ -9310,7 +9328,10 @@ def decision_workflow_summary_cards(
         {
             "kicker": "NEXT DECISION ACTION",
             "title": decision_next_action_title(top_action_row),
-            "body": compact_reason(top_action, max_sentences=1, max_chars=180),
+            "body": (
+                f"{compact_reason(top_action, max_sentences=1, max_chars=180)} "
+                f"{decision_next_action_proof(top_action_row)}"
+            ),
             "badges": ["copy command only", "no execution"],
             "command": purpose_unlock_command(
                 top_action_row.get("ticker"),
@@ -9327,7 +9348,7 @@ def decision_workflow_summary_cards(
                 "title": f"{len(research_now_optional_locked)} research row(s)",
                 "body": (
                     f"Optional Context Locked row(s): {ticker_text}. Research Now rows have supported core or DCF context, but earnings or analyst-estimate context remains unavailable "
-                    "until trusted local CSV rows exist."
+                    "until trusted local CSV rows exist. Proof after unlock: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report."
                 ),
                 "badges": ["core research ok", "optional locked"],
                 "command": "make optional-context-worklist TOP_N=25",

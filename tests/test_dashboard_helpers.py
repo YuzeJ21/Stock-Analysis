@@ -14393,6 +14393,7 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
     assert "make research-health top_n=10" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "data/imports/peers.csv" in rendered
+    assert "proof after unlock: run `make peer-mapping-queue top_n=25`, `make readiness`, then `make stock-report-md ticker=a`" in rendered
     assert "peer mappings and peer metrics" not in rendered
     assert "trade" not in rendered
     assert "broker" not in rendered
@@ -14608,6 +14609,7 @@ def test_decision_workflow_summary_cards_route_price_blocker_to_refresh_loop_dry
     assert next_card["command"] == "make focus-price TICKER=APLD"
     assert "make price-refresh-loop dry_run=1" in rendered
     assert "review the planned batches" in rendered
+    assert "proof after unlock: run `make price-coverage top_n=25`, `make readiness`, then `make stock-report-md ticker=apld`" in rendered
     assert "manually run 25" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -14658,6 +14660,7 @@ def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     assert "data/imports/peers.csv" in str(next_card["body"])
     assert "make imports-validate" in str(next_card["body"])
     assert "make focus-peers ticker=cohr" in rendered
+    assert "proof after unlock: run `make peer-mapping-queue top_n=25`, `make readiness`, then `make stock-report-md ticker=cohr`" in rendered
     assert "optional context missing for cohr" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -14723,6 +14726,7 @@ def test_decision_workflow_summary_cards_surface_research_now_optional_context_l
     assert "supported core or dcf context" in rendered
     assert "earnings or analyst-estimate context remains unavailable" in rendered
     assert "trusted local csv rows" in rendered
+    assert "proof after unlock: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
