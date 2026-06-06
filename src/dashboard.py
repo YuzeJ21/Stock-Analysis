@@ -11814,44 +11814,49 @@ def valuation_quick_read_cards(
         values = values.loc[values.ne("")]
         return values.iloc[0] if not values.empty else fallback
 
+    ready_ticker = first_ticker(ready, "NVDA")
+    blocked_ticker = first_ticker(blocked, "TICKER")
+    excluded_ticker = first_ticker(excluded, "QQQ")
+    blocked_missing = "trusted price, fundamentals, free cash flow or margin, and share count"
+    if not blocked.empty and "missing_dcf_fields" in blocked.columns:
+        missing_values = blocked["missing_dcf_fields"].fillna("").astype(str).str.strip()
+        missing_values = missing_values.loc[missing_values.ne("")]
+        if not missing_values.empty:
+            blocked_missing = missing_values.iloc[0].replace("_", " ")
+
     if ready.empty and blocked.empty and excluded.empty:
         first_title = "Generate DCF readiness first"
         first_body = "No valuation readiness rows are loaded, so valuation should stay current-only and blocked until the local readiness files exist."
         first_command = "make dcf-readiness"
         first_badges = ["readiness first", "no guessing"]
     elif not ready.empty:
-        ticker = first_ticker(ready, "NVDA")
         first_title = "Review DCF-ready companies first"
         first_body = (
-            f"Start with {ticker}. DCF-ready rows can support assumption, scenario, sensitivity, and source/freshness review; "
+            f"Start with {ready_ticker}. DCF-ready rows can support assumption, scenario, sensitivity, and source/freshness review; "
             "they are still research context, not price targets."
         )
-        first_command = stock_report_md_command(ticker)
+        first_command = stock_report_md_command(ready_ticker)
         first_badges = ["DCF-ready", "scenario review"]
     elif not blocked.empty:
-        ticker = first_ticker(blocked, "TICKER")
-        missing = "trusted DCF inputs"
-        if "missing_dcf_fields" in blocked.columns:
-            missing_values = blocked["missing_dcf_fields"].fillna("").astype(str).str.strip()
-            missing_values = missing_values.loc[missing_values.ne("")]
-            if not missing_values.empty:
-                missing = missing_values.iloc[0].replace("_", " ")
         first_title = "Fix missing valuation inputs first"
         first_body = (
-            f"Start with {ticker}. Company valuation remains locked by {missing}; missing inputs are not undervalued, "
+            f"Start with {blocked_ticker}. Company valuation remains locked by {blocked_missing}; missing inputs are not undervalued, "
             "overvalued, or weak-company conclusions."
         )
-        first_command = f"make focus-fundamentals TICKER={ticker}"
+        first_command = f"make focus-fundamentals TICKER={blocked_ticker}"
         first_badges = ["blocked by data", "no conclusion"]
     else:
-        ticker = first_ticker(excluded, "QQQ")
         first_title = "Use monitor context only"
         first_body = (
-            f"Start with {ticker}. ETF/index/fund rows can support market, theme, liquidity, or risk context; "
+            f"Start with {excluded_ticker}. ETF/index/fund rows can support market, theme, liquidity, or risk context; "
             "operating-company DCF is excluded, not failed."
         )
-        first_command = stock_report_md_command(ticker)
+        first_command = stock_report_md_command(excluded_ticker)
         first_badges = ["monitor context", "DCF excluded"]
+
+    ready_command = stock_report_md_command(ready_ticker) if not ready.empty else "make dcf-readiness"
+    blocked_command = f"make focus-fundamentals TICKER={blocked_ticker}" if not blocked.empty else "make sec-stage-queue TOP_N=25"
+    excluded_command = stock_report_md_command(excluded_ticker) if not excluded.empty else "make stock-report-md TICKER=QQQ"
 
     return [
         {
@@ -11864,23 +11869,32 @@ def valuation_quick_read_cards(
         {
             "kicker": "ANALYZE NOW",
             "title": f"{len(ready)} DCF-ready company row(s)",
-            "body": "What you can analyze now: ready rows can show DCF assumptions, scenarios, sensitivity, and source freshness. Peer-relative valuation still needs trusted peer inputs.",
+            "body": (
+                f"What you can analyze now: open {ready_ticker if not ready.empty else 'the next DCF-ready ticker'} for DCF assumptions, scenarios, "
+                "sensitivity, and source freshness. Peer-relative valuation still needs trusted peer inputs."
+            ),
             "badges": ["assumptions", "sensitivity"],
-            "command": "make dcf-readiness",
+            "command": ready_command,
         },
         {
             "kicker": "STILL LOCKED",
             "title": f"{len(blocked)} company row(s) need inputs",
-            "body": "What is still locked: blocked rows withhold fair value/share, intrinsic-value interpretation, and re-rating context until trusted inputs pass readiness.",
+            "body": (
+                f"What is still locked: {'for ' + blocked_ticker + ', fair value/share' if not blocked.empty else 'company rows withhold fair value/share'}, intrinsic-value interpretation, "
+                f"and re-rating context until {blocked_missing} pass readiness."
+            ),
             "badges": ["missing inputs", "valuation withheld"],
-            "command": "make sec-stage-queue TOP_N=25",
+            "command": blocked_command,
         },
         {
             "kicker": "EXCLUDED",
             "title": f"{len(excluded)} ETF/index/fund row(s)",
-            "body": "What is excluded: operating-company DCF does not apply to monitor-context rows; use market or risk context instead.",
+            "body": (
+                f"What is excluded: {excluded_ticker if not excluded.empty else 'ETF/index/fund rows'} use monitor context because operating-company DCF "
+                "does not apply; use market or risk context instead."
+            ),
             "badges": ["not failed", "monitor only"],
-            "command": "make stock-report-md TICKER=QQQ",
+            "command": excluded_command,
         },
     ]
 
