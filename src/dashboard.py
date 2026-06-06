@@ -3092,6 +3092,7 @@ def optional_context_ladder_frame(
         "Import Command",
         "Rejected Rows",
         "Validation Path",
+        "Readiness Proof",
         "What This Unlocks",
         "What Stays Locked",
         "Copy-Only Command",
@@ -3129,6 +3130,7 @@ def optional_context_ladder_frame(
                 "Import Command": config["import_command"],
                 "Rejected Rows": config["rejected_path"],
                 "Validation Path": "make templates -> import command -> make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness -> make onboarding TOP_N=10",
+                "Readiness Proof": "Run `make optional-context-readiness` and `make onboarding TOP_N=10`, then reopen Data Health or the single-stock report before treating optional context as available.",
                 "What This Unlocks": config["unlocks"],
                 "What Stays Locked": "Optional context stays unavailable until trusted rows pass validation; missing rows must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.",
                 "Copy-Only Command": optional_context_unlock_sequence_command(key),
@@ -3182,9 +3184,10 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
             "body": (
                 f"Rejected rows: {format_missing(first.get('Rejected Rows'), '')}. "
                 f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Readiness proof: {format_missing(first.get('Readiness Proof'), 'make optional-context-readiness')}. "
                 f"Boundary: {format_missing(first.get('What Stays Locked'), '')}"
             ),
-            "badges": ["validate", "preview before apply"],
+            "badges": ["validate", "preview before apply", "proof before context"],
             "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
         },
     ]

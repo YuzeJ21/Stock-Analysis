@@ -14922,6 +14922,7 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
         "Import Command",
         "Rejected Rows",
         "Validation Path",
+        "Readiness Proof",
         "What This Unlocks",
         "What Stays Locked",
         "Copy-Only Command",
@@ -14946,6 +14947,8 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert "make imports-apply" in rendered
     assert "make optional-context-readiness" in rendered
     assert "make onboarding top_n=10" in rendered
+    assert "readiness proof: run `make optional-context-readiness` and `make onboarding top_n=10`" in rendered
+    assert "before treating optional context as available" in rendered
     assert "missing rows must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis" in rendered
     assert "render_signal_cards(optional_context_ladder_cards(optional_ladder))" in source
     assert "optional context ladder table" in source.lower()
