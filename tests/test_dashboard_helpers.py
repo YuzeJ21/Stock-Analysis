@@ -169,18 +169,24 @@ def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_m
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert [card["kicker"] for card in cards] == [
-        "PRICE COVERAGE PLAN",
+        "CURRENT PRICE STATE",
+        "DRY-RUN PLAN",
         "BEFORE UPDATE",
         "CAPPED RUN",
-        "AFTER UPDATE",
+        "VERIFY & HYGIENE",
     ]
     assert "3,298 ticker(s)" in rendered
+    assert "read the current snapshot first" in rendered
+    assert "make status-check top_n=5" in rendered
     assert "dry run with max_candidates" in rendered
     assert "calculates capped batches" in rendered
     assert "before any local csv files change" in rendered
     assert "make price-refresh-loop dry_run=1 max_candidates=3300 top_n=100 provider=yahoo" in rendered
     assert "make readiness-snapshot" in rendered
     assert "make price-refresh-loop max_candidates=3300 top_n=100 provider=yahoo sleep_seconds=30" in rendered
+    assert "rebuild price coverage, readiness, and project status" in rendered
+    assert "make price-coverage top_n=25" in rendered
+    assert "make project-status" in rendered
     assert "make diff-hygiene" in rendered
     assert "repeating" not in rendered
     assert "render_signal_cards(price_refresh_operator_plan_cards(summary))" in source

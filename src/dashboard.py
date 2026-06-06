@@ -18148,10 +18148,19 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
 
     return [
         {
-            "kicker": "PRICE COVERAGE PLAN",
+            "kicker": "CURRENT PRICE STATE",
+            "title": "Check what is missing now",
+            "body": (
+                f"About {missing_label} still need price history. Read the current snapshot first so the dry run has a clear target."
+            ),
+            "badges": ["read first", "local snapshot"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "DRY-RUN PLAN",
             "title": "Preview the broad refresh first",
             "body": (
-                f"Price history is still missing for about {missing_label}. Use a dry run with MAX_CANDIDATES so the loop "
+                "Use a dry run with MAX_CANDIDATES so the loop "
                 "calculates capped batches for you before any local CSV files change."
             ),
             "badges": ["dry run first", "no manual repeats"],
@@ -18176,13 +18185,13 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
             "command": f"make price-refresh-loop MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
         },
         {
-            "kicker": "AFTER UPDATE",
-            "title": "Inspect generated data before staging",
+            "kicker": "VERIFY & HYGIENE",
+            "title": "Prove what changed before staging",
             "body": (
-                "Keep broad refreshed CSV outputs local unless you intentionally choose to publish them. Product code and docs can be committed separately."
+                "Rebuild price coverage, readiness, and project status, then inspect generated CSV churn before staging anything."
             ),
-            "badges": ["data hygiene", "review first"],
-            "command": "make diff-hygiene",
+            "badges": ["prove readiness", "review churn"],
+            "command": "make price-coverage TOP_N=25 && make readiness && make project-status && make diff-hygiene",
         },
     ]
 
