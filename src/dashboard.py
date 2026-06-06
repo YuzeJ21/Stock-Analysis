@@ -2863,10 +2863,12 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "title": "Validate and preview",
             "body": (
                 "Use make templates first, then run make import-earnings or make import-analyst-estimates for staged files, "
-                "then make imports-validate, make imports-preview, and make imports-apply. Invalid rows stay visible in rejected CSV reports."
+                "then make imports-validate, make imports-preview, and make imports-apply. "
+                "After applying, run make optional-context-readiness and make onboarding TOP_N=10 before treating optional context as available. "
+                "Invalid rows stay visible in rejected CSV reports."
             ),
             "badges": ["csv-first", "no fabrication"],
-            "command": "make templates",
+            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
         },
         {
             "kicker": "SCHEMA-ONLY EXAMPLES",
@@ -2938,6 +2940,7 @@ def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[
     confirm = frame.iloc[0]
     stage = frame.iloc[2]
     validate = frame.iloc[3]
+    rebuild = frame.iloc[4]
     return [
         {
             "kicker": "FIRST OPTIONAL UNLOCK",
@@ -2956,9 +2959,13 @@ def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[
         {
             "kicker": "OPTIONAL READINESS PROOF",
             "title": "Validate, preview, apply, then rebuild",
-            "body": format_missing(validate.get("Why It Matters"), ""),
+            "body": (
+                f"{format_missing(validate.get('Why It Matters'), '')} "
+                f"Rejected-row report: {format_missing(validate.get('Trusted Input'), 'rejected rows report')}. "
+                f"Rebuild proof: {format_missing(rebuild.get('Copy Command'), 'make optional-context-readiness')}."
+            ),
             "badges": ["not a recommendation", "source/freshness"],
-            "command": format_missing(validate.get("Copy Command"), ""),
+            "command": f"{format_missing(validate.get('Copy Command'), '')} && {format_missing(rebuild.get('Copy Command'), '')}",
         },
     ]
 

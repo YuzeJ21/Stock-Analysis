@@ -14377,6 +14377,8 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "make optional-context-readiness" in rendered
+    assert "make onboarding top_n=10" in rendered
     assert "templates are not data" in rendered
     assert "schema only" in rendered
     assert "data/rejected/earnings_import_rejected.csv" in rendered
@@ -14495,9 +14497,11 @@ def test_first_optional_context_unlock_cards_are_recommendation_free():
 
     assert cards[0]["command"] == "make optional-context-worklist TOP_N=25"
     assert cards[1]["command"] == "make import-earnings"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply"
+    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
     assert "data/staged/earnings/" in rendered
     assert "data/imports/earnings.csv" in rendered
+    assert "rejected-row report: rejected rows: data/rejected/earnings_import_rejected.csv" in rendered
+    assert "rebuild proof: make optional-context-readiness && make onboarding top_n=10" in rendered
     assert "trusted source only" in rendered
     assert "no estimates fabricated" in rendered
     assert "not a recommendation" in rendered
