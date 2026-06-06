@@ -13466,6 +13466,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "inspect meta with `make focus-fundamentals ticker=meta`" in rendered
     assert "before rerunning `make dcf-readiness`" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
+    assert "schema guide: ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at" in rendered
     assert "validation sequence: make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
     assert "rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered

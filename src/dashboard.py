@@ -8110,12 +8110,14 @@ def fundamentals_dcf_diagnostic_cards(
     sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
     fundamentals_validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
     fundamentals_input_path = "data/imports/fundamentals.csv or reviewed SEC stage draft"
+    fundamentals_schema_guide = "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at"
     fundamentals_rejected_path = "data/rejected/fundamentals_import_rejected.csv"
     if next_ticker != "Not available":
         dcf_field_gap_body = (
             "These are field-level blockers from the DCF readiness report, not company conclusions. "
             f"Inspect {next_ticker} with `make focus-fundamentals TICKER={next_ticker}`, then add trusted fundamentals "
             f"through {fundamentals_input_path} before rerunning `make dcf-readiness`. "
+            f"Schema guide: {fundamentals_schema_guide}. "
             f"Validation sequence: {fundamentals_validation_sequence}. Rejected-row report: {fundamentals_rejected_path}. "
             f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
         )
@@ -8124,7 +8126,8 @@ def fundamentals_dcf_diagnostic_cards(
         dcf_field_gap_body = (
             "These are field-level blockers from the DCF readiness report, not company conclusions. "
             "Run `make dcf-readiness` and `make sec-stage-queue TOP_N=25` to rebuild the missing-field view before assuming coverage improved. "
-            f"When trusted rows exist, use {fundamentals_input_path}; validation sequence: {fundamentals_validation_sequence}. "
+            f"When trusted rows exist, use {fundamentals_input_path}; schema guide: {fundamentals_schema_guide}. "
+            f"Validation sequence: {fundamentals_validation_sequence}. "
             f"Rejected-row report: {fundamentals_rejected_path}. "
             f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
         )
@@ -8167,6 +8170,7 @@ def fundamentals_dcf_diagnostic_cards(
             "body": (
                 f"Use {sec_stage_command} for SEC fundamentals import draft when a trusted SEC_USER_AGENT is configured, "
                 f"or fill {fundamentals_input_path} with trusted rows. "
+                f"Schema guide: {fundamentals_schema_guide}. "
                 f"Always run {fundamentals_validation_sequence} before claiming readiness improved. "
                 f"Rejected rows appear in {fundamentals_rejected_path}."
             ),
