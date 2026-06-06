@@ -985,7 +985,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Why DCF is blocked:" in markdown
     assert "## DCF Input Triage" in markdown
     assert "DCF input triage: blocked inputs are repair steps, not negative company signals" in markdown
-    assert "Safe sequence: `make focus-fundamentals TICKER=APLD` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`" in markdown
+    assert "Safe sequence: `make focus-fundamentals TICKER=APLD` -> stage SEC or trusted manual fundamentals rows -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`" in markdown
     assert "Relative valuation: withheld until trusted fundamentals and DCF readiness pass" in markdown
     assert "background relative-multiple calculation is not reader-ready yet" in markdown
     assert "## DCF Calculation Path" in markdown

@@ -942,8 +942,8 @@ def _stock_report_dcf_input_triage_lines(
             f"- Missing {label}: {detail['why']} Unlock path: {detail['path'].format(ticker=ticker)}"
         )
     lines.append(
-        "- Safe sequence: `make focus-fundamentals TICKER={ticker}` -> `make imports-validate` -> "
-        "`make imports-preview` -> `make imports-apply` -> `make dcf-readiness`.".format(ticker=ticker)
+        "- Safe sequence: `make focus-fundamentals TICKER={ticker}` -> stage SEC or trusted manual fundamentals rows -> "
+        "`make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`.".format(ticker=ticker)
     )
     return lines
 
