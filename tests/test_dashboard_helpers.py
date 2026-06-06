@@ -14181,6 +14181,7 @@ def test_peer_analysis_boundary_cards_separate_trend_valuation_and_input_path():
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "make readiness and make peer-mapping-queue top_n=25 before reading peer valuation" in rendered
     assert "sector or industry fallback is context, not trusted peer valuation data" in rendered
     assert "make focus-peers ticker=meta" in rendered
     assert "broker" not in rendered

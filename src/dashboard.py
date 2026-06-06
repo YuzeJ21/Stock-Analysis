@@ -7556,7 +7556,8 @@ def peer_analysis_boundary_cards(
             "title": "data/imports/peers.csv",
             "body": (
                 "Add only source-backed peer mappings, then run make imports-validate, make imports-preview, "
-                "and make imports-apply. Sector or industry fallback is context, not trusted peer valuation data."
+                "and make imports-apply. Rebuild with make readiness and make peer-mapping-queue TOP_N=25 before reading peer valuation. "
+                "Sector or industry fallback is context, not trusted peer valuation data."
             ),
             "badges": ["source-backed only", "preview first"],
             "command": "make templates",
