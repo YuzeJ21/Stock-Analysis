@@ -2799,7 +2799,10 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
         {
             "kicker": "OPTIONAL CONTEXT",
             "title": f"Earnings {earnings_rows} / estimates {estimate_rows}",
-            "body": "Optional context can add timing, consensus, and revision context, but it never overrides readiness gates or creates a valuation conclusion by itself.",
+            "body": (
+                "Optional context can add timing, consensus, and revision context, but it never overrides readiness gates or creates a valuation conclusion by itself. "
+                "Locked means missing trusted local CSV input, not broken analysis."
+            ),
             "badges": ["optional", "readiness gated"],
         },
         {
@@ -2807,7 +2810,8 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
             "title": f"Next date: {next_earnings}",
             "body": (
                 "Trusted earnings rows can show dates, EPS, revenue, and surprise fields. "
-                "When rows are missing, the report leaves earnings context locked instead of using placeholders."
+                "When rows are missing, the report leaves earnings context locked instead of using placeholders. "
+                "Use schema-only templates, `data/staged/earnings/` or `data/imports/earnings.csv`, and review rejected rows at `data/rejected/earnings_import_rejected.csv`."
             ),
             "badges": ["trusted local rows" if earnings_ready else "locked"],
             "command": "" if earnings_ready else optional_context_unlock_sequence_command("earnings"),
@@ -2817,7 +2821,8 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
             "title": f"Mean target: {target_mean}",
             "body": (
                 "Trusted estimate rows can show consensus EPS, revenue, target ranges, and revision trend. "
-                "They are shown as optional context, not as the product's own valuation output."
+                "They are shown as optional context, not as the product's own valuation output. "
+                "Use schema-only templates, `data/staged/analyst_estimates/` or `data/imports/analyst_estimates.csv`, and review rejected rows at `data/rejected/analyst_estimates_import_rejected.csv`."
             ),
             "badges": ["trusted local rows" if estimates_ready else "locked"],
             "command": "" if estimates_ready else optional_context_unlock_sequence_command("analyst-estimate"),
@@ -2827,7 +2832,7 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
             "title": "Validate before applying",
             "body": "Use schema-only templates, stage trusted rows, then validate, preview, apply, and rebuild readiness before the report treats optional context as available.",
             "badges": ["schema only first", "copy-only"],
-            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
+            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10",
         },
     ]
 
