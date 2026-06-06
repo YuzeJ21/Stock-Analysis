@@ -227,8 +227,8 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     cards = [card for page in pages for card in dashboard.dashboard_page_reader_cards(page)]
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert len(cards) == 16
-    assert all(card["kicker"] in {"PAGE GUIDE", "LOCKED / EXCLUDED", "COPY NEXT", "READ PATH"} for card in cards)
+    assert len(cards) == 20
+    assert all(card["kicker"] in {"PAGE GUIDE", "LOCKED / EXCLUDED", "COPY NEXT", "READ PATH", "GUIDED PATH"} for card in cards)
     assert "home: what can i analyze now?" in rendered
     assert "single-stock report: what can i analyze now?" in rendered
     assert "value / re-rating: what can i analyze now?" in rendered
@@ -237,6 +237,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert rendered.count("still locked:") == 4
     assert rendered.count("copy next:") == 4
     assert rendered.count("read path:") == 4
+    assert rendered.count("guided path:") == 4
     assert rendered.count("dashboard lane:") == 4
     assert "dashboard lane: home next-step cards" in rendered
     assert "dashboard lane: single-stock review" in rendered
@@ -247,6 +248,11 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "locked sections are boundaries, not hidden conclusions" in rendered
     assert "dcf-ready means assumption review, not a price target" in rendered
     assert "use validation and preview commands before trusting newly imported rows" in rendered
+    assert "start on home for readiness, open value / re-rating for valuation boundaries, use single-stock report for ticker proof, then use data health for unlock steps" in rendered
+    assert "use value / re-rating to classify dcf-ready, locked, or excluded valuation states" in rendered
+    assert "use single-stock report after home or value / re-rating to prove one ticker" in rendered
+    assert "use data health when home, value / re-rating, or single-stock report shows a lock" in rendered
+    assert "where does this fit in the stock workflow?" in rendered
     assert "unsupported dcf, peer valuation, earnings, and estimate sections stay withheld" in rendered
     assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-freshness review" in rendered
     assert "missing inputs are an unlock queue, not weak conclusions" in rendered
