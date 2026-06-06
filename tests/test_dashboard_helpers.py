@@ -14329,14 +14329,16 @@ def test_stock_report_optional_context_boundary_cards_explain_locked_and_availab
     assert "optional context can add timing, consensus, and revision context" in rendered
     assert "never overrides readiness gates or creates a valuation conclusion by itself" in rendered
     assert "leaves earnings context locked instead of using placeholders" in locked_rendered
-    assert locked_cards[1]["command"] == "make import-earnings"
-    assert locked_cards[2]["command"] == "make import-analyst-estimates"
+    assert locked_cards[1]["command"] == "make templates && make import-earnings && make imports-validate && make imports-preview && make imports-apply"
+    assert locked_cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply"
+    assert locked_cards[3]["command"] == "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness"
     assert ready_cards[1]["command"] == ""
     assert ready_cards[2]["command"] == ""
     assert "next date: 2026-07-24" in ready_rendered
     assert "mean target: $390.00" in ready_rendered
     assert "schema-only templates" in rendered
     assert "validate, preview, apply, and rebuild readiness" in rendered
+    assert "make optional-context-readiness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

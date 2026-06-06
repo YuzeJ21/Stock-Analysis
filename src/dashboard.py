@@ -2768,6 +2768,12 @@ def optional_context_empty_state_message(dataset_label: str) -> str:
     )
 
 
+def optional_context_unlock_sequence_command(dataset_label: str) -> str:
+    normalized = str(dataset_label or "").strip().lower().replace("_", "-")
+    import_command = "make import-analyst-estimates" if "analyst" in normalized or "estimate" in normalized else "make import-earnings"
+    return f"make templates && {import_command} && make imports-validate && make imports-preview && make imports-apply"
+
+
 def stock_report_optional_context_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
@@ -2797,7 +2803,7 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
                 "When rows are missing, the report leaves earnings context locked instead of using placeholders."
             ),
             "badges": ["trusted local rows" if earnings_ready else "locked"],
-            "command": "" if earnings_ready else "make import-earnings",
+            "command": "" if earnings_ready else optional_context_unlock_sequence_command("earnings"),
         },
         {
             "kicker": "ANALYST ESTIMATES",
@@ -2807,14 +2813,14 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
                 "They are shown as optional context, not as the product's own valuation output."
             ),
             "badges": ["trusted local rows" if estimates_ready else "locked"],
-            "command": "" if estimates_ready else "make import-analyst-estimates",
+            "command": "" if estimates_ready else optional_context_unlock_sequence_command("analyst-estimate"),
         },
         {
             "kicker": "UNLOCK PATH",
             "title": "Validate before applying",
             "body": "Use schema-only templates, stage trusted rows, then validate, preview, apply, and rebuild readiness before the report treats optional context as available.",
             "badges": ["schema only first", "copy-only"],
-            "command": "make templates && make imports-validate && make imports-preview",
+            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
         },
     ]
 
