@@ -7396,6 +7396,7 @@ def test_stock_report_valuation_boundary_cards_explain_source_product_and_locked
         },
     }
     trend_only_payload = {
+        "ticker": "META",
         "asset_type": "company",
         "valuation_readiness": {"dcf_ready": True, "peer_ready": False, "peer_trend_comparison_ready": True},
         "valuation_snapshot": {
@@ -7404,6 +7405,7 @@ def test_stock_report_valuation_boundary_cards_explain_source_product_and_locked
         },
     }
     etf_payload = {
+        "ticker": "QQQ",
         "asset_type": "etf",
         "valuation_readiness": {"dcf_ready": False, "peer_ready": False},
         "valuation_snapshot": {
@@ -7435,6 +7437,8 @@ def test_stock_report_valuation_boundary_cards_explain_source_product_and_locked
     assert "peer trend available; valuation withheld" in rendered
     assert "mapped peer price history can support peer trend context" in rendered
     assert "peer-relative valuation, premium/discount, and peer dcf comparison stay withheld" in rendered
+    assert next(card for card in trend_only_cards if card["kicker"] == "RELATIVE VALUE")["command"] == "make focus-peers TICKER=META"
+    assert next(card for card in etf_cards if card["kicker"] == "RELATIVE VALUE")["command"] == "make stock-report-md TICKER=QQQ"
     assert "dcf excluded for monitor context" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "missing data never becomes a valuation opinion" in rendered
@@ -14276,6 +14280,7 @@ def test_peer_analysis_boundary_cards_separate_trend_valuation_and_input_path():
         "WHAT PEERS CAN SUPPORT NOW",
         "WHAT IS STILL LOCKED",
         "DCF-READY BUT PEER-BLOCKED",
+        "COPY NEXT",
         "TRUSTED INPUT PATH",
     ]
     assert "2 trend-ready / 1 valuation-ready" in rendered
@@ -14289,6 +14294,9 @@ def test_peer_analysis_boundary_cards_separate_trend_valuation_and_input_path():
     assert "2 company row(s)" in rendered
     assert "1 active-universe row(s) can have standalone dcf reviewed" in rendered
     assert "peer-relative valuation stays withheld" in rendered
+    assert "prove peers before relative valuation" in rendered
+    assert "copy next: `make focus-peers ticker=meta`" in rendered
+    assert "trend is not valuation" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered

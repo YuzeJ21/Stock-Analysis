@@ -4364,6 +4364,7 @@ def stock_report_valuation_boundary_cards(report_payload: dict[str, object]) -> 
     readiness = _stock_report_payload_readiness(report_payload)
     valuation = report_payload.get("valuation_snapshot", {}) or {}
     dcf_result = valuation.get("dcf_result", {}) or {}
+    ticker = format_missing(report_payload.get("ticker"), "NVDA").upper()
     asset_type = format_missing(report_payload.get("asset_type") or readiness.get("asset_type"), "").lower()
     is_monitor = asset_type in {"etf", "index_proxy", "fund"}
     dcf_ready = bool(readiness.get("dcf_ready")) or format_missing(dcf_result.get("status"), "").lower() == "calculated"
@@ -4399,6 +4400,7 @@ def stock_report_valuation_boundary_cards(report_payload: dict[str, object]) -> 
         peer_title = "Peer valuation available"
         peer_body = "Source-backed peer mappings and peer valuation inputs are ready, so the product can show peer-relative context separately from standalone DCF."
         peer_badges = ["trusted peers", "relative context"]
+        peer_command = stock_report_md_command(ticker)
     elif peer_trend_ready and dcf_ready and not is_monitor:
         peer_title = "Peer trend available; valuation withheld"
         peer_body = (
@@ -4406,10 +4408,12 @@ def stock_report_valuation_boundary_cards(report_payload: dict[str, object]) -> 
             "and peer DCF comparison stay withheld until source-backed peer valuation inputs pass readiness."
         )
         peer_badges = ["trend only", "valuation withheld"]
+        peer_command = f"make focus-peers TICKER={ticker}"
     else:
         peer_title = "Peer valuation withheld"
         peer_body = stock_report_peer_relative_empty_message(report_payload)
         peer_badges = ["locked", "trusted peers needed"]
+        peer_command = stock_report_md_command(ticker) if is_monitor else f"make focus-peers TICKER={ticker}"
 
     return [
         {
@@ -4429,6 +4433,7 @@ def stock_report_valuation_boundary_cards(report_payload: dict[str, object]) -> 
             "title": peer_title,
             "body": peer_body,
             "badges": peer_badges,
+            "command": peer_command,
         },
         {
             "kicker": "BOUNDARY",
@@ -7581,6 +7586,7 @@ def peer_analysis_boundary_cards(
             candidates = frame.loc[~peer_ready].copy()
         if not candidates.empty:
             next_ticker = format_missing(candidates.sort_values("ticker", kind="stable").iloc[0].get("ticker"), "Not available")
+    peer_focus_command = f"make focus-peers TICKER={next_ticker}" if next_ticker != "Not available" else "make peer-mapping-queue TOP_N=25"
 
     return [
         {
@@ -7610,7 +7616,18 @@ def peer_analysis_boundary_cards(
                 f"{int(active_dcf_peer_blocked.sum())} active-universe row(s) can have standalone DCF reviewed while peer-relative valuation stays withheld."
             ),
             "badges": ["standalone DCF ok", "peer valuation withheld"],
-            "command": f"make focus-peers TICKER={next_ticker}" if next_ticker != "Not available" else "make peer-mapping-queue TOP_N=25",
+            "command": peer_focus_command,
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "Prove peers before relative valuation",
+            "body": (
+                f"Copy next: `{peer_focus_command}`. "
+                "Peer trend can be reviewed only from mapped peer price history; peer-relative valuation, premium/discount, "
+                "and peer DCF comparison stay locked until source-backed mappings plus peer valuation inputs pass readiness."
+            ),
+            "badges": ["copy-only", "trend is not valuation"],
+            "command": peer_focus_command,
         },
         {
             "kicker": "TRUSTED INPUT PATH",
