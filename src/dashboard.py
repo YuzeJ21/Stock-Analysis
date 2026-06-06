@@ -11117,7 +11117,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
             "Local source": "data/prices.csv",
             "Manual path": "data/imports/prices.csv or data/staged/prices/",
             "Rejected rows": "data/rejected/price_import_rejected.csv",
-            "Next command": stock_report_md_command(ticker) if price_ready else f"make price-refresh TICKERS={ticker}",
+            "Next command": stock_report_md_command(ticker) if price_ready else f"make focus-price TICKER={ticker}",
         },
         {
             "Area": "Fundamentals / DCF",
@@ -11171,7 +11171,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
 def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     audit = single_stock_source_audit_frame(snapshot)
     cards: list[dict[str, object]] = []
-    for area in ["Prices", "Fundamentals / DCF", "Peers", "Earnings"]:
+    for area in ["Prices", "Fundamentals / DCF", "Peers", "Earnings", "Analyst estimates"]:
         row = audit.loc[audit["Area"].eq(area)]
         if row.empty:
             continue

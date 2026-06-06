@@ -14900,6 +14900,7 @@ def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_com
     cards = dashboard.single_stock_source_audit_cards(snapshot)
     rendered = " ".join(audit.astype(str).stack().tolist() + [str(value) for card in cards for value in card.values()]).lower()
 
+    assert [card["kicker"] for card in cards] == ["PRICES", "FUNDAMENTALS / DCF", "PEERS", "EARNINGS", "ANALYST ESTIMATES"]
     assert "data/prices.csv" in rendered
     assert "data/staged/earnings/" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
@@ -14907,8 +14908,42 @@ def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_com
     assert "stooq_api_key=missing" in rendered.replace(" ", "")
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make import-earnings" in rendered
+    assert "make import-analyst-estimates" in rendered
+    assert "missing trusted local csv input" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_single_stock_source_audit_routes_missing_prices_to_focus_price_first(monkeypatch):
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    snapshot = {
+        "ticker": "APLD",
+        "price_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "dcf_status": "blocked",
+        "dcf_reason": "Missing price and fundamentals.",
+        "peer_ready": False,
+        "peer_blocker_type": "missing_peer_mapping",
+        "next_peer_action": "Wait for trusted price and DCF inputs.",
+        "price_rows": 0,
+    }
+
+    audit = dashboard.single_stock_source_audit_frame(snapshot)
+    cards = dashboard.single_stock_source_audit_cards(snapshot)
+    rendered = " ".join(audit.astype(str).stack().tolist() + [str(value) for card in cards for value in card.values()]).lower()
+    price_row = audit.loc[audit["Area"].eq("Prices")].iloc[0]
+
+    assert price_row["Status"] == "blocked"
+    assert price_row["Next command"] == "make focus-price TICKER=APLD"
+    assert "make focus-price ticker=apld" in rendered
+    assert "make price-refresh tickers=apld" not in rendered
+    assert "make import-analyst-estimates" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
