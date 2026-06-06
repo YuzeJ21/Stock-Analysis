@@ -5263,7 +5263,8 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_title = "Unlock fundamentals before valuation"
         first_body = (
             f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
-            "Missing fundamentals are an input gap, not a negative company signal. Inspect the queue first, then stage SEC or trusted manual rows only when sources are ready."
+            "Missing fundamentals are an input gap, not a negative company signal. Inspect the queue first, then stage SEC or trusted manual rows only when sources are ready. "
+            "Safe path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=<ticker> -> make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness."
         )
         first_command = "make sec-stage-queue TOP_N=25"
         first_badges = ["fundamentals next", "no valuation inference"]

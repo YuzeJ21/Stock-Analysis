@@ -8368,6 +8368,8 @@ def test_data_health_quick_read_cards_prioritize_first_unlock_lane_without_execu
     assert "not a negative company signal" in rendered
     assert "inspect the queue first" in rendered
     assert "trusted manual rows only when sources are ready" in rendered
+    assert "safe path: make sec-stage-queue top_n=25 -> make focus-fundamentals ticker=<ticker>" in rendered
+    assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
     assert "240 price / 23 dcf / 3 peer-ready" in rendered
     assert "what you can analyze now" in rendered
     assert "assumption and sensitivity review" in rendered
