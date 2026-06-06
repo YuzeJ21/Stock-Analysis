@@ -5427,11 +5427,22 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
 
 
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     price_ready = int(readiness_summary.get("price_ready") or 0)
     dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
     peer_ready = int(readiness_summary.get("peer_ready") or 0)
     earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
     estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    missing_prices = max(master - price_ready, 0) if master else 0
+    price_scale_note = ""
+    if missing_prices:
+        broad_target = ((min(max(missing_prices, 100), 3500) + 99) // 100) * 100
+        planned_batches = max((broad_target + 99) // 100, 1)
+        avoided_small_batches = max((broad_target + 24) // 25, 1)
+        price_scale_note = (
+            f" Current gap: about {missing_prices:,} ticker(s); the broad dry run plans about "
+            f"{planned_batches} capped 100-ticker batch(es), replacing about {avoided_small_batches} tiny 25-ticker runs."
+        )
     return [
         {
             "kicker": "PRICE UNLOCK",
@@ -5439,7 +5450,7 @@ def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> l
             "body": (
                 "Function status: usable for setup, trend, liquidity, and market-context review when local history is ready. "
                 "For broad coverage, dry-run the capped refresh loop first instead of repeating small worklists by hand. "
-                "Use focused worklists only when diagnosing specific ticker gaps."
+                f"Use focused worklists only when diagnosing specific ticker gaps.{price_scale_note}"
             ),
             "badges": ["setup review", "history first"],
             "command": "make price-refresh-loop DRY_RUN=1",
@@ -18293,6 +18304,8 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
     missing_label = f"{missing:,} ticker(s)" if missing else "missing-price tickers"
     broad_target = min(max(missing, 100), 3500) if missing else 3500
     broad_target = ((broad_target + 99) // 100) * 100
+    planned_batches = max((broad_target + 99) // 100, 1)
+    avoided_small_batches = max((broad_target + 24) // 25, 1)
 
     return [
         {
@@ -18309,7 +18322,8 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
             "title": "Preview the broad refresh first",
             "body": (
                 "Use a dry run with MAX_CANDIDATES so the loop "
-                "calculates capped batches for you before any local CSV files change."
+                f"calculates capped batches for you before any local CSV files change. "
+                f"Current plan: about {planned_batches} 100-ticker batch(es), replacing about {avoided_small_batches} small 25-ticker commands."
             ),
             "badges": ["dry run first", "no manual repeats"],
             "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo",
@@ -18327,7 +18341,9 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
             "kicker": "CAPPED RUN",
             "title": "Run the loop only after reviewing the plan",
             "body": (
-                "Use the same MAX_CANDIDATES and TOP_N from the dry run. The command updates local CSVs only, then you review the generated churn."
+                "Use the same MAX_CANDIDATES and TOP_N from the dry run. "
+                f"The loop handles the {planned_batches} capped batch(es) for you, updates local CSVs only, "
+                "then you review the generated churn."
             ),
             "badges": ["capped batches", "review churn"],
             "command": f"make price-refresh-loop MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",

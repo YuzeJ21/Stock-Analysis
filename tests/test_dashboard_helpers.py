@@ -180,10 +180,13 @@ def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_m
     assert "make status-check top_n=5" in rendered
     assert "dry run with max_candidates" in rendered
     assert "calculates capped batches" in rendered
+    assert "about 33 100-ticker batch(es)" in rendered
+    assert "replacing about 132 small 25-ticker commands" in rendered
     assert "before any local csv files change" in rendered
     assert "make price-refresh-loop dry_run=1 max_candidates=3300 top_n=100 provider=yahoo" in rendered
     assert "make readiness-snapshot" in rendered
     assert "make price-refresh-loop max_candidates=3300 top_n=100 provider=yahoo sleep_seconds=30" in rendered
+    assert "the loop handles the 33 capped batch(es) for you" in rendered
     assert "rebuild price coverage, readiness, and project status" in rendered
     assert "make price-coverage top_n=25" in rendered
     assert "make project-status" in rendered
@@ -8487,7 +8490,8 @@ def test_data_health_quick_read_cards_start_with_price_when_no_price_ready_rows(
 def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis():
     cards = dashboard.data_health_analysis_unlock_cards(
         {
-            "price_ready": 586,
+            "master_universe": 3538,
+            "price_ready": 240,
             "dcf_ready": 23,
             "peer_ready": 3,
             "earnings_ready": 0,
@@ -8497,11 +8501,14 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["PRICE UNLOCK", "DCF UNLOCK", "PEER UNLOCK", "OPTIONAL CONTEXT"]
-    assert "586 price-ready" in rendered
+    assert "240 price-ready" in rendered
     assert "function status: usable" in rendered
     assert "setup, trend, liquidity, and market-context review" in rendered
     assert "dry-run the capped refresh loop first" in rendered
     assert "instead of repeating small worklists by hand" in rendered
+    assert "current gap: about 3,298 ticker(s)" in rendered
+    assert "plans about 33 capped 100-ticker batch(es)" in rendered
+    assert "replacing about 132 tiny 25-ticker runs" in rendered
     assert "23 dcf-ready" in rendered
     assert "function status: good for dcf-ready companies only" in rendered
     assert "company-level assumptions and sensitivity review" in rendered
