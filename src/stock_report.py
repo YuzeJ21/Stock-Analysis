@@ -1732,6 +1732,59 @@ def _stock_report_peer_unlock_lines(
     ]
 
 
+def _stock_report_peer_evidence_ladder_lines(
+    *,
+    ticker: str,
+    peer: dict[str, Any],
+    dcf_status_text: str,
+    monitor_context: bool,
+    peer_ready: Any,
+) -> list[str]:
+    trend_ready = _is_ready_flag(peer.get("peer_trend_comparison_ready"))
+    valuation_ready = any(
+        _is_ready_flag(value)
+        for value in (peer.get("peer_valuation_comparison_ready"), peer.get("peer_dcf_comparison_ready"), peer_ready)
+    )
+    peer_count = _display_value(peer.get("peer_count"), "0")
+    mapping_status = _display_report_status(peer.get("mapping_status"), "not ready")
+    blocker = _display_report_status(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "not ready")
+    if monitor_context:
+        return [
+            "- Peer ladder: monitor context; operating-company peer valuation is excluded rather than repaired.",
+            "- Mapping evidence: optional context only for ETF/index/fund monitor rows; do not add guessed peers to force company valuation.",
+            "- Trend evidence: use the ticker's own ready market, theme, liquidity, or risk inputs instead.",
+            "- Valuation evidence: excluded; no peer-relative premium/discount or peer DCF comparison is shown.",
+        ]
+    if dcf_status_text.lower() != "ready":
+        return [
+            "- Peer ladder: paused behind core company readiness.",
+            f"- Mapping evidence: mapping status={mapping_status}; peer count={peer_count}. Do not use peer rows to bypass missing price, fundamentals, or DCF inputs.",
+            "- Trend evidence: withheld until core company readiness passes and mapped peer price history is useful.",
+            "- Valuation evidence: withheld until standalone DCF plus source-backed peer mappings and peer valuation inputs pass readiness.",
+            f"- Next safe command: `make focus-peers TICKER={ticker}` only after the core DCF blockers are resolved.",
+        ]
+    if valuation_ready:
+        return [
+            "- Peer ladder: ready for source-backed peer context.",
+            f"- Mapping evidence: mapping status={mapping_status}; peer count={peer_count}.",
+            f"- Trend evidence: {_display_report_status(trend_ready)} from mapped peer price history.",
+            "- Valuation evidence: available only from trusted peer mappings and peer valuation inputs; review freshness before interpretation.",
+            f"- Next safe command: `make focus-peers TICKER={ticker}` to inspect mapped peer evidence before reading relative context.",
+        ]
+    trend_line = (
+        "possible from mapped peer price history"
+        if trend_ready
+        else "not ready until mapped peer price history is sufficient"
+    )
+    return [
+        "- Peer ladder: standalone DCF can be reviewed before peer valuation is ready.",
+        f"- Mapping evidence: mapping status={mapping_status}; peer count={peer_count}; blocker={blocker}.",
+        f"- Trend evidence: {trend_line}.",
+        "- Valuation evidence: locked; do not show peer-relative premium/discount, peer valuation comparison, or peer DCF comparison.",
+        "- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`.",
+    ]
+
+
 def _stock_report_unlock_command_lines(
     *,
     ticker: str,
@@ -1995,6 +2048,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         peer_ready=peer_ready,
         next_peer_action=peer_next_action_display,
     )
+    peer_evidence_ladder_lines = _stock_report_peer_evidence_ladder_lines(
+        ticker=report.ticker,
+        peer=peer,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer_ready,
+    )
     ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
     blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
     excluded_features = _display_report_list(readiness.get("excluded_features"), "none")
@@ -2216,6 +2276,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Peer Workflow",
         *peer_unlock_lines,
+        *peer_evidence_ladder_lines,
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
         f"- Peer count: {_display_value(peer.get('peer_count'))}",
@@ -2349,6 +2410,13 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         monitor_context=monitor_context,
         peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
         next_peer_action=peer_next_action_display,
+    )
+    peer_evidence_ladder_lines = _stock_report_peer_evidence_ladder_lines(
+        ticker=symbol,
+        peer=peer,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
     )
     ready_features = _display_report_list(readiness.get("ready_features"), "none yet")
     blocked_features = _display_report_list(readiness.get("blocked_features"), "none")
@@ -2566,6 +2634,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## Peer Workflow",
         *peer_unlock_lines,
+        *peer_evidence_ladder_lines,
         f"- Peer blocker type: {peer_blocker_display}",
         f"- Mapping status: {mapping_status_display}",
         f"- Peer count: {_display_value(peer.get('peer_count'))}",

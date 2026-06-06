@@ -21,6 +21,7 @@ from src.stock_report import (
     _display_setup_text,
     _format_inline_make_commands,
     _stock_report_dcf_input_triage_lines,
+    _stock_report_peer_evidence_ladder_lines,
     _stock_report_reader_guide_lines,
     _stock_report_reader_question_lines,
     _stock_report_valuation_lines,
@@ -103,6 +104,40 @@ def test_stock_report_dcf_input_triage_marks_monitor_context_as_excluded():
     assert lines == [
         "- DCF input triage: not required for ETF/index/fund monitor context; operating-company valuation is excluded rather than repaired.",
     ]
+
+
+def test_stock_report_peer_evidence_ladder_splits_trend_and_valuation():
+    lines = _stock_report_peer_evidence_ladder_lines(
+        ticker="COHR",
+        peer={
+            "peer_count": 2,
+            "mapping_status": "mapped",
+            "peer_blocker_type": "peer_valuation_blocked",
+            "peer_trend_comparison_ready": True,
+            "peer_valuation_comparison_ready": False,
+            "peer_dcf_comparison_ready": False,
+        },
+        dcf_status_text="ready",
+        monitor_context=False,
+        peer_ready=False,
+    )
+    rendered = " ".join(lines).lower()
+
+    assert "standalone dcf can be reviewed before peer valuation is ready" in rendered
+    assert "mapping status=mapped; peer count=2; blocker=peer valuation blocked" in rendered
+    assert "trend evidence: possible from mapped peer price history" in rendered
+    assert "valuation evidence: locked" in rendered
+    assert "do not show peer-relative premium/discount, peer valuation comparison, or peer dcf comparison" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_stock_report_reader_questions_route_optional_locked_core_ready_names():
@@ -702,6 +737,9 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "What this means: peer-relative company valuation is excluded for ETF/index/fund monitor context" in markdown
     assert "What is still locked: operating-company peer valuation is not a repair item for this monitor role" in markdown
     assert "Trusted input path: no peer import is required for monitor context; do not add guessed peers to force valuation" in markdown
+    assert "Peer ladder: monitor context; operating-company peer valuation is excluded rather than repaired" in markdown
+    assert "Mapping evidence: optional context only for ETF/index/fund monitor rows; do not add guessed peers to force company valuation" in markdown
+    assert "Valuation evidence: excluded; no peer-relative premium/discount or peer DCF comparison is shown" in markdown
     assert "Primary blocker: monitor context" in markdown
     assert "Peer blocker type: monitor context" in markdown
     assert "Missing price reason: none" in markdown
@@ -791,6 +829,11 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     assert "Mapped peer count=2" in markdown
     assert "What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison" in markdown
     assert "Trusted input path: add source-backed rows in `data/imports/peers.csv`" in markdown
+    assert "Peer ladder: standalone DCF can be reviewed before peer valuation is ready" in markdown
+    assert "Mapping evidence: mapping status=mapped; peer count=2; blocker=peer valuation blocked" in markdown
+    assert "Trend evidence: possible from mapped peer price history" in markdown
+    assert "Valuation evidence: locked; do not show peer-relative premium/discount, peer valuation comparison, or peer DCF comparison" in markdown
+    assert "Trusted peer path: add source-backed rows in `data/imports/peers.csv`" in markdown
     assert "make imports-validate" in markdown
     assert "Fallback boundary: sector or industry context is fallback only; it is not trusted manual peer data" in markdown
     assert optional_action not in markdown
@@ -954,6 +997,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "What this means: peer valuation waits behind price, fundamentals, and standalone DCF readiness" in markdown
     assert "What can be reviewed now: only the ready local inputs listed above; peer rows should not create valuation context yet" in markdown
     assert "Trusted input path: resolve fundamentals / DCF first, then use `make focus-peers TICKER=APLD` if peer context is still needed" in markdown
+    assert "Peer ladder: paused behind core company readiness" in markdown
+    assert "Do not use peer rows to bypass missing price, fundamentals, or DCF inputs" in markdown
+    assert "Valuation evidence: withheld until standalone DCF plus source-backed peer mappings and peer valuation inputs pass readiness" in markdown
     assert "blocked until fundamentals / DCF" in markdown
     assert "Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown
     assert "Add source-backed peer mappings after price data exists" not in markdown
