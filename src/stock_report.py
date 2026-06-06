@@ -1557,7 +1557,12 @@ def _stock_report_data_unlock_lines(
             f"After `make focus-price TICKER={ticker}` is resolved, run `make focus-fundamentals TICKER={ticker}` for the next DCF fields."
         )
     else:
-        dcf_line = f"Fundamentals / DCF are blocked: {dcf_reason}. Run `make focus-fundamentals TICKER={ticker}` before looking for valuation context."
+        dcf_line = (
+            f"Fundamentals / DCF are blocked: {dcf_reason}. Inspect `make focus-fundamentals TICKER={ticker}`, "
+            f"then use `make sec-stage TICKERS={ticker}` when SEC_USER_AGENT is configured or prepare trusted "
+            "manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, "
+            "and `make dcf-readiness`."
+        )
 
     if monitor_context:
         peer_line = "Peer valuation is excluded for monitor context; peer rows are optional context, not a required unlock."

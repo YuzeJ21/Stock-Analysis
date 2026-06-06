@@ -454,6 +454,10 @@ def test_build_stock_report_surfaces_missing_data_risks(tmp_path: Path):
     assert report.valuation_snapshot["status"] == "insufficient_data"
     assert "Current use: Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready." in markdown
     assert "Analysis mode: Price/setup review only" in markdown
+    assert "Fundamentals / DCF are blocked:" in markdown
+    assert "Inspect `make focus-fundamentals TICKER=TSLA`" in markdown
+    assert "`make sec-stage TICKERS=TSLA`" in markdown
+    assert "trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`" in markdown
 
 
 def test_stock_report_json_export_is_serializable_and_contains_freshness_metadata(tmp_path: Path):
