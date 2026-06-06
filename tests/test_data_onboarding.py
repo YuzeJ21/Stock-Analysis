@@ -800,6 +800,31 @@ def test_data_onboarding_cli_optional_context_worklist_json(tmp_path: Path, caps
     assert "missing_optional_context" in payload["optional_context_worklist"][0]
 
 
+def test_data_onboarding_cli_optional_context_worklist_text_surfaces_unlock_summary(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--optional-context-worklist"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "optional context worklist:" in output
+    assert "summary:" in output
+    assert "missing earnings" in output
+    assert "missing analyst estimates" in output
+    assert "missing both optional context lanes" in output
+    assert "optional context adds timing, consensus, and revision context only" in output
+    assert "missing rows should stay locked rather than inferred from price, dcf, peer, or sector data" in output
+    assert "make templates -> make import-earnings or make import-analyst-estimates" in output
+    assert "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness" in output
+    assert "data/staged/earnings/" in output
+    assert "data/staged/analyst_estimates/" in output
+    assert "data/earnings_import_rejected.csv" in output
+    assert "data/analyst_estimates_import_rejected.csv" in output
+
+
 def test_data_onboarding_cli_sec_stage_queue_json(tmp_path: Path, capsys):
     _write_fixture(tmp_path)
     previous_argv = sys.argv[:]

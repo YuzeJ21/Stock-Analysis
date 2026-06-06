@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import pandas as pd
 
@@ -10,6 +11,7 @@ from src.optional_context_readiness import (
     build_analyst_estimates_readiness_frame,
     build_earnings_readiness_frame,
     build_optional_context_readiness_reports,
+    main,
 )
 
 
@@ -121,6 +123,33 @@ def test_optional_context_readiness_reports_write_data_files(tmp_path: Path):
     assert (tmp_path / "data" / "analyst_estimates_readiness.csv").exists()
     assert len(reports["earnings_readiness"]) == 2
     assert reports["earnings_readiness"]["reason_not_ready"].eq(NOT_AVAILABLE_REASON).all()
+
+
+def test_optional_context_readiness_cli_prints_unlock_paths(tmp_path: Path, capsys):
+    _write_universe(tmp_path)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path)]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert "optional context readiness:" in output
+    assert "earnings_readiness: 0/2 ready" in output
+    assert "analyst_estimates_readiness: 0/2 ready" in output
+    assert "zero ready rows means the lane is intentionally locked until trusted local csv rows exist" in output
+    assert "what stays withheld: earnings timing, surprise context, consensus estimates, revision context, and price-target context" in output
+    assert "data/staged/earnings/" in output
+    assert "data/staged/analyst_estimates/" in output
+    assert "data/imports/earnings.csv" in output
+    assert "data/imports/analyst_estimates.csv" in output
+    assert "make import-earnings or make import-analyst-estimates" in output
+    assert "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness" in output
+    assert "data/earnings_import_rejected.csv" in output
+    assert "data/analyst_estimates_import_rejected.csv" in output
+    assert "do not infer earnings or estimate context from price, dcf, peer, or sector data" in output
 
 
 def test_dashboard_optional_context_empty_state_is_safe():

@@ -231,6 +231,25 @@ def main() -> None:
         print(f"- {name}: {summary['ready_count']}/{summary['row_count']} ready")
     print(f"- earnings_readiness: {data_path / 'earnings_readiness.csv'}")
     print(f"- analyst_estimates_readiness: {data_path / 'analyst_estimates_readiness.csv'}")
+    print(
+        "Interpretation: earnings and analyst estimates are optional context. "
+        "Zero ready rows means the lane is intentionally locked until trusted local CSV rows exist."
+    )
+    print("What stays withheld: earnings timing, surprise context, consensus estimates, revision context, and price-target context.")
+    print("Trusted staging folders:")
+    print("- earnings: data/staged/earnings/")
+    print("- analyst estimates: data/staged/analyst_estimates/")
+    print("Canonical import CSVs:")
+    print("- data/imports/earnings.csv")
+    print("- data/imports/analyst_estimates.csv")
+    print("Copy-only unlock sequence:")
+    print("- make templates")
+    print("- make import-earnings or make import-analyst-estimates")
+    print("- make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness")
+    print("Rejected-row reports:")
+    print("- data/earnings_import_rejected.csv")
+    print("- data/analyst_estimates_import_rejected.csv")
+    print("Boundary: do not infer earnings or estimate context from price, DCF, peer, or sector data.")
 
 
 if __name__ == "__main__":

@@ -2894,14 +2894,37 @@ def _print_fundamentals_peer_worklist(payload: dict[str, Any], *, top_n: int | N
 
 
 def _print_optional_context_worklist(payload: dict[str, Any], *, top_n: int | None = None) -> None:
+    rows = payload["optional_context_worklist"]
+    missing_earnings = sum(1 for row in rows if not bool(row.get("has_earnings")))
+    missing_estimates = sum(1 for row in rows if not bool(row.get("has_analyst_estimates")))
+    both_missing = sum(
+        1 for row in rows if not bool(row.get("has_earnings")) and not bool(row.get("has_analyst_estimates"))
+    )
     print("Optional context worklist:")
-    for row in _limited_rows(payload["optional_context_worklist"], top_n=top_n, default=30):
+    print(
+        "Summary: "
+        f"{len(rows)} total row(s); {missing_earnings} missing earnings, "
+        f"{missing_estimates} missing analyst estimates, {both_missing} missing both optional context lanes."
+    )
+    print(
+        "Boundary: optional context adds timing, consensus, and revision context only; "
+        "missing rows should stay locked rather than inferred from price, DCF, peer, or sector data."
+    )
+    print(
+        "Copy path: make templates -> make import-earnings or make import-analyst-estimates -> "
+        "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness."
+    )
+    print(
+        "Staged folders: data/staged/earnings/ and data/staged/analyst_estimates/. "
+        "Rejected rows: data/earnings_import_rejected.csv and data/analyst_estimates_import_rejected.csv."
+    )
+    for row in _limited_rows(rows, top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: earnings={row['has_earnings']} "
             f"estimates={row['has_analyst_estimates']} missing={row['missing_optional_context'] or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
-    print(f"Optional context worklist rows: {len(payload['optional_context_worklist'])}")
+    print(f"Optional context worklist rows: {len(rows)}")
 
 
 def _print_sec_stage_queue(payload: dict[str, Any], *, top_n: int | None = None) -> None:
