@@ -14302,6 +14302,7 @@ def test_peer_analysis_boundary_cards_separate_trend_valuation_and_input_path():
         "WHAT IS STILL LOCKED",
         "DCF-READY BUT PEER-BLOCKED",
         "COPY NEXT",
+        "PEER PROOF LADDER",
         "TRUSTED INPUT PATH",
     ]
     assert "2 trend-ready / 1 valuation-ready" in rendered
@@ -14318,6 +14319,12 @@ def test_peer_analysis_boundary_cards_separate_trend_valuation_and_input_path():
     assert "prove peers before relative valuation" in rendered
     assert "copy next: `make focus-peers ticker=meta`" in rendered
     assert "trend is not valuation" in rendered
+    assert "mapping -> trend -> valuation proof" in rendered
+    assert "source-backed peer mappings in data/imports/peers.csv" in rendered
+    assert "mapped peer price history for trend context" in rendered
+    assert "peer fundamentals and valuation inputs for peer valuation" in rendered
+    assert "trend-ready does not mean valuation-ready" in rendered
+    assert "`make focus-peers ticker=meta` -> `make templates` -> `make imports-validate`" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered

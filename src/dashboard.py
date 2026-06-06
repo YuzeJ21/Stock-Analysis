@@ -7685,6 +7685,19 @@ def peer_analysis_boundary_cards(
             "command": peer_focus_command,
         },
         {
+            "kicker": "PEER PROOF LADDER",
+            "title": "Mapping -> trend -> valuation proof",
+            "body": (
+                "Use this sequence before reading peer-relative output: source-backed peer mappings in data/imports/peers.csv, "
+                "then mapped peer price history for trend context, then peer fundamentals and valuation inputs for peer valuation. "
+                "Trend-ready does not mean valuation-ready. Copy sequence: "
+                f"`{peer_focus_command}` -> `make templates` -> `make imports-validate` -> `make imports-preview` -> "
+                "`make imports-apply` -> `make readiness` -> `make peer-mapping-queue TOP_N=25`."
+            ),
+            "badges": ["method proof", "trend before valuation"],
+            "command": peer_focus_command,
+        },
+        {
             "kicker": "TRUSTED INPUT PATH",
             "title": "data/imports/peers.csv",
             "body": (
