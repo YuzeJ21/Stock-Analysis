@@ -12492,7 +12492,10 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         locked = "Prices, momentum, DCF, peer context, earnings, and analyst estimates."
         next_input = "Trusted local price history."
         command = f"make focus-price TICKER={ticker}"
-        proof_command = "After trusted price rows pass preview/apply, run make price-coverage TOP_N=25 and make readiness."
+        proof_command = (
+            "After trusted price rows pass make price-validate, make price-preview, and make price-apply, "
+            "run make price-coverage TOP_N=25 and make readiness."
+        )
     elif monitor_context:
         can_analyze = "Market, theme, liquidity, or risk monitor context when local price rows are ready."
         locked = "Operating-company DCF and peer valuation are excluded for ETF/index/fund monitor context."
@@ -12504,7 +12507,10 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         locked = f"DCF is blocked by missing trusted inputs: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=140)}"
         next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
         command = f"make focus-fundamentals TICKER={ticker}"
-        proof_command = "After fundamentals pass validate/preview/apply, run make dcf-readiness and make readiness."
+        proof_command = (
+            "After fundamentals pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make dcf-readiness and make readiness."
+        )
     elif dcf_status == "ready" and not peer_ready:
         if peer_trend_ready:
             can_analyze = (
@@ -12517,13 +12523,19 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
             locked = "Peer-relative valuation remains locked until source-backed peer mappings and peer valuation inputs pass readiness."
         next_input = "Trusted peer mappings in data/imports/peers.csv plus peer inputs when needed."
         command = f"make focus-peers TICKER={ticker}"
-        proof_command = "After peer rows pass validate/preview/apply, run make readiness and make peer-mapping-queue TOP_N=25."
+        proof_command = (
+            "After peer rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make readiness and make peer-mapping-queue TOP_N=25."
+        )
     elif not earnings_ready or not estimates_ready:
         can_analyze = "Price, fundamentals, standalone DCF, and peer context can be reviewed from trusted local inputs."
         locked = "Earnings and analyst-estimate context stays unavailable until trusted optional CSV rows exist."
         next_input = "Trusted local earnings or analyst estimate rows, only if you have a source you trust."
         command = "make optional-context-worklist TOP_N=25"
-        proof_command = "After optional rows pass validate/preview/apply, run make optional-context-readiness and make readiness."
+        proof_command = (
+            "After optional rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make optional-context-readiness and make readiness."
+        )
     else:
         can_analyze = "Supported single-stock review is available from current trusted local inputs."
         locked = "No core analysis lock detected; continue to source/freshness and assumption review."
@@ -12628,7 +12640,10 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         analyze_now = "The app can identify the ticker, but it withholds setup, trend, valuation, and peer context until price rows exist."
         still_locked = "Prices, momentum, DCF, peers, earnings, and analyst estimates."
         command = f"make focus-price TICKER={ticker}"
-        proof_command = "After trusted price rows pass preview/apply, run make price-coverage TOP_N=25 and make readiness."
+        proof_command = (
+            "After trusted price rows pass make price-validate, make price-preview, and make price-apply, "
+            "run make price-coverage TOP_N=25 and make readiness."
+        )
         badges = ["price first", "no inference"]
     elif monitor_context:
         first_read = "Use this as monitor context."
@@ -12642,7 +12657,10 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         analyze_now = "Price and setup context can be reviewed from trusted local rows."
         still_locked = f"DCF is blocked by missing trusted fundamentals: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=130)}"
         command = f"make focus-fundamentals TICKER={ticker}"
-        proof_command = "After fundamentals pass validate/preview/apply, run make dcf-readiness and make readiness."
+        proof_command = (
+            "After fundamentals pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make dcf-readiness and make readiness."
+        )
         badges = ["fundamentals needed", "no valuation conclusion"]
     elif dcf_status == "ready" and not peer_ready:
         first_read = "Standalone DCF is reviewable; peers are still locked."
@@ -12656,14 +12674,20 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
             analyze_now = "DCF assumptions, sensitivity, source freshness, and company setup can be reviewed from trusted local inputs."
             still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
         command = f"make focus-peers TICKER={ticker}"
-        proof_command = "After peer rows pass validate/preview/apply, run make readiness and make peer-mapping-queue TOP_N=25."
+        proof_command = (
+            "After peer rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make readiness and make peer-mapping-queue TOP_N=25."
+        )
         badges = ["DCF ready", "peer gated"]
     elif not earnings_ready or not estimates_ready:
         first_read = "Core analysis is reviewable; optional context is locked."
         analyze_now = "Prices, fundamentals, standalone DCF, and peer context are available from trusted local inputs."
         still_locked = "Earnings and analyst-estimate sections remain unavailable until trusted optional CSV rows pass validation."
         command = "make optional-context-worklist TOP_N=25"
-        proof_command = "After optional rows pass validate/preview/apply, run make optional-context-readiness and make readiness."
+        proof_command = (
+            "After optional rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make optional-context-readiness and make readiness."
+        )
         badges = ["core ready", "optional locked"]
     else:
         first_read = "Supported single-stock review is available."

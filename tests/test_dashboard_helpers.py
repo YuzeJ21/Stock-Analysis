@@ -15609,14 +15609,14 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     assert "trusted input needed:" in rendered
     assert "trusted peer mappings in data/imports/peers.csv plus peer inputs when needed" in rendered
     assert "proof command:" in rendered
-    assert "after peer rows pass validate/preview/apply, run make readiness and make peer-mapping-queue top_n=25" in rendered
+    assert "after peer rows pass make imports-validate, make imports-preview, and make imports-apply, run make readiness and make peer-mapping-queue top_n=25" in rendered
     assert "use only current local/provider rows that already passed readiness" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make stock-report-md ticker=a" in rendered
     assert "how to prove the next unlocked state" in rendered
     assert "read this single-stock page in sequence" in rendered
-    assert "proof command: after peer rows pass validate/preview/apply, run make readiness and make peer-mapping-queue top_n=25" in rendered
+    assert "proof command: after peer rows pass make imports-validate, make imports-preview, and make imports-apply, run make readiness and make peer-mapping-queue top_n=25" in rendered
     assert "copy next: `make focus-peers ticker=a`" in rendered
     assert "do not treat the lane as unlocked until the proof command passes and the report is reopened" in rendered
     assert "broker" not in rendered
@@ -15666,7 +15666,7 @@ def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
     assert "make stock-report-md ticker=qqq" in etf_rendered
     assert "trusted price rows exist" in blocked_rendered
     assert "trusted input needed: trusted local price history" in blocked_rendered
-    assert "after trusted price rows pass preview/apply, run make price-coverage top_n=25 and make readiness" in blocked_rendered
+    assert "after trusted price rows pass make price-validate, make price-preview, and make price-apply, run make price-coverage top_n=25 and make readiness" in blocked_rendered
     assert "prices, momentum, dcf, peer context" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
     assert "how to prove the next unlocked state" in etf_rendered
@@ -15753,7 +15753,7 @@ def test_single_stock_quick_read_cards_cover_monitor_blocked_and_optional_states
     assert "start with trusted price history" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
     assert "core analysis is reviewable; optional context is locked" in optional_rendered
-    assert "after optional rows pass validate/preview/apply, run make optional-context-readiness and make readiness" in optional_rendered
+    assert "after optional rows pass make imports-validate, make imports-preview, and make imports-apply, run make optional-context-readiness and make readiness" in optional_rendered
     assert "make optional-context-worklist top_n=25" in optional_rendered
     rendered = etf_rendered + blocked_rendered + optional_rendered
     assert "broker" not in rendered
