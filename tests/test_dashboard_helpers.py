@@ -13184,6 +13184,7 @@ def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     assert "dcf-ready but peer-blocked: 0" in rendered
     assert "meta" in rendered
     assert "data/imports/peers.csv" in rendered
+    assert "schema fields: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
     assert "make imports-preview" in rendered
     assert "dcf ready peer mapping" in rendered
     assert "peer trend can use mapped peer price history" in rendered
@@ -14883,6 +14884,7 @@ def test_first_optional_context_unlock_frame_keeps_optional_rows_locked_until_tr
     assert "data/staged/analyst_estimates/" in rendered
     assert "data/imports/analyst_estimates.csv" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "schema fields: ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at" in rendered
     assert "templates are blank aids, not synthetic data or coverage" in rendered
     assert "leave unknown fields blank instead of guessing" in rendered
     assert "optional readiness should improve only after rows pass validation" in rendered
@@ -14899,6 +14901,7 @@ def test_first_optional_context_unlock_cards_are_recommendation_free():
     assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
     assert "data/staged/earnings/" in rendered
     assert "data/imports/earnings.csv" in rendered
+    assert "schema fields: ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at" in rendered
     assert "rejected-row report: rejected rows: data/rejected/earnings_import_rejected.csv" in rendered
     assert "rebuild proof: make optional-context-readiness && make onboarding top_n=10" in rendered
     assert "trusted source only" in rendered

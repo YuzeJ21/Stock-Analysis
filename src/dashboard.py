@@ -2987,12 +2987,14 @@ def first_optional_context_unlock_frame(dataset: str = "earnings") -> pd.DataFra
         import_command = "make import-earnings"
         rejected_path = "data/rejected/earnings_import_rejected.csv"
         label = "earnings"
+        schema = "ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at"
     else:
         staged_path = "data/staged/analyst_estimates/"
         import_file = "data/imports/analyst_estimates.csv"
         import_command = "make import-analyst-estimates"
         rejected_path = "data/rejected/analyst_estimates_import_rejected.csv"
         label = "analyst estimates"
+        schema = "ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at"
     return pd.DataFrame(
         [
             {
@@ -3009,7 +3011,7 @@ def first_optional_context_unlock_frame(dataset: str = "earnings") -> pd.DataFra
             },
             {
                 "Step": f"3. Stage trusted {label} rows",
-                "Why It Matters": "Only import verified rows with source and updated_at metadata; leave unknown fields blank instead of guessing.",
+                "Why It Matters": f"Only import verified rows with source and updated_at metadata; schema fields: {schema}. Leave unknown fields blank instead of guessing.",
                 "Copy Command": import_command,
                 "Trusted Input": f"{staged_path} or {import_file}",
             },
@@ -7742,6 +7744,7 @@ def peer_unlock_operator_cards(
     top_summary = compact_reason(top_row.get("next_action_summary") or top_row.get("next_peer_action"), max_sentences=1, max_chars=180)
     input_file = format_missing(top_row.get("next_input_file"), "data/imports/peers.csv")
     validation = format_missing(top_row.get("validation_sequence"), "make templates -> make imports-validate -> make imports-preview -> make imports-apply")
+    peer_schema = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
     priority_text = ", ".join(f"P{int(key)}: {int(value)}" for key, value in priority_counts.head(4).items())
     workflow_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in workflow_counts.head(3).items())
     scope_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in scope_counts.head(3).items())
@@ -7759,7 +7762,7 @@ def peer_unlock_operator_cards(
         {
             "kicker": "NEXT PEER ROW",
             "title": top_ticker,
-            "body": f"{top_summary} Input file: {input_file}. Validate with: {validation}.",
+            "body": f"{top_summary} Input file: {input_file}. Schema fields: {peer_schema}. Validate with: {validation}.",
             "badges": ["source-backed", "preview before apply"],
             "command": str(top_row.get("focus_command") or f"make focus-peers TICKER={top_ticker}"),
         },
