@@ -2762,6 +2762,7 @@ def optional_context_empty_state_message(dataset_label: str) -> str:
         label = "earnings"
     return (
         "Not available: missing trusted local CSV input. "
+        f"Run `make templates` for schema-only files; templates are not data. "
         f"Add verified {label} rows through `{staged_path}` or `{import_file}`, run `{import_command}`, then run "
         "`make imports-validate`, `make imports-preview`, `make imports-apply`, and `make onboarding TOP_N=10`. "
         f"Rejected rows stay visible at `{rejected_path}`."
@@ -2771,7 +2772,10 @@ def optional_context_empty_state_message(dataset_label: str) -> str:
 def optional_context_unlock_sequence_command(dataset_label: str) -> str:
     normalized = str(dataset_label or "").strip().lower().replace("_", "-")
     import_command = "make import-analyst-estimates" if "analyst" in normalized or "estimate" in normalized else "make import-earnings"
-    return f"make templates && {import_command} && make imports-validate && make imports-preview && make imports-apply"
+    return (
+        f"make templates && {import_command} && make imports-validate && make imports-preview && "
+        "make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
+    )
 
 
 def import_workflow_caption(staged_path: str, import_command: str) -> str:

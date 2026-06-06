@@ -14438,6 +14438,7 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "make imports-validate" in empty_message
     assert "make imports-preview" in empty_message
     assert "make imports-apply" in empty_message
+    assert "Run `make templates` for schema-only files; templates are not data." in empty_message
     assert "make onboarding TOP_N=10" in empty_message
     assert "data/staged/earnings/" in empty_message
     assert "data/imports/earnings.csv" in empty_message
@@ -14508,8 +14509,8 @@ def test_stock_report_optional_context_boundary_cards_explain_locked_and_availab
     assert "data/staged/analyst_estimates/" in locked_rendered
     assert "data/imports/analyst_estimates.csv" in locked_rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in locked_rendered
-    assert locked_cards[1]["command"] == "make templates && make import-earnings && make imports-validate && make imports-preview && make imports-apply"
-    assert locked_cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply"
+    assert locked_cards[1]["command"] == "make templates && make import-earnings && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
+    assert locked_cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
     assert locked_cards[3]["command"] == "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
     assert ready_cards[1]["command"] == ""
     assert ready_cards[2]["command"] == ""
