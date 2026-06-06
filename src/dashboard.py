@@ -8856,31 +8856,39 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
     sec_command = f"make sec-stage TICKERS={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
     focus_command = f"make focus-fundamentals TICKER={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
     preferred_path = "data/staged/fundamentals/ SEC drafts" if sec_configured else "data/imports/fundamentals.csv manual rows"
+    required_fields = "minimum DCF fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source"
+    rejected_rows = "rejected rows: data/rejected/fundamentals_import_rejected.csv"
     first_command = focus_command if has_ticker else "make sec-stage-queue TOP_N=25"
     rows = [
         {
             "Step": "1. Pick the next company",
-            "Why It Matters": "Start with one price-ready company so missing fundamentals and DCF fields stay reviewable.",
+            "Why It Matters": (
+                "Start with one price-ready company so missing fundamentals and DCF fields stay reviewable. "
+                f"Required input checklist: {required_fields}."
+            ),
             "Copy Command": first_command,
             "Trusted Input": "Current readiness and DCF reports",
         },
         {
             "Step": "2. Choose the trusted input path",
             "Why It Matters": (
-                "SEC_USER_AGENT is configured, so SEC import draft workflow can prepare rows for review."
+                f"SEC_USER_AGENT is configured, so SEC import draft workflow can prepare rows for review. Check {rejected_rows} after validation."
                 if sec_configured
-                else "SEC_USER_AGENT is missing, so use trusted manual CSV rows instead of remote staging."
+                else f"SEC_USER_AGENT is missing, so use trusted manual CSV rows instead of remote staging. Check {rejected_rows} after validation."
             ),
             "Copy Command": sec_command if sec_configured else "make templates",
             "Trusted Input": (
-                "SEC company facts draft rows in data/staged/fundamentals/; canonical reviewed import file is data/imports/fundamentals.csv"
+                f"SEC company facts draft rows in data/staged/fundamentals/; canonical reviewed import file is data/imports/fundamentals.csv; {required_fields}"
                 if sec_configured
-                else "data/imports/fundamentals.csv"
+                else f"data/imports/fundamentals.csv; {required_fields}"
             ),
         },
         {
             "Step": "3. Validate before applying",
-            "Why It Matters": "Readiness counts should improve only after trusted rows pass validation, preview, and apply.",
+            "Why It Matters": (
+                "Readiness counts should improve only after trusted rows pass validation, preview, and apply. "
+                "Rejected rows must be reviewed before treating fundamentals or DCF as unlocked."
+            ),
             "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
             "Trusted Input": "Rejected rows: data/rejected/fundamentals_import_rejected.csv",
         },
