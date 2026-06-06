@@ -1,9 +1,10 @@
 from pathlib import Path
+import sys
 
 import pandas as pd
 
 from src.config import AppConfig
-from src.dcf_readiness import build_dcf_readiness_frame, build_dcf_readiness_report
+from src.dcf_readiness import build_dcf_readiness_frame, build_dcf_readiness_report, main
 from src.manual_fundamentals_import import import_staged_fundamentals
 from src.value_engine import classify_value_row
 
@@ -101,6 +102,48 @@ def test_dcf_readiness_report_writes_data_file(tmp_path: Path):
 
     assert (data_dir / "dcf_readiness.csv").exists()
     assert bool(frame.iloc[0]["is_dcf_ready"]) is True
+
+
+def test_dcf_readiness_cli_prints_plain_english_unlock_path(
+    tmp_path: Path,
+    capsys,
+):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "default_purpose": "Momentum Leader", "market_cap_bucket": "Large"},
+            {"ticker": "AMD", "default_purpose": "Momentum Leader", "market_cap_bucket": "Large"},
+            {"ticker": "QQQ", "default_purpose": "ETF / Defensive / Hedge", "market_cap_bucket": "ETF"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10}]).to_csv(
+        data_dir / "fundamentals.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "date": "2026-01-01", "close": 100}]).to_csv(data_dir / "prices.csv", index=False)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--top-n", "2"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert "dcf-ready tickers: 1/3" in output
+    assert "blocked means trusted inputs are missing, not a negative company signal" in output
+    assert "company dcf blocked: 1; etf/index/fund excluded from operating-company dcf: 1" in output
+    assert "top missing dcf fields:" in output
+    assert "- free_cash_flow: 1 ticker(s)" in output
+    assert "- price: 1 ticker(s)" in output
+    assert "next dcf unlock path:" in output
+    assert "make focus-fundamentals ticker=amd" in output
+    assert "make sec-stage tickers=amd" in output
+    assert "data/imports/fundamentals.csv" in output
+    assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness -> make readiness" in output
+    assert "price target" not in output
+    assert "undervalued" not in output
 
 
 def test_value_engine_marks_missing_dcf_inputs_not_ready_without_fake_positive_valuation():

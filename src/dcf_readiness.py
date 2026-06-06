@@ -172,6 +172,30 @@ def build_dcf_readiness_report(
     return frame
 
 
+def _missing_field_counts(frame: pd.DataFrame) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    if frame.empty or "missing_dcf_fields" not in frame.columns:
+        return counts
+    for value in frame["missing_dcf_fields"].dropna().astype(str):
+        for field in value.replace("|", ",").replace(";", ",").split(","):
+            field = field.strip()
+            if not field:
+                continue
+            counts[field] = counts.get(field, 0) + 1
+    return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
+
+
+def _first_company_blocker(frame: pd.DataFrame) -> str:
+    if frame.empty or "ticker" not in frame.columns:
+        return "TICKER"
+    asset_type = frame.get("asset_type", pd.Series("", index=frame.index)).astype(str).str.lower()
+    is_ready = frame.get("is_dcf_ready", pd.Series(False, index=frame.index)).astype(bool)
+    company_blockers = frame.loc[asset_type.eq("company") & ~is_ready]
+    if company_blockers.empty:
+        return "TICKER"
+    return _text(company_blockers.iloc[0].get("ticker"), "TICKER").upper()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write deterministic DCF readiness diagnostics.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
@@ -184,6 +208,25 @@ def main() -> None:
     print(format_path_context(root, data_path, root / "outputs"))
     print(f"Wrote: {data_path / 'dcf_readiness.csv'}")
     print(f"DCF-ready tickers: {int(frame['is_dcf_ready'].sum())}/{len(frame)}")
+    company_mask = frame.get("asset_type", pd.Series("", index=frame.index)).astype(str).str.lower().eq("company")
+    blocked_company_count = int((company_mask & ~frame["is_dcf_ready"].astype(bool)).sum())
+    excluded_count = int((~company_mask).sum())
+    print(
+        "DCF readiness interpretation: ready means assumptions can be reviewed; "
+        "blocked means trusted inputs are missing, not a negative company signal."
+    )
+    print(f"Company DCF blocked: {blocked_company_count}; ETF/index/fund excluded from operating-company DCF: {excluded_count}.")
+    field_counts = _missing_field_counts(frame.loc[company_mask & ~frame["is_dcf_ready"].astype(bool)])
+    if field_counts:
+        print("Top missing DCF fields:")
+        for field, count in list(field_counts.items())[:5]:
+            print(f"- {field}: {count} ticker(s)")
+    first_blocker = _first_company_blocker(frame)
+    print("Next DCF unlock path:")
+    print(f"- Inspect one company: make focus-fundamentals TICKER={first_blocker}")
+    print(f"- Stage SEC rows when configured: make sec-stage TICKERS={first_blocker}")
+    print("- Or add trusted manual rows to data/imports/fundamentals.csv")
+    print("- Validate/apply/prove: make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness -> make readiness")
     missing = frame.loc[~frame["is_dcf_ready"].astype(bool), ["ticker", "reason_not_ready"]]
     for _, row in missing.head(max(args.top_n, 0)).iterrows():
         print(f"- {row['ticker']}: {row['reason_not_ready']}")
