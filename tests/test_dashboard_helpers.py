@@ -12816,6 +12816,7 @@ def test_first_peer_mapping_unlock_frame_prioritizes_source_backed_mapping_workf
     assert frame.iloc[1]["Trusted Input"] == "data/imports/peers.csv"
     assert "sector or industry fallback is not trusted peer data" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "make readiness && make peer-mapping-queue top_n=25" in rendered
     assert "peer readiness should improve only after mapped rows pass validation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -12827,10 +12828,11 @@ def test_first_peer_mapping_unlock_cards_keep_peer_valuation_gated():
 
     assert cards[0]["command"] == "make focus-peers TICKER=COHR"
     assert cards[1]["command"] == "make templates"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply"
+    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"
     assert "no guessed peers" in rendered
     assert "fallback is not input" in rendered
     assert "do not show peer-relative valuation until source-backed mappings" in rendered
+    assert "after a rebuild" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -13426,6 +13428,8 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "make readiness" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
     assert "fill data/imports/peers.csv" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13443,9 +13447,9 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
                 "Trusted Peer Requirement": "peer mapping, peer fundamentals",
                 "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
                 "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
-                "Next Safe Sequence": "1. Inspect `make focus-peers TICKER=A`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. 3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply` before reading peer valuation.",
+                "Next Safe Sequence": "1. Inspect `make focus-peers TICKER=A`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. 3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply`. 4. Run `make readiness` and `make peer-mapping-queue TOP_N=25` before reading peer valuation.",
                 "Copy-Only Command": "make focus-peers TICKER=A",
-                "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
+                "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25",
             }
         ]
     )
@@ -13463,9 +13467,11 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "make readiness" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "make focus-peers ticker=a" in rendered
-    assert "make templates" in rendered
+    assert cards[2]["command"] == "make templates && make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"
     assert "fallback valuation" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

@@ -7539,9 +7539,9 @@ def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | N
         {
             "kicker": "PEER READINESS PROOF",
             "title": "Validate, preview, apply, then rebuild",
-            "body": "Do not show peer-relative valuation until source-backed mappings and required peer inputs pass readiness.",
+            "body": "Do not show peer-relative valuation until source-backed mappings and required peer inputs pass readiness after a rebuild.",
             "badges": ["peer valuation gated", "copy-only"],
-            "command": "make imports-validate && make imports-preview && make imports-apply",
+            "command": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
         },
     ]
 
@@ -7955,10 +7955,14 @@ def data_health_peer_unlock_frame(
                 "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
                 "Next Safe Sequence": (
                     f"1. Inspect `{command}`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. "
-                    "3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply` before reading peer valuation."
+                    "3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply`. "
+                    "4. Run `make readiness` and `make peer-mapping-queue TOP_N=25` before reading peer valuation."
                 ),
                 "Copy-Only Command": command,
-                "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply",
+                "Validation Path": (
+                    "make templates -> fill data/imports/peers.csv -> make imports-validate -> "
+                    "make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25"
+                ),
             }
         )
     return pd.DataFrame(rows, columns=columns)
@@ -8004,7 +8008,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             "title": format_missing(first.get("Trusted Input Path"), "data/imports/peers.csv"),
             "body": f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply')}.",
             "badges": ["validate", "preview before apply"],
-            "command": "make templates",
+            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
         },
     ]
 
