@@ -8493,7 +8493,8 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             "title": f"{len(frame)} row(s) need trusted peer inputs",
             "body": (
                 f"Open this before reading peer-relative valuation. First row: {priority_scope}; prioritize active-universe "
-                "and DCF-ready peer blockers before broad peer work. Standalone DCF can be reviewed only when DCF is ready; peer premium/discount stays locked."
+                "and DCF-ready peer blockers before broad peer work. Peer trend can be reviewed separately when mapped peer price history is ready; "
+                "it does not unlock peer valuation. Standalone DCF can be reviewed only when DCF is ready; peer premium/discount stays locked."
             ),
             "badges": ["peer gated", "source-backed only"],
             "command": "make peer-mapping-queue TOP_N=25",

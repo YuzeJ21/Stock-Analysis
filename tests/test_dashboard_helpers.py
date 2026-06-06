@@ -13808,6 +13808,8 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "first row: priority 1; active universe" in rendered
     assert "prioritize active-universe and dcf-ready peer blockers before broad peer work" in rendered
     assert "open this before reading peer-relative valuation" in rendered
+    assert "peer trend can be reviewed separately when mapped peer price history is ready" in rendered
+    assert "it does not unlock peer valuation" in rendered
     assert "peer premium/discount stays locked" in rendered
     assert "trend: peer trend possible" in rendered
     assert "valuation: peer valuation blocked" in rendered
