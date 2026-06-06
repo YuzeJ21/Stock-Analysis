@@ -7629,11 +7629,15 @@ def fundamentals_dcf_diagnostic_cards(
 
     sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip()) or sec_configured_from_report
     sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
+    fundamentals_validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+    fundamentals_input_path = "data/imports/fundamentals.csv or reviewed SEC stage draft"
+    fundamentals_rejected_path = "data/rejected/fundamentals_import_rejected.csv"
     if next_ticker != "Not available":
         dcf_field_gap_body = (
             "These are field-level blockers from the DCF readiness report, not company conclusions. "
             f"Inspect {next_ticker} with `make focus-fundamentals TICKER={next_ticker}`, then add trusted fundamentals "
-            "through SEC staging or manual CSV validation before rerunning `make dcf-readiness`. "
+            f"through {fundamentals_input_path} before rerunning `make dcf-readiness`. "
+            f"Validation sequence: {fundamentals_validation_sequence}. Rejected-row report: {fundamentals_rejected_path}. "
             f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
         )
         dcf_field_gap_command = f"make focus-fundamentals TICKER={next_ticker}"
@@ -7641,6 +7645,8 @@ def fundamentals_dcf_diagnostic_cards(
         dcf_field_gap_body = (
             "These are field-level blockers from the DCF readiness report, not company conclusions. "
             "Run `make dcf-readiness` and `make sec-stage-queue TOP_N=25` to rebuild the missing-field view before assuming coverage improved. "
+            f"When trusted rows exist, use {fundamentals_input_path}; validation sequence: {fundamentals_validation_sequence}. "
+            f"Rejected-row report: {fundamentals_rejected_path}. "
             f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
         )
         dcf_field_gap_command = "make dcf-readiness"
@@ -7681,8 +7687,9 @@ def fundamentals_dcf_diagnostic_cards(
             "title": "SEC import draft workflow" if sec_configured else "Manual CSV fallback",
             "body": (
                 f"Use {sec_stage_command} for SEC fundamentals import draft when a trusted SEC_USER_AGENT is configured, "
-                "or fill data/imports/fundamentals.csv with trusted rows. "
-                "Always run make imports-validate, make imports-preview, and make imports-apply before claiming readiness improved."
+                f"or fill {fundamentals_input_path} with trusted rows. "
+                f"Always run {fundamentals_validation_sequence} before claiming readiness improved. "
+                f"Rejected rows appear in {fundamentals_rejected_path}."
             ),
             "badges": ["source/freshness audit", "copy only"],
             "command": sec_stage_command,

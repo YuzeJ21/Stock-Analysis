@@ -13212,6 +13212,9 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "field-level blockers from the dcf readiness report, not company conclusions" in rendered
     assert "inspect meta with `make focus-fundamentals ticker=meta`" in rendered
     assert "before rerunning `make dcf-readiness`" in rendered
+    assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
+    assert "validation sequence: make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
+    assert "rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
     assert "1 dcf-ready companies" in rendered
     assert input_card["title"] == "SEC import draft workflow"
@@ -13221,6 +13224,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "data/imports/fundamentals.csv" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "before claiming readiness improved" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
