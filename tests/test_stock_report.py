@@ -713,10 +713,10 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
                 "next_best_action": optional_action,
             },
             "peer": {
-                "peer_blocker_type": "missing_peer_mapping",
-                "mapping_status": "insufficient_mapping",
-                "peer_count": 1,
-                "peer_trend_comparison_ready": "False",
+                "peer_blocker_type": "peer_valuation_blocked",
+                "mapping_status": "mapped",
+                "peer_count": 2,
+                "peer_trend_comparison_ready": "True",
                 "peer_valuation_comparison_ready": "False",
                 "next_peer_action": peer_action,
             },
@@ -735,7 +735,10 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     assert "Withheld:" in markdown
     assert "Purpose status unavailable" not in markdown
     assert "Which source-backed peers should be added for COHR" in markdown
-    assert "What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by missing peer mapping" in markdown
+    assert "What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by peer valuation blocked" in markdown
+    assert "peer trend comparison can be reviewed from mapped peer price history" in markdown
+    assert "but peer-relative valuation, premium/discount, and peer DCF comparison stay withheld" in markdown
+    assert "Mapped peer count=2" in markdown
     assert "What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison" in markdown
     assert "Trusted input path: add source-backed rows in `data/imports/peers.csv`" in markdown
     assert "make imports-validate" in markdown

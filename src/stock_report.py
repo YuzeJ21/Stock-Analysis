@@ -1629,9 +1629,16 @@ def _stock_report_peer_unlock_lines(
             "- What is still locked: any missing peer metric listed below stays unavailable and should not be inferred from sector or industry fallback.",
             f"- Trusted input path: review `data/peers.csv` and rerun `make focus-peers TICKER={ticker}` before relying on peer-relative context.",
         ]
+    if trend_ready:
+        reviewable_peer_context = (
+            "peer trend comparison can be reviewed from mapped peer price history, but peer-relative valuation, "
+            "premium/discount, and peer DCF comparison stay withheld."
+        )
+    else:
+        reviewable_peer_context = "DCF assumptions and sensitivity; peer trend status=not ready until mapped peer price history is sufficient."
     return [
         f"- What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by {blocker}.",
-        f"- What can be reviewed now: DCF assumptions and sensitivity; peer trend status={_display_report_status(trend_ready)}; mapped peer count={peer_count}.",
+        f"- What can be reviewed now: DCF assumptions and sensitivity; {reviewable_peer_context} Mapped peer count={peer_count}.",
         "- What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison until source-backed peer mappings and peer valuation inputs pass readiness.",
         f"- Trusted input path: add source-backed rows in `data/imports/peers.csv`, then run `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.",
         f"- Next peer action: {_sentence_value(next_peer_action, f'Run make focus-peers TICKER={ticker}')}.",
