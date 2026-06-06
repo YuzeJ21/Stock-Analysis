@@ -14591,6 +14591,117 @@ def test_final_decision_table_guide_cards_prefer_data_confidence_column():
     assert "sell" not in rendered
 
 
+def test_final_decision_default_columns_surface_specific_blockers_and_next_best_action():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "data_confidence": "medium",
+                "confidence_explanation": "Data confidence is medium because peers are missing.",
+                "decision_boundary": "Peer-relative valuation is withheld.",
+                "supporting_features": "standalone DCF",
+                "blocked_features": "peer",
+                "excluded_features": "",
+                "missing_data": "source-backed peer mappings",
+                "next_best_action": "make focus-peers TICKER=A",
+                "next_action": "Add peers.",
+                "main_reason": "Legacy reason",
+            }
+        ]
+    )
+
+    columns = dashboard.final_decision_default_columns(decisions)
+
+    assert columns[:6] == [
+        "ticker",
+        "decision_bucket",
+        "decision_subtype",
+        "primary_blocker",
+        "data_confidence",
+        "confidence_explanation",
+    ]
+    assert "next_best_action" in columns
+    assert "main_reason" not in columns
+
+
+def test_decision_proof_queue_translates_rows_without_overclaiming():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "data_confidence": "medium",
+                "supported_analysis": "Supported analysis: price history, fundamentals, and standalone DCF scenario analysis.",
+                "unsupported_analysis": "Unsupported analysis: peer-relative valuation until source-backed peer inputs exist.",
+                "next_best_action": "Add source-backed peer mappings for META.",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "decision_bucket": "Monitor",
+                "decision_subtype": "Monitor - ETF Market Proxy",
+                "primary_blocker": "none",
+                "data_confidence": "medium",
+                "supported_analysis": "Supported analysis: ETF/index monitoring.",
+                "unsupported_analysis": "Unsupported analysis: operating-company DCF.",
+            },
+            {
+                "ticker": "APLD",
+                "asset_type": "company",
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Price",
+                "primary_blocker": "price",
+                "data_confidence": "low",
+                "missing_data": "trusted price rows",
+                "next_best_action": "Run make price-refresh-loop DRY_RUN=1.",
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "META", "in_active_universe": True, "dcf_ready": True, "peer_ready": False, "updated_at": "2026-06-01T00:00:00Z"},
+            {"ticker": "QQQ", "in_active_universe": True, "updated_at": "2026-06-01T00:00:00Z"},
+            {"ticker": "APLD", "in_active_universe": True, "updated_at": "2026-06-01T00:00:00Z"},
+        ]
+    )
+
+    queue = dashboard.decision_proof_queue_frame(decisions, readiness, limit=10)
+    cards = dashboard.decision_proof_queue_cards(queue)
+    rendered = " ".join(str(value) for value in queue.to_numpy().ravel()).lower()
+    rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert list(queue["ticker"]) == ["META", "APLD", "QQQ"]
+    assert queue.iloc[0]["copy_only_command"] == "make focus-peers TICKER=META"
+    assert "standalone dcf scenario analysis" in queue.iloc[0]["what_can_be_reviewed_now"].lower()
+    assert "peer-relative valuation" in queue.iloc[0]["what_stays_locked"].lower()
+    assert "make peer-mapping-queue top_n=25" in queue.iloc[0]["proof_after_unlock"].lower()
+    assert queue.iloc[1]["copy_only_command"] == "make focus-price TICKER=APLD"
+    assert "make price-coverage top_n=25" in queue.iloc[1]["proof_after_unlock"].lower()
+    assert queue.iloc[2]["copy_only_command"] == "make stock-report-md TICKER=QQQ"
+    assert "operating-company dcf and peer-relative company valuation are excluded" in rendered
+    assert "decision labels are workflow states" in rendered
+    assert cards[0]["title"] == "3 row(s) translated"
+    assert "what can be reviewed now" in rendered_cards
+    assert "what proves an unlock" in rendered_cards
+    assert "withheld context remains visible" in rendered_cards
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered_cards
+    assert "order" not in rendered_cards
+    assert "trading" not in rendered_cards
+    assert "buy" not in rendered_cards
+    assert "sell" not in rendered_cards
+
+
 def test_decision_workflow_summary_cards_use_plain_missing_output_language():
     cards = dashboard.decision_workflow_summary_cards(None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -14703,12 +14814,22 @@ def test_final_watchlist_expander_uses_product_language_not_legacy_label():
 
 
 def test_final_decision_table_surfaces_row_level_decision_boundary():
-    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "data_confidence": "medium",
+                "decision_boundary": "Peer-relative valuation is withheld.",
+            }
+        ]
+    )
+    columns = dashboard.final_decision_default_columns(decisions)
 
-    final_decision_section = source[source.index("def render_final_decision_tab") : source.index("def get_local_provider")]
-
-    assert '"decision_boundary"' in final_decision_section
-    assert final_decision_section.index('"decision_bucket"') < final_decision_section.index('"decision_boundary"')
+    assert "decision_boundary" in columns
+    assert columns.index("decision_bucket") < columns.index("decision_boundary")
 
 
 def test_decision_workflow_summary_cards_surface_research_now_optional_context_lock():

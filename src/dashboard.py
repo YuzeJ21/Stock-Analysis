@@ -9577,6 +9577,187 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
     ]
 
 
+def final_decision_default_columns(decisions_frame: pd.DataFrame | None) -> list[str]:
+    if decisions_frame is None or decisions_frame.empty:
+        return []
+    return _readiness_columns(
+        decisions_frame,
+        [
+            "ticker",
+            "decision_bucket",
+            "decision_subtype",
+            "primary_blocker",
+            "data_confidence",
+            "confidence_explanation",
+            "decision_boundary",
+            "supporting_features",
+            "blocked_features",
+            "excluded_features",
+            "missing_data",
+            "next_best_action",
+            "next_action",
+        ],
+    )
+
+
+def decision_proof_queue_frame(
+    decisions_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+    *,
+    limit: int = 12,
+) -> pd.DataFrame:
+    columns = [
+        "priority",
+        "ticker",
+        "decision_bucket",
+        "decision_subtype",
+        "primary_blocker",
+        "data_confidence",
+        "what_can_be_reviewed_now",
+        "what_stays_locked",
+        "copy_only_command",
+        "proof_after_unlock",
+        "source_note",
+    ]
+    if decisions_frame is None or decisions_frame.empty or "ticker" not in decisions_frame.columns:
+        return pd.DataFrame(columns=columns)
+
+    frame = decisions_frame.copy()
+    frame["ticker"] = frame["ticker"].fillna("").astype(str).str.upper().str.strip()
+    frame = frame.loc[frame["ticker"].ne("")].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=columns)
+
+    if (
+        ticker_readiness_frame is not None
+        and not ticker_readiness_frame.empty
+        and "ticker" in ticker_readiness_frame.columns
+    ):
+        readiness_columns = [
+            column
+            for column in ["ticker", "in_active_universe", "dcf_ready", "peer_ready", "asset_type", "updated_at"]
+            if column in ticker_readiness_frame.columns
+        ]
+        readiness = ticker_readiness_frame[readiness_columns].copy()
+        readiness["ticker"] = readiness["ticker"].fillna("").astype(str).str.upper().str.strip()
+        frame = frame.merge(readiness.drop_duplicates("ticker"), on="ticker", how="left", suffixes=("", "_readiness"))
+
+    bucket_rank = (
+        frame.get("decision_bucket", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .map({"Research Now": 0, "Blocked by Data": 1, "Monitor": 2, "Excluded": 3})
+        .fillna(4)
+        .astype(int)
+    )
+    active_rank = (~bool_series(frame, "in_active_universe")).astype(int)
+    blocker_rank = (
+        frame.get("primary_blocker", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .str.lower()
+        .map({"peers": 0, "peer": 0, "fundamentals": 1, "dcf": 1, "price": 2, "earnings": 3, "analyst_estimates": 3})
+        .fillna(4)
+        .astype(int)
+    )
+    frame = frame.assign(_bucket_rank=bucket_rank, _active_rank=active_rank, _blocker_rank=blocker_rank)
+    frame = frame.sort_values(["_bucket_rank", "_active_rank", "_blocker_rank", "ticker"], kind="stable")
+
+    rows: list[dict[str, object]] = []
+    for _, row in frame.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        asset_type = format_missing(row.get("asset_type"), row.get("asset_type_readiness", "")).lower()
+        bucket = format_missing(row.get("decision_bucket"), "Not available")
+        blocker = format_missing(row.get("primary_blocker"), "none").lower()
+        if asset_type in {"etf", "index_proxy", "fund"} or "monitor" in bucket.lower():
+            supported = "Monitor market, theme, liquidity, risk, or correlation context when local price data is ready."
+            locked = "Operating-company DCF and peer-relative company valuation are excluded, not failed."
+        else:
+            supported = first_meaningful_text(
+                row.get("supported_analysis"),
+                row.get("supporting_features"),
+                fallback="Review only the sections whose readiness gates are already marked ready.",
+            )
+            locked = first_meaningful_text(
+                row.get("unsupported_analysis"),
+                row.get("blocked_features"),
+                row.get("missing_data"),
+                fallback="No blocked section is listed, but conclusions still depend on source freshness and assumptions.",
+            )
+        action = decision_next_action_summary(row)
+        command = (
+            stock_report_md_command(ticker)
+            if asset_type in {"etf", "index_proxy", "fund"} or "monitor" in bucket.lower()
+            else purpose_unlock_command(ticker, row.get("primary_blocker"), action)
+        )
+        rows.append(
+            {
+                "priority": len(rows) + 1,
+                "ticker": ticker,
+                "decision_bucket": bucket,
+                "decision_subtype": format_missing(row.get("decision_subtype"), "Not available"),
+                "primary_blocker": format_missing(row.get("primary_blocker"), "none"),
+                "data_confidence": format_missing(row.get("data_confidence"), "Not available"),
+                "what_can_be_reviewed_now": compact_reason(supported, max_sentences=2, max_chars=220),
+                "what_stays_locked": compact_reason(locked, max_sentences=2, max_chars=220),
+                "copy_only_command": command,
+                "proof_after_unlock": decision_next_action_proof(row),
+                "source_note": (
+                    f"Local readiness updated {format_missing(row.get('updated_at'), 'not available')}; "
+                    "decision labels are workflow states, not recommendations."
+                ),
+            }
+        )
+
+    return pd.DataFrame(rows, columns=columns)
+
+
+def decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if queue_frame is None or queue_frame.empty:
+        return [
+            {
+                "kicker": "DECISION PROOF",
+                "title": "No proof queue yet",
+                "body": "Run make research-decisions and make readiness before reading decision proof rows.",
+                "badges": ["refresh first", "copy only"],
+                "command": "make research-decisions",
+            }
+        ]
+    frame = queue_frame.copy()
+    top = frame.iloc[0]
+    bucket_counts = frame.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
+    locked_text = " ".join(frame.get("what_stays_locked", pd.Series(dtype=object)).fillna("").astype(str).str.lower().tolist())
+    peer_limited = locked_text.count("peer")
+    optional_limited = locked_text.count("earnings") + locked_text.count("estimate")
+    return [
+        {
+            "kicker": "DECISION PROOF",
+            "title": f"{len(frame)} row(s) translated",
+            "body": ", ".join(f"{bucket}: {int(count)}" for bucket, count in bucket_counts.head(3).items())
+            + ". Each row states what can be reviewed now, what stays locked, and what proves an unlock.",
+            "badges": ["plain English", "row-limited"],
+            "command": "make research-health TOP_N=10",
+        },
+        {
+            "kicker": "TOP PROOF ROW",
+            "title": f"{format_missing(top.get('ticker'), 'Ticker')}: {format_missing(top.get('decision_subtype'), 'Decision')}",
+            "body": (
+                f"Review now: {compact_reason(top.get('what_can_be_reviewed_now'), max_sentences=1, max_chars=140)} "
+                f"Locked: {compact_reason(top.get('what_stays_locked'), max_sentences=1, max_chars=140)}"
+            ),
+            "badges": [format_missing(top.get("primary_blocker"), "blocker"), format_missing(top.get("data_confidence"), "confidence")],
+            "command": format_missing(top.get("copy_only_command"), "make project-status"),
+        },
+        {
+            "kicker": "WITHHELD CONTEXT",
+            "title": f"Peer mentions: {peer_limited} / optional mentions: {optional_limited}",
+            "body": "Withheld context remains visible so peer valuation, earnings, estimates, or DCF exclusions do not look like hidden conclusions.",
+            "badges": ["data-honest", "no fabrication"],
+            "command": "make readiness",
+        },
+    ]
+
+
 def purpose_family_label(asset_type: object, purpose_text: object = "", alignment_text: object = "") -> str:
     asset_kind = format_missing(asset_type, "").lower()
     if asset_kind in {"etf", "index_proxy", "fund"}:
@@ -17399,23 +17580,14 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
         render_signal_cards(decision_workflow_summary_cards(decisions))
         bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
         render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
+        proof_queue = decision_proof_queue_frame(decisions, limit=12)
+        render_section_header("Decision Proof Queue", "Plain-English translation of what can be reviewed now, what stays locked, and what proves an unlock.")
+        render_signal_cards(decision_proof_queue_cards(proof_queue))
+        if not proof_queue.empty:
+            st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
         render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
         render_signal_cards(final_decision_table_guide_cards(decisions))
-        decision_columns = _readiness_columns(
-            decisions,
-            [
-                "ticker",
-                "decision_bucket",
-                "decision_boundary",
-                "confidence",
-                "main_reason",
-                "supporting_features",
-                "blocked_features",
-                "excluded_features",
-                "missing_data",
-                "next_action",
-            ],
-        )
+        decision_columns = final_decision_default_columns(decisions)
         st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
