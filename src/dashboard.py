@@ -12570,6 +12570,26 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
                 "command": format_missing(row.get("Copy-Only Command")),
             }
         )
+    if not frame.empty:
+        locked_row = frame.loc[frame["Question"].eq("What is still locked or excluded?")]
+        next_row = frame.loc[frame["Question"].eq("What should I do next?")]
+        proof_row = locked_row.iloc[0] if not locked_row.empty else frame.iloc[-1]
+        command_row = next_row.iloc[0] if not next_row.empty else proof_row
+        proof_command = format_missing(proof_row.get("Proof Command"), "Run make readiness before interpreting changed output.")
+        copy_command = format_missing(command_row.get("Copy-Only Command"), "make stock-report-md TICKER=NVDA")
+        cards.append(
+            {
+                "kicker": "PROOF PATH",
+                "title": "How to prove the next unlocked state",
+                "body": (
+                    "Read this single-stock page in sequence: what can be analyzed now, what stays locked or excluded, "
+                    f"which trusted input is needed, then proof command: {proof_command}. "
+                    f"Copy next: `{copy_command}`. Do not treat the lane as unlocked until the proof command passes and the report is reopened."
+                ),
+                "badges": ["readiness proof", "copy only"],
+                "command": copy_command,
+            }
+        )
     return cards
 
 

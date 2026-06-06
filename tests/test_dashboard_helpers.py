@@ -15596,7 +15596,7 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     rendered = " ".join(frame.astype(str).to_numpy().flatten().tolist() + [str(value) for card in cards for value in card.values()]).lower()
 
     assert list(frame.columns) == ["Question", "Answer", "Trusted Input Needed", "Proof Command", "Copy-Only Command"]
-    assert [card["kicker"] for card in cards] == ["ANALYZE NOW", "LOCKED / EXCLUDED", "NEXT STEP"]
+    assert [card["kicker"] for card in cards] == ["ANALYZE NOW", "LOCKED / EXCLUDED", "NEXT STEP", "PROOF PATH"]
     assert "standalone dcf assumptions, scenario math, sensitivity, source freshness, and peer trend context" in rendered
     assert "mapped peer price history can be reviewed" in rendered
     assert "peer-relative valuation, premium/discount, and peer dcf comparison remain locked" in rendered
@@ -15608,6 +15608,11 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     assert "data/imports/peers.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make stock-report-md ticker=a" in rendered
+    assert "how to prove the next unlocked state" in rendered
+    assert "read this single-stock page in sequence" in rendered
+    assert "proof command: after peer rows pass validate/preview/apply, run make readiness and make peer-mapping-queue top_n=25" in rendered
+    assert "copy next: `make focus-peers ticker=a`" in rendered
+    assert "do not treat the lane as unlocked until the proof command passes and the report is reopened" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -15658,6 +15663,9 @@ def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
     assert "after trusted price rows pass preview/apply, run make price-coverage top_n=25 and make readiness" in blocked_rendered
     assert "prices, momentum, dcf, peer context" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
+    assert "how to prove the next unlocked state" in etf_rendered
+    assert "how to prove the next unlocked state" in blocked_rendered
+    assert "do not treat the lane as unlocked until the proof command passes" in etf_rendered + blocked_rendered
     assert "broker" not in etf_rendered + blocked_rendered
     assert "order" not in etf_rendered + blocked_rendered
     assert "trading" not in etf_rendered + blocked_rendered
