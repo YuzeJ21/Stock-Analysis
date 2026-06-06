@@ -240,7 +240,9 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
     assert 'DRY_RUN="${DRY_RUN:-0}"' in script
     assert 'MAX_CANDIDATES="${MAX_CANDIDATES:-}"' in script
-    assert "MAX_CANDIDATES must be a positive integer when provided." in script
+    assert "MAX_CANDIDATES must be a positive integer when provided. Example: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo" in script
+    assert "BATCHES must be a positive integer. For broad coverage, prefer DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 so the loop calculates batches for you." in script
+    assert "TOP_N must be a positive integer. Use TOP_N=100 for a capped broad dry run before changing local CSV files." in script
     assert 'BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))' in script
     assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
     assert "MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))" in script
@@ -256,6 +258,8 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
     assert "for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again" in script
     assert "do not babysit hundreds of tiny commands" in script
+    assert "Operator summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in script
+    assert "Operator summary: MAX_CANDIDATES is the approximate missing-price target; TOP_N is the per-batch safety cap." in script
     assert "Dry run only. No local CSV files were changed." in script
     assert "Requested target: up to $REQUESTED_TARGET missing-price candidate(s)." in script
     assert "Rounded batch capacity: up to $TOTAL_CANDIDATES ticker slot(s) across $BATCHES capped batch(es)." in script
@@ -278,6 +282,8 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in script
+    assert "Dry-run result: no data changed; review the planned command, then run exactly one capped loop when ready." in script
+    assert "Recalculate anytime: rerun DRY_RUN=1 after interruptions, provider limits, or local CSV changes." in script
     assert "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=..." in script
     assert "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize" in script
     assert "Resume note: after fixing the source issue, rerun make price-refresh-loop DRY_RUN=1" in script
@@ -313,9 +319,13 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
     assert "rounded batch capacity: up to 3600 ticker slot(s) across 36 capped batch(es)." in output
     assert "unused capacity is expected when the last batch has fewer missing tickers than top_n." in output
     assert "manual 25-ticker commands avoided: about 144." in output
+    assert "operator summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in output
+    assert "operator summary: max_candidates is the approximate missing-price target; top_n is the per-batch safety cap." in output
     assert "no provider call, import, validation apply, broker action, or trade action runs during this dry run." in output
     assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=yahoo sleep_seconds=30" in output
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in output
+    assert "dry-run result: no data changed; review the planned command, then run exactly one capped loop when ready." in output
+    assert "recalculate anytime: rerun dry_run=1 after interruptions, provider limits, or local csv changes." in output
     assert "does not connect to brokers, place orders, or make recommendations" in output
     assert "buy" not in output
     assert "sell" not in output

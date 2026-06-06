@@ -9,17 +9,17 @@ DRY_RUN="${DRY_RUN:-0}"
 MAX_CANDIDATES="${MAX_CANDIDATES:-}"
 
 case "$BATCHES" in
-  ''|*[!0-9]*) echo "BATCHES must be a positive integer." >&2; exit 2 ;;
+  ''|*[!0-9]*) echo "BATCHES must be a positive integer. For broad coverage, prefer DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 so the loop calculates batches for you." >&2; exit 2 ;;
 esac
 case "$TOP_N" in
-  ''|*[!0-9]*) echo "TOP_N must be a positive integer." >&2; exit 2 ;;
+  ''|*[!0-9]*) echo "TOP_N must be a positive integer. Use TOP_N=100 for a capped broad dry run before changing local CSV files." >&2; exit 2 ;;
 esac
 case "$SLEEP_SECONDS" in
   ''|*[!0-9]*) echo "SLEEP_SECONDS must be a non-negative integer." >&2; exit 2 ;;
 esac
 if [ -n "$MAX_CANDIDATES" ]; then
   case "$MAX_CANDIDATES" in
-    ''|*[!0-9]*) echo "MAX_CANDIDATES must be a positive integer when provided." >&2; exit 2 ;;
+    ''|*[!0-9]*) echo "MAX_CANDIDATES must be a positive integer when provided. Example: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo" >&2; exit 2 ;;
   esac
 fi
 
@@ -63,6 +63,8 @@ echo "What stays manual: staging, validation, commit selection, and any generate
 echo "Plain planning knob: set MAX_CANDIDATES=3500 to let the loop calculate capped batches from TOP_N."
 echo "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override."
 echo "Scaling note: for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again; do not babysit hundreds of tiny commands."
+echo "Operator summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands."
+echo "Operator summary: MAX_CANDIDATES is the approximate missing-price target; TOP_N is the per-batch safety cap."
 if [ -n "$MAX_CANDIDATES" ]; then
   echo "Requested coverage target: up to $MAX_CANDIDATES missing-price candidates; calculated $BATCHES capped batch(es)."
 fi
@@ -97,6 +99,8 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER"
   echo "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER"
   echo "After reviewing the dry run, copy the one planned loop command instead of running many 25-ticker commands by hand."
+  echo "Dry-run result: no data changed; review the planned command, then run exactly one capped loop when ready."
+  echo "Recalculate anytime: rerun DRY_RUN=1 after interruptions, provider limits, or local CSV changes."
   echo "This replaces repeating 25-ticker refreshes manually; keep batches capped and review generated CSV churn before committing."
   exit 0
 fi
