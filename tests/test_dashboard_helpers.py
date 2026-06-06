@@ -13618,8 +13618,18 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
         [
             {
                 "priority": 1,
+                "ticker": "BROAD",
+                "in_active_universe": False,
+                "price_ready": False,
+                "has_fundamentals": "False",
+                "missing_required_for_dcf": "revenue, free_cash_flow",
+                "focus_command": "make focus-fundamentals TICKER=BROAD",
+            },
+            {
+                "priority": 5,
                 "ticker": "META",
                 "in_active_universe": True,
+                "price_ready": True,
                 "has_fundamentals": "False",
                 "missing_required_for_dcf": "free_cash_flow, shares_outstanding",
                 "focus_command": "make focus-fundamentals TICKER=META",
@@ -13628,6 +13638,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
                 "priority": 2,
                 "ticker": "NVDA",
                 "in_active_universe": False,
+                "price_ready": True,
                 "has_fundamentals": True,
                 "missing_required_for_dcf": "",
                 "focus_command": "make stock-report-md TICKER=NVDA",
@@ -13641,6 +13652,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert list(frame.columns) == [
         "Ticker",
         "Priority Scope",
+        "Price Readiness Gate",
         "Current State",
         "What You Can Analyze Now",
         "What Is Still Locked",
@@ -13653,10 +13665,12 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
         "Copy-Only Command",
         "Validation Path",
     ]
-    assert frame["Ticker"].tolist() == ["META"]
-    assert frame.iloc[0]["Priority Scope"] == "Priority 1; active universe"
+    assert frame["Ticker"].tolist() == ["META", "BROAD"]
+    assert frame.iloc[0]["Priority Scope"] == "Priority 5; active universe"
+    assert frame.iloc[0]["Price Readiness Gate"] == "Price ready: fundamentals can unlock DCF after trusted rows pass validation."
     assert frame.iloc[0]["Copy-Only Command"] == "make focus-fundamentals TICKER=META"
-    assert "price/setup context may be ready, but company fundamentals are still locked" in rendered
+    assert "price not confirmed ready: fix price coverage before treating fundamentals as dcf-unlocking" in rendered
+    assert "price/setup context may be ready only when the price gate is ready" in rendered
     assert "use ready price/setup/risk context only" in rendered
     assert "do not read company valuation yet" in rendered
     assert "fair value/share, and peer-relative valuation stay locked" in rendered
@@ -13685,6 +13699,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
             {
                 "Ticker": "META",
                 "Priority Scope": "Priority 1; active universe",
+                "Price Readiness Gate": "Price ready: fundamentals can unlock DCF after trusted rows pass validation.",
                 "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
                 "Missing Trusted Inputs": "free cash flow, shares outstanding",
                 "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
@@ -13703,8 +13718,9 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert [card["kicker"] for card in cards] == ["FUNDAMENTALS QUEUE", "NEXT FUNDAMENTALS ROW", "TRUSTED INPUT PATH"]
     assert "1 row(s) need trusted fundamentals" in rendered
     assert "first row: priority 1; active universe" in rendered
+    assert "price gate: price ready: fundamentals can unlock dcf after trusted rows pass validation" in rendered
     assert "open this before interpreting company valuation" in rendered
-    assert "price/setup can be reviewed" in rendered
+    assert "price/setup can be reviewed when price is ready" in rendered
     assert "meta" in rendered
     assert "free cash flow, shares outstanding" in rendered
     assert "fair value/share, and peer-relative valuation stay locked" in rendered
@@ -13731,6 +13747,31 @@ def test_data_health_fundamentals_unlock_cards_handle_empty_queue_without_fake_c
     assert "no fundamentals unlock rows" in rendered
     assert "regenerate readiness before assuming coverage improved" in rendered
     assert cards[0]["command"] == "make readiness"
+
+
+def test_next_fundamentals_unlock_ticker_prefers_active_price_ready_rows():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "BROAD",
+                "in_active_universe": False,
+                "price_ready": False,
+                "has_fundamentals": False,
+                "missing_required_for_dcf": "revenue",
+            },
+            {
+                "priority": 9,
+                "ticker": "META",
+                "in_active_universe": True,
+                "price_ready": True,
+                "has_fundamentals": False,
+                "missing_required_for_dcf": "free_cash_flow",
+            },
+        ]
+    )
+
+    assert dashboard.next_fundamentals_unlock_ticker(worklist) == "META"
 
 
 def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements():

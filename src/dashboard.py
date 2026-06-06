@@ -8297,6 +8297,7 @@ def data_health_fundamentals_unlock_frame(
     columns = [
         "Ticker",
         "Priority Scope",
+        "Price Readiness Gate",
         "Current State",
         "What You Can Analyze Now",
         "What Is Still Locked",
@@ -8327,10 +8328,25 @@ def data_health_fundamentals_unlock_frame(
     unlock_rows = frame.loc[missing_fundamentals | missing_dcf].copy()
     if unlock_rows.empty:
         return pd.DataFrame(columns=columns)
+    active_rank = (
+        ~bool_series(unlock_rows, "in_active_universe")
+        if "in_active_universe" in unlock_rows.columns
+        else pd.Series(True, index=unlock_rows.index)
+    )
+    price_ready_rank = (
+        ~bool_series(unlock_rows, "price_ready")
+        if "price_ready" in unlock_rows.columns
+        else pd.Series(False, index=unlock_rows.index)
+    )
+    unlock_rows = unlock_rows.assign(_active_rank=active_rank.astype(int), _price_ready_rank=price_ready_rank.astype(int))
     if "priority" in unlock_rows.columns:
-        unlock_rows = unlock_rows.sort_values(["priority", "ticker"], na_position="last", kind="stable")
+        unlock_rows = unlock_rows.sort_values(
+            ["_active_rank", "_price_ready_rank", "priority", "ticker"],
+            na_position="last",
+            kind="stable",
+        )
     else:
-        unlock_rows = unlock_rows.sort_values(["ticker"], kind="stable")
+        unlock_rows = unlock_rows.sort_values(["_active_rank", "_price_ready_rank", "ticker"], kind="stable")
 
     rows: list[dict[str, object]] = []
     for _, row in unlock_rows.head(limit).iterrows():
@@ -8342,11 +8358,18 @@ def data_health_fundamentals_unlock_frame(
         priority = format_missing(row.get("priority"), "not ranked")
         active_scope = str(row.get("in_active_universe", "")).strip().lower() in {"true", "1", "yes", "y"}
         scope = format_missing(row.get("workflow_scope"), "active universe" if active_scope else "master universe").replace("_", " ")
+        price_ready = str(row.get("price_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+        price_gate = (
+            "Price ready: fundamentals can unlock DCF after trusted rows pass validation."
+            if price_ready
+            else "Price not confirmed ready: fix price coverage before treating fundamentals as DCF-unlocking."
+        )
         rows.append(
             {
                 "Ticker": ticker,
                 "Priority Scope": f"Priority {priority}; {scope}",
-                "Current State": "Price/setup context may be ready, but company fundamentals are still locked",
+                "Price Readiness Gate": price_gate,
+                "Current State": "Price/setup context may be ready only when the price gate is ready; company fundamentals are still locked",
                 "What You Can Analyze Now": "Use ready price/setup/risk context only; do not read company valuation yet.",
                 "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
                 "Missing Trusted Inputs": missing_inputs,
@@ -8364,6 +8387,13 @@ def data_health_fundamentals_unlock_frame(
             }
         )
     return pd.DataFrame(rows, columns=columns)
+
+
+def next_fundamentals_unlock_ticker(fundamentals_peer_worklist_frame: pd.DataFrame | None) -> str:
+    frame = data_health_fundamentals_unlock_frame(fundamentals_peer_worklist_frame, limit=1)
+    if frame.empty:
+        return ""
+    return format_missing(frame.iloc[0].get("Ticker"), "")
 
 
 def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFrame | None) -> list[dict[str, object]]:
@@ -8384,6 +8414,7 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
     locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
     missing = compact_reason(first.get("Missing Trusted Inputs"), max_sentences=1, max_chars=140)
     boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
+    price_gate = compact_reason(first.get("Price Readiness Gate"), max_sentences=1, max_chars=160)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, stage trusted fundamentals only, then validate, preview, apply, and rerun DCF readiness.")
     proof = format_missing(first.get("Readiness Proof"), "Run make dcf-readiness and make readiness before reading DCF output.")
@@ -8394,7 +8425,7 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
             "title": f"{len(frame)} row(s) need trusted fundamentals",
             "body": (
                 f"Open this before interpreting company valuation. First row: {priority_scope}. "
-                "Price/setup can be reviewed, but company fundamentals and DCF stay gated."
+                f"Price gate: {price_gate}. Price/setup can be reviewed when price is ready, but company fundamentals and DCF stay gated."
             ),
             "badges": ["price-ready", "fundamentals locked"],
             "command": "make sec-stage-queue TOP_N=25",
@@ -20064,16 +20095,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 + " | "
                 + import_workflow_caption("data/staged/fundamentals/", "make import-fundamentals")
             )
-            next_fundamentals_ticker = None
-            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
-                fp_worklist = fundamentals_peer_worklist_frame.copy()
-                if "ticker" in fp_worklist.columns:
-                    if "has_fundamentals" in fp_worklist.columns:
-                        missing_fundamentals = fp_worklist.loc[~bool_series(fp_worklist, "has_fundamentals")].copy()
-                    else:
-                        missing_fundamentals = fp_worklist
-                    if not missing_fundamentals.empty:
-                        next_fundamentals_ticker = format_missing(missing_fundamentals.iloc[0].get("ticker"), "")
+            next_fundamentals_ticker = next_fundamentals_unlock_ticker(fundamentals_peer_worklist_frame)
             render_section_header(
                 "First Trusted Fundamentals Unlock",
                 "The shortest safe path from missing company fundamentals to a readiness count that can honestly improve.",
