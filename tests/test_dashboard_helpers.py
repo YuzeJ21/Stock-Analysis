@@ -13613,6 +13613,7 @@ def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_ag
     assert frame.iloc[1]["Copy Command"] == "make templates"
     assert frame.iloc[1]["Trusted Input"] == "data/imports/fundamentals.csv"
     assert "sec_user_agent is missing" in rendered
+    assert "data/imports/fundamentals.csv manual rows" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "readiness counts should improve only after trusted rows pass validation" in rendered
     assert "buy" not in rendered
@@ -13626,7 +13627,8 @@ def test_first_fundamentals_unlock_cards_use_sec_path_when_configured():
     assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
     assert cards[1]["command"] == "make sec-stage TICKERS=NVDA"
     assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply"
-    assert "sec company facts import draft workflow" in rendered
+    assert "sec company facts draft rows in data/staged/fundamentals/" in rendered
+    assert "canonical reviewed import file is data/imports/fundamentals.csv" in rendered
     assert "do not treat fundamentals_ready or dcf_ready as improved" in rendered
     assert "no fabricated data" in rendered
 

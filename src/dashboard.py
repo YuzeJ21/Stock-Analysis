@@ -8102,7 +8102,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
     has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
     sec_command = f"make sec-stage TICKERS={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
     focus_command = f"make focus-fundamentals TICKER={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
-    preferred_path = "SEC import draft path" if sec_configured else "Manual CSV path"
+    preferred_path = "data/staged/fundamentals/ SEC drafts" if sec_configured else "data/imports/fundamentals.csv manual rows"
     first_command = focus_command if has_ticker else "make sec-stage-queue TOP_N=25"
     rows = [
         {
@@ -8119,7 +8119,11 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
                 else "SEC_USER_AGENT is missing, so use trusted manual CSV rows instead of remote staging."
             ),
             "Copy Command": sec_command if sec_configured else "make templates",
-            "Trusted Input": "SEC company facts import draft workflow" if sec_configured else "data/imports/fundamentals.csv",
+            "Trusted Input": (
+                "SEC company facts draft rows in data/staged/fundamentals/; canonical reviewed import file is data/imports/fundamentals.csv"
+                if sec_configured
+                else "data/imports/fundamentals.csv"
+            ),
         },
         {
             "Step": "3. Validate before applying",
