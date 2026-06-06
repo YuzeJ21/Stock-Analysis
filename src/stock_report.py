@@ -1463,13 +1463,60 @@ def _stock_report_reader_question_lines(
     else:
         next_input = "Review source/freshness notes before interpreting the supported sections."
         command = f"make stock-report-md TICKER={ticker}"
+    lane = _stock_report_data_health_handoff_line(
+        ticker=ticker,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=price_ready,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     return [
         f"- Analyze now: {_sentence_value(supported_now)}.",
         f"- Still locked: {_sentence_value(locked_now)}.",
         f"- Trusted input: {_sentence_value(next_input)}.",
+        lane,
         f"- Copy next: `{command}`.",
         f"- Next research step: {_sentence_value(_humanize_schema_terms(next_action), 'No next local action is available')}.",
     ]
+
+
+def _stock_report_data_health_handoff_line(
+    *,
+    ticker: str,
+    dcf_status_text: str,
+    monitor_context: bool,
+    price_ready: Any,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+) -> str:
+    if not bool(price_ready):
+        lane = "Price Coverage Batch"
+        command = f"make focus-price TICKER={ticker}"
+        proof = "make price-coverage TOP_N=25 && make readiness"
+    elif monitor_context:
+        lane = "Single-Stock Review"
+        command = f"make stock-report-md TICKER={ticker}"
+        proof = "make readiness"
+    elif dcf_status_text == "blocked":
+        lane = "Fundamentals / DCF Unlock"
+        command = f"make focus-fundamentals TICKER={ticker}"
+        proof = "make dcf-readiness && make readiness"
+    elif not bool(peer_ready):
+        lane = "Peer Mapping Unlock"
+        command = f"make focus-peers TICKER={ticker}"
+        proof = f"make readiness && make peer-mapping-queue TICKERS={ticker} TOP_N=10"
+    elif not bool(earnings_ready) or not bool(estimates_ready):
+        lane = "Optional Context Unlock"
+        command = f"make optional-context-worklist TICKERS={ticker} TOP_N=10"
+        proof = "make optional-context-readiness && make readiness"
+    else:
+        lane = "Single-Stock Review"
+        command = f"make stock-report-md TICKER={ticker}"
+        proof = "make readiness"
+    return f"- Data Health lane: {lane}. Copy `{command}`, then confirm with `{proof}` before treating the lane as unlocked."
 
 
 def _stock_report_executive_summary_lines(
@@ -1630,6 +1677,15 @@ def _stock_report_data_unlock_lines(
         "No missing DCF fields flagged",
     )
     peer_reason = _sentence_value(peer.get("next_peer_action") or peer.get("missing_peer_reason"))
+    handoff_line = _stock_report_data_health_handoff_line(
+        ticker=ticker,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=price_ready,
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
 
     if price_ready:
         price_line = f"Price history is usable now ({price_rows} local row(s)); keep it fresh before relying on setup or risk context."
@@ -1672,6 +1728,7 @@ def _stock_report_data_unlock_lines(
         )
 
     return [
+        handoff_line,
         f"- Price unlock: {price_line}",
         f"- Fundamentals / DCF unlock: {dcf_line}",
         f"- Peer unlock: {peer_line}",

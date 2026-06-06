@@ -15,6 +15,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Source-backed peer mappings and peer valuation inputs.
+- Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=A`, then confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
 - Copy next: `make focus-peers TICKER=A`.
 - Next research step: Add trusted price history for mapped peers: DHR, TMO, WAT.
 
@@ -224,6 +225,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; freshness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Data Unlock Summary
+- Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=A`, then confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source freshness before interpreting valuation context.
 - Peer unlock: Peer context is the next unlock after DCF: Add trusted price history for mapped peers: DHR, TMO, WAT. Add source-backed mappings in `data/imports/peers.csv`.

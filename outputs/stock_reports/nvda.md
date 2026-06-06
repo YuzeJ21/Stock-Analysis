@@ -15,6 +15,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Trusted optional earnings or analyst-estimate CSV rows, only if you have a source you trust.
+- Data Health lane: Optional Context Unlock. Copy `make optional-context-worklist TICKERS=NVDA TOP_N=10`, then confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
 - Copy next: `make optional-context-worklist TICKERS=NVDA TOP_N=10`.
 - Next research step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
@@ -221,6 +222,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; freshness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Data Unlock Summary
+- Data Health lane: Optional Context Unlock. Copy `make optional-context-worklist TICKERS=NVDA TOP_N=10`, then confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (621 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source freshness before interpreting valuation context.
 - Peer unlock: Peer context is usable now; review mapped peers and freshness before interpreting peer-relative context.

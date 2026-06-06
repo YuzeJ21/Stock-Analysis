@@ -15,6 +15,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Analyze now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding.
+- Data Health lane: Fundamentals / DCF Unlock. Copy `make focus-fundamentals TICKER=META`, then confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
 - Copy next: `make focus-fundamentals TICKER=META`.
 - Next research step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow.
 
@@ -225,6 +226,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; freshness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Data Unlock Summary
+- Data Health lane: Fundamentals / DCF Unlock. Copy `make focus-fundamentals TICKER=META`, then confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Fundamentals / DCF are blocked: missing shares outstanding. Inspect `make focus-fundamentals TICKER=META`, then use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or prepare trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`.
 - Peer unlock: Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready.

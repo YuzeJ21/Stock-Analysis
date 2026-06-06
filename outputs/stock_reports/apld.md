@@ -15,6 +15,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Analyze now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked: Blocked features: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Trusted local price history.
+- Data Health lane: Price Coverage Batch. Copy `make focus-price TICKER=APLD`, then confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as unlocked.
 - Copy next: `make focus-price TICKER=APLD`.
 - Next research step: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
 
@@ -202,6 +203,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - needs at least 5 valid price rows with positive close; DCF: free cash flow, shares outstanding, revenue, FCF margin, price; peers: needs at least 2 source-backed peer mappings; earnings: trusted local CSV input; analyst estimates: trusted local CSV input
 
 ## Data Unlock Summary
+- Data Health lane: Price Coverage Batch. Copy `make focus-price TICKER=APLD`, then confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as unlocked.
 - Price unlock: Price history is the first unlock. Run `make focus-price TICKER=APLD` or use the price import flow before interpreting setup.
 - Fundamentals / DCF unlock: Wait on fundamentals / DCF interpretation until price coverage starts. After `make focus-price TICKER=APLD` is resolved, run `make focus-fundamentals TICKER=APLD` for the next DCF fields.
 - Peer unlock: Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready.

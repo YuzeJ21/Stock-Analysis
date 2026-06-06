@@ -332,6 +332,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Analyze now:" in markdown
     assert "- Still locked:" in markdown
     assert "- Trusted input: Source-backed peer mappings and peer valuation inputs." in markdown
+    assert "- Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=MSFT`" in markdown
+    assert "then confirm with `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10` before treating the lane as unlocked" in markdown
     assert "- Copy next: `make focus-peers TICKER=MSFT`." in markdown
     assert "## Executive Summary" in markdown
     assert "Bottom line: MSFT is in `Standalone DCF review` mode" in markdown
@@ -421,6 +423,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown
     assert "## Data Unlock Summary" in markdown
     assert "## Data Unlock Summary" in markdown.split("## Source/Freshness Audit")[0]
+    assert "Data Health lane: Peer Mapping Unlock" in markdown
     assert "Price unlock:" in markdown
     assert "Fundamentals / DCF unlock:" in markdown
     assert "Peer unlock:" in markdown
@@ -951,6 +954,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Analyze now: Use available price or setup context only." in markdown
     assert "- Still locked: Blocked features: price, momentum, DCF." in markdown
     assert "- Trusted input: Trusted local price history." in markdown
+    assert "- Data Health lane: Price Coverage Batch. Copy `make focus-price TICKER=APLD`" in markdown
+    assert "then confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as unlocked" in markdown
     assert "- Copy next: `make focus-price TICKER=APLD`." in markdown
     assert "Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready" in markdown
     assert "Read top-down: readiness state first" in markdown
@@ -1025,6 +1030,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Unlock priority: price is the first blocker" in markdown
     assert "primary blocker is price" in markdown
     assert "## Data Unlock Summary" in markdown
+    assert "Data Health lane: Price Coverage Batch" in markdown
     assert "Price history is the first unlock" in markdown
     assert "make focus-price TICKER=APLD" in markdown
     assert "## Copyable Unlock Commands" in markdown
