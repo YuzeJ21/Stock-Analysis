@@ -244,20 +244,25 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert 'BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))' in script
     assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
     assert "MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))" in script
-    assert "review up to $TOTAL_CANDIDATES missing-price candidates" in script
+    assert "Coverage target: $TARGET_NOTE. The final batch may have unused capacity if fewer missing tickers remain." in script
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
     assert "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)." in script
     assert "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time." in script
     assert "Resume behavior: each batch uses the missing-price worklist" in script
     assert "Before a real run, copy make readiness-snapshot" in script
+    assert "What changes on a real run: local price CSVs and generated readiness/report outputs may update." in script
+    assert "What stays manual: staging, validation, commit selection, and any generated CSV review remain under your control." in script
     assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
     assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
     assert "for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again" in script
     assert "do not babysit hundreds of tiny commands" in script
     assert "Dry run only. No local CSV files were changed." in script
-    assert "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)." in script
+    assert "Requested target: up to $REQUESTED_TARGET missing-price candidate(s)." in script
+    assert "Rounded batch capacity: up to $TOTAL_CANDIDATES ticker slot(s) across $BATCHES capped batch(es)." in script
+    assert "Unused capacity is expected when the last batch has fewer missing tickers than TOP_N." in script
     assert "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES." in script
     assert "If interrupted or provider-limited, rerun the dry run" in script
+    assert "No provider call, import, validation apply, broker action, or trade action runs during this dry run." in script
     assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
@@ -304,8 +309,11 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
 
     assert "dry run only. no local csv files were changed." in output
     assert "requested coverage target: up to 3538 missing-price candidates; calculated 36 capped batch(es)." in output
-    assert "planned coverage: up to 3600 missing-price candidates across 36 capped batch(es)." in output
+    assert "requested target: up to 3538 missing-price candidate(s)." in output
+    assert "rounded batch capacity: up to 3600 ticker slot(s) across 36 capped batch(es)." in output
+    assert "unused capacity is expected when the last batch has fewer missing tickers than top_n." in output
     assert "manual 25-ticker commands avoided: about 144." in output
+    assert "no provider call, import, validation apply, broker action, or trade action runs during this dry run." in output
     assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=yahoo sleep_seconds=30" in output
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in output
     assert "does not connect to brokers, place orders, or make recommendations" in output

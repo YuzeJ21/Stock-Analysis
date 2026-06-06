@@ -39,17 +39,27 @@ fi
 TOTAL_CANDIDATES=$((BATCHES * TOP_N))
 MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))
 WAIT_SECONDS=$(((BATCHES - 1) * SLEEP_SECONDS))
+if [ -n "$MAX_CANDIDATES" ]; then
+  REQUESTED_TARGET="$MAX_CANDIDATES"
+  TARGET_NOTE="requested target $MAX_CANDIDATES; rounded batch capacity $TOTAL_CANDIDATES"
+else
+  REQUESTED_TARGET="$TOTAL_CANDIDATES"
+  TARGET_NOTE="batch capacity $TOTAL_CANDIDATES"
+fi
 
 echo "Research-only capped price refresh loop."
 echo "Batches: $BATCHES; tickers per batch: $TOP_N; provider: $PROVIDER; sleep seconds: $SLEEP_SECONDS"
 echo "This updates local CSV files only. It does not connect to brokers, place orders, or make recommendations."
-echo "Plan: review up to $TOTAL_CANDIDATES missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
+echo "Plan: review missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
+echo "Coverage target: $TARGET_NOTE. The final batch may have unused capacity if fewer missing tickers remain."
 echo "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually."
 echo "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)."
 echo "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time."
 echo "Resume behavior: each batch uses the missing-price worklist, so reruns continue from the current local CSV state rather than requiring hand-counted batches."
 echo "Start with DRY_RUN=1 so you can review the batch size before any local CSV changes."
 echo "Before a real run, copy make readiness-snapshot so you can compare readiness before and after the refresh."
+echo "What changes on a real run: local price CSVs and generated readiness/report outputs may update."
+echo "What stays manual: staging, validation, commit selection, and any generated CSV review remain under your control."
 echo "Plain planning knob: set MAX_CANDIDATES=3500 to let the loop calculate capped batches from TOP_N."
 echo "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override."
 echo "Scaling note: for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again; do not babysit hundreds of tiny commands."
@@ -58,9 +68,12 @@ if [ -n "$MAX_CANDIDATES" ]; then
 fi
 if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Dry run only. No local CSV files were changed."
-  echo "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)."
+  echo "Requested target: up to $REQUESTED_TARGET missing-price candidate(s)."
+  echo "Rounded batch capacity: up to $TOTAL_CANDIDATES ticker slot(s) across $BATCHES capped batch(es)."
+  echo "Unused capacity is expected when the last batch has fewer missing tickers than TOP_N."
   echo "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES."
   echo "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time."
+  echo "No provider call, import, validation apply, broker action, or trade action runs during this dry run."
   echo "If interrupted or provider-limited, rerun the dry run; missing-only batches recalculate from current local prices."
   if [ -n "$MAX_CANDIDATES" ]; then
     echo "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
