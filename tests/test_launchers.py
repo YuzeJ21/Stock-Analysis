@@ -1,5 +1,6 @@
 import csv
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -282,6 +283,34 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "make readiness" in script
     assert "make project-status" in script
     assert "run make diff-hygiene before staging" in script
+
+
+def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_writes():
+    result = subprocess.run(
+        ["sh", "scripts/price_refresh_loop.sh"],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={
+            "BATCHES": "5",
+            "TOP_N": "100",
+            "PROVIDER": "yahoo",
+            "SLEEP_SECONDS": "30",
+            "DRY_RUN": "1",
+            "MAX_CANDIDATES": "3538",
+        },
+    )
+    output = result.stdout.lower()
+
+    assert "dry run only. no local csv files were changed." in output
+    assert "requested coverage target: up to 3538 missing-price candidates; calculated 36 capped batch(es)." in output
+    assert "planned coverage: up to 3600 missing-price candidates across 36 capped batch(es)." in output
+    assert "manual 25-ticker commands avoided: about 144." in output
+    assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=yahoo sleep_seconds=30" in output
+    assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in output
+    assert "does not connect to brokers, place orders, or make recommendations" in output
+    assert "buy" not in output
+    assert "sell" not in output
 
 
 def test_readme_public_landing_page_is_short_visual_and_command_focused():
