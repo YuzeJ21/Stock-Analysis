@@ -10571,6 +10571,54 @@ def next_action_console_source_note(category: str) -> str:
     return notes.get(category, "Uses generated local CSV reports; run make readiness and make project-status after data changes.")
 
 
+def next_action_console_plain_english_state(category: str) -> dict[str, str]:
+    states = {
+        "Price Coverage Batch": {
+            "can_analyze": "price-ready tickers can support setup, momentum, liquidity, and market-context review.",
+            "locked": "tickers missing trusted OHLCV stay out of those views until local price rows exist.",
+            "copy_next": "start with the dry run so the broad refresh plan is visible before local CSVs change.",
+        },
+        "Fundamentals / DCF Unlock": {
+            "can_analyze": "price-ready companies can be queued for SEC or trusted manual fundamentals review.",
+            "locked": "company quality and DCF interpretation stay locked until required fundamentals and DCF fields validate.",
+            "copy_next": "inspect the capped SEC staging queue or targeted ticker workflow before importing rows.",
+        },
+        "Peer Mapping Unlock": {
+            "can_analyze": "standalone DCF-ready companies can be reviewed without forcing peer conclusions.",
+            "locked": "peer trend needs mapped peer price history; peer valuation needs trusted peer mappings and peer metrics.",
+            "copy_next": "open the peer mapping queue and add only source-backed peer rows.",
+        },
+        "Earnings Import Setup": {
+            "can_analyze": "core price, DCF, and peer lanes can still be reviewed without earnings rows.",
+            "locked": "earnings context stays unavailable until trusted local rows pass validate, preview, and apply.",
+            "copy_next": "use schema/templates first, then import only reviewed local earnings CSV rows.",
+        },
+        "Analyst Estimates Import Setup": {
+            "can_analyze": "ready core analysis can be read without consensus context.",
+            "locked": "analyst-estimate context stays unavailable until trusted local rows validate; consensus is context, not a conclusion.",
+            "copy_next": "use schema/templates first, then import only reviewed local estimate CSV rows.",
+        },
+        "Import Validation / Rejected Rows": {
+            "can_analyze": "already-ready local rows remain usable while new staged rows are reviewed.",
+            "locked": "new imports are not trusted until validation, preview, apply, and rejected-row checks are clean.",
+            "copy_next": "validate first, preview second, apply only after reviewing rejected-row reports.",
+        },
+        "Single-Stock Review": {
+            "can_analyze": "one ticker can be checked for readiness, source freshness, DCF boundary, peer boundary, and optional-context gaps.",
+            "locked": "the report withholds unsupported valuation, peer, earnings, and estimate sections instead of filling gaps.",
+            "copy_next": "run the ticker report and read the plain-English gaps before opening raw CSV tables.",
+        },
+    }
+    return states.get(
+        category,
+        {
+            "can_analyze": "current local outputs can be reviewed for the stated workflow lane.",
+            "locked": "missing trusted inputs stay locked rather than inferred.",
+            "copy_next": "copy the command into a terminal only after reviewing the lane context.",
+        },
+    )
+
+
 def next_action_console_safety_note(command: object) -> str:
     command_text = format_missing(command, "")
     lowered = command_text.lower()
@@ -10818,12 +10866,20 @@ def next_action_console_cards(console_frame: pd.DataFrame | None, limit: int = 8
         when_to_use = compact_reason(row.get("when_to_use"), max_sentences=1, max_chars=120)
         output_to_check = compact_reason(row.get("output_to_check"), max_sentences=1, max_chars=120)
         source_note = compact_reason(row.get("source_freshness_note"), max_sentences=1, max_chars=140)
+        plain_state = next_action_console_plain_english_state(category)
         scope_line = ""
         if scope and scope != "Not available":
             scope_line = f"Scope: {scope}"
         if sample and sample != "Not available":
             scope_line = f"{scope_line}. Sample: {sample}." if scope_line else f"Sample: {sample}."
         body_lines = [line for line in [scope_line, f"Why: {why}" if why and why != "Not available" else ""] if line]
+        body_lines.extend(
+            [
+                f"Can analyze now: {plain_state['can_analyze']}",
+                f"Still locked: {plain_state['locked']}",
+                f"Copy next: {plain_state['copy_next']}",
+            ]
+        )
         if when_to_use and when_to_use != "Not available":
             body_lines.append(f"When to use: {when_to_use}")
         if output_to_check and output_to_check != "Not available":

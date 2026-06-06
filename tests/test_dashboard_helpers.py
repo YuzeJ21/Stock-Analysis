@@ -12016,6 +12016,12 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "rejected-row reports" in rendered
     assert "when to use" in rendered
     assert "check after" in rendered
+    assert "can analyze now" in rendered
+    assert "still locked" in rendered
+    assert "copy next" in rendered
+    assert "peer trend needs mapped peer price history" in rendered
+    assert "peer valuation needs trusted peer mappings and peer metrics" in rendered
+    assert "the report withholds unsupported valuation, peer, earnings, and estimate sections" in rendered
     assert "dry-run-first capped yahoo refresh loops" in rendered
     assert "capped refresh; verify source/freshness after merge" in rendered
     assert "output_to_check" in console.columns
@@ -12028,6 +12034,34 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "source_freshness_note" in " ".join(console.columns)
     assert "scope" in console.columns
     assert "dashboard does not execute" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_next_action_console_plain_english_states_cover_unlock_lanes():
+    price_state = dashboard.next_action_console_plain_english_state("Price Coverage Batch")
+    fundamentals_state = dashboard.next_action_console_plain_english_state("Fundamentals / DCF Unlock")
+    peer_state = dashboard.next_action_console_plain_english_state("Peer Mapping Unlock")
+    earnings_state = dashboard.next_action_console_plain_english_state("Earnings Import Setup")
+    estimates_state = dashboard.next_action_console_plain_english_state("Analyst Estimates Import Setup")
+    single_state = dashboard.next_action_console_plain_english_state("Single-Stock Review")
+    rendered = " ".join(
+        value
+        for state in [price_state, fundamentals_state, peer_state, earnings_state, estimates_state, single_state]
+        for value in state.values()
+    ).lower()
+
+    assert "setup, momentum, liquidity, and market-context review" in rendered
+    assert "dcf interpretation stay locked" in rendered
+    assert "peer trend needs mapped peer price history" in rendered
+    assert "peer valuation needs trusted peer mappings and peer metrics" in rendered
+    assert "earnings context stays unavailable until trusted local rows pass validate, preview, and apply" in rendered
+    assert "consensus is context, not a conclusion" in rendered
+    assert "source freshness, dcf boundary, peer boundary, and optional-context gaps" in rendered
+    assert "unsupported valuation, peer, earnings, and estimate sections" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
