@@ -187,8 +187,21 @@ def _feature_summary(ready: list[str], partial: list[str], blocked: list[str], e
     return "; ".join(parts)
 
 
+def _price_unlock_guidance(ticker: str) -> str:
+    return (
+        f"Start with make focus-price TICKER={ticker}, then run make price-refresh-loop DRY_RUN=1 "
+        "to preview the missing-only capped batch plan. If remote data is unavailable, stage verified OHLCV rows "
+        "in data/imports/prices.csv and run make price-validate, make price-preview, and make price-apply."
+    )
+
+
 def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -> str:
     text = _text_value(next_action, "")
+    if primary_blocker == "price":
+        if text and "price-refresh-loop dry_run=1" in text.lower() and "price-validate" in text.lower():
+            return text
+        prefix = f"{text.rstrip('.')}." if text else f"Unlock trusted price history for {ticker}."
+        return f"{prefix} {_price_unlock_guidance(ticker)}"
     if primary_blocker == "peers":
         lowered = text.lower()
         if text and (
@@ -197,6 +210,13 @@ def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -
             or "peer fundamentals" in lowered
             or "dcf-ready fundamentals" in lowered
         ):
+            if "price history" in lowered and "price-refresh-loop dry_run=1" not in lowered:
+                return (
+                    f"{text.rstrip('.')}. Start with make focus-peers TICKER={ticker}; "
+                    "then run make price-refresh-loop DRY_RUN=1 to preview a capped missing-only price plan "
+                    "for mapped peers, or stage verified peer OHLCV rows in data/imports/prices.csv and run "
+                    "make price-validate, make price-preview, and make price-apply."
+                )
             return text
         return (
             f"Add at least 2 source-backed peer mappings for {ticker} in data/imports/peers.csv; "

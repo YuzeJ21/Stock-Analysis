@@ -28,6 +28,11 @@ def test_research_decisions_block_missing_price_instead_of_weak_recommendation()
     assert "Missing usable price data" in row["main_reason"]
     assert row["confidence"] <= 0.45
     assert "Import price rows through the preview-first workflow" in row["next_action"]
+    assert "make focus-price TICKER=META" in row["next_best_action"]
+    assert "make price-refresh-loop DRY_RUN=1" in row["next_best_action"]
+    assert "missing-only capped batch plan" in row["next_best_action"]
+    assert "data/imports/prices.csv" in row["next_best_action"]
+    assert "make price-validate, make price-preview, and make price-apply" in row["next_best_action"]
     assert row["next_best_action"] == row["next_action"]
 
 
@@ -230,7 +235,12 @@ def test_research_decisions_keeps_mapped_peer_price_history_as_peer_blocker():
     assert row["decision_bucket"] == "Research Now"
     assert row["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
     assert row["primary_blocker"] == "peers"
-    assert row["next_action"] == "Add trusted price history for mapped peers: SNDK, WDC."
+    assert row["next_action"].startswith("Add trusted price history for mapped peers: SNDK, WDC")
+    assert "make focus-peers TICKER=MU" in row["next_action"]
+    assert "make price-refresh-loop DRY_RUN=1" in row["next_action"]
+    assert "capped missing-only price plan" in row["next_action"]
+    assert "data/imports/prices.csv" in row["next_action"]
+    assert "make price-validate, make price-preview, and make price-apply" in row["next_action"]
 
 
 def test_research_decisions_label_core_ready_rows_with_optional_context_locked():
