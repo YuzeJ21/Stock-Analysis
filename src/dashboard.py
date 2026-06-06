@@ -11705,7 +11705,7 @@ def next_action_console_plain_english_state(category: str) -> dict[str, str]:
         "Single-Stock Review": {
             "can_analyze": "one ticker can be checked for readiness, source freshness, DCF boundary, peer boundary, and optional-context gaps.",
             "locked": "the report withholds unsupported valuation, peer, earnings, and estimate sections instead of filling gaps.",
-            "copy_next": "run the ticker report and read the plain-English gaps before opening raw CSV tables.",
+            "copy_next": "run the ticker report and read the plain-English gaps before opening detailed data tables.",
         },
     }
     return states.get(
