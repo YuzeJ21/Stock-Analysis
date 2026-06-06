@@ -4990,15 +4990,18 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
 
     if price_ready <= 0:
         first_title = "Start with trusted price coverage"
-        first_body = "No price-ready rows means setup, DCF, peer, earnings, and estimate analysis should stay locked."
-        first_command = "make price-worklist TOP_N=10"
-        first_badges = ["price first", "analysis locked"]
+        first_body = (
+            "No price-ready rows means setup, DCF, peer, earnings, and estimate analysis should stay locked. "
+            "Use the scalable dry run first so you can review a capped batch plan instead of repeating 25-ticker refreshes by hand."
+        )
+        first_command = "make price-refresh-loop DRY_RUN=1"
+        first_badges = ["price first", "dry run first"]
     elif fundamentals_ready < price_ready:
         gap = max(price_ready - fundamentals_ready, 0)
         first_title = "Unlock fundamentals before valuation"
         first_body = (
             f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
-            "Missing fundamentals are an input gap, not a negative company signal."
+            "Missing fundamentals are an input gap, not a negative company signal. Inspect the queue first, then stage SEC or trusted manual rows only when sources are ready."
         )
         first_command = "make sec-stage-queue TOP_N=25"
         first_badges = ["fundamentals next", "no valuation inference"]
@@ -5007,7 +5010,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_title = "Add trusted peers for DCF-ready names"
         first_body = (
             f"{gap} DCF-ready row(s) still have peer-relative valuation locked. Standalone DCF can be reviewed, "
-            "but peer premium/discount stays withheld until source-backed peer rows exist."
+            "but peer premium/discount stays withheld until source-backed peer rows, mappings, and peer valuation inputs exist."
         )
         first_command = "make peer-mapping-queue TOP_N=10"
         first_badges = ["peer unlock", "source-backed rows"]
@@ -5038,7 +5041,8 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
             "title": f"{price_ready} price / {dcf_ready} DCF / {peer_ready} peer-ready",
             "body": (
                 "What you can analyze now: price-ready rows can support setup review; DCF-ready rows can support "
-                "assumption and sensitivity review; peer-ready rows can support source-backed relative context."
+                "assumption and sensitivity review; peer-ready rows can support source-backed relative context. "
+                "Do not read locked sections as weak conclusions."
             ),
             "badges": ["supported only", "plain English"],
             "command": "make status-check TOP_N=5",

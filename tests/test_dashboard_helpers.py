@@ -8209,9 +8209,12 @@ def test_data_health_quick_read_cards_prioritize_first_unlock_lane_without_execu
     assert cards[0]["command"] == "make sec-stage-queue TOP_N=25"
     assert "217 price-ready row(s) still need trusted fundamentals" in rendered
     assert "not a negative company signal" in rendered
+    assert "inspect the queue first" in rendered
+    assert "trusted manual rows only when sources are ready" in rendered
     assert "240 price / 23 dcf / 3 peer-ready" in rendered
     assert "what you can analyze now" in rendered
     assert "assumption and sensitivity review" in rendered
+    assert "do not read locked sections as weak conclusions" in rendered
     assert "0 earnings / 0 estimates" in rendered
     assert "what is still locked" in rendered
     assert "missing optional rows are not hidden analysis" in rendered
@@ -8239,6 +8242,7 @@ def test_data_health_quick_read_cards_switch_to_peer_unlock_when_dcf_ready_outpa
     assert cards[0]["command"] == "make peer-mapping-queue TOP_N=10"
     assert "21 dcf-ready row(s) still have peer-relative valuation locked" in rendered
     assert "peer premium/discount stays withheld" in rendered
+    assert "peer valuation inputs exist" in rendered
     assert "source-backed peer rows" in rendered
 
 
@@ -8265,8 +8269,10 @@ def test_data_health_quick_read_cards_start_with_price_when_no_price_ready_rows(
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Start with trusted price coverage"
-    assert cards[0]["command"] == "make price-worklist TOP_N=10"
+    assert cards[0]["command"] == "make price-refresh-loop DRY_RUN=1"
     assert "no price-ready rows means setup, dcf, peer, earnings, and estimate analysis should stay locked" in rendered
+    assert "scalable dry run first" in rendered
+    assert "instead of repeating 25-ticker refreshes by hand" in rendered
     assert "make stock-report ticker" not in rendered
 
 
