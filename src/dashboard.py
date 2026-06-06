@@ -11713,6 +11713,10 @@ def next_action_console_plain_english_state(category: str) -> dict[str, str]:
 def next_action_console_safety_note(command: object) -> str:
     command_text = format_missing(command, "")
     lowered = command_text.lower()
+    if "price-refresh-loop" in lowered and "dry_run=1" in lowered:
+        return "Dry-run only; previews capped missing-price batches without changing local CSV files. Copy into a terminal when ready."
+    if "price-refresh-loop" in lowered:
+        return "Capped refresh loop; updates local price CSVs only after the dry run is reviewed. Rerun readiness and diff hygiene afterward."
     if "top_n=" in lowered:
         return "Capped batch; copy into a terminal when ready. The dashboard does not execute it."
     if "ticker=" in lowered or "tickers=" in lowered:
@@ -11977,6 +11981,9 @@ def next_action_console_cards(console_frame: pd.DataFrame | None, limit: int = 8
             body_lines.append(f"Check after: {output_to_check}")
         if source_note and source_note != "Not available":
             body_lines.append(f"Source: {source_note}")
+        safety_note = compact_reason(row.get("safety_note"), max_sentences=1, max_chars=140)
+        if safety_note and safety_note != "Not available":
+            body_lines.append(f"Safety: {safety_note}")
         body = "\n".join(body_lines)
         cards.append(
             {

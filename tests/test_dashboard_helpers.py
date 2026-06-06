@@ -12168,6 +12168,9 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "can analyze now" in rendered
     assert "still locked" in rendered
     assert "copy next" in rendered
+    assert "safety" in rendered
+    assert "dry-run only" in rendered
+    assert "without changing local csv files" in rendered
     assert "peer trend needs mapped peer price history" in rendered
     assert "peer valuation needs trusted peer mappings and peer metrics" in rendered
     assert "the report withholds unsupported valuation, peer, earnings, and estimate sections" in rendered
@@ -12266,6 +12269,26 @@ def test_next_action_console_sanitizes_uncapped_batch_commands():
     assert dashboard.safe_action_console_command("Import Validation / Rejected Rows", "make imports-apply") == "make imports-apply"
     assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report") == "make stock-report-md TICKER=META"
     assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report TICKER=NVDA") == "make stock-report-md TICKER=NVDA"
+
+
+def test_next_action_console_safety_notes_distinguish_price_dry_run_from_apply_loop():
+    dry_run = dashboard.next_action_console_safety_note(
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    )
+    real_loop = dashboard.next_action_console_safety_note(
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30"
+    )
+    rendered = f"{dry_run} {real_loop}".lower()
+
+    assert "dry-run only" in dry_run.lower()
+    assert "without changing local csv files" in dry_run.lower()
+    assert "updates local price csvs only after the dry run is reviewed" in real_loop.lower()
+    assert "rerun readiness and diff hygiene afterward" in real_loop.lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_import_validation_rejected_row_cards_show_safe_manual_workflow():
