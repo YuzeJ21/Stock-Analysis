@@ -1785,6 +1785,58 @@ def _stock_report_peer_evidence_ladder_lines(
     ]
 
 
+def _stock_report_optional_context_ladder_lines(
+    *,
+    ticker: str,
+    earnings_ready: Any,
+    estimates_ready: Any,
+    earnings_summary: dict[str, Any],
+    analyst_estimate_summary: dict[str, Any],
+) -> list[str]:
+    earnings_available = bool(earnings_ready)
+    estimates_available = bool(estimates_ready)
+    earnings_date = _display_value(
+        earnings_summary.get("next_earnings_date") or earnings_summary.get("latest_report_date"),
+        "not available",
+    )
+    estimate_context = _display_value(
+        analyst_estimate_summary.get("current_quarter_eps")
+        or analyst_estimate_summary.get("current_year_eps")
+        or analyst_estimate_summary.get("target_mean_price"),
+        "not available",
+    )
+    lines = [
+        "- Optional context ladder: earnings and analyst estimates add timing, consensus, and revision context only; they never create a valuation conclusion by themselves.",
+    ]
+    if earnings_available:
+        lines.append(
+            f"- Earnings evidence: available from trusted local rows; next known/report date={earnings_date}. Treat it as event timing context."
+        )
+    else:
+        lines.append(
+            "- Earnings evidence: locked; missing trusted local CSV input is an intentional state, not broken analysis. "
+            "Use schema-only templates first; templates are not data."
+        )
+    if estimates_available:
+        lines.append(
+            f"- Analyst-estimate evidence: available from trusted local rows; sample consensus field={estimate_context}. Treat consensus as context, not a conclusion."
+        )
+    else:
+        lines.append(
+            "- Analyst-estimate evidence: locked; missing trusted local CSV input is an intentional state, not hidden consensus analysis."
+        )
+    lines.extend(
+        [
+            "- Earnings path: `make templates` -> place trusted rows in `data/staged/earnings/` -> `make import-earnings` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.",
+            "- Analyst-estimates path: `make templates` -> place trusted rows in `data/staged/analyst_estimates/` -> `make import-analyst-estimates` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.",
+            "- Rejected-row checks: review `data/rejected/earnings_import_rejected.csv` and `data/rejected/analyst_estimates_import_rejected.csv` before trusting optional context.",
+            f"- Rebuild proof: run `make optional-context-readiness`, then `make stock-report-md TICKER={ticker}` to confirm optional sections changed from locked to available.",
+            "- No-conclusion boundary: missing earnings or estimates must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.",
+        ]
+    )
+    return lines
+
+
 def _stock_report_unlock_command_lines(
     *,
     ticker: str,
@@ -2158,6 +2210,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    optional_context_ladder_lines = _stock_report_optional_context_ladder_lines(
+        ticker=report.ticker,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        earnings_summary=payload.get("earnings_summary", {}),
+        analyst_estimate_summary=payload.get("analyst_estimate_summary", {}),
+    )
 
     report_lines = [
         f"# {report.ticker} Single-Stock Research Report",
@@ -2286,6 +2345,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Sample peers: {_display_report_list(peer.get('sample_peers'), 'none configured')}",
         f"- Next peer action: {peer_next_action_display}",
         "",
+        "## Optional Context Workflow",
+        *optional_context_ladder_lines,
+        "",
         "## Missing Data",
         *missing_lines,
         "",
@@ -2311,6 +2373,8 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
     coverage = local_context.get("price_coverage", {})
     dcf = local_context.get("dcf", {})
     peer = local_context.get("peer", {})
+    earnings = local_context.get("earnings", {})
+    estimates = local_context.get("analyst_estimates", {})
     if not readiness:
         raise LookupError(f"No readiness row was found for {symbol}.")
     asset_type = _display_value(readiness.get("asset_type"))
@@ -2521,6 +2585,13 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    optional_context_ladder_lines = _stock_report_optional_context_ladder_lines(
+        ticker=symbol,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        earnings_summary=earnings,
+        analyst_estimate_summary=estimates,
+    )
     lines = [
         f"# {symbol} Single-Stock Research Report",
         "",
@@ -2641,6 +2712,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Trend comparison ready: {_display_report_status(peer.get('peer_trend_comparison_ready'))}",
         f"- Valuation comparison ready: {_display_report_status(peer.get('peer_valuation_comparison_ready'))}",
         f"- Next peer action: {peer_next_action_display}",
+        "",
+        "## Optional Context Workflow",
+        *optional_context_ladder_lines,
         "",
         "## Missing Data",
         f"- {_humanize_schema_terms(_display_value(readiness.get('missing_data')))}",

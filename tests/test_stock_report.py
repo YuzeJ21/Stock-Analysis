@@ -21,6 +21,7 @@ from src.stock_report import (
     _display_setup_text,
     _format_inline_make_commands,
     _stock_report_dcf_input_triage_lines,
+    _stock_report_optional_context_ladder_lines,
     _stock_report_peer_evidence_ladder_lines,
     _stock_report_reader_guide_lines,
     _stock_report_reader_question_lines,
@@ -133,6 +134,39 @@ def test_stock_report_peer_evidence_ladder_splits_trend_and_valuation():
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_optional_context_ladder_keeps_missing_rows_locked():
+    lines = _stock_report_optional_context_ladder_lines(
+        ticker="NVDA",
+        earnings_ready=False,
+        estimates_ready=False,
+        earnings_summary={},
+        analyst_estimate_summary={},
+    )
+    rendered = " ".join(lines).lower()
+
+    assert "optional context ladder" in rendered
+    assert "earnings and analyst estimates add timing, consensus, and revision context only" in rendered
+    assert "earnings evidence: locked" in rendered
+    assert "templates are not data" in rendered
+    assert "analyst-estimate evidence: locked" in rendered
+    assert "data/staged/earnings/" in rendered
+    assert "data/staged/analyst_estimates/" in rendered
+    assert "make import-earnings" in rendered
+    assert "make import-analyst-estimates" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "data/rejected/earnings_import_rejected.csv" in rendered
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "make optional-context-readiness" in rendered
+    assert "missing earnings or estimates must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -836,6 +870,12 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     assert "Trusted peer path: add source-backed rows in `data/imports/peers.csv`" in markdown
     assert "make imports-validate" in markdown
     assert "Fallback boundary: sector or industry context is fallback only; it is not trusted manual peer data" in markdown
+    assert "## Optional Context Workflow" in markdown
+    assert "Optional context ladder: earnings and analyst estimates add timing, consensus, and revision context only" in markdown
+    assert "Earnings evidence: locked; missing trusted local CSV input is an intentional state, not broken analysis" in markdown
+    assert "Analyst-estimate evidence: locked; missing trusted local CSV input is an intentional state, not hidden consensus analysis" in markdown
+    assert "Rejected-row checks: review `data/rejected/earnings_import_rejected.csv` and `data/rejected/analyst_estimates_import_rejected.csv`" in markdown
+    assert "Rebuild proof: run `make optional-context-readiness`, then `make stock-report-md TICKER=COHR`" in markdown
     assert optional_action not in markdown
     assert "copyable command only" in markdown
     assert "trade instruction" not in markdown.lower()
@@ -1001,6 +1041,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Do not use peer rows to bypass missing price, fundamentals, or DCF inputs" in markdown
     assert "Valuation evidence: withheld until standalone DCF plus source-backed peer mappings and peer valuation inputs pass readiness" in markdown
     assert "blocked until fundamentals / DCF" in markdown
+    assert "## Optional Context Workflow" in markdown
+    assert "No-conclusion boundary: missing earnings or estimates must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis" in markdown
     assert "Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown
     assert "Add source-backed peer mappings after price data exists" not in markdown
     assert "No local price rows were found for APLD" in markdown
