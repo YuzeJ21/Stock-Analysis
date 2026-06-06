@@ -12650,7 +12650,8 @@ def valuation_quick_read_cards(
         analyze_body = (
             f"What you can analyze now: open {ready_ticker} for DCF assumptions, scenarios, "
             "sensitivity, and source freshness. Peer trend can be reviewed only when mapped peer price history is ready; "
-            "peer-relative valuation still needs trusted peer valuation inputs."
+            "peer-relative valuation still needs trusted peer valuation inputs. This is a valuation-readiness review, "
+            "not a recommendation, price target, or full investment conclusion."
         )
 
     return [

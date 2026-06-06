@@ -8084,6 +8084,8 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert "open nvda for dcf assumptions" in rendered
     assert "peer trend can be reviewed only when mapped peer price history is ready" in rendered
     assert "peer-relative valuation still needs trusted peer valuation inputs" in rendered
+    assert "valuation-readiness review" in rendered
+    assert "not a recommendation, price target, or full investment conclusion" in rendered
     assert "1 company row(s) need inputs" in rendered
     assert "for meta, fair value/share" in rendered
     assert "free cash flow pass readiness" in rendered
