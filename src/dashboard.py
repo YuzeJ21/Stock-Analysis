@@ -3107,6 +3107,8 @@ def optional_context_ladder_frame(
         "Trusted Row Gate",
         "Ready Rows",
         "Blocked Rows",
+        "First Locked Ticker",
+        "First Ticker Command",
         "Schema Only Example",
         "Trusted Input Path",
         "Import Command",
@@ -3118,6 +3120,13 @@ def optional_context_ladder_frame(
         "Copy-Only Command",
     ]
     worklist_count = 0 if optional_context_worklist_frame is None or optional_context_worklist_frame.empty else len(optional_context_worklist_frame)
+    worklist = optional_context_worklist_frame.copy() if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty else pd.DataFrame()
+    if not worklist.empty and "ticker" in worklist.columns:
+        worklist["ticker"] = worklist["ticker"].astype(str).str.upper().str.strip()
+        if "priority" in worklist.columns:
+            worklist["priority"] = pd.to_numeric(worklist["priority"], errors="coerce").fillna(999).astype(int)
+        else:
+            worklist["priority"] = 999
 
     def readiness_counts(frame: pd.DataFrame | None, ready_column: str) -> tuple[int, int, int]:
         if frame is None or frame.empty:
@@ -3131,6 +3140,25 @@ def optional_context_ladder_frame(
     frames = {"earnings": earnings_readiness_frame, "analyst_estimates": analyst_readiness_frame}
     for key, config in OPTIONAL_CONTEXT_DATASETS.items():
         ready_count, blocked_count, total = readiness_counts(frames[key], config["ready_column"])
+        first_ticker = "Not available"
+        if not worklist.empty and "ticker" in worklist.columns:
+            missing_column = "has_earnings" if key == "earnings" else "has_analyst_estimates"
+            missing_context = (
+                ~bool_series(worklist, missing_column)
+                if missing_column in worklist.columns
+                else worklist.get("missing_optional_context", pd.Series("", index=worklist.index))
+                .fillna("")
+                .astype(str)
+                .str.lower()
+                .str.contains("earnings" if key == "earnings" else "analyst|estimate", regex=True, na=False)
+            )
+            candidates = worklist.loc[missing_context].copy()
+            if not candidates.empty:
+                candidates = candidates.sort_values(["priority", "ticker"], kind="stable")
+                first_ticker = format_missing(candidates.iloc[0].get("ticker"), "Not available").upper()
+        first_ticker_command = "make optional-context-worklist TOP_N=25"
+        if first_ticker != "Not available":
+            first_ticker_command = f"make stock-report-md TICKER={first_ticker}"
         if total == 0:
             state = "Locked: no trusted local rows loaded"
         elif ready_count == 0:
@@ -3152,6 +3180,8 @@ def optional_context_ladder_frame(
                 "Trusted Row Gate": trusted_gate,
                 "Ready Rows": ready_count,
                 "Blocked Rows": blocked_count,
+                "First Locked Ticker": first_ticker,
+                "First Ticker Command": first_ticker_command,
                 "Schema Only Example": config["schema"],
                 "Trusted Input Path": f"{config['staged_path']} or {config['import_file']}",
                 "Import Command": config["import_command"],
@@ -3200,11 +3230,12 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
             "body": (
                 f"State: {format_missing(first.get('Current State'), 'locked')}. "
                 f"Trusted row gate: {format_missing(first.get('Trusted Row Gate'), 'locked until trusted rows pass readiness')}. "
+                f"First locked ticker to inspect: {format_missing(first.get('First Locked Ticker'), 'Not available')}. "
                 f"Schema-only example: {format_missing(first.get('Schema Only Example'), '')}. "
                 "Templates are not data."
             ),
             "badges": ["schema only", "trusted rows required"],
-            "command": format_missing(first.get("Import Command"), "make templates"),
+            "command": format_missing(first.get("First Ticker Command"), format_missing(first.get("Import Command"), "make templates")),
         },
         {
             "kicker": "COPY NEXT",

@@ -15227,6 +15227,8 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
         "Trusted Row Gate",
         "Ready Rows",
         "Blocked Rows",
+        "First Locked Ticker",
+        "First Ticker Command",
         "Schema Only Example",
         "Trusted Input Path",
         "Import Command",
@@ -15243,10 +15245,14 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert frame.loc[frame["Dataset"].eq("Earnings"), "Trusted Row Gate"].iloc[0] == "Partial: review only ready trusted rows; keep missing optional context locked."
     assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "Ready Rows"].iloc[0] == 0
     assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "Trusted Row Gate"].iloc[0] == "Locked until trusted local rows pass validation, preview, apply, and optional-context readiness."
+    assert frame.loc[frame["Dataset"].eq("Earnings"), "First Locked Ticker"].iloc[0] == "NVDA"
+    assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "First Locked Ticker"].iloc[0] == "NVDA"
+    assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "First Ticker Command"].iloc[0] == "make stock-report-md TICKER=NVDA"
     assert "1 ready / 3 locked row(s)" in rendered
     assert "empty optional context is intentional until trusted local csv rows pass validation" in rendered
     assert "trusted row gate: locked until trusted local rows pass validation, preview, apply, and optional-context readiness" in rendered
     assert "partial: review only ready trusted rows; keep missing optional context locked" in rendered
+    assert "first locked ticker to inspect: nvda" in rendered
     assert "ticker, fiscal_period, report_date" in rendered
     assert "ticker, period, eps_estimate" in rendered
     assert "templates are not data" in rendered
@@ -15254,6 +15260,7 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert "data/staged/analyst_estimates/ or data/imports/analyst_estimates.csv" in rendered
     assert "make import-earnings" in rendered
     assert "make import-analyst-estimates" in rendered
+    assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert "prove optional context before showing it" in rendered
     assert "copy next: `make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding top_n=10`" in rendered
     assert "schema-only examples and templates remain operator aids, not data" in rendered
