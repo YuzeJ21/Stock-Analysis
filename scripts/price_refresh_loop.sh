@@ -46,6 +46,7 @@ echo "Use this loop for broad coverage work instead of repeating 25-ticker refre
 echo "Start with DRY_RUN=1 so you can review the batch size before any local CSV changes."
 echo "Before a real run, copy make readiness-snapshot so you can compare readiness before and after the refresh."
 echo "Plain planning knob: set MAX_CANDIDATES=3500 to let the loop calculate capped batches from TOP_N."
+echo "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override."
 echo "Scaling note: for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again; do not babysit hundreds of tiny commands."
 if [ -n "$MAX_CANDIDATES" ]; then
   echo "Requested coverage target: up to $MAX_CANDIDATES missing-price candidates; calculated $BATCHES capped batch(es)."

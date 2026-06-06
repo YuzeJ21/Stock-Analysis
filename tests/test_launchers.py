@@ -246,6 +246,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
     assert "Before a real run, copy make readiness-snapshot" in script
     assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
+    assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
     assert "for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again" in script
     assert "do not babysit hundreds of tiny commands" in script
     assert "Dry run only. No local CSV files were changed." in script
