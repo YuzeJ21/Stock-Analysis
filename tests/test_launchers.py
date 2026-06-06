@@ -240,11 +240,14 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
     assert "review up to $TOTAL_CANDIDATES missing-price candidates" in script
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
+    assert "for a 3000+ ticker universe, raise BATCHES and dry-run again" in script
+    assert "do not babysit hundreds of tiny commands" in script
     assert "Dry run only. No local CSV files were changed." in script
     assert "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)." in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
     assert "If you want broader coverage, increase BATCHES first while keeping TOP_N capped, then dry-run again." in script
+    assert "Example broader dry run: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
     assert "This replaces repeating 25-ticker refreshes manually" in script
     assert "make price-coverage TOP_N=25" in script

@@ -30,6 +30,7 @@ echo "This updates local CSV files only. It does not connect to brokers, place o
 echo "Plan: review up to $TOTAL_CANDIDATES missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
 echo "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually."
 echo "Start with DRY_RUN=1 so you can review the batch size before any local CSV changes."
+echo "Scaling note: for a 3000+ ticker universe, raise BATCHES and dry-run again; do not babysit hundreds of tiny commands."
 if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Dry run only. No local CSV files were changed."
   echo "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)."
@@ -37,6 +38,7 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER"
   echo "Post-loop commands would be: make price-coverage TOP_N=25; make readiness; make project-status"
   echo "If you want broader coverage, increase BATCHES first while keeping TOP_N capped, then dry-run again."
+  echo "Example broader dry run: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER"
   echo "This replaces repeating 25-ticker refreshes manually; keep batches capped and review generated CSV churn before committing."
   exit 0
 fi
