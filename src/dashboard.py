@@ -8678,6 +8678,7 @@ def dcf_missing_field_guide_frame(
         "Example Tickers",
         "Why It Matters",
         "Trusted Input Path",
+        "Schema Fields",
         "Next Safe Sequence",
         "Validation Path",
         "Conclusion Boundary",
@@ -8720,6 +8721,7 @@ def dcf_missing_field_guide_frame(
         example = tickers[0] if tickers else "TICKER"
         if key in {"price", "market_cap_or_price_and_shares"}:
             trusted_path = "data/imports/prices.csv or data/staged/prices/"
+            schema_fields = "ticker, date, open, high, low, close, volume, source"
             command = f"make focus-price TICKER={example}"
             next_sequence = (
                 f"1. Inspect `{command}`. 2. Run `make price-refresh-loop DRY_RUN=1` for a capped plan "
@@ -8729,6 +8731,7 @@ def dcf_missing_field_guide_frame(
             validation_path = "make price-validate -> make price-preview -> make price-apply -> make dcf-readiness"
         else:
             trusted_path = "data/imports/fundamentals.csv or reviewed SEC draft rows in data/staged/fundamentals/"
+            schema_fields = "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source, updated_at"
             command = f"make focus-fundamentals TICKER={example}"
             second_step = (
                 f"2. Run `make sec-stage TICKERS={example}` when SEC_USER_AGENT is configured, "
@@ -8748,6 +8751,7 @@ def dcf_missing_field_guide_frame(
                 "Example Tickers": ", ".join(tickers[:5]) if tickers else "Not available",
                 "Why It Matters": detail["why"],
                 "Trusted Input Path": trusted_path,
+                "Schema Fields": schema_fields,
                 "Next Safe Sequence": next_sequence,
                 "Validation Path": validation_path,
                 "Conclusion Boundary": "DCF math, fair value/share, undervalued, overvalued, and peer-relative conclusions stay withheld until this trusted input passes readiness.",
@@ -8802,6 +8806,7 @@ def dcf_missing_field_guide_cards(field_guide_frame: pd.DataFrame | None) -> lis
             "title": format_missing(first.get("Trusted Input Path"), "Trusted input path"),
             "body": (
                 f"{format_missing(first.get('Next Safe Sequence'), '')} "
+                f"Schema fields: {format_missing(first.get('Schema Fields'), 'listed in make templates')}. "
                 f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
                 f"Boundary: {format_missing(first.get('Conclusion Boundary'), '')}"
             ),

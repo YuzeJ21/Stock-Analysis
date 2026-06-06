@@ -13954,6 +13954,7 @@ def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without
         "Example Tickers",
         "Why It Matters",
         "Trusted Input Path",
+        "Schema Fields",
         "Next Safe Sequence",
         "Validation Path",
         "Conclusion Boundary",
@@ -13965,8 +13966,10 @@ def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without
     assert "converts equity value into fair value per share" in rendered
     assert "price" in rendered
     assert "data/imports/prices.csv or data/staged/prices/" in rendered
+    assert "ticker, date, open, high, low, close, volume, source" in rendered
     assert "revenue" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec draft rows in data/staged/fundamentals/" in rendered
+    assert "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source, updated_at" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make sec-stage tickers=meta" in rendered
     assert "make focus-price ticker=apld" in rendered
