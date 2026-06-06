@@ -13625,6 +13625,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
         "What This Unlocks",
         "No-Conclusion Boundary",
         "Next Safe Sequence",
+        "Readiness Proof",
         "Copy-Only Command",
         "Validation Path",
     ]
@@ -13645,6 +13646,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "make dcf-readiness" in rendered
+    assert "run `make dcf-readiness` and `make readiness`, then reopen data health or the single-stock report" in rendered
     assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13664,6 +13666,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
                 "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
                 "No-Conclusion Boundary": "Do not label the ticker undervalued, overvalued, or DCF-ready until trusted fundamentals and DCF readiness pass.",
                 "Next Safe Sequence": "1. Inspect `make focus-fundamentals TICKER=META`. 2. Use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured, or fill `data/imports/fundamentals.csv` with trusted manual rows. 3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`.",
+                "Readiness Proof": "Run `make dcf-readiness` and `make readiness`, then reopen Data Health or the single-stock report before reading DCF output.",
                 "Copy-Only Command": "make focus-fundamentals TICKER=META",
                 "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
             }
@@ -13684,6 +13687,8 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "boundary: do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
     assert "make sec-stage tickers=meta" in rendered
     assert "trusted manual rows" in rendered
+    assert "readiness proof: run `make dcf-readiness` and `make readiness`" in rendered
+    assert "before reading dcf output" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered

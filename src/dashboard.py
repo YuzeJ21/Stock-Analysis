@@ -8274,6 +8274,7 @@ def data_health_fundamentals_unlock_frame(
         "What This Unlocks",
         "No-Conclusion Boundary",
         "Next Safe Sequence",
+        "Readiness Proof",
         "Copy-Only Command",
         "Validation Path",
     ]
@@ -8326,6 +8327,7 @@ def data_health_fundamentals_unlock_frame(
                     "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
                     "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
                 ),
+                "Readiness Proof": "Run `make dcf-readiness` and `make readiness`, then reopen Data Health or the single-stock report before reading DCF output.",
                 "Copy-Only Command": command,
                 "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
             }
@@ -8353,6 +8355,7 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
     boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, stage trusted fundamentals only, then validate, preview, apply, and rerun DCF readiness.")
+    proof = format_missing(first.get("Readiness Proof"), "Run make dcf-readiness and make readiness before reading DCF output.")
     command = format_missing(first.get("Copy-Only Command"), f"make focus-fundamentals TICKER={ticker}")
     return [
         {
@@ -8375,8 +8378,11 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
         {
             "kicker": "TRUSTED INPUT PATH",
             "title": format_missing(first.get("Trusted Input Path"), "data/imports/fundamentals.csv"),
-            "body": f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make imports-validate -> make imports-preview -> make imports-apply')}.",
-            "badges": ["validate", "preview before apply"],
+            "body": (
+                f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make imports-validate -> make imports-preview -> make imports-apply')}. "
+                f"Readiness proof: {proof}"
+            ),
+            "badges": ["validate", "preview before apply", "proof before analysis"],
             "command": "make imports-validate && make imports-preview && make imports-apply",
         },
     ]
