@@ -15184,6 +15184,9 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert "data/staged/analyst_estimates/ or data/imports/analyst_estimates.csv" in rendered
     assert "make import-earnings" in rendered
     assert "make import-analyst-estimates" in rendered
+    assert "prove optional context before showing it" in rendered
+    assert "copy next: `make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding top_n=10`" in rendered
+    assert "schema-only examples and templates remain operator aids, not data" in rendered
     assert "data/rejected/earnings_import_rejected.csv" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "make imports-validate" in rendered

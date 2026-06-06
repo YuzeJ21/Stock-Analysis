@@ -3207,6 +3207,17 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
             "command": format_missing(first.get("Import Command"), "make templates"),
         },
         {
+            "kicker": "COPY NEXT",
+            "title": "Prove optional context before showing it",
+            "body": (
+                f"Copy next: `{format_missing(first.get('Copy-Only Command'), 'make imports-validate && make imports-preview && make imports-apply')}`. "
+                "Run the import, validation, preview, apply, optional-context readiness, and onboarding sequence before treating earnings or estimates as available. "
+                "Schema-only examples and templates remain operator aids, not data."
+            ),
+            "badges": ["copy-only", "proof before context"],
+            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
+        },
+        {
             "kicker": "TRUSTED OPTIONAL PATH",
             "title": format_missing(first.get("Trusted Input Path"), "Trusted optional input path"),
             "body": (
