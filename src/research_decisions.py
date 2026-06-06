@@ -202,6 +202,12 @@ def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -
             f"Add at least 2 source-backed peer mappings for {ticker} in data/imports/peers.csv; "
             "then run make imports-validate, make imports-preview, and make imports-apply."
         )
+    if primary_blocker in {"earnings", "analyst_estimates", "optional_context"}:
+        return (
+            f"Optional context for {ticker} stays locked unless trusted local earnings or analyst-estimate rows exist; "
+            "use make templates, make import-earnings or make import-analyst-estimates, then run "
+            "make imports-validate, make imports-preview, and make imports-apply."
+        )
     return text
 
 

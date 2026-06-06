@@ -252,7 +252,10 @@ def test_research_decisions_label_core_ready_rows_with_optional_context_locked()
     assert row["decision_bucket"] == "Research Now"
     assert row["decision_subtype"] == "Research Candidate - Optional Context Locked"
     assert row["primary_blocker"] == "earnings"
-    assert "Optional context missing" in row["next_best_action"]
+    assert "Optional context for MSFT stays locked unless trusted local earnings or analyst-estimate rows exist" in row["next_best_action"]
+    assert "make templates" in row["next_best_action"]
+    assert "make import-earnings or make import-analyst-estimates" in row["next_best_action"]
+    assert "make imports-validate, make imports-preview, and make imports-apply" in row["next_best_action"]
     assert "earnings timing or surprise context" in row["unsupported_analysis"]
     assert "analyst estimate trend context" in row["unsupported_analysis"]
     assert "buy" not in rendered
