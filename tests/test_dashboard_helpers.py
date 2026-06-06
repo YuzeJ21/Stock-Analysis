@@ -13223,8 +13223,8 @@ def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     assert "p3: 1" in rendered
     assert "active universe: 1" in rendered
     assert "master universe: 2" in rendered
-    assert "active-universe queue: 0" in rendered
-    assert "dcf-ready but peer-blocked: 0" in rendered
+    assert "active-universe queue: 1" in rendered
+    assert "dcf-ready but peer-blocked: 2" in rendered
     assert "meta" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "schema fields: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
@@ -14460,6 +14460,62 @@ def test_peer_readiness_product_cards_prioritize_peer_unlock_worklist_active_sco
     assert next_card["command"] == "make focus-peers TICKER=COHR"
     assert "active source-backed peer mappings first" in rendered
     assert "broad master-universe peer mapping follow-up" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_peer_readiness_product_cards_prioritize_active_dcf_workflow_before_broad_priority():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "AAPL",
+                "peer_ready": False,
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "next_peer_action": "Add broad peer fundamentals.",
+            },
+            {
+                "ticker": "CRDO",
+                "peer_ready": False,
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "next_peer_action": "Add active peer fundamentals.",
+            },
+        ]
+    )
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AAPL",
+                "workflow_group": "peer_valuation_unlock",
+                "workflow_scope": "master_universe",
+                "next_action_summary": "Broad master-universe peer fundamentals follow-up.",
+            },
+            {
+                "priority": 2,
+                "ticker": "CRDO",
+                "workflow_group": "peer_valuation_unlock",
+                "workflow_scope": "active_universe",
+                "next_action_summary": "Active DCF-ready peer valuation follow-up.",
+            },
+        ]
+    )
+
+    cards = dashboard.peer_readiness_product_cards(peer_readiness, pd.DataFrame({"ticker": ["AAPL", "CRDO"]}), worklist)
+    next_card = next(card for card in cards if card["kicker"] == "NEXT PEER TARGET")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert next_card["title"] == "CRDO"
+    assert next_card["command"] == "make focus-peers TICKER=CRDO"
+    assert "active dcf-ready peer valuation follow-up" in rendered
+    assert "broad master-universe peer fundamentals follow-up" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered

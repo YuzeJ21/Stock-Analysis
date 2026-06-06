@@ -7418,11 +7418,13 @@ def peer_readiness_product_cards(
         worklist["ticker"] = worklist["ticker"].astype(str).str.upper().str.strip()
         if "priority" in worklist.columns:
             worklist["priority"] = pd.to_numeric(worklist["priority"], errors="coerce").fillna(999).astype(int)
-        if "workflow_scope" in worklist.columns:
-            worklist["_scope_rank"] = worklist["workflow_scope"].fillna("").astype(str).str.lower().ne("active_universe").astype(int)
-        else:
-            worklist["_scope_rank"] = 1
-        sort_columns = [column for column in ["priority", "_scope_rank", "ticker"] if column in worklist.columns]
+        scope_text = worklist.get("workflow_scope", pd.Series("", index=worklist.index)).fillna("").astype(str).str.lower()
+        workflow_text = worklist.get("workflow_group", pd.Series("", index=worklist.index)).fillna("").astype(str).str.lower()
+        active_flag = bool_series(worklist, "in_active_universe") if "in_active_universe" in worklist.columns else pd.Series(False, index=worklist.index)
+        dcf_flag = bool_series(worklist, "dcf_ready") if "dcf_ready" in worklist.columns else pd.Series(False, index=worklist.index)
+        worklist["_scope_rank"] = (~(active_flag | scope_text.str.contains("active", na=False))).astype(int)
+        worklist["_dcf_rank"] = (~(dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))).astype(int)
+        sort_columns = [column for column in ["_scope_rank", "_dcf_rank", "priority", "ticker"] if column in worklist.columns]
         worklist = worklist.sort_values(sort_columns, kind="stable") if sort_columns else worklist
         next_row = worklist.iloc[0]
         next_ticker = format_missing(next_row.get("ticker"), "Ticker")
@@ -7808,19 +7810,36 @@ def peer_unlock_operator_cards(
     workflow_counts = frame.get("workflow_group", pd.Series("peer_workflow", index=frame.index)).fillna("peer_workflow").astype(str).value_counts()
     scope_counts = frame.get("workflow_scope", pd.Series("unknown_scope", index=frame.index)).fillna("unknown_scope").astype(str).value_counts()
     priority_counts = frame["priority"].value_counts().sort_index()
-    active_queue_count = int(bool_series(frame, "in_active_universe").sum()) if "in_active_universe" in frame.columns else 0
-    dcf_ready_peer_blocked_count = int((bool_series(frame, "dcf_ready") & ~bool_series(frame, "peer_ready")).sum())
+    scope_text = frame.get("workflow_scope", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    workflow_text = frame.get("workflow_group", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    active_flag = bool_series(frame, "in_active_universe") if "in_active_universe" in frame.columns else pd.Series(False, index=frame.index)
+    dcf_flag = bool_series(frame, "dcf_ready") if "dcf_ready" in frame.columns else pd.Series(False, index=frame.index)
+    peer_ready_flag = bool_series(frame, "peer_ready") if "peer_ready" in frame.columns else pd.Series(False, index=frame.index)
+    active_rank_flag = active_flag | scope_text.str.contains("active", na=False)
+    dcf_rank_flag = dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False)
+    active_queue_count = int(active_rank_flag.sum())
+    dcf_ready_peer_blocked_count = int((dcf_rank_flag & ~peer_ready_flag).sum())
     ordered = frame.loc[~monitor_proxy].copy()
     if ordered.empty:
         ordered = frame.copy()
+    ordered_scope_text = ordered.get("workflow_scope", pd.Series("", index=ordered.index)).fillna("").astype(str).str.lower()
+    ordered_workflow_text = ordered.get("workflow_group", pd.Series("", index=ordered.index)).fillna("").astype(str).str.lower()
+    ordered_active_flag = bool_series(ordered, "in_active_universe") if "in_active_universe" in ordered.columns else pd.Series(False, index=ordered.index)
+    ordered_dcf_flag = bool_series(ordered, "dcf_ready") if "dcf_ready" in ordered.columns else pd.Series(False, index=ordered.index)
+    ordered = ordered.assign(
+        _scope_rank=(~(ordered_active_flag | ordered_scope_text.str.contains("active", na=False))).astype(int),
+        _dcf_rank=(~(ordered_dcf_flag | ordered_workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))).astype(int),
+    )
     ordered = ordered.sort_values(
         [
+            "_scope_rank",
+            "_dcf_rank",
             "priority",
             "workflow_scope",
             "workflow_group",
             "ticker",
         ],
-        ascending=[True, True, True, True],
+        ascending=[True, True, True, True, True, True],
         kind="stable",
     )
     top_row = ordered.iloc[0]
