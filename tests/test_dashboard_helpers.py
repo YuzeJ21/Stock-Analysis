@@ -15463,10 +15463,18 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make status-check top_n=5" in rendered
     fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing company fundamentals")
     peers_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing peer mapping")
+    earnings_row = next(row for row in missing_rows if row["Dashboard Label"] == "Earnings unavailable")
+    estimates_row = next(row for row in missing_rows if row["Dashboard Label"] == "Analyst estimates unavailable")
     assert "make status-check TOP_N=5" in fundamentals_row["What to do"]
     assert "make status-check TOP_N=5" in peers_row["What to do"]
-    assert any(row["Dashboard Label"] == "Earnings unavailable" for row in missing_rows)
-    assert any(row["Dashboard Label"] == "Analyst estimates unavailable" for row in missing_rows)
+    assert "Leave locked unless you have trusted earnings rows" in earnings_row["What to do"]
+    assert "data/staged/earnings/" in earnings_row["What to do"]
+    assert "make import-earnings" in earnings_row["What to do"]
+    assert "data/rejected/earnings_import_rejected.csv" in earnings_row["What to do"]
+    assert "Leave locked unless you have trusted analyst-estimate rows" in estimates_row["What to do"]
+    assert "data/staged/analyst_estimates/" in estimates_row["What to do"]
+    assert "make import-analyst-estimates" in estimates_row["What to do"]
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in estimates_row["What to do"]
     assert "make data-wizard top_n=5" in rendered
     assert "data health page" in nav_rendered
     assert "make runbook-prices-broader" in empty_rendered

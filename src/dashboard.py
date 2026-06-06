@@ -12596,11 +12596,11 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
         },
         {
             "Dashboard Label": "Earnings unavailable",
-            "What to do": "Add trusted local earnings rows only if you have a reliable source.",
+            "What to do": "Leave locked unless you have trusted earnings rows. Use `make templates`, place files in `data/staged/earnings/`, run `make import-earnings`, then `make imports-validate`, `make imports-preview`, and `make imports-apply`. Rejected rows appear at `data/rejected/earnings_import_rejected.csv`.",
         },
         {
             "Dashboard Label": "Analyst estimates unavailable",
-            "What to do": "Optional file. Leave missing unless you have a trusted local source.",
+            "What to do": "Leave locked unless you have trusted analyst-estimate rows. Use `make templates`, place files in `data/staged/analyst_estimates/`, run `make import-analyst-estimates`, then `make imports-validate`, `make imports-preview`, and `make imports-apply`. Rejected rows appear at `data/rejected/analyst_estimates_import_rejected.csv`.",
         },
     ]
 
