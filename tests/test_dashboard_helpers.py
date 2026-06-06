@@ -7875,6 +7875,8 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
     assert "readiness-gated valuation page" in rendered
     assert "dcf-ready examples: nvda, a" in rendered
     assert "review dcf assumptions, scenario math, sensitivity, and source freshness" in rendered
+    assert "peer trend is a separate context layer when mapped peer price history is ready" in rendered
+    assert "peer valuation stays locked until source-backed peer valuation inputs pass readiness" in rendered
     assert "locked examples: meta, amd, cohr +1 more" in rendered
     assert "company valuation stays locked until trusted price, fundamentals" in rendered
     assert "missing inputs are not negative signals" in rendered
@@ -8006,7 +8008,8 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert "not price targets" in rendered
     assert "1 dcf-ready company row(s)" in rendered
     assert "open nvda for dcf assumptions" in rendered
-    assert "peer-relative valuation still needs trusted peer inputs" in rendered
+    assert "peer trend can be reviewed only when mapped peer price history is ready" in rendered
+    assert "peer-relative valuation still needs trusted peer valuation inputs" in rendered
     assert "1 company row(s) need inputs" in rendered
     assert "for meta, fair value/share" in rendered
     assert "free cash flow pass readiness" in rendered

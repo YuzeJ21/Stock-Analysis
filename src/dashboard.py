@@ -12011,7 +12011,8 @@ def valuation_quick_read_cards(
         analyze_title = f"{len(ready)} DCF-ready company row(s)"
         analyze_body = (
             f"What you can analyze now: open {ready_ticker} for DCF assumptions, scenarios, "
-            "sensitivity, and source freshness. Peer-relative valuation still needs trusted peer inputs."
+            "sensitivity, and source freshness. Peer trend can be reviewed only when mapped peer price history is ready; "
+            "peer-relative valuation still needs trusted peer valuation inputs."
         )
 
     return [
@@ -16515,7 +16516,8 @@ def valuation_plain_language_cards(
             "title": f"DCF-ready examples: {ready_examples}",
             "body": (
                 "Review DCF assumptions, scenario math, sensitivity, and source freshness for ready company rows only. "
-                "Treat the output as research context, not an instruction."
+                "Peer trend is a separate context layer when mapped peer price history is ready; peer valuation stays locked "
+                "until source-backed peer valuation inputs pass readiness. Treat the output as research context, not an instruction."
             ),
             "badges": ["DCF assumptions", "sensitivity"],
             "command": stock_report_md_command(ready_ticker),
