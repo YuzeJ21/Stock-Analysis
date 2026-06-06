@@ -7391,7 +7391,7 @@ def peer_unlock_operator_cards(
     ):
         readiness_columns = [
             column
-            for column in ["ticker", "asset_type", "in_active_universe"]
+            for column in ["ticker", "asset_type", "in_active_universe", "dcf_ready", "peer_ready"]
             if column in ticker_readiness_frame.columns
         ]
         readiness = ticker_readiness_frame[readiness_columns].copy()
@@ -7424,6 +7424,8 @@ def peer_unlock_operator_cards(
     workflow_counts = frame.get("workflow_group", pd.Series("peer_workflow", index=frame.index)).fillna("peer_workflow").astype(str).value_counts()
     scope_counts = frame.get("workflow_scope", pd.Series("unknown_scope", index=frame.index)).fillna("unknown_scope").astype(str).value_counts()
     priority_counts = frame["priority"].value_counts().sort_index()
+    active_queue_count = int(bool_series(frame, "in_active_universe").sum()) if "in_active_universe" in frame.columns else 0
+    dcf_ready_peer_blocked_count = int((bool_series(frame, "dcf_ready") & ~bool_series(frame, "peer_ready")).sum())
     ordered = frame.loc[~monitor_proxy].copy()
     if ordered.empty:
         ordered = frame.copy()
@@ -7449,7 +7451,10 @@ def peer_unlock_operator_cards(
         {
             "kicker": "PEER UNLOCK QUEUE",
             "title": priority_text or f"{len(frame)} queued",
-            "body": f"{len(frame)} peer unlock row(s). Scope mix: {scope_text or 'not available'}.",
+            "body": (
+                f"{len(frame)} peer unlock row(s). Active-universe queue: {active_queue_count}. "
+                f"DCF-ready but peer-blocked: {dcf_ready_peer_blocked_count}. Scope mix: {scope_text or 'not available'}."
+            ),
             "badges": ["priority grouped", "row-limited"],
             "command": "make peer-mapping-queue TOP_N=25",
         },
@@ -7463,7 +7468,10 @@ def peer_unlock_operator_cards(
         {
             "kicker": "WORKFLOW GROUPS",
             "title": "What kind of peer data?",
-            "body": workflow_text or "No workflow grouping is available yet.",
+            "body": (
+                f"{workflow_text or 'No workflow grouping is available yet.'} "
+                "Peer trend can use mapped peer price history; peer valuation waits for source-backed peer mappings and peer valuation inputs."
+            ),
             "badges": ["mapping vs metrics", "no fallback peers"],
             "command": "make templates",
         },

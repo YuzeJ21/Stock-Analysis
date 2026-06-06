@@ -13028,10 +13028,14 @@ def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     assert "p3: 1" in rendered
     assert "active universe: 1" in rendered
     assert "master universe: 2" in rendered
+    assert "active-universe queue: 0" in rendered
+    assert "dcf-ready but peer-blocked: 0" in rendered
     assert "meta" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make imports-preview" in rendered
     assert "dcf ready peer mapping" in rendered
+    assert "peer trend can use mapped peer price history" in rendered
+    assert "peer valuation waits for source-backed peer mappings and peer valuation inputs" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -13066,7 +13070,7 @@ def test_peer_unlock_operator_cards_keep_etf_rows_in_monitor_context():
     readiness = pd.DataFrame(
         [
             {"ticker": "QQQ", "asset_type": "etf", "in_active_universe": True},
-            {"ticker": "COHR", "asset_type": "company", "in_active_universe": True},
+            {"ticker": "COHR", "asset_type": "company", "in_active_universe": True, "dcf_ready": True, "peer_ready": False},
         ]
     )
 
@@ -13074,6 +13078,8 @@ def test_peer_unlock_operator_cards_keep_etf_rows_in_monitor_context():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "cohr" in rendered
+    assert "active-universe queue: 2" in rendered
+    assert "dcf-ready but peer-blocked: 1" in rendered
     assert "make focus-peers ticker=cohr" in rendered
     assert "monitor proxy context" in rendered
     assert "make stock-report-md ticker=qqq" in rendered
