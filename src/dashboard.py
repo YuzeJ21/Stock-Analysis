@@ -2898,6 +2898,7 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
             "body": (
                 "Trusted earnings rows can show dates, EPS, revenue, and surprise fields. "
                 "When rows are missing, the report leaves earnings context locked instead of using placeholders. "
+                "Schema guide: ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at. "
                 "Use schema-only templates, `data/staged/earnings/` or `data/imports/earnings.csv`, and review rejected rows at `data/rejected/earnings_import_rejected.csv`."
             ),
             "badges": ["trusted local rows" if earnings_ready else "locked"],
@@ -2909,6 +2910,7 @@ def stock_report_optional_context_boundary_cards(report_payload: dict[str, objec
             "body": (
                 "Trusted estimate rows can show consensus EPS, revenue, target ranges, and revision trend. "
                 "They are shown as optional context, not as the product's own valuation output. "
+                "Schema guide: ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at. "
                 "Use schema-only templates, `data/staged/analyst_estimates/` or `data/imports/analyst_estimates.csv`, and review rejected rows at `data/rejected/analyst_estimates_import_rejected.csv`."
             ),
             "badges": ["trusted local rows" if estimates_ready else "locked"],

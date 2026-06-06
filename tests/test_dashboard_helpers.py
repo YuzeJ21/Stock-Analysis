@@ -14833,10 +14833,12 @@ def test_stock_report_optional_context_boundary_cards_explain_locked_and_availab
     assert "never overrides readiness gates or creates a valuation conclusion by itself" in rendered
     assert "locked means missing trusted local csv input, not broken analysis" in locked_rendered
     assert "leaves earnings context locked instead of using placeholders" in locked_rendered
+    assert "schema guide: ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at" in locked_rendered
     assert "data/staged/earnings/" in locked_rendered
     assert "data/imports/earnings.csv" in locked_rendered
     assert "data/rejected/earnings_import_rejected.csv" in locked_rendered
     assert "data/staged/analyst_estimates/" in locked_rendered
+    assert "schema guide: ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at" in locked_rendered
     assert "data/imports/analyst_estimates.csv" in locked_rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in locked_rendered
     assert locked_cards[1]["command"] == "make templates && make import-earnings && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
