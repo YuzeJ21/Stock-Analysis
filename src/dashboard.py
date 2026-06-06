@@ -7975,6 +7975,8 @@ def data_health_peer_unlock_frame(
         "Ticker",
         "Priority Scope",
         "Current State",
+        "Peer Trend State",
+        "Peer Valuation State",
         "What You Can Analyze Now",
         "What Is Still Locked",
         "Trusted Peer Requirement",
@@ -8006,7 +8008,20 @@ def data_health_peer_unlock_frame(
     if unlock_rows.empty:
         return pd.DataFrame(columns=columns)
     if "priority" in unlock_rows.columns:
-        unlock_rows = unlock_rows.sort_values(["priority", "ticker"], na_position="last", kind="stable")
+        scope_text = unlock_rows.get("workflow_scope", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
+        workflow_text = unlock_rows.get("workflow_group", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
+        active_flag = bool_series(unlock_rows, "in_active_universe") if "in_active_universe" in unlock_rows.columns else pd.Series(False, index=unlock_rows.index)
+        dcf_flag = bool_series(unlock_rows, "dcf_ready") if "dcf_ready" in unlock_rows.columns else pd.Series(False, index=unlock_rows.index)
+        active_rank = ~(
+            active_flag
+            | scope_text.str.contains("active", na=False)
+        )
+        dcf_rank = ~(
+            dcf_flag
+            | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False)
+        )
+        unlock_rows = unlock_rows.assign(_active_rank=active_rank.astype(int), _dcf_rank=dcf_rank.astype(int))
+        unlock_rows = unlock_rows.sort_values(["_active_rank", "_dcf_rank", "priority", "ticker"], na_position="last", kind="stable")
     else:
         unlock_rows = unlock_rows.sort_values(["ticker"], kind="stable")
 
@@ -8020,17 +8035,33 @@ def data_health_peer_unlock_frame(
         if not command.startswith("make focus-peers"):
             command = f"make focus-peers TICKER={ticker}"
         priority = format_missing(row.get("priority"), "not ranked")
-        active_scope = str(row.get("in_active_universe", "")).strip().lower() in {"true", "1", "yes", "y"}
+        active_scope = str(row.get("in_active_universe", "")).strip().lower() in {"true", "1", "yes", "y"} or "active" in str(row.get("workflow_scope", "")).lower()
         scope = format_missing(row.get("workflow_scope"), "active universe" if active_scope else "master universe").replace("_", " ")
+        trend_state = format_missing(row.get("peer_trend_status"), "peer trend blocked until source-backed mappings and peer price history are ready").replace("_", " ")
+        valuation_state = format_missing(row.get("peer_valuation_status"), "peer valuation blocked until source-backed peer mappings and valuation inputs pass").replace("_", " ")
+        input_path = format_missing(row.get("next_input_file"), "data/imports/peers.csv with source-backed peer mappings")
+        if input_path == "data/imports/peers.csv":
+            input_path = "data/imports/peers.csv with source-backed peer mappings"
+        validation_path = format_missing(
+            row.get("validation_sequence"),
+            "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25",
+        )
+        can_review = (
+            "Peer trend context may be reviewed from mapped peer price history; peer valuation stays locked until trusted valuation inputs pass."
+            if "possible" in trend_state or ("ready" in trend_state and "blocked" not in trend_state)
+            else "Review standalone DCF assumptions and sensitivity if DCF is ready; otherwise stay with the ready price/setup context."
+        )
         rows.append(
             {
                 "Ticker": ticker,
                 "Priority Scope": f"Priority {priority}; {scope}",
-                "Current State": "Peer valuation locked until trusted peer inputs exist",
-                "What You Can Analyze Now": "Review standalone DCF assumptions and sensitivity if DCF is ready; otherwise stay with the ready price/setup context.",
+                "Current State": "Peer workflow is split: trend can be possible before peer valuation is ready.",
+                "Peer Trend State": trend_state,
+                "Peer Valuation State": valuation_state,
+                "What You Can Analyze Now": can_review,
                 "What Is Still Locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked until source-backed peer inputs pass readiness.",
                 "Trusted Peer Requirement": requirement,
-                "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
+                "Trusted Input Path": input_path,
                 "What This Unlocks": "Source-backed peer mappings can unlock peer trend context first and peer valuation only after peer valuation inputs also pass.",
                 "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
                 "Next Safe Sequence": (
@@ -8039,10 +8070,7 @@ def data_health_peer_unlock_frame(
                     "4. Run `make readiness` and `make peer-mapping-queue TOP_N=25` before reading peer valuation."
                 ),
                 "Copy-Only Command": command,
-                "Validation Path": (
-                    "make templates -> fill data/imports/peers.csv -> make imports-validate -> "
-                    "make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25"
-                ),
+                "Validation Path": validation_path,
             }
         )
     return pd.DataFrame(rows, columns=columns)
@@ -8066,6 +8094,8 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
     requirement = compact_reason(first.get("Trusted Peer Requirement"), max_sentences=1, max_chars=140)
     boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
+    trend_state = compact_reason(first.get("Peer Trend State"), max_sentences=1, max_chars=120)
+    valuation_state = compact_reason(first.get("Peer Valuation State"), max_sentences=1, max_chars=120)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
@@ -8083,7 +8113,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
         {
             "kicker": "NEXT PEER ROW",
             "title": ticker,
-            "body": f"Trusted peer requirement: {requirement}. Still locked: {locked}. Boundary: {boundary}.",
+            "body": f"Trend: {trend_state}. Valuation: {valuation_state}. Trusted peer requirement: {requirement}. Still locked: {locked}. Boundary: {boundary}.",
             "badges": ["one ticker first", "no fallback valuation"],
             "command": command,
         },

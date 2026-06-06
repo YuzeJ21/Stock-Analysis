@@ -13484,11 +13484,28 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
             {
                 "priority": 1,
                 "ticker": "A",
-                "workflow_scope": "active_universe",
+                "workflow_scope": "master_universe",
+                "workflow_group": "peer_valuation_unlock",
+                "peer_trend_status": "peer_trend_possible",
+                "peer_valuation_status": "peer_valuation_blocked",
                 "has_peer_mapping": "False",
                 "peer_ready": False,
                 "missing_required_for_peer_relative": "peer mapping, peer fundamentals",
                 "focus_command": "make focus-peers TICKER=A",
+            },
+            {
+                "priority": 2,
+                "ticker": "CRDO",
+                "workflow_scope": "active_universe",
+                "workflow_group": "peer_valuation_unlock",
+                "peer_trend_status": "peer_trend_possible",
+                "peer_valuation_status": "peer_valuation_blocked",
+                "has_peer_mapping": "True",
+                "peer_ready": False,
+                "missing_required_for_peer_relative": "peer fundamentals",
+                "next_input_file": "data/imports/fundamentals.csv or data/staged/fundamentals/",
+                "validation_sequence": "make focus-fundamentals TICKER=<peer> -> make imports-validate",
+                "focus_command": "make focus-peers TICKER=CRDO",
             },
             {
                 "priority": 2,
@@ -13509,6 +13526,8 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
         "Ticker",
         "Priority Scope",
         "Current State",
+        "Peer Trend State",
+        "Peer Valuation State",
         "What You Can Analyze Now",
         "What Is Still Locked",
         "Trusted Peer Requirement",
@@ -13519,13 +13538,17 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
         "Copy-Only Command",
         "Validation Path",
     ]
-    assert frame["Ticker"].tolist() == ["A"]
-    assert frame.iloc[0]["Priority Scope"] == "Priority 1; active universe"
-    assert frame.iloc[0]["Copy-Only Command"] == "make focus-peers TICKER=A"
-    assert "peer valuation locked until trusted peer inputs exist" in rendered
-    assert "review standalone dcf assumptions and sensitivity if dcf is ready" in rendered
+    assert frame["Ticker"].tolist() == ["CRDO", "A"]
+    assert frame.iloc[0]["Priority Scope"] == "Priority 2; active universe"
+    assert frame.iloc[0]["Copy-Only Command"] == "make focus-peers TICKER=CRDO"
+    assert "peer workflow is split: trend can be possible before peer valuation is ready" in rendered
+    assert "peer trend possible" in rendered
+    assert "peer valuation blocked" in rendered
+    assert "peer trend context may be reviewed from mapped peer price history" in rendered
     assert "peer-relative premium/discount, peer valuation comparison, and peer dcf comparison stay locked" in rendered
     assert "peer mapping, peer fundamentals" in rendered
+    assert "peer fundamentals" in rendered
+    assert "data/imports/fundamentals.csv or data/staged/fundamentals/" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "peer trend context first and peer valuation only after peer valuation inputs also pass" in rendered
     assert "do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
@@ -13536,6 +13559,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "make imports-apply" in rendered
     assert "make readiness" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "make focus-fundamentals ticker=<peer> -> make imports-validate" in rendered
     assert "fill data/imports/peers.csv" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13550,6 +13574,8 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
             {
                 "Ticker": "A",
                 "Priority Scope": "Priority 1; active universe",
+                "Peer Trend State": "peer trend possible",
+                "Peer Valuation State": "peer valuation blocked",
                 "What Is Still Locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked until source-backed peer inputs pass readiness.",
                 "Trusted Peer Requirement": "peer mapping, peer fundamentals",
                 "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
@@ -13570,6 +13596,8 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "prioritize active-universe and dcf-ready peer blockers before broad peer work" in rendered
     assert "open this before reading peer-relative valuation" in rendered
     assert "peer premium/discount stays locked" in rendered
+    assert "trend: peer trend possible" in rendered
+    assert "valuation: peer valuation blocked" in rendered
     assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered
     assert "boundary: do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
     assert "add source-backed peer rows in `data/imports/peers.csv`" in rendered
