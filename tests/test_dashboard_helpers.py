@@ -9045,6 +9045,7 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
         "WHAT YOU CAN ANALYZE NOW",
         "WHAT IS STILL LOCKED",
         "OUTPUT BOUNDARY",
+        "COPY NEXT",
     ]
     assert "ready, blocked, or excluded first" in rendered
     assert "inputs are separated from calculations" in rendered
@@ -9055,6 +9056,9 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "no hidden final call" in rendered
     assert "source inputs, product calculations, blocked sections" in rendered
     assert "does not convert partial data into a portfolio action" in rendered
+    assert "start with a demo or one selected ticker" in rendered
+    assert "for a visitor demo, copy the markdown report command" in rendered
+    assert "read the at a glance and reader guide before opening detailed tables" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=apld" in rendered
     assert "broker" not in rendered

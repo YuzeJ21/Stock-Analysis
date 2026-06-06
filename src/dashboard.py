@@ -4766,6 +4766,16 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "badges": ["transparent method", "no overclaim"],
             "command": "make stock-report-md TICKER=APLD",
         },
+        {
+            "kicker": "COPY NEXT",
+            "title": "Start with a demo or one selected ticker",
+            "body": (
+                "For a visitor demo, copy the Markdown report command. For your own ticker, select a local ticker above, "
+                "build the preview, then read the At A Glance and Reader Guide before opening detailed tables."
+            ),
+            "badges": ["visitor path", "one ticker"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
     ]
 
 
@@ -17802,7 +17812,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
 
     render_signal_cards(single_stock_report_intro_cards())
 
-    if st.button("Show Local Research Report", key="single-stock-report-button"):
+    if st.button("Build Local Report Preview", key="single-stock-report-button"):
         if not ticker:
             st.warning("Enter a ticker to generate a stock report.")
         else:
