@@ -13040,6 +13040,7 @@ def test_first_peer_mapping_unlock_frame_prioritizes_source_backed_mapping_workf
     assert frame.iloc[1]["Copy Command"] == "make templates"
     assert frame.iloc[1]["Trusted Input"] == "data/imports/peers.csv"
     assert "sector or industry fallback is not trusted peer data" in rendered
+    assert "schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "make readiness && make peer-mapping-queue top_n=25" in rendered
     assert "peer readiness should improve only after mapped rows pass validation" in rendered
@@ -13326,6 +13327,7 @@ def test_peer_input_ladder_prioritizes_active_dcf_ready_rows_and_separates_trend
     assert "peer valuation remains locked until peer fundamentals and valuation inputs pass readiness" in rendered
     assert "peer-relative premium/discount, peer valuation comparison, and peer dcf comparison stay locked" in rendered
     assert "do not skip from mappings to peer valuation" in rendered
+    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
     assert "sector or industry fallback can guide research context only; it is not trusted peer valuation data" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make focus-peers ticker=meta" in rendered
@@ -13792,6 +13794,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
     assert "make templates" in rendered
     assert "add source-backed peer rows in `data/imports/peers.csv`" in rendered
+    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -13842,6 +13845,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "valuation: peer valuation blocked" in rendered
     assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered
     assert "boundary: do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
+    assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
     assert "add source-backed peer rows in `data/imports/peers.csv`" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered

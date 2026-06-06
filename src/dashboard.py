@@ -7927,6 +7927,7 @@ def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict
     total_rows = int(pd.to_numeric(frame.get("Priority Count"), errors="coerce").fillna(0).sum())
     active_rows = int(pd.to_numeric(frame.get("Active Universe Count"), errors="coerce").fillna(0).sum())
     dcf_rows = int(pd.to_numeric(frame.get("DCF-Ready Count"), errors="coerce").fillna(0).sum())
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
     return [
         {
             "kicker": "PEER INPUT LADDER",
@@ -7953,7 +7954,7 @@ def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict
             "kicker": "TRUSTED PEER PATH",
             "title": format_missing(first.get("Trusted Input Path"), "Trusted peer input path"),
             "body": (
-                f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Schema guide: {peer_schema_guide}. Validation path: {format_missing(first.get('Validation Path'), '')}. "
                 "Sector or industry fallback can guide research context only; it is not trusted peer valuation data."
             ),
             "badges": ["validate", "fallback labeled"],
@@ -7994,7 +7995,10 @@ def first_peer_mapping_unlock_frame(peer_unlock_worklist_frame: pd.DataFrame | N
         },
         {
             "Step": "2. Add source-backed mappings only",
-            "Why It Matters": "Peer relationships must come from trusted research context; sector or industry fallback is not trusted peer data.",
+            "Why It Matters": (
+                "Peer relationships must come from trusted research context; sector or industry fallback is not trusted peer data. "
+                "Schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date."
+            ),
             "Copy Command": "make templates",
             "Trusted Input": "data/imports/peers.csv",
         },
@@ -8446,6 +8450,7 @@ def data_health_peer_unlock_frame(
     unlock_rows = frame.loc[missing_mapping | peer_not_ready | missing_peer_inputs].copy()
     if unlock_rows.empty:
         return pd.DataFrame(columns=columns)
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
     if "priority" in unlock_rows.columns:
         scope_text = unlock_rows.get("workflow_scope", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
         workflow_text = unlock_rows.get("workflow_group", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
@@ -8505,6 +8510,7 @@ def data_health_peer_unlock_frame(
                 "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
                 "Next Safe Sequence": (
                     f"1. Inspect `{command}`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. "
+                    f"Schema guide: {peer_schema_guide}. "
                     "3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply`. "
                     "4. Run `make readiness` and `make peer-mapping-queue TOP_N=25` before reading peer valuation."
                 ),
@@ -8540,6 +8546,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
     proof = format_missing(first.get("Readiness Proof"), "Run make readiness and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
     return [
         {
             "kicker": "PEER QUEUE",
@@ -8563,7 +8570,8 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             "kicker": "TRUSTED PEER PATH",
             "title": format_missing(first.get("Trusted Input Path"), "data/imports/peers.csv"),
             "body": (
-                f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply')}. "
+                f"Schema guide: {peer_schema_guide}. {sequence} "
+                f"Validation path: {format_missing(first.get('Validation Path'), 'make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply')}. "
                 f"Readiness proof: {proof}"
             ),
             "badges": ["validate", "preview before apply", "proof before valuation"],
