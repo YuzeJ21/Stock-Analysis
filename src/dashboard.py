@@ -8709,12 +8709,15 @@ def dcf_missing_field_guide_cards(field_guide_frame: pd.DataFrame | None) -> lis
     first = frame.iloc[0]
     affected = pd.to_numeric(frame.get("Affected Companies"), errors="coerce").fillna(0)
     total_affected = int(affected.sum())
+    first_input = format_missing(first.get("Missing Input"), "the top missing input")
+    first_examples = format_missing(first.get("Example Tickers"), "Not available")
     return [
         {
             "kicker": "DCF FIELD GUIDE",
             "title": f"{len(frame)} missing input type(s)",
             "body": (
                 f"{total_affected} company field gap(s) are blocking DCF readiness. "
+                f"Start with {first_input} for {first_examples}. "
                 "Treat these as repair steps, not company-quality conclusions."
             ),
             "badges": ["field-level blockers", "no valuation inference"],
@@ -8722,10 +8725,10 @@ def dcf_missing_field_guide_cards(field_guide_frame: pd.DataFrame | None) -> lis
         },
         {
             "kicker": "TOP MISSING INPUT",
-            "title": format_missing(first.get("Missing Input"), "Missing input"),
+            "title": first_input,
             "body": (
                 f"Affected companies: {format_missing(first.get('Affected Companies'), '0')}. "
-                f"Examples: {format_missing(first.get('Example Tickers'), 'Not available')}. "
+                f"Examples: {first_examples}. "
                 f"Why it matters: {format_missing(first.get('Why It Matters'), '')}"
             ),
             "badges": ["one field first", "trusted data only"],

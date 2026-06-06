@@ -13944,6 +13944,8 @@ def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without
     assert "make imports-apply" in rendered
     assert "make dcf-readiness" in rendered
     assert "dcf math, fair value/share, undervalued, overvalued, and peer-relative conclusions stay withheld" in rendered
+    assert "start with" in rendered
+    assert "for meta" in rendered
     assert "treat these as repair steps, not company-quality conclusions" in rendered
     assert "qqq" not in frame["Example Tickers"].astype(str).str.lower().str.cat(sep=" ")
     assert "render_signal_cards(dcf_missing_field_guide_cards(field_guide))" in source
