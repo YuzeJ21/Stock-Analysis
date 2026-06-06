@@ -17036,9 +17036,12 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
         primary = {
             "kicker": "BEST NEXT STEP",
             "title": "Expand price coverage",
-            "body": "More tickers need daily price history before momentum, liquidity, and market-context views become useful across the broader universe.",
-            "badges": ["biggest blocker"],
-            "command": "make price-worklist TOP_N=25",
+            "body": (
+                "More tickers need daily price history before momentum, liquidity, and market-context views become useful. "
+                "Start with the scalable dry run so you can review a capped batch plan instead of repeating 25-ticker refreshes manually."
+            ),
+            "badges": ["biggest blocker", "dry run first"],
+            "command": "make price-refresh-loop DRY_RUN=1",
         }
     elif dcf_ready <= peer_ready:
         primary = {

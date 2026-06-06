@@ -342,12 +342,14 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
         for value in card.values()
     ).lower()
 
-    assert price_gap_cards[0]["command"] == "make price-worklist TOP_N=25"
+    assert price_gap_cards[0]["command"] == "make price-refresh-loop DRY_RUN=1"
     assert fundamentals_cards[0]["command"] == "make sec-stage-queue TOP_N=25"
     assert peer_cards[0]["command"] == "make peer-mapping-queue TOP_N=25"
     assert price_gap_cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert price_gap_cards[2]["command"] == "make data-wizard TOP_N=10"
     assert price_gap_cards[3]["command"] == "make optional-context-worklist TOP_N=25"
+    assert "scalable dry run" in rendered
+    assert "instead of repeating 25-ticker refreshes manually" in rendered
     assert "blocked rows are useful, but they are a data-unlock queue, not a conclusion list" in rendered
     assert "no data, no conclusion" in rendered
     assert "earnings and analyst estimates are not broken" in rendered
