@@ -74,6 +74,9 @@ def test_stock_report_dcf_input_triage_explains_missing_fields_without_recommend
     rendered = " ".join(lines).lower()
 
     assert "blocked inputs are repair steps, not negative company signals" in rendered
+    assert "trusted price and share count anchor per-share output" in rendered
+    assert "revenue plus free cash flow or fcf margin builds base fcf" in rendered
+    assert "cash/debt adjusts enterprise value to equity value" in rendered
     assert "missing revenue" in rendered
     assert "sets the operating scale used for forecast assumptions" in rendered
     assert "missing free cash flow" in rendered

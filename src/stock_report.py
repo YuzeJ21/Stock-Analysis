@@ -926,6 +926,7 @@ def _stock_report_dcf_input_triage_lines(
 
     lines = [
         "- DCF input triage: blocked inputs are repair steps, not negative company signals.",
+        "- Calculation dependency: trusted price and share count anchor per-share output; revenue plus free cash flow or FCF margin builds base FCF; cash/debt adjusts enterprise value to equity value.",
     ]
     for raw_field in missing_parts[:6]:
         normalized = raw_field.strip()
