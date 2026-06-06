@@ -244,6 +244,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
     assert "review up to $TOTAL_CANDIDATES missing-price candidates" in script
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
+    assert "Before a real run, copy make readiness-snapshot" in script
     assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
     assert "for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again" in script
     assert "do not babysit hundreds of tiny commands" in script
@@ -252,6 +253,8 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
+    assert "Snapshot command before a real run: make readiness-snapshot" in script
+    assert "Hygiene command after a real run: make diff-hygiene" in script
     assert "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again." in script
     assert "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
@@ -261,6 +264,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "make price-coverage TOP_N=25" in script
     assert "make readiness" in script
     assert "make project-status" in script
+    assert "run make diff-hygiene before staging" in script
 
 
 def test_readme_public_landing_page_is_short_visual_and_command_focused():
@@ -323,6 +327,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make price-worklist TOP_N=10",
         "make price-refresh-loop DRY_RUN=1",
         "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "Before a real broad run, use `make readiness-snapshot`",
+        "after the run, use `make diff-hygiene`",
+        "refreshed generated CSV churn stays local unless intentionally reviewed",
         "make focus-fundamentals TICKER=NVDA",
         "make peer-mapping-queue TOP_N=10",
         "make optional-context-worklist TOP_N=10",

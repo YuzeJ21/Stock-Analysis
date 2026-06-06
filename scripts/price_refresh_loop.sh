@@ -44,6 +44,7 @@ echo "This updates local CSV files only. It does not connect to brokers, place o
 echo "Plan: review up to $TOTAL_CANDIDATES missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
 echo "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually."
 echo "Start with DRY_RUN=1 so you can review the batch size before any local CSV changes."
+echo "Before a real run, copy make readiness-snapshot so you can compare readiness before and after the refresh."
 echo "Plain planning knob: set MAX_CANDIDATES=3500 to let the loop calculate capped batches from TOP_N."
 echo "Scaling note: for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again; do not babysit hundreds of tiny commands."
 if [ -n "$MAX_CANDIDATES" ]; then
@@ -59,6 +60,8 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   fi
   echo "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER"
   echo "Post-loop commands would be: make price-coverage TOP_N=25; make readiness; make project-status"
+  echo "Snapshot command before a real run: make readiness-snapshot"
+  echo "Hygiene command after a real run: make diff-hygiene"
   echo "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again."
   echo "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER"
   echo "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER"
@@ -87,3 +90,4 @@ make price-coverage TOP_N=25
 make readiness
 make project-status
 echo "Done. Review data/reports/ticker_readiness_report.csv and outputs/project_status_next_steps.csv for the actual readiness change."
+echo "Next: run make diff-hygiene before staging so refreshed generated CSV churn stays local unless intentionally reviewed."
