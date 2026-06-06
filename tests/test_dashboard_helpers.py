@@ -11858,7 +11858,8 @@ def test_market_next_action_cards_are_safe_copyable_make_commands():
     cards = dashboard.market_next_action_cards(readiness, pd.DataFrame({"ticker": ["AAA"]}))
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "make price-worklist top_n=25" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "dry run" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "make optional-context-worklist top_n=25" in rendered
@@ -14449,7 +14450,8 @@ def test_market_blocker_summary_cards_surface_safe_top_n_worklists():
     cards = dashboard.market_blocker_summary_cards(readiness)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "make price-worklist top_n=25" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "capped price refresh plan" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "make optional-context-worklist top_n=25" in rendered
@@ -14477,7 +14479,7 @@ def test_market_next_action_cards_use_capped_worklist_front_doors():
     cards = dashboard.market_next_action_cards(readiness, action_queue)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "make price-worklist top_n=25" in rendered
+    assert "make price-worklist top_n=25" not in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
     assert "make optional-context-worklist top_n=25" in rendered

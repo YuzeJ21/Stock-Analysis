@@ -10748,9 +10748,12 @@ def market_next_action_cards(
                 {
                     "kicker": "PRICE DATA",
                     "title": f"{len(price_missing)} ticker(s) need prices",
-                    "body": "Refresh prices or prepare a price import draft for a small batch first; do not require the whole market to be ready.",
-                    "badges": ["blocked by data", "batch safe"],
-                    "command": "make price-worklist TOP_N=25",
+                    "body": (
+                        "Preview a capped price refresh plan first, then refresh or stage trusted price rows intentionally; "
+                        "do not require the whole market to be ready."
+                    ),
+                    "badges": ["blocked by data", "dry run first"],
+                    "command": "make price-refresh-loop DRY_RUN=1",
                 }
             )
 
@@ -10838,9 +10841,12 @@ def market_blocker_summary_cards(ticker_readiness_frame: pd.DataFrame | None) ->
         {
             "kicker": "PRICE BLOCKERS",
             "title": f"{len(price_missing)} ticker(s)",
-            "body": "Most broad-universe names are known metadata only until trusted price rows are refreshed or staged.",
-            "badges": ["batch first", "no full-market blast"],
-            "command": "make price-worklist TOP_N=25",
+            "body": (
+                "Most broad-universe names are known metadata only until trusted price rows are refreshed or staged. "
+                "Start with a capped price refresh plan dry run so the batch stays capped and reviewable."
+            ),
+            "badges": ["dry run first", "no full-market blast"],
+            "command": "make price-refresh-loop DRY_RUN=1",
         },
         {
             "kicker": "FUNDAMENTALS BLOCKERS",
