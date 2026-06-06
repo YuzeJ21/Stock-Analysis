@@ -117,7 +117,6 @@ Dashboard pages also support simple local deep links such as `http://localhost:8
 For a deeper local runbook, see [Operator Guide](docs/OPERATOR_GUIDE.md).
 
 Targeted data-unlock examples:
-
 ```bash
 make price-worklist TOP_N=10
 make focus-fundamentals TICKER=NVDA
@@ -126,14 +125,15 @@ make optional-context-worklist TOP_N=10
 ```
 
 For a larger local price refresh, use capped batches instead of repeating small commands manually:
-
 ```bash
 make price-refresh-loop DRY_RUN=1
 make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo
-make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+make readiness-snapshot
+make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+make diff-hygiene
 ```
 
-The dry run prints the planned batch size and total capped candidates before changing local files. For broad coverage, set `MAX_CANDIDATES` and keep `TOP_N` capped so the loop calculates the needed batches for you. Before a real broad run, use `make readiness-snapshot`; after the run, use `make diff-hygiene` before staging so refreshed generated CSV churn stays local unless intentionally reviewed. Advanced users can still tune `BATCHES` directly. Run the capped loop only when you are ready to update local CSVs and review the generated data churn. You should not need to repeat a 25-ticker command 100+ times.
+The dry run prints the planned batch size, calculated batch count, and next sequence before changing local files. For broad coverage, set `MAX_CANDIDATES` and keep `TOP_N` capped so the loop calculates the needed batches for you. Before a real broad run, use `make readiness-snapshot`; after the run, use `make diff-hygiene` before staging so refreshed generated CSV churn stays local unless intentionally reviewed. Advanced users can still tune `BATCHES` directly. Run the capped loop only when you are ready to update local CSVs and review the generated data churn. You should not need to repeat a 25-ticker command 100+ times.
 
 Preview-first import flow:
 

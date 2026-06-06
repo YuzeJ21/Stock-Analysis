@@ -187,7 +187,7 @@ def test_makefile_help_documents_key_workflows():
         "make price-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo]",
         "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
-        "make price-refresh-loop [BATCHES=5] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
+        "make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
         "make price-refresh-loop DRY_RUN=1",
         "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100",
         "avoids repeating 25-ticker refreshes manually",
@@ -255,9 +255,17 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
     assert "Snapshot command before a real run: make readiness-snapshot" in script
     assert "Hygiene command after a real run: make diff-hygiene" in script
+    assert "Recommended next sequence:" in script
+    assert "1. make readiness-snapshot" in script
+    assert "2. make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
+    assert "2. make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
+    assert "3. make diff-hygiene" in script
+    assert "4. make stock-report-md TICKER=NVDA or reopen the dashboard to review the local result" in script
     assert "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again." in script
     assert "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
+    assert "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=..." in script
+    assert "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
     assert "Price refresh batch $i failed." in script
     assert "This replaces repeating 25-ticker refreshes manually" in script
@@ -326,7 +334,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make research-health-check TOP_N=10",
         "make price-worklist TOP_N=10",
         "make price-refresh-loop DRY_RUN=1",
-        "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
         "Before a real broad run, use `make readiness-snapshot`",
         "after the run, use `make diff-hygiene`",
         "refreshed generated CSV churn stays local unless intentionally reviewed",

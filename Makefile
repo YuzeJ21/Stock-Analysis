@@ -92,7 +92,7 @@ help:
 	@echo "  make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo] Attempt a targeted free remote price refresh"
 	@echo "  make price-refresh-loop DRY_RUN=1 Preview the scalable capped refresh plan without changing local CSV files"
 	@echo "  make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 Preview a broad capped plan without calculating batches manually"
-	@echo "  make price-refresh-loop [BATCHES=5] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30] Run several capped batches after reviewing the dry run; avoids repeating 25-ticker refreshes manually"
+	@echo "  make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30] Run calculated capped batches after reviewing the dry run; avoids repeating 25-ticker refreshes manually"
 	@echo "  make price-status [TICKERS=NVDA,MSFT] [TOP_N=10] Show latest price update status"
 	@echo "  make import-prices    Import verified CSVs from data/staged/prices/ into data/prices.csv"
 	@echo "  make price-coverage   Write data/price_coverage_report.csv with rows per universe ticker"

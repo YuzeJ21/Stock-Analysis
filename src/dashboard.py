@@ -17359,6 +17359,56 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
     ]
 
 
+def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
+    summary = summary or {}
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    missing = max(master - price_ready, 0) if master else 0
+    missing_label = f"{missing:,} ticker(s)" if missing else "missing-price tickers"
+    broad_target = min(max(missing, 100), 3500) if missing else 3500
+    broad_target = ((broad_target + 99) // 100) * 100
+
+    return [
+        {
+            "kicker": "PRICE COVERAGE PLAN",
+            "title": "Preview the broad refresh first",
+            "body": (
+                f"Price history is still missing for about {missing_label}. Use a dry run with MAX_CANDIDATES so the loop "
+                "calculates capped batches for you before any local CSV files change."
+            ),
+            "badges": ["dry run first", "no manual repeats"],
+            "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo",
+        },
+        {
+            "kicker": "BEFORE UPDATE",
+            "title": "Save the current readiness snapshot",
+            "body": (
+                "A snapshot lets the dashboard compare current and prior readiness after the refresh, instead of guessing what changed."
+            ),
+            "badges": ["compare later", "local only"],
+            "command": "make readiness-snapshot",
+        },
+        {
+            "kicker": "CAPPED RUN",
+            "title": "Run the loop only after reviewing the plan",
+            "body": (
+                "Use the same MAX_CANDIDATES and TOP_N from the dry run. The command updates local CSVs only, then you review the generated churn."
+            ),
+            "badges": ["capped batches", "review churn"],
+            "command": f"make price-refresh-loop MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        },
+        {
+            "kicker": "AFTER UPDATE",
+            "title": "Inspect generated data before staging",
+            "body": (
+                "Keep broad refreshed CSV outputs local unless you intentionally choose to publish them. Product code and docs can be committed separately."
+            ),
+            "badges": ["data hygiene", "review first"],
+            "command": "make diff-hygiene",
+        },
+    ]
+
+
 def _plain_home_capability_cards() -> list[dict[str, object]]:
     return [
         {
@@ -17706,6 +17756,8 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary))
+    render_section_header("Scalable Price Refresh", "How to expand price coverage without repeating tiny batches by hand.")
+    render_signal_cards(price_refresh_operator_plan_cards(summary))
 
     render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
     st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
@@ -17774,7 +17826,10 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
                 [
                     "make status-check TOP_N=5",
                     "make price-refresh-loop DRY_RUN=1",
-                    "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+                    "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                    "make readiness-snapshot",
+                    "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+                    "make diff-hygiene",
                     "make readiness",
                     "make project-status",
                     "make stock-report-md TICKER=NVDA",
@@ -18934,6 +18989,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_section_header("Data Health Quick Read", "Which unlock lane should you inspect first, before opening detailed tables.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
+    render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local generated-data churn.")
+    render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
     render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
     render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
     render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")

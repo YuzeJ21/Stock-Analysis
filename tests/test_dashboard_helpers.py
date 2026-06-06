@@ -158,6 +158,40 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
     assert "sell" not in rendered
 
 
+def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_manual_repeats():
+    cards = dashboard.price_refresh_operator_plan_cards(
+        {
+            "master_universe": 3538,
+            "price_ready": 240,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert [card["kicker"] for card in cards] == [
+        "PRICE COVERAGE PLAN",
+        "BEFORE UPDATE",
+        "CAPPED RUN",
+        "AFTER UPDATE",
+    ]
+    assert "3,298 ticker(s)" in rendered
+    assert "dry run with max_candidates" in rendered
+    assert "calculates capped batches" in rendered
+    assert "before any local csv files change" in rendered
+    assert "make price-refresh-loop dry_run=1 max_candidates=3300 top_n=100 provider=yahoo" in rendered
+    assert "make readiness-snapshot" in rendered
+    assert "make price-refresh-loop max_candidates=3300 top_n=100 provider=yahoo sleep_seconds=30" in rendered
+    assert "make diff-hygiene" in rendered
+    assert "repeating" not in rendered
+    assert "render_signal_cards(price_refresh_operator_plan_cards(summary))" in source
+    assert "render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))" in source
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_dashboard_badges_use_high_contrast_html():
     html = dashboard.status_badge("Watch")
     assert "background" in html
