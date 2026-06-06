@@ -7909,13 +7909,17 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
     locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
     missing = compact_reason(first.get("Missing Trusted Inputs"), max_sentences=1, max_chars=140)
     boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
+    priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, stage trusted fundamentals only, then validate, preview, apply, and rerun DCF readiness.")
     command = format_missing(first.get("Copy-Only Command"), f"make focus-fundamentals TICKER={ticker}")
     return [
         {
             "kicker": "FUNDAMENTALS QUEUE",
             "title": f"{len(frame)} row(s) need trusted fundamentals",
-            "body": "Open this before interpreting company valuation. Price/setup can be reviewed, but company fundamentals and DCF stay gated.",
+            "body": (
+                f"Open this before interpreting company valuation. First row: {priority_scope}. "
+                "Price/setup can be reviewed, but company fundamentals and DCF stay gated."
+            ),
             "badges": ["price-ready", "fundamentals locked"],
             "command": "make sec-stage-queue TOP_N=25",
         },
@@ -8036,13 +8040,17 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
     requirement = compact_reason(first.get("Trusted Peer Requirement"), max_sentences=1, max_chars=140)
     boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
+    priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
     return [
         {
             "kicker": "PEER QUEUE",
             "title": f"{len(frame)} row(s) need trusted peer inputs",
-            "body": "Open this before reading peer-relative valuation. Standalone DCF can be reviewed only when DCF is ready; peer premium/discount stays locked.",
+            "body": (
+                f"Open this before reading peer-relative valuation. First row: {priority_scope}; prioritize active-universe "
+                "and DCF-ready peer blockers before broad peer work. Standalone DCF can be reviewed only when DCF is ready; peer premium/discount stays locked."
+            ),
             "badges": ["peer gated", "source-backed only"],
             "command": "make peer-mapping-queue TOP_N=25",
         },

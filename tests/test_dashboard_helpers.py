@@ -13420,6 +13420,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
         [
             {
                 "Ticker": "META",
+                "Priority Scope": "Priority 1; active universe",
                 "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
                 "Missing Trusted Inputs": "free cash flow, shares outstanding",
                 "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
@@ -13436,6 +13437,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
 
     assert [card["kicker"] for card in cards] == ["FUNDAMENTALS QUEUE", "NEXT FUNDAMENTALS ROW", "TRUSTED INPUT PATH"]
     assert "1 row(s) need trusted fundamentals" in rendered
+    assert "first row: priority 1; active universe" in rendered
     assert "open this before interpreting company valuation" in rendered
     assert "price/setup can be reviewed" in rendered
     assert "meta" in rendered
@@ -13535,6 +13537,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
         [
             {
                 "Ticker": "A",
+                "Priority Scope": "Priority 1; active universe",
                 "What Is Still Locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked until source-backed peer inputs pass readiness.",
                 "Trusted Peer Requirement": "peer mapping, peer fundamentals",
                 "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
@@ -13551,6 +13554,8 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
 
     assert [card["kicker"] for card in cards] == ["PEER QUEUE", "NEXT PEER ROW", "TRUSTED PEER PATH"]
     assert "1 row(s) need trusted peer inputs" in rendered
+    assert "first row: priority 1; active universe" in rendered
+    assert "prioritize active-universe and dcf-ready peer blockers before broad peer work" in rendered
     assert "open this before reading peer-relative valuation" in rendered
     assert "peer premium/discount stays locked" in rendered
     assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered
