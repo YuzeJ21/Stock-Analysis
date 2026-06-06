@@ -218,12 +218,17 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     cards = [card for page in pages for card in dashboard.dashboard_page_reader_cards(page)]
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert len(cards) == 12
-    assert all(card["kicker"] in {"PAGE GUIDE", "LOCKED / EXCLUDED", "COPY NEXT"} for card in cards)
+    assert len(cards) == 16
+    assert all(card["kicker"] in {"PAGE GUIDE", "LOCKED / EXCLUDED", "COPY NEXT", "READ PATH"} for card in cards)
     assert "home: what can i analyze now?" in rendered
     assert "single-stock report: what can i analyze now?" in rendered
     assert "value / re-rating: what can i analyze now?" in rendered
     assert "data health: what can i analyze now?" in rendered
+    assert "how should i read this page?" in rendered
+    assert "read readiness cards first" in rendered
+    assert "locked sections are boundaries, not hidden conclusions" in rendered
+    assert "dcf-ready means assumption review, not a price target" in rendered
+    assert "use validation and preview commands before trusting newly imported rows" in rendered
     assert "unsupported dcf, peer valuation, earnings, and estimate sections stay withheld" in rendered
     assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-freshness review" in rendered
     assert "missing inputs are an unlock queue, not weak conclusions" in rendered

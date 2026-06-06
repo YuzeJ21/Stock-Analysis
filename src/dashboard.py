@@ -92,21 +92,25 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         "Home": {
             "analyze": "Current market-wide readiness, recent progress, example reports, and the safest next local research path.",
             "locked": "Any module without trusted local rows stays locked; broad universe coverage is not the same as analysis readiness.",
+            "read": "Read readiness cards first, then What Changed Recently, then the next-step cards. Treat big universe counts as coverage, not proof that every ticker is analysis-ready.",
             "command": "make status-check TOP_N=5",
         },
         "Single-Stock Report": {
             "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source/freshness notes.",
             "locked": "Unsupported DCF, peer valuation, earnings, and estimate sections stay withheld instead of being filled.",
+            "read": "Read At A Glance, then Quick Read, then the source/freshness audit. Locked sections are boundaries, not hidden conclusions.",
             "command": "make stock-report-md TICKER=NVDA",
         },
         "Value / Re-rating": {
             "analyze": "DCF-ready company rows can support assumption, scenario, sensitivity, and source-freshness review.",
             "locked": "Blocked company rows need trusted fundamentals or DCF fields; ETF/index/fund rows are monitor context, not failed DCF.",
+            "read": "Read the DCF-ready, DCF-blocked, and DCF-excluded split before looking at rankings. DCF-ready means assumption review, not a price target.",
             "command": "make dcf-readiness",
         },
         "Data Health": {
             "analyze": "Which trusted inputs are ready across prices, fundamentals, DCF, peers, earnings, and analyst estimates.",
             "locked": "Missing inputs are an unlock queue, not weak conclusions; imports should validate, preview, and apply before trust.",
+            "read": "Start with the unlock lane cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
             "command": "make data-wizard TOP_N=10",
         },
     }
@@ -115,6 +119,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         {
             "analyze": "The local rows and summaries already generated for this workflow page.",
             "locked": "Rows missing trusted inputs remain visible as blocked or partial rather than inferred.",
+            "read": "Read summary cards first, then the table. Use the command card only when you want to refresh local outputs from a terminal.",
             "command": "make status-check TOP_N=5",
         },
     )
@@ -138,6 +143,13 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "title": "What command should I copy next?",
             "body": "Copy the command into a terminal only when you are ready. The dashboard does not run refreshes, imports, or external account actions.",
             "badges": ["copy-only", "research-only"],
+            "command": guide["command"],
+        },
+        {
+            "kicker": "READ PATH",
+            "title": "How should I read this page?",
+            "body": guide["read"],
+            "badges": ["plain language", "no overclaim"],
             "command": guide["command"],
         },
     ]
