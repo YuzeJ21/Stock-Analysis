@@ -5281,7 +5281,10 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_title = "Optional context is intentionally locked"
         first_body = (
             "Earnings and analyst estimates add context only after trusted local CSV rows pass validation. "
-            "Empty optional coverage should not weaken ready price, DCF, or peer analysis."
+            "Empty optional coverage should not weaken ready price, DCF, or peer analysis. "
+            "Safe path: make templates -> stage trusted rows in data/staged/earnings/ or data/staged/analyst_estimates/ -> "
+            "make import-earnings or make import-analyst-estimates -> make imports-validate -> make imports-preview -> make imports-apply. "
+            "Rejected rows appear in data/rejected/earnings_import_rejected.csv and data/rejected/analyst_estimates_import_rejected.csv."
         )
         first_command = "make optional-context-worklist TOP_N=10"
         first_badges = ["optional context", "trusted rows only"]

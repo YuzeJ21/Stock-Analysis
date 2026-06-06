@@ -8421,6 +8421,12 @@ def test_data_health_quick_read_cards_keep_optional_context_locked_after_core_la
     assert cards[0]["title"] == "Optional context is intentionally locked"
     assert cards[0]["command"] == "make optional-context-worklist TOP_N=10"
     assert "empty optional coverage should not weaken ready price, dcf, or peer analysis" in rendered
+    assert "safe path: make templates -> stage trusted rows in data/staged/earnings/" in rendered
+    assert "data/staged/analyst_estimates/" in rendered
+    assert "make import-earnings or make import-analyst-estimates" in rendered
+    assert "make imports-validate -> make imports-preview -> make imports-apply" in rendered
+    assert "data/rejected/earnings_import_rejected.csv" in rendered
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
 
 
 def test_data_health_quick_read_cards_start_with_price_when_no_price_ready_rows():
