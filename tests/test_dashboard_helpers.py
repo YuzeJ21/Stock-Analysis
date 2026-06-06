@@ -14741,6 +14741,7 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "make imports-preview" in empty_message
     assert "make imports-apply" in empty_message
     assert "Run `make templates` for schema-only files; templates are not data." in empty_message
+    assert "make optional-context-readiness" in empty_message
     assert "make onboarding TOP_N=10" in empty_message
     assert "data/staged/earnings/" in empty_message
     assert "data/imports/earnings.csv" in empty_message
@@ -14749,6 +14750,7 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "data/staged/analyst_estimates/" in estimate_empty_message
     assert "data/imports/analyst_estimates.csv" in estimate_empty_message
     assert "make import-analyst-estimates" in estimate_empty_message
+    assert "make optional-context-readiness" in estimate_empty_message
     assert "data/rejected/analyst_estimates_import_rejected.csv" in estimate_empty_message
     assert "broker" not in rendered
     assert "order" not in rendered

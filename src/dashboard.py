@@ -2837,7 +2837,8 @@ def optional_context_empty_state_message(dataset_label: str) -> str:
         "Not available: missing trusted local CSV input. "
         f"Run `make templates` for schema-only files; templates are not data. "
         f"Add verified {label} rows through `{staged_path}` or `{import_file}`, run `{import_command}`, then run "
-        "`make imports-validate`, `make imports-preview`, `make imports-apply`, and `make onboarding TOP_N=10`. "
+        "`make imports-validate`, `make imports-preview`, `make imports-apply`, "
+        "`make optional-context-readiness`, and `make onboarding TOP_N=10`. "
         f"Rejected rows stay visible at `{rejected_path}`."
     )
 
