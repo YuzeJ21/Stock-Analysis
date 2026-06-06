@@ -208,6 +208,14 @@ def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -
             "use make templates, make import-earnings or make import-analyst-estimates, then run "
             "make imports-validate, make imports-preview, and make imports-apply."
         )
+    if primary_blocker == "fundamentals":
+        prefix = f"{text.rstrip('.')}." if text else f"Complete trusted fundamentals and DCF inputs for {ticker}."
+        return (
+            f"{prefix} Inspect make focus-fundamentals TICKER={ticker}; use make sec-stage TICKERS={ticker} "
+            "when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; "
+            "then run make imports-validate, make imports-preview, make imports-apply, make dcf-readiness, and make readiness "
+            "before reading DCF output."
+        )
     return text
 
 

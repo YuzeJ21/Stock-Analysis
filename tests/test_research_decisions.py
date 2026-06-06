@@ -117,6 +117,11 @@ def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing()
     assert "missing dcf, fundamentals data" in row["main_reason"]
     assert row["confidence"] <= 0.45
     assert "Import trusted fundamentals" in row["next_action"]
+    assert "make focus-fundamentals TICKER=AMD" in row["next_best_action"]
+    assert "make sec-stage TICKERS=AMD" in row["next_best_action"]
+    assert "data/imports/fundamentals.csv" in row["next_best_action"]
+    assert "make imports-validate, make imports-preview, make imports-apply, make dcf-readiness, and make readiness" in row["next_best_action"]
+    assert "before reading DCF output" in row["next_best_action"]
 
 
 def test_research_decisions_only_research_now_when_core_data_is_ready():
@@ -399,6 +404,9 @@ def test_research_decisions_surface_purpose_conflict_as_review_context_not_recom
     assert "Purpose alignment needs review" in row["purpose_alignment"]
     assert "Core Compounder" in row["purpose_alignment"]
     assert "fundamental quality" in row["unsupported_analysis"]
+    assert "make focus-fundamentals TICKER=META" in row["next_best_action"]
+    assert "make sec-stage TICKERS=META" in row["next_best_action"]
+    assert "make dcf-readiness" in row["next_best_action"]
     assert "compounder purpose conflicts" in row["review_priority_reason"]
     assert "confirm whether the compounder thesis remains supported" in row["next_research_question"]
     assert "buy" not in rendered
