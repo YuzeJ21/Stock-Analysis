@@ -253,9 +253,11 @@ ACTIVE_UNLOCK_DRILLDOWN_COLUMNS = [
     "priority",
     "ticker",
     "asset_type",
+    "scope_note",
     "blocker_area",
     "why_blocked",
     "missing_fields",
+    "next_plain_step",
     "trusted_input_needed",
     "staged_folder",
     "canonical_import_file",
@@ -3513,6 +3515,24 @@ def active_unlock_drilldown_missing_fields(
     return format_missing(readiness_row.get("missing_data"), "readiness blocker")
 
 
+def active_unlock_drilldown_next_plain_step(dataset: str, ticker: object, asset_type: object = "") -> str:
+    symbol = format_missing(ticker, "TICKER").upper()
+    asset = format_missing(asset_type, "").lower()
+    if dataset == "prices":
+        return f"First confirm whether {symbol} has enough local price history; start with the focus-price command before any broader refresh."
+    if dataset == "fundamentals":
+        return f"Add trusted company fundamentals for {symbol}, validate and preview them, then rerun DCF readiness."
+    if dataset == "peers":
+        return f"Add source-backed peer mappings for {symbol}; peer trend and peer valuation stay separated until peer inputs are ready."
+    if dataset == "earnings":
+        return f"Keep earnings context locked for {symbol} until trusted local earnings rows pass import validation."
+    if dataset == "analyst_estimates":
+        return f"Keep analyst-estimate context locked for {symbol} until trusted local estimate rows pass import validation."
+    if dataset == "monitor_context" or asset in {"etf", "fund", "index", "index_proxy"}:
+        return f"Review {symbol} as monitor context only; operating-company DCF and peer valuation are excluded, not failed."
+    return f"Review the {symbol} readiness row, then copy the exact command shown here."
+
+
 def build_active_universe_unlock_frame(
     ticker_readiness_frame: pd.DataFrame | None,
     decisions_frame: pd.DataFrame | None = None,
@@ -3672,9 +3692,11 @@ def build_active_universe_drilldown_frame(
                 "priority": int(cockpit_row.get("priority") or 999),
                 "ticker": ticker,
                 "asset_type": asset_type,
+                "scope_note": "Active-universe drilldown only; this is a focused review queue, not a whole-market conclusion.",
                 "blocker_area": dataset,
                 "why_blocked": why_blocked,
                 "missing_fields": missing_fields,
+                "next_plain_step": active_unlock_drilldown_next_plain_step(dataset, ticker, asset_type),
                 "trusted_input_needed": active_unlock_trusted_input_needed(dataset, ticker, asset_type),
                 "staged_folder": format_missing(import_row.get("staged_folder"), "data/imports/peers.csv" if dataset == "peers" else "Not available"),
                 "canonical_import_file": format_missing(import_row.get("canonical_import_file"), "Not available"),

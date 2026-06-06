@@ -12591,12 +12591,16 @@ def test_active_universe_drilldown_surfaces_missing_fields_and_validation_paths(
     assert "BROAD" not in set(drilldown["ticker"])
     assert drilldown.loc[drilldown["ticker"].eq("META"), "blocker_area"].iloc[0] == "fundamentals"
     assert "shares_outstanding" in drilldown.loc[drilldown["ticker"].eq("META"), "missing_fields"].iloc[0]
+    assert "focused review queue" in drilldown.loc[drilldown["ticker"].eq("META"), "scope_note"].iloc[0].lower()
+    assert "add trusted company fundamentals for meta" in drilldown.loc[drilldown["ticker"].eq("META"), "next_plain_step"].iloc[0].lower()
     assert "data/staged/fundamentals/" in rendered
     assert "data/imports/fundamentals.csv" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert drilldown.loc[drilldown["ticker"].eq("QQQ"), "blocker_area"].iloc[0] == "monitor_context"
+    assert "monitor context only" in drilldown.loc[drilldown["ticker"].eq("QQQ"), "next_plain_step"].iloc[0].lower()
     assert "operating-company dcf and peer-relative valuation are excluded" in rendered
     assert "no peer import is required for etf/index/fund monitor context" in rendered
+    assert "not a whole-market conclusion" in rendered
     assert "make stock-report-md ticker=qqq" in rendered
     assert "make focus-peers ticker=qqq" not in rendered
     assert "make imports-validate" in rendered
