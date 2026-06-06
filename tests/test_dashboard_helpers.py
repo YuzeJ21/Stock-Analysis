@@ -15278,6 +15278,13 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert "prove optional context before showing it" in rendered
     assert "copy next: `make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding top_n=10`" in rendered
     assert "schema-only examples and templates remain operator aids, not data" in rendered
+    assert "optional proof ladder" in rendered
+    assert "template -> import -> readiness -> report" in rendered
+    assert "schema-only template, trusted local rows, import command, validation, preview, apply, optional-context readiness, then the single-stock report" in rendered
+    assert "available earnings or estimates add timing, consensus, and revision context only" in rendered
+    assert "they do not create valuation conclusions" in rendered
+    assert "`make templates && make import-analyst-estimates" in rendered
+    assert "-> `make stock-report-md ticker=nvda`" in rendered
     assert "data/rejected/earnings_import_rejected.csv" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "make imports-validate" in rendered

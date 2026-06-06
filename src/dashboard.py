@@ -3249,6 +3249,19 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
             "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
         },
         {
+            "kicker": "OPTIONAL PROOF LADDER",
+            "title": "Template -> import -> readiness -> report",
+            "body": (
+                "Use this sequence before reading optional context: schema-only template, trusted local rows, import command, "
+                "validation, preview, apply, optional-context readiness, then the single-stock report. "
+                "Available earnings or estimates add timing, consensus, and revision context only; they do not create valuation conclusions. "
+                f"Copy sequence: `{format_missing(first.get('Copy-Only Command'), 'make imports-validate && make imports-preview && make imports-apply')}` -> "
+                f"`{format_missing(first.get('First Ticker Command'), 'make stock-report-md TICKER=NVDA')}`."
+            ),
+            "badges": ["method proof", "context only"],
+            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
+        },
+        {
             "kicker": "TRUSTED OPTIONAL PATH",
             "title": format_missing(first.get("Trusted Input Path"), "Trusted optional input path"),
             "body": (
