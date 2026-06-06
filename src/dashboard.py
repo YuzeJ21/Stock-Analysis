@@ -13010,6 +13010,17 @@ def valuation_quick_read_cards(
             "command": first_command,
         },
         {
+            "kicker": "COPY NEXT",
+            "title": "Run the next local proof step",
+            "body": (
+                f"Copy next: `{first_command}`. Use this command to prove the current valuation lane before reading "
+                "DCF assumptions, locked-input worklists, or monitor-context rows. The dashboard displays the command only; "
+                "it does not run refreshes, imports, or external account actions."
+            ),
+            "badges": ["copy-only", "research-only"],
+            "command": first_command,
+        },
+        {
             "kicker": "ANALYZE NOW",
             "title": analyze_title,
             "body": analyze_body,

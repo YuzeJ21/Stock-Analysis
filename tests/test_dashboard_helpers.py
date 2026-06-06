@@ -8094,13 +8094,16 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     cards = dashboard.valuation_quick_read_cards(ready, blocked, excluded)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED", "EXCLUDED"]
+    assert [card["kicker"] for card in cards] == ["FIRST READ", "COPY NEXT", "ANALYZE NOW", "STILL LOCKED", "EXCLUDED"]
     assert cards[0]["title"] == "Review DCF-ready companies first"
     assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
-    assert cards[2]["command"] == "make focus-fundamentals TICKER=META"
-    assert cards[3]["command"] == "make stock-report-md TICKER=QQQ"
+    assert cards[2]["command"] == "make stock-report-md TICKER=NVDA"
+    assert cards[3]["command"] == "make focus-fundamentals TICKER=META"
+    assert cards[4]["command"] == "make stock-report-md TICKER=QQQ"
     assert "start with nvda" in rendered
+    assert "copy next: `make stock-report-md ticker=nvda`" in rendered
+    assert "does not run refreshes, imports, or external account actions" in rendered
     assert "assumption, scenario, sensitivity, and source/freshness review" in rendered
     assert "not price targets" in rendered
     assert "1 dcf-ready company row(s)" in rendered
@@ -8132,9 +8135,10 @@ def test_valuation_quick_read_cards_prioritize_missing_inputs_when_no_ready_rows
 
     assert cards[0]["title"] == "Fix missing valuation inputs first"
     assert cards[0]["command"] == "make focus-fundamentals TICKER=META"
-    assert cards[1]["title"] == "0 DCF-ready company row(s)"
-    assert cards[1]["command"] == "make dcf-readiness"
-    assert cards[2]["command"] == "make focus-fundamentals TICKER=META"
+    assert cards[1]["command"] == "make focus-fundamentals TICKER=META"
+    assert cards[2]["title"] == "0 DCF-ready company row(s)"
+    assert cards[2]["command"] == "make dcf-readiness"
+    assert cards[3]["command"] == "make focus-fundamentals TICKER=META"
     assert "start with meta" in rendered
     assert "no operating-company dcf assumptions or sensitivity should be reviewed yet" in rendered
     assert "use the locked-input and monitor-context cards until trusted dcf rows exist" in rendered
@@ -8154,9 +8158,10 @@ def test_valuation_quick_read_cards_keep_etf_rows_monitor_only_when_no_company_r
 
     assert cards[0]["title"] == "Use monitor context only"
     assert cards[0]["command"] == "make stock-report-md TICKER=QQQ"
-    assert cards[1]["title"] == "0 DCF-ready company row(s)"
-    assert cards[1]["command"] == "make dcf-readiness"
-    assert cards[3]["command"] == "make stock-report-md TICKER=QQQ"
+    assert cards[1]["command"] == "make stock-report-md TICKER=QQQ"
+    assert cards[2]["title"] == "0 DCF-ready company row(s)"
+    assert cards[2]["command"] == "make dcf-readiness"
+    assert cards[4]["command"] == "make stock-report-md TICKER=QQQ"
     assert "start with qqq" in rendered
     assert "no operating-company dcf assumptions or sensitivity should be reviewed yet" in rendered
     assert "open the next dcf-ready ticker" not in rendered
