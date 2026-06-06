@@ -189,6 +189,7 @@ def test_makefile_help_documents_key_workflows():
         "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
         "make price-refresh-loop [BATCHES=5] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
         "make price-refresh-loop DRY_RUN=1",
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100",
         "avoids repeating 25-ticker refreshes manually",
         "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make optional-context-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
@@ -232,23 +233,30 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
 
     assert "price-refresh-loop:" in makefile
-    assert "BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)" in makefile
+    assert 'MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)' in makefile
     assert 'BATCHES="${BATCHES:-5}"' in script
     assert 'TOP_N="${TOP_N:-100}"' in script
     assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
     assert 'DRY_RUN="${DRY_RUN:-0}"' in script
+    assert 'MAX_CANDIDATES="${MAX_CANDIDATES:-}"' in script
+    assert "MAX_CANDIDATES must be a positive integer when provided." in script
+    assert 'BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))' in script
     assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
     assert "review up to $TOTAL_CANDIDATES missing-price candidates" in script
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
-    assert "for a 3000+ ticker universe, raise BATCHES and dry-run again" in script
+    assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
+    assert "for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again" in script
     assert "do not babysit hundreds of tiny commands" in script
     assert "Dry run only. No local CSV files were changed." in script
     assert "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)." in script
+    assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
-    assert "If you want broader coverage, increase BATCHES first while keeping TOP_N capped, then dry-run again." in script
-    assert "Example broader dry run: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
+    assert "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again." in script
+    assert "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER" in script
+    assert "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
+    assert "Price refresh batch $i failed." in script
     assert "This replaces repeating 25-ticker refreshes manually" in script
     assert "make price-coverage TOP_N=25" in script
     assert "make readiness" in script
@@ -735,7 +743,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "Monitor-only context",
         "Data-unlock only",
         "Large refreshed CSVs are local working data",
-        "increase `BATCHES`, dry-run again, then run the capped loop",
+        "set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover",
         "docs/analysis_capability_audit.md",
         "What Powers The Analysis",
         "shipped analysis comes from project code under `src/`",
