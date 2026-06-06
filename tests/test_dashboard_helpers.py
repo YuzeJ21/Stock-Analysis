@@ -8594,6 +8594,7 @@ def test_data_health_valuation_unlock_snapshot_surfaces_fundamentals_and_peer_qu
     assert "1 active-universe row(s) already have price coverage" in rendered
     assert "data/imports/fundamentals.csv" in rendered
     assert "validate, preview, and apply" in rendered
+    assert "make dcf-readiness" in rendered
     assert "do not treat missing fundamentals as a negative company signal" in rendered
     assert "1 dcf-ready company" in rendered
     assert "data/imports/peers.csv" in rendered

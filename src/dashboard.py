@@ -5540,7 +5540,8 @@ def data_health_valuation_unlock_snapshot_cards(
             "title": f"{fundamentals_missing_count} price-ready {fundamentals_company_label}",
             "body": (
                 f"{active_fundamentals_missing} active-universe row(s) already have price coverage but still need trusted fundamentals. "
-                "Use SEC/manual fundamentals through data/imports/fundamentals.csv, then validate, preview, and apply. "
+                "Use SEC/manual fundamentals through data/imports/fundamentals.csv, then validate, preview, and apply; "
+                "run make dcf-readiness before interpreting DCF coverage. "
                 "Do not treat missing fundamentals as a negative company signal."
             ),
             "badges": ["price-ready first", "data/imports/fundamentals.csv", "not a conclusion"],
