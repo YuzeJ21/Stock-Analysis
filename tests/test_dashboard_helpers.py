@@ -7519,7 +7519,7 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     partial_cards = dashboard.stock_report_fundamentals_quality_cards(
         {
             "ticker": "META",
-            "valuation_readiness": {"dcf_ready": False, "fundamentals_ready": True},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "fundamentals_ready": True},
             "financial_summary": {
                 "revenue": 100_000_000,
                 "free_cash_flow": 20_000_000,
@@ -7539,20 +7539,29 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
         for value in card.values()
     ).lower()
 
-    assert [card["kicker"] for card in ready_cards] == ["FUNDAMENTALS QUALITY", "QUALITY CONTEXT", "LOGIC SOURCE"]
+    assert [card["kicker"] for card in ready_cards] == ["FUNDAMENTALS QUALITY", "NEXT TRUSTED INPUT", "QUALITY CONTEXT", "LOGIC SOURCE"]
     assert "dcf inputs ready" in rendered
+    assert "review dcf proof" in rendered
     assert "review assumptions and source freshness" in rendered
     assert "partial fundamentals context" in rendered
     assert "missing: fcf margin" in rendered
+    assert "unlock fundamentals before valuation" in rendered
+    assert "price/setup context can be reviewed for meta" in rendered
+    assert "make dcf-readiness" in rendered
     assert "fundamentals need data" in rendered
     assert "should not infer valuation from unavailable fundamentals" in rendered
+    assert "start with price coverage" in rendered
+    assert "trusted price history comes before setup, fundamentals, dcf, and peer context" in rendered
     assert "margins, cash, and debt help explain business quality only when present" in rendered
     assert "fundamentals rules stay in project code" in rendered
     assert "support tools are not analysis logic" in rendered
     assert "fundamentals rules stay in project code; support tools are not analysis logic" in rendered
     assert ready_cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
+    assert ready_cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert partial_cards[0]["command"] == "make focus-fundamentals TICKER=META"
+    assert partial_cards[1]["command"] == "make focus-fundamentals TICKER=META"
     assert locked_cards[0]["command"] == "make status-check TOP_N=5"
+    assert locked_cards[1]["command"] == "make status-check TOP_N=5"
     assert "ticker=..." not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13727,7 +13736,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     cards = dashboard.data_health_fundamentals_unlock_cards(unlock_frame)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["FUNDAMENTALS QUEUE", "NEXT FUNDAMENTALS ROW", "TRUSTED INPUT PATH"]
+    assert [card["kicker"] for card in cards] == ["FUNDAMENTALS QUEUE", "NEXT FUNDAMENTALS ROW", "COPY NEXT", "TRUSTED INPUT PATH"]
     assert "1 row(s) need trusted fundamentals" in rendered
     assert "first row: priority 1; active universe" in rendered
     assert "price gate: price ready: fundamentals can unlock dcf after trusted rows pass validation" in rendered
@@ -13739,6 +13748,9 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "boundary: do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
     assert "make sec-stage tickers=meta" in rendered
     assert "trusted manual rows" in rendered
+    assert "prove the fundamentals unlock before dcf" in rendered
+    assert "copy next: `make focus-fundamentals ticker=meta`" in rendered
+    assert "before treating fundamentals or dcf as unlocked" in rendered
     assert "readiness proof: run `make dcf-readiness` and `make readiness`" in rendered
     assert "before reading dcf output" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered

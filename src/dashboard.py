@@ -3926,6 +3926,8 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
     financials = report_payload.get("financial_summary", {}) or {}
     ticker = format_missing(report_payload.get("ticker"), "")
     command = f"make focus-fundamentals TICKER={ticker}" if ticker else "make status-check TOP_N=5"
+    price_command = f"make focus-price TICKER={ticker}" if ticker else "make status-check TOP_N=5"
+    report_command = stock_report_md_command(ticker or "NVDA")
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
         **(report_payload.get("valuation_readiness", {}) or {}),
@@ -3949,6 +3951,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
     core_ready = sum(core_fields.values())
     quality_ready = sum(quality_fields.values())
     dcf_ready = bool(readiness.get("dcf_ready"))
+    price_ready = bool(readiness.get("price_ready"))
     fundamentals_ready = bool(readiness.get("fundamentals_ready")) or core_ready >= 3
     missing_core = [name for name, is_present in core_fields.items() if not is_present]
     missing_text = ", ".join(missing_core) if missing_core else "No core DCF fields missing"
@@ -3966,6 +3969,26 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
         body = f"Core DCF fields are not ready yet. Missing: {missing_text}. The report should not infer valuation from unavailable fundamentals."
         badges = ["locked", "trusted rows needed"]
 
+    if dcf_ready:
+        next_title = "Review DCF proof"
+        next_body = "DCF input gate is ready. Review assumptions, sensitivity, source freshness, and peer boundaries before interpreting valuation context."
+        next_command = report_command
+        next_badges = ["proof first", "no price target"]
+    elif price_ready:
+        next_title = "Unlock fundamentals before valuation"
+        next_body = (
+            f"Price/setup context can be reviewed for {ticker or 'this ticker'}, but company valuation stays locked until "
+            f"trusted fundamentals fill {missing_text} and `make dcf-readiness` confirms the gate. "
+            "Use SEC staging or trusted manual CSV rows, then validate, preview, and apply."
+        )
+        next_command = command
+        next_badges = ["price-ready", "fundamentals next"]
+    else:
+        next_title = "Start with price coverage"
+        next_body = "Trusted price history comes before setup, fundamentals, DCF, and peer context. Do not use fundamentals rows to bypass a missing price gate."
+        next_command = price_command
+        next_badges = ["price first", "no shortcut"]
+
     return [
         {
             "kicker": "FUNDAMENTALS QUALITY",
@@ -3973,6 +3996,13 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
             "body": body,
             "badges": badges,
             "command": command,
+        },
+        {
+            "kicker": "NEXT TRUSTED INPUT",
+            "title": next_title,
+            "body": next_body,
+            "badges": next_badges,
+            "command": next_command,
         },
         {
             "kicker": "QUALITY CONTEXT",
@@ -8453,6 +8483,17 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
             "title": ticker,
             "body": f"Missing trusted inputs: {missing}. Still locked: {locked}. Boundary: {boundary}.",
             "badges": ["one ticker first", "no valuation inference"],
+            "command": command,
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "Prove the fundamentals unlock before DCF",
+            "body": (
+                f"Copy next: `{command}`. After trusted SEC or manual fundamentals rows are staged, run "
+                "`make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, "
+                "and `make readiness` before treating fundamentals or DCF as unlocked."
+            ),
+            "badges": ["copy-only", "proof before analysis"],
             "command": command,
         },
         {
