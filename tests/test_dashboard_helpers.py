@@ -13767,6 +13767,79 @@ def test_first_fundamentals_unlock_cards_use_sec_path_when_configured():
     assert "no fabricated data" in rendered
 
 
+def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without_inference():
+    dcf = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "is_dcf_ready": False,
+                "missing_dcf_fields": "free_cash_flow, shares_outstanding",
+            },
+            {
+                "ticker": "APLD",
+                "asset_type": "company",
+                "is_dcf_ready": False,
+                "missing_dcf_fields": "price|revenue",
+            },
+            {
+                "ticker": "A",
+                "asset_type": "company",
+                "is_dcf_ready": True,
+                "missing_dcf_fields": "",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "is_dcf_ready": False,
+                "missing_dcf_fields": "revenue",
+            },
+        ]
+    )
+
+    frame = dashboard.dcf_missing_field_guide_frame(dcf, sec_configured=True)
+    cards = dashboard.dcf_missing_field_guide_cards(frame)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten().tolist() + [str(value) for card in cards for value in card.values()]).lower()
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert list(frame.columns) == [
+        "Missing Input",
+        "Affected Companies",
+        "Example Tickers",
+        "Why It Matters",
+        "Trusted Input Path",
+        "Next Safe Sequence",
+        "Validation Path",
+        "Conclusion Boundary",
+        "Copy-Only Command",
+    ]
+    assert "free cash flow" in rendered
+    assert "drives base fcf for projected cash flows" in rendered
+    assert "shares outstanding" in rendered
+    assert "converts equity value into fair value per share" in rendered
+    assert "price" in rendered
+    assert "data/imports/prices.csv or data/staged/prices/" in rendered
+    assert "revenue" in rendered
+    assert "data/imports/fundamentals.csv or reviewed sec draft rows in data/staged/fundamentals/" in rendered
+    assert "make focus-fundamentals ticker=meta" in rendered
+    assert "make sec-stage tickers=meta" in rendered
+    assert "make focus-price ticker=apld" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "make dcf-readiness" in rendered
+    assert "dcf math, fair value/share, undervalued, overvalued, and peer-relative conclusions stay withheld" in rendered
+    assert "treat these as repair steps, not company-quality conclusions" in rendered
+    assert "qqq" not in frame["Example Tickers"].astype(str).str.lower().str.cat(sep=" ")
+    assert "render_signal_cards(dcf_missing_field_guide_cards(field_guide))" in source
+    assert "dcf missing-field guide table" in source.lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance():
     readiness = pd.DataFrame(
         [

@@ -22,7 +22,7 @@ from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
-from src.stock_report import build_provider, build_stock_report, export_stock_report_json
+from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
@@ -8259,6 +8259,159 @@ def first_fundamentals_unlock_cards(sec_configured: bool, next_ticker: str | Non
             "body": "Do not treat fundamentals_ready or dcf_ready as improved until trusted rows pass the import workflow and readiness is regenerated.",
             "badges": ["no fabricated data", "source/freshness"],
             "command": "make imports-validate && make imports-preview && make imports-apply",
+        },
+    ]
+
+
+def _dcf_missing_field_key(value: object) -> str:
+    text = format_missing(value, "")
+    if not text:
+        return ""
+    text = text.strip().strip("`.,;:")
+    if text.lower().startswith("missing "):
+        text = text[8:].strip()
+    text = text.lower().replace("-", "_").replace(" ", "_")
+    return re.sub(r"[^a-z0-9_]", "", text)
+
+
+def dcf_missing_field_guide_frame(
+    dcf_readiness_frame: pd.DataFrame | None,
+    *,
+    sec_configured: bool = False,
+    limit: int = 6,
+) -> pd.DataFrame:
+    columns = [
+        "Missing Input",
+        "Affected Companies",
+        "Example Tickers",
+        "Why It Matters",
+        "Trusted Input Path",
+        "Next Safe Sequence",
+        "Validation Path",
+        "Conclusion Boundary",
+        "Copy-Only Command",
+    ]
+    if dcf_readiness_frame is None or dcf_readiness_frame.empty or "missing_dcf_fields" not in dcf_readiness_frame.columns:
+        return pd.DataFrame(columns=columns)
+
+    frame = dcf_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    asset_type = frame.get("asset_type", pd.Series("company", index=frame.index)).fillna("").astype(str).str.lower()
+    company = asset_type.eq("company") | asset_type.eq("")
+    ready = bool_series(frame, "is_dcf_ready") if "is_dcf_ready" in frame.columns else pd.Series(False, index=frame.index)
+    blocked = frame.loc[company & ~ready].copy()
+    if blocked.empty:
+        return pd.DataFrame(columns=columns)
+
+    grouped: dict[str, list[str]] = {}
+    for _, row in blocked.iterrows():
+        ticker = format_missing(row.get("ticker"), "").upper()
+        raw_fields = str(row.get("missing_dcf_fields") or row.get("reason_not_ready") or "").strip()
+        if raw_fields.lower().startswith("missing "):
+            raw_fields = raw_fields[8:].strip()
+        field_parts = [part.strip() for part in re.split(r"[,;|]", raw_fields) if part.strip()]
+        if not field_parts:
+            field_parts = ["fundamentals"]
+        for raw_field in field_parts:
+            key = _dcf_missing_field_key(raw_field)
+            if not key:
+                continue
+            grouped.setdefault(key, [])
+            if ticker and ticker not in grouped[key]:
+                grouped[key].append(ticker)
+
+    rows: list[dict[str, object]] = []
+    for key, tickers in sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:limit]:
+        detail = DCF_INPUT_TRIAGE.get(key, DCF_INPUT_TRIAGE["fundamentals"])
+        label = public_status_label(key.replace("_", " "))
+        example = tickers[0] if tickers else "TICKER"
+        if key in {"price", "market_cap_or_price_and_shares"}:
+            trusted_path = "data/imports/prices.csv or data/staged/prices/"
+            command = f"make focus-price TICKER={example}"
+            next_sequence = (
+                f"1. Inspect `{command}`. 2. Run `make price-refresh-loop DRY_RUN=1` for a capped plan "
+                "or prepare trusted OHLCV rows. 3. Run `make price-validate`, `make price-preview`, "
+                "`make price-apply`, then `make dcf-readiness`."
+            )
+            validation_path = "make price-validate -> make price-preview -> make price-apply -> make dcf-readiness"
+        else:
+            trusted_path = "data/imports/fundamentals.csv or reviewed SEC draft rows in data/staged/fundamentals/"
+            command = f"make focus-fundamentals TICKER={example}"
+            second_step = (
+                f"2. Run `make sec-stage TICKERS={example}` when SEC_USER_AGENT is configured, "
+                "or fill `data/imports/fundamentals.csv` with trusted manual rows."
+                if sec_configured
+                else "2. Run `make templates`, then fill `data/imports/fundamentals.csv` with trusted manual rows."
+            )
+            next_sequence = (
+                f"1. Inspect `{command}`. {second_step} "
+                "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+            )
+            validation_path = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+        rows.append(
+            {
+                "Missing Input": label,
+                "Affected Companies": len(tickers),
+                "Example Tickers": ", ".join(tickers[:5]) if tickers else "Not available",
+                "Why It Matters": detail["why"],
+                "Trusted Input Path": trusted_path,
+                "Next Safe Sequence": next_sequence,
+                "Validation Path": validation_path,
+                "Conclusion Boundary": "DCF math, fair value/share, undervalued, overvalued, and peer-relative conclusions stay withheld until this trusted input passes readiness.",
+                "Copy-Only Command": command,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def dcf_missing_field_guide_cards(field_guide_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if field_guide_frame is None or field_guide_frame.empty:
+        return [
+            {
+                "kicker": "DCF FIELD GUIDE",
+                "title": "No blocked DCF fields loaded",
+                "body": "Run DCF readiness before assuming company valuation inputs are complete.",
+                "badges": ["readiness first", "no inference"],
+                "command": "make dcf-readiness",
+            }
+        ]
+    frame = field_guide_frame.copy()
+    first = frame.iloc[0]
+    affected = pd.to_numeric(frame.get("Affected Companies"), errors="coerce").fillna(0)
+    total_affected = int(affected.sum())
+    return [
+        {
+            "kicker": "DCF FIELD GUIDE",
+            "title": f"{len(frame)} missing input type(s)",
+            "body": (
+                f"{total_affected} company field gap(s) are blocking DCF readiness. "
+                "Treat these as repair steps, not company-quality conclusions."
+            ),
+            "badges": ["field-level blockers", "no valuation inference"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "TOP MISSING INPUT",
+            "title": format_missing(first.get("Missing Input"), "Missing input"),
+            "body": (
+                f"Affected companies: {format_missing(first.get('Affected Companies'), '0')}. "
+                f"Examples: {format_missing(first.get('Example Tickers'), 'Not available')}. "
+                f"Why it matters: {format_missing(first.get('Why It Matters'), '')}"
+            ),
+            "badges": ["one field first", "trusted data only"],
+            "command": format_missing(first.get("Copy-Only Command"), "make dcf-readiness"),
+        },
+        {
+            "kicker": "TRUSTED INPUT PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "Trusted input path"),
+            "body": (
+                f"{format_missing(first.get('Next Safe Sequence'), '')} "
+                f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Boundary: {format_missing(first.get('Conclusion Boundary'), '')}"
+            ),
+            "badges": ["validate", "preview before apply"],
+            "command": format_missing(first.get("Copy-Only Command"), "make dcf-readiness"),
         },
     ]
 
@@ -19289,6 +19442,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     width="stretch",
                     hide_index=True,
                 )
+            field_guide = dcf_missing_field_guide_frame(dcf_readiness_frame, sec_configured=sec_configured)
+            render_section_header(
+                "DCF Missing-Field Guide",
+                "Translate blocked DCF fields into trusted input paths, validation steps, and withheld conclusions.",
+            )
+            render_signal_cards(dcf_missing_field_guide_cards(field_guide))
+            if not field_guide.empty:
+                with st.expander("DCF missing-field guide table", expanded=False):
+                    st.dataframe(clean_display_frame(field_guide), width="stretch", hide_index=True)
             if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
                 dcf_columns = [
                     column
