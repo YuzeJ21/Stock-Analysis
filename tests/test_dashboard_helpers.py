@@ -14318,6 +14318,29 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "sell" not in rendered
 
 
+def test_import_workflow_caption_spells_out_validation_preview_apply_commands():
+    caption = dashboard.import_workflow_caption("data/staged/earnings/", "make import-earnings")
+
+    assert caption == (
+        "Manual import: data/staged/earnings/ -> make import-earnings -> "
+        "make imports-validate -> make imports-preview -> make imports-apply."
+    )
+    assert "imports-validate/preview/apply" not in caption
+    assert "broker" not in caption.lower()
+    assert "order" not in caption.lower()
+    assert "buy" not in caption.lower()
+    assert "sell" not in caption.lower()
+
+
+def test_data_health_import_captions_use_exact_copyable_commands():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert 'import_workflow_caption("data/staged/fundamentals/", "make import-fundamentals")' in source
+    assert 'import_workflow_caption("data/staged/earnings/", "make import-earnings")' in source
+    assert 'import_workflow_caption("data/staged/analyst_estimates/", "make import-analyst-estimates")' in source
+    assert "make imports-validate/preview/apply" not in source
+
+
 def test_stock_report_optional_context_boundary_cards_explain_locked_and_available_states():
     locked_cards = dashboard.stock_report_optional_context_boundary_cards(
         {

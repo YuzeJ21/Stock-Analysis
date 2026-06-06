@@ -2774,6 +2774,13 @@ def optional_context_unlock_sequence_command(dataset_label: str) -> str:
     return f"make templates && {import_command} && make imports-validate && make imports-preview && make imports-apply"
 
 
+def import_workflow_caption(staged_path: str, import_command: str) -> str:
+    return (
+        f"Manual import: {staged_path} -> {import_command} -> "
+        "make imports-validate -> make imports-preview -> make imports-apply."
+    )
+
+
 def stock_report_optional_context_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
@@ -18916,7 +18923,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             st.caption(
                 "SEC_USER_AGENT configured: "
                 + ("yes" if sec_configured else "no")
-                + " | Manual fundamentals import: data/staged/fundamentals/ -> make import-fundamentals -> make imports-validate/preview/apply"
+                + " | "
+                + import_workflow_caption("data/staged/fundamentals/", "make import-fundamentals")
             )
             next_fundamentals_ticker = None
             if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
@@ -19002,7 +19010,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 if earnings_readiness_frame is not None and not earnings_readiness_frame.empty:
                     ready_count = int(earnings_readiness_frame.get("has_trusted_earnings", pd.Series(dtype=bool)).astype(bool).sum())
                     st.metric("Trusted earnings rows", f"{ready_count}/{len(earnings_readiness_frame)}")
-                    st.caption("Manual import: data/staged/earnings/ -> make import-earnings -> make imports-validate/preview/apply")
+                    st.caption(import_workflow_caption("data/staged/earnings/", "make import-earnings"))
                     columns = [
                         column
                         for column in ["ticker", "has_trusted_earnings", "row_count", "latest_report_date", "latest_fiscal_period", "missing_fields", "reason_not_ready"]
@@ -19018,7 +19026,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     ready_count = int(analyst_readiness_frame.get("has_trusted_analyst_estimates", pd.Series(dtype=bool)).astype(bool).sum())
                     st.metric("Trusted analyst rows", f"{ready_count}/{len(analyst_readiness_frame)}")
                     st.caption(
-                        "Manual import: data/staged/analyst_estimates/ -> make import-analyst-estimates -> make imports-validate/preview/apply"
+                        import_workflow_caption("data/staged/analyst_estimates/", "make import-analyst-estimates")
                     )
                     columns = [
                         column
