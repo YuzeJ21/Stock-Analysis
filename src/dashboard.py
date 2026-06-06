@@ -7597,6 +7597,181 @@ def peer_unlock_operator_cards(
     return cards
 
 
+def peer_input_ladder_frame(
+    peer_unlock_worklist_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = [
+        "Peer Input Step",
+        "Priority Count",
+        "Active Universe Count",
+        "DCF-Ready Count",
+        "First Ticker",
+        "What This Unlocks",
+        "What Stays Locked",
+        "Trusted Input Path",
+        "Validation Path",
+        "Copy-Only Command",
+    ]
+    if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty or "ticker" not in peer_unlock_worklist_frame.columns:
+        return pd.DataFrame(columns=columns)
+
+    frame = peer_unlock_worklist_frame.copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if (
+        ticker_readiness_frame is not None
+        and not ticker_readiness_frame.empty
+        and "ticker" in ticker_readiness_frame.columns
+    ):
+        readiness_columns = [
+            column
+            for column in ["ticker", "asset_type", "in_active_universe", "dcf_ready", "peer_ready"]
+            if column in ticker_readiness_frame.columns
+        ]
+        readiness = ticker_readiness_frame[readiness_columns].copy()
+        readiness["ticker"] = readiness["ticker"].astype(str).str.upper().str.strip()
+        frame = frame.merge(readiness, on="ticker", how="left", suffixes=("", "_readiness"))
+
+    if "priority" in frame.columns:
+        frame["priority"] = pd.to_numeric(frame["priority"], errors="coerce").fillna(999).astype(int)
+    else:
+        frame["priority"] = 999
+    if "workflow_group" not in frame.columns:
+        frame["workflow_group"] = ""
+    if "peer_blocker_type" not in frame.columns:
+        frame["peer_blocker_type"] = ""
+    if "workflow_scope" not in frame.columns:
+        frame["workflow_scope"] = ""
+    active = bool_series(frame, "in_active_universe") | frame["workflow_scope"].fillna("").astype(str).str.contains("active", case=False, na=False)
+    dcf_ready = bool_series(frame, "dcf_ready") | frame["workflow_group"].fillna("").astype(str).str.contains("dcf_ready|peer_valuation", case=False, regex=True, na=False)
+    frame = frame.assign(_active=active, _dcf_ready=dcf_ready)
+    asset_type = frame.get("asset_type", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    monitor_proxy = asset_type.isin({"etf", "index_proxy", "fund"}) | asset_type.str.contains("etf|index|fund", na=False)
+    frame = frame.loc[~monitor_proxy].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=columns)
+
+    step_definitions = [
+        {
+            "label": "1. Add source-backed peer mappings",
+            "mask": frame["peer_blocker_type"].fillna("").astype(str).eq("missing_peer_mapping")
+            | frame["workflow_group"].fillna("").astype(str).str.contains("peer_mapping", case=False, na=False),
+            "unlocks": "A trusted peer set for the subject company; peer trend can be checked after mapped peer price history is ready.",
+            "locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked.",
+            "path": "data/imports/peers.csv",
+            "validation": "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness",
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "label": "2. Add peer price history",
+            "mask": frame["peer_blocker_type"].fillna("").astype(str).isin(["peer_price_missing", "peer_momentum_missing"])
+            | frame["workflow_group"].fillna("").astype(str).str.contains("peer_trend", case=False, na=False),
+            "unlocks": "Peer trend context from mapped peer price history.",
+            "locked": "Peer valuation remains locked until peer fundamentals and valuation inputs pass readiness.",
+            "path": "data/imports/prices.csv or data/staged/prices/",
+            "validation": "make focus-price TICKER=<peer> -> make price-validate -> make price-preview -> make price-apply -> make readiness",
+            "command": "make price-worklist TOP_N=25",
+        },
+        {
+            "label": "3. Add peer fundamentals",
+            "mask": frame["peer_blocker_type"].fillna("").astype(str).eq("peer_fundamentals_missing")
+            | frame["workflow_group"].fillna("").astype(str).str.contains("peer_valuation", case=False, na=False),
+            "unlocks": "Peer valuation input readiness for mapped peers.",
+            "locked": "Peer-relative valuation stays withheld until all mapped peer valuation inputs pass readiness.",
+            "path": "data/imports/fundamentals.csv or data/staged/fundamentals/",
+            "validation": "make focus-fundamentals TICKER=<peer> -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness",
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "label": "4. Rebuild peer valuation readiness",
+            "mask": frame["peer_blocker_type"].fillna("").astype(str).eq("peer_valuation_blocked")
+            | frame["peer_valuation_status"].fillna("").astype(str).str.contains("blocked", case=False, na=False),
+            "unlocks": "Peer-relative valuation only when mappings, peer prices, and peer fundamentals are all ready.",
+            "locked": "No peer premium/discount or peer DCF comparison before readiness passes.",
+            "path": "outputs/peer_unlock_worklist.csv and data/reports/peer_readiness_report.csv",
+            "validation": "make readiness -> make peer-mapping-queue TOP_N=25 -> make stock-report-md TICKER=<ticker>",
+            "command": "make readiness && make peer-mapping-queue TOP_N=25",
+        },
+    ]
+
+    rows: list[dict[str, object]] = []
+    for definition in step_definitions:
+        subset = frame.loc[definition["mask"]].copy()
+        if subset.empty:
+            continue
+        subset = subset.sort_values(["priority", "_active", "_dcf_ready", "ticker"], ascending=[True, False, False, True], kind="stable")
+        first = subset.iloc[0]
+        first_command = format_missing(first.get("focus_command"), definition["command"])
+        if first_command == "Not available":
+            first_command = definition["command"]
+        rows.append(
+            {
+                "Peer Input Step": definition["label"],
+                "Priority Count": len(subset),
+                "Active Universe Count": int(subset["_active"].sum()),
+                "DCF-Ready Count": int(subset["_dcf_ready"].sum()),
+                "First Ticker": format_missing(first.get("ticker"), "Ticker"),
+                "What This Unlocks": definition["unlocks"],
+                "What Stays Locked": definition["locked"],
+                "Trusted Input Path": definition["path"],
+                "Validation Path": definition["validation"],
+                "Copy-Only Command": first_command,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict[str, object]]:
+    if peer_input_ladder is None or peer_input_ladder.empty:
+        return [
+            {
+                "kicker": "PEER INPUT LADDER",
+                "title": "No peer input ladder rows",
+                "body": "Run readiness and peer-mapping queue outputs before assuming peer valuation is ready.",
+                "badges": ["readiness first", "no guessed peers"],
+                "command": "make readiness",
+            }
+        ]
+    frame = peer_input_ladder.copy()
+    first = frame.iloc[0]
+    total_rows = int(pd.to_numeric(frame.get("Priority Count"), errors="coerce").fillna(0).sum())
+    active_rows = int(pd.to_numeric(frame.get("Active Universe Count"), errors="coerce").fillna(0).sum())
+    dcf_rows = int(pd.to_numeric(frame.get("DCF-Ready Count"), errors="coerce").fillna(0).sum())
+    return [
+        {
+            "kicker": "PEER INPUT LADDER",
+            "title": f"{total_rows} peer input row(s)",
+            "body": (
+                f"{active_rows} active-universe row(s) and {dcf_rows} DCF-ready row(s) are prioritized before broad peer cleanup. "
+                "Follow the ladder; do not skip from mappings to peer valuation."
+            ),
+            "badges": ["active first", "DCF-ready first"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "NEXT PEER INPUT",
+            "title": format_missing(first.get("Peer Input Step"), "Next peer input"),
+            "body": (
+                f"First ticker: {format_missing(first.get('First Ticker'), 'Ticker')}. "
+                f"Unlocks: {format_missing(first.get('What This Unlocks'), '')} "
+                f"Still locked: {format_missing(first.get('What Stays Locked'), '')}"
+            ),
+            "badges": ["one step first", "source-backed only"],
+            "command": format_missing(first.get("Copy-Only Command"), "make peer-mapping-queue TOP_N=25"),
+        },
+        {
+            "kicker": "TRUSTED PEER PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "Trusted peer input path"),
+            "body": (
+                f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                "Sector or industry fallback can guide research context only; it is not trusted peer valuation data."
+            ),
+            "badges": ["validate", "fallback labeled"],
+            "command": format_missing(first.get("Copy-Only Command"), "make peer-mapping-queue TOP_N=25"),
+        },
+    ]
+
+
 def _first_peer_unlock_ticker(peer_unlock_worklist_frame: pd.DataFrame | None) -> str:
     if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty or "ticker" not in peer_unlock_worklist_frame.columns:
         return ""
@@ -18836,6 +19011,15 @@ def render_market_command_center(
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
     render_signal_cards(peer_mapping_studio_summary_cards(peer_readiness_frame, ticker_readiness_frame))
     render_signal_cards(peer_unlock_operator_cards(peer_unlock_worklist_frame, ticker_readiness_frame))
+    peer_input_ladder = peer_input_ladder_frame(peer_unlock_worklist_frame, ticker_readiness_frame)
+    render_section_header(
+        "Peer Input Ladder",
+        "Which trusted peer input to add next before peer-relative valuation can appear.",
+    )
+    render_signal_cards(peer_input_ladder_cards(peer_input_ladder))
+    if not peer_input_ladder.empty:
+        with st.expander("Peer input ladder table", expanded=False):
+            st.dataframe(clean_display_frame(peer_input_ladder), width="stretch", hide_index=True)
     render_section_header(
         "First Trusted Peer Mapping Unlock",
         "The shortest safe path from missing peers to a source-backed peer readiness change.",

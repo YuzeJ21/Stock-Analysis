@@ -13215,6 +13215,106 @@ def test_peer_unlock_operator_cards_keep_etf_rows_in_monitor_context():
     assert "sell" not in rendered
 
 
+def test_peer_input_ladder_prioritizes_active_dcf_ready_rows_and_separates_trend_from_valuation():
+    worklist = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "priority": 1,
+                "peer_blocker_type": "missing_peer_mapping",
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "master_universe",
+                "peer_trend_status": "peer_trend_blocked",
+                "peer_valuation_status": "peer_valuation_blocked",
+                "focus_command": "make focus-peers TICKER=A",
+            },
+            {
+                "ticker": "META",
+                "priority": 1,
+                "peer_blocker_type": "peer_price_missing",
+                "workflow_group": "peer_trend_unlock",
+                "workflow_scope": "active_universe",
+                "peer_trend_status": "peer_trend_blocked",
+                "peer_valuation_status": "peer_valuation_blocked",
+                "focus_command": "make focus-peers TICKER=META",
+            },
+            {
+                "ticker": "CRDO",
+                "priority": 2,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "workflow_group": "peer_valuation_unlock",
+                "workflow_scope": "active_universe",
+                "peer_trend_status": "peer_trend_possible",
+                "peer_valuation_status": "peer_valuation_blocked",
+                "focus_command": "make focus-peers TICKER=CRDO",
+            },
+            {
+                "ticker": "QQQ",
+                "priority": 1,
+                "peer_blocker_type": "missing_peer_mapping",
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "active_universe",
+                "focus_command": "make focus-peers TICKER=QQQ",
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "A", "asset_type": "company", "dcf_ready": True, "peer_ready": False, "in_active_universe": False},
+            {"ticker": "META", "asset_type": "company", "dcf_ready": True, "peer_ready": False, "in_active_universe": True},
+            {"ticker": "CRDO", "asset_type": "company", "dcf_ready": True, "peer_ready": False, "in_active_universe": True},
+            {"ticker": "QQQ", "asset_type": "etf", "dcf_ready": False, "peer_ready": False, "in_active_universe": True},
+        ]
+    )
+
+    frame = dashboard.peer_input_ladder_frame(worklist, readiness)
+    cards = dashboard.peer_input_ladder_cards(frame)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten().tolist() + [str(value) for card in cards for value in card.values()]).lower()
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert list(frame.columns) == [
+        "Peer Input Step",
+        "Priority Count",
+        "Active Universe Count",
+        "DCF-Ready Count",
+        "First Ticker",
+        "What This Unlocks",
+        "What Stays Locked",
+        "Trusted Input Path",
+        "Validation Path",
+        "Copy-Only Command",
+    ]
+    assert frame["Peer Input Step"].tolist() == [
+        "1. Add source-backed peer mappings",
+        "2. Add peer price history",
+        "3. Add peer fundamentals",
+        "4. Rebuild peer valuation readiness",
+    ]
+    assert frame.loc[frame["Peer Input Step"].eq("1. Add source-backed peer mappings"), "First Ticker"].iloc[0] == "A"
+    assert frame.loc[frame["Peer Input Step"].eq("2. Add peer price history"), "First Ticker"].iloc[0] == "META"
+    assert frame.loc[frame["Peer Input Step"].eq("3. Add peer fundamentals"), "First Ticker"].iloc[0] == "CRDO"
+    assert "qqq" not in frame["First Ticker"].astype(str).str.lower().str.cat(sep=" ")
+    assert "data/imports/peers.csv" in rendered
+    assert "data/imports/prices.csv or data/staged/prices/" in rendered
+    assert "data/imports/fundamentals.csv or data/staged/fundamentals/" in rendered
+    assert "peer trend context from mapped peer price history" in rendered
+    assert "peer valuation remains locked until peer fundamentals and valuation inputs pass readiness" in rendered
+    assert "peer-relative premium/discount, peer valuation comparison, and peer dcf comparison stay locked" in rendered
+    assert "do not skip from mappings to peer valuation" in rendered
+    assert "sector or industry fallback can guide research context only; it is not trusted peer valuation data" in rendered
+    assert "make focus-peers ticker=a" in rendered
+    assert "make focus-peers ticker=meta" in rendered
+    assert "make focus-peers ticker=crdo" in rendered
+    assert "make focus-peers ticker=qqq" not in rendered
+    assert "render_signal_cards(peer_input_ladder_cards(peer_input_ladder))" in source
+    assert "peer input ladder table" in source.lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_peer_mapping_studio_keeps_etf_missing_mappings_in_monitor_context():
     peer_readiness = pd.DataFrame(
         [
