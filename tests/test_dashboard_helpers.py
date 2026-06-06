@@ -13031,13 +13031,17 @@ def test_first_peer_mapping_unlock_frame_prioritizes_source_backed_mapping_workf
         [
             {
                 "ticker": "A",
-                "priority": 2,
-                "workflow_group": "peer_metric_follow_through",
+                "priority": 1,
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "master_universe",
+                "dcf_ready": True,
             },
             {
                 "ticker": "META",
-                "priority": 1,
+                "priority": 9,
                 "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "active_universe",
+                "dcf_ready": True,
             },
         ]
     )
@@ -13782,6 +13786,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
                 "ticker": "A",
                 "workflow_scope": "master_universe",
                 "workflow_group": "peer_valuation_unlock",
+                "dcf_ready": True,
                 "peer_trend_status": "peer_trend_possible",
                 "peer_valuation_status": "peer_valuation_blocked",
                 "has_peer_mapping": "False",
@@ -13794,6 +13799,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
                 "ticker": "CRDO",
                 "workflow_scope": "active_universe",
                 "workflow_group": "peer_valuation_unlock",
+                "dcf_ready": True,
                 "peer_trend_status": "peer_trend_possible",
                 "peer_valuation_status": "peer_valuation_blocked",
                 "has_peer_mapping": "True",
@@ -13807,6 +13813,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
                 "priority": 2,
                 "ticker": "NVDA",
                 "workflow_scope": "master_universe",
+                "dcf_ready": True,
                 "has_peer_mapping": True,
                 "peer_ready": True,
                 "missing_required_for_peer_relative": "",
@@ -13821,6 +13828,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert list(frame.columns) == [
         "Ticker",
         "Priority Scope",
+        "DCF Readiness Gate",
         "Current State",
         "Peer Trend State",
         "Peer Valuation State",
@@ -13837,7 +13845,9 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     ]
     assert frame["Ticker"].tolist() == ["CRDO", "A"]
     assert frame.iloc[0]["Priority Scope"] == "Priority 2; active universe"
+    assert frame.iloc[0]["DCF Readiness Gate"] == "DCF ready: standalone DCF can be reviewed while peer valuation waits for trusted peer inputs."
     assert frame.iloc[0]["Copy-Only Command"] == "make focus-peers TICKER=CRDO"
+    assert "dcf ready: standalone dcf can be reviewed while peer valuation waits" in rendered
     assert "peer workflow is split: trend can be possible before peer valuation is ready" in rendered
     assert "peer trend possible" in rendered
     assert "peer valuation blocked" in rendered
@@ -13873,6 +13883,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
             {
                 "Ticker": "A",
                 "Priority Scope": "Priority 1; active universe",
+                "DCF Readiness Gate": "DCF ready: standalone DCF can be reviewed while peer valuation waits for trusted peer inputs.",
                 "Peer Trend State": "peer trend possible",
                 "Peer Valuation State": "peer valuation blocked",
                 "What Is Still Locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked until source-backed peer inputs pass readiness.",
@@ -13898,6 +13909,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "peer trend can be reviewed separately when mapped peer price history is ready" in rendered
     assert "it does not unlock peer valuation" in rendered
     assert "peer premium/discount stays locked" in rendered
+    assert "dcf gate: dcf ready: standalone dcf can be reviewed while peer valuation waits" in rendered
     assert "trend: peer trend possible" in rendered
     assert "valuation: peer valuation blocked" in rendered
     assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered

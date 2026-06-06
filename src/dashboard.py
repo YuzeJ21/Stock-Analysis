@@ -7985,11 +7985,20 @@ def _first_peer_unlock_ticker(peer_unlock_worklist_frame: pd.DataFrame | None) -
         frame["priority"] = 999
     if "workflow_group" not in frame.columns:
         frame["workflow_group"] = ""
+    if "workflow_scope" not in frame.columns:
+        frame["workflow_scope"] = ""
     mapping_mask = frame["workflow_group"].fillna("").astype(str).str.contains("peer_mapping|missing_peer_mapping|dcf_ready_peer_mapping", case=False, na=False)
     candidates = frame.loc[mapping_mask].copy()
     if candidates.empty:
         candidates = frame.copy()
-    candidates = candidates.sort_values(["priority", "ticker"], kind="stable")
+    scope_text = candidates["workflow_scope"].fillna("").astype(str).str.lower()
+    workflow_text = candidates["workflow_group"].fillna("").astype(str).str.lower()
+    active_flag = bool_series(candidates, "in_active_universe") if "in_active_universe" in candidates.columns else pd.Series(False, index=candidates.index)
+    dcf_flag = bool_series(candidates, "dcf_ready") if "dcf_ready" in candidates.columns else pd.Series(False, index=candidates.index)
+    active_rank = ~(active_flag | scope_text.str.contains("active", na=False))
+    dcf_rank = ~(dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))
+    candidates = candidates.assign(_active_rank=active_rank.astype(int), _dcf_rank=dcf_rank.astype(int))
+    candidates = candidates.sort_values(["_active_rank", "_dcf_rank", "priority", "ticker"], kind="stable")
     return format_missing(candidates.iloc[0].get("ticker"), "")
 
 
@@ -8458,6 +8467,7 @@ def data_health_peer_unlock_frame(
     columns = [
         "Ticker",
         "Priority Scope",
+        "DCF Readiness Gate",
         "Current State",
         "Peer Trend State",
         "Peer Valuation State",
@@ -8509,7 +8519,14 @@ def data_health_peer_unlock_frame(
         unlock_rows = unlock_rows.assign(_active_rank=active_rank.astype(int), _dcf_rank=dcf_rank.astype(int))
         unlock_rows = unlock_rows.sort_values(["_active_rank", "_dcf_rank", "priority", "ticker"], na_position="last", kind="stable")
     else:
-        unlock_rows = unlock_rows.sort_values(["ticker"], kind="stable")
+        scope_text = unlock_rows.get("workflow_scope", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
+        workflow_text = unlock_rows.get("workflow_group", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
+        active_flag = bool_series(unlock_rows, "in_active_universe") if "in_active_universe" in unlock_rows.columns else pd.Series(False, index=unlock_rows.index)
+        dcf_flag = bool_series(unlock_rows, "dcf_ready") if "dcf_ready" in unlock_rows.columns else pd.Series(False, index=unlock_rows.index)
+        active_rank = ~(active_flag | scope_text.str.contains("active", na=False))
+        dcf_rank = ~(dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))
+        unlock_rows = unlock_rows.assign(_active_rank=active_rank.astype(int), _dcf_rank=dcf_rank.astype(int))
+        unlock_rows = unlock_rows.sort_values(["_active_rank", "_dcf_rank", "ticker"], kind="stable")
 
     rows: list[dict[str, object]] = []
     for _, row in unlock_rows.head(limit).iterrows():
@@ -8523,6 +8540,15 @@ def data_health_peer_unlock_frame(
         priority = format_missing(row.get("priority"), "not ranked")
         active_scope = str(row.get("in_active_universe", "")).strip().lower() in {"true", "1", "yes", "y"} or "active" in str(row.get("workflow_scope", "")).lower()
         scope = format_missing(row.get("workflow_scope"), "active universe" if active_scope else "master universe").replace("_", " ")
+        workflow_group = str(row.get("workflow_group", "")).lower()
+        dcf_ready = str(row.get("dcf_ready", "")).strip().lower() in {"true", "1", "yes", "y"} or any(
+            token in workflow_group for token in ["dcf_ready", "peer_valuation_unlock"]
+        )
+        dcf_gate = (
+            "DCF ready: standalone DCF can be reviewed while peer valuation waits for trusted peer inputs."
+            if dcf_ready
+            else "DCF not confirmed ready: use peer work for mapping prep only; peer valuation waits behind DCF readiness."
+        )
         trend_state = format_missing(row.get("peer_trend_status"), "peer trend blocked until source-backed mappings and peer price history are ready").replace("_", " ")
         valuation_state = format_missing(row.get("peer_valuation_status"), "peer valuation blocked until source-backed peer mappings and valuation inputs pass").replace("_", " ")
         input_path = format_missing(row.get("next_input_file"), "data/imports/peers.csv with source-backed peer mappings")
@@ -8541,6 +8567,7 @@ def data_health_peer_unlock_frame(
             {
                 "Ticker": ticker,
                 "Priority Scope": f"Priority {priority}; {scope}",
+                "DCF Readiness Gate": dcf_gate,
                 "Current State": "Peer workflow is split: trend can be possible before peer valuation is ready.",
                 "Peer Trend State": trend_state,
                 "Peer Valuation State": valuation_state,
@@ -8584,6 +8611,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
     trend_state = compact_reason(first.get("Peer Trend State"), max_sentences=1, max_chars=120)
     valuation_state = compact_reason(first.get("Peer Valuation State"), max_sentences=1, max_chars=120)
+    dcf_gate = compact_reason(first.get("DCF Readiness Gate"), max_sentences=1, max_chars=160)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
     proof = format_missing(first.get("Readiness Proof"), "Run make readiness and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
@@ -8604,7 +8632,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
         {
             "kicker": "NEXT PEER ROW",
             "title": ticker,
-            "body": f"Trend: {trend_state}. Valuation: {valuation_state}. Trusted peer requirement: {requirement}. Still locked: {locked}. Boundary: {boundary}.",
+            "body": f"DCF gate: {dcf_gate}. Trend: {trend_state}. Valuation: {valuation_state}. Trusted peer requirement: {requirement}. Still locked: {locked}. Boundary: {boundary}.",
             "badges": ["one ticker first", "no fallback valuation"],
             "command": command,
         },
