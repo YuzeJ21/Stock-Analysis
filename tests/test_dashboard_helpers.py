@@ -14850,6 +14850,75 @@ def test_first_optional_context_unlock_cards_are_recommendation_free():
     assert "sell" not in rendered
 
 
+def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_workflow():
+    worklist = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "priority": 5, "has_earnings": False, "has_analyst_estimates": False},
+            {"ticker": "A", "priority": 6, "has_earnings": True, "has_analyst_estimates": False},
+        ]
+    )
+    earnings = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "has_trusted_earnings": False},
+            {"ticker": "A", "has_trusted_earnings": True},
+        ]
+    )
+    estimates = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "has_trusted_analyst_estimates": False},
+            {"ticker": "A", "has_trusted_analyst_estimates": False},
+        ]
+    )
+
+    frame = dashboard.optional_context_ladder_frame(worklist, earnings, estimates)
+    cards = dashboard.optional_context_ladder_cards(frame)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten().tolist() + [str(value) for card in cards for value in card.values()]).lower()
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert list(frame.columns) == [
+        "Dataset",
+        "Current State",
+        "Ready Rows",
+        "Blocked Rows",
+        "Schema Only Example",
+        "Trusted Input Path",
+        "Import Command",
+        "Rejected Rows",
+        "Validation Path",
+        "What This Unlocks",
+        "What Stays Locked",
+        "Copy-Only Command",
+    ]
+    assert frame["Dataset"].tolist() == ["Earnings", "Analyst estimates"]
+    assert frame.loc[frame["Dataset"].eq("Earnings"), "Ready Rows"].iloc[0] == 1
+    assert frame.loc[frame["Dataset"].eq("Earnings"), "Blocked Rows"].iloc[0] == 1
+    assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "Ready Rows"].iloc[0] == 0
+    assert "1 ready / 3 locked row(s)" in rendered
+    assert "empty optional context is intentional until trusted local csv rows pass validation" in rendered
+    assert "ticker, fiscal_period, report_date" in rendered
+    assert "ticker, period, eps_estimate" in rendered
+    assert "templates are not data" in rendered
+    assert "data/staged/earnings/ or data/imports/earnings.csv" in rendered
+    assert "data/staged/analyst_estimates/ or data/imports/analyst_estimates.csv" in rendered
+    assert "make import-earnings" in rendered
+    assert "make import-analyst-estimates" in rendered
+    assert "data/rejected/earnings_import_rejected.csv" in rendered
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "make optional-context-readiness" in rendered
+    assert "make onboarding top_n=10" in rendered
+    assert "missing rows must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis" in rendered
+    assert "render_signal_cards(optional_context_ladder_cards(optional_ladder))" in source
+    assert "optional context ladder table" in source.lower()
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_market_blocker_summary_cards_surface_safe_top_n_worklists():
     readiness = pd.DataFrame(
         {

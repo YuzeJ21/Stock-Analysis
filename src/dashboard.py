@@ -3038,6 +3038,143 @@ def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[
     ]
 
 
+OPTIONAL_CONTEXT_DATASETS = {
+    "earnings": {
+        "label": "Earnings",
+        "ready_column": "has_trusted_earnings",
+        "staged_path": "data/staged/earnings/",
+        "import_file": "data/imports/earnings.csv",
+        "import_command": "make import-earnings",
+        "rejected_path": "data/rejected/earnings_import_rejected.csv",
+        "schema": "ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at",
+        "unlocks": "earnings timing, reported EPS/revenue context, and surprise fields when trusted rows pass readiness.",
+    },
+    "analyst_estimates": {
+        "label": "Analyst estimates",
+        "ready_column": "has_trusted_analyst_estimates",
+        "staged_path": "data/staged/analyst_estimates/",
+        "import_file": "data/imports/analyst_estimates.csv",
+        "import_command": "make import-analyst-estimates",
+        "rejected_path": "data/rejected/analyst_estimates_import_rejected.csv",
+        "schema": "ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at",
+        "unlocks": "consensus EPS/revenue, target-range context, and revision fields when trusted rows pass readiness.",
+    },
+}
+
+
+def optional_context_ladder_frame(
+    optional_context_worklist_frame: pd.DataFrame | None = None,
+    earnings_readiness_frame: pd.DataFrame | None = None,
+    analyst_readiness_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = [
+        "Dataset",
+        "Current State",
+        "Ready Rows",
+        "Blocked Rows",
+        "Schema Only Example",
+        "Trusted Input Path",
+        "Import Command",
+        "Rejected Rows",
+        "Validation Path",
+        "What This Unlocks",
+        "What Stays Locked",
+        "Copy-Only Command",
+    ]
+    worklist_count = 0 if optional_context_worklist_frame is None or optional_context_worklist_frame.empty else len(optional_context_worklist_frame)
+
+    def readiness_counts(frame: pd.DataFrame | None, ready_column: str) -> tuple[int, int, int]:
+        if frame is None or frame.empty:
+            return 0, 0, worklist_count
+        ready = bool_series(frame, ready_column) if ready_column in frame.columns else pd.Series(False, index=frame.index)
+        ready_count = int(ready.sum())
+        total = int(len(frame))
+        return ready_count, max(total - ready_count, 0), total
+
+    rows: list[dict[str, object]] = []
+    frames = {"earnings": earnings_readiness_frame, "analyst_estimates": analyst_readiness_frame}
+    for key, config in OPTIONAL_CONTEXT_DATASETS.items():
+        ready_count, blocked_count, total = readiness_counts(frames[key], config["ready_column"])
+        if total == 0:
+            state = "Locked: no trusted local rows loaded"
+        elif ready_count == 0:
+            state = "Locked: trusted rows not ready"
+        elif blocked_count:
+            state = "Partial: some trusted rows ready"
+        else:
+            state = "Ready: trusted rows available"
+        rows.append(
+            {
+                "Dataset": config["label"],
+                "Current State": state,
+                "Ready Rows": ready_count,
+                "Blocked Rows": blocked_count,
+                "Schema Only Example": config["schema"],
+                "Trusted Input Path": f"{config['staged_path']} or {config['import_file']}",
+                "Import Command": config["import_command"],
+                "Rejected Rows": config["rejected_path"],
+                "Validation Path": "make templates -> import command -> make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness -> make onboarding TOP_N=10",
+                "What This Unlocks": config["unlocks"],
+                "What Stays Locked": "Optional context stays unavailable until trusted rows pass validation; missing rows must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.",
+                "Copy-Only Command": optional_context_unlock_sequence_command(key),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if ladder_frame is None or ladder_frame.empty:
+        return [
+            {
+                "kicker": "OPTIONAL CONTEXT LADDER",
+                "title": "Optional context not loaded",
+                "body": "Run the optional-context worklist before assuming earnings or analyst-estimate context is available.",
+                "badges": ["readiness first", "no inference"],
+                "command": "make optional-context-worklist TOP_N=25",
+            }
+        ]
+    frame = ladder_frame.copy()
+    ready_total = int(pd.to_numeric(frame.get("Ready Rows"), errors="coerce").fillna(0).sum())
+    blocked_total = int(pd.to_numeric(frame.get("Blocked Rows"), errors="coerce").fillna(0).sum())
+    ready_counts = pd.to_numeric(frame.get("Ready Rows"), errors="coerce").fillna(0)
+    first_locked = frame.loc[ready_counts.eq(0)]
+    first = first_locked.iloc[0] if not first_locked.empty else frame.iloc[0]
+    return [
+        {
+            "kicker": "OPTIONAL CONTEXT LADDER",
+            "title": f"{ready_total} ready / {blocked_total} locked row(s)",
+            "body": (
+                "Earnings and analyst estimates are optional context, not core valuation inputs. "
+                "Empty optional context is intentional until trusted local CSV rows pass validation."
+            ),
+            "badges": ["optional", "locked is safe"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+        {
+            "kicker": "NEXT OPTIONAL DATASET",
+            "title": format_missing(first.get("Dataset"), "Optional dataset"),
+            "body": (
+                f"State: {format_missing(first.get('Current State'), 'locked')}. "
+                f"Schema-only example: {format_missing(first.get('Schema Only Example'), '')}. "
+                "Templates are not data."
+            ),
+            "badges": ["schema only", "trusted rows required"],
+            "command": format_missing(first.get("Import Command"), "make templates"),
+        },
+        {
+            "kicker": "TRUSTED OPTIONAL PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "Trusted optional input path"),
+            "body": (
+                f"Rejected rows: {format_missing(first.get('Rejected Rows'), '')}. "
+                f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Boundary: {format_missing(first.get('What Stays Locked'), '')}"
+            ),
+            "badges": ["validate", "preview before apply"],
+            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
+        },
+    ]
+
+
 def _csv_row_count(path: Path) -> int:
     if not path.exists() or path.is_dir():
         return 0
@@ -19672,6 +19809,18 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "Earnings and analyst estimates stay not available until verified local rows are imported and applied.",
             )
             render_signal_cards(optional_context_unlock_cards())
+            optional_ladder = optional_context_ladder_frame(
+                optional_context_worklist_frame,
+                earnings_readiness_frame,
+                analyst_readiness_frame,
+            )
+            render_section_header(
+                "Optional Context Ladder",
+                "Schema-only examples, trusted input paths, rejected-row reports, and readiness proof before optional context appears.",
+            )
+            render_signal_cards(optional_context_ladder_cards(optional_ladder))
+            with st.expander("Optional context ladder table", expanded=False):
+                st.dataframe(clean_display_frame(optional_ladder), width="stretch", hide_index=True)
             render_section_header(
                 "First Trusted Optional Context Unlock",
                 "Optional context should stay locked unless trusted earnings or estimate rows are available locally.",
