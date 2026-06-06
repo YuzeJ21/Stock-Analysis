@@ -224,6 +224,10 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "single-stock report: what can i analyze now?" in rendered
     assert "value / re-rating: what can i analyze now?" in rendered
     assert "data health: what can i analyze now?" in rendered
+    assert rendered.count("analyze now:") == 4
+    assert rendered.count("still locked:") == 4
+    assert rendered.count("copy next:") == 4
+    assert rendered.count("read path:") == 4
     assert "how should i read this page?" in rendered
     assert "read readiness cards first" in rendered
     assert "locked sections are boundaries, not hidden conclusions" in rendered

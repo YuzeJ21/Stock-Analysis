@@ -132,14 +132,14 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         {
             "kicker": "PAGE GUIDE",
             "title": f"{page}: what can I analyze now?",
-            "body": guide["analyze"],
+            "body": f"Analyze now: {guide['analyze']}",
             "badges": ["plain English", "readiness first"],
             "command": guide["command"],
         },
         {
             "kicker": "LOCKED / EXCLUDED",
             "title": "What stays unavailable?",
-            "body": guide["locked"],
+            "body": f"Still locked: {guide['locked']}",
             "badges": ["no inference", "data honest"],
             "command": guide["command"],
         },
@@ -147,7 +147,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "kicker": "COPY NEXT",
             "title": "What command should I copy next?",
             "body": (
-                "Copy the command into a terminal only when you are ready. "
+                "Copy next: copy the command into a terminal only when you are ready. "
                 "The dashboard does not run refreshes, imports, or external account actions. "
                 f"Proof after unlock: {guide['proof']}"
             ),
@@ -157,7 +157,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         {
             "kicker": "READ PATH",
             "title": "How should I read this page?",
-            "body": guide["read"],
+            "body": f"Read path: {guide['read']}",
             "badges": ["plain language", "no overclaim"],
             "command": guide["command"],
         },
