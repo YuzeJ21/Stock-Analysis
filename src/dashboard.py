@@ -8833,6 +8833,7 @@ def dcf_missing_field_guide_frame(
         "Missing Input",
         "Affected Companies",
         "Example Tickers",
+        "Price-Ready Examples",
         "Why It Matters",
         "Trusted Input Path",
         "Schema Fields",
@@ -8855,8 +8856,10 @@ def dcf_missing_field_guide_frame(
         return pd.DataFrame(columns=columns)
 
     grouped: dict[str, list[str]] = {}
+    price_ready_grouped: dict[str, list[str]] = {}
     for _, row in blocked.iterrows():
         ticker = format_missing(row.get("ticker"), "").upper()
+        price_ready = str(row.get("has_price", "")).strip().lower() in {"true", "1", "yes", "y"}
         raw_fields = str(row.get("missing_dcf_fields") or row.get("reason_not_ready") or "").strip()
         if raw_fields.lower().startswith("missing "):
             raw_fields = raw_fields[8:].strip()
@@ -8870,12 +8873,17 @@ def dcf_missing_field_guide_frame(
             grouped.setdefault(key, [])
             if ticker and ticker not in grouped[key]:
                 grouped[key].append(ticker)
+            price_ready_grouped.setdefault(key, [])
+            if ticker and price_ready and ticker not in price_ready_grouped[key]:
+                price_ready_grouped[key].append(ticker)
 
     rows: list[dict[str, object]] = []
     for key, tickers in sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:limit]:
         detail = DCF_INPUT_TRIAGE.get(key, DCF_INPUT_TRIAGE["fundamentals"])
         label = public_status_label(key.replace("_", " "))
-        example = tickers[0] if tickers else "TICKER"
+        price_ready_examples = price_ready_grouped.get(key, [])
+        example_candidates = price_ready_examples if key not in {"price", "market_cap_or_price_and_shares"} and price_ready_examples else tickers
+        example = example_candidates[0] if example_candidates else "TICKER"
         if key in {"price", "market_cap_or_price_and_shares"}:
             trusted_path = "data/imports/prices.csv or data/staged/prices/"
             schema_fields = "ticker, date, open, high, low, close, volume, source"
@@ -8906,6 +8914,7 @@ def dcf_missing_field_guide_frame(
                 "Missing Input": label,
                 "Affected Companies": len(tickers),
                 "Example Tickers": ", ".join(tickers[:5]) if tickers else "Not available",
+                "Price-Ready Examples": ", ".join(price_ready_examples[:5]) if price_ready_examples else "None yet",
                 "Why It Matters": detail["why"],
                 "Trusted Input Path": trusted_path,
                 "Schema Fields": schema_fields,

@@ -14016,24 +14016,28 @@ def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without
                 "ticker": "META",
                 "asset_type": "company",
                 "is_dcf_ready": False,
+                "has_price": True,
                 "missing_dcf_fields": "free_cash_flow, shares_outstanding",
             },
             {
                 "ticker": "APLD",
                 "asset_type": "company",
                 "is_dcf_ready": False,
+                "has_price": False,
                 "missing_dcf_fields": "price|revenue",
             },
             {
                 "ticker": "A",
                 "asset_type": "company",
                 "is_dcf_ready": True,
+                "has_price": True,
                 "missing_dcf_fields": "",
             },
             {
                 "ticker": "QQQ",
                 "asset_type": "etf",
                 "is_dcf_ready": False,
+                "has_price": True,
                 "missing_dcf_fields": "revenue",
             },
         ]
@@ -14048,6 +14052,7 @@ def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without
         "Missing Input",
         "Affected Companies",
         "Example Tickers",
+        "Price-Ready Examples",
         "Why It Matters",
         "Trusted Input Path",
         "Schema Fields",
@@ -14061,6 +14066,8 @@ def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without
     assert "shares outstanding" in rendered
     assert "converts equity value into fair value per share" in rendered
     assert "price" in rendered
+    assert frame.loc[frame["Missing Input"].eq("free cash flow"), "Price-Ready Examples"].iloc[0] == "META"
+    assert frame.loc[frame["Missing Input"].eq("revenue"), "Price-Ready Examples"].iloc[0] == "None yet"
     assert "data/imports/prices.csv or data/staged/prices/" in rendered
     assert "ticker, date, open, high, low, close, volume, source" in rendered
     assert "revenue" in rendered
