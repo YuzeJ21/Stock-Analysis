@@ -1866,6 +1866,7 @@ def _stock_report_unlock_command_lines(
                 f"- Price first: `make focus-price TICKER={ticker}`.",
                 f"- Price queue: `make price-worklist TICKERS={ticker} TOP_N=10`.",
                 "- Price import safety: `make price-validate && make price-preview && make price-apply`.",
+                "- Price rebuild proof: `make price-coverage TOP_N=25 && make readiness` before interpreting setup, trend, or valuation context.",
             ]
         )
     else:
@@ -1879,6 +1880,7 @@ def _stock_report_unlock_command_lines(
                 f"- Fundamentals / DCF: `make focus-fundamentals TICKER={ticker}`.",
                 f"- SEC/manual import review: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
                 "- Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.",
+                "- DCF rebuild proof: `make dcf-readiness && make readiness` before reading standalone DCF output.",
             ]
         )
     else:
@@ -1892,6 +1894,7 @@ def _stock_report_unlock_command_lines(
                 f"- Peer mapping: `make focus-peers TICKER={ticker}`.",
                 f"- Peer queue: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
                 "- Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.",
+                f"- Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS={ticker} TOP_N=10` before reading peer-relative valuation.",
             ]
         )
     else:
@@ -1905,6 +1908,7 @@ def _stock_report_unlock_command_lines(
                 "- Earnings import: `make import-earnings`.",
                 "- Analyst-estimates import: `make import-analyst-estimates`.",
                 "- Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.",
+                "- Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.",
             ]
         )
     return lines

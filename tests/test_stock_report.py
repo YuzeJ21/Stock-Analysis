@@ -436,6 +436,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "`make focus-peers TICKER=MSFT`" in markdown
     assert "`make optional-context-worklist TICKERS=MSFT TOP_N=10`" in markdown
     assert "`make imports-validate && make imports-preview && make imports-apply`" in markdown
+    assert "Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10`" in markdown
+    assert "Optional-context rebuild proof: `make optional-context-readiness && make readiness`" in markdown
     assert "Import paths, rejected-row files, and credential state are listed in the Source/Freshness Audit below." in markdown
     assert "import draft path `data/staged/prices/` or `data/imports/prices.csv`" in markdown
     assert "import draft path `data/imports/peers.csv`" in markdown
@@ -1028,7 +1030,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "## Copyable Unlock Commands" in markdown
     assert "`make price-worklist TICKERS=APLD TOP_N=10`" in markdown
     assert "`make price-validate && make price-preview && make price-apply`" in markdown
+    assert "Price rebuild proof: `make price-coverage TOP_N=25 && make readiness`" in markdown
     assert "`make focus-fundamentals TICKER=APLD`" in markdown
+    assert "DCF rebuild proof: `make dcf-readiness && make readiness`" in markdown
     assert "`make peer-mapping-queue TICKERS=APLD TOP_N=10`" in markdown
     assert "`make optional-context-worklist TICKERS=APLD TOP_N=10`" in markdown
     assert "the report does not execute imports, refreshes, broker actions, or trades" in markdown
