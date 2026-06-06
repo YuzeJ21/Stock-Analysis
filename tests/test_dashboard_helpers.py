@@ -13766,6 +13766,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
         "What This Unlocks",
         "No-Conclusion Boundary",
         "Next Safe Sequence",
+        "Readiness Proof",
         "Copy-Only Command",
         "Validation Path",
     ]
@@ -13790,6 +13791,7 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "make imports-apply" in rendered
     assert "make readiness" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "run `make readiness` and `make peer-mapping-queue top_n=25`, then reopen data health or the single-stock report" in rendered
     assert "make focus-fundamentals ticker=<peer> -> make imports-validate" in rendered
     assert "fill data/imports/peers.csv" in rendered
     assert "broker" not in rendered
@@ -13812,6 +13814,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
                 "Trusted Input Path": "data/imports/peers.csv with source-backed peer mappings",
                 "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
                 "Next Safe Sequence": "1. Inspect `make focus-peers TICKER=A`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. 3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply`. 4. Run `make readiness` and `make peer-mapping-queue TOP_N=25` before reading peer valuation.",
+                "Readiness Proof": "Run `make readiness` and `make peer-mapping-queue TOP_N=25`, then reopen Data Health or the single-stock report before reading peer-relative valuation.",
                 "Copy-Only Command": "make focus-peers TICKER=A",
                 "Validation Path": "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25",
             }
@@ -13839,6 +13842,8 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "make imports-apply" in rendered
     assert "make readiness" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "readiness proof: run `make readiness` and `make peer-mapping-queue top_n=25`" in rendered
+    assert "before reading peer-relative valuation" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert cards[2]["command"] == "make templates && make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"

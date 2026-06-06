@@ -8406,6 +8406,7 @@ def data_health_peer_unlock_frame(
         "What This Unlocks",
         "No-Conclusion Boundary",
         "Next Safe Sequence",
+        "Readiness Proof",
         "Copy-Only Command",
         "Validation Path",
     ]
@@ -8491,6 +8492,7 @@ def data_health_peer_unlock_frame(
                     "3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply`. "
                     "4. Run `make readiness` and `make peer-mapping-queue TOP_N=25` before reading peer valuation."
                 ),
+                "Readiness Proof": "Run `make readiness` and `make peer-mapping-queue TOP_N=25`, then reopen Data Health or the single-stock report before reading peer-relative valuation.",
                 "Copy-Only Command": command,
                 "Validation Path": validation_path,
             }
@@ -8520,6 +8522,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     valuation_state = compact_reason(first.get("Peer Valuation State"), max_sentences=1, max_chars=120)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
+    proof = format_missing(first.get("Readiness Proof"), "Run make readiness and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
     return [
         {
@@ -8543,8 +8546,11 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
         {
             "kicker": "TRUSTED PEER PATH",
             "title": format_missing(first.get("Trusted Input Path"), "data/imports/peers.csv"),
-            "body": f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply')}.",
-            "badges": ["validate", "preview before apply"],
+            "body": (
+                f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply')}. "
+                f"Readiness proof: {proof}"
+            ),
+            "badges": ["validate", "preview before apply", "proof before valuation"],
             "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
         },
     ]
