@@ -374,6 +374,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "## Methodology" in markdown
     assert "Method order: readiness gate first, supported analysis second, valuation math third, explanation last" in markdown
     assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in markdown
+    assert "Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality" in markdown
+    assert "Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker" in markdown
     assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
     assert "DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing" in markdown
     assert "standalone DCF projects free cash flow under bear/base/bull assumptions" in markdown
@@ -965,6 +967,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "## Methodology" in markdown
     assert "## Evaluation Function Check" in markdown
     assert "Analysis mode: Data-unlock only" in markdown
+    assert "Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality" in markdown
+    assert "Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker" in markdown
     assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
     assert "standalone DCF stays blocked until trusted local price, revenue, free cash flow or FCF margin" in markdown
     assert "DCF assumptions: withheld until price, fundamentals, free cash flow or FCF margin" in markdown
