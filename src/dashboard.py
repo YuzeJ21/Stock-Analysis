@@ -22,7 +22,7 @@ from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
-from src.stock_report import build_provider, build_stock_report, export_stock_report_json
+from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
@@ -84,6 +84,104 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
         f"Viewing {selected_page}.",
         "Use this page for the selected workflow. If you feel lost, return to Home for the plain-language readiness summary.",
     )
+
+
+def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
+    page = format_missing(page_title, "Home")
+    guides = {
+        "Home": {
+            "analyze": "Current market-wide readiness, recent progress, example reports, and the safest next local research path.",
+            "locked": "Any module without trusted local rows stays locked; broad universe coverage is not the same as analysis readiness.",
+            "read": "Read readiness cards first, then What Changed Recently, then the next-step cards. Treat big universe counts as coverage, not proof that every ticker is analysis-ready.",
+            "proof": "After any refresh or import, run make readiness and reopen Home before interpreting changed counts.",
+            "guided_path": "Start on Home for readiness, open Value / Re-rating for valuation boundaries, use Single-Stock Report for ticker proof, then use Data Health for unlock steps.",
+            "lane": "Home next-step cards",
+            "command": "make status-check TOP_N=5",
+        },
+        "Single-Stock Report": {
+            "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source/freshness notes.",
+            "locked": "Unsupported DCF, peer valuation, earnings, and estimate sections stay withheld instead of being filled.",
+            "read": "Read At A Glance, then Quick Read, then the source/freshness audit. Locked sections are boundaries, not hidden conclusions.",
+            "proof": "After an unlock, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
+            "guided_path": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact unlock lane if anything is still locked.",
+            "lane": "Single-Stock Review",
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        "Value / Re-rating": {
+            "analyze": "DCF-ready company rows can support assumption, scenario, sensitivity, and source-freshness review.",
+            "locked": "Blocked company rows need trusted fundamentals or DCF fields; ETF/index/fund rows are monitor context, not failed DCF.",
+            "read": "Read the DCF-ready, DCF-blocked, and DCF-excluded split before looking at rankings. DCF-ready means assumption review, not a price target.",
+            "proof": "After fundamentals change, run make dcf-readiness and make readiness before reading valuation output.",
+            "guided_path": "Use Value / Re-rating to classify DCF-ready, locked, or excluded valuation states, then open Single-Stock Report for proof and Data Health for unlock steps.",
+            "lane": "Fundamentals / DCF Unlock",
+            "command": "make dcf-readiness",
+        },
+        "Data Health": {
+            "analyze": "Which trusted inputs are ready across prices, fundamentals, DCF, peers, earnings, and analyst estimates.",
+            "locked": "Missing inputs are an unlock queue, not weak conclusions; imports should validate, preview, and apply before trust.",
+            "read": "Start with the unlock lane cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
+            "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a lane as unlocked.",
+            "guided_path": "Use Data Health when Home, Value / Re-rating, or Single-Stock Report shows a lock; return to those pages only after readiness proof passes.",
+            "lane": "Data Health unlock lanes",
+            "command": "make data-wizard TOP_N=10",
+        },
+    }
+    guide = guides.get(
+        page,
+        {
+            "analyze": "The local rows and summaries already generated for this workflow page.",
+            "locked": "Rows missing trusted inputs remain visible as blocked or partial rather than inferred.",
+            "read": "Read summary cards first, then the table. Use the command card only when you want to refresh local outputs from a terminal.",
+            "proof": "After local data changes, rerun readiness before interpreting changed outputs.",
+            "guided_path": "Use Home for the current state, Single-Stock Report for ticker proof, and Data Health for locked-input unlock steps.",
+            "lane": "Current page summary",
+            "command": "make status-check TOP_N=5",
+        },
+    )
+    return [
+        {
+            "kicker": "PAGE GUIDE",
+            "title": f"{page}: what can I analyze now?",
+            "body": f"Analyze now: {guide['analyze']}",
+            "badges": ["plain English", "readiness first"],
+            "command": guide["command"],
+        },
+        {
+            "kicker": "LOCKED / EXCLUDED",
+            "title": "What stays unavailable?",
+            "body": f"Still locked: {guide['locked']}",
+            "badges": ["no inference", "data honest"],
+            "command": guide["command"],
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "What command should I copy next?",
+            "body": (
+                "Copy next: copy the command into a terminal only when you are ready. "
+                "The dashboard does not run refreshes, imports, or external account actions. "
+                f"Dashboard lane: {guide['lane']}. "
+                f"Proof after unlock: {guide['proof']}"
+            ),
+            "badges": ["copy-only", "research-only"],
+            "command": guide["command"],
+        },
+        {
+            "kicker": "READ PATH",
+            "title": "How should I read this page?",
+            "body": f"Read path: {guide['read']}",
+            "badges": ["plain language", "no overclaim"],
+            "command": guide["command"],
+        },
+        {
+            "kicker": "GUIDED PATH",
+            "title": "Where does this fit in the stock workflow?",
+            "body": f"Guided path: {guide['guided_path']}",
+            "badges": ["one workflow", "proof before interpretation"],
+            "command": guide["command"],
+        },
+    ]
+
+
 IMPORT_HEALTH_DATASETS = [
     {
         "dataset": "prices",
@@ -170,6 +268,7 @@ ACTIVE_UNLOCK_COCKPIT_COLUMNS = [
     "trusted_input_needed",
     "validation_sequence",
     "import_dataset",
+    "queue_group",
     "canonical_import_file",
     "rejected_report",
     "rejected_status",
@@ -181,9 +280,11 @@ ACTIVE_UNLOCK_DRILLDOWN_COLUMNS = [
     "priority",
     "ticker",
     "asset_type",
+    "scope_note",
     "blocker_area",
     "why_blocked",
     "missing_fields",
+    "next_plain_step",
     "trusted_input_needed",
     "staged_folder",
     "canonical_import_file",
@@ -2610,7 +2711,7 @@ def summarize_missing_fields(value: object, max_items: int = 5) -> str:
     text = format_missing(value, fallback="No explicit missing-data warnings")
     if text == "No explicit missing-data warnings":
         return text
-    items = [_translated_missing_item(item.strip()) for item in text.split(",") if item.strip()]
+    items = [_translated_missing_item(item.strip()) for item in re.split(r"[,;|]", text) if item.strip()]
     if not items:
         return "No explicit missing-data warnings"
     unique_items = list(dict.fromkeys(items))
@@ -2746,11 +2847,101 @@ def optional_context_available(data: dict[str, object], fields: list[str]) -> bo
 
 
 def optional_context_empty_state_message(dataset_label: str) -> str:
+    normalized = str(dataset_label or "").strip().lower().replace("_", "-")
+    if "analyst" in normalized or "estimate" in normalized:
+        staged_path = "data/staged/analyst_estimates/"
+        import_file = "data/imports/analyst_estimates.csv"
+        import_command = "make import-analyst-estimates"
+        rejected_path = "data/rejected/analyst_estimates_import_rejected.csv"
+        label = "analyst-estimate"
+    else:
+        staged_path = "data/staged/earnings/"
+        import_file = "data/imports/earnings.csv"
+        import_command = "make import-earnings"
+        rejected_path = "data/rejected/earnings_import_rejected.csv"
+        label = "earnings"
     return (
         "Not available: missing trusted local CSV input. "
-        f"Add verified {dataset_label} rows through the staged manual CSV workflow, then run "
-        "make imports-validate, make imports-preview, make imports-apply, and make onboarding TOP_N=10."
+        f"Run `make templates` for schema-only files; templates are not data. "
+        f"Add verified {label} rows through `{staged_path}` or `{import_file}`, run `{import_command}`, then run "
+        "`make imports-validate`, `make imports-preview`, `make imports-apply`, "
+        "`make optional-context-readiness`, and `make onboarding TOP_N=10`. "
+        f"Rejected rows stay visible at `{rejected_path}`."
     )
+
+
+def optional_context_unlock_sequence_command(dataset_label: str) -> str:
+    normalized = str(dataset_label or "").strip().lower().replace("_", "-")
+    import_command = "make import-analyst-estimates" if "analyst" in normalized or "estimate" in normalized else "make import-earnings"
+    return (
+        f"make templates && {import_command} && make imports-validate && make imports-preview && "
+        "make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
+    )
+
+
+def import_workflow_caption(staged_path: str, import_command: str) -> str:
+    return (
+        f"Manual import: {staged_path} -> {import_command} -> "
+        "make imports-validate -> make imports-preview -> make imports-apply."
+    )
+
+
+def stock_report_optional_context_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    readiness = {
+        **(report_payload.get("readiness", {}) or {}),
+        **(report_payload.get("valuation_readiness", {}) or {}),
+    }
+    earnings = report_payload.get("earnings_summary", {}) or {}
+    estimates = report_payload.get("analyst_estimate_summary", {}) or {}
+    earnings_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready"))
+    estimates_ready = bool(readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready"))
+    earnings_rows = "available" if earnings_ready else "locked"
+    estimate_rows = "available" if estimates_ready else "locked"
+    next_earnings = report_display_value(earnings.get("next_earnings_date"), "date")
+    target_mean = report_display_value(estimates.get("target_mean_price"), "currency")
+
+    return [
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"Earnings {earnings_rows} / estimates {estimate_rows}",
+            "body": (
+                "Optional context can add timing, consensus, and revision context, but it never overrides readiness gates or creates a valuation conclusion by itself. "
+                "Locked means missing trusted local CSV input, not broken analysis."
+            ),
+            "badges": ["optional", "readiness gated"],
+        },
+        {
+            "kicker": "EARNINGS",
+            "title": f"Next date: {next_earnings}",
+            "body": (
+                "Trusted earnings rows can show dates, EPS, revenue, and surprise fields. "
+                "When rows are missing, the report leaves earnings context locked instead of using placeholders. "
+                "Schema guide: ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at. "
+                "Use schema-only templates, `data/staged/earnings/` or `data/imports/earnings.csv`, and review rejected rows at `data/rejected/earnings_import_rejected.csv`."
+            ),
+            "badges": ["trusted local rows" if earnings_ready else "locked"],
+            "command": "" if earnings_ready else optional_context_unlock_sequence_command("earnings"),
+        },
+        {
+            "kicker": "ANALYST ESTIMATES",
+            "title": f"Mean target: {target_mean}",
+            "body": (
+                "Trusted estimate rows can show consensus EPS, revenue, target ranges, and revision trend. "
+                "They are shown as optional context, not as the product's own valuation output. "
+                "Schema guide: ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at. "
+                "Use schema-only templates, `data/staged/analyst_estimates/` or `data/imports/analyst_estimates.csv`, and review rejected rows at `data/rejected/analyst_estimates_import_rejected.csv`."
+            ),
+            "badges": ["trusted local rows" if estimates_ready else "locked"],
+            "command": "" if estimates_ready else optional_context_unlock_sequence_command("analyst-estimate"),
+        },
+        {
+            "kicker": "UNLOCK PATH",
+            "title": "Validate before applying",
+            "body": "Use schema-only templates, stage trusted rows, then validate, preview, apply, and rebuild readiness before the report treats optional context as available.",
+            "badges": ["schema only first", "copy-only"],
+            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10",
+        },
+    ]
 
 
 def optional_context_unlock_cards() -> list[dict[str, object]]:
@@ -2784,10 +2975,12 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "title": "Validate and preview",
             "body": (
                 "Use make templates first, then run make import-earnings or make import-analyst-estimates for staged files, "
-                "then make imports-validate, make imports-preview, and make imports-apply. Invalid rows stay visible in rejected CSV reports."
+                "then make imports-validate, make imports-preview, and make imports-apply. "
+                "After applying, run make optional-context-readiness and make onboarding TOP_N=10 before treating optional context as available. "
+                "Invalid rows stay visible in rejected CSV reports."
             ),
             "badges": ["csv-first", "no fabrication"],
-            "command": "make templates",
+            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness",
         },
         {
             "kicker": "SCHEMA-ONLY EXAMPLES",
@@ -2812,12 +3005,14 @@ def first_optional_context_unlock_frame(dataset: str = "earnings") -> pd.DataFra
         import_command = "make import-earnings"
         rejected_path = "data/rejected/earnings_import_rejected.csv"
         label = "earnings"
+        schema = "ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at"
     else:
         staged_path = "data/staged/analyst_estimates/"
         import_file = "data/imports/analyst_estimates.csv"
         import_command = "make import-analyst-estimates"
         rejected_path = "data/rejected/analyst_estimates_import_rejected.csv"
         label = "analyst estimates"
+        schema = "ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at"
     return pd.DataFrame(
         [
             {
@@ -2834,7 +3029,7 @@ def first_optional_context_unlock_frame(dataset: str = "earnings") -> pd.DataFra
             },
             {
                 "Step": f"3. Stage trusted {label} rows",
-                "Why It Matters": "Only import verified rows with source and updated_at metadata; leave unknown fields blank instead of guessing.",
+                "Why It Matters": f"Only import verified rows with source and updated_at metadata; schema fields: {schema}. Leave unknown fields blank instead of guessing.",
                 "Copy Command": import_command,
                 "Trusted Input": f"{staged_path} or {import_file}",
             },
@@ -2859,6 +3054,7 @@ def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[
     confirm = frame.iloc[0]
     stage = frame.iloc[2]
     validate = frame.iloc[3]
+    rebuild = frame.iloc[4]
     return [
         {
             "kicker": "FIRST OPTIONAL UNLOCK",
@@ -2877,9 +3073,217 @@ def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[
         {
             "kicker": "OPTIONAL READINESS PROOF",
             "title": "Validate, preview, apply, then rebuild",
-            "body": format_missing(validate.get("Why It Matters"), ""),
+            "body": (
+                f"{format_missing(validate.get('Why It Matters'), '')} "
+                f"Rejected-row report: {format_missing(validate.get('Trusted Input'), 'rejected rows report')}. "
+                f"Rebuild proof: {format_missing(rebuild.get('Copy Command'), 'make optional-context-readiness')}."
+            ),
             "badges": ["not a recommendation", "source/freshness"],
-            "command": format_missing(validate.get("Copy Command"), ""),
+            "command": f"{format_missing(validate.get('Copy Command'), '')} && {format_missing(rebuild.get('Copy Command'), '')}",
+        },
+    ]
+
+
+OPTIONAL_CONTEXT_DATASETS = {
+    "earnings": {
+        "label": "Earnings",
+        "ready_column": "has_trusted_earnings",
+        "staged_path": "data/staged/earnings/",
+        "import_file": "data/imports/earnings.csv",
+        "import_command": "make import-earnings",
+        "rejected_path": "data/rejected/earnings_import_rejected.csv",
+        "schema": "ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at",
+        "unlocks": "earnings timing, reported EPS/revenue context, and surprise fields when trusted rows pass readiness.",
+    },
+    "analyst_estimates": {
+        "label": "Analyst estimates",
+        "ready_column": "has_trusted_analyst_estimates",
+        "staged_path": "data/staged/analyst_estimates/",
+        "import_file": "data/imports/analyst_estimates.csv",
+        "import_command": "make import-analyst-estimates",
+        "rejected_path": "data/rejected/analyst_estimates_import_rejected.csv",
+        "schema": "ticker, period, eps_estimate, revenue_estimate, price_target_mean, price_target_high, price_target_low, rating_consensus, source, updated_at",
+        "unlocks": "consensus EPS/revenue, target-range context, and revision fields when trusted rows pass readiness.",
+    },
+}
+
+
+def optional_context_ladder_frame(
+    optional_context_worklist_frame: pd.DataFrame | None = None,
+    earnings_readiness_frame: pd.DataFrame | None = None,
+    analyst_readiness_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = [
+        "Dataset",
+        "Current State",
+        "Trusted Row Gate",
+        "Ready Rows",
+        "Blocked Rows",
+        "First Locked Ticker",
+        "First Ticker Command",
+        "Schema Only Example",
+        "Trusted Input Path",
+        "Import Command",
+        "Rejected Rows",
+        "Validation Path",
+        "Readiness Proof",
+        "What This Unlocks",
+        "What Stays Locked",
+        "Copy-Only Command",
+    ]
+    worklist_count = 0 if optional_context_worklist_frame is None or optional_context_worklist_frame.empty else len(optional_context_worklist_frame)
+    worklist = optional_context_worklist_frame.copy() if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty else pd.DataFrame()
+    if not worklist.empty and "ticker" in worklist.columns:
+        worklist["ticker"] = worklist["ticker"].astype(str).str.upper().str.strip()
+        if "priority" in worklist.columns:
+            worklist["priority"] = pd.to_numeric(worklist["priority"], errors="coerce").fillna(999).astype(int)
+        else:
+            worklist["priority"] = 999
+
+    def readiness_counts(frame: pd.DataFrame | None, ready_column: str) -> tuple[int, int, int]:
+        if frame is None or frame.empty:
+            return 0, 0, worklist_count
+        ready = bool_series(frame, ready_column) if ready_column in frame.columns else pd.Series(False, index=frame.index)
+        ready_count = int(ready.sum())
+        total = int(len(frame))
+        return ready_count, max(total - ready_count, 0), total
+
+    rows: list[dict[str, object]] = []
+    frames = {"earnings": earnings_readiness_frame, "analyst_estimates": analyst_readiness_frame}
+    for key, config in OPTIONAL_CONTEXT_DATASETS.items():
+        ready_count, blocked_count, total = readiness_counts(frames[key], config["ready_column"])
+        first_ticker = "Not available"
+        if not worklist.empty and "ticker" in worklist.columns:
+            missing_column = "has_earnings" if key == "earnings" else "has_analyst_estimates"
+            missing_context = (
+                ~bool_series(worklist, missing_column)
+                if missing_column in worklist.columns
+                else worklist.get("missing_optional_context", pd.Series("", index=worklist.index))
+                .fillna("")
+                .astype(str)
+                .str.lower()
+                .str.contains("earnings" if key == "earnings" else "analyst|estimate", regex=True, na=False)
+            )
+            candidates = worklist.loc[missing_context].copy()
+            if not candidates.empty:
+                candidates = candidates.sort_values(["priority", "ticker"], kind="stable")
+                first_ticker = format_missing(candidates.iloc[0].get("ticker"), "Not available").upper()
+        first_ticker_command = "make optional-context-worklist TOP_N=25"
+        if first_ticker != "Not available":
+            first_ticker_command = f"make stock-report-md TICKER={first_ticker}"
+        if total == 0:
+            state = "Locked: no trusted local rows loaded"
+        elif ready_count == 0:
+            state = "Locked: trusted rows not ready"
+        elif blocked_count:
+            state = "Partial: some trusted rows ready"
+        else:
+            state = "Ready: trusted rows available"
+        if ready_count == 0:
+            trusted_gate = "Locked until trusted local rows pass validation, preview, apply, and optional-context readiness."
+        elif blocked_count:
+            trusted_gate = "Partial: review only ready trusted rows; keep missing optional context locked."
+        else:
+            trusted_gate = "Ready: trusted local rows passed optional-context readiness; still context only."
+        rows.append(
+            {
+                "Dataset": config["label"],
+                "Current State": state,
+                "Trusted Row Gate": trusted_gate,
+                "Ready Rows": ready_count,
+                "Blocked Rows": blocked_count,
+                "First Locked Ticker": first_ticker,
+                "First Ticker Command": first_ticker_command,
+                "Schema Only Example": config["schema"],
+                "Trusted Input Path": f"{config['staged_path']} or {config['import_file']}",
+                "Import Command": config["import_command"],
+                "Rejected Rows": config["rejected_path"],
+                "Validation Path": "make templates -> import command -> make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness -> make onboarding TOP_N=10",
+                "Readiness Proof": "Run `make optional-context-readiness` and `make onboarding TOP_N=10`, then reopen Data Health or the single-stock report before treating optional context as available.",
+                "What This Unlocks": config["unlocks"],
+                "What Stays Locked": "Optional context stays unavailable until trusted rows pass validation; missing rows must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.",
+                "Copy-Only Command": optional_context_unlock_sequence_command(key),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if ladder_frame is None or ladder_frame.empty:
+        return [
+            {
+                "kicker": "OPTIONAL CONTEXT LADDER",
+                "title": "Optional context not loaded",
+                "body": "Run the optional-context worklist before assuming earnings or analyst-estimate context is available.",
+                "badges": ["readiness first", "no inference"],
+                "command": "make optional-context-worklist TOP_N=25",
+            }
+        ]
+    frame = ladder_frame.copy()
+    ready_total = int(pd.to_numeric(frame.get("Ready Rows"), errors="coerce").fillna(0).sum())
+    blocked_total = int(pd.to_numeric(frame.get("Blocked Rows"), errors="coerce").fillna(0).sum())
+    ready_counts = pd.to_numeric(frame.get("Ready Rows"), errors="coerce").fillna(0)
+    first_locked = frame.loc[ready_counts.eq(0)]
+    first = first_locked.iloc[0] if not first_locked.empty else frame.iloc[0]
+    return [
+        {
+            "kicker": "OPTIONAL CONTEXT LADDER",
+            "title": f"{ready_total} ready / {blocked_total} locked row(s)",
+            "body": (
+                "Earnings and analyst estimates are optional context, not core valuation inputs. "
+                "Empty optional context is intentional until trusted local CSV rows pass validation."
+            ),
+            "badges": ["optional", "locked is safe"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+        {
+            "kicker": "NEXT OPTIONAL DATASET",
+            "title": format_missing(first.get("Dataset"), "Optional dataset"),
+            "body": (
+                f"State: {format_missing(first.get('Current State'), 'locked')}. "
+                f"Trusted row gate: {format_missing(first.get('Trusted Row Gate'), 'locked until trusted rows pass readiness')}. "
+                f"First locked ticker to inspect: {format_missing(first.get('First Locked Ticker'), 'Not available')}. "
+                f"Schema-only example: {format_missing(first.get('Schema Only Example'), '')}. "
+                "Templates are not data."
+            ),
+            "badges": ["schema only", "trusted rows required"],
+            "command": format_missing(first.get("First Ticker Command"), format_missing(first.get("Import Command"), "make templates")),
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "Prove optional context before showing it",
+            "body": (
+                f"Copy next: `{format_missing(first.get('Copy-Only Command'), 'make imports-validate && make imports-preview && make imports-apply')}`. "
+                "Run the import, validation, preview, apply, optional-context readiness, and onboarding sequence before treating earnings or estimates as available. "
+                "Schema-only examples and templates remain operator aids, not data."
+            ),
+            "badges": ["copy-only", "proof before context"],
+            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
+        },
+        {
+            "kicker": "OPTIONAL PROOF LADDER",
+            "title": "Template -> import -> readiness -> report",
+            "body": (
+                "Use this sequence before reading optional context: schema-only template, trusted local rows, import command, "
+                "validation, preview, apply, optional-context readiness, then the single-stock report. "
+                "Available earnings or estimates add timing, consensus, and revision context only; they do not create valuation conclusions. "
+                f"Copy sequence: `{format_missing(first.get('Copy-Only Command'), 'make imports-validate && make imports-preview && make imports-apply')}` -> "
+                f"`{format_missing(first.get('First Ticker Command'), 'make stock-report-md TICKER=NVDA')}`."
+            ),
+            "badges": ["method proof", "context only"],
+            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
+        },
+        {
+            "kicker": "TRUSTED OPTIONAL PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "Trusted optional input path"),
+            "body": (
+                f"Rejected rows: {format_missing(first.get('Rejected Rows'), '')}. "
+                f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Readiness proof: {format_missing(first.get('Readiness Proof'), 'make optional-context-readiness')}. "
+                f"Boundary: {format_missing(first.get('What Stays Locked'), '')}"
+            ),
+            "badges": ["validate", "preview before apply", "proof before context"],
+            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
         },
     ]
 
@@ -3075,7 +3479,7 @@ def active_unlock_command(ticker: object, dataset: str, asset_type: object = "")
     ticker_text = format_missing(ticker, "META").upper()
     asset_text = format_missing(asset_type, "").lower()
     if dataset == "monitor_context":
-        return f"make stock-report TICKER={ticker_text}"
+        return f"make stock-report-md TICKER={ticker_text}"
     if dataset == "prices":
         return f"make focus-price TICKER={ticker_text}"
     if dataset == "fundamentals":
@@ -3086,14 +3490,19 @@ def active_unlock_command(ticker: object, dataset: str, asset_type: object = "")
         return "make import-earnings"
     if dataset == "analyst_estimates":
         return "make import-analyst-estimates"
-    return f"make stock-report TICKER={ticker_text}"
+    return stock_report_md_command(ticker_text)
+
+
+def stock_report_md_command(ticker: object, fallback: str = "TICKER") -> str:
+    ticker_text = format_missing(ticker, fallback).upper()
+    return f"make stock-report-md TICKER={ticker_text}"
 
 
 def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: object = "") -> str:
     ticker_text = format_missing(ticker, "TICKER").upper()
     asset_text = format_missing(asset_type, "").lower()
     if dataset == "monitor_context":
-        return f"make stock-report TICKER={ticker_text} -> review source/freshness notes, monitor role, and operating-company DCF exclusion"
+        return f"make stock-report-md TICKER={ticker_text} -> review source/freshness notes, monitor role, and operating-company DCF exclusion"
     if dataset == "prices":
         return f"make focus-price TICKER={ticker_text} -> make imports-validate -> make imports-preview -> make imports-apply"
     if dataset == "fundamentals":
@@ -3145,6 +3554,25 @@ def active_unlock_priority(dataset: str, readiness_state: object, asset_type: ob
     return 4 if state_text == "partial" else 6
 
 
+def active_unlock_queue_group(row: pd.Series, dataset: str) -> str:
+    asset_type = format_missing(row.get("asset_type"), "").lower()
+    if dataset == "monitor_context" or asset_type in {"etf", "fund", "index", "index_proxy"}:
+        return "Monitor context / DCF excluded"
+    if dataset == "prices":
+        return "Needs price coverage first"
+    if dataset == "fundamentals":
+        if bool(row.get("price_ready", False)) and not bool(row.get("fundamentals_ready", False)):
+            return "Price-ready but fundamentals missing"
+        return "Fundamentals / DCF unlock"
+    if dataset == "peers":
+        if bool(row.get("dcf_ready", False)) and not bool(row.get("peer_ready", False)):
+            return "DCF-ready but peer-blocked"
+        return "Trusted peer mapping unlock"
+    if dataset in {"earnings", "analyst_estimates"}:
+        return "Optional context locked"
+    return "Review current readiness"
+
+
 def active_unlock_drilldown_missing_fields(
     dataset: str,
     ticker: object,
@@ -3184,6 +3612,24 @@ def active_unlock_drilldown_missing_fields(
     if dataset == "analyst_estimates":
         return format_missing(analyst_row.get("missing_fields") or analyst_row.get("reason_not_ready"), "trusted_local_analyst_estimate_row")
     return format_missing(readiness_row.get("missing_data"), "readiness blocker")
+
+
+def active_unlock_drilldown_next_plain_step(dataset: str, ticker: object, asset_type: object = "") -> str:
+    symbol = format_missing(ticker, "TICKER").upper()
+    asset = format_missing(asset_type, "").lower()
+    if dataset == "prices":
+        return f"First confirm whether {symbol} has enough local price history; start with the focus-price command before any broader refresh."
+    if dataset == "fundamentals":
+        return f"Add trusted company fundamentals for {symbol}, validate and preview them, then rerun DCF readiness."
+    if dataset == "peers":
+        return f"Add source-backed peer mappings for {symbol}; peer trend and peer valuation stay separated until peer inputs are ready."
+    if dataset == "earnings":
+        return f"Keep earnings context locked for {symbol} until trusted local earnings rows pass import validation."
+    if dataset == "analyst_estimates":
+        return f"Keep analyst-estimate context locked for {symbol} until trusted local estimate rows pass import validation."
+    if dataset == "monitor_context" or asset in {"etf", "fund", "index", "index_proxy"}:
+        return f"Review {symbol} as monitor context only; operating-company DCF and peer valuation are excluded, not failed."
+    return f"Review the {symbol} readiness row, then copy the exact command shown here."
 
 
 def build_active_universe_unlock_frame(
@@ -3272,6 +3718,7 @@ def build_active_universe_unlock_frame(
                 "trusted_input_needed": trusted_input_needed,
                 "validation_sequence": validation_sequence,
                 "import_dataset": dataset,
+                "queue_group": active_unlock_queue_group(row, dataset),
                 "canonical_import_file": format_missing(import_row.get("canonical_import_file"), "Not available"),
                 "rejected_report": format_missing(import_row.get("rejected_report"), "Not available"),
                 "rejected_status": format_missing(import_row.get("rejected_status"), "Not available"),
@@ -3344,9 +3791,11 @@ def build_active_universe_drilldown_frame(
                 "priority": int(cockpit_row.get("priority") or 999),
                 "ticker": ticker,
                 "asset_type": asset_type,
+                "scope_note": "Active-universe drilldown only; this is a focused review queue, not a whole-market conclusion.",
                 "blocker_area": dataset,
                 "why_blocked": why_blocked,
                 "missing_fields": missing_fields,
+                "next_plain_step": active_unlock_drilldown_next_plain_step(dataset, ticker, asset_type),
                 "trusted_input_needed": active_unlock_trusted_input_needed(dataset, ticker, asset_type),
                 "staged_folder": format_missing(import_row.get("staged_folder"), "data/imports/peers.csv" if dataset == "peers" else "Not available"),
                 "canonical_import_file": format_missing(import_row.get("canonical_import_file"), "Not available"),
@@ -3388,6 +3837,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
         ]
     frame = cockpit_frame.copy()
     dataset_counts = frame.get("import_dataset", pd.Series("", index=frame.index)).fillna("").astype(str).value_counts()
+    group_counts = frame.get("queue_group", pd.Series("", index=frame.index)).fillna("").astype(str).value_counts()
     blocked = frame.get("readiness_state", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower().eq("blocked")
     partial = frame.get("readiness_state", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower().eq("partial")
     top_row = frame.sort_values(["priority", "ticker"], kind="stable").iloc[0]
@@ -3396,6 +3846,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
         "analyst_estimates": "analyst estimates",
     }
     dataset_text = ", ".join(f"{dataset_labels.get(str(key), str(key))}: {int(value)}" for key, value in dataset_counts.head(4).items())
+    group_text = ", ".join(f"{str(key)}: {int(value)}" for key, value in group_counts.head(3).items())
     monitor_count = int(dataset_counts.get("monitor_context", 0))
     import_body = (
         "Rows that require local data changes carry the relevant standard import file, rejected report, and clean/header-only or missing-report status. "
@@ -3407,7 +3858,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
         {
             "kicker": "ACTIVE UNLOCK",
             "title": f"{len(frame)} active ticker(s)",
-            "body": f"{int(blocked.sum())} blocked and {int(partial.sum())} partial rows shown. Dataset lanes: {dataset_text}.",
+            "body": f"{int(blocked.sum())} blocked and {int(partial.sum())} partial rows shown. Queue groups: {group_text}. Dataset lanes: {dataset_text}.",
             "badges": ["active universe", "row-limited"],
             "command": "make readiness",
         },
@@ -3415,7 +3866,10 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
             "kicker": "NEXT ACTIVE ACTION",
             "title": format_missing(top_row.get("ticker"), "Ticker"),
             "body": f"{format_missing(top_row.get('primary_blocker'), 'blocker')}: {compact_reason(top_row.get('next_best_action'), max_sentences=1, max_chars=160)}",
-            "badges": [format_missing(top_row.get("import_dataset"), "dataset"), format_missing(top_row.get("rejected_status"), "rejected status")],
+            "badges": [
+                format_missing(top_row.get("queue_group"), "queue group"),
+                format_missing(top_row.get("rejected_status"), "rejected status"),
+            ],
             "command": format_missing(top_row.get("exact_command"), "make readiness"),
         },
         {
@@ -3529,7 +3983,7 @@ def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> li
         {
             "kicker": "MISSING INPUTS",
             "title": f"{len(warnings)} visible",
-            "body": "Visible warnings reduce confidence and should be handled before forcing a broader conclusion.",
+            "body": "Visible warnings reduce data confidence and should be handled before forcing a broader conclusion.",
             "badges": ["no guessing"],
         },
     ]
@@ -3539,6 +3993,8 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
     financials = report_payload.get("financial_summary", {}) or {}
     ticker = format_missing(report_payload.get("ticker"), "")
     command = f"make focus-fundamentals TICKER={ticker}" if ticker else "make status-check TOP_N=5"
+    price_command = f"make focus-price TICKER={ticker}" if ticker else "make status-check TOP_N=5"
+    report_command = stock_report_md_command(ticker or "NVDA")
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
         **(report_payload.get("valuation_readiness", {}) or {}),
@@ -3562,6 +4018,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
     core_ready = sum(core_fields.values())
     quality_ready = sum(quality_fields.values())
     dcf_ready = bool(readiness.get("dcf_ready"))
+    price_ready = bool(readiness.get("price_ready"))
     fundamentals_ready = bool(readiness.get("fundamentals_ready")) or core_ready >= 3
     missing_core = [name for name, is_present in core_fields.items() if not is_present]
     missing_text = ", ".join(missing_core) if missing_core else "No core DCF fields missing"
@@ -3579,6 +4036,26 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
         body = f"Core DCF fields are not ready yet. Missing: {missing_text}. The report should not infer valuation from unavailable fundamentals."
         badges = ["locked", "trusted rows needed"]
 
+    if dcf_ready:
+        next_title = "Review DCF proof"
+        next_body = "DCF input gate is ready. Review assumptions, sensitivity, source freshness, and peer boundaries before interpreting valuation context."
+        next_command = report_command
+        next_badges = ["proof first", "no price target"]
+    elif price_ready:
+        next_title = "Unlock fundamentals before valuation"
+        next_body = (
+            f"Price/setup context can be reviewed for {ticker or 'this ticker'}, but company valuation stays locked until "
+            f"trusted fundamentals fill {missing_text} and `make dcf-readiness` confirms the gate. "
+            "Use SEC staging or trusted manual CSV rows, then validate, preview, and apply."
+        )
+        next_command = command
+        next_badges = ["price-ready", "fundamentals next"]
+    else:
+        next_title = "Start with price coverage"
+        next_body = "Trusted price history comes before setup, fundamentals, DCF, and peer context. Do not use fundamentals rows to bypass a missing price gate."
+        next_command = price_command
+        next_badges = ["price first", "no shortcut"]
+
     return [
         {
             "kicker": "FUNDAMENTALS QUALITY",
@@ -3586,6 +4063,13 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
             "body": body,
             "badges": badges,
             "command": command,
+        },
+        {
+            "kicker": "NEXT TRUSTED INPUT",
+            "title": next_title,
+            "body": next_body,
+            "badges": next_badges,
+            "command": next_command,
         },
         {
             "kicker": "QUALITY CONTEXT",
@@ -3643,7 +4127,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
         next_review = "Start with verified local price history, then regenerate readiness before interpreting the ticker."
 
     confidence_note = (
-        f"{len(warnings)} visible warning{'s' if len(warnings) != 1 else ''}; missing inputs reduce confidence and stay visible."
+        f"{len(warnings)} visible warning{'s' if len(warnings) != 1 else ''}; missing inputs reduce data confidence and stay visible."
         if warnings
         else "No visible missing-data warnings in the current report payload."
     )
@@ -3654,7 +4138,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
             {"Question": "What this report can support", "Answer": supported},
             {"Question": "What remains withheld", "Answer": withheld},
             {"Question": "Best next review step", "Answer": next_review},
-            {"Question": "Confidence note", "Answer": confidence_note},
+            {"Question": "Data-confidence note", "Answer": confidence_note},
         ]
     )
 
@@ -3668,7 +4152,7 @@ def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> 
                 "title": "Refresh report",
                 "body": "Generate a local stock report before reviewing supported or withheld analysis.",
                 "badges": ["no guessing"],
-                "command": "make stock-report TICKER=NVDA",
+                "command": stock_report_md_command("NVDA"),
             }
         ]
     kicker_by_question = {
@@ -3676,19 +4160,27 @@ def stock_report_evaluation_summary_cards(report_payload: dict[str, object]) -> 
         "What this report can support": "SUPPORTED",
         "What remains withheld": "WITHHELD",
         "Best next review step": "NEXT REVIEW",
-        "Confidence note": "CONFIDENCE",
+        "Data-confidence note": "DATA CONFIDENCE",
     }
+    next_step_cards = stock_report_next_step_cards(report_payload, None, None)
+    next_step_command = (
+        format_missing(next_step_cards[0].get("command"), "") if next_step_cards else ""
+    )
     cards: list[dict[str, object]] = []
     for _, row in summary.iterrows():
         question = format_missing(row.get("Question"), "Evaluation")
         answer = format_missing(row.get("Answer"), "Not available")
+        card: dict[str, object] = {
+            "kicker": kicker_by_question.get(question, "EVALUATION"),
+            "title": question,
+            "body": answer,
+            "badges": ["research-only", "data-gated"],
+        }
+        if question == "Best next review step":
+            card["command"] = next_step_command or stock_report_md_command(format_missing(report_payload.get("ticker"), "NVDA"))
+            card["badges"] = ["copy-only", "data-gated"]
         cards.append(
-            {
-                "kicker": kicker_by_question.get(question, "EVALUATION"),
-                "title": question,
-                "body": answer,
-                "badges": ["research-only", "data-gated"],
-            }
+            card
         )
     return cards
 
@@ -3738,7 +4230,7 @@ def stock_report_at_a_glance_cards(
         **(report_payload.get("valuation_readiness", {}) or {}),
     }
     valuation = report_payload.get("valuation_snapshot", {}) or {}
-    ticker = format_missing(report_payload.get("ticker"), "Selected ticker")
+    ticker = format_missing(report_payload.get("ticker"), "NVDA")
     next_cards = stock_report_next_step_cards(report_payload, coverage, peer_summary)
     next_command = format_missing(next_cards[0].get("command"), f"make stock-report-md TICKER={ticker}") if next_cards else f"make stock-report-md TICKER={ticker}"
     next_title = format_missing(next_cards[0].get("title"), "Review the selected report") if next_cards else "Review the selected report"
@@ -3770,7 +4262,7 @@ def stock_report_at_a_glance_cards(
         {
             "kicker": "METHOD",
             "title": "Project gates and DCF math",
-            "body": "Readiness gates decide what can appear. When DCF is ready, local free-cash-flow inputs flow through projected cash flows, discounted terminal value, cash/debt adjustment, and fair value per share.",
+            "body": "What this means: source rows supply data, then project gates decide what can appear. When DCF is ready, local free-cash-flow inputs flow through projected cash flows, discounted terminal value, cash/debt adjustment, and fair value per share. When inputs are missing or excluded, the section stays locked instead of becoming a weak conclusion.",
             "badges": ["method visible", "local inputs"],
         },
         {
@@ -3888,7 +4380,11 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
             {
                 "Function": "Logic source",
                 "Current Status": "Project rules",
-                "What To Trust": "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data.",
+                "What To Trust": (
+                    "Rules live in project code; libraries and adapters support data/UI. "
+                    "Shipped analysis comes from project code and local data. Source rows provide inputs; "
+                    "project gates, DCF math, peer blockers, and report wording decide what can be analyzed now and what remains locked."
+                ),
             },
         ]
     )
@@ -3929,6 +4425,251 @@ def stock_report_methodology_frame(report_payload: dict[str, object]) -> pd.Data
             },
         ]
     )
+
+
+def stock_report_valuation_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    readiness = _stock_report_payload_readiness(report_payload)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    dcf_result = valuation.get("dcf_result", {}) or {}
+    ticker = format_missing(report_payload.get("ticker"), "NVDA").upper()
+    asset_type = format_missing(report_payload.get("asset_type") or readiness.get("asset_type"), "").lower()
+    is_monitor = asset_type in {"etf", "index_proxy", "fund"}
+    dcf_ready = bool(readiness.get("dcf_ready")) or format_missing(dcf_result.get("status"), "").lower() == "calculated"
+    peer_ready = stock_report_peer_relative_display_ready(report_payload)
+
+    def _ready_flag(value: object) -> bool:
+        return str(value).strip().lower() in {"true", "1", "yes", "y", "ready", "calculated"}
+
+    peer_trend_ready = any(
+        _ready_flag(value)
+        for value in (
+            report_payload.get("peer_trend_comparison_ready"),
+            readiness.get("peer_trend_comparison_ready"),
+            (report_payload.get("peer_analysis", {}) or {}).get("peer_trend_comparison_ready"),
+            (report_payload.get("peer_context", {}) or {}).get("peer_trend_comparison_ready"),
+        )
+    )
+
+    if is_monitor:
+        dcf_title = "DCF excluded for monitor context"
+        dcf_body = "ETF/index/fund rows can support market, theme, liquidity, or risk context; operating-company DCF is excluded, not failed."
+        dcf_badges = ["excluded", "not failed"]
+    elif dcf_ready:
+        dcf_title = "DCF scenario math is available"
+        dcf_body = "Trusted source rows provide price, fundamentals, cash-flow or margin, share count, and balance-sheet inputs; this product calculates assumptions, sensitivity, and fair value/share locally."
+        dcf_badges = ["source inputs", "product math"]
+    else:
+        dcf_title = "DCF remains locked"
+        dcf_body = "Missing trusted company inputs keep base FCF, projected FCF, terminal value, equity value, fair value/share, and sensitivity withheld."
+        dcf_badges = ["locked", "no conclusion"]
+
+    if peer_ready:
+        peer_title = "Peer valuation available"
+        peer_body = "Source-backed peer mappings and peer valuation inputs are ready, so the product can show peer-relative context separately from standalone DCF."
+        peer_badges = ["trusted peers", "relative context"]
+        peer_command = stock_report_md_command(ticker)
+    elif peer_trend_ready and dcf_ready and not is_monitor:
+        peer_title = "Peer trend available; valuation withheld"
+        peer_body = (
+            "Mapped peer price history can support peer trend context, but peer-relative valuation, premium/discount, "
+            "and peer DCF comparison stay withheld until source-backed peer valuation inputs pass readiness."
+        )
+        peer_badges = ["trend only", "valuation withheld"]
+        peer_command = f"make focus-peers TICKER={ticker}"
+    else:
+        peer_title = "Peer valuation withheld"
+        peer_body = stock_report_peer_relative_empty_message(report_payload)
+        peer_badges = ["locked", "trusted peers needed"]
+        peer_command = stock_report_md_command(ticker) if is_monitor else f"make focus-peers TICKER={ticker}"
+
+    return [
+        {
+            "kicker": "SOURCE ROWS",
+            "title": "Inputs do not decide conclusions",
+            "body": "Local or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates; project readiness gates decide what can be analyzed.",
+            "badges": ["data first", "readiness gate"],
+        },
+        {
+            "kicker": "INTRINSIC VALUE",
+            "title": dcf_title,
+            "body": dcf_body,
+            "badges": dcf_badges,
+        },
+        {
+            "kicker": "RELATIVE VALUE",
+            "title": peer_title,
+            "body": peer_body,
+            "badges": peer_badges,
+            "command": peer_command,
+        },
+        {
+            "kicker": "BOUNDARY",
+            "title": "Scenario evidence, not a conclusion",
+            "body": "The dashboard shows supported analysis and withheld sections only; missing data never becomes a valuation opinion or direct action instruction.",
+            "badges": ["research-only", "no fabrication"],
+        },
+    ]
+
+
+def stock_report_dcf_calculation_path_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    readiness = _stock_report_payload_readiness(report_payload)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    dcf_result = valuation.get("dcf_result", {}) or {}
+    assumptions = dcf_result.get("assumptions", {}) or {}
+    sensitivity = valuation.get("sensitivity_table", {}) or {}
+    asset_type = format_missing(report_payload.get("asset_type") or readiness.get("asset_type"), "").lower()
+    valuation_status = format_missing(valuation.get("status"), "").lower()
+    dcf_status = format_missing(dcf_result.get("status") or valuation.get("status"), "").lower()
+    is_monitor = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status or "excluded" in dcf_status
+    dcf_ready = bool(readiness.get("dcf_ready")) or dcf_status == "calculated"
+    missing_fields = valuation.get("dcf_missing_fields") or readiness.get("dcf_missing_fields") or []
+    if isinstance(missing_fields, str):
+        missing_text = missing_fields.replace("_", " ").strip() if missing_fields.strip() else "Not available"
+    else:
+        missing_text = ", ".join(str(field).replace("_", " ").strip() for field in missing_fields if str(field).strip()) or "Not available"
+
+    if is_monitor:
+        return [
+            {
+                "kicker": "DCF PATH",
+                "title": "Excluded, not failed",
+                "body": "What this means: operating-company DCF is not the right method for ETF/index/fund monitor context.",
+                "badges": ["monitor context", "DCF excluded"],
+            },
+            {
+                "kicker": "FORMULA",
+                "title": "Formula path not run",
+                "body": "The asset-type gate excludes company DCF before base FCF, terminal value, equity value, or fair value/share are calculated.",
+                "badges": ["asset gate", "no failed input"],
+            },
+            {
+                "kicker": "READER TAKEAWAY",
+                "title": "Use monitor context",
+                "body": "Review market, theme, liquidity, or risk context instead of looking for company valuation output.",
+                "badges": ["plain English", "research-only"],
+            },
+        ]
+
+    if not dcf_ready:
+        return [
+            {
+                "kicker": "DCF PATH",
+                "title": "Blocked by missing inputs",
+                "body": "What this means: the dashboard withholds DCF math until trusted company inputs pass readiness checks.",
+                "badges": ["locked", "trusted rows needed"],
+            },
+            {
+                "kicker": "REQUIRED INPUTS",
+                "title": f"Missing: {missing_text}",
+                "body": "Required local inputs include price, revenue, free cash flow or FCF margin, shares outstanding, and cash/debt or net-debt context.",
+                "badges": ["no guessing", "data first"],
+            },
+            {
+                "kicker": "FORMULA",
+                "title": "Formula path withheld",
+                "body": "Base FCF, projected FCF, terminal value, equity value, fair value/share, and sensitivity stay unavailable until inputs are ready.",
+                "badges": ["blocked is not negative", "no conclusion"],
+            },
+        ]
+
+    return [
+        {
+            "kicker": "DCF PATH",
+            "title": "Ready for scenario math",
+            "body": "What this means: standalone DCF is calculated locally from trusted price and fundamentals inputs.",
+            "badges": ["DCF ready", "local inputs"],
+        },
+        {
+            "kicker": "FORMULA",
+            "title": "FCF to fair value/share",
+            "body": (
+                "Base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> "
+                "enterprise value -> equity value -> fair value per share."
+            ),
+            "badges": ["formula visible", "scenario math"],
+        },
+        {
+            "kicker": "ASSUMPTIONS",
+            "title": (
+                f"WACC {report_display_value(assumptions.get('wacc'), 'percent')} / "
+                f"terminal growth {report_display_value(assumptions.get('terminal_growth'), 'percent')}"
+            ),
+            "body": (
+                f"Revenue growth {report_display_value(assumptions.get('revenue_growth'), 'percent')}; "
+                f"FCF margin {report_display_value(assumptions.get('fcf_margin'), 'percent')}; "
+                f"sensitivity {format_missing(sensitivity.get('status'), 'Not available')}. "
+                "This is methodology evidence, not a price target."
+            ),
+            "badges": ["sensitivity", "not a recommendation"],
+        },
+    ]
+
+
+def stock_report_peer_relative_display_ready(report_payload: dict[str, object]) -> bool:
+    readiness = _stock_report_payload_readiness(report_payload)
+    if not bool(readiness.get("peer_ready")):
+        return False
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    relative = valuation.get("relative_valuation", {}) or {}
+    status = format_missing(relative.get("status"), "").lower()
+    peer_count = pd.to_numeric(pd.Series([relative.get("peer_count")]), errors="coerce").fillna(0).iloc[0]
+    blocked_statuses = {"", "not available", "insufficient_data", "insufficient data", "peer_data_unavailable", "blocked"}
+    return bool(status not in blocked_statuses and peer_count > 0)
+
+
+def stock_report_peer_relative_comparison_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    columns = ["Metric", "Subject", "Peer Median", "Discount / Premium"]
+    if not stock_report_peer_relative_display_ready(report_payload):
+        return pd.DataFrame(columns=columns)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    relative = valuation.get("relative_valuation", {}) or {}
+    rows: list[dict[str, object]] = []
+    metric_labels = {"pe": "P/E", "ps": "P/S", "p_fcf": "P/FCF", "ev_ebitda": "EV/EBITDA"}
+    for metric_key, label in metric_labels.items():
+        subject = (relative.get("subject_multiples") or {}).get(metric_key)
+        peer_median = (relative.get("peer_median_multiples") or {}).get(metric_key)
+        discount = (relative.get("relative_discount_premium_by_metric") or {}).get(metric_key)
+        if subject is None and peer_median is None and discount is None:
+            continue
+        rows.append(
+            {
+                "Metric": label,
+                "Subject": report_display_value(subject, "number"),
+                "Peer Median": report_display_value(peer_median, "number"),
+                "Discount / Premium": report_display_value(discount, "percent"),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def stock_report_peer_relative_empty_message(report_payload: dict[str, object]) -> str:
+    readiness = _stock_report_payload_readiness(report_payload)
+    asset_type = format_missing(report_payload.get("asset_type") or readiness.get("asset_type"), "").lower()
+    if asset_type in {"etf", "index_proxy", "fund"}:
+        return "Operating-company peer valuation is excluded for ETF/index/fund monitor context."
+    if bool(readiness.get("dcf_ready")):
+        return "Peer-relative multiples are withheld until trusted peer mappings and peer valuation inputs pass readiness."
+    return "Peer-relative multiples wait until trusted fundamentals, DCF readiness, peer mappings, and peer valuation inputs are ready."
+
+
+def stock_report_peer_relative_summary(report_payload: dict[str, object]) -> dict[str, object]:
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    relative = valuation.get("relative_valuation", {}) or {}
+    if not stock_report_peer_relative_display_ready(report_payload):
+        return {
+            "peer_status": "Withheld",
+            "peer_group": "Not reader-ready",
+            "peer_count": report_display_value(relative.get("peer_count"), "integer"),
+            "relative_score": "Locked",
+            "note": stock_report_peer_relative_empty_message(report_payload),
+        }
+    return {
+        "peer_status": public_status_label(relative.get("status")),
+        "peer_group": format_missing(relative.get("peer_group"), "Not configured"),
+        "peer_count": report_display_value(relative.get("peer_count"), "integer"),
+        "relative_score": report_display_value(relative.get("relative_opportunity_score"), "number"),
+        "note": "Trusted peer-relative context is available; review caveats and source freshness before interpretation.",
+    }
 
 
 def stock_report_function_quality_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
@@ -3976,7 +4717,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
             "title": logic.get("status", "Project rules"),
             "body": logic.get(
                 "trust",
-                    "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data.",
+                    "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data. Source rows provide inputs; project gates, DCF math, peer blockers, and report wording decide what can be analyzed now and what remains locked.",
             ),
             "badges": ["project rules", "transparent"],
         },
@@ -3989,6 +4730,42 @@ def valuation_legacy_output_note() -> str:
         "valuation-readiness and re-rating context. It is not an automatic undervalued-stock list; "
         "rows missing trusted inputs remain blocked instead of being inferred."
     )
+
+
+def valuation_legacy_diagnostic_frame(frame: pd.DataFrame | None) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "ValuationStatus",
+        "FinalValueCategory",
+        "MissingDataFields",
+        "Reason",
+    ]
+    if frame is None or frame.empty:
+        return pd.DataFrame(columns=columns + ["ReaderBoundary"])
+    available_columns = _readiness_columns(frame, columns)
+    diagnostic = frame[available_columns].copy()
+    if "ValuationStatus" not in diagnostic.columns:
+        diagnostic["ValuationStatus"] = ""
+    if "FinalValueCategory" not in diagnostic.columns:
+        diagnostic["FinalValueCategory"] = ""
+    if "MissingDataFields" not in diagnostic.columns:
+        diagnostic["MissingDataFields"] = ""
+
+    status = diagnostic["ValuationStatus"].fillna("").astype(str).str.strip().str.lower()
+    category = diagnostic["FinalValueCategory"].fillna("").astype(str).str.strip().str.lower()
+    missing = diagnostic["MissingDataFields"].fillna("").astype(str).str.strip()
+    blocked = (
+        status.isin({"not_ready", "not ready", "blocked", "insufficient_data", "insufficient data", ""})
+        | category.isin({"insufficient data", "not ready", "blocked", ""})
+        | missing.ne("")
+    )
+    diagnostic["ReaderBoundary"] = (
+        "Ready-row context only; verify DCF assumptions, peers, and source freshness before interpretation."
+    )
+    diagnostic.loc[blocked, "ReaderBoundary"] = (
+        "No valuation conclusion; compatibility fields stay blocked until trusted inputs pass readiness."
+    )
+    return diagnostic
 
 
 def preferred_single_stock_default(local_tickers: list[str], preferred: str = "NVDA") -> int:
@@ -4072,7 +4849,7 @@ def stock_report_next_step_cards(
     coverage: pd.DataFrame | None,
     peer_summary: dict[str, object] | None,
 ) -> list[dict[str, object]]:
-    ticker = format_missing(report_payload.get("ticker"), "Selected ticker")
+    ticker = format_missing(report_payload.get("ticker"), "NVDA")
     readiness = _stock_report_payload_readiness(report_payload)
     valuation = report_payload.get("valuation_snapshot", {}) or {}
     asset_type = format_missing(report_payload.get("asset_type"), "").lower()
@@ -4316,6 +5093,8 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
     relative_spy = momentum.get("RelativeReturnVsSPY")
     relative_qqq = momentum.get("RelativeReturnVsQQQ")
     volume_ratio = momentum.get("VolumeRatio")
+    volume_ratio_display = report_display_value(volume_ratio, "number")
+    volume_title = f"Volume {volume_ratio_display}x" if volume_ratio_display != "Not available" else "Volume ratio not available"
     volatility_proxy = momentum.get("ATRorVolatilityPct")
     volatility_source = _atr_or_volatility_source_label(momentum.get("ATRorVolatilitySource"))
     ma_stack = [
@@ -4344,9 +5123,52 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
         },
         {
             "kicker": "FLOW / VOLATILITY",
-            "title": f"Volume {report_display_value(volume_ratio, 'number')}x",
+            "title": volume_title,
             "body": f"{volatility_source}: {report_display_value(volatility_proxy, 'percent')}. Proxy values are approximations; missing values stay visible instead of guessed.",
             "badges": ["local pipeline", volatility_source],
+        },
+    ]
+
+
+def single_stock_report_intro_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "WHAT THIS MEANS",
+            "title": "Ready, blocked, or excluded first",
+            "body": "The report starts by saying which analysis is supported for the ticker before showing valuation, trend, peers, or optional context.",
+            "badges": ["readiness first", "plain English"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
+            "title": "Inputs are separated from calculations",
+            "body": "Local/provider rows supply prices and fundamentals. This product decides readiness, runs DCF math when inputs are complete, and withholds conclusions when trusted inputs are missing.",
+            "badges": ["local inputs", "project logic"],
+            "command": "make stock-report-md TICKER=A",
+        },
+        {
+            "kicker": "WHAT IS STILL LOCKED",
+            "title": "Missing data stays visible",
+            "body": "Peer valuation, earnings, and analyst-estimate context stay locked unless trusted local rows exist. ETF/index/fund DCF is excluded, not failed.",
+            "badges": ["no guessing", "research-only"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+        {
+            "kicker": "OUTPUT BOUNDARY",
+            "title": "No hidden final call",
+            "body": "The report explains source inputs, product calculations, blocked sections, and the next local research step. It does not convert partial data into a portfolio action.",
+            "badges": ["transparent method", "no overclaim"],
+            "command": "make stock-report-md TICKER=APLD",
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "Start with a demo or one selected ticker",
+            "body": (
+                "For a visitor demo, copy the Markdown report command. For your own ticker, select a local ticker above, "
+                "build the preview, then read the At A Glance and Reader Guide before opening detailed tables."
+            ),
+            "badges": ["visitor path", "one ticker"],
+            "command": "make stock-report-md TICKER=NVDA",
         },
     ]
 
@@ -4547,48 +5369,147 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
     estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
     return [
         {
-            "kicker": "DATA HEALTH GUIDE",
+            "kicker": "WHAT THIS MEANS",
             "title": "Use this page to unlock analysis",
             "body": (
-                "Data Health is not an error page. It shows which trusted local inputs are ready, which analyses stay locked, "
-                "and which safe command to copy next."
+                "Data Health is not an error page. It shows what you can analyze now, what is still locked, "
+                "which trusted local inputs are ready, and which safe command to copy next."
             ),
             "badges": ["operator guide", "copy only"],
             "command": "make status-check TOP_N=5",
         },
         {
-            "kicker": "CORE COVERAGE",
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
             "title": f"{price_ready} price-ready / {fundamentals_ready} fundamentals-ready / {dcf_ready} DCF-ready",
-            "body": "Price coverage unlocks setup review first. Trusted fundamentals unlock company-level valuation only after required DCF fields pass readiness.",
+            "body": (
+                "What this means: price coverage unlocks setup review first. Trusted fundamentals unlock company-level "
+                "valuation only after required DCF fields pass readiness."
+            ),
             "badges": ["price first", "fundamentals next"],
             "command": "make sec-stage-queue TOP_N=25",
         },
         {
-            "kicker": "CONTEXT COVERAGE",
+            "kicker": "WHAT IS STILL LOCKED",
             "title": f"{peer_ready} peer-ready / {earnings_ready} earnings / {estimates_ready} estimates",
-            "body": "Peer, earnings, and estimate context stays unavailable until trusted rows exist. The app does not infer these inputs.",
+            "body": "What is still locked: peer, earnings, and estimate context stays unavailable until trusted rows exist. The app does not infer these inputs.",
             "badges": ["trusted rows only", "no inference"],
             "command": "make templates",
         },
     ]
 
 
+def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+
+    if price_ready <= 0:
+        first_title = "Start with trusted price coverage"
+        first_body = (
+            "No price-ready rows means setup, DCF, peer, earnings, and estimate analysis should stay locked. "
+            "Use the scalable dry run first so you can review a capped batch plan instead of repeating 25-ticker refreshes by hand."
+        )
+        first_command = "make price-refresh-loop DRY_RUN=1"
+        first_badges = ["price first", "dry run first"]
+    elif fundamentals_ready < price_ready:
+        gap = max(price_ready - fundamentals_ready, 0)
+        first_title = "Unlock fundamentals before valuation"
+        first_body = (
+            f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
+            "Missing fundamentals are an input gap, not a negative company signal. Inspect the queue first, then stage SEC or trusted manual rows only when sources are ready. "
+            "Safe path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=<ticker> -> make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness."
+        )
+        first_command = "make sec-stage-queue TOP_N=25"
+        first_badges = ["fundamentals next", "no valuation inference"]
+    elif dcf_ready > peer_ready:
+        gap = max(dcf_ready - peer_ready, 0)
+        first_title = "Add trusted peers for DCF-ready names"
+        first_body = (
+            f"{gap} DCF-ready row(s) still have peer-relative valuation locked. Standalone DCF can be reviewed, "
+            "but peer premium/discount stays withheld until source-backed peer rows, mappings, and peer valuation inputs exist."
+        )
+        first_command = "make peer-mapping-queue TOP_N=10"
+        first_badges = ["peer unlock", "source-backed rows"]
+    elif earnings_ready == 0 or estimates_ready == 0:
+        first_title = "Optional context is intentionally locked"
+        first_body = (
+            "Earnings and analyst estimates add context only after trusted local CSV rows pass validation. "
+            "Empty optional coverage should not weaken ready price, DCF, or peer analysis. "
+            "Safe path: make templates -> stage trusted rows in data/staged/earnings/ or data/staged/analyst_estimates/ -> "
+            "make import-earnings or make import-analyst-estimates -> make imports-validate -> make imports-preview -> make imports-apply. "
+            "Rejected rows appear in data/rejected/earnings_import_rejected.csv and data/rejected/analyst_estimates_import_rejected.csv."
+        )
+        first_command = "make optional-context-worklist TOP_N=10"
+        first_badges = ["optional context", "trusted rows only"]
+    else:
+        first_title = "Review single-stock reports"
+        first_body = "Core unlock lanes look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and freshness."
+        first_command = "make stock-report-md TICKER=NVDA"
+        first_badges = ["single-stock review", "source freshness"]
+
+    return [
+        {
+            "kicker": "FIRST READ",
+            "title": first_title,
+            "body": f"What this means: {first_body}",
+            "badges": first_badges,
+            "command": first_command,
+        },
+        {
+            "kicker": "ANALYZE NOW",
+            "title": f"{price_ready} price / {dcf_ready} DCF / {peer_ready} peer-ready",
+            "body": (
+                "What you can analyze now: price-ready rows can support setup review; DCF-ready rows can support "
+                "assumption and sensitivity review; peer-ready rows can support source-backed relative context. "
+                "Do not read locked sections as weak conclusions."
+            ),
+            "badges": ["supported only", "plain English"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "STILL LOCKED",
+            "title": f"{earnings_ready} earnings / {estimates_ready} estimates",
+            "body": (
+                "What is still locked: optional context remains unavailable until trusted earnings and analyst-estimate "
+                "rows exist; missing optional rows are not hidden analysis."
+            ),
+            "badges": ["no inference", "optional context"],
+            "command": "make templates",
+        },
+    ]
+
+
 def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     price_ready = int(readiness_summary.get("price_ready") or 0)
     dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
     peer_ready = int(readiness_summary.get("peer_ready") or 0)
     earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
     estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    missing_prices = max(master - price_ready, 0) if master else 0
+    price_scale_note = ""
+    if missing_prices:
+        broad_target = ((min(max(missing_prices, 100), 3500) + 99) // 100) * 100
+        planned_batches = max((broad_target + 99) // 100, 1)
+        avoided_small_batches = max((broad_target + 24) // 25, 1)
+        price_scale_note = (
+            f" Current gap: about {missing_prices:,} ticker(s); the broad dry run plans about "
+            f"{planned_batches} capped 100-ticker batch(es), replacing about {avoided_small_batches} tiny 25-ticker runs."
+        )
     return [
         {
             "kicker": "PRICE UNLOCK",
             "title": f"{price_ready} price-ready",
             "body": (
                 "Function status: usable for setup, trend, liquidity, and market-context review when local history is ready. "
-                "Without price coverage, deeper analysis stays premature."
+                "For broad coverage, dry-run the capped refresh loop first instead of repeating small worklists by hand. "
+                f"Use focused worklists only when diagnosing specific ticker gaps.{price_scale_note}"
             ),
             "badges": ["setup review", "history first"],
-            "command": "make price-worklist TOP_N=10",
+            "command": "make price-refresh-loop DRY_RUN=1",
         },
         {
             "kicker": "DCF UNLOCK",
@@ -4636,7 +5557,7 @@ def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> 
             "title": f"{price_ready} ready for setup review",
             "body": "Price-ready stocks can support trend, liquidity, and market-context review. Stop at setup/risk review if fundamentals are missing.",
             "badges": ["price/setup", "not valuation"],
-            "command": "make stock-report TICKER=NVDA",
+            "command": "make stock-report-md TICKER=NVDA",
         },
         {
             "kicker": "LEVEL 2",
@@ -4658,6 +5579,138 @@ def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> 
             "body": "Earnings and analyst estimates are optional context. If they are empty, the app should say locked instead of producing unsupported conclusions.",
             "badges": ["optional context", "no unsupported conclusions"],
             "command": "make optional-context-worklist TOP_N=10",
+        },
+    ]
+
+
+def data_health_dcf_metric_counts(dcf_readiness_frame: pd.DataFrame | None) -> dict[str, int]:
+    if dcf_readiness_frame is None or dcf_readiness_frame.empty:
+        return {"ready": 0, "blocked_company": 0, "excluded": 0}
+    frame = dcf_readiness_frame.copy()
+    if "asset_type" in frame.columns:
+        asset_type = frame["asset_type"].fillna("").astype(str).str.lower().str.strip()
+        company = asset_type.eq("company") | asset_type.eq("")
+        excluded = asset_type.ne("") & ~asset_type.eq("company")
+    else:
+        company = pd.Series(True, index=frame.index)
+        excluded = pd.Series(False, index=frame.index)
+    ready = bool_series(frame, "is_dcf_ready") if "is_dcf_ready" in frame.columns else bool_series(frame, "dcf_ready")
+    return {
+        "ready": int((company & ready).sum()),
+        "blocked_company": int((company & ~ready).sum()),
+        "excluded": int(excluded.sum()),
+    }
+
+
+def data_health_valuation_unlock_snapshot_cards(
+    ticker_readiness_frame: pd.DataFrame | None,
+    readiness_summary: dict[str, object],
+) -> list[dict[str, object]]:
+    price_ready_count = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready_count = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready_count = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return [
+            {
+                "kicker": "VALUATION SNAPSHOT",
+                "title": "Readiness report not loaded",
+                "body": "Run make readiness before using the valuation unlock snapshot. Missing readiness output means analysis should stay current-only and blocked.",
+                "badges": ["readiness first", "no guessing"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = ticker_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if "asset_type" in frame.columns:
+        asset_type = frame["asset_type"].fillna("").astype(str).str.lower()
+        company = asset_type.eq("company")
+        monitor_proxy = asset_type.isin({"etf", "index_proxy", "fund"}) | asset_type.str.contains("etf|index|fund", na=False)
+    else:
+        company = pd.Series(True, index=frame.index)
+        monitor_proxy = pd.Series(False, index=frame.index)
+
+    price_ready = bool_series(frame, "price_ready")
+    fundamentals_ready = bool_series(frame, "fundamentals_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    peer_ready = bool_series(frame, "peer_ready")
+    active = bool_series(frame, "in_active_universe")
+
+    price_ready_missing_fundamentals = frame.loc[company & price_ready & ~fundamentals_ready].copy()
+    dcf_ready_peer_blocked = frame.loc[company & dcf_ready & ~peer_ready].copy()
+    fundamentals_missing_count = len(price_ready_missing_fundamentals)
+    peer_blocked_count = len(dcf_ready_peer_blocked)
+    fundamentals_company_label = "company" if fundamentals_missing_count == 1 else "companies"
+    peer_company_label = "company" if peer_blocked_count == 1 else "companies"
+    active_fundamentals_missing = int((company & active & price_ready & ~fundamentals_ready).sum())
+    active_peer_blocked = int((company & active & dcf_ready & ~peer_ready).sum())
+    monitor_excluded = int(monitor_proxy.sum())
+
+    next_fundamentals = "make sec-stage-queue TOP_N=25"
+    if not price_ready_missing_fundamentals.empty:
+        ordered_fundamentals = price_ready_missing_fundamentals.assign(
+            _active_rank=(~bool_series(price_ready_missing_fundamentals, "in_active_universe")).astype(int)
+        ).sort_values(["_active_rank", "ticker"], kind="stable")
+        next_ticker = format_missing(ordered_fundamentals.iloc[0].get("ticker"), "")
+        if next_ticker:
+            next_fundamentals = f"make focus-fundamentals TICKER={next_ticker}"
+
+    next_peer = "make peer-mapping-queue TOP_N=25"
+    if not dcf_ready_peer_blocked.empty:
+        ordered_peers = dcf_ready_peer_blocked.assign(
+            _active_rank=(~bool_series(dcf_ready_peer_blocked, "in_active_universe")).astype(int)
+        ).sort_values(["_active_rank", "ticker"], kind="stable")
+        next_peer_ticker = format_missing(ordered_peers.iloc[0].get("ticker"), "")
+        if next_peer_ticker:
+            next_peer = f"make focus-peers TICKER={next_peer_ticker}"
+
+    return [
+        {
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
+            "title": f"{price_ready_count} setup / {dcf_ready_count} DCF / {peer_ready_count} peer",
+            "body": (
+                "Use price-ready rows for setup and risk context, DCF-ready companies for assumptions and sensitivity, "
+                "and peer-ready rows only for source-backed relative context."
+            ),
+            "badges": ["analysis-ready subset", "module-gated"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "FUNDAMENTALS STILL LOCKED",
+            "title": f"{fundamentals_missing_count} price-ready {fundamentals_company_label}",
+            "body": (
+                f"{active_fundamentals_missing} active-universe row(s) already have price coverage but still need trusted fundamentals. "
+                "Use SEC/manual fundamentals through data/imports/fundamentals.csv, then validate, preview, and apply; "
+                "run make dcf-readiness before interpreting DCF coverage. "
+                "Do not treat missing fundamentals as a negative company signal."
+            ),
+            "badges": ["price-ready first", "data/imports/fundamentals.csv", "not a conclusion"],
+            "command": next_fundamentals,
+        },
+        {
+            "kicker": "PEER VALUATION STILL LOCKED",
+            "title": f"{peer_blocked_count} DCF-ready {peer_company_label}",
+            "body": (
+                f"{active_peer_blocked} active-universe DCF-ready row(s) still need trusted peer mappings or peer inputs. "
+                "Use data/imports/peers.csv for source-backed mappings and run validate, preview, apply before peer valuation appears. "
+                "Standalone DCF can be reviewed without pretending peer valuation is ready."
+            ),
+            "badges": ["peer valuation gated", "data/imports/peers.csv", "source-backed only"],
+            "command": next_peer,
+        },
+        {
+            "kicker": "OPTIONAL / EXCLUDED CONTEXT",
+            "title": f"{earnings_ready} earnings / {estimates_ready} estimates / {monitor_excluded} monitor proxies",
+            "body": (
+                "Earnings and analyst estimates stay locked until trusted rows exist. ETF/index/fund rows remain monitor context; "
+                "operating-company DCF is excluded, not failed."
+            ),
+            "badges": ["trusted optional rows", "dcf excluded"],
+            "command": "make optional-context-worklist TOP_N=25",
         },
     ]
 
@@ -6097,10 +7150,10 @@ def dashboard_readiness_summary(
         "configured_credentials": configured_credentials,
         "updated_at": updated_at,
         "manual_import_paths": [
-            "data/staged/prices/ -> make import-prices",
-            "data/staged/fundamentals/ -> make import-fundamentals",
-            "data/staged/earnings/ -> make import-earnings",
-            "data/staged/analyst_estimates/ -> make import-analyst-estimates",
+            "Price import draft folder: data/staged/prices/ -> make import-prices",
+            "Fundamentals import draft folder: data/staged/fundamentals/ -> make import-fundamentals",
+            "Earnings import draft folder: data/staged/earnings/ -> make import-earnings",
+            "Analyst estimates import draft folder: data/staged/analyst_estimates/ -> make import-analyst-estimates",
         ],
     }
 
@@ -6162,9 +7215,9 @@ def readiness_panel_cards(summary: dict[str, object]) -> list[dict[str, object]]
         },
         {
             "kicker": "MANUAL IMPORTS",
-            "title": "CSV fallback paths available",
+            "title": "Import draft folders available",
             "body": "; ".join(str(path) for path in summary.get("manual_import_paths", [])),
-            "badges": ["staged", "review/apply"],
+            "badges": ["import drafts", "review before apply"],
             "command": "make imports-validate",
         },
     ]
@@ -6356,6 +7409,12 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
                 "then run make imports-validate -> make imports-preview -> make imports-apply."
             )
             command = "make templates"
+        elif feature_key == "price":
+            body = (
+                f"{body} For broad coverage, dry-run the capped refresh loop first; this avoids repeating small "
+                "worklists manually and previews local CSV churn before any provider-backed update."
+            )
+            command = "make price-refresh-loop DRY_RUN=1"
         cards.append(
             {
                 "kicker": section.upper(),
@@ -6415,11 +7474,13 @@ def peer_readiness_product_cards(
         worklist["ticker"] = worklist["ticker"].astype(str).str.upper().str.strip()
         if "priority" in worklist.columns:
             worklist["priority"] = pd.to_numeric(worklist["priority"], errors="coerce").fillna(999).astype(int)
-        if "workflow_scope" in worklist.columns:
-            worklist["_scope_rank"] = worklist["workflow_scope"].fillna("").astype(str).str.lower().ne("active_universe").astype(int)
-        else:
-            worklist["_scope_rank"] = 1
-        sort_columns = [column for column in ["priority", "_scope_rank", "ticker"] if column in worklist.columns]
+        scope_text = worklist.get("workflow_scope", pd.Series("", index=worklist.index)).fillna("").astype(str).str.lower()
+        workflow_text = worklist.get("workflow_group", pd.Series("", index=worklist.index)).fillna("").astype(str).str.lower()
+        active_flag = bool_series(worklist, "in_active_universe") if "in_active_universe" in worklist.columns else pd.Series(False, index=worklist.index)
+        dcf_flag = bool_series(worklist, "dcf_ready") if "dcf_ready" in worklist.columns else pd.Series(False, index=worklist.index)
+        worklist["_scope_rank"] = (~(active_flag | scope_text.str.contains("active", na=False))).astype(int)
+        worklist["_dcf_rank"] = (~(dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))).astype(int)
+        sort_columns = [column for column in ["_scope_rank", "_dcf_rank", "priority", "ticker"] if column in worklist.columns]
         worklist = worklist.sort_values(sort_columns, kind="stable") if sort_columns else worklist
         next_row = worklist.iloc[0]
         next_ticker = format_missing(next_row.get("ticker"), "Ticker")
@@ -6551,6 +7612,130 @@ def peer_mapping_studio_summary_cards(
     ]
 
 
+def peer_analysis_boundary_cards(
+    peer_readiness_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    if peer_readiness_frame is None or peer_readiness_frame.empty:
+        return [
+            {
+                "kicker": "PEER ANALYSIS",
+                "title": "Peer readiness not loaded",
+                "body": "Run make readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked.",
+                "badges": ["readiness first", "no inferred peers"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = peer_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if (
+        ticker_readiness_frame is not None
+        and not ticker_readiness_frame.empty
+        and "ticker" in frame.columns
+        and "ticker" in ticker_readiness_frame.columns
+    ):
+        readiness_columns = [
+            column
+            for column in ["ticker", "dcf_ready", "in_active_universe"]
+            if column in ticker_readiness_frame.columns
+        ]
+        readiness = ticker_readiness_frame[readiness_columns].copy()
+        readiness["ticker"] = readiness["ticker"].astype(str).str.upper().str.strip()
+        frame = frame.merge(readiness, on="ticker", how="left", suffixes=("", "_ticker"))
+
+    peer_ready = bool_series(frame, "peer_ready")
+    trend_ready = bool_series(frame, "peer_trend_comparison_ready")
+    valuation_ready = bool_series(frame, "peer_valuation_comparison_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    active = bool_series(frame, "in_active_universe")
+    blocker = frame.get("peer_blocker_type", pd.Series("", index=frame.index)).fillna("").astype(str)
+    missing_mapping = blocker.eq("missing_peer_mapping")
+    price_gap = blocker.eq("peer_price_missing")
+    fundamentals_gap = blocker.eq("peer_fundamentals_missing")
+    valuation_locked = ~valuation_ready
+    dcf_ready_peer_blocked = dcf_ready & ~peer_ready
+    active_dcf_peer_blocked = active & dcf_ready_peer_blocked
+    next_ticker = "Not available"
+    if "ticker" in frame.columns:
+        candidates = frame.loc[active_dcf_peer_blocked].copy()
+        if candidates.empty:
+            candidates = frame.loc[dcf_ready_peer_blocked].copy()
+        if candidates.empty:
+            candidates = frame.loc[~peer_ready].copy()
+        if not candidates.empty:
+            next_ticker = format_missing(candidates.sort_values("ticker", kind="stable").iloc[0].get("ticker"), "Not available")
+    peer_focus_command = f"make focus-peers TICKER={next_ticker}" if next_ticker != "Not available" else "make peer-mapping-queue TOP_N=25"
+
+    return [
+        {
+            "kicker": "WHAT PEERS CAN SUPPORT NOW",
+            "title": f"{int(trend_ready.sum())} trend-ready / {int(valuation_ready.sum())} valuation-ready",
+            "body": (
+                "Peer trend context can be reviewed when mapped peers have enough price history. "
+                "Peer valuation is separate and needs source-backed mappings plus peer valuation inputs."
+            ),
+            "badges": ["trend before valuation", "module-gated"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "WHAT IS STILL LOCKED",
+            "title": f"{int(valuation_locked.sum())} peer valuation row(s) locked",
+            "body": (
+                f"Missing mappings: {int(missing_mapping.sum())}. Peer price gaps: {int(price_gap.sum())}. "
+                f"Peer fundamentals gaps: {int(fundamentals_gap.sum())}. Locked peer valuation is not a company conclusion."
+            ),
+            "badges": ["specific blockers", "no inference"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "DCF-READY BUT PEER-BLOCKED",
+            "title": f"{int(dcf_ready_peer_blocked.sum())} company row(s)",
+            "body": (
+                f"{int(active_dcf_peer_blocked.sum())} active-universe row(s) can have standalone DCF reviewed while peer-relative valuation stays withheld."
+            ),
+            "badges": ["standalone DCF ok", "peer valuation withheld"],
+            "command": peer_focus_command,
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "Prove peers before relative valuation",
+            "body": (
+                f"Copy next: `{peer_focus_command}`. "
+                "Peer trend can be reviewed only from mapped peer price history; peer-relative valuation, premium/discount, "
+                "and peer DCF comparison stay locked until source-backed mappings plus peer valuation inputs pass readiness."
+            ),
+            "badges": ["copy-only", "trend is not valuation"],
+            "command": peer_focus_command,
+        },
+        {
+            "kicker": "PEER PROOF LADDER",
+            "title": "Mapping -> trend -> valuation proof",
+            "body": (
+                "Use this sequence before reading peer-relative output: source-backed peer mappings in data/imports/peers.csv, "
+                "then mapped peer price history for trend context, then peer fundamentals and valuation inputs for peer valuation. "
+                "Trend-ready does not mean valuation-ready. Copy sequence: "
+                f"`{peer_focus_command}` -> `make templates` -> `make imports-validate` -> `make imports-preview` -> "
+                "`make imports-apply` -> `make readiness` -> `make peer-mapping-queue TOP_N=25`."
+            ),
+            "badges": ["method proof", "trend before valuation"],
+            "command": peer_focus_command,
+        },
+        {
+            "kicker": "TRUSTED INPUT PATH",
+            "title": "data/imports/peers.csv",
+            "body": (
+                "Add only source-backed peer mappings, then run make imports-validate, make imports-preview, "
+                "and make imports-apply. Rebuild with make readiness and make peer-mapping-queue TOP_N=25 before reading peer valuation. "
+                "Sector or industry fallback is context, not trusted peer valuation data."
+            ),
+            "badges": ["source-backed only", "preview first"],
+            "command": "make templates",
+        },
+    ]
+
+
 def peer_function_quality_frame(
     peer_readiness_frame: pd.DataFrame | None,
     peer_unlock_worklist_frame: pd.DataFrame | None = None,
@@ -6661,7 +7846,7 @@ def peer_unlock_operator_cards(
     ):
         readiness_columns = [
             column
-            for column in ["ticker", "asset_type", "in_active_universe"]
+            for column in ["ticker", "asset_type", "in_active_universe", "dcf_ready", "peer_ready"]
             if column in ticker_readiness_frame.columns
         ]
         readiness = ticker_readiness_frame[readiness_columns].copy()
@@ -6687,24 +7872,43 @@ def peer_unlock_operator_cards(
             lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
         )
         frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
-            lambda ticker: f"make stock-report TICKER={ticker} -> review source/freshness and DCF exclusion"
+            lambda ticker: f"{stock_report_md_command(ticker)} -> review source/freshness and DCF exclusion"
         )
-        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(stock_report_md_command)
         frame.loc[monitor_proxy, "copy_only_note"] = "Copy command only; review monitor context without peer valuation conclusions."
     workflow_counts = frame.get("workflow_group", pd.Series("peer_workflow", index=frame.index)).fillna("peer_workflow").astype(str).value_counts()
     scope_counts = frame.get("workflow_scope", pd.Series("unknown_scope", index=frame.index)).fillna("unknown_scope").astype(str).value_counts()
     priority_counts = frame["priority"].value_counts().sort_index()
+    scope_text = frame.get("workflow_scope", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    workflow_text = frame.get("workflow_group", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    active_flag = bool_series(frame, "in_active_universe") if "in_active_universe" in frame.columns else pd.Series(False, index=frame.index)
+    dcf_flag = bool_series(frame, "dcf_ready") if "dcf_ready" in frame.columns else pd.Series(False, index=frame.index)
+    peer_ready_flag = bool_series(frame, "peer_ready") if "peer_ready" in frame.columns else pd.Series(False, index=frame.index)
+    active_rank_flag = active_flag | scope_text.str.contains("active", na=False)
+    dcf_rank_flag = dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False)
+    active_queue_count = int(active_rank_flag.sum())
+    dcf_ready_peer_blocked_count = int((dcf_rank_flag & ~peer_ready_flag).sum())
     ordered = frame.loc[~monitor_proxy].copy()
     if ordered.empty:
         ordered = frame.copy()
+    ordered_scope_text = ordered.get("workflow_scope", pd.Series("", index=ordered.index)).fillna("").astype(str).str.lower()
+    ordered_workflow_text = ordered.get("workflow_group", pd.Series("", index=ordered.index)).fillna("").astype(str).str.lower()
+    ordered_active_flag = bool_series(ordered, "in_active_universe") if "in_active_universe" in ordered.columns else pd.Series(False, index=ordered.index)
+    ordered_dcf_flag = bool_series(ordered, "dcf_ready") if "dcf_ready" in ordered.columns else pd.Series(False, index=ordered.index)
+    ordered = ordered.assign(
+        _scope_rank=(~(ordered_active_flag | ordered_scope_text.str.contains("active", na=False))).astype(int),
+        _dcf_rank=(~(ordered_dcf_flag | ordered_workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))).astype(int),
+    )
     ordered = ordered.sort_values(
         [
+            "_scope_rank",
+            "_dcf_rank",
             "priority",
             "workflow_scope",
             "workflow_group",
             "ticker",
         ],
-        ascending=[True, True, True, True],
+        ascending=[True, True, True, True, True, True],
         kind="stable",
     )
     top_row = ordered.iloc[0]
@@ -6712,6 +7916,7 @@ def peer_unlock_operator_cards(
     top_summary = compact_reason(top_row.get("next_action_summary") or top_row.get("next_peer_action"), max_sentences=1, max_chars=180)
     input_file = format_missing(top_row.get("next_input_file"), "data/imports/peers.csv")
     validation = format_missing(top_row.get("validation_sequence"), "make templates -> make imports-validate -> make imports-preview -> make imports-apply")
+    peer_schema = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
     priority_text = ", ".join(f"P{int(key)}: {int(value)}" for key, value in priority_counts.head(4).items())
     workflow_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in workflow_counts.head(3).items())
     scope_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in scope_counts.head(3).items())
@@ -6719,21 +7924,27 @@ def peer_unlock_operator_cards(
         {
             "kicker": "PEER UNLOCK QUEUE",
             "title": priority_text or f"{len(frame)} queued",
-            "body": f"{len(frame)} peer unlock row(s). Scope mix: {scope_text or 'not available'}.",
+            "body": (
+                f"{len(frame)} peer unlock row(s). Active-universe queue: {active_queue_count}. "
+                f"DCF-ready but peer-blocked: {dcf_ready_peer_blocked_count}. Scope mix: {scope_text or 'not available'}."
+            ),
             "badges": ["priority grouped", "row-limited"],
             "command": "make peer-mapping-queue TOP_N=25",
         },
         {
             "kicker": "NEXT PEER ROW",
             "title": top_ticker,
-            "body": f"{top_summary} Input file: {input_file}. Validate with: {validation}.",
+            "body": f"{top_summary} Input file: {input_file}. Schema fields: {peer_schema}. Validate with: {validation}.",
             "badges": ["source-backed", "preview before apply"],
             "command": str(top_row.get("focus_command") or f"make focus-peers TICKER={top_ticker}"),
         },
         {
             "kicker": "WORKFLOW GROUPS",
             "title": "What kind of peer data?",
-            "body": workflow_text or "No workflow grouping is available yet.",
+            "body": (
+                f"{workflow_text or 'No workflow grouping is available yet.'} "
+                "Peer trend can use mapped peer price history; peer valuation waits for source-backed peer mappings and peer valuation inputs."
+            ),
             "badges": ["mapping vs metrics", "no fallback peers"],
             "command": "make templates",
         },
@@ -6747,10 +7958,186 @@ def peer_unlock_operator_cards(
                 "title": f"{int(monitor_proxy.sum())} ETF/index/fund row(s)",
                 "body": "These rows stay in stock-report monitoring context; peer valuation remains excluded unless trusted company-peer inputs exist.",
                 "badges": ["monitor context", "dcf excluded"],
-                "command": str(monitor_row.get("focus_command") or f"make stock-report TICKER={monitor_ticker}"),
+                "command": f"make stock-report-md TICKER={monitor_ticker}",
             }
         )
     return cards
+
+
+def peer_input_ladder_frame(
+    peer_unlock_worklist_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    columns = [
+        "Peer Input Step",
+        "Priority Count",
+        "Active Universe Count",
+        "DCF-Ready Count",
+        "First Ticker",
+        "What This Unlocks",
+        "What Stays Locked",
+        "Trusted Input Path",
+        "Validation Path",
+        "Copy-Only Command",
+    ]
+    if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty or "ticker" not in peer_unlock_worklist_frame.columns:
+        return pd.DataFrame(columns=columns)
+
+    frame = peer_unlock_worklist_frame.copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    if (
+        ticker_readiness_frame is not None
+        and not ticker_readiness_frame.empty
+        and "ticker" in ticker_readiness_frame.columns
+    ):
+        readiness_columns = [
+            column
+            for column in ["ticker", "asset_type", "in_active_universe", "dcf_ready", "peer_ready"]
+            if column in ticker_readiness_frame.columns
+        ]
+        readiness = ticker_readiness_frame[readiness_columns].copy()
+        readiness["ticker"] = readiness["ticker"].astype(str).str.upper().str.strip()
+        frame = frame.merge(readiness, on="ticker", how="left", suffixes=("", "_readiness"))
+
+    if "priority" in frame.columns:
+        frame["priority"] = pd.to_numeric(frame["priority"], errors="coerce").fillna(999).astype(int)
+    else:
+        frame["priority"] = 999
+    if "workflow_group" not in frame.columns:
+        frame["workflow_group"] = ""
+    if "peer_blocker_type" not in frame.columns:
+        frame["peer_blocker_type"] = ""
+    if "workflow_scope" not in frame.columns:
+        frame["workflow_scope"] = ""
+    active = bool_series(frame, "in_active_universe") | frame["workflow_scope"].fillna("").astype(str).str.contains("active", case=False, na=False)
+    dcf_ready = bool_series(frame, "dcf_ready") | frame["workflow_group"].fillna("").astype(str).str.contains("dcf_ready|peer_valuation", case=False, regex=True, na=False)
+    frame = frame.assign(_active=active, _dcf_ready=dcf_ready)
+    asset_type = frame.get("asset_type", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    monitor_proxy = asset_type.isin({"etf", "index_proxy", "fund"}) | asset_type.str.contains("etf|index|fund", na=False)
+    frame = frame.loc[~monitor_proxy].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=columns)
+
+    step_definitions = [
+        {
+            "label": "1. Add source-backed peer mappings",
+            "mask": frame["peer_blocker_type"].fillna("").astype(str).eq("missing_peer_mapping")
+            | frame["workflow_group"].fillna("").astype(str).str.contains("peer_mapping", case=False, na=False),
+            "unlocks": "A trusted peer set for the subject company; peer trend can be checked after mapped peer price history is ready.",
+            "locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked.",
+            "path": "data/imports/peers.csv",
+            "validation": "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness",
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "label": "2. Add peer price history",
+            "mask": frame["peer_blocker_type"].fillna("").astype(str).isin(["peer_price_missing", "peer_momentum_missing"])
+            | frame["workflow_group"].fillna("").astype(str).str.contains("peer_trend", case=False, na=False),
+            "unlocks": "Peer trend context from mapped peer price history.",
+            "locked": "Peer valuation remains locked until peer fundamentals and valuation inputs pass readiness.",
+            "path": "data/imports/prices.csv or data/staged/prices/",
+            "validation": "make focus-price TICKER=<peer> -> make price-validate -> make price-preview -> make price-apply -> make readiness",
+            "command": "make price-worklist TOP_N=25",
+        },
+        {
+            "label": "3. Add peer fundamentals",
+            "mask": frame["peer_blocker_type"].fillna("").astype(str).eq("peer_fundamentals_missing")
+            | frame["workflow_group"].fillna("").astype(str).str.contains("peer_valuation", case=False, na=False),
+            "unlocks": "Peer valuation input readiness for mapped peers.",
+            "locked": "Peer-relative valuation stays withheld until all mapped peer valuation inputs pass readiness.",
+            "path": "data/imports/fundamentals.csv or data/staged/fundamentals/",
+            "validation": "make focus-fundamentals TICKER=<peer> -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness",
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "label": "4. Rebuild peer valuation readiness",
+            "mask": frame["peer_blocker_type"].fillna("").astype(str).eq("peer_valuation_blocked")
+            | frame["peer_valuation_status"].fillna("").astype(str).str.contains("blocked", case=False, na=False),
+            "unlocks": "Peer-relative valuation only when mappings, peer prices, and peer fundamentals are all ready.",
+            "locked": "No peer premium/discount or peer DCF comparison before readiness passes.",
+            "path": "outputs/peer_unlock_worklist.csv and data/reports/peer_readiness_report.csv",
+            "validation": "make readiness -> make peer-mapping-queue TOP_N=25 -> make stock-report-md TICKER=<ticker>",
+            "command": "make readiness && make peer-mapping-queue TOP_N=25",
+        },
+    ]
+
+    rows: list[dict[str, object]] = []
+    for definition in step_definitions:
+        subset = frame.loc[definition["mask"]].copy()
+        if subset.empty:
+            continue
+        subset = subset.sort_values(["priority", "_active", "_dcf_ready", "ticker"], ascending=[True, False, False, True], kind="stable")
+        first = subset.iloc[0]
+        first_command = format_missing(first.get("focus_command"), definition["command"])
+        if first_command == "Not available":
+            first_command = definition["command"]
+        rows.append(
+            {
+                "Peer Input Step": definition["label"],
+                "Priority Count": len(subset),
+                "Active Universe Count": int(subset["_active"].sum()),
+                "DCF-Ready Count": int(subset["_dcf_ready"].sum()),
+                "First Ticker": format_missing(first.get("ticker"), "Ticker"),
+                "What This Unlocks": definition["unlocks"],
+                "What Stays Locked": definition["locked"],
+                "Trusted Input Path": definition["path"],
+                "Validation Path": definition["validation"],
+                "Copy-Only Command": first_command,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict[str, object]]:
+    if peer_input_ladder is None or peer_input_ladder.empty:
+        return [
+            {
+                "kicker": "PEER INPUT LADDER",
+                "title": "No peer input ladder rows",
+                "body": "Run readiness and peer-mapping queue outputs before assuming peer valuation is ready.",
+                "badges": ["readiness first", "no guessed peers"],
+                "command": "make readiness",
+            }
+        ]
+    frame = peer_input_ladder.copy()
+    first = frame.iloc[0]
+    total_rows = int(pd.to_numeric(frame.get("Priority Count"), errors="coerce").fillna(0).sum())
+    active_rows = int(pd.to_numeric(frame.get("Active Universe Count"), errors="coerce").fillna(0).sum())
+    dcf_rows = int(pd.to_numeric(frame.get("DCF-Ready Count"), errors="coerce").fillna(0).sum())
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    return [
+        {
+            "kicker": "PEER INPUT LADDER",
+            "title": f"{total_rows} peer input row(s)",
+            "body": (
+                f"{active_rows} active-universe row(s) and {dcf_rows} DCF-ready row(s) are prioritized before broad peer cleanup. "
+                "Follow the ladder; do not skip from mappings to peer valuation."
+            ),
+            "badges": ["active first", "DCF-ready first"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "NEXT PEER INPUT",
+            "title": format_missing(first.get("Peer Input Step"), "Next peer input"),
+            "body": (
+                f"First ticker: {format_missing(first.get('First Ticker'), 'Ticker')}. "
+                f"Unlocks: {format_missing(first.get('What This Unlocks'), '')} "
+                f"Still locked: {format_missing(first.get('What Stays Locked'), '')}"
+            ),
+            "badges": ["one step first", "source-backed only"],
+            "command": format_missing(first.get("Copy-Only Command"), "make peer-mapping-queue TOP_N=25"),
+        },
+        {
+            "kicker": "TRUSTED PEER PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "Trusted peer input path"),
+            "body": (
+                f"Schema guide: {peer_schema_guide}. Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                "Sector or industry fallback can guide research context only; it is not trusted peer valuation data."
+            ),
+            "badges": ["validate", "fallback labeled"],
+            "command": format_missing(first.get("Copy-Only Command"), "make peer-mapping-queue TOP_N=25"),
+        },
+    ]
 
 
 def _first_peer_unlock_ticker(peer_unlock_worklist_frame: pd.DataFrame | None) -> str:
@@ -6764,11 +8151,20 @@ def _first_peer_unlock_ticker(peer_unlock_worklist_frame: pd.DataFrame | None) -
         frame["priority"] = 999
     if "workflow_group" not in frame.columns:
         frame["workflow_group"] = ""
+    if "workflow_scope" not in frame.columns:
+        frame["workflow_scope"] = ""
     mapping_mask = frame["workflow_group"].fillna("").astype(str).str.contains("peer_mapping|missing_peer_mapping|dcf_ready_peer_mapping", case=False, na=False)
     candidates = frame.loc[mapping_mask].copy()
     if candidates.empty:
         candidates = frame.copy()
-    candidates = candidates.sort_values(["priority", "ticker"], kind="stable")
+    scope_text = candidates["workflow_scope"].fillna("").astype(str).str.lower()
+    workflow_text = candidates["workflow_group"].fillna("").astype(str).str.lower()
+    active_flag = bool_series(candidates, "in_active_universe") if "in_active_universe" in candidates.columns else pd.Series(False, index=candidates.index)
+    dcf_flag = bool_series(candidates, "dcf_ready") if "dcf_ready" in candidates.columns else pd.Series(False, index=candidates.index)
+    active_rank = ~(active_flag | scope_text.str.contains("active", na=False))
+    dcf_rank = ~(dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))
+    candidates = candidates.assign(_active_rank=active_rank.astype(int), _dcf_rank=dcf_rank.astype(int))
+    candidates = candidates.sort_values(["_active_rank", "_dcf_rank", "priority", "ticker"], kind="stable")
     return format_missing(candidates.iloc[0].get("ticker"), "")
 
 
@@ -6785,7 +8181,10 @@ def first_peer_mapping_unlock_frame(peer_unlock_worklist_frame: pd.DataFrame | N
         },
         {
             "Step": "2. Add source-backed mappings only",
-            "Why It Matters": "Peer relationships must come from trusted research context; sector or industry fallback is not trusted peer data.",
+            "Why It Matters": (
+                "Peer relationships must come from trusted research context; sector or industry fallback is not trusted peer data. "
+                "Schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date."
+            ),
             "Copy Command": "make templates",
             "Trusted Input": "data/imports/peers.csv",
         },
@@ -6827,9 +8226,9 @@ def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | N
         {
             "kicker": "PEER READINESS PROOF",
             "title": "Validate, preview, apply, then rebuild",
-            "body": "Do not show peer-relative valuation until source-backed mappings and required peer inputs pass readiness.",
+            "body": "Do not show peer-relative valuation until source-backed mappings and required peer inputs pass readiness after a rebuild.",
             "badges": ["peer valuation gated", "copy-only"],
-            "command": "make imports-validate && make imports-preview && make imports-apply",
+            "command": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
         },
     ]
 
@@ -6887,7 +8286,7 @@ def fundamentals_dcf_diagnostic_cards(
                 dcf_frame["missing_dcf_fields"]
                 .fillna("")
                 .astype(str)
-                .str.split(",")
+                .str.split(r"[,;|]", regex=True)
                 .explode()
                 .str.strip()
             )
@@ -6899,6 +8298,40 @@ def fundamentals_dcf_diagnostic_cards(
 
     sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip()) or sec_configured_from_report
     sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
+    fundamentals_validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+    fundamentals_input_path = "data/imports/fundamentals.csv or reviewed SEC stage draft"
+    fundamentals_schema_guide = "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at"
+    fundamentals_rejected_path = "data/rejected/fundamentals_import_rejected.csv"
+    if next_ticker != "Not available":
+        dcf_field_gap_body = (
+            "These are field-level blockers from the DCF readiness report, not company conclusions. "
+            f"Inspect {next_ticker} with `make focus-fundamentals TICKER={next_ticker}`, then add trusted fundamentals "
+            f"through {fundamentals_input_path} before rerunning `make dcf-readiness`. "
+            f"Schema guide: {fundamentals_schema_guide}. "
+            f"Validation sequence: {fundamentals_validation_sequence}. Rejected-row report: {fundamentals_rejected_path}. "
+            f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
+        )
+        dcf_field_gap_command = f"make focus-fundamentals TICKER={next_ticker}"
+    else:
+        dcf_field_gap_body = (
+            "These are field-level blockers from the DCF readiness report, not company conclusions. "
+            "Run `make dcf-readiness` and `make sec-stage-queue TOP_N=25` to rebuild the missing-field view before assuming coverage improved. "
+            f"When trusted rows exist, use {fundamentals_input_path}; schema guide: {fundamentals_schema_guide}. "
+            f"Validation sequence: {fundamentals_validation_sequence}. "
+            f"Rejected-row report: {fundamentals_rejected_path}. "
+            f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
+        )
+        dcf_field_gap_command = "make dcf-readiness"
+    dcf_proof_command = (
+        f"make focus-fundamentals TICKER={next_ticker}"
+        if next_ticker != "Not available"
+        else "make dcf-readiness"
+    )
+    dcf_report_command = (
+        stock_report_md_command(next_ticker)
+        if next_ticker != "Not available"
+        else "make stock-report-md TICKER=NVDA"
+    )
     return [
         {
             "kicker": "FUNDAMENTALS GAP",
@@ -6920,9 +8353,22 @@ def fundamentals_dcf_diagnostic_cards(
         {
             "kicker": "DCF FIELD GAPS",
             "title": missing_field_text,
-            "body": f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation.",
-            "badges": ["missing fields explicit", "excluded is not failed"],
-            "command": "make dcf-readiness",
+            "body": dcf_field_gap_body,
+            "badges": ["missing fields explicit", "field-level next step", "excluded is not failed"],
+            "command": dcf_field_gap_command,
+        },
+        {
+            "kicker": "DCF PROOF LADDER",
+            "title": "Input -> readiness -> DCF -> report",
+            "body": (
+                "Use this to audit the method before reading valuation output: trusted fundamentals row, then import validation, "
+                "then DCF readiness, then the single-stock report. The report should show source/freshness, missing fields, "
+                "DCF calculation path, and valuation boundaries before any interpretation. "
+                f"Copy sequence: `{dcf_proof_command}` -> `make imports-validate` -> `make imports-preview` -> "
+                f"`make imports-apply` -> `make dcf-readiness` -> `{dcf_report_command}`."
+            ),
+            "badges": ["method proof", "no black box"],
+            "command": dcf_proof_command,
         },
         {
             "kicker": "DCF-READY PEER BLOCKERS",
@@ -6936,11 +8382,470 @@ def fundamentals_dcf_diagnostic_cards(
             "title": "SEC import draft workflow" if sec_configured else "Manual CSV fallback",
             "body": (
                 f"Use {sec_stage_command} for SEC fundamentals import draft when a trusted SEC_USER_AGENT is configured, "
-                "or fill data/imports/fundamentals.csv with trusted rows. "
-                "Always run make imports-validate, make imports-preview, and make imports-apply before claiming readiness improved."
+                f"or fill {fundamentals_input_path} with trusted rows. "
+                f"Schema guide: {fundamentals_schema_guide}. "
+                f"Always run {fundamentals_validation_sequence} before claiming readiness improved. "
+                f"Rejected rows appear in {fundamentals_rejected_path}."
             ),
             "badges": ["source/freshness audit", "copy only"],
             "command": sec_stage_command,
+        },
+    ]
+
+
+def fundamentals_peer_unlock_story_cards(
+    ticker_readiness_frame: pd.DataFrame | None,
+    peer_readiness_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return [
+            {
+                "kicker": "UNLOCK STORY",
+                "title": "Run readiness first",
+                "body": "What this means: Data Health needs current readiness rows before it can separate fundamentals work from peer valuation work.",
+                "badges": ["readiness first", "no guessing"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = ticker_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    asset_type = frame.get("asset_type", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower()
+    company = asset_type.eq("company")
+    monitor = asset_type.isin(["etf", "fund", "index", "index_proxy"]) | frame.get(
+        "excluded_features", pd.Series("", index=frame.index)
+    ).fillna("").astype(str).str.lower().str.contains("dcf")
+    price_ready = bool_series(frame, "price_ready")
+    fundamentals_ready = bool_series(frame, "fundamentals_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    peer_ready = bool_series(frame, "peer_ready")
+    optional_locked = ~bool_series(frame, "earnings_ready") | ~bool_series(frame, "analyst_estimates_ready")
+    price_ready_missing_fundamentals = frame.loc[company & price_ready & ~fundamentals_ready].copy()
+    dcf_ready_peer_blocked = frame.loc[company & dcf_ready & ~peer_ready].copy()
+    dcf_ready_peer_ready = frame.loc[company & dcf_ready & peer_ready].copy()
+    monitor_excluded_count = int(monitor.sum())
+
+    def example_text(subset: pd.DataFrame, fallback: str = "none yet") -> str:
+        if subset.empty or "ticker" not in subset.columns:
+            return fallback
+        tickers = [
+            ticker
+            for ticker in subset["ticker"].dropna().astype(str).str.upper().str.strip().head(4).tolist()
+            if ticker and ticker.lower() not in {"nan", "none"}
+        ]
+        return ", ".join(tickers) if tickers else fallback
+
+    peer_rows = 0 if peer_readiness_frame is None or peer_readiness_frame.empty else len(peer_readiness_frame)
+    return [
+        {
+            "kicker": "WHAT THIS MEANS",
+            "title": "Fundamentals unlock DCF; peers unlock relative context",
+            "body": (
+                "Price-ready companies need trusted fundamentals before standalone DCF. "
+                "DCF-ready companies still need source-backed peers before peer-relative valuation appears."
+            ),
+            "badges": ["sequence visible", "data-honest"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
+            "title": f"{len(dcf_ready_peer_ready)} DCF + peer-ready company row(s)",
+            "body": (
+                f"Examples: {example_text(dcf_ready_peer_ready)}. Review assumptions, sensitivity, peer caveats, and source freshness; "
+                "do not turn readiness into allocation instructions."
+            ),
+            "badges": ["supported review", "research-only"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "FUNDAMENTALS STILL LOCKED",
+            "title": f"{len(price_ready_missing_fundamentals)} price-ready company row(s)",
+            "body": (
+                f"Examples: {example_text(price_ready_missing_fundamentals)}. Add trusted fundamentals before DCF math, fair value/share, "
+                "or valuation interpretation appears."
+            ),
+            "badges": ["trusted fundamentals", "DCF locked"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "PEER VALUATION STILL LOCKED",
+            "title": f"{len(dcf_ready_peer_blocked)} DCF-ready peer-blocked row(s)",
+            "body": (
+                f"Examples: {example_text(dcf_ready_peer_blocked)}. Peer readiness rows loaded: {peer_rows}. "
+                "Use source-backed peer mappings and peer inputs; sector fallback is not trusted peer valuation."
+            ),
+            "badges": ["peer valuation gated", f"{monitor_excluded_count} monitor excluded"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"{int((company & optional_locked).sum())} company row(s) still optional-context locked",
+            "body": "Earnings and analyst estimates stay lower-priority optional context until trusted local CSV rows pass validation, preview, and apply.",
+            "badges": ["earnings locked", "estimates locked"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+    ]
+
+
+def data_health_fundamentals_unlock_frame(
+    fundamentals_peer_worklist_frame: pd.DataFrame | None,
+    limit: int = 10,
+) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "Priority Scope",
+        "Price Readiness Gate",
+        "Current State",
+        "What You Can Analyze Now",
+        "What Is Still Locked",
+        "Missing Trusted Inputs",
+        "Trusted Input Path",
+        "What This Unlocks",
+        "No-Conclusion Boundary",
+        "Next Safe Sequence",
+        "Readiness Proof",
+        "Copy-Only Command",
+        "Validation Path",
+    ]
+    if fundamentals_peer_worklist_frame is None or fundamentals_peer_worklist_frame.empty:
+        return pd.DataFrame(columns=columns)
+
+    frame = fundamentals_peer_worklist_frame.copy()
+    if "ticker" not in frame.columns:
+        return pd.DataFrame(columns=columns)
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    missing_fundamentals = ~bool_series(frame, "has_fundamentals") if "has_fundamentals" in frame.columns else pd.Series(True, index=frame.index)
+    missing_dcf = (
+        frame.get("missing_required_for_dcf", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
+    )
+    unlock_rows = frame.loc[missing_fundamentals | missing_dcf].copy()
+    if unlock_rows.empty:
+        return pd.DataFrame(columns=columns)
+    active_rank = (
+        ~bool_series(unlock_rows, "in_active_universe")
+        if "in_active_universe" in unlock_rows.columns
+        else pd.Series(True, index=unlock_rows.index)
+    )
+    price_ready_rank = (
+        ~bool_series(unlock_rows, "price_ready")
+        if "price_ready" in unlock_rows.columns
+        else pd.Series(False, index=unlock_rows.index)
+    )
+    unlock_rows = unlock_rows.assign(_active_rank=active_rank.astype(int), _price_ready_rank=price_ready_rank.astype(int))
+    if "priority" in unlock_rows.columns:
+        unlock_rows = unlock_rows.sort_values(
+            ["_active_rank", "_price_ready_rank", "priority", "ticker"],
+            na_position="last",
+            kind="stable",
+        )
+    else:
+        unlock_rows = unlock_rows.sort_values(["_active_rank", "_price_ready_rank", "ticker"], kind="stable")
+
+    rows: list[dict[str, object]] = []
+    for _, row in unlock_rows.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        missing_inputs = _plain_missing_input_list(row.get("missing_required_for_dcf"), "company fundamentals for DCF")
+        command = format_missing(row.get("focus_command"), f"make focus-fundamentals TICKER={ticker}")
+        if not command.startswith("make focus-fundamentals"):
+            command = f"make focus-fundamentals TICKER={ticker}"
+        priority = format_missing(row.get("priority"), "not ranked")
+        active_scope = str(row.get("in_active_universe", "")).strip().lower() in {"true", "1", "yes", "y"}
+        scope = format_missing(row.get("workflow_scope"), "active universe" if active_scope else "master universe").replace("_", " ")
+        price_ready = str(row.get("price_ready", "")).strip().lower() in {"true", "1", "yes", "y"}
+        price_gate = (
+            "Price ready: fundamentals can unlock DCF after trusted rows pass validation."
+            if price_ready
+            else "Price not confirmed ready: fix price coverage before treating fundamentals as DCF-unlocking."
+        )
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Priority Scope": f"Priority {priority}; {scope}",
+                "Price Readiness Gate": price_gate,
+                "Current State": "Price/setup context may be ready only when the price gate is ready; company fundamentals are still locked",
+                "What You Can Analyze Now": "Use ready price/setup/risk context only; do not read company valuation yet.",
+                "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
+                "Missing Trusted Inputs": missing_inputs,
+                "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
+                "What This Unlocks": "Trusted fundamentals can unlock DCF readiness checks, scenario assumptions, and fair value/share review when all required fields pass.",
+                "No-Conclusion Boundary": "Do not label the ticker undervalued, overvalued, or DCF-ready until trusted fundamentals and DCF readiness pass.",
+                "Next Safe Sequence": (
+                    f"1. Inspect `{command}`. 2. Use `make sec-stage TICKERS={ticker}` when SEC_USER_AGENT is configured, "
+                    "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
+                    "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+                ),
+                "Readiness Proof": "Run `make dcf-readiness` and `make readiness`, then reopen Data Health or the single-stock report before reading DCF output.",
+                "Copy-Only Command": command,
+                "Validation Path": "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness",
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def next_fundamentals_unlock_ticker(fundamentals_peer_worklist_frame: pd.DataFrame | None) -> str:
+    frame = data_health_fundamentals_unlock_frame(fundamentals_peer_worklist_frame, limit=1)
+    if frame.empty:
+        return ""
+    return format_missing(frame.iloc[0].get("Ticker"), "")
+
+
+def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if fundamentals_unlock_frame is None or fundamentals_unlock_frame.empty:
+        return [
+            {
+                "kicker": "FUNDAMENTALS QUEUE",
+                "title": "No fundamentals unlock rows",
+                "body": "No price-ready fundamentals-locked rows are visible in the current worklist. Regenerate readiness before assuming coverage improved.",
+                "badges": ["current output", "no inference"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = fundamentals_unlock_frame.copy()
+    first = frame.iloc[0]
+    ticker = format_missing(first.get("Ticker"), "Ticker")
+    locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
+    missing = compact_reason(first.get("Missing Trusted Inputs"), max_sentences=1, max_chars=140)
+    boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
+    price_gate = compact_reason(first.get("Price Readiness Gate"), max_sentences=1, max_chars=160)
+    priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
+    sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, stage trusted fundamentals only, then validate, preview, apply, and rerun DCF readiness.")
+    proof = format_missing(first.get("Readiness Proof"), "Run make dcf-readiness and make readiness before reading DCF output.")
+    command = format_missing(first.get("Copy-Only Command"), f"make focus-fundamentals TICKER={ticker}")
+    return [
+        {
+            "kicker": "FUNDAMENTALS QUEUE",
+            "title": f"{len(frame)} row(s) need trusted fundamentals",
+            "body": (
+                f"Open this before interpreting company valuation. First row: {priority_scope}. "
+                f"Price gate: {price_gate}. Price/setup can be reviewed when price is ready, but company fundamentals and DCF stay gated."
+            ),
+            "badges": ["price-ready", "fundamentals locked"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "NEXT FUNDAMENTALS ROW",
+            "title": ticker,
+            "body": f"Missing trusted inputs: {missing}. Still locked: {locked}. Boundary: {boundary}.",
+            "badges": ["one ticker first", "no valuation inference"],
+            "command": command,
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "Prove the fundamentals unlock before DCF",
+            "body": (
+                f"Copy next: `{command}`. After trusted SEC or manual fundamentals rows are staged, run "
+                "`make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, "
+                "and `make readiness` before treating fundamentals or DCF as unlocked."
+            ),
+            "badges": ["copy-only", "proof before analysis"],
+            "command": command,
+        },
+        {
+            "kicker": "TRUSTED INPUT PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "data/imports/fundamentals.csv"),
+            "body": (
+                f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make imports-validate -> make imports-preview -> make imports-apply')}. "
+                f"Readiness proof: {proof}"
+            ),
+            "badges": ["validate", "preview before apply", "proof before analysis"],
+            "command": "make imports-validate && make imports-preview && make imports-apply",
+        },
+    ]
+
+
+def data_health_peer_unlock_frame(
+    peer_mapping_queue_frame: pd.DataFrame | None,
+    fundamentals_peer_worklist_frame: pd.DataFrame | None = None,
+    limit: int = 10,
+) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "Priority Scope",
+        "DCF Readiness Gate",
+        "Current State",
+        "Peer Trend State",
+        "Peer Valuation State",
+        "What You Can Analyze Now",
+        "What Is Still Locked",
+        "Trusted Peer Requirement",
+        "Trusted Input Path",
+        "What This Unlocks",
+        "No-Conclusion Boundary",
+        "Next Safe Sequence",
+        "Readiness Proof",
+        "Copy-Only Command",
+        "Validation Path",
+    ]
+    source = peer_mapping_queue_frame
+    if source is None or source.empty:
+        source = fundamentals_peer_worklist_frame
+    if source is None or source.empty or "ticker" not in source.columns:
+        return pd.DataFrame(columns=columns)
+
+    frame = source.copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    missing_mapping = ~bool_series(frame, "has_peer_mapping") if "has_peer_mapping" in frame.columns else pd.Series(True, index=frame.index)
+    peer_not_ready = ~bool_series(frame, "peer_ready") if "peer_ready" in frame.columns else pd.Series(True, index=frame.index)
+    missing_peer_inputs = (
+        frame.get("missing_required_for_peer_relative", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
+    )
+    unlock_rows = frame.loc[missing_mapping | peer_not_ready | missing_peer_inputs].copy()
+    if unlock_rows.empty:
+        return pd.DataFrame(columns=columns)
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    if "priority" in unlock_rows.columns:
+        scope_text = unlock_rows.get("workflow_scope", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
+        workflow_text = unlock_rows.get("workflow_group", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
+        active_flag = bool_series(unlock_rows, "in_active_universe") if "in_active_universe" in unlock_rows.columns else pd.Series(False, index=unlock_rows.index)
+        dcf_flag = bool_series(unlock_rows, "dcf_ready") if "dcf_ready" in unlock_rows.columns else pd.Series(False, index=unlock_rows.index)
+        active_rank = ~(
+            active_flag
+            | scope_text.str.contains("active", na=False)
+        )
+        dcf_rank = ~(
+            dcf_flag
+            | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False)
+        )
+        unlock_rows = unlock_rows.assign(_active_rank=active_rank.astype(int), _dcf_rank=dcf_rank.astype(int))
+        unlock_rows = unlock_rows.sort_values(["_active_rank", "_dcf_rank", "priority", "ticker"], na_position="last", kind="stable")
+    else:
+        scope_text = unlock_rows.get("workflow_scope", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
+        workflow_text = unlock_rows.get("workflow_group", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
+        active_flag = bool_series(unlock_rows, "in_active_universe") if "in_active_universe" in unlock_rows.columns else pd.Series(False, index=unlock_rows.index)
+        dcf_flag = bool_series(unlock_rows, "dcf_ready") if "dcf_ready" in unlock_rows.columns else pd.Series(False, index=unlock_rows.index)
+        active_rank = ~(active_flag | scope_text.str.contains("active", na=False))
+        dcf_rank = ~(dcf_flag | workflow_text.str.contains("dcf_ready|peer_valuation_unlock", regex=True, na=False))
+        unlock_rows = unlock_rows.assign(_active_rank=active_rank.astype(int), _dcf_rank=dcf_rank.astype(int))
+        unlock_rows = unlock_rows.sort_values(["_active_rank", "_dcf_rank", "ticker"], kind="stable")
+
+    rows: list[dict[str, object]] = []
+    for _, row in unlock_rows.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        requirement = _plain_missing_input_list(
+            first_meaningful_text(row.get("missing_required_for_peer_relative"), row.get("recommended_action"), fallback="source-backed peer mappings")
+        )
+        command = format_missing(row.get("focus_command"), f"make focus-peers TICKER={ticker}")
+        if not command.startswith("make focus-peers"):
+            command = f"make focus-peers TICKER={ticker}"
+        priority = format_missing(row.get("priority"), "not ranked")
+        active_scope = str(row.get("in_active_universe", "")).strip().lower() in {"true", "1", "yes", "y"} or "active" in str(row.get("workflow_scope", "")).lower()
+        scope = format_missing(row.get("workflow_scope"), "active universe" if active_scope else "master universe").replace("_", " ")
+        workflow_group = str(row.get("workflow_group", "")).lower()
+        dcf_ready = str(row.get("dcf_ready", "")).strip().lower() in {"true", "1", "yes", "y"} or any(
+            token in workflow_group for token in ["dcf_ready", "peer_valuation_unlock"]
+        )
+        dcf_gate = (
+            "DCF ready: standalone DCF can be reviewed while peer valuation waits for trusted peer inputs."
+            if dcf_ready
+            else "DCF not confirmed ready: use peer work for mapping prep only; peer valuation waits behind DCF readiness."
+        )
+        trend_state = format_missing(row.get("peer_trend_status"), "peer trend blocked until source-backed mappings and peer price history are ready").replace("_", " ")
+        valuation_state = format_missing(row.get("peer_valuation_status"), "peer valuation blocked until source-backed peer mappings and valuation inputs pass").replace("_", " ")
+        input_path = format_missing(row.get("next_input_file"), "data/imports/peers.csv with source-backed peer mappings")
+        if input_path == "data/imports/peers.csv":
+            input_path = "data/imports/peers.csv with source-backed peer mappings"
+        validation_path = format_missing(
+            row.get("validation_sequence"),
+            "make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25",
+        )
+        can_review = (
+            "Peer trend context may be reviewed from mapped peer price history; peer valuation stays locked until trusted valuation inputs pass."
+            if "possible" in trend_state or ("ready" in trend_state and "blocked" not in trend_state)
+            else "Review standalone DCF assumptions and sensitivity if DCF is ready; otherwise stay with the ready price/setup context."
+        )
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Priority Scope": f"Priority {priority}; {scope}",
+                "DCF Readiness Gate": dcf_gate,
+                "Current State": "Peer workflow is split: trend can be possible before peer valuation is ready.",
+                "Peer Trend State": trend_state,
+                "Peer Valuation State": valuation_state,
+                "What You Can Analyze Now": can_review,
+                "What Is Still Locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked until source-backed peer inputs pass readiness.",
+                "Trusted Peer Requirement": requirement,
+                "Trusted Input Path": input_path,
+                "What This Unlocks": "Source-backed peer mappings can unlock peer trend context first and peer valuation only after peer valuation inputs also pass.",
+                "No-Conclusion Boundary": "Do not show peer-relative valuation, peer premium/discount, or peer DCF comparison until trusted peer inputs pass readiness.",
+                "Next Safe Sequence": (
+                    f"1. Inspect `{command}`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. "
+                    f"Schema guide: {peer_schema_guide}. "
+                    "3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply`. "
+                    "4. Run `make readiness` and `make peer-mapping-queue TOP_N=25` before reading peer valuation."
+                ),
+                "Readiness Proof": "Run `make readiness` and `make peer-mapping-queue TOP_N=25`, then reopen Data Health or the single-stock report before reading peer-relative valuation.",
+                "Copy-Only Command": command,
+                "Validation Path": validation_path,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if peer_unlock_frame is None or peer_unlock_frame.empty:
+        return [
+            {
+                "kicker": "PEER QUEUE",
+                "title": "No peer unlock rows",
+                "body": "No peer-locked rows are visible in the current queue. Regenerate readiness before assuming peer valuation is available.",
+                "badges": ["current output", "no guessed peers"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = peer_unlock_frame.copy()
+    first = frame.iloc[0]
+    ticker = format_missing(first.get("Ticker"), "Ticker")
+    locked = compact_reason(first.get("What Is Still Locked"), max_sentences=1, max_chars=180)
+    requirement = compact_reason(first.get("Trusted Peer Requirement"), max_sentences=1, max_chars=140)
+    boundary = compact_reason(first.get("No-Conclusion Boundary"), max_sentences=1, max_chars=170)
+    trend_state = compact_reason(first.get("Peer Trend State"), max_sentences=1, max_chars=120)
+    valuation_state = compact_reason(first.get("Peer Valuation State"), max_sentences=1, max_chars=120)
+    dcf_gate = compact_reason(first.get("DCF Readiness Gate"), max_sentences=1, max_chars=160)
+    priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
+    sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
+    proof = format_missing(first.get("Readiness Proof"), "Run make readiness and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
+    command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    return [
+        {
+            "kicker": "PEER QUEUE",
+            "title": f"{len(frame)} row(s) need trusted peer inputs",
+            "body": (
+                f"Open this before reading peer-relative valuation. First row: {priority_scope}; prioritize active-universe "
+                "and DCF-ready peer blockers before broad peer work. Peer trend can be reviewed separately when mapped peer price history is ready; "
+                "it does not unlock peer valuation. Standalone DCF can be reviewed only when DCF is ready; peer premium/discount stays locked."
+            ),
+            "badges": ["peer gated", "source-backed only"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "NEXT PEER ROW",
+            "title": ticker,
+            "body": f"DCF gate: {dcf_gate}. Trend: {trend_state}. Valuation: {valuation_state}. Trusted peer requirement: {requirement}. Still locked: {locked}. Boundary: {boundary}.",
+            "badges": ["one ticker first", "no fallback valuation"],
+            "command": command,
+        },
+        {
+            "kicker": "TRUSTED PEER PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "data/imports/peers.csv"),
+            "body": (
+                f"Schema guide: {peer_schema_guide}. {sequence} "
+                f"Validation path: {format_missing(first.get('Validation Path'), 'make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply')}. "
+                f"Readiness proof: {proof}"
+            ),
+            "badges": ["validate", "preview before apply", "proof before valuation"],
+            "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
         },
     ]
 
@@ -6950,28 +8855,40 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
     has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
     sec_command = f"make sec-stage TICKERS={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
     focus_command = f"make focus-fundamentals TICKER={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
-    preferred_path = "SEC import draft path" if sec_configured else "Manual CSV path"
+    preferred_path = "data/staged/fundamentals/ SEC drafts" if sec_configured else "data/imports/fundamentals.csv manual rows"
+    required_fields = "minimum DCF fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source"
+    rejected_rows = "rejected rows: data/rejected/fundamentals_import_rejected.csv"
     first_command = focus_command if has_ticker else "make sec-stage-queue TOP_N=25"
     rows = [
         {
             "Step": "1. Pick the next company",
-            "Why It Matters": "Start with one price-ready company so missing fundamentals and DCF fields stay reviewable.",
+            "Why It Matters": (
+                "Start with one price-ready company so missing fundamentals and DCF fields stay reviewable. "
+                f"Required input checklist: {required_fields}."
+            ),
             "Copy Command": first_command,
             "Trusted Input": "Current readiness and DCF reports",
         },
         {
             "Step": "2. Choose the trusted input path",
             "Why It Matters": (
-                "SEC_USER_AGENT is configured, so SEC import draft workflow can prepare rows for review."
+                f"SEC_USER_AGENT is configured, so SEC import draft workflow can prepare rows for review. Check {rejected_rows} after validation."
                 if sec_configured
-                else "SEC_USER_AGENT is missing, so use trusted manual CSV rows instead of remote staging."
+                else f"SEC_USER_AGENT is missing, so use trusted manual CSV rows instead of remote staging. Check {rejected_rows} after validation."
             ),
             "Copy Command": sec_command if sec_configured else "make templates",
-            "Trusted Input": "SEC company facts import draft workflow" if sec_configured else "data/imports/fundamentals.csv",
+            "Trusted Input": (
+                f"SEC company facts draft rows in data/staged/fundamentals/; canonical reviewed import file is data/imports/fundamentals.csv; {required_fields}"
+                if sec_configured
+                else f"data/imports/fundamentals.csv; {required_fields}"
+            ),
         },
         {
             "Step": "3. Validate before applying",
-            "Why It Matters": "Readiness counts should improve only after trusted rows pass validation, preview, and apply.",
+            "Why It Matters": (
+                "Readiness counts should improve only after trusted rows pass validation, preview, and apply. "
+                "Rejected rows must be reviewed before treating fundamentals or DCF as unlocked."
+            ),
             "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
             "Trusted Input": "Rejected rows: data/rejected/fundamentals_import_rejected.csv",
         },
@@ -7014,6 +8931,176 @@ def first_fundamentals_unlock_cards(sec_configured: bool, next_ticker: str | Non
     ]
 
 
+def _dcf_missing_field_key(value: object) -> str:
+    text = format_missing(value, "")
+    if not text:
+        return ""
+    text = text.strip().strip("`.,;:")
+    if text.lower().startswith("missing "):
+        text = text[8:].strip()
+    text = text.lower().replace("-", "_").replace(" ", "_")
+    return re.sub(r"[^a-z0-9_]", "", text)
+
+
+def dcf_missing_field_guide_frame(
+    dcf_readiness_frame: pd.DataFrame | None,
+    *,
+    sec_configured: bool = False,
+    limit: int = 6,
+) -> pd.DataFrame:
+    columns = [
+        "Missing Input",
+        "Affected Companies",
+        "Example Tickers",
+        "Price-Ready Examples",
+        "Why It Matters",
+        "Trusted Input Path",
+        "Schema Fields",
+        "Next Safe Sequence",
+        "Validation Path",
+        "Conclusion Boundary",
+        "Copy-Only Command",
+    ]
+    if dcf_readiness_frame is None or dcf_readiness_frame.empty or "missing_dcf_fields" not in dcf_readiness_frame.columns:
+        return pd.DataFrame(columns=columns)
+
+    frame = dcf_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    asset_type = frame.get("asset_type", pd.Series("company", index=frame.index)).fillna("").astype(str).str.lower()
+    company = asset_type.eq("company") | asset_type.eq("")
+    ready = bool_series(frame, "is_dcf_ready") if "is_dcf_ready" in frame.columns else pd.Series(False, index=frame.index)
+    blocked = frame.loc[company & ~ready].copy()
+    if blocked.empty:
+        return pd.DataFrame(columns=columns)
+
+    grouped: dict[str, list[str]] = {}
+    price_ready_grouped: dict[str, list[str]] = {}
+    for _, row in blocked.iterrows():
+        ticker = format_missing(row.get("ticker"), "").upper()
+        price_ready = str(row.get("has_price", "")).strip().lower() in {"true", "1", "yes", "y"}
+        raw_fields = str(row.get("missing_dcf_fields") or row.get("reason_not_ready") or "").strip()
+        if raw_fields.lower().startswith("missing "):
+            raw_fields = raw_fields[8:].strip()
+        field_parts = [part.strip() for part in re.split(r"[,;|]", raw_fields) if part.strip()]
+        if not field_parts:
+            field_parts = ["fundamentals"]
+        for raw_field in field_parts:
+            key = _dcf_missing_field_key(raw_field)
+            if not key:
+                continue
+            grouped.setdefault(key, [])
+            if ticker and ticker not in grouped[key]:
+                grouped[key].append(ticker)
+            price_ready_grouped.setdefault(key, [])
+            if ticker and price_ready and ticker not in price_ready_grouped[key]:
+                price_ready_grouped[key].append(ticker)
+
+    rows: list[dict[str, object]] = []
+    for key, tickers in sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:limit]:
+        detail = DCF_INPUT_TRIAGE.get(key, DCF_INPUT_TRIAGE["fundamentals"])
+        label = public_status_label(key.replace("_", " "))
+        price_ready_examples = price_ready_grouped.get(key, [])
+        example_candidates = price_ready_examples if key not in {"price", "market_cap_or_price_and_shares"} and price_ready_examples else tickers
+        example = example_candidates[0] if example_candidates else "TICKER"
+        if key in {"price", "market_cap_or_price_and_shares"}:
+            trusted_path = "data/imports/prices.csv or data/staged/prices/"
+            schema_fields = "ticker, date, open, high, low, close, volume, source"
+            command = f"make focus-price TICKER={example}"
+            next_sequence = (
+                f"1. Inspect `{command}`. 2. Run `make price-refresh-loop DRY_RUN=1` for a capped plan "
+                "or prepare trusted OHLCV rows. 3. Run `make price-validate`, `make price-preview`, "
+                "`make price-apply`, then `make dcf-readiness`."
+            )
+            validation_path = "make price-validate -> make price-preview -> make price-apply -> make dcf-readiness"
+        else:
+            trusted_path = "data/imports/fundamentals.csv or reviewed SEC draft rows in data/staged/fundamentals/"
+            schema_fields = "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source, updated_at"
+            command = f"make focus-fundamentals TICKER={example}"
+            second_step = (
+                f"2. Run `make sec-stage TICKERS={example}` when SEC_USER_AGENT is configured, "
+                "or fill `data/imports/fundamentals.csv` with trusted manual rows."
+                if sec_configured
+                else "2. Run `make templates`, then fill `data/imports/fundamentals.csv` with trusted manual rows."
+            )
+            next_sequence = (
+                f"1. Inspect `{command}`. {second_step} "
+                "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+            )
+            validation_path = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+        rows.append(
+            {
+                "Missing Input": label,
+                "Affected Companies": len(tickers),
+                "Example Tickers": ", ".join(tickers[:5]) if tickers else "Not available",
+                "Price-Ready Examples": ", ".join(price_ready_examples[:5]) if price_ready_examples else "None yet",
+                "Why It Matters": detail["why"],
+                "Trusted Input Path": trusted_path,
+                "Schema Fields": schema_fields,
+                "Next Safe Sequence": next_sequence,
+                "Validation Path": validation_path,
+                "Conclusion Boundary": "DCF math, fair value/share, undervalued, overvalued, and peer-relative conclusions stay withheld until this trusted input passes readiness.",
+                "Copy-Only Command": command,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def dcf_missing_field_guide_cards(field_guide_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if field_guide_frame is None or field_guide_frame.empty:
+        return [
+            {
+                "kicker": "DCF FIELD GUIDE",
+                "title": "No blocked DCF fields loaded",
+                "body": "Run DCF readiness before assuming company valuation inputs are complete.",
+                "badges": ["readiness first", "no inference"],
+                "command": "make dcf-readiness",
+            }
+        ]
+    frame = field_guide_frame.copy()
+    first = frame.iloc[0]
+    affected = pd.to_numeric(frame.get("Affected Companies"), errors="coerce").fillna(0)
+    total_affected = int(affected.sum())
+    first_input = format_missing(first.get("Missing Input"), "the top missing input")
+    first_examples = format_missing(first.get("Example Tickers"), "Not available")
+    return [
+        {
+            "kicker": "DCF FIELD GUIDE",
+            "title": f"{len(frame)} missing input type(s)",
+            "body": (
+                f"{total_affected} company field gap(s) are blocking DCF readiness. "
+                f"Start with {first_input} for {first_examples}. "
+                "Treat these as repair steps, not company-quality conclusions."
+            ),
+            "badges": ["field-level blockers", "no valuation inference"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "TOP MISSING INPUT",
+            "title": first_input,
+            "body": (
+                f"Affected companies: {format_missing(first.get('Affected Companies'), '0')}. "
+                f"Examples: {first_examples}. "
+                f"Why it matters: {format_missing(first.get('Why It Matters'), '')}"
+            ),
+            "badges": ["one field first", "trusted data only"],
+            "command": format_missing(first.get("Copy-Only Command"), "make dcf-readiness"),
+        },
+        {
+            "kicker": "TRUSTED INPUT PATH",
+            "title": format_missing(first.get("Trusted Input Path"), "Trusted input path"),
+            "body": (
+                f"{format_missing(first.get('Next Safe Sequence'), '')} "
+                f"Schema fields: {format_missing(first.get('Schema Fields'), 'listed in make templates')}. "
+                f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Boundary: {format_missing(first.get('Conclusion Boundary'), '')}"
+            ),
+            "badges": ["validate", "preview before apply"],
+            "command": format_missing(first.get("Copy-Only Command"), "make dcf-readiness"),
+        },
+    ]
+
+
 def fundamentals_dcf_function_quality_frame(
     ticker_readiness_frame: pd.DataFrame | None,
     dcf_readiness_frame: pd.DataFrame | None = None,
@@ -7052,7 +9139,7 @@ def fundamentals_dcf_function_quality_frame(
         asset_type = dcf_frame.get("asset_type", pd.Series("", index=dcf_frame.index)).fillna("").astype(str).str.lower()
         excluded_count = int(asset_type.ne("company").sum())
         if "missing_dcf_fields" in dcf_frame.columns:
-            missing_counts = dcf_frame["missing_dcf_fields"].fillna("").astype(str).str.split(",").explode().str.strip()
+            missing_counts = dcf_frame["missing_dcf_fields"].fillna("").astype(str).str.split(r"[,;|]", regex=True).explode().str.strip()
             missing_counts = missing_counts.loc[missing_counts.ne("")]
             if not missing_counts.empty:
                 missing_field_text = ", ".join(f"{field}: {count}" for field, count in missing_counts.value_counts().head(4).items())
@@ -7107,7 +9194,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Supported Today": "Market, theme, liquidity, or risk monitor context.",
                 "Not Supported Yet": "Operating-company fundamentals or DCF valuation.",
                 "Logic Source": "Project asset-type gating marks DCF excluded, not failed.",
-                "Next Step": "make stock-report TICKER=QQQ",
+                "Next Step": stock_report_md_command("QQQ"),
             },
         ]
     )
@@ -7309,9 +9396,9 @@ def build_peer_mapping_studio_frame(
             lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
         )
         frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
-            lambda ticker: f"make stock-report TICKER={ticker} -> review source/freshness and DCF exclusion"
+            lambda ticker: f"{stock_report_md_command(ticker)} -> review source/freshness and DCF exclusion"
         )
-        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+        frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(stock_report_md_command)
         frame.loc[monitor_proxy, "copy_only_note"] = "Copy command only; monitor context is not peer valuation."
     if "ticker" in frame.columns:
         frame = frame.sort_values(["priority", "workflow_scope_rank", "workflow_group", "ticker"], kind="stable").copy()
@@ -7374,10 +9461,28 @@ def decision_next_action_summary(row: pd.Series) -> str:
     if blocker == "fundamentals":
         return f"Import trusted fundamentals for {ticker}; use SEC import draft workflow when configured or data/imports/fundamentals.csv, then validate and preview."
     if blocker == "price":
-        return f"Refresh a capped price worklist before deeper analysis; start with make price-worklist TOP_N=25."
+        return f"Refresh a capped price worklist before deeper analysis; start with make price-refresh-loop DRY_RUN=1, then review the planned batches."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
         return f"Optional context for {ticker} stays unavailable until trusted local CSV rows are staged, validated, previewed, and applied."
     return compact_reason(row.get("next_best_action"), max_sentences=1, max_chars=180)
+
+
+def decision_next_action_proof(row: pd.Series) -> str:
+    ticker = format_missing(row.get("ticker"), "").upper()
+    blocker = format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
+    asset_type = format_missing(row.get("asset_type"), row.get("asset_type_readiness", "")).lower()
+    report_command = stock_report_md_command(ticker) if ticker else "make project-status"
+    if asset_type in {"etf", "index_proxy", "fund"}:
+        return f"Proof after review: run `{report_command}` and confirm operating-company DCF is excluded, not failed."
+    if blocker == "price":
+        return f"Proof after unlock: run `make price-coverage TOP_N=25`, `make readiness`, then `{report_command}`."
+    if blocker in {"fundamentals", "dcf"}:
+        return f"Proof after unlock: run `make dcf-readiness`, `make readiness`, then `{report_command}`."
+    if blocker in {"peer", "peers"}:
+        return f"Proof after unlock: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `{report_command}`."
+    if blocker in {"earnings", "analyst_estimates", "optional_context"}:
+        return f"Proof after unlock: run `make optional-context-readiness`, `make readiness`, then `{report_command}`."
+    return f"Proof before interpretation: run `make readiness`, then `{report_command}`."
 
 
 def decision_next_action_title(row: pd.Series) -> str:
@@ -7434,6 +9539,16 @@ def decision_workflow_summary_cards(
     bucket_counts = frame.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
     subtype_counts = frame.get("decision_subtype", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
     blocker_counts = frame.get("primary_blocker", pd.Series(dtype=object)).fillna("none").astype(str).replace({"": "none"}).value_counts()
+    confidence_source = (
+        frame.get("data_confidence")
+        if "data_confidence" in frame.columns
+        else frame.get("confidence", pd.Series(dtype=object))
+    )
+    confidence_counts = (
+        confidence_source.fillna("unknown").astype(str).str.strip().replace({"": "unknown"}).value_counts()
+        if confidence_source is not None
+        else pd.Series(dtype=object)
+    )
     next_actions = frame.get("next_best_action", pd.Series(dtype=object)).fillna("").astype(str)
     action_rows = frame.loc[next_actions.str.strip().ne("")].copy()
     if not action_rows.empty:
@@ -7503,9 +9618,24 @@ def decision_workflow_summary_cards(
             "command": "make onboarding TOP_N=10",
         },
         {
+            "kicker": "DATA CONFIDENCE",
+            "title": "Coverage signal, not conviction",
+            "body": (
+                ", ".join(f"{key}: {int(value)}" for key, value in list(confidence_counts.items())[:3])
+                if not confidence_counts.empty
+                else "No data-confidence column found yet. Treat decision rows as workflow states until readiness is regenerated."
+            )
+            + " Data confidence describes local input coverage and falls when core, peer, earnings, or estimate context is missing.",
+            "badges": ["data quality", "not a rating"],
+            "command": "make research-health TOP_N=10",
+        },
+        {
             "kicker": "NEXT DECISION ACTION",
             "title": decision_next_action_title(top_action_row),
-            "body": compact_reason(top_action, max_sentences=1, max_chars=180),
+            "body": (
+                f"{compact_reason(top_action, max_sentences=1, max_chars=180)} "
+                f"{decision_next_action_proof(top_action_row)}"
+            ),
             "badges": ["copy command only", "no execution"],
             "command": purpose_unlock_command(
                 top_action_row.get("ticker"),
@@ -7522,7 +9652,7 @@ def decision_workflow_summary_cards(
                 "title": f"{len(research_now_optional_locked)} research row(s)",
                 "body": (
                     f"Optional Context Locked row(s): {ticker_text}. Research Now rows have supported core or DCF context, but earnings or analyst-estimate context remains unavailable "
-                    "until trusted local CSV rows exist."
+                    "until trusted local CSV rows exist. Proof after unlock: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report."
                 ),
                 "badges": ["core research ok", "optional locked"],
                 "command": "make optional-context-worklist TOP_N=25",
@@ -7559,7 +9689,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
             "title": f"{monitor} row(s)",
             "body": "Useful for market, theme, ETF/index, liquidity, or risk context where operating-company valuation may be excluded.",
             "badges": ["context", "DCF may be excluded"],
-            "command": "make stock-report TICKER=QQQ",
+            "command": stock_report_md_command("QQQ"),
         },
         {
             "kicker": "BLOCKED BY DATA",
@@ -7600,9 +9730,9 @@ def decision_interpretation_ladder_frame() -> pd.DataFrame:
                 "Safe Command": "make onboarding TOP_N=10",
             },
             {
-                "Step": "4. Read confidence",
-                "What It Means": "Confidence is a data-quality state that drops when important context is missing.",
-                "What To Check Next": "Treat low or limited confidence as a reason to inspect sources, freshness, and gaps first.",
+                "Step": "4. Read data confidence",
+                "What It Means": "Data confidence is a data-quality state that drops when important context is missing.",
+                "What To Check Next": "Treat low or limited data confidence as a reason to inspect sources, freshness, and gaps first.",
                 "Safe Command": "make research-health TOP_N=10",
             },
             {
@@ -7657,8 +9787,13 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
             }
         ]
 
+    confidence_source = (
+        decisions_frame.get("data_confidence")
+        if "data_confidence" in decisions_frame.columns
+        else decisions_frame.get("confidence", pd.Series(dtype=object))
+    )
     confidence_values = (
-        decisions_frame.get("confidence", pd.Series(dtype=object))
+        confidence_source
         .fillna("")
         .astype(str)
         .str.strip()
@@ -7693,9 +9828,12 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
             "badges": ["workflow label", "not advice"],
         },
         {
-            "kicker": "CONFIDENCE",
-            "title": f"{low_confidence_count} low-confidence row(s)",
-            "body": "Confidence falls when core inputs, peer context, source freshness, earnings, or analyst estimates are missing.",
+            "kicker": "DATA CONFIDENCE",
+            "title": f"{low_confidence_count} low-data-confidence row(s)",
+            "body": (
+                "Data confidence is input coverage, not conviction or recommendation strength. It falls when core inputs, "
+                "peer context, source freshness, earnings, or analyst estimates are missing."
+            ),
             "badges": ["data confidence", "missing inputs"],
         },
         {
@@ -7711,6 +9849,187 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
             "body": "Next-action fields point to copyable local workflow steps. They do not execute anything from the dashboard.",
             "badges": ["copy-only", "local workflow"],
             "command": "make research-health TOP_N=10",
+        },
+    ]
+
+
+def final_decision_default_columns(decisions_frame: pd.DataFrame | None) -> list[str]:
+    if decisions_frame is None or decisions_frame.empty:
+        return []
+    return _readiness_columns(
+        decisions_frame,
+        [
+            "ticker",
+            "decision_bucket",
+            "decision_subtype",
+            "primary_blocker",
+            "data_confidence",
+            "confidence_explanation",
+            "decision_boundary",
+            "supporting_features",
+            "blocked_features",
+            "excluded_features",
+            "missing_data",
+            "next_best_action",
+            "next_action",
+        ],
+    )
+
+
+def decision_proof_queue_frame(
+    decisions_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+    *,
+    limit: int = 12,
+) -> pd.DataFrame:
+    columns = [
+        "priority",
+        "ticker",
+        "decision_bucket",
+        "decision_subtype",
+        "primary_blocker",
+        "data_confidence",
+        "what_can_be_reviewed_now",
+        "what_stays_locked",
+        "copy_only_command",
+        "proof_after_unlock",
+        "source_note",
+    ]
+    if decisions_frame is None or decisions_frame.empty or "ticker" not in decisions_frame.columns:
+        return pd.DataFrame(columns=columns)
+
+    frame = decisions_frame.copy()
+    frame["ticker"] = frame["ticker"].fillna("").astype(str).str.upper().str.strip()
+    frame = frame.loc[frame["ticker"].ne("")].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=columns)
+
+    if (
+        ticker_readiness_frame is not None
+        and not ticker_readiness_frame.empty
+        and "ticker" in ticker_readiness_frame.columns
+    ):
+        readiness_columns = [
+            column
+            for column in ["ticker", "in_active_universe", "dcf_ready", "peer_ready", "asset_type", "updated_at"]
+            if column in ticker_readiness_frame.columns
+        ]
+        readiness = ticker_readiness_frame[readiness_columns].copy()
+        readiness["ticker"] = readiness["ticker"].fillna("").astype(str).str.upper().str.strip()
+        frame = frame.merge(readiness.drop_duplicates("ticker"), on="ticker", how="left", suffixes=("", "_readiness"))
+
+    bucket_rank = (
+        frame.get("decision_bucket", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .map({"Research Now": 0, "Blocked by Data": 1, "Monitor": 2, "Excluded": 3})
+        .fillna(4)
+        .astype(int)
+    )
+    active_rank = (~bool_series(frame, "in_active_universe")).astype(int)
+    blocker_rank = (
+        frame.get("primary_blocker", pd.Series("", index=frame.index))
+        .fillna("")
+        .astype(str)
+        .str.lower()
+        .map({"peers": 0, "peer": 0, "fundamentals": 1, "dcf": 1, "price": 2, "earnings": 3, "analyst_estimates": 3})
+        .fillna(4)
+        .astype(int)
+    )
+    frame = frame.assign(_bucket_rank=bucket_rank, _active_rank=active_rank, _blocker_rank=blocker_rank)
+    frame = frame.sort_values(["_bucket_rank", "_active_rank", "_blocker_rank", "ticker"], kind="stable")
+
+    rows: list[dict[str, object]] = []
+    for _, row in frame.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        asset_type = format_missing(row.get("asset_type"), row.get("asset_type_readiness", "")).lower()
+        bucket = format_missing(row.get("decision_bucket"), "Not available")
+        blocker = format_missing(row.get("primary_blocker"), "none").lower()
+        if asset_type in {"etf", "index_proxy", "fund"} or "monitor" in bucket.lower():
+            supported = "Monitor market, theme, liquidity, risk, or correlation context when local price data is ready."
+            locked = "Operating-company DCF and peer-relative company valuation are excluded, not failed."
+        else:
+            supported = first_meaningful_text(
+                row.get("supported_analysis"),
+                row.get("supporting_features"),
+                fallback="Review only the sections whose readiness gates are already marked ready.",
+            )
+            locked = first_meaningful_text(
+                row.get("unsupported_analysis"),
+                row.get("blocked_features"),
+                row.get("missing_data"),
+                fallback="No blocked section is listed, but conclusions still depend on source freshness and assumptions.",
+            )
+        action = decision_next_action_summary(row)
+        command = (
+            stock_report_md_command(ticker)
+            if asset_type in {"etf", "index_proxy", "fund"} or "monitor" in bucket.lower()
+            else purpose_unlock_command(ticker, row.get("primary_blocker"), action)
+        )
+        rows.append(
+            {
+                "priority": len(rows) + 1,
+                "ticker": ticker,
+                "decision_bucket": bucket,
+                "decision_subtype": format_missing(row.get("decision_subtype"), "Not available"),
+                "primary_blocker": format_missing(row.get("primary_blocker"), "none"),
+                "data_confidence": format_missing(row.get("data_confidence"), "Not available"),
+                "what_can_be_reviewed_now": compact_reason(supported, max_sentences=2, max_chars=220),
+                "what_stays_locked": compact_reason(locked, max_sentences=2, max_chars=220),
+                "copy_only_command": command,
+                "proof_after_unlock": decision_next_action_proof(row),
+                "source_note": (
+                    f"Local readiness updated {format_missing(row.get('updated_at'), 'not available')}; "
+                    "decision labels are workflow states, not recommendations."
+                ),
+            }
+        )
+
+    return pd.DataFrame(rows, columns=columns)
+
+
+def decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if queue_frame is None or queue_frame.empty:
+        return [
+            {
+                "kicker": "DECISION PROOF",
+                "title": "No proof queue yet",
+                "body": "Run make research-decisions and make readiness before reading decision proof rows.",
+                "badges": ["refresh first", "copy only"],
+                "command": "make research-decisions",
+            }
+        ]
+    frame = queue_frame.copy()
+    top = frame.iloc[0]
+    bucket_counts = frame.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
+    locked_text = " ".join(frame.get("what_stays_locked", pd.Series(dtype=object)).fillna("").astype(str).str.lower().tolist())
+    peer_limited = locked_text.count("peer")
+    optional_limited = locked_text.count("earnings") + locked_text.count("estimate")
+    return [
+        {
+            "kicker": "DECISION PROOF",
+            "title": f"{len(frame)} row(s) translated",
+            "body": ", ".join(f"{bucket}: {int(count)}" for bucket, count in bucket_counts.head(3).items())
+            + ". Each row states what can be reviewed now, what stays locked, and what proves an unlock.",
+            "badges": ["plain English", "row-limited"],
+            "command": "make research-health TOP_N=10",
+        },
+        {
+            "kicker": "TOP PROOF ROW",
+            "title": f"{format_missing(top.get('ticker'), 'Ticker')}: {format_missing(top.get('decision_subtype'), 'Decision')}",
+            "body": (
+                f"Review now: {compact_reason(top.get('what_can_be_reviewed_now'), max_sentences=1, max_chars=140)} "
+                f"Locked: {compact_reason(top.get('what_stays_locked'), max_sentences=1, max_chars=140)}"
+            ),
+            "badges": [format_missing(top.get("primary_blocker"), "blocker"), format_missing(top.get("data_confidence"), "confidence")],
+            "command": format_missing(top.get("copy_only_command"), "make project-status"),
+        },
+        {
+            "kicker": "WITHHELD CONTEXT",
+            "title": f"Peer mentions: {peer_limited} / optional mentions: {optional_limited}",
+            "body": "Withheld context remains visible so peer valuation, earnings, estimates, or DCF exclusions do not look like hidden conclusions.",
+            "badges": ["data-honest", "no fabrication"],
+            "command": "make readiness",
         },
     ]
 
@@ -7768,12 +10087,12 @@ def purpose_unlock_command(ticker: object, primary_blocker: object, exact_comman
         return f"make focus-peers TICKER={symbol}"
     if blocker in {"earnings", "analyst_estimates", "analyst estimates"}:
         return "make templates"
-    return format_missing(exact_command, f"make stock-report TICKER={symbol}")
+    return format_missing(exact_command, stock_report_md_command(symbol))
 
 
 def active_brief_unlock_command(row: pd.Series) -> str:
     symbol = format_missing(row.get("ticker"), "").upper()
-    fallback = format_missing(row.get("exact_command"), f"make stock-report TICKER={symbol}" if symbol else "make project-status")
+    fallback = format_missing(row.get("exact_command"), stock_report_md_command(symbol) if symbol else "make project-status")
     asset_type = format_missing(row.get("asset_type"), "").lower()
     bucket = format_missing(row.get("decision_bucket"), "").lower()
     subtype = format_missing(row.get("decision_subtype"), "").lower()
@@ -7793,6 +10112,8 @@ def first_meaningful_text(*values: object, fallback: str = "Not available") -> s
 def _active_brief_existing_or(row: pd.Series, column: str, fallback: str) -> str:
     existing = format_missing(row.get(column), "")
     if existing and existing.lower() != "not available":
+        if column == "confidence_explanation":
+            existing = existing.replace("Confidence is ", "Data confidence is ")
         return existing
     return fallback
 
@@ -7903,7 +10224,7 @@ def _active_brief_confidence_explanation(row: pd.Series) -> str:
     blocker = first_meaningful_text(row.get("primary_blocker"), row.get("missing_data"), fallback="")
     score_text = f" Readiness score: {score}." if score else ""
     blocker_text = f" Limiting factor: {blocker}." if blocker else ""
-    return f"Confidence is {confidence} because only ready local inputs are used.{score_text}{blocker_text}"
+    return f"Data confidence is {confidence} because only ready local inputs are used.{score_text}{blocker_text}"
 
 
 def _active_brief_evaluation_summary(row: pd.Series) -> str:
@@ -8047,7 +10368,7 @@ def active_research_brief_frame(
     for column in ACTIVE_RESEARCH_BRIEF_COLUMNS:
         if column not in frame.columns and column not in {"exact_command", "purpose_family", "purpose_status", "unlock_command"}:
             frame[column] = "Not available"
-    frame["exact_command"] = frame["ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+    frame["exact_command"] = frame["ticker"].apply(stock_report_md_command)
     frame["purpose_family"] = frame.apply(
         lambda row: purpose_family_label(
             row.get("asset_type"),
@@ -8175,7 +10496,7 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
                 max_chars=180,
             ),
             "badges": ["purpose alignment", format_missing(top_row.get("decision_bucket"), "bucket")],
-            "command": format_missing(top_row.get("exact_command"), "make stock-report TICKER=META"),
+            "command": format_missing(top_row.get("exact_command"), stock_report_md_command("META")),
         },
         {
             "kicker": "PURPOSE GROUPS",
@@ -8279,7 +10600,7 @@ def active_evaluation_next_step(row: pd.Series) -> str:
 
 def active_evaluation_review_command(row: pd.Series) -> str:
     ticker = format_missing(row.get("ticker"), "TICKER").upper()
-    return f"make stock-report TICKER={ticker}"
+    return stock_report_md_command(ticker)
 
 
 def active_evaluation_unlock_command(row: pd.Series) -> str:
@@ -8315,7 +10636,7 @@ def active_evaluation_validation_sequence(row: pd.Series) -> str:
         return f"make focus-price TICKER={ticker} -> run capped refresh or stage OHLCV -> make imports-validate -> make imports-preview -> make imports-apply"
     if "optional" in lane:
         return "make templates -> fill trusted earnings or analyst estimates CSV -> make imports-validate -> make imports-preview -> make imports-apply"
-    return f"make stock-report TICKER={ticker} -> compare purpose, supported analysis, unsupported analysis, and source/freshness notes"
+    return f"{stock_report_md_command(ticker)} -> compare purpose, supported analysis, unsupported analysis, and source/freshness notes"
 
 
 def active_evaluation_withheld_conclusion(row: pd.Series) -> str:
@@ -8772,7 +11093,7 @@ def product_page_logic_audit_frame(
             primary_blocker.isin({"peer", "peers"})
             & ~purpose_family.str.contains("etf|hedge|fund|index", case=False, na=False)
         )
-        review_visible = review_command.str.contains(r"make stock-report TICKER=[A-Z0-9.:-]+", case=False, regex=True, na=False)
+        review_visible = review_command.str.contains(r"make stock-report(?:-md)? TICKER=[A-Z0-9.:-]+", case=False, regex=True, na=False)
         peer_unlock_visible = unlock_command.str.contains(r"make focus-peers TICKER=[A-Z0-9.:-]+", case=False, regex=True, na=False)
         purpose_drilldown_mismatches = int((company_peer_limited & ~(review_visible & peer_unlock_visible)).sum())
         purpose_peer_rows = int(company_peer_limited.sum())
@@ -8784,7 +11105,7 @@ def product_page_logic_audit_frame(
             "check": "Purpose drilldown actionability",
             "status": "pass" if purpose_drilldown_mismatches == 0 else "review",
             "evidence": f"{purpose_drilldown_mismatches} of {purpose_peer_rows} peer-limited company drilldown row(s) lack exact review and peer-unlock commands.",
-            "operator_action": "Purpose drilldown peer-limited company rows should show both stock-report review and focus-peers unlock commands.",
+            "operator_action": "Purpose drilldown peer-limited company rows should show both stock-report-md review and focus-peers unlock commands.",
             "source": "dashboard purpose evaluation drilldown",
         }
     )
@@ -9006,7 +11327,10 @@ def purpose_evaluation_drilldown_cards(drilldown_frame: pd.DataFrame | None) -> 
             .str.contains("earnings|analyst", case=False, na=False)
         ).sum()
     )
-    top_review_command = format_missing(top_row.get("exact_command"), "make project-status")
+    top_review_command = safe_action_console_command(
+        "Single-Stock Review",
+        format_missing(top_row.get("exact_command"), stock_report_md_command(top_row.get("ticker"))),
+    )
     return [
         {
             "kicker": "PURPOSE DRILLDOWN",
@@ -9283,9 +11607,9 @@ def safe_action_console_command(category: str, command: object = "") -> str:
     lowered = command_text.lower()
     category_key = category.strip().lower()
     if category_key == "price coverage batch":
-        if "top_n=" in lowered or "tickers=" in lowered:
+        if "price-refresh-loop" in lowered or "tickers=" in lowered:
             return command_text
-        return "make price-refresh TOP_N=25 PROVIDER=yahoo"
+        return "make price-refresh-loop DRY_RUN=1"
     if category_key == "fundamentals / dcf unlock":
         if "top_n=" in lowered or "tickers=" in lowered or lowered == "make imports-validate":
             return command_text
@@ -9309,7 +11633,7 @@ def safe_action_console_command(category: str, command: object = "") -> str:
 
 def next_action_console_when_to_use(category: str) -> str:
     guidance = {
-        "Price Coverage Batch": "Use when many tickers are blocked before momentum, liquidity, or market-context review.",
+        "Price Coverage Batch": "Use when many tickers are blocked before momentum, liquidity, or market-context review; dry-run the loop instead of repeating 25-ticker refreshes manually.",
         "Fundamentals / DCF Unlock": "Use after prices exist and company-level valuation is blocked by missing fundamentals or DCF fields.",
         "Peer Mapping Unlock": "Use when DCF-ready companies still need source-backed peers before relative valuation is shown.",
         "Earnings Import Setup": "Use only when trusted earnings rows are available locally; otherwise leave the section locked.",
@@ -9335,7 +11659,7 @@ def next_action_console_output_to_check(category: str) -> str:
 
 def next_action_console_source_note(category: str) -> str:
     notes = {
-        "Price Coverage Batch": "Uses local prices first, then capped Yahoo refresh or staged manual OHLCV CSVs with preview/apply safeguards.",
+        "Price Coverage Batch": "Uses local prices first, then dry-run-first capped Yahoo refresh loops or staged manual OHLCV CSVs with preview/apply safeguards.",
         "Fundamentals / DCF Unlock": "Uses SEC Companyfacts import draft workflow when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
         "Peer Mapping Unlock": "Uses source-backed manual peer mappings or clearly labeled fallback context; no peer relationship is inferred as trusted.",
         "Earnings Import Setup": "Manual trusted local CSV only; feature stays unavailable until rows validate.",
@@ -9346,9 +11670,61 @@ def next_action_console_source_note(category: str) -> str:
     return notes.get(category, "Uses generated local CSV reports; run make readiness and make project-status after data changes.")
 
 
+def next_action_console_plain_english_state(category: str) -> dict[str, str]:
+    states = {
+        "Price Coverage Batch": {
+            "can_analyze": "price-ready tickers can support setup, momentum, liquidity, and market-context review.",
+            "locked": "tickers missing trusted OHLCV stay out of those views until local price rows exist.",
+            "copy_next": "start with the dry run so the broad refresh plan is visible before local CSVs change.",
+        },
+        "Fundamentals / DCF Unlock": {
+            "can_analyze": "price-ready companies can be queued for SEC or trusted manual fundamentals review.",
+            "locked": "company quality and DCF interpretation stay locked until required fundamentals and DCF fields validate.",
+            "copy_next": "inspect the capped SEC staging queue or targeted ticker workflow before importing rows.",
+        },
+        "Peer Mapping Unlock": {
+            "can_analyze": "standalone DCF-ready companies can be reviewed without forcing peer conclusions.",
+            "locked": "peer trend needs mapped peer price history; peer valuation needs trusted peer mappings and peer metrics.",
+            "copy_next": "open the peer mapping queue and add only source-backed peer rows.",
+        },
+        "Earnings Import Setup": {
+            "can_analyze": "core price, DCF, and peer lanes can still be reviewed without earnings rows.",
+            "locked": "earnings context stays unavailable until trusted local rows pass validate, preview, and apply.",
+            "copy_next": "use schema/templates first, then import only reviewed local earnings CSV rows.",
+        },
+        "Analyst Estimates Import Setup": {
+            "can_analyze": "ready core analysis can be read without consensus context.",
+            "locked": "analyst-estimate context stays unavailable until trusted local rows validate; consensus is context, not a conclusion.",
+            "copy_next": "use schema/templates first, then import only reviewed local estimate CSV rows.",
+        },
+        "Import Validation / Rejected Rows": {
+            "can_analyze": "already-ready local rows remain usable while new staged rows are reviewed.",
+            "locked": "new imports are not trusted until validation, preview, apply, and rejected-row checks are clean.",
+            "copy_next": "validate first, preview second, apply only after reviewing rejected-row reports.",
+        },
+        "Single-Stock Review": {
+            "can_analyze": "one ticker can be checked for readiness, source freshness, DCF boundary, peer boundary, and optional-context gaps.",
+            "locked": "the report withholds unsupported valuation, peer, earnings, and estimate sections instead of filling gaps.",
+            "copy_next": "run the ticker report and read the plain-English gaps before opening detailed data tables.",
+        },
+    }
+    return states.get(
+        category,
+        {
+            "can_analyze": "current local outputs can be reviewed for the stated workflow lane.",
+            "locked": "missing trusted inputs stay locked rather than inferred.",
+            "copy_next": "copy the command into a terminal only after reviewing the lane context.",
+        },
+    )
+
+
 def next_action_console_safety_note(command: object) -> str:
     command_text = format_missing(command, "")
     lowered = command_text.lower()
+    if "price-refresh-loop" in lowered and "dry_run=1" in lowered:
+        return "Dry-run only; previews capped missing-price batches without changing local CSV files. Copy into a terminal when ready."
+    if "price-refresh-loop" in lowered:
+        return "Capped refresh loop; updates local price CSVs only after the dry run is reviewed. Rerun readiness and diff hygiene afterward."
     if "top_n=" in lowered:
         return "Capped batch; copy into a terminal when ready. The dashboard does not execute it."
     if "ticker=" in lowered or "tickers=" in lowered:
@@ -9384,8 +11760,8 @@ def build_next_action_console_frame(
                 "Price Coverage Batch",
                 "price_ready",
                 price_missing,
-                "Refresh the next small missing-price batch so the broad-universe frontier advances without requiring all tickers at once.",
-                "make price-refresh TOP_N=25 PROVIDER=yahoo",
+                "Preview a capped missing-price batch plan first, then run several capped batches if you choose; no need to repeat 25-ticker refreshes manually.",
+                "make price-refresh-loop DRY_RUN=1",
             ),
             (
                 2,
@@ -9593,18 +11969,29 @@ def next_action_console_cards(console_frame: pd.DataFrame | None, limit: int = 8
         when_to_use = compact_reason(row.get("when_to_use"), max_sentences=1, max_chars=120)
         output_to_check = compact_reason(row.get("output_to_check"), max_sentences=1, max_chars=120)
         source_note = compact_reason(row.get("source_freshness_note"), max_sentences=1, max_chars=140)
+        plain_state = next_action_console_plain_english_state(category)
         scope_line = ""
         if scope and scope != "Not available":
             scope_line = f"Scope: {scope}"
         if sample and sample != "Not available":
             scope_line = f"{scope_line}. Sample: {sample}." if scope_line else f"Sample: {sample}."
         body_lines = [line for line in [scope_line, f"Why: {why}" if why and why != "Not available" else ""] if line]
+        body_lines.extend(
+            [
+                f"Can analyze now: {plain_state['can_analyze']}",
+                f"Still locked: {plain_state['locked']}",
+                f"Copy next: {plain_state['copy_next']}",
+            ]
+        )
         if when_to_use and when_to_use != "Not available":
             body_lines.append(f"When to use: {when_to_use}")
         if output_to_check and output_to_check != "Not available":
             body_lines.append(f"Check after: {output_to_check}")
         if source_note and source_note != "Not available":
             body_lines.append(f"Source: {source_note}")
+        safety_note = compact_reason(row.get("safety_note"), max_sentences=1, max_chars=140)
+        if safety_note and safety_note != "Not available":
+            body_lines.append(f"Safety: {safety_note}")
         body = "\n".join(body_lines)
         cards.append(
             {
@@ -9634,9 +12021,12 @@ def market_next_action_cards(
                 {
                     "kicker": "PRICE DATA",
                     "title": f"{len(price_missing)} ticker(s) need prices",
-                    "body": "Refresh prices or prepare a price import draft for a small batch first; do not require the whole market to be ready.",
-                    "badges": ["blocked by data", "batch safe"],
-                    "command": "make price-worklist TOP_N=25",
+                    "body": (
+                        "Preview a capped price refresh plan first, then refresh or stage trusted price rows intentionally; "
+                        "do not require the whole market to be ready."
+                    ),
+                    "badges": ["blocked by data", "dry run first"],
+                    "command": "make price-refresh-loop DRY_RUN=1",
                 }
             )
 
@@ -9724,9 +12114,12 @@ def market_blocker_summary_cards(ticker_readiness_frame: pd.DataFrame | None) ->
         {
             "kicker": "PRICE BLOCKERS",
             "title": f"{len(price_missing)} ticker(s)",
-            "body": "Most broad-universe names are known metadata only until trusted price rows are refreshed or staged.",
-            "badges": ["batch first", "no full-market blast"],
-            "command": "make price-worklist TOP_N=25",
+            "body": (
+                "Most broad-universe names are known metadata only until trusted price rows are refreshed or staged. "
+                "Start with a capped price refresh plan dry run so the batch stays capped and reviewable."
+            ),
+            "badges": ["dry run first", "no full-market blast"],
+            "command": "make price-refresh-loop DRY_RUN=1",
         },
         {
             "kicker": "FUNDAMENTALS BLOCKERS",
@@ -9877,6 +12270,7 @@ def single_stock_readiness_snapshot(
         "decision_subtype": decision_row.get("decision_subtype", "Not available"),
         "primary_blocker": decision_row.get("primary_blocker", "Not available"),
         "confidence": decision_row.get("confidence", "Not available"),
+        "data_confidence": decision_row.get("data_confidence", decision_row.get("confidence", "Not available")),
         "main_reason": decision_row.get("main_reason") or readiness_row.get("missing_data") or "Readiness state available.",
         "operator_summary": operator_summary,
         "next_action": next_action,
@@ -9970,7 +12364,7 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "").lower()
     if dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
-        return f"make stock-report TICKER={ticker}"
+        return stock_report_md_command(ticker)
     if not snapshot.get("price_ready"):
         return f"make focus-price TICKER={ticker}"
     if dcf_status == "blocked":
@@ -9979,7 +12373,7 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
         return f"make focus-peers TICKER={ticker}"
     if not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
         return "make optional-context-worklist TOP_N=25"
-    return f"make stock-report TICKER={ticker}"
+    return stock_report_md_command(ticker)
 
 
 def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame:
@@ -9994,7 +12388,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
     sec_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
     stooq_present = bool(os.environ.get("STOOQ_API_KEY", "").strip() or os.environ.get("STOQ_API_KEY", "").strip())
     if dcf_status == "ready":
-        dcf_command = f"make stock-report TICKER={ticker}"
+        dcf_command = stock_report_md_command(ticker)
     elif dcf_status == "excluded":
         dcf_command = "make readiness"
     elif sec_present:
@@ -10004,11 +12398,11 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
     if peer_ready:
         peer_status = "ready"
         peer_freshness = compact_reason(snapshot.get("next_peer_action"), max_sentences=1, max_chars=140)
-        peer_command = f"make stock-report TICKER={ticker}"
+        peer_command = stock_report_md_command(ticker)
     elif dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
         peer_status = "monitor context"
         peer_freshness = "ETF/index proxy peer mappings are optional context; operating-company peer valuation is excluded."
-        peer_command = f"make stock-report TICKER={ticker}"
+        peer_command = stock_report_md_command(ticker)
     elif dcf_status != "ready":
         peer_status = "blocked until fundamentals / DCF"
         peer_freshness = "Peer-relative valuation should wait until trusted fundamentals and DCF inputs are ready."
@@ -10026,7 +12420,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
             "Local source": "data/prices.csv",
             "Manual path": "data/imports/prices.csv or data/staged/prices/",
             "Rejected rows": "data/rejected/price_import_rejected.csv",
-            "Next command": f"make stock-report TICKER={ticker}" if price_ready else f"make price-refresh TICKERS={ticker}",
+            "Next command": stock_report_md_command(ticker) if price_ready else f"make focus-price TICKER={ticker}",
         },
         {
             "Area": "Fundamentals / DCF",
@@ -10080,7 +12474,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
 def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     audit = single_stock_source_audit_frame(snapshot)
     cards: list[dict[str, object]] = []
-    for area in ["Prices", "Fundamentals / DCF", "Peers", "Earnings"]:
+    for area in ["Prices", "Fundamentals / DCF", "Peers", "Earnings", "Analyst estimates"]:
         row = audit.loc[audit["Area"].eq(area)]
         if row.empty:
             continue
@@ -10095,6 +12489,353 @@ def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[st
             }
         )
     return cards
+
+
+def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame:
+    ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
+    asset_type = format_missing(snapshot.get("asset_type"), "").lower()
+    dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    price_ready = bool(snapshot.get("price_ready"))
+    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_trend_ready = str(snapshot.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes", "y", "ready"}
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+
+    if not price_ready:
+        can_analyze = "Ticker is known, but setup, valuation, and trend review are locked until trusted price rows exist."
+        locked = "Prices, momentum, DCF, peer context, earnings, and analyst estimates."
+        next_input = "Trusted local price history."
+        command = f"make focus-price TICKER={ticker}"
+        proof_command = (
+            "After trusted price rows pass make price-validate, make price-preview, and make price-apply, "
+            "run make price-coverage TOP_N=25 and make readiness."
+        )
+    elif monitor_context:
+        can_analyze = "Market, theme, liquidity, or risk monitor context when local price rows are ready."
+        locked = "Operating-company DCF and peer valuation are excluded for ETF/index/fund monitor context."
+        next_input = "No company DCF input is required; refresh readiness or open the Markdown report for monitor context."
+        command = stock_report_md_command(ticker)
+        proof_command = "Run make readiness, then open the Markdown report to confirm monitor context stays DCF-excluded."
+    elif dcf_status == "blocked":
+        can_analyze = "Price/setup context can be reviewed; company valuation remains locked."
+        locked = f"DCF is blocked by missing trusted inputs: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=140)}"
+        next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
+        command = f"make focus-fundamentals TICKER={ticker}"
+        proof_command = (
+            "After fundamentals pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make dcf-readiness and make readiness."
+        )
+    elif dcf_status == "ready" and not peer_ready:
+        if peer_trend_ready:
+            can_analyze = (
+                "Standalone DCF assumptions, scenario math, sensitivity, source freshness, and peer trend context "
+                "from mapped peer price history can be reviewed."
+            )
+            locked = "Peer-relative valuation, premium/discount, and peer DCF comparison remain locked until source-backed peer valuation inputs pass readiness."
+        else:
+            can_analyze = "Standalone DCF assumptions, scenario math, sensitivity, and source freshness can be reviewed."
+            locked = "Peer-relative valuation remains locked until source-backed peer mappings and peer valuation inputs pass readiness."
+        next_input = "Trusted peer mappings in data/imports/peers.csv plus peer inputs when needed."
+        command = f"make focus-peers TICKER={ticker}"
+        proof_command = (
+            "After peer rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make readiness and make peer-mapping-queue TOP_N=25."
+        )
+    elif not earnings_ready or not estimates_ready:
+        can_analyze = "Price, fundamentals, standalone DCF, and peer context can be reviewed from trusted local inputs."
+        locked = "Earnings and analyst-estimate context stays unavailable until trusted optional CSV rows exist."
+        next_input = "Trusted local earnings or analyst estimate rows, only if you have a source you trust."
+        command = "make optional-context-worklist TOP_N=25"
+        proof_command = (
+            "After optional rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make optional-context-readiness and make readiness."
+        )
+    else:
+        can_analyze = "Supported single-stock review is available from current trusted local inputs."
+        locked = "No core analysis lock detected; continue to source/freshness and assumption review."
+        next_input = "Review the Markdown report and source/freshness notes before interpreting the result."
+        command = stock_report_md_command(ticker)
+        proof_command = "Run the Markdown report again after any import or refresh to confirm the ready state still holds."
+
+    rows = [
+        {
+            "Question": "What can I analyze now?",
+            "Answer": can_analyze,
+            "Trusted Input Needed": "Use only current local/provider rows that already passed readiness.",
+            "Proof Command": "Use the current readiness outputs as the proof state before interpreting analysis.",
+            "Copy-Only Command": stock_report_md_command(ticker) if price_ready else command,
+        },
+        {
+            "Question": "What is still locked or excluded?",
+            "Answer": locked,
+            "Trusted Input Needed": next_input,
+            "Proof Command": proof_command,
+            "Copy-Only Command": command,
+        },
+        {
+            "Question": "What should I do next?",
+            "Answer": compact_reason(snapshot.get("next_action"), max_sentences=1, max_chars=180),
+            "Trusted Input Needed": next_input,
+            "Proof Command": proof_command,
+            "Copy-Only Command": command,
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    frame = single_stock_reader_guide_frame(snapshot)
+    cards: list[dict[str, object]] = []
+    kicker_map = {
+        "What can I analyze now?": "ANALYZE NOW",
+        "What is still locked or excluded?": "LOCKED / EXCLUDED",
+        "What should I do next?": "NEXT STEP",
+    }
+    for _, row in frame.iterrows():
+        question = format_missing(row.get("Question"))
+        answer = format_missing(row.get("Answer"))
+        trusted_input = format_missing(row.get("Trusted Input Needed"))
+        proof_command = format_missing(row.get("Proof Command"))
+        body = answer if trusted_input == "Not available" else f"{answer} Trusted input needed: {trusted_input}"
+        if proof_command != "Not available":
+            body = f"{body} Proof command: {proof_command}"
+        cards.append(
+            {
+                "kicker": kicker_map.get(question, "SINGLE-STOCK GUIDE"),
+                "title": question,
+                "body": body,
+                "badges": ["plain English", "copy only"],
+                "command": format_missing(row.get("Copy-Only Command")),
+            }
+        )
+    if not frame.empty:
+        locked_row = frame.loc[frame["Question"].eq("What is still locked or excluded?")]
+        next_row = frame.loc[frame["Question"].eq("What should I do next?")]
+        proof_row = locked_row.iloc[0] if not locked_row.empty else frame.iloc[-1]
+        command_row = next_row.iloc[0] if not next_row.empty else proof_row
+        proof_command = format_missing(proof_row.get("Proof Command"), "Run make readiness before interpreting changed output.")
+        copy_command = format_missing(command_row.get("Copy-Only Command"), "make stock-report-md TICKER=NVDA")
+        cards.append(
+            {
+                "kicker": "PROOF PATH",
+                "title": "How to prove the next unlocked state",
+                "body": (
+                    "Read this single-stock page in sequence: what can be analyzed now, what stays locked or excluded, "
+                    f"which trusted input is needed, then proof command: {proof_command}. "
+                    f"Copy next: `{copy_command}`. Do not treat the lane as unlocked until the proof command passes and the report is reopened."
+                ),
+                "badges": ["readiness proof", "copy only"],
+                "command": copy_command,
+            }
+        )
+    return cards
+
+
+def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
+    asset_type = format_missing(snapshot.get("asset_type"), "").lower()
+    dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    price_ready = bool(snapshot.get("price_ready"))
+    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_trend_ready = str(snapshot.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes", "y", "ready"}
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+
+    if not snapshot or snapshot.get("status") == "missing":
+        first_read = "Ticker is not available in the current readiness outputs."
+        analyze_now = "No single-stock analysis is shown until the ticker appears in local readiness files."
+        still_locked = "Universe metadata, prices, fundamentals, DCF, peers, earnings, and analyst estimates."
+        command = format_missing(snapshot.get("next_action") if snapshot else "", "make universe-report")
+        proof_command = "Run make universe-report and make readiness before reopening the single-stock report."
+        badges = ["missing ticker", "readiness first"]
+    elif not price_ready:
+        first_read = "Start with trusted price history."
+        analyze_now = "The app can identify the ticker, but it withholds setup, trend, valuation, and peer context until price rows exist."
+        still_locked = "Prices, momentum, DCF, peers, earnings, and analyst estimates."
+        command = f"make focus-price TICKER={ticker}"
+        proof_command = (
+            "After trusted price rows pass make price-validate, make price-preview, and make price-apply, "
+            "run make price-coverage TOP_N=25 and make readiness."
+        )
+        badges = ["price first", "no inference"]
+    elif monitor_context:
+        first_read = "Use this as monitor context."
+        analyze_now = "Local price rows can support market, theme, liquidity, and risk context."
+        still_locked = "Operating-company DCF and peer valuation are excluded, not failed, for ETF/index/fund context."
+        command = stock_report_md_command(ticker)
+        proof_command = "Run make readiness, then open the Markdown report to confirm monitor context stays DCF-excluded."
+        badges = ["monitor context", "DCF excluded"]
+    elif dcf_status == "blocked":
+        first_read = "Review setup first; valuation is still locked."
+        analyze_now = "Price and setup context can be reviewed from trusted local rows."
+        still_locked = f"DCF is blocked by missing trusted fundamentals: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=130)}"
+        command = f"make focus-fundamentals TICKER={ticker}"
+        proof_command = (
+            "After fundamentals pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make dcf-readiness and make readiness."
+        )
+        badges = ["fundamentals needed", "no valuation conclusion"]
+    elif dcf_status == "ready" and not peer_ready:
+        first_read = "Standalone DCF is reviewable; peers are still locked."
+        if peer_trend_ready:
+            analyze_now = (
+                "DCF assumptions, sensitivity, source freshness, company setup, and peer trend context from mapped peer price history "
+                "can be reviewed from trusted local inputs."
+            )
+            still_locked = "Peer-relative valuation, premium/discount, and peer DCF comparison wait for source-backed peer valuation inputs."
+        else:
+            analyze_now = "DCF assumptions, sensitivity, source freshness, and company setup can be reviewed from trusted local inputs."
+            still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
+        command = f"make focus-peers TICKER={ticker}"
+        proof_command = (
+            "After peer rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make readiness and make peer-mapping-queue TOP_N=25."
+        )
+        badges = ["DCF ready", "peer gated"]
+    elif not earnings_ready or not estimates_ready:
+        first_read = "Core analysis is reviewable; optional context is locked."
+        analyze_now = "Prices, fundamentals, standalone DCF, and peer context are available from trusted local inputs."
+        still_locked = "Earnings and analyst-estimate sections remain unavailable until trusted optional CSV rows pass validation."
+        command = "make optional-context-worklist TOP_N=25"
+        proof_command = (
+            "After optional rows pass make imports-validate, make imports-preview, and make imports-apply, "
+            "run make optional-context-readiness and make readiness."
+        )
+        badges = ["core ready", "optional locked"]
+    else:
+        first_read = "Supported single-stock review is available."
+        analyze_now = "Price, fundamentals, DCF, peer context, earnings, estimates, source freshness, and assumptions can be reviewed."
+        still_locked = "No core lock detected; still review source freshness and methodology notes before interpreting outputs."
+        command = stock_report_md_command(ticker)
+        proof_command = "Run the Markdown report again after any import or refresh to confirm the ready state still holds."
+        badges = ["review ready", "source check"]
+
+    return [
+        {
+            "kicker": "FIRST READ",
+            "title": first_read,
+            "body": format_missing(snapshot.get("one_minute_summary"), analyze_now),
+            "badges": badges,
+            "command": command,
+        },
+        {
+            "kicker": "ANALYZE NOW",
+            "title": "What this page can support",
+            "body": analyze_now,
+            "badges": ["plain English", "local logic"],
+            "command": stock_report_md_command(ticker) if price_ready else command,
+        },
+        {
+            "kicker": "STILL LOCKED",
+            "title": "What stays unavailable",
+            "body": still_locked,
+            "badges": ["trusted inputs only", "no guesswork"],
+            "command": command,
+        },
+        {
+            "kicker": "COPY ONLY",
+            "title": "Copy the next command when ready",
+            "body": (
+                "The dashboard explains the next local step, but it does not run refreshes, imports, or external account actions. "
+                f"Proof command: {proof_command}"
+            ),
+            "badges": ["manual step", "research only"],
+            "command": command,
+        },
+    ]
+
+
+def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
+    asset_type = format_missing(snapshot.get("asset_type"), "").lower()
+    dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
+    price_ready = bool(snapshot.get("price_ready"))
+    peer_ready = bool(snapshot.get("peer_ready"))
+    earnings_ready = bool(snapshot.get("earnings_ready"))
+    estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
+    monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+
+    if monitor_context:
+        dcf_title = "DCF excluded, not failed"
+        dcf_body = "ETF/index/fund rows can support monitor context, but operating-company DCF does not apply."
+        dcf_badges = ["monitor context", "excluded"]
+        dcf_command = stock_report_md_command(ticker)
+    elif dcf_status == "ready":
+        dcf_title = "DCF ready for assumption review"
+        dcf_body = (
+            "The product can review free-cash-flow assumptions, WACC, terminal growth, cash/debt adjustment, "
+            "fair value per share, and sensitivity from trusted local inputs."
+        )
+        dcf_badges = ["scenario math", "sensitivity"]
+        dcf_command = stock_report_md_command(ticker)
+    elif price_ready:
+        dcf_title = "DCF blocked by missing trusted inputs"
+        dcf_body = (
+            "Price/setup context can be reviewed, but valuation math stays locked until trusted fundamentals, "
+            "cash-flow or margin, share count, and source freshness pass readiness."
+        )
+        dcf_badges = ["missing inputs", "no valuation conclusion"]
+        dcf_command = f"make focus-fundamentals TICKER={ticker}"
+    else:
+        dcf_title = "Analysis locked until price rows exist"
+        dcf_body = "The app withholds setup, DCF, and peer interpretation until trusted local price history is available."
+        dcf_badges = ["price first", "no inference"]
+        dcf_command = f"make focus-price TICKER={ticker}"
+
+    if monitor_context:
+        peer_body = "Operating-company peer valuation is excluded for this monitor context."
+        peer_badges = ["peer valuation excluded", "monitor"]
+    elif peer_ready:
+        peer_body = "Source-backed peer context is available; review peer caveats and source freshness before interpretation."
+        peer_badges = ["source-backed peers", "review caveats"]
+    else:
+        peer_body = "Peer-relative valuation remains blocked until trusted peer mappings and peer valuation inputs are ready."
+        peer_badges = ["no guessed peers", "peer-gated"]
+
+    optional_body = (
+        "Earnings and analyst-estimate context is available from trusted optional rows."
+        if earnings_ready and estimates_ready
+        else "Earnings and analyst-estimate context stays locked until trusted optional CSV rows pass validation."
+    )
+
+    return [
+        {
+            "kicker": "SOURCE INPUTS",
+            "title": "Local/provider rows feed the report",
+            "body": (
+                "Prices, fundamentals, peers, earnings, and estimates come from local CSVs or labeled provider-assisted rows. "
+                "Missing trusted rows keep the related section locked."
+            ),
+            "badges": ["source rows", "readiness gate"],
+            "command": stock_report_md_command(ticker),
+        },
+        {
+            "kicker": "PRODUCT LOGIC",
+            "title": "This app decides what can appear",
+            "body": (
+                "Project code checks readiness, runs supported calculations locally, labels blocked or excluded methods, "
+                "and writes the report wording without inventing missing inputs."
+            ),
+            "badges": ["local logic", "data-honest"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "DCF BOUNDARY",
+            "title": dcf_title,
+            "body": dcf_body,
+            "badges": dcf_badges,
+            "command": dcf_command,
+        },
+        {
+            "kicker": "PEERS / OPTIONAL",
+            "title": "Relative and optional context stay separately gated",
+            "body": f"{peer_body} {optional_body}",
+            "badges": peer_badges,
+            "command": f"make focus-peers TICKER={ticker}" if not peer_ready and not monitor_context else stock_report_md_command(ticker),
+        },
+    ]
 
 
 def single_stock_detail_frame(snapshot: dict[str, object]) -> pd.DataFrame:
@@ -10157,16 +12898,21 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
         if peer_ready
         else format_missing(snapshot.get("next_peer_action"), "Add source-backed peer mappings before peer-relative valuation is reviewed.")
     )
-    peer_command = f"make stock-report TICKER={ticker}" if peer_ready else f"make focus-peers TICKER={ticker}"
+    peer_command = stock_report_md_command(ticker) if peer_ready else f"make focus-peers TICKER={ticker}"
     if dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
         peer_title = "monitor context"
         peer_body = "ETF/index proxy peer mappings are optional context; operating-company peer valuation is excluded."
-        peer_command = f"make stock-report TICKER={ticker}"
+        peer_command = stock_report_md_command(ticker)
     elif dcf_status and dcf_status != "ready":
         peer_title = "blocked until fundamentals / DCF"
         peer_body = "Peer-relative valuation should wait until trusted fundamentals and DCF inputs are ready."
-        peer_command = f"make stock-report TICKER={ticker}"
+        peer_command = stock_report_md_command(ticker)
     next_command = single_stock_next_command(snapshot)
+    data_confidence = first_meaningful_text(
+        snapshot.get("data_confidence"),
+        snapshot.get("confidence"),
+        fallback="Not available",
+    )
     status_body = format_missing(snapshot.get("main_reason"), "Readiness state available.")
     if next_command == "make optional-context-worklist TOP_N=25":
         next_action_text = compact_reason(snapshot.get("next_action"), max_sentences=1, max_chars=160)
@@ -10179,7 +12925,7 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
             "title": format_missing(snapshot.get("ticker"), "Selected ticker"),
             "body": format_missing(snapshot.get("one_minute_summary"), "Readiness state available."),
             "badges": ["readiness first", "single name"],
-            "command": f"make stock-report TICKER={format_missing(snapshot.get('ticker'))}",
+            "command": stock_report_md_command(snapshot.get("ticker")),
         },
         {
             "kicker": "TICKER STATUS",
@@ -10187,7 +12933,7 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
             "body": status_body,
             "badges": [
                 f"decision: {format_missing(snapshot.get('decision_subtype'))}",
-                f"confidence: {format_missing(snapshot.get('confidence'))}",
+                f"data confidence: {data_confidence}",
             ],
             "command": next_command,
         },
@@ -10302,10 +13048,107 @@ def valuation_readiness_operator_frame(
                 "Example Tickers": example_tickers(excluded_rows),
                 "What It Means": "These rows can still support market, theme, liquidity, or risk monitoring.",
                 "What Stays Withheld": "Operating-company DCF is excluded, not failed.",
-                "Next Command": "make stock-report TICKER=QQQ",
+                "Next Command": "make stock-report-md TICKER=QQQ",
             },
         ]
     )
+
+
+def _plain_missing_input_list(value: object, fallback: str = "trusted DCF inputs") -> str:
+    text = format_missing(value, fallback)
+    if text == fallback:
+        return fallback
+    parts = [
+        public_status_label(part).replace("_", " ").strip()
+        for part in re.split(r"[,;|]", text)
+        if part.strip() and part.strip().lower() not in {"nan", "none", "not available"}
+    ]
+    return ", ".join(parts) if parts else fallback
+
+
+def valuation_blocked_unlock_frame(blocked_companies: pd.DataFrame, limit: int = 25) -> pd.DataFrame:
+    columns = [
+        "Ticker",
+        "Current State",
+        "Valuation Boundary",
+        "Missing Trusted Inputs",
+        "What This Means",
+        "Next Trusted Input",
+        "Next Safe Sequence",
+        "Validation Path",
+        "Copy-Only Command",
+    ]
+    if blocked_companies.empty:
+        return pd.DataFrame(columns=columns)
+
+    def row_bool(row: pd.Series, column: str, default: bool = True) -> bool:
+        if column not in row or pd.isna(row.get(column)):
+            return default
+        value = row.get(column)
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in {"true", "1", "yes", "y"}
+
+    rows: list[dict[str, object]] = []
+    for _, row in blocked_companies.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        missing_inputs = _plain_missing_input_list(
+            first_meaningful_text(row.get("missing_dcf_fields"), row.get("reason_not_ready"), fallback="")
+        )
+        has_price = row_bool(row, "has_price", default=True)
+        if not has_price:
+            next_input = "Add or refresh trusted local price rows before reviewing valuation."
+            command = f"make focus-price TICKER={ticker}"
+            safe_sequence = (
+                f"1. Inspect `{command}`. 2. Use `make price-refresh-loop DRY_RUN=1` for a capped broad plan "
+                "or prepare trusted OHLCV rows in `data/imports/prices.csv`. "
+                "3. Run `make price-validate`, `make price-preview`, `make price-apply`, then `make dcf-readiness`."
+            )
+            validation_path = "make price-validate -> make price-preview -> make price-apply -> make dcf-readiness"
+        else:
+            next_input = "Add trusted company fundamentals such as revenue, free cash flow or margin, and shares outstanding."
+            command = f"make focus-fundamentals TICKER={ticker}"
+            safe_sequence = (
+                f"1. Inspect `{command}`. 2. Use `make sec-stage TICKERS={ticker}` when SEC_USER_AGENT is configured, "
+                "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
+                "3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`."
+            )
+            validation_path = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Current State": "Valuation locked by missing inputs",
+                "Valuation Boundary": "No intrinsic, peer-relative, undervalued, or overvalued conclusion until trusted inputs pass readiness.",
+                "Missing Trusted Inputs": missing_inputs,
+                "What This Means": "No fair value, undervalued, or overvalued conclusion is shown until these inputs pass readiness.",
+                "Next Trusted Input": next_input,
+                "Next Safe Sequence": safe_sequence,
+                "Validation Path": validation_path,
+                "Copy-Only Command": command,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def valuation_excluded_context_frame(excluded_rows: pd.DataFrame, limit: int = 25) -> pd.DataFrame:
+    columns = ["Ticker", "Asset Type", "Current State", "Valuation Boundary", "What This Means", "Copy-Only Command"]
+    if excluded_rows.empty:
+        return pd.DataFrame(columns=columns)
+    rows: list[dict[str, object]] = []
+    for _, row in excluded_rows.head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "TICKER").upper()
+        asset_type = public_status_label(row.get("asset_type"), "ETF / index / fund")
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Asset Type": asset_type,
+                "Current State": "Operating-company DCF excluded",
+                "Valuation Boundary": "DCF excluded, not failed; peer-relative company valuation is not shown for monitor-context rows.",
+                "What This Means": "Use monitor context such as market, theme, liquidity, or risk review; DCF is excluded, not failed.",
+                "Copy-Only Command": stock_report_md_command(ticker),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
 
 
 def valuation_decision_guide_cards(
@@ -10343,6 +13186,129 @@ def valuation_decision_guide_cards(
     return cards
 
 
+def valuation_quick_read_cards(
+    ready_companies: pd.DataFrame | None,
+    blocked_companies: pd.DataFrame | None,
+    excluded_rows: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    ready = pd.DataFrame() if ready_companies is None else ready_companies
+    blocked = pd.DataFrame() if blocked_companies is None else blocked_companies
+    excluded = pd.DataFrame() if excluded_rows is None else excluded_rows
+
+    def first_ticker(frame: pd.DataFrame, fallback: str = "TICKER") -> str:
+        if frame.empty or "ticker" not in frame.columns:
+            return fallback
+        values = frame["ticker"].dropna().astype(str).str.upper().str.strip()
+        values = values.loc[values.ne("")]
+        return values.iloc[0] if not values.empty else fallback
+
+    ready_ticker = first_ticker(ready, "NVDA")
+    blocked_ticker = first_ticker(blocked, "TICKER")
+    excluded_ticker = first_ticker(excluded, "QQQ")
+    blocked_missing = "trusted price, fundamentals, free cash flow or margin, and share count"
+    if not blocked.empty and "missing_dcf_fields" in blocked.columns:
+        missing_values = blocked["missing_dcf_fields"].fillna("").astype(str).str.strip()
+        missing_values = missing_values.loc[missing_values.ne("")]
+        if not missing_values.empty:
+            blocked_missing = missing_values.iloc[0].replace("_", " ")
+
+    if ready.empty and blocked.empty and excluded.empty:
+        first_title = "Generate DCF readiness first"
+        first_body = "No valuation readiness rows are loaded, so valuation should stay current-only and blocked until the local readiness files exist."
+        first_command = "make dcf-readiness"
+        first_badges = ["readiness first", "no guessing"]
+    elif not ready.empty:
+        first_title = "Review DCF-ready companies first"
+        first_body = (
+            f"Start with {ready_ticker}. DCF-ready rows can support assumption, scenario, sensitivity, and source/freshness review; "
+            "they are still research context, not price targets."
+        )
+        first_command = stock_report_md_command(ready_ticker)
+        first_badges = ["DCF-ready", "scenario review"]
+    elif not blocked.empty:
+        first_title = "Fix missing valuation inputs first"
+        first_body = (
+            f"Start with {blocked_ticker}. Company valuation remains locked by {blocked_missing}; missing inputs are not undervalued, "
+            "overvalued, or weak-company conclusions."
+        )
+        first_command = f"make focus-fundamentals TICKER={blocked_ticker}"
+        first_badges = ["blocked by data", "no conclusion"]
+    else:
+        first_title = "Use monitor context only"
+        first_body = (
+            f"Start with {excluded_ticker}. ETF/index/fund rows can support market, theme, liquidity, or risk context; "
+            "operating-company DCF is excluded, not failed."
+        )
+        first_command = stock_report_md_command(excluded_ticker)
+        first_badges = ["monitor context", "DCF excluded"]
+
+    ready_command = stock_report_md_command(ready_ticker) if not ready.empty else "make dcf-readiness"
+    blocked_command = f"make focus-fundamentals TICKER={blocked_ticker}" if not blocked.empty else "make sec-stage-queue TOP_N=25"
+    excluded_command = stock_report_md_command(excluded_ticker) if not excluded.empty else "make stock-report-md TICKER=QQQ"
+    if ready.empty:
+        analyze_title = "0 DCF-ready company row(s)"
+        analyze_body = (
+            "What you can analyze now: no operating-company DCF assumptions or sensitivity should be reviewed yet. "
+            "Use the locked-input and monitor-context cards until trusted DCF rows exist."
+        )
+    else:
+        analyze_title = f"{len(ready)} DCF-ready company row(s)"
+        analyze_body = (
+            f"What you can analyze now: open {ready_ticker} for DCF assumptions, scenarios, "
+            "sensitivity, and source freshness. Peer trend can be reviewed only when mapped peer price history is ready; "
+            "peer-relative valuation still needs trusted peer valuation inputs. This is a valuation-readiness review, "
+            "not a recommendation, price target, or full investment conclusion."
+        )
+
+    return [
+        {
+            "kicker": "FIRST READ",
+            "title": first_title,
+            "body": f"What this means: {first_body}",
+            "badges": first_badges,
+            "command": first_command,
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "Run the next local proof step",
+            "body": (
+                f"Copy next: `{first_command}`. Use this command to prove the current valuation lane before reading "
+                "DCF assumptions, locked-input worklists, or monitor-context rows. The dashboard displays the command only; "
+                "it does not run refreshes, imports, or external account actions."
+            ),
+            "badges": ["copy-only", "research-only"],
+            "command": first_command,
+        },
+        {
+            "kicker": "ANALYZE NOW",
+            "title": analyze_title,
+            "body": analyze_body,
+            "badges": ["assumptions", "sensitivity"],
+            "command": ready_command,
+        },
+        {
+            "kicker": "STILL LOCKED",
+            "title": f"{len(blocked)} company row(s) need inputs",
+            "body": (
+                f"What is still locked: {'for ' + blocked_ticker + ', fair value/share' if not blocked.empty else 'company rows withhold fair value/share'}, intrinsic-value interpretation, "
+                f"and re-rating context until {blocked_missing} pass readiness."
+            ),
+            "badges": ["missing inputs", "valuation withheld"],
+            "command": blocked_command,
+        },
+        {
+            "kicker": "EXCLUDED",
+            "title": f"{len(excluded)} ETF/index/fund row(s)",
+            "body": (
+                f"What is excluded: {excluded_ticker if not excluded.empty else 'ETF/index/fund rows'} use monitor context because operating-company DCF "
+                "does not apply; use market or risk context instead."
+            ),
+            "badges": ["not failed", "monitor only"],
+            "command": excluded_command,
+        },
+    ]
+
+
 def valuation_function_quality_cards(
     ready_companies: pd.DataFrame,
     blocked_companies: pd.DataFrame,
@@ -10374,7 +13340,7 @@ def valuation_function_quality_cards(
             "title": f"{len(excluded_rows)} ETF/index/fund row(s) excluded",
             "body": "These rows can support market, theme, liquidity, or risk monitoring; operating-company DCF is intentionally excluded.",
             "badges": ["DCF excluded", "not failed"],
-            "command": "make stock-report TICKER=QQQ",
+            "command": "make stock-report-md TICKER=QQQ",
         },
         {
             "kicker": "PEER VALUATION",
@@ -10445,6 +13411,41 @@ def valuation_function_quality_frame(
     )
 
 
+def valuation_boundary_explainer_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "INTRINSIC VALUE",
+            "title": "Standalone DCF is local scenario math",
+            "body": (
+                "DCF uses trusted local company inputs to project free cash flow, discount those cash flows and terminal value, "
+                "adjust for cash/debt, then divide by shares. It is assumption review, not a final call."
+            ),
+            "badges": ["DCF formula path", "assumptions visible"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "RELATIVE VALUE",
+            "title": "Peer valuation is a separate gate",
+            "body": (
+                "Peer-relative valuation appears only after source-backed peer mappings and peer valuation inputs exist. "
+                "A DCF-ready stock can still be peer-blocked."
+            ),
+            "badges": ["peer-gated", "no guessed peers"],
+            "command": "make peer-mapping-queue TOP_N=10",
+        },
+        {
+            "kicker": "LOCKED OR EXCLUDED",
+            "title": "Missing data is not a valuation opinion",
+            "body": (
+                "Blocked company rows withhold valuation until trusted inputs exist. ETF/index/fund rows show monitor context "
+                "because operating-company DCF is excluded, not failed."
+            ),
+            "badges": ["no inference", "monitor context"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+    ]
+
+
 def valuation_method_contract_frame() -> pd.DataFrame:
     return pd.DataFrame(
         [
@@ -10480,6 +13481,51 @@ def valuation_method_contract_frame() -> pd.DataFrame:
             },
         ]
     )
+
+
+def valuation_method_path_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "METHOD PATH",
+            "title": "Inputs before valuation",
+            "body": (
+                "DCF starts only after trusted local price and company fundamentals are present. "
+                "Missing free cash flow, margin, shares, or price keeps valuation locked."
+            ),
+            "badges": ["source data first", "readiness gate"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "DCF MATH",
+            "title": "FCF -> discounted value -> fair value/share",
+            "body": (
+                "The product uses explicit free cash flow, or revenue times FCF margin, then applies visible growth, WACC, "
+                "terminal growth, cash/debt adjustment, and share count."
+            ),
+            "badges": ["assumptions visible", "sensitivity review"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "RELATIVE VALUE",
+            "title": "Peer valuation is separate",
+            "body": (
+                "Standalone DCF can be ready while peer-relative valuation stays locked. Peer valuation appears only after "
+                "source-backed peer mappings and peer valuation inputs pass readiness."
+            ),
+            "badges": ["peer-gated", "no guessed peers"],
+            "command": "make peer-mapping-queue TOP_N=10",
+        },
+        {
+            "kicker": "OUTPUT BOUNDARY",
+            "title": "Context, not a conclusion",
+            "body": (
+                "Ready rows support assumption and sensitivity review. Blocked rows withhold valuation, and ETF/index/fund rows "
+                "show monitor context because operating-company DCF is excluded, not failed."
+            ),
+            "badges": ["no inference", "research-only"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+    ]
 
 
 def split_risk_context_by_price_ready(frame: pd.DataFrame | None, unavailable_statuses: set[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -10923,11 +13969,11 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
         },
         {
             "Dashboard Label": "Earnings unavailable",
-            "What to do": "Add trusted local earnings rows only if you have a reliable source.",
+            "What to do": "Leave locked unless you have trusted earnings rows. Use `make templates`, place files in `data/staged/earnings/`, run `make import-earnings`, then `make imports-validate`, `make imports-preview`, and `make imports-apply`. Rejected rows appear at `data/rejected/earnings_import_rejected.csv`.",
         },
         {
             "Dashboard Label": "Analyst estimates unavailable",
-            "What to do": "Optional file. Leave missing unless you have a trusted local source.",
+            "What to do": "Leave locked unless you have trusted analyst-estimate rows. Use `make templates`, place files in `data/staged/analyst_estimates/`, run `make import-analyst-estimates`, then `make imports-validate`, `make imports-preview`, and `make imports-apply`. Rejected rows appear at `data/rejected/analyst_estimates_import_rejected.csv`.",
         },
     ]
 
@@ -12564,7 +15610,7 @@ def overview_best_current_name_cards(
                     "dcf ready" if bool(row.get("dcf_ready_bool")) else "momentum ready",
                     "peer ready" if bool(row.get("peer_ready_bool")) else "partial context",
                 ],
-                "command": f"make stock-report TICKER={ticker}" if next_surface == "Single-Stock Report" else "make monthly",
+                "command": stock_report_md_command(ticker) if next_surface == "Single-Stock Report" else "make monthly",
             }
         )
     return cards
@@ -13394,7 +16440,7 @@ def overview_handoff_cards() -> list[dict[str, object]]:
             "title": "Single-Stock Report",
             "body": "Use this for a single-name deep dive after local coverage can support price, valuation, peer, and missing-assumption context in one place.",
             "badges": ["single name", "deep dive"],
-            "command": "make stock-report TICKER=NVDA",
+            "command": stock_report_md_command("NVDA"),
         },
         {
             "kicker": "NEXT DEEPER TAB",
@@ -13501,7 +16547,7 @@ def overview_ready_name_handoff_cards(
 
     surface = str(best_name.get("title", ""))
     if surface == "Single-Stock Report":
-        command_text = format_missing(best_name.get("command"), "make stock-report TICKER=NVDA")
+        command_text = format_missing(best_name.get("command"), stock_report_md_command("NVDA"))
         badges = ["single name", "ready flow"]
         body = (
             "Open the ticker-targeted stock report in Single-Stock Report first so the deeper read stays tied to the selected local name. "
@@ -13760,7 +16806,7 @@ def monthly_picks_landing_cards(
             "badges": ["latest price date"],
         },
         {
-            "kicker": "CONFIDENCE",
+            "kicker": "DATA CONFIDENCE",
             "title": f"{pick_gap_count} rows with gaps",
             "body": "Missing fields remain attached to each candidate card so short history or missing fundamentals are obvious.",
             "badges": ["no forced fills"],
@@ -13805,12 +16851,12 @@ def monthly_picks_next_step_cards(
             "command": "make monthly",
         }
     elif picks_frame.empty:
-        coverage_command = "make price-worklist TOP_N=10"
+        coverage_command = "make price-refresh-loop DRY_RUN=1"
         primary = {
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                f"Current local filters did not support any monthly candidates. Run {coverage_command} to find the next broad coverage targets instead of forcing weaker names into the list."
+                f"Current local filters did not support any monthly candidates. Run {coverage_command} to preview the capped broad coverage plan instead of repeating small worklists or forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
             "command": coverage_command,
@@ -13853,7 +16899,7 @@ def monthly_picks_next_step_cards(
     secondary = {
         "kicker": "DATA GAPS",
         "title": f"{gap_count} rows with gaps",
-        "body": "Missing fields remain attached to each candidate so partial confidence is explicit instead of hidden.",
+        "body": "Missing fields remain attached to each candidate so partial data confidence is explicit instead of hidden.",
         "badges": ["transparent scoring", "local only"],
     }
     return [primary, secondary]
@@ -13906,9 +16952,9 @@ def monthly_picks_quality_cards(
             "badges": ["research-only", "copy-only"],
         },
         {
-            "kicker": "CONFIDENCE CHECK",
+            "kicker": "DATA CONFIDENCE CHECK",
             "title": f"{gap_count} candidate row(s) with visible gaps",
-            "body": f"{track_body} Missing fields stay visible on candidate cards and reduce confidence instead of being inferred.",
+            "body": f"{track_body} Missing fields stay visible on candidate cards and reduce data confidence instead of being inferred.",
             "badges": [track_title, "data-honest"],
         },
     ]
@@ -13944,7 +16990,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "kicker": "BEST USE",
             "title": "Open single-stock review next",
             "body": (
-                "Use a candidate as a starting point for make stock-report TICKER=..., then read valuation readiness, "
+                "Use a candidate as a starting point for make stock-report-md TICKER=..., then read valuation readiness, "
                 "fundamental gaps, peer gaps, and source freshness before forming any personal research view."
             ),
             "badges": ["next step", "single-stock depth"],
@@ -13963,7 +17009,7 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
     estimates_label = "Estimates Present" if readiness.get("analyst_estimates_available") else "Estimates Missing"
     missing_count = len(warnings)
     main_copy = (
-        "Local one-ticker report assembled from provider data and existing research-output context. "
+        "Local one-ticker report assembled from saved price, fundamentals, readiness, and decision rows. "
         "Unavailable inputs stay visible and are not inferred."
     )
     cards = [
@@ -14677,7 +17723,87 @@ def valuation_workflow_guidance_cards(
             "title": f"{excluded_count} row(s) excluded",
             "body": "ETF, index, and fund rows stay useful for monitor context, but operating-company DCF is excluded rather than failed.",
             "badges": ["monitor context", "DCF excluded"],
-            "command": "make stock-report TICKER=QQQ",
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+    ]
+
+
+def valuation_plain_language_cards(
+    ready_companies: pd.DataFrame,
+    blocked_companies: pd.DataFrame,
+    excluded_rows: pd.DataFrame,
+) -> list[dict[str, object]]:
+    def first_ticker(frame: pd.DataFrame, fallback: str) -> str:
+        if frame.empty or "ticker" not in frame.columns:
+            return fallback
+        values = frame["ticker"].dropna().astype(str).str.upper().str.strip()
+        values = values.loc[values.ne("")]
+        return values.iloc[0] if not values.empty else fallback
+
+    def examples(frame: pd.DataFrame, *, column: str = "ticker", limit: int = 3) -> str:
+        if frame.empty or column not in frame.columns:
+            return "none yet"
+        values = frame[column].dropna().astype(str).str.upper().str.strip()
+        tickers = [value for value in values.tolist() if value and value.lower() not in {"nan", "none"}]
+        if not tickers:
+            return "none yet"
+        suffix = f" +{len(tickers) - limit} more" if len(tickers) > limit else ""
+        return ", ".join(tickers[:limit]) + suffix
+
+    ready_examples = examples(ready_companies)
+    blocked_examples = examples(blocked_companies)
+    excluded_examples = examples(excluded_rows)
+    ready_ticker = first_ticker(ready_companies, "NVDA")
+    blocked_ticker = first_ticker(blocked_companies, "TICKER")
+    excluded_ticker = first_ticker(excluded_rows, "QQQ")
+    return [
+        {
+            "kicker": "WHAT THIS MEANS",
+            "title": f"{len(ready_companies)} ready / {len(blocked_companies)} locked / {len(excluded_rows)} excluded",
+            "body": (
+                "Value / Re-rating is a readiness-gated valuation page. DCF-ready rows can be reviewed; "
+                "blocked rows are missing-input work; ETF/index/fund rows are monitor context."
+            ),
+            "badges": ["plain English", "readiness first"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "WHAT YOU CAN ANALYZE NOW",
+            "title": f"DCF-ready examples: {ready_examples}",
+            "body": (
+                "Review DCF assumptions, scenario math, sensitivity, and source freshness for ready company rows only. "
+                "Peer trend is a separate context layer when mapped peer price history is ready; peer valuation stays locked "
+                "until source-backed peer valuation inputs pass readiness. Treat the output as research context, not an instruction."
+            ),
+            "badges": ["DCF assumptions", "sensitivity"],
+            "command": stock_report_md_command(ready_ticker),
+        },
+        {
+            "kicker": "WHAT IS STILL LOCKED",
+            "title": f"Locked examples: {blocked_examples}",
+            "body": (
+                "Company valuation stays locked until trusted price, fundamentals, free cash flow or margin, share count, "
+                "and source/freshness inputs exist. Missing inputs are not negative signals."
+            ),
+            "badges": ["missing inputs", "no inference"],
+            "command": f"make focus-fundamentals TICKER={blocked_ticker}" if blocked_ticker != "TICKER" else "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "WHAT IS EXCLUDED",
+            "title": f"Monitor examples: {excluded_examples}",
+            "body": "ETF/index/fund rows can support market, theme, liquidity, or risk context; operating-company DCF is excluded, not failed.",
+            "badges": ["monitor context", "DCF excluded"],
+            "command": stock_report_md_command(excluded_ticker),
+        },
+        {
+            "kicker": "PROOF PATH",
+            "title": "Prove valuation readiness before interpretation",
+            "body": (
+                "After fundamentals change, run make dcf-readiness and make readiness before reading Value / Re-rating again. "
+                "Ready means DCF assumptions can be reviewed; it does not create a price target or peer-relative conclusion."
+            ),
+            "badges": ["proof first", "no overclaim"],
+            "command": "make dcf-readiness && make readiness",
         },
     ]
 
@@ -14685,9 +17811,16 @@ def valuation_workflow_guidance_cards(
 def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
-    render_section_header("Valuation Function Quality", "What valuation can and cannot mean with the current trusted local inputs.")
+    render_section_header("Valuation Quick Read", "Which valuation lane to inspect first before reading tables or legacy value columns.")
+    render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
+    render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or legacy output filenames.")
+    render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
+    render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")
     render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
-    render_signal_cards(valuation_workflow_guidance_cards(len(ready_companies), len(not_ready_companies), len(excluded)))
+    render_section_header("Intrinsic vs Relative Value", "Where standalone DCF ends, where peer valuation begins, and why blocked data stays locked.")
+    render_signal_cards(valuation_boundary_explainer_cards())
+    render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
+    render_signal_cards(valuation_method_path_cards())
     with st.expander("What valuation can support today", expanded=False):
         st.write(
             "This audit separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "
@@ -14748,16 +17881,39 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         render_table(value_ready, "value-re-rating", show_reason_details=False)
     if not not_ready_companies.empty:
         with st.expander("Companies waiting for valuation inputs", expanded=True):
+            st.write(
+                "Start here when company valuation is locked. These rows are missing trusted inputs; "
+                "they are not negative company conclusions."
+            )
+            st.dataframe(
+                clean_display_frame(valuation_blocked_unlock_frame(not_ready_companies)),
+                width="stretch",
+                hide_index=True,
+            )
+        with st.expander("Raw valuation input details", expanded=False):
             columns = _readiness_columns(not_ready_companies, ["ticker", "asset_type", "missing_dcf_fields", "reason_not_ready", "has_price", "has_free_cash_flow", "has_shares_outstanding", "has_revenue", "has_fcf_margin"])
             st.dataframe(clean_display_frame(not_ready_companies[columns]), width="stretch", hide_index=True)
     if not excluded.empty:
         with st.expander("ETF / index proxy exclusions", expanded=True):
+            st.write(
+                "These rows can still be useful as market, sector, or theme monitors. "
+                "They are excluded from operating-company DCF because that method does not fit the asset type."
+            )
+            st.dataframe(
+                clean_display_frame(valuation_excluded_context_frame(excluded)),
+                width="stretch",
+                hide_index=True,
+            )
+        with st.expander("Raw ETF / index exclusion details", expanded=False):
             columns = _readiness_columns(excluded, ["ticker", "asset_type", "reason_not_ready"])
             st.dataframe(clean_display_frame(excluded[columns]), width="stretch", hide_index=True)
     with st.expander("Full valuation output table", expanded=False):
         st.caption(valuation_legacy_output_note())
-        diagnostic_columns = _readiness_columns(frame, ["Ticker", "ValuationStatus", "FinalValueCategory", "MissingDataFields", "Reason"])
-        st.dataframe(clean_display_frame(frame[diagnostic_columns]), width="stretch", hide_index=True)
+        st.write(
+            "Reader boundary is added by the dashboard so legacy value categories are interpreted as readiness context, "
+            "not standalone conclusions."
+        )
+        st.dataframe(clean_display_frame(valuation_legacy_diagnostic_frame(frame)), width="stretch", hide_index=True)
 
 
 def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) -> None:
@@ -14772,22 +17928,14 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
         render_signal_cards(decision_workflow_summary_cards(decisions))
         bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
         render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
+        proof_queue = decision_proof_queue_frame(decisions, limit=12)
+        render_section_header("Decision Proof Queue", "Plain-English translation of what can be reviewed now, what stays locked, and what proves an unlock.")
+        render_signal_cards(decision_proof_queue_cards(proof_queue))
+        if not proof_queue.empty:
+            st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
         render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
         render_signal_cards(final_decision_table_guide_cards(decisions))
-        decision_columns = _readiness_columns(
-            decisions,
-            [
-                "ticker",
-                "decision_bucket",
-                "confidence",
-                "main_reason",
-                "supporting_features",
-                "blocked_features",
-                "excluded_features",
-                "missing_data",
-                "next_action",
-            ],
-        )
+        decision_columns = final_decision_default_columns(decisions)
         st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
@@ -15194,30 +18342,77 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
             "title": f"{master:,} tickers tracked",
             "body": f"{active:,} are in the active research list. The broad list is tracked, but only data-ready names are analyzed deeply.",
             "badges": ["broad list", "active list"],
+            "command": "make status-check TOP_N=5",
         },
         {
             "kicker": "READY TO REVIEW",
             "title": f"{price_ready:,} have price data",
             "body": f"{partial:,} names have partial coverage. Momentum-style review is available only where price history is ready.",
             "badges": ["price first", "no guessing"],
+            "command": "make price-refresh-loop DRY_RUN=1",
         },
         {
             "kicker": "DEEP ANALYSIS",
             "title": f"{dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready",
             "body": "Valuation and peer comparison appear only when the needed inputs exist. Missing peers or fundamentals stay visible.",
             "badges": ["valuation gated", "source-aware"],
+            "command": "make sec-stage-queue TOP_N=25",
         },
         {
             "kicker": "OPTIONAL CONTEXT",
             "title": f"{earnings_ready:,} earnings / {estimates_ready:,} estimates",
             "body": "Earnings and analyst estimates are intentionally locked until trusted local rows are available.",
             "badges": ["trusted data only"],
+            "command": "make optional-context-worklist TOP_N=10",
         },
         {
             "kicker": "DECISIONS",
             "title": f"{research_now:,} research now / {monitor:,} monitor",
             "body": f"{blocked:,} names are blocked by missing data. That is a data-quality state, not a product failure.",
             "badges": ["readiness gated"],
+            "command": "make research-health TOP_N=10",
+        },
+    ]
+
+
+def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "STEP 1",
+            "title": "Check readiness first",
+            "body": (
+                "The product checks local prices, fundamentals, DCF fields, peers, earnings, and estimates before showing deeper analysis."
+            ),
+            "badges": ["data readiness", "no guessing"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "STEP 2",
+            "title": "Run only supported analysis",
+            "body": (
+                "Price-ready rows can support setup and risk context; DCF-ready rows can support assumptions and sensitivity; "
+                "peer-ready rows can support source-backed relative context."
+            ),
+            "badges": ["module-gated", "plain English"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "STEP 3",
+            "title": "Keep locked sections visible",
+            "body": (
+                "Missing fundamentals, peer inputs, earnings, or estimates stay locked. ETF/index/fund DCF is excluded, not failed."
+            ),
+            "badges": ["blocked is not negative", "excluded is not failed"],
+            "command": "make data-wizard TOP_N=10",
+        },
+        {
+            "kicker": "STEP 4",
+            "title": "Read the report boundary",
+            "body": (
+                "Single-stock reports explain what data came from source rows, what the product calculated, what stayed withheld, and the next copy-only local step."
+            ),
+            "badges": ["source vs logic", "copy-only"],
+            "command": "make stock-report-md TICKER=A",
         },
     ]
 
@@ -15234,8 +18429,12 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
         primary = {
             "kicker": "BEST NEXT STEP",
             "title": "Expand price coverage",
-            "body": "More tickers need daily price history before momentum, liquidity, and market-context views become useful across the broader universe.",
-            "badges": ["biggest blocker"],
+            "body": (
+                "More tickers need daily price history before momentum, liquidity, and market-context views become useful. "
+                "Start with the scalable dry run so you can review a capped batch plan instead of repeating 25-ticker refreshes manually."
+            ),
+            "badges": ["biggest blocker", "dry run first"],
+            "command": "make price-refresh-loop DRY_RUN=1",
         }
     elif dcf_ready <= peer_ready:
         primary = {
@@ -15243,6 +18442,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Add trusted fundamentals",
             "body": "Fundamentals unlock DCF and better company-level research. Use trusted SEC or local CSV inputs only.",
             "badges": ["deep research"],
+            "command": "make sec-stage-queue TOP_N=25",
         }
     else:
         primary = {
@@ -15250,6 +18450,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Add source-backed peers",
             "body": "Peer mappings unlock peer comparison for DCF-ready companies. Do not use guessed peer relationships.",
             "badges": ["peer research"],
+            "command": "make peer-mapping-queue TOP_N=25",
         }
 
     optional_title = "Optional context is locked"
@@ -15265,18 +18466,95 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Read the ready sections first",
             "body": "Start with names that have enough local data for the view you opened. Blocked rows are useful, but they are a data-unlock queue, not a conclusion list.",
             "badges": ["visitor friendly"],
+            "command": "make stock-report-md TICKER=NVDA",
         },
         {
             "kicker": "WHAT STAYS LOCKED",
             "title": "No data, no conclusion",
             "body": "If valuation, peers, earnings, or estimates are missing, the app keeps that analysis unavailable until trusted local rows exist.",
             "badges": ["research-only"],
+            "command": "make data-wizard TOP_N=10",
         },
         {
             "kicker": "OPTIONAL DATA",
             "title": optional_title,
             "body": optional_body,
             "badges": ["not required"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+        {
+            "kicker": "PROOF PATH",
+            "title": "Prove the unlock before reading conclusions",
+            "body": (
+                "After a refresh or import, rerun readiness before interpreting changed cards. "
+                "Use make readiness, then make status-check TOP_N=5, then reopen Home so ready and locked counts are current."
+            ),
+            "badges": ["proof first", "copy-only"],
+            "command": "make readiness && make status-check TOP_N=5",
+        },
+    ]
+
+
+def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
+    summary = summary or {}
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    missing = max(master - price_ready, 0) if master else 0
+    missing_label = f"{missing:,} ticker(s)" if missing else "missing-price tickers"
+    broad_target = min(max(missing, 100), 3500) if missing else 3500
+    broad_target = ((broad_target + 99) // 100) * 100
+    planned_batches = max((broad_target + 99) // 100, 1)
+    avoided_small_batches = max((broad_target + 24) // 25, 1)
+
+    return [
+        {
+            "kicker": "CURRENT PRICE STATE",
+            "title": "Check what is missing now",
+            "body": (
+                f"About {missing_label} still need price history. Read the current snapshot first so the dry run has a clear target."
+            ),
+            "badges": ["read first", "local snapshot"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "DRY-RUN PLAN",
+            "title": "Preview the broad refresh first",
+            "body": (
+                "Use a dry run with MAX_CANDIDATES so the loop "
+                f"calculates capped batches for you before any local CSV files change. "
+                f"Current plan: about {planned_batches} 100-ticker batch(es), replacing about {avoided_small_batches} small 25-ticker commands."
+            ),
+            "badges": ["dry run first", "no manual repeats"],
+            "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo",
+        },
+        {
+            "kicker": "BEFORE UPDATE",
+            "title": "Save the current readiness snapshot",
+            "body": (
+                "A snapshot lets the dashboard compare current and prior readiness after the refresh, instead of guessing what changed."
+            ),
+            "badges": ["compare later", "local only"],
+            "command": "make readiness-snapshot",
+        },
+        {
+            "kicker": "CAPPED RUN",
+            "title": "Run the loop only after reviewing the plan",
+            "body": (
+                "Use the same MAX_CANDIDATES and TOP_N from the dry run. "
+                f"The loop handles the {planned_batches} capped batch(es) for you, updates local CSVs only, "
+                "then you review the generated churn."
+            ),
+            "badges": ["capped batches", "review churn"],
+            "command": f"make price-refresh-loop MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        },
+        {
+            "kicker": "VERIFY & HYGIENE",
+            "title": "Prove what changed before staging",
+            "body": (
+                "Rebuild price coverage, readiness, and project status, then inspect generated CSV churn before staging anything."
+            ),
+            "badges": ["prove readiness", "review churn"],
+            "command": "make price-coverage TOP_N=25 && make readiness && make project-status && make diff-hygiene",
         },
     ]
 
@@ -15322,7 +18600,7 @@ def _plain_home_demo_example_frame() -> pd.DataFrame:
             {
                 "Example": "NVDA",
                 "Comparison Role": "Richer company example",
-                "What It Shows": "Company report with trusted local DCF inputs and visible method cues.",
+                "What It Shows": "Company report with trusted local DCF inputs, input path, assumptions, and sensitivity.",
                 "Review Mode": "Standalone DCF review",
                 "What To Check": "DCF assumptions, sensitivity, blocked peer valuation, and source/freshness notes.",
                 "Copy Command": "make stock-report-md TICKER=NVDA",
@@ -15415,7 +18693,7 @@ def methodology_ladder_frame() -> pd.DataFrame:
             },
             {
                 "Step": "4. Decision wording",
-                "What The Product Does": "Assigns readiness-aware research workflow buckets after blockers, confidence limits, and exclusions are known.",
+                "What The Product Does": "Assigns readiness-aware research workflow buckets after blockers, data-confidence limits, and exclusions are known.",
                 "What Users See": "Research Now, Monitor, or Blocked by Data with primary blocker and next_best_action.",
                 "Main Code": "src/research_decisions.py",
             },
@@ -15540,9 +18818,9 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             {
                 "Function Area": "Fundamentals / DCF",
                 "Quality Verdict": "Good for DCF-ready companies only",
-                "Best Use Today": "Review assumptions, scenarios, and sensitivity when trusted fundamentals and price inputs exist.",
+                "Best Use Today": "Review the DCF input path, assumptions, scenarios, and sensitivity when trusted fundamentals and price inputs exist.",
                 "Current Status": dcf_status,
-                "Supported Today": "DCF-ready company analysis with visible assumptions and sensitivity.",
+                "Supported Today": "DCF-ready company analysis with visible input path, assumptions, and sensitivity.",
                 "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source freshness.",
                 "Logic Source": "Project assumptions in src/value_engine.py and src/valuation.py.",
             },
@@ -15571,7 +18849,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": "Clear for one ticker's ready, blocked, excluded, and monitor-only analysis.",
                 "Supported Today": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
                 "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source/freshness outputs.",
-                "Logic Source": "Project report assembly in src/stock_report.py and src/dashboard.py.",
+                "Logic Source": "Project report assembly in src/stock_report.py and src/dashboard.py separates source rows from product calculations and blocked-section wording.",
             },
             {
                 "Function Area": "Dependencies",
@@ -15620,10 +18898,16 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "Copy-only dashboard.",
         "Cards display commands for you to copy into a terminal; the dashboard itself does not run refreshes, imports, or external account actions.",
     )
+    render_signal_cards(dashboard_page_reader_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
+
+    render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
+    render_signal_cards(_plain_home_evaluation_workflow_cards())
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary))
+    render_section_header("Scalable Price Refresh", "How to expand price coverage without repeating tiny batches by hand.")
+    render_signal_cards(price_refresh_operator_plan_cards(summary))
 
     render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
     st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
@@ -15692,10 +18976,13 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
                 [
                     "make status-check TOP_N=5",
                     "make price-refresh-loop DRY_RUN=1",
-                    "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+                    "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                    "make readiness-snapshot",
+                    "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+                    "make diff-hygiene",
                     "make readiness",
                     "make project-status",
-                    "make stock-report TICKER=NVDA",
+                    "make stock-report-md TICKER=NVDA",
                     "make dashboard-smoke",
                 ]
             ),
@@ -15856,7 +19143,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
 
     with st.expander("Methodology", expanded=False):
         st.write("Monthly review ordering uses local research outputs, local price history, optional local fundamentals, and transparent score components.")
-        st.write("Missing inputs reduce confidence and remain visible in the output.")
+        st.write("Missing inputs reduce data confidence and remain visible in the output.")
         st.write("Track-record files are calculated only from local historical price data; insufficient history is shown explicitly.")
 
 
@@ -15864,6 +19151,8 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     filename = TAB_TO_FILE[title]
     frame, message = output_frames[filename]
     render_section_header(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
+    if title == "Value / Re-rating":
+        render_signal_cards(dashboard_page_reader_cards(title))
     if message and frame is None:
         render_notice_card(
             f"{title} output is not available yet",
@@ -15897,6 +19186,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         "One-ticker research workflow. Saved local data is the default. "
         "Optional online research mode stays off by default and is labeled unofficial / research-grade.",
     )
+    render_signal_cards(dashboard_page_reader_cards("Single-Stock Report"))
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
     selected = selection_cols[0].selectbox(
@@ -15934,7 +19224,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
-    if st.button("Generate Local Stock Report", key="single-stock-report-button"):
+    render_signal_cards(single_stock_report_intro_cards())
+
+    if st.button("Build Local Report Preview", key="single-stock-report-button"):
         if not ticker:
             st.warning("Enter a ticker to generate a stock report.")
         else:
@@ -16078,6 +19370,8 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     with valuation_tab:
         base_dcf = valuation["dcf_result"]
         render_context_note("Valuation view.", "DCF, peer-relative context, and sensitivity stay informational only. Missing assumptions remain visible instead of being guessed.")
+        render_signal_cards(stock_report_valuation_boundary_cards(report_payload))
+        render_signal_cards(stock_report_dcf_calculation_path_cards(report_payload))
         valuation_columns = st.columns(4)
         valuation_columns[0].metric("Valuation Status", public_status_label(valuation.get("status")))
         valuation_columns[1].metric("Coverage", format_missing(valuation.get("coverage")))
@@ -16109,36 +19403,20 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
 
         st.markdown("#### Peer-Relative Valuation")
+        peer_summary = stock_report_peer_relative_summary(report_payload)
         peer_columns = st.columns(4)
-        peer_columns[0].metric("Peer Status", public_status_label(relative.get("status")))
-        peer_columns[1].metric("Peer Group", format_missing(relative.get("peer_group"), "Not configured"))
-        peer_columns[2].metric("Peer Count", report_display_value(relative.get("peer_count"), "integer"))
-        peer_columns[3].metric(
-            "Relative Score",
-            report_display_value(relative.get("relative_opportunity_score"), "number"),
-        )
+        peer_columns[0].metric("Peer Status", peer_summary["peer_status"])
+        peer_columns[1].metric("Peer Group", peer_summary["peer_group"])
+        peer_columns[2].metric("Peer Count", peer_summary["peer_count"])
+        peer_columns[3].metric("Relative Score", peer_summary["relative_score"])
+        st.caption(str(peer_summary["note"]))
         st.markdown(status_badge(relative.get("peer_relative_status", "insufficient_peer_data")), unsafe_allow_html=True)
 
-        comparison_rows = []
-        metric_labels = {"pe": "P/E", "ps": "P/S", "p_fcf": "P/FCF", "ev_ebitda": "EV/EBITDA"}
-        for metric_key, label in metric_labels.items():
-            subject = relative.get("subject_multiples", {}).get(metric_key)
-            peer_median = relative.get("peer_median_multiples", {}).get(metric_key)
-            discount = relative.get("relative_discount_premium_by_metric", {}).get(metric_key)
-            if subject is None and peer_median is None and discount is None:
-                continue
-            comparison_rows.append(
-                {
-                    "Metric": label,
-                    "Subject": report_display_value(subject, "number"),
-                    "Peer Median": report_display_value(peer_median, "number"),
-                    "Discount / Premium": report_display_value(discount, "percent"),
-                }
-            )
-        if comparison_rows:
-            st.dataframe(pd.DataFrame(comparison_rows), width="stretch", hide_index=True)
+        comparison_frame = stock_report_peer_relative_comparison_frame(report_payload)
+        if not comparison_frame.empty:
+            st.dataframe(comparison_frame, width="stretch", hide_index=True)
         else:
-            st.info("Peer-relative multiples are unavailable until local peers and peer fundamentals/prices are present.")
+            st.info(stock_report_peer_relative_empty_message(report_payload))
 
         sensitivity = valuation["sensitivity_table"]
         if sensitivity["status"] == "calculated" and sensitivity["fair_value_grid"]:
@@ -16157,6 +19435,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         earnings = report_payload["earnings_summary"]
         estimates = report_payload["analyst_estimate_summary"]
         render_context_note("Optional context.", "Earnings and analyst estimates only appear when trusted local files exist. Missing files are safe and stay explicit.")
+        render_signal_cards(stock_report_optional_context_boundary_cards(report_payload))
         earnings_col, estimates_col = st.columns(2)
         with earnings_col:
             st.markdown("#### Earnings")
@@ -16245,7 +19524,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         )
 
         if report_payload.get("screener_context"):
-            with st.expander("Existing research-output context", expanded=False):
+            with st.expander("Saved readiness and decision context", expanded=False):
                 st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
         if show_source_details:
@@ -16549,9 +19828,20 @@ def render_market_command_center(
     st.dataframe(clean_display_frame(product_logic_audit), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
     render_signal_cards(peer_readiness_payload_cards)
+    render_section_header("Peer Analysis Boundaries", "What peer trend can support now, what peer valuation still needs, and where trusted mappings live.")
+    render_signal_cards(peer_analysis_boundary_cards(peer_readiness_frame, ticker_readiness_frame))
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
     render_signal_cards(peer_mapping_studio_summary_cards(peer_readiness_frame, ticker_readiness_frame))
     render_signal_cards(peer_unlock_operator_cards(peer_unlock_worklist_frame, ticker_readiness_frame))
+    peer_input_ladder = peer_input_ladder_frame(peer_unlock_worklist_frame, ticker_readiness_frame)
+    render_section_header(
+        "Peer Input Ladder",
+        "Which trusted peer input to add next before peer-relative valuation can appear.",
+    )
+    render_signal_cards(peer_input_ladder_cards(peer_input_ladder))
+    if not peer_input_ladder.empty:
+        with st.expander("Peer input ladder table", expanded=False):
+            st.dataframe(clean_display_frame(peer_input_ladder), width="stretch", hide_index=True)
     render_section_header(
         "First Trusted Peer Mapping Unlock",
         "The shortest safe path from missing peers to a source-backed peer readiness change.",
@@ -16619,6 +19909,11 @@ def render_market_command_center(
         "Known universe is not the same as analysis-ready universe. Missing prices, fundamentals, peers, earnings, or estimates block conclusions; ETFs and index proxies stay excluded from operating-company DCF.",
         tone="warning" if summary.get("blocked_by_data", 0) else "neutral",
     )
+    render_section_header(
+        "Fundamentals To Peer Unlock Story",
+        "The plain-language sequence from price-ready company rows to standalone DCF, then source-backed peer-relative context.",
+    )
+    render_signal_cards(fundamentals_peer_unlock_story_cards(ticker_readiness_frame, peer_readiness_frame))
     render_section_header(
         "Fundamentals / DCF Unlock Guide",
         "Price-ready companies that still need trusted fundamentals, missing DCF fields, and DCF-ready names waiting on peer context.",
@@ -16765,6 +20060,17 @@ def render_market_command_center(
     metric_cols[3].metric("DCF", public_status_label(snapshot.get("dcf_status")))
     metric_cols[4].metric("Confidence", format_missing(snapshot.get("confidence")))
     render_signal_cards(single_stock_status_cards(snapshot))
+    render_section_header("Single-Stock Quick Read", "The first interpretation lane before tables: what this page can support, what stays locked, and the next copy-only command.")
+    render_signal_cards(single_stock_quick_read_cards(snapshot))
+    render_section_header("Single-Stock Reader Guide", "Plain-English answer for what is ready, what is locked, and the next copy-only step.")
+    render_signal_cards(single_stock_reader_guide_cards(snapshot))
+    with st.expander("Single-stock reader guide table", expanded=False):
+        st.dataframe(clean_display_frame(single_stock_reader_guide_frame(snapshot)), width="stretch", hide_index=True)
+    render_section_header(
+        "Source Vs Product Logic",
+        "Plain-English bridge from trusted source rows to product-calculated readiness, DCF, peer gates, and optional context.",
+    )
+    render_signal_cards(single_stock_methodology_bridge_cards(snapshot))
     render_section_header("Single-Stock Source/Freshness Audit", "Local source paths, import draft paths, credential state, and rejected-row reports for the selected ticker.")
     render_signal_cards(single_stock_source_audit_cards(snapshot))
     st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)
@@ -16777,6 +20083,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "Data Health",
         "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next.",
     )
+    render_signal_cards(dashboard_page_reader_cards("Data Health"))
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
@@ -16839,10 +20146,19 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
     render_signal_cards(data_health_orientation_cards(readiness_summary))
+    render_section_header("Data Health Quick Read", "Which unlock lane should you inspect first, before opening detailed tables.")
+    render_signal_cards(data_health_quick_read_cards(readiness_summary))
+    render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local generated-data churn.")
+    render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
     render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
     render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
     render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
     render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
+    render_section_header(
+        "Valuation Unlock Snapshot",
+        "Plain-English valuation queues before the full command center details.",
+    )
+    render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
     render_market_command_center(
         ticker_readiness_frame,
         coverage_frame,
@@ -17090,35 +20406,28 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 metric_cols[1].metric("Peer Ready", fp_summary["peer_ready"])
                 metric_cols[2].metric("Need Fundamentals", fp_summary["fundamentals_priority_1"])
                 metric_cols[3].metric("Need Peer Context", fp_summary["peer_priority_2"])
+                fundamentals_unlock = data_health_fundamentals_unlock_frame(fundamentals_peer_worklist_frame)
+                if not fundamentals_unlock.empty:
+                    render_section_header(
+                        "Price-Ready, Fundamentals-Locked Companies",
+                        "Plain-English fundamentals unlock queue before the raw worklist fields.",
+                    )
+                    render_signal_cards(data_health_fundamentals_unlock_cards(fundamentals_unlock))
+                    st.dataframe(clean_display_frame(fundamentals_unlock), width="stretch", hide_index=True)
             render_section_header("DCF Readiness", "Operating-company DCF gating, ETF exclusions, SEC setup, and manual fundamentals import availability.")
             metric_cols = st.columns(3)
             sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip())
-            if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
-                ready_count = int(dcf_readiness_frame.get("is_dcf_ready", pd.Series(dtype=bool)).astype(bool).sum())
-                not_ready_count = int(len(dcf_readiness_frame) - ready_count)
-                excluded_count = int(dcf_readiness_frame.get("asset_type", pd.Series(dtype=object)).astype(str).ne("company").sum())
-            else:
-                ready_count = 0
-                not_ready_count = 0
-                excluded_count = 0
-            metric_cols[0].metric("DCF-ready tickers", ready_count)
-            metric_cols[1].metric("Not ready / excluded", not_ready_count)
-            metric_cols[2].metric("ETF / index excluded", excluded_count)
+            dcf_metric_counts = data_health_dcf_metric_counts(dcf_readiness_frame)
+            metric_cols[0].metric("DCF-ready tickers", dcf_metric_counts["ready"])
+            metric_cols[1].metric("Company DCF blocked", dcf_metric_counts["blocked_company"])
+            metric_cols[2].metric("ETF / index excluded", dcf_metric_counts["excluded"])
             st.caption(
                 "SEC_USER_AGENT configured: "
                 + ("yes" if sec_configured else "no")
-                + " | Manual fundamentals import: data/staged/fundamentals/ -> make import-fundamentals -> make imports-validate/preview/apply"
+                + " | "
+                + import_workflow_caption("data/staged/fundamentals/", "make import-fundamentals")
             )
-            next_fundamentals_ticker = None
-            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
-                fp_worklist = fundamentals_peer_worklist_frame.copy()
-                if "ticker" in fp_worklist.columns:
-                    if "has_fundamentals" in fp_worklist.columns:
-                        missing_fundamentals = fp_worklist.loc[~bool_series(fp_worklist, "has_fundamentals")].copy()
-                    else:
-                        missing_fundamentals = fp_worklist
-                    if not missing_fundamentals.empty:
-                        next_fundamentals_ticker = format_missing(missing_fundamentals.iloc[0].get("ticker"), "")
+            next_fundamentals_ticker = next_fundamentals_unlock_ticker(fundamentals_peer_worklist_frame)
             render_section_header(
                 "First Trusted Fundamentals Unlock",
                 "The shortest safe path from missing company fundamentals to a readiness count that can honestly improve.",
@@ -17130,6 +20439,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     width="stretch",
                     hide_index=True,
                 )
+            field_guide = dcf_missing_field_guide_frame(dcf_readiness_frame, sec_configured=sec_configured)
+            render_section_header(
+                "DCF Missing-Field Guide",
+                "Translate blocked DCF fields into trusted input paths, validation steps, and withheld conclusions.",
+            )
+            render_signal_cards(dcf_missing_field_guide_cards(field_guide))
+            if not field_guide.empty:
+                with st.expander("DCF missing-field guide table", expanded=False):
+                    st.dataframe(clean_display_frame(field_guide), width="stretch", hide_index=True)
             if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
                 dcf_columns = [
                     column
@@ -17167,6 +20485,18 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "Earnings and analyst estimates stay not available until verified local rows are imported and applied.",
             )
             render_signal_cards(optional_context_unlock_cards())
+            optional_ladder = optional_context_ladder_frame(
+                optional_context_worklist_frame,
+                earnings_readiness_frame,
+                analyst_readiness_frame,
+            )
+            render_section_header(
+                "Optional Context Ladder",
+                "Schema-only examples, trusted input paths, rejected-row reports, and readiness proof before optional context appears.",
+            )
+            render_signal_cards(optional_context_ladder_cards(optional_ladder))
+            with st.expander("Optional context ladder table", expanded=False):
+                st.dataframe(clean_display_frame(optional_ladder), width="stretch", hide_index=True)
             render_section_header(
                 "First Trusted Optional Context Unlock",
                 "Optional context should stay locked unless trusted earnings or estimate rows are available locally.",
@@ -17193,7 +20523,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 if earnings_readiness_frame is not None and not earnings_readiness_frame.empty:
                     ready_count = int(earnings_readiness_frame.get("has_trusted_earnings", pd.Series(dtype=bool)).astype(bool).sum())
                     st.metric("Trusted earnings rows", f"{ready_count}/{len(earnings_readiness_frame)}")
-                    st.caption("Manual import: data/staged/earnings/ -> make import-earnings -> make imports-validate/preview/apply")
+                    st.caption(import_workflow_caption("data/staged/earnings/", "make import-earnings"))
                     columns = [
                         column
                         for column in ["ticker", "has_trusted_earnings", "row_count", "latest_report_date", "latest_fiscal_period", "missing_fields", "reason_not_ready"]
@@ -17209,7 +20539,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     ready_count = int(analyst_readiness_frame.get("has_trusted_analyst_estimates", pd.Series(dtype=bool)).astype(bool).sum())
                     st.metric("Trusted analyst rows", f"{ready_count}/{len(analyst_readiness_frame)}")
                     st.caption(
-                        "Manual import: data/staged/analyst_estimates/ -> make import-analyst-estimates -> make imports-validate/preview/apply"
+                        import_workflow_caption("data/staged/analyst_estimates/", "make import-analyst-estimates")
                     )
                     columns = [
                         column
@@ -17234,6 +20564,14 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 metric_cols[1].metric("Peer Queue P2", peer_summary["priority_2"])
                 metric_cols[2].metric("Holdings in Peer Queue", peer_summary["holdings"])
                 metric_cols[3].metric("Missing Peer Mappings", peer_summary["missing_peer_mapping"])
+                peer_unlock = data_health_peer_unlock_frame(peer_mapping_queue_frame, fundamentals_peer_worklist_frame)
+                if not peer_unlock.empty:
+                    render_section_header(
+                        "DCF-Ready, Peer-Locked Companies",
+                        "Plain-English peer unlock queue before the raw peer mapping fields.",
+                    )
+                    render_signal_cards(data_health_peer_unlock_cards(peer_unlock))
+                    st.dataframe(clean_display_frame(peer_unlock), width="stretch", hide_index=True)
                 render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
                 render_signal_cards(data_health_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
             if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
@@ -17890,10 +21228,10 @@ def main() -> None:
         render_context_note(note_title, note_body, tone="success")
         st.markdown("#### Where to go next")
         render_action_cards(dashboard_navigation_cards())
-        with st.expander("Help for using the app", expanded=False):
+        with st.expander("Quick help and safe commands", expanded=False):
             render_context_note(
-                "Safe local commands.",
-                "Preview capped refreshes first. The dashboard shows copyable commands only and never runs imports, refreshes, or account actions.",
+                "Start here when a page feels noisy.",
+                "Use the plain-language labels first, then copy a safe local command only when you are ready. The dashboard never runs imports, refreshes, or account actions.",
             )
             st.code(
                 "make help\nmake status-check TOP_N=5\nmake price-refresh-loop DRY_RUN=1\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report-md TICKER=NVDA\nmake dashboard-smoke",

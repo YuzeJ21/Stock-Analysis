@@ -11,6 +11,14 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
 - Next local step: Add trusted price history for mapped peers: DHR, TMO, WAT.
 
+## Reader Guide
+- Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
+- Still locked: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- Trusted input: Source-backed peer mappings and peer valuation inputs.
+- Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=A`, then confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
+- Copy next: `make focus-peers TICKER=A`.
+- Next research step: Add trusted price history for mapped peers: DHR, TMO, WAT.
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Standalone DCF review: company DCF assumptions can be reviewed, while peer-relative valuation stays locked until source-backed peer inputs are ready.
@@ -38,6 +46,14 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Data Vs Product Logic
+- Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
+- Product checks: project readiness gates decide whether each input is usable before report sections appear.
+- Product DCF logic: calculated locally from trusted price, fundamentals, cash-flow or margin, share count, and cash/debt inputs; the report does not ask a third party or model to create a valuation opinion.
+- Product peer logic: blocked locally until source-backed peer mappings and peer metrics exist; sector or industry fallback is not treated as trusted peer valuation.
+- Optional context logic: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
+- Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
+
 ## Analysis Quality
 - Analysis mode: Standalone DCF review.
 - Why: DCF assumptions can be reviewed, but peer-relative valuation remains limited until trusted peer inputs are ready.
@@ -46,8 +62,11 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 ## Methodology
 - Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
+- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
+- Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
+- DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
 - DCF method: standalone DCF projects free cash flow under bear/base/bull assumptions, discounts projected cash flows and terminal value by WACC, adjusts for cash/debt or net debt, and divides by shares outstanding.
 - Peer method: peer-relative valuation stays withheld until source-backed peer mappings and peer valuation inputs are ready.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
@@ -70,6 +89,7 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 ## Decision
 - Bucket: Research Now
 - Subtype: Research Candidate - DCF Ready But Peer Blocked
+- Boundary: Workflow state only: standalone company and DCF review can continue, but peer-relative valuation stays locked until trusted peer inputs are ready.
 - Primary blocker: peers
 - Main reason: Core data is ready for a supported research pass.
 - Next action: Add trusted price history for mapped peers: DHR, TMO, WAT.
@@ -102,7 +122,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Next Research Step
 - Next research question: Do trend, fundamentals, DCF assumptions, and thesis conflict notes still support the compounder purpose?
 - Review priority: High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation.
-- Confidence explanation: Confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: partial
@@ -128,13 +148,44 @@ Research-only purpose brief. It separates what local data supports from what rem
 - DCF status: calculated.
 - Base DCF fair value per share: $79.75.
 - DCF input trace: base revenue=$4.5B; base FCF=$1.2B; FCF margin=25.8%; shares outstanding=282.6M; balance-sheet adjustment uses cash=$1.8B; debt=$3.0B.
-- Base DCF assumptions: method=fcf_direct, revenue growth=6.4%, FCF margin=25.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
+- Base DCF assumptions: input path=direct free cash flow, revenue growth=6.4%, FCF margin=25.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
 - Scenario coverage: bear, base, bull.
 - Sensitivity table: calculated; it tests fair value across WACC and terminal-growth assumptions when per-share DCF inputs are ready.
+- Sensitivity snapshot: at WACC 9.0%, TG 2.0% -> $69.94; TG 3.0% -> $79.75; TG 4.0% -> $93.49.
 - Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready; current status=peer data unavailable; peer count=3.
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
+## DCF Calculation Path
+- State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs.
+- Formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
+- Input source: local price/fundamentals rows; base revenue=$4.5B; base FCF=$1.2B; shares outstanding=282.6M.
+- Assumptions used: revenue growth=6.4%; FCF margin=25.8%; WACC=9.0%; terminal growth=3.0%; forecast years=5.
+- Sensitivity: calculated; reader should compare WACC and terminal-growth cases before interpreting fair value.
+- Sensitivity snapshot: at WACC 9.0%, TG 2.0% -> $69.94; TG 3.0% -> $79.75; TG 4.0% -> $93.49.
+- Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation.
+
+## DCF Input Triage
+- DCF input triage: required inputs passed readiness for standalone DCF review.
+- Next check: review assumptions, sensitivity, and source freshness; do not convert fair value math into a recommendation.
+
+## Valuation Boundary Checklist
+- DCF boundary: ready for assumption, scenario, and sensitivity review; still research context, not a price target.
+- Peer-relative boundary: blocked until source-backed peer mappings and peer valuation inputs pass readiness.
+- Optional-context boundary: locked until trusted local earnings and analyst-estimate rows pass import validation.
+- Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
+
 ## Peer Workflow
+- What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by peer price missing.
+- What can be reviewed now: DCF assumptions and sensitivity; DCF assumptions and sensitivity; peer trend status=not ready until mapped peer price history is sufficient. Mapped peer count=3.
+- What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison until source-backed peer mappings and peer valuation inputs pass readiness.
+- Trusted input path: add source-backed rows in `data/imports/peers.csv`, then run `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+- Next peer action: Add trusted price history for mapped peers: DHR, TMO, WAT.
+- Fallback boundary: sector or industry context is fallback only; it is not trusted manual peer data. Current mapping status=mapped.
+- Peer ladder: standalone DCF can be reviewed before peer valuation is ready.
+- Mapping evidence: mapping status=mapped; peer count=3; blocker=peer price missing.
+- Trend evidence: not ready until mapped peer price history is sufficient.
+- Valuation evidence: locked; do not show peer-relative premium/discount, peer valuation comparison, or peer DCF comparison.
+- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`.
 - Peer blocker type: peer price missing
 - Mapping status: mapped
 - Peer count: 3
@@ -143,6 +194,16 @@ Research-only purpose brief. It separates what local data supports from what rem
 - DCF peer comparison ready: not ready
 - Sample peers: DHR, TMO, WAT
 - Next peer action: Add trusted price history for mapped peers: DHR, TMO, WAT.
+
+## Optional Context Workflow
+- Optional context ladder: earnings and analyst estimates add timing, consensus, and revision context only; they never create a valuation conclusion by themselves.
+- Earnings evidence: locked; missing trusted local CSV input is an intentional state, not broken analysis. Use schema-only templates first; templates are not data.
+- Analyst-estimate evidence: locked; missing trusted local CSV input is an intentional state, not hidden consensus analysis.
+- Earnings path: `make templates` -> place trusted rows in `data/staged/earnings/` -> `make import-earnings` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.
+- Analyst-estimates path: `make templates` -> place trusted rows in `data/staged/analyst_estimates/` -> `make import-analyst-estimates` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.
+- Rejected-row checks: review `data/rejected/earnings_import_rejected.csv` and `data/rejected/analyst_estimates_import_rejected.csv` before trusting optional context.
+- Rebuild proof: run `make optional-context-readiness`, then `make stock-report-md TICKER=A` to confirm optional sections changed from locked to available.
+- No-conclusion boundary: missing earnings or estimates must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.
 
 ## Missing Data
 - 1Y performance is unavailable from the current local price history.
@@ -164,6 +225,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; freshness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Data Unlock Summary
+- Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=A`, then confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source freshness before interpreting valuation context.
 - Peer unlock: Peer context is the next unlock after DCF: Add trusted price history for mapped peers: DHR, TMO, WAT. Add source-backed mappings in `data/imports/peers.csv`.
@@ -178,11 +240,13 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Peer mapping: `make focus-peers TICKER=A`.
 - Peer queue: `make peer-mapping-queue TICKERS=A TOP_N=10`.
 - Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.
+- Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before reading peer-relative valuation.
 - Optional context queue: `make optional-context-worklist TICKERS=A TOP_N=10`.
 - Optional templates: `make templates`.
 - Earnings import: `make import-earnings`.
 - Analyst-estimates import: `make import-analyst-estimates`.
 - Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.
+- Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
 ## Source/Freshness Audit
 - Prices: ready; local source `data/prices.csv`; coverage 2023-12-11 to 2026-05-27; rows=616; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.

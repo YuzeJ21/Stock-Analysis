@@ -302,13 +302,13 @@ def _drilldown_confidence_explanation(row: pd.Series) -> str:
     if _drilldown_is_monitor(row):
         score_text = f" Readiness score: {score}." if score else ""
         return (
-            f"Confidence is {confidence} because only ready local monitor inputs are used. "
+            f"Data confidence is {confidence} because only ready local monitor inputs are used. "
             "Operating-company DCF and peer valuation are excluded, not treated as failed monitor inputs."
             f"{score_text}"
         )
     blocker = text_value(row.get("primary_blocker"), "none")
     score_text = f" Readiness score: {score}." if score else ""
-    return f"Confidence is {confidence} because only ready local inputs are used. Limiting factor: {blocker}.{score_text}"
+    return f"Data confidence is {confidence} because only ready local inputs are used. Limiting factor: {blocker}.{score_text}"
 
 
 def _fill_drilldown_text(frame: pd.DataFrame, column: str, builder: Any) -> None:

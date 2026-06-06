@@ -50,7 +50,7 @@ make stock-report-md TICKER=SMH
 make stock-report-md TICKER=APLD
 ```
 
-Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.
+For public demos, prefer `make stock-report-md TICKER=NVDA`. Use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
 - `NVDA` demonstrates company-level DCF assumptions and source-backed peer context when trusted local inputs are ready.
 - `A` demonstrates standalone DCF review where peer-relative valuation is still waiting on source-backed peers.
@@ -98,10 +98,11 @@ For larger price refreshes, dry-run first and keep batches capped:
 
 ```bash
 make price-refresh-loop DRY_RUN=1
+make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo
 make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
 ```
 
-Large refreshed CSVs are local working data. Review generated changes before committing them.
+The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover, dry-run again, then run the capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. Large refreshed CSVs are local working data, so review generated changes before committing them.
 
 ## Function Quality Checklist
 

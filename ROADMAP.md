@@ -229,7 +229,28 @@ The following are intentionally deprioritized:
 
 Reason: the blocker is not the lack of indicators. The blocker is missing trusted data for fundamentals, peers, earnings, and analyst estimates.
 
-## 8. Acceptance Criteria For The Next Roadmap Milestone
+## 8. Next Public Roadmap Stage
+
+Goal: turn the public project into a usable research workflow while the data universe grows through safe, reviewable unlocks.
+
+This stage should improve breadth without pretending the whole 3,538-ticker universe is analysis-ready. It should favor capped refreshes, preview-first imports, source/freshness visibility, and plain-English next actions.
+
+| Workstream | Next product step | Safe command path | Completion signal |
+| --- | --- | --- | --- |
+| Scalable price refresh | Replace manual repeated 25-ticker refreshes with capped batches and dry-run-first guidance. | `make price-refresh-loop DRY_RUN=1`, then capped `make price-refresh-loop BATCHES=... TOP_N=... PROVIDER=yahoo`. | Price-ready coverage improves without committing broad CSV churn by default. |
+| Trusted fundamentals | Use SEC staging when configured, or trusted manual fundamentals imports when not. | `make sec-stage-queue TOP_N=25`, `make focus-fundamentals TICKER=...`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | `fundamentals_ready` and `dcf_ready` improve only from trusted rows. |
+| Source-backed peers | Prioritize active-universe and DCF-ready peer blockers before broad peer work. | `make peer-mapping-queue TOP_N=25`, `make focus-peers TICKER=...`, `make templates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Peer trend and peer valuation states are separated; peer valuation appears only when trusted peer inputs pass readiness. |
+| Optional context | Keep earnings and analyst estimates locked until trusted local rows exist. | `make optional-context-worklist TOP_N=25`, `make import-earnings`, `make import-analyst-estimates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Empty optional context reads as intentionally locked, not broken or inferred. |
+| Freshness guidance | Make source age, rejected-row reports, and generated-data hygiene visible before interpretation. | `make project-status`, `make research-health-check TOP_N=10`, `make public-check`, `make diff-hygiene`. | Visitors can see what is fresh, what is stale, what is local-only, and what should not be committed. |
+
+Public-share rules for this stage:
+
+- Keep the README demo path and sample reports short enough for GitHub/LinkedIn visitors.
+- Keep dashboard pages plain-language first, with commands and file paths behind focused help or tables.
+- Do not publish broad generated CSV churn unless it is the reviewed artifact for that release.
+- Do not add execution workflows, direct recommendations, fabricated data, or unsupported valuation labels.
+
+## 9. Acceptance Criteria For The Next Roadmap Milestone
 
 The next roadmap milestone is complete when:
 

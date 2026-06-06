@@ -11,6 +11,14 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
 - Next local step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
+## Reader Guide
+- Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
+- Still locked: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
+- Trusted input: Trusted optional earnings or analyst-estimate CSV rows, only if you have a source you trust.
+- Data Health lane: Optional Context Unlock. Copy `make optional-context-worklist TICKERS=NVDA TOP_N=10`, then confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
+- Copy next: `make optional-context-worklist TICKERS=NVDA TOP_N=10`.
+- Next research step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: DCF-ready review for company-level assumptions and sensitivity when trusted local fundamentals are ready.
@@ -38,6 +46,14 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Data Vs Product Logic
+- Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
+- Product checks: project readiness gates decide whether each input is usable before report sections appear.
+- Product DCF logic: calculated locally from trusted price, fundamentals, cash-flow or margin, share count, and cash/debt inputs; the report does not ask a third party or model to create a valuation opinion.
+- Product peer logic: available only from source-backed peer mappings and peer valuation inputs; sector or industry fallback is not treated as trusted peer valuation.
+- Optional context logic: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
+- Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
+
 ## Analysis Quality
 - Analysis mode: DCF-ready review.
 - Why: Price, fundamentals, standalone DCF, and peer context are ready for a fuller research pass.
@@ -46,8 +62,11 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 ## Methodology
 - Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
+- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
+- Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
+- DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
 - DCF method: standalone DCF projects free cash flow under bear/base/bull assumptions, discounts projected cash flows and terminal value by WACC, adjusts for cash/debt or net debt, and divides by shares outstanding.
 - Peer method: peer-relative valuation can be reviewed because source-backed peer inputs are ready.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
@@ -70,6 +89,7 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 ## Decision
 - Bucket: Research Now
 - Subtype: Research Candidate - Core Data Ready
+- Boundary: Workflow state only: ready for deeper manual research using supported local evidence, not a final conclusion.
 - Primary blocker: earnings
 - Main reason: Core data is ready for a supported research pass.
 - Next action: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
@@ -102,7 +122,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Next Research Step
 - Next research question: Does relative strength, trend quality, and extension risk still support the momentum purpose after reviewing the latest local price context?
 - Review priority: High review priority: momentum purpose has enough core data for trend/relative-strength review, but confirm setup quality manually.
-- Confidence explanation: Confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: partial
@@ -128,13 +148,42 @@ Research-only purpose brief. It separates what local data supports from what rem
 - DCF status: calculated.
 - Base DCF fair value per share: $143.42.
 - DCF input trace: base revenue=$215.9B; base FCF=$96.7B; FCF margin=44.8%; shares outstanding=24.2B; balance-sheet adjustment uses cash=$13.2B; debt=$8.5B.
-- Base DCF assumptions: method=fcf_direct, revenue growth=40.0%, FCF margin=44.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
+- Base DCF assumptions: input path=direct free cash flow, revenue growth=40.0%, FCF margin=44.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
 - Scenario coverage: bear, base, bull.
 - Sensitivity table: calculated; it tests fair value across WACC and terminal-growth assumptions when per-share DCF inputs are ready.
+- Sensitivity snapshot: at WACC 9.0%, TG 2.0% -> $126.33; TG 3.0% -> $143.42; TG 4.0% -> $167.35.
 - Relative valuation: calculated from trusted peer inputs, with caveats; peer count=2. Missing peer valuation fields: ebitda.
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
+## DCF Calculation Path
+- State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs.
+- Formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
+- Input source: local price/fundamentals rows; base revenue=$215.9B; base FCF=$96.7B; shares outstanding=24.2B.
+- Assumptions used: revenue growth=40.0%; FCF margin=44.8%; WACC=9.0%; terminal growth=3.0%; forecast years=5.
+- Sensitivity: calculated; reader should compare WACC and terminal-growth cases before interpreting fair value.
+- Sensitivity snapshot: at WACC 9.0%, TG 2.0% -> $126.33; TG 3.0% -> $143.42; TG 4.0% -> $167.35.
+- Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation.
+
+## DCF Input Triage
+- DCF input triage: required inputs passed readiness for standalone DCF review.
+- Next check: review assumptions, sensitivity, and source freshness; do not convert fair value math into a recommendation.
+
+## Valuation Boundary Checklist
+- DCF boundary: ready for assumption, scenario, and sensitivity review; still research context, not a price target.
+- Peer-relative boundary: available only from trusted peer mappings and peer valuation inputs.
+- Optional-context boundary: locked until trusted local earnings and analyst-estimate rows pass import validation.
+- Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
+
 ## Peer Workflow
+- What this means: peer context is ready from source-backed peer inputs; review mapped peers and freshness before interpreting relative valuation.
+- What can be reviewed now: peer trend status=ready; peer valuation status=ready; peer count=2.
+- What is still locked: any missing peer metric listed below stays unavailable and should not be inferred from sector or industry fallback.
+- Trusted input path: review `data/peers.csv` and rerun `make focus-peers TICKER=NVDA` before relying on peer-relative context.
+- Peer ladder: ready for source-backed peer context.
+- Mapping evidence: mapping status=mapped; peer count=2.
+- Trend evidence: ready from mapped peer price history.
+- Valuation evidence: available only from trusted peer mappings and peer valuation inputs; review freshness before interpretation.
+- Next safe command: `make focus-peers TICKER=NVDA` to inspect mapped peer evidence before reading relative context.
 - Peer blocker type: ready
 - Mapping status: mapped
 - Peer count: 2
@@ -143,6 +192,16 @@ Research-only purpose brief. It separates what local data supports from what rem
 - DCF peer comparison ready: ready
 - Sample peers: AMD, AVGO
 - Next peer action: Peer trend and valuation comparison are ready for NVDA.
+
+## Optional Context Workflow
+- Optional context ladder: earnings and analyst estimates add timing, consensus, and revision context only; they never create a valuation conclusion by themselves.
+- Earnings evidence: locked; missing trusted local CSV input is an intentional state, not broken analysis. Use schema-only templates first; templates are not data.
+- Analyst-estimate evidence: locked; missing trusted local CSV input is an intentional state, not hidden consensus analysis.
+- Earnings path: `make templates` -> place trusted rows in `data/staged/earnings/` -> `make import-earnings` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.
+- Analyst-estimates path: `make templates` -> place trusted rows in `data/staged/analyst_estimates/` -> `make import-analyst-estimates` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.
+- Rejected-row checks: review `data/rejected/earnings_import_rejected.csv` and `data/rejected/analyst_estimates_import_rejected.csv` before trusting optional context.
+- Rebuild proof: run `make optional-context-readiness`, then `make stock-report-md TICKER=NVDA` to confirm optional sections changed from locked to available.
+- No-conclusion boundary: missing earnings or estimates must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.
 
 ## Missing Data
 - No local analyst-estimate dataset is configured in the CSV-first pipeline.
@@ -163,6 +222,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; freshness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Data Unlock Summary
+- Data Health lane: Optional Context Unlock. Copy `make optional-context-worklist TICKERS=NVDA TOP_N=10`, then confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (621 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source freshness before interpreting valuation context.
 - Peer unlock: Peer context is usable now; review mapped peers and freshness before interpreting peer-relative context.
@@ -180,6 +240,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Earnings import: `make import-earnings`.
 - Analyst-estimates import: `make import-analyst-estimates`.
 - Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.
+- Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
 ## Source/Freshness Audit
 - Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=621; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.

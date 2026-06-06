@@ -1,5 +1,6 @@
 import csv
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -187,8 +188,10 @@ def test_makefile_help_documents_key_workflows():
         "make price-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo]",
         "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
-        "make price-refresh-loop [BATCHES=5] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
+        "make price-refresh-loop [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] [SLEEP_SECONDS=30]",
         "make price-refresh-loop DRY_RUN=1",
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100",
+        "avoids repeating 25-ticker refreshes manually",
         "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make optional-context-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make sec-stage-queue [TICKERS=NVDA,MSFT] [TOP_N=10]",
@@ -231,16 +234,101 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
 
     assert "price-refresh-loop:" in makefile
-    assert "BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)" in makefile
+    assert 'MAX_CANDIDATES="$(MAX_CANDIDATES)" BATCHES=$(or $(BATCHES),5) TOP_N=$(or $(TOP_N),100) PROVIDER=$(or $(PROVIDER),yahoo) SLEEP_SECONDS=$(or $(SLEEP_SECONDS),30) DRY_RUN=$(or $(DRY_RUN),0)' in makefile
     assert 'BATCHES="${BATCHES:-5}"' in script
     assert 'TOP_N="${TOP_N:-100}"' in script
     assert 'PROVIDER="${PROVIDER:-yahoo}"' in script
     assert 'DRY_RUN="${DRY_RUN:-0}"' in script
+    assert 'MAX_CANDIDATES="${MAX_CANDIDATES:-}"' in script
+    assert "MAX_CANDIDATES must be a positive integer when provided. Example: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo" in script
+    assert "BATCHES must be a positive integer. For broad coverage, prefer DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 so the loop calculates batches for you." in script
+    assert "TOP_N must be a positive integer. Use TOP_N=100 for a capped broad dry run before changing local CSV files." in script
+    assert 'BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))' in script
+    assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
+    assert "MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))" in script
+    assert "Coverage target: $TARGET_NOTE. The final batch may have unused capacity if fewer missing tickers remain." in script
+    assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
+    assert "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)." in script
+    assert "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time." in script
+    assert "Resume behavior: each batch uses the missing-price worklist" in script
+    assert "Before a real run, copy make readiness-snapshot" in script
+    assert "What changes on a real run: local price CSVs and generated readiness/report outputs may update." in script
+    assert "What stays manual: staging, validation, commit selection, and any generated CSV review remain under your control." in script
+    assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
+    assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
+    assert "for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again" in script
+    assert "do not babysit hundreds of tiny commands" in script
+    assert "Operator summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in script
+    assert "Operator summary: MAX_CANDIDATES is the approximate missing-price target; TOP_N is the per-batch safety cap." in script
     assert "Dry run only. No local CSV files were changed." in script
+    assert "Requested target: up to $REQUESTED_TARGET missing-price candidate(s)." in script
+    assert "Rounded batch capacity: up to $TOTAL_CANDIDATES ticker slot(s) across $BATCHES capped batch(es)." in script
+    assert "Unused capacity is expected when the last batch has fewer missing tickers than TOP_N." in script
+    assert "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES." in script
+    assert "If interrupted or provider-limited, rerun the dry run" in script
+    assert "No provider call, import, validation apply, broker action, or trade action runs during this dry run." in script
+    assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
+    assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
+    assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
+    assert "Snapshot command before a real run: make readiness-snapshot" in script
+    assert "Hygiene command after a real run: make diff-hygiene" in script
+    assert "Recommended next sequence:" in script
+    assert "1. make readiness-snapshot" in script
+    assert "2. make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
+    assert "2. make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
+    assert "3. make diff-hygiene" in script
+    assert "4. make stock-report-md TICKER=NVDA or reopen the dashboard to review the local result" in script
+    assert "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again." in script
+    assert "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER" in script
+    assert "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
+    assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in script
+    assert "Dry-run result: no data changed; review the planned command, then run exactly one capped loop when ready." in script
+    assert "Recalculate anytime: rerun DRY_RUN=1 after interruptions, provider limits, or local CSV changes." in script
+    assert "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=..." in script
+    assert "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize" in script
+    assert "Resume note: after fixing the source issue, rerun make price-refresh-loop DRY_RUN=1" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
+    assert "Price refresh batch $i failed." in script
+    assert "This replaces repeating 25-ticker refreshes manually" in script
     assert "make price-coverage TOP_N=25" in script
     assert "make readiness" in script
     assert "make project-status" in script
+    assert "run make diff-hygiene before staging" in script
+
+
+def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_writes():
+    result = subprocess.run(
+        ["sh", "scripts/price_refresh_loop.sh"],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={
+            "BATCHES": "5",
+            "TOP_N": "100",
+            "PROVIDER": "yahoo",
+            "SLEEP_SECONDS": "30",
+            "DRY_RUN": "1",
+            "MAX_CANDIDATES": "3538",
+        },
+    )
+    output = result.stdout.lower()
+
+    assert "dry run only. no local csv files were changed." in output
+    assert "requested coverage target: up to 3538 missing-price candidates; calculated 36 capped batch(es)." in output
+    assert "requested target: up to 3538 missing-price candidate(s)." in output
+    assert "rounded batch capacity: up to 3600 ticker slot(s) across 36 capped batch(es)." in output
+    assert "unused capacity is expected when the last batch has fewer missing tickers than top_n." in output
+    assert "manual 25-ticker commands avoided: about 144." in output
+    assert "operator summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in output
+    assert "operator summary: max_candidates is the approximate missing-price target; top_n is the per-batch safety cap." in output
+    assert "no provider call, import, validation apply, broker action, or trade action runs during this dry run." in output
+    assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=yahoo sleep_seconds=30" in output
+    assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in output
+    assert "dry-run result: no data changed; review the planned command, then run exactly one capped loop when ready." in output
+    assert "recalculate anytime: rerun dry_run=1 after interruptions, provider limits, or local csv changes." in output
+    assert "does not connect to brokers, place orders, or make recommendations" in output
+    assert "buy" not in output
+    assert "sell" not in output
 
 
 def test_readme_public_landing_page_is_short_visual_and_command_focused():
@@ -302,7 +390,11 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make research-health-check TOP_N=10",
         "make price-worklist TOP_N=10",
         "make price-refresh-loop DRY_RUN=1",
-        "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "estimated wait time, resume behavior",
+        "Before a real broad run, use `make readiness-snapshot`",
+        "after the run, use `make diff-hygiene`",
+        "refreshed generated CSV churn stays local unless intentionally reviewed",
         "make focus-fundamentals TICKER=NVDA",
         "make peer-mapping-queue TOP_N=10",
         "make optional-context-worklist TOP_N=10",
@@ -316,9 +408,16 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "At A Glance status, methodology, risks, blockers, copyable local unlock commands",
         "The report is not a black box",
         "project rules decide what can be analyzed",
-        "Readiness gates check whether prices, fundamentals, peers, earnings, and estimates are complete enough",
-        "Project calculations run only after the needed inputs are ready",
-        "Blocked or excluded sections stay visible with the exact missing input and next local step",
+        "Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears",
+        "Supported analysis: price-ready rows can support setup/risk context",
+        "DCF-ready rows can support assumptions and sensitivity",
+        "peer-ready rows can support source-backed relative context",
+        "Locked or excluded boundaries: missing fundamentals, peer inputs, earnings, or estimates stay locked",
+        "ETF/index/fund DCF is excluded, not failed",
+        "Report explanation: single-stock reports show what came from source rows",
+        "what the product calculated",
+        "what stayed withheld",
+        "next copy-only local step",
         "Markdown reports start with `At A Glance`",
         "Copyable Unlock Commands",
         "readiness-state output, not an action list",
@@ -465,6 +564,8 @@ def test_sample_stock_reports_explain_methodology_and_use_current_research_bound
         assert "monitor_context" not in report
         assert "peer_data_unavailable" not in report
         assert "insufficient_data" not in report
+        assert "method=fcf_direct" not in report
+        assert "method=revenue_fcf_margin" not in report
         assert "Price ready: True" not in report
         assert "Price ready: False" not in report
         assert "Earnings ready: False" not in report
@@ -506,7 +607,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "Fair value per share = Equity value / shares outstanding",
         "Valuation status is a gate, not a recommendation",
         "Scores And Ranking Context",
-        "setup scores, watchlist scores, confidence scores, and monthly",
+        "setup scores, watchlist scores, data-confidence scores, and monthly",
         "Scores are not:",
         "Price targets",
         "Expected returns",
@@ -533,7 +634,26 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "the same project code checks data readiness, runs DCF math only when inputs exist",
         "Fundamental review is therefore a validation-and-interpretation layer",
         "DCF output is treated as scenario math, not a price target",
-        "Confidence is never used to override a blocker",
+        "Conservative DCF Normalization",
+        "It is a transparent guardrail inside `src/valuation.py`",
+        "Observed revenue growth above the conservative start-growth cap is capped before projection",
+        "Projected early-year FCF growth can be capped even after the revenue-growth path is built",
+        "Observed FCF margin above the conservative margin cap is capped before projection",
+        "Normalized long-term growth is kept below WACC, and terminal growth must remain below WACC",
+        "These warnings are part of the model audit trail",
+        "not that the product guessed missing data or changed source inputs",
+        "Data confidence follows the same principle",
+        "Confidence And Decision Scores",
+        "Data confidence is a data-quality and review-routing signal, not investment conviction",
+        "Data readiness score =",
+        "(ready features + 0.45 * partial features) / ready-or-partial-or-blocked features",
+        "0.80 or higher",
+        "0.55 to below 0.80",
+        "0.25 to below 0.55",
+        "Data confidence is capped by decision bucket",
+        "Blocked by Data",
+        "Stays low even if some partial context exists",
+        "an ETF/index monitor row can have low or medium data confidence for monitoring while DCF stays excluded",
         "When a company ticker has the full trusted local input stack",
         "At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
         "The report should be read top-down: At A Glance first",
@@ -546,6 +666,20 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "Copyable local commands for optional context, peer review, or freshness checks",
         "When any part of that stack is missing, only the supported sections appear",
         "local command path for inspecting or unlocking that input",
+        "Data Unlock Ladder",
+        "The product uses the same unlock ladder in the dashboard, single-stock reports, and data-health queues",
+        "Price-ready does not mean fundamentals-ready",
+        "Fundamentals-ready does not mean DCF-ready unless all required DCF fields pass",
+        "DCF-ready does not mean peer-ready",
+        "Peer-ready does not mean earnings or analyst estimates are available",
+        "blocked rows must not be labeled undervalued, overvalued, DCF-ready, peer-ready, or optional-context-ready",
+        "operating-company DCF and peer valuation are excluded, not failed",
+        "`make focus-fundamentals TICKER=NVDA`",
+        "`make focus-peers TICKER=A`",
+        "`data/imports/fundamentals.csv`",
+        "`data/imports/peers.csv`",
+        "`make imports-validate`, then `make imports-preview`, then `make imports-apply`",
+        "they show the first trustworthy unlock instead of hiding the gap behind a weak conclusion",
         "Where This Lives In Code",
         "`src/readiness_engine.py`",
         "`src/dcf_readiness.py`",
@@ -569,6 +703,19 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "Reports show readiness, analysis quality, methodology, evaluation function checks",
         "ETF/index/fund reports show operating-company DCF as excluded, not failed",
         "`Blocked by Data - Missing Peer Mapping`",
+        "## 8. Next Public Roadmap Stage",
+        "Scalable price refresh",
+        "`make price-refresh-loop DRY_RUN=1`",
+        "Trusted fundamentals",
+        "`make sec-stage-queue TOP_N=25`",
+        "Source-backed peers",
+        "`make peer-mapping-queue TOP_N=25`",
+        "Optional context",
+        "`make optional-context-worklist TOP_N=25`",
+        "Freshness guidance",
+        "`make public-check`, `make diff-hygiene`",
+        "Do not publish broad generated CSV churn unless it is the reviewed artifact for that release",
+        "Do not add execution workflows, direct recommendations, fabricated data, or unsupported valuation labels",
     ):
         assert phrase in roadmap
 
@@ -637,7 +784,8 @@ def test_operator_guide_is_command_focused_and_research_only():
         "make stock-report-md TICKER=QQQ",
         "make stock-report-md TICKER=SMH",
         "make stock-report-md TICKER=APLD",
-        "Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.",
+        "For public demos, prefer `make stock-report-md TICKER=NVDA`.",
+        "Use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.",
         "make dashboard",
         "make dashboard-smoke",
         "Use the Home page `Example Reports` table to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples",
@@ -667,6 +815,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "Monitor-only context",
         "Data-unlock only",
         "Large refreshed CSVs are local working data",
+        "set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover",
         "docs/analysis_capability_audit.md",
         "What Powers The Analysis",
         "shipped analysis comes from project code under `src/`",
@@ -1023,7 +1172,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
 
     assert dry_run_index < refresh_index
     assert "broad refresh churn should be inspected before it is committed or shared publicly" in dashboard
-    assert "Generate Local Stock Report" in dashboard
+    assert "Build Local Report Preview" in dashboard
+    assert "Generate Local Stock Report" not in dashboard
     assert "Use research-grade online data" in dashboard
     assert "Show report source details" in dashboard
     assert "Download Report Data" in dashboard

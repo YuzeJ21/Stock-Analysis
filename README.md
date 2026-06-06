@@ -14,7 +14,7 @@ This project turns a broad stock universe into a research workflow:
 - Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
 - Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
 - Generates transparent CSV outputs for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
-- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source/freshness notes, and copyable local unlock commands.
+- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source/freshness notes, and copyable local unlock commands, plus a plain-English Reader Guide.
 
 ## Why It Matters
 
@@ -29,7 +29,7 @@ When trusted local data is available, the command center can produce:
 - DCF readiness and conservative scenario valuation.
 - Peer-context readiness without pretending missing peer valuation exists.
 - ETF/index monitor reports where operating-company DCF is excluded.
-- Single-stock reports with At A Glance status, methodology, risks, blockers, copyable local unlock commands, and source/freshness notes.
+- Single-stock reports with At A Glance status, methodology, risks, blockers, copyable local unlock commands, source/freshness notes, and a Reader Guide.
 
 Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
@@ -37,9 +37,10 @@ Most blocked rows are not errors. They are data gaps the command center exposes 
 
 The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed.
 
-- Readiness gates check whether prices, fundamentals, peers, earnings, and estimates are complete enough.
-- Project calculations run only after the needed inputs are ready.
-- Blocked or excluded sections stay visible with the exact missing input and next local step.
+1. Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears.
+2. Supported analysis: price-ready rows can support setup/risk context, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context.
+3. Locked or excluded boundaries: missing fundamentals, peer inputs, earnings, or estimates stay locked; ETF/index/fund DCF is excluded, not failed.
+4. Report explanation: single-stock reports show what came from source rows, what the product calculated, what stayed withheld, and the next copy-only local step.
 
 ## Current Snapshot
 
@@ -103,20 +104,19 @@ Example map:
 
 | Example | What it demonstrates | What to check |
 | --- | --- | --- |
-| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | At A Glance status, assumptions, sensitivity, peer caveats, source/freshness notes. |
-| [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | DCF assumptions versus the next peer data-unlock step. |
-| [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Supported setup analysis versus valuation blockers and caveats. |
-| [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Operating-company DCF is excluded, not failed. |
-| [APLD](outputs/stock_reports/apld.md) | Blocked-data handling. | No valuation conclusion appears until trusted price rows exist. |
+| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | Reader Guide, assumptions, sensitivity, peer caveats, source/freshness notes. |
+| [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | Reader Guide, DCF assumptions, and the next peer data-unlock step. |
+| [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Reader Guide, supported setup analysis, valuation blockers, and caveats. |
+| [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |
+| [APLD](outputs/stock_reports/apld.md) | Blocked-data handling. | Reader Guide. No valuation conclusion appears until trusted price rows exist. |
 
-In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then explain methodology and only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. Use `make stock-report TICKER=NVDA` when you also want optional report data printed for inspection.
+In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then a `Reader Guide` that answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and which copy-only command to run. They only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
 Dashboard pages also support simple local deep links such as `http://localhost:8501/?page=single-stock-report`.
 
 For a deeper local runbook, see [Operator Guide](docs/OPERATOR_GUIDE.md).
 
 Targeted data-unlock examples:
-
 ```bash
 make price-worklist TOP_N=10
 make focus-fundamentals TICKER=NVDA
@@ -125,11 +125,15 @@ make optional-context-worklist TOP_N=10
 ```
 
 For a larger local price refresh, use capped batches instead of repeating small commands manually:
-
 ```bash
 make price-refresh-loop DRY_RUN=1
-make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo
+make readiness-snapshot
+make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+make diff-hygiene
 ```
+
+The dry run prints the requested target, rounded batch capacity, estimated wait time, resume behavior, and next sequence before changing local files. For broad coverage, set `MAX_CANDIDATES` and keep `TOP_N` capped so the loop calculates the needed batches for you; the final batch can have unused capacity if fewer missing tickers remain. Before a real broad run, use `make readiness-snapshot`; after the run, use `make diff-hygiene` before staging so refreshed generated CSV churn stays local unless intentionally reviewed. Advanced users can still tune `BATCHES` directly. Run the capped loop only when you are ready to update local CSVs and review the generated data churn. You should not need to repeat a 25-ticker command 100+ times.
 
 Preview-first import flow:
 
@@ -154,7 +158,7 @@ Reuse terms are not specified yet because no `LICENSE` file has been selected. V
 
 ## Analysis Methodology
 
-The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. The analysis rules, valuation gates, decision buckets, and research-only guardrails come from project code plus local CSV inputs. See [Research Methodology](docs/METHODOLOGY.md) for the calculation flow and [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
+The stock-analysis logic is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter. The analysis rules, valuation gates, decision buckets, and research-only guardrails come from project code plus local CSV inputs. Fundamentals-ready means trusted company fields can be reviewed, DCF-ready means scenario math can be reviewed, and peer-ready means source-backed relative context can be reviewed. See [Research Methodology](docs/METHODOLOGY.md) for the calculation flow and [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the logic lives.
 
 ## Core Outputs
 

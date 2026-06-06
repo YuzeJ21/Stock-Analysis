@@ -61,6 +61,19 @@ The product does not claim a company is attractive or unattractive when core fie
 
 Fundamental review is therefore a validation-and-interpretation layer, not a third-party analyst summary. A full company row can support revenue scale, growth, margin, free-cash-flow conversion, leverage/cash context, and DCF input quality. A partial row supports only the fields that are actually present.
 
+The fundamental-analysis contract is:
+
+| Question | Product logic | What remains withheld |
+| --- | --- | --- |
+| Is there a trusted company row? | Checks the local fundamentals row, source metadata, and required numeric fields. | Company-quality language when the row is missing or source status is unclear. |
+| Is the business scale visible? | Reads revenue and revenue growth when present. | Growth interpretation when revenue history is absent or malformed. |
+| Is cash generation visible? | Reads free cash flow directly, or uses revenue and FCF margin when both are trusted. | Free-cash-flow conversion claims when both FCF and FCF margin are missing. |
+| Is balance-sheet context visible? | Reads cash, debt, or net-debt fields when present. | Leverage or cash-cushion language when balance-sheet fields are unavailable. |
+| Can DCF run? | Requires price, revenue, free cash flow or FCF margin, shares outstanding, and valid assumptions. | Fair value/share, sensitivity, and valuation interpretation until required fields pass readiness. |
+| Can peer valuation run? | Requires standalone company readiness plus source-backed peer mappings and peer valuation inputs. | Peer-relative valuation from guessed peers, sector fallback, or incomplete peer metrics. |
+
+This means a fundamentals-ready row is not automatically a conclusion. It is permission to review the fields that are present. A DCF-ready row is permission to review scenario math. A peer-ready row is permission to review source-backed relative context. The report and dashboard keep those permissions separate so a partial fundamentals row cannot become an unsupported valuation view.
+
 ## 4. Price, Momentum, And Risk Context
 
 Price and momentum analysis uses local OHLCV rows when they are available. The product calculates moving averages, returns, relative strength, volume ratio, setup status, and volatility context from those rows.
@@ -102,7 +115,27 @@ Fair value per share = Equity value / shares outstanding
 
 The default report uses bear, base, and bull scenarios. Scenario assumptions are visible in the report, including revenue growth, FCF margin, WACC, terminal growth, and forecast years. If assumptions are invalid or required inputs are missing, the DCF returns `insufficient_data`, meaning the valuation is intentionally blocked until trusted inputs exist.
 
-DCF output is treated as scenario math, not a price target. The report should show the input path, assumptions, sensitivity, and confidence limits so a reader can challenge the model instead of trusting a hidden conclusion.
+DCF output is treated as scenario math, not a price target. The report should show the input path, assumptions, sensitivity, and data-confidence limits so a reader can challenge the model instead of trusting a hidden conclusion.
+
+### Conservative DCF Normalization
+
+The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into an unsupported valuation story.
+
+- Observed revenue growth above the conservative start-growth cap is capped before projection.
+- Very negative observed revenue growth is floored before projection so the model does not compound an extreme one-period decline indefinitely.
+- Projected early-year FCF growth can be capped even after the revenue-growth path is built.
+- Observed FCF margin above the conservative margin cap is capped before projection.
+- Normalized long-term growth is kept below WACC, and terminal growth must remain below WACC.
+
+When one of these guardrails is used, the report shows a warning such as `Observed revenue growth ... was normalized before projection` or `Normalized growth target was reduced to keep it conservatively below WACC`. These warnings are part of the model audit trail. They mean the DCF ran with visible conservative limits, not that the product guessed missing data or changed source inputs.
+
+The report uses three DCF states:
+
+- `ready`: the local company inputs are complete enough to review assumptions, scenario math, and sensitivity.
+- `blocked`: one or more required company inputs are missing, so the report shows missing fields and withholds valuation interpretation.
+- `excluded`: the ticker is an ETF, index proxy, or fund monitor context where operating-company DCF does not apply.
+
+This distinction matters because a blocked DCF is not a negative company signal, and an excluded DCF is not a failed calculation. Both are product gates that prevent unsupported valuation language.
 
 ## 6. Peer And Relative Context
 
@@ -128,11 +161,45 @@ Valuation status is a gate, not a recommendation.
 
 The product does not infer valuation conclusions for blocked rows.
 
-Confidence follows the same principle: complete trusted inputs can raise confidence for the supported section, while missing fundamentals, stale prices, missing peers, or unavailable optional context reduce confidence or keep a section locked. Confidence is never used to override a blocker.
+Data confidence follows the same principle: complete trusted inputs can raise data confidence for the supported section, while missing fundamentals, stale prices, missing peers, or unavailable optional context reduce data confidence or keep a section locked. Data confidence is never used to override a blocker.
 
-## 8. Scores And Ranking Context
+## 8. Confidence And Decision Scores
 
-The product uses setup scores, watchlist scores, confidence scores, and monthly
+Data confidence is a data-quality and review-routing signal, not investment conviction.
+
+The decision workflow first calculates a data-readiness score from feature state:
+
+```text
+Data readiness score =
+  (ready features + 0.45 * partial features) / ready-or-partial-or-blocked features
+
+Then blocked features reduce the score.
+Excluded methods can reduce the score when nothing else is ready.
+```
+
+The public confidence labels follow the data-readiness score:
+
+| Data-readiness score | Label |
+| --- | --- |
+| 0.80 or higher | high |
+| 0.55 to below 0.80 | medium |
+| 0.25 to below 0.55 | low |
+| below 0.25 | blocked |
+
+Data confidence is capped by decision bucket so a row with missing core inputs cannot look stronger than the data allows:
+
+| Decision bucket | Data-confidence cap / behavior |
+| --- | --- |
+| Research Now | Uses data readiness plus local analysis score, capped below full certainty. |
+| Monitor | Uses ready monitor inputs and is capped below Research Now. |
+| Blocked by Data | Stays low even if some partial context exists. |
+| Excluded | Can be clear about method exclusion without becoming a company valuation view. |
+
+This means a DCF-ready company can have medium data confidence when optional context is missing, an ETF/index monitor row can have low or medium data confidence for monitoring while DCF stays excluded, and a price-blocked row stays blocked no matter how interesting the ticker might be.
+
+## 9. Scores And Ranking Context
+
+The product uses setup scores, watchlist scores, data-confidence scores, and monthly
 candidate scores only to sort local review queues and explain why a ticker
 deserves attention next.
 
@@ -152,11 +219,12 @@ Some compatibility output files keep legacy names, including
 re-rating context. It is not an automatic undervalued-stock list, and rows with
 missing trusted inputs must stay `not_ready`, meaning not enough trusted data exists for valuation, or blocked.
 
-## 9. Report Explanation
+## 10. Report Explanation
 
 Single-stock reports are assembled from the same gates and calculations:
 
 - At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step.
+- Reader Guide: answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and the next copy-only command.
 - What can be analyzed now.
 - Which mode applies: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data-unlock only.
 - Which calculations ran and which assumptions were used.
@@ -165,7 +233,7 @@ Single-stock reports are assembled from the same gates and calculations:
 - Copyable Unlock Commands for local, capped, research-only follow-up workflows.
 - Which sources were used and how fresh they are.
 
-The report should be read top-down: At A Glance first, supported analysis second, blocked or excluded analysis third, copyable local unlock commands next, then source/freshness and valuation detail. The commands are displayed for the operator to copy manually; the report does not execute imports, refreshes, broker actions, or trades.
+The report should be read top-down: At A Glance first, Reader Guide second, supported analysis third, blocked or excluded analysis fourth, copyable local unlock commands next, then source/freshness and valuation detail. The commands are displayed for the operator to copy manually; the report does not execute imports, refreshes, broker actions, or trades.
 
 When a company ticker has the full trusted local input stack, the single-stock report can show:
 
@@ -181,7 +249,31 @@ When a company ticker has the full trusted local input stack, the single-stock r
 
 When any part of that stack is missing, only the supported sections appear. The report keeps the blocked section visible and explains the exact local input needed next, plus the local command path for inspecting or unlocking that input.
 
-## 10. Methodology Limits
+## 11. Data Unlock Ladder
+
+The product uses the same unlock ladder in the dashboard, single-stock reports, and data-health queues:
+
+| Step | What unlocks | What can be analyzed | What stays unavailable |
+| --- | --- | --- | --- |
+| 1. Prices | Trusted local price rows. | Price/setup review, trend context, basic risk context when enough history exists. | Fundamentals, DCF, peers, earnings, and estimates. |
+| 2. Fundamentals / DCF inputs | Trusted company fundamentals with revenue, free cash flow or FCF margin, shares outstanding, and source metadata. | Fundamental field review and standalone DCF assumptions, scenarios, sensitivity, and fair value/share math. | Peer-relative valuation and optional earnings/estimate context. |
+| 3. Source-backed peers | Trusted peer mappings plus peer valuation inputs. | Peer trend context first, then peer-relative valuation only when peer valuation inputs pass readiness. | Peer premium/discount or peer DCF comparison when peer inputs are incomplete. |
+| 4. Optional context | Trusted earnings and analyst-estimate CSV rows. | Earnings timing context and analyst-estimate context. | Optional sections remain unavailable when those rows are missing. |
+
+Each step is permission to review a specific analysis layer, not permission to invent the next layer. Price-ready does not mean fundamentals-ready. Fundamentals-ready does not mean DCF-ready unless all required DCF fields pass. DCF-ready does not mean peer-ready. Peer-ready does not mean earnings or analyst estimates are available.
+
+The no-conclusion boundary is explicit: blocked rows must not be labeled undervalued, overvalued, DCF-ready, peer-ready, or optional-context-ready until the trusted input gate for that label passes. ETF, index proxy, and fund rows follow a separate monitor path where operating-company DCF and peer valuation are excluded, not failed.
+
+The safe local sequence is:
+
+1. Inspect the focused queue or report, such as `make focus-fundamentals TICKER=NVDA` or `make focus-peers TICKER=A`.
+2. Stage trusted rows only in the matching local CSV path, such as `data/imports/fundamentals.csv`, `data/imports/peers.csv`, `data/staged/earnings/`, or `data/staged/analyst_estimates/`.
+3. Run validation and preview before apply: `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
+4. Regenerate readiness, then read the report again before interpreting the newly unlocked section.
+
+This ladder is why empty or partial outputs are useful: they show the first trustworthy unlock instead of hiding the gap behind a weak conclusion.
+
+## 12. Methodology Limits
 
 This is not a full data-vendor terminal, analyst-estimate service, or execution workflow. The useful strength is transparency: the app shows exactly what local data supports and refuses to overstate missing analysis.
 
@@ -200,7 +292,7 @@ The current methodology remains limited when:
 - Earnings and analyst-estimate rows have not been imported.
 - A ticker has too little local price history.
 
-## 11. Where This Lives In Code
+## 13. Where This Lives In Code
 
 The methodology is implemented in project code, not hidden in a model prompt.
 

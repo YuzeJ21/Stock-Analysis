@@ -22,10 +22,17 @@ def test_research_decisions_block_missing_price_instead_of_weak_recommendation()
 
     assert row["decision_bucket"] == "Blocked by Data"
     assert row["decision_subtype"] == "Blocked by Data - Missing Price"
+    assert "Data-unlock state" in row["decision_boundary"]
+    assert "valuation conclusions and thesis-level interpretation stay withheld" in row["decision_boundary"]
     assert row["primary_blocker"] == "price"
     assert "Missing usable price data" in row["main_reason"]
     assert row["confidence"] <= 0.45
     assert "Import price rows through the preview-first workflow" in row["next_action"]
+    assert "make focus-price TICKER=META" in row["next_best_action"]
+    assert "make price-refresh-loop DRY_RUN=1" in row["next_best_action"]
+    assert "missing-only capped batch plan" in row["next_best_action"]
+    assert "data/imports/prices.csv" in row["next_best_action"]
+    assert "make price-validate, make price-preview, and make price-apply" in row["next_best_action"]
     assert row["next_best_action"] == row["next_action"]
 
 
@@ -51,6 +58,8 @@ def test_research_decisions_monitor_etf_and_exclude_company_dcf():
 
     assert row["decision_bucket"] == "Monitor"
     assert row["decision_subtype"] == "Monitor - ETF Market Proxy"
+    assert "Monitor context only" in row["decision_boundary"]
+    assert "operating-company DCF and peer-relative company valuation are excluded" in row["decision_boundary"]
     assert row["primary_blocker"] == "optional_context"
     assert "excluded from company DCF" in row["main_reason"]
     assert "dcf" in row["excluded_features"]
@@ -113,6 +122,11 @@ def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing()
     assert "missing dcf, fundamentals data" in row["main_reason"]
     assert row["confidence"] <= 0.45
     assert "Import trusted fundamentals" in row["next_action"]
+    assert "make focus-fundamentals TICKER=AMD" in row["next_best_action"]
+    assert "make sec-stage TICKERS=AMD" in row["next_best_action"]
+    assert "data/imports/fundamentals.csv" in row["next_best_action"]
+    assert "make imports-validate, make imports-preview, make imports-apply, make dcf-readiness, and make readiness" in row["next_best_action"]
+    assert "before reading DCF output" in row["next_best_action"]
 
 
 def test_research_decisions_only_research_now_when_core_data_is_ready():
@@ -138,6 +152,8 @@ def test_research_decisions_only_research_now_when_core_data_is_ready():
 
     assert row["decision_bucket"] == "Research Now"
     assert row["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
+    assert "Workflow state only" in row["decision_boundary"]
+    assert "peer-relative valuation stays locked" in row["decision_boundary"]
     assert row["confidence"] > 0.5
     assert row["analysis_score"] == 0.8
     assert row["evaluation_status"].startswith("Ready for a supported research brief")
@@ -188,7 +204,9 @@ def test_research_decisions_peer_blocker_next_action_uses_exact_import_flow():
         "then run make imports-validate, make imports-preview, and make imports-apply."
     )
     assert row["next_best_action"] == row["next_action"]
+    assert "peer-relative valuation stays locked" in row["decision_boundary"]
     assert "peer metrics for cohr" not in rendered
+    assert "final conclusion" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
@@ -217,7 +235,12 @@ def test_research_decisions_keeps_mapped_peer_price_history_as_peer_blocker():
     assert row["decision_bucket"] == "Research Now"
     assert row["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
     assert row["primary_blocker"] == "peers"
-    assert row["next_action"] == "Add trusted price history for mapped peers: SNDK, WDC."
+    assert row["next_action"].startswith("Add trusted price history for mapped peers: SNDK, WDC")
+    assert "make focus-peers TICKER=MU" in row["next_action"]
+    assert "make price-refresh-loop DRY_RUN=1" in row["next_action"]
+    assert "capped missing-only price plan" in row["next_action"]
+    assert "data/imports/prices.csv" in row["next_action"]
+    assert "make price-validate, make price-preview, and make price-apply" in row["next_action"]
 
 
 def test_research_decisions_label_core_ready_rows_with_optional_context_locked():
@@ -244,7 +267,10 @@ def test_research_decisions_label_core_ready_rows_with_optional_context_locked()
     assert row["decision_bucket"] == "Research Now"
     assert row["decision_subtype"] == "Research Candidate - Optional Context Locked"
     assert row["primary_blocker"] == "earnings"
-    assert "Optional context missing" in row["next_best_action"]
+    assert "Optional context for MSFT stays locked unless trusted local earnings or analyst-estimate rows exist" in row["next_best_action"]
+    assert "make templates" in row["next_best_action"]
+    assert "make import-earnings or make import-analyst-estimates" in row["next_best_action"]
+    assert "make imports-validate, make imports-preview, and make imports-apply" in row["next_best_action"]
     assert "earnings timing or surprise context" in row["unsupported_analysis"]
     assert "analyst estimate trend context" in row["unsupported_analysis"]
     assert "buy" not in rendered
@@ -337,7 +363,8 @@ def test_research_decisions_add_evaluation_fields_without_recommendation_languag
     assert "ETF/index monitoring" in qqq["supported_analysis"]
     assert "operating-company DCF conclusions" in qqq["unsupported_analysis"]
     assert "market-proxy usefulness" in qqq["invalidation_condition"]
-    assert "source-backed peer mappings" in qqq["next_research_question"]
+    assert "market, sector, or hedge signal" in qqq["next_research_question"]
+    assert "source-backed peer mappings" not in qqq["next_research_question"]
     assert "Monitor priority" in qqq["review_priority_reason"]
     assert "analytical blindness" in apld["risk_watchpoint"]
     assert "none yet" in apld["supported_analysis"]
@@ -387,6 +414,9 @@ def test_research_decisions_surface_purpose_conflict_as_review_context_not_recom
     assert "Purpose alignment needs review" in row["purpose_alignment"]
     assert "Core Compounder" in row["purpose_alignment"]
     assert "fundamental quality" in row["unsupported_analysis"]
+    assert "make focus-fundamentals TICKER=META" in row["next_best_action"]
+    assert "make sec-stage TICKERS=META" in row["next_best_action"]
+    assert "make dcf-readiness" in row["next_best_action"]
     assert "compounder purpose conflicts" in row["review_priority_reason"]
     assert "confirm whether the compounder thesis remains supported" in row["next_research_question"]
     assert "buy" not in rendered

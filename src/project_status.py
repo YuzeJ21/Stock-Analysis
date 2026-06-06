@@ -506,14 +506,13 @@ def _recommended_next_command_rows(
             rows.append(
                 _command_row(
                     "Refresh next capped missing-price batch",
-                    "make price-refresh TOP_N=25 PROVIDER=yahoo",
+                    "make price-refresh-loop DRY_RUN=1",
                     (
-                        "Advance the broad-universe price frontier safely by refreshing only the next "
-                        "25 tickers without local price coverage; Yahoo rows are research-grade and "
-                        "the manual import draft fallback remains available."
+                        "Preview the broad-universe price frontier first, then run several capped batches "
+                        "if you choose; Yahoo rows are research-grade and the manual import draft fallback remains available."
                     ),
                     source_context="data/imports/prices.csv fallback plus optional Yahoo refresh",
-                    freshness_context="capped refresh; verify source/freshness after merge",
+                    freshness_context="dry-run first; verify source/freshness and generated CSV churn after any refresh",
                 )
             )
         command = _first_non_empty(top_action.get("focus_command"), top_action.get("example_command"))

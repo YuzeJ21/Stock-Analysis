@@ -2894,14 +2894,37 @@ def _print_fundamentals_peer_worklist(payload: dict[str, Any], *, top_n: int | N
 
 
 def _print_optional_context_worklist(payload: dict[str, Any], *, top_n: int | None = None) -> None:
+    rows = payload["optional_context_worklist"]
+    missing_earnings = sum(1 for row in rows if not bool(row.get("has_earnings")))
+    missing_estimates = sum(1 for row in rows if not bool(row.get("has_analyst_estimates")))
+    both_missing = sum(
+        1 for row in rows if not bool(row.get("has_earnings")) and not bool(row.get("has_analyst_estimates"))
+    )
     print("Optional context worklist:")
-    for row in _limited_rows(payload["optional_context_worklist"], top_n=top_n, default=30):
+    print(
+        "Summary: "
+        f"{len(rows)} total row(s); {missing_earnings} missing earnings, "
+        f"{missing_estimates} missing analyst estimates, {both_missing} missing both optional context lanes."
+    )
+    print(
+        "Boundary: optional context adds timing, consensus, and revision context only; "
+        "missing rows should stay locked rather than inferred from price, DCF, peer, or sector data."
+    )
+    print(
+        "Copy path: make templates -> make import-earnings or make import-analyst-estimates -> "
+        "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness."
+    )
+    print(
+        "Staged folders: data/staged/earnings/ and data/staged/analyst_estimates/. "
+        "Rejected rows: data/earnings_import_rejected.csv and data/analyst_estimates_import_rejected.csv."
+    )
+    for row in _limited_rows(rows, top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: earnings={row['has_earnings']} "
             f"estimates={row['has_analyst_estimates']} missing={row['missing_optional_context'] or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
-    print(f"Optional context worklist rows: {len(payload['optional_context_worklist'])}")
+    print(f"Optional context worklist rows: {len(rows)}")
 
 
 def _print_sec_stage_queue(payload: dict[str, Any], *, top_n: int | None = None) -> None:
@@ -2921,8 +2944,36 @@ def _print_sec_stage_queue(payload: dict[str, Any], *, top_n: int | None = None)
 
 
 def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = None) -> None:
+    rows = payload["peer_mapping_queue"]
+    priority_counts: dict[int, int] = {}
+    for row in rows:
+        priority = int(row.get("priority") or 0)
+        priority_counts[priority] = priority_counts.get(priority, 0) + 1
+    active_count = sum(1 for row in rows if str(row.get("workflow_scope") or "").lower() == "active_universe")
+    dcf_ready_count = sum(1 for row in rows if bool(row.get("dcf_ready")))
+    missing_mapping_count = sum(1 for row in rows if not bool(row.get("has_peer_mapping")))
+    valuation_follow_through_count = sum(
+        1 for row in rows if str(row.get("workflow_group") or "").lower() == "peer_valuation_unlock"
+    )
     print("Peer mapping queue:")
-    for row in _limited_rows(payload["peer_mapping_queue"], top_n=top_n, default=30):
+    print(
+        "Summary: "
+        f"{len(rows)} total row(s); "
+        f"P1={priority_counts.get(1, 0)}, P2={priority_counts.get(2, 0)}, "
+        f"P3={priority_counts.get(3, 0)}, P4={priority_counts.get(4, 0)}."
+    )
+    print(
+        "Work focus: "
+        f"{active_count} active-universe row(s), {dcf_ready_count} DCF-ready row(s), "
+        f"{missing_mapping_count} missing source-backed mapping row(s), "
+        f"{valuation_follow_through_count} mapped row(s) still waiting on peer valuation inputs."
+    )
+    print(
+        "Boundary: peer trend can be reviewed from mapped peer price history when ready; "
+        "peer valuation needs source-backed mappings plus trusted peer fundamentals or market metrics."
+    )
+    print("Copy path: use make focus-peers TICKER=... or fill data/imports/peers.csv, then validate, preview, apply, and rerun readiness.")
+    for row in _limited_rows(rows, top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: holding={row['is_holding']} "
             f"dcf_ready={row['dcf_ready']} has_peer_mapping={row['has_peer_mapping']} "
@@ -2938,7 +2989,7 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         print(f"  command: {row['example_command']}")
         _print_command_safety(row)
         print(f"  target_file: {row['target_file']}")
-    print(f"Peer mapping queue rows: {len(payload['peer_mapping_queue'])}")
+    print(f"Peer mapping queue rows: {len(rows)}")
 
 
 def _print_ticker_unlock_ladder(payload: dict[str, Any], *, top_n: int | None = None) -> None:

@@ -90,3 +90,24 @@ def test_public_readme_contains_research_only_guardrails():
     )
     for phrase in expected_phrases:
         assert phrase in readme_text
+
+
+def test_public_docs_explain_single_stock_reader_guide():
+    readme_text = Path("README.md").read_text(encoding="utf-8").lower()
+    methodology_text = Path("docs/METHODOLOGY.md").read_text(encoding="utf-8").lower()
+    expected_readme_phrases = (
+        "plain-english reader guide",
+        "what can be analyzed now",
+        "what is still locked or excluded",
+        "what trusted input matters next",
+        "copy-only command",
+    )
+    for phrase in expected_readme_phrases:
+        assert phrase in readme_text
+    expected_methodology_phrases = (
+        "reader guide: answers what can be analyzed now",
+        "at a glance first, reader guide second",
+        "the report does not execute imports, refreshes, broker actions, or trades",
+    )
+    for phrase in expected_methodology_phrases:
+        assert phrase in methodology_text

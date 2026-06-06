@@ -22,6 +22,7 @@ DECISION_COLUMNS = [
     "theme",
     "decision_bucket",
     "decision_subtype",
+    "decision_boundary",
     "confidence",
     "main_reason",
     "primary_blocker",
@@ -186,8 +187,21 @@ def _feature_summary(ready: list[str], partial: list[str], blocked: list[str], e
     return "; ".join(parts)
 
 
+def _price_unlock_guidance(ticker: str) -> str:
+    return (
+        f"Start with make focus-price TICKER={ticker}, then run make price-refresh-loop DRY_RUN=1 "
+        "to preview the missing-only capped batch plan. If remote data is unavailable, stage verified OHLCV rows "
+        "in data/imports/prices.csv and run make price-validate, make price-preview, and make price-apply."
+    )
+
+
 def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -> str:
     text = _text_value(next_action, "")
+    if primary_blocker == "price":
+        if text and "price-refresh-loop dry_run=1" in text.lower() and "price-validate" in text.lower():
+            return text
+        prefix = f"{text.rstrip('.')}." if text else f"Unlock trusted price history for {ticker}."
+        return f"{prefix} {_price_unlock_guidance(ticker)}"
     if primary_blocker == "peers":
         lowered = text.lower()
         if text and (
@@ -196,12 +210,73 @@ def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -
             or "peer fundamentals" in lowered
             or "dcf-ready fundamentals" in lowered
         ):
+            if "price history" in lowered and "price-refresh-loop dry_run=1" not in lowered:
+                return (
+                    f"{text.rstrip('.')}. Start with make focus-peers TICKER={ticker}; "
+                    "then run make price-refresh-loop DRY_RUN=1 to preview a capped missing-only price plan "
+                    "for mapped peers, or stage verified peer OHLCV rows in data/imports/prices.csv and run "
+                    "make price-validate, make price-preview, and make price-apply."
+                )
             return text
         return (
             f"Add at least 2 source-backed peer mappings for {ticker} in data/imports/peers.csv; "
             "then run make imports-validate, make imports-preview, and make imports-apply."
         )
+    if primary_blocker in {"earnings", "analyst_estimates", "optional_context"}:
+        return (
+            f"Optional context for {ticker} stays locked unless trusted local earnings or analyst-estimate rows exist; "
+            "use make templates, make import-earnings or make import-analyst-estimates, then run "
+            "make imports-validate, make imports-preview, and make imports-apply."
+        )
+    if primary_blocker == "fundamentals":
+        prefix = f"{text.rstrip('.')}." if text else f"Complete trusted fundamentals and DCF inputs for {ticker}."
+        return (
+            f"{prefix} Inspect make focus-fundamentals TICKER={ticker}; use make sec-stage TICKERS={ticker} "
+            "when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; "
+            "then run make imports-validate, make imports-preview, make imports-apply, make dcf-readiness, and make readiness "
+            "before reading DCF output."
+        )
     return text
+
+
+def _decision_boundary(bucket: str, subtype: str, primary_blocker: str, asset_type: str) -> str:
+    if bucket == "Research Now":
+        if "Peer Blocked" in subtype:
+            return (
+                "Workflow state only: core company and DCF review can continue, but peer-relative valuation "
+                "stays locked until trusted peer mappings and peer valuation inputs are available."
+            )
+        if "Optional Context Locked" in subtype:
+            return (
+                "Workflow state only: core research can continue, but earnings and analyst-estimate context "
+                "stays locked until trusted optional rows are imported."
+            )
+        return (
+            "Workflow state only: ready for deeper manual research using supported local evidence; "
+            "not a final conclusion or instruction."
+        )
+    if bucket == "Monitor":
+        if asset_type in {"etf", "index_proxy", "fund"}:
+            return (
+                "Monitor context only: useful for market, theme, liquidity, or risk review; "
+                "operating-company DCF and peer-relative company valuation are excluded."
+            )
+        return (
+            "Monitor context only: price or momentum context can be reviewed, but deeper company evaluation "
+            "waits for missing trusted inputs."
+        )
+    if bucket == "Blocked by Data":
+        blocker = primary_blocker if primary_blocker and primary_blocker != "none" else "required inputs"
+        return (
+            f"Data-unlock state: {blocker} blocks evaluation, so valuation conclusions and thesis-level "
+            "interpretation stay withheld."
+        )
+    if bucket == "Excluded":
+        return (
+            "Method-exclusion state: this analysis is intentionally omitted for the ticker or asset type, "
+            "not treated as a failed calculation."
+        )
+    return "Review state only: use readiness, blockers, and source/freshness before drawing a conclusion."
 
 
 def _text_value(value: Any, fallback: str = "Not available") -> str:
@@ -498,8 +573,6 @@ def _next_research_question(
             return "Which source-backed peers and peer metrics would confirm or challenge the standalone DCF and setup read?"
         return "Do purpose, setup, valuation assumptions, and risk watchpoints agree enough to justify deeper manual research?"
     if bucket == "Monitor" and asset_type in {"etf", "index_proxy", "fund"}:
-        if peer_limited:
-            return "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy?"
         return "What market, sector, or hedge signal is this proxy intended to monitor, and is that signal still supported by local price/risk data?"
     if primary_blocker == "price":
         if family == "speculative":
@@ -562,14 +635,14 @@ def _review_priority_reason(
 
 def _confidence_explanation(bucket: str, data_label: str, primary_blocker: str, ready: list[str], blocked: list[str], excluded: list[str]) -> str:
     if bucket == "Research Now":
-        return f"Confidence is {data_label}: core price, fundamentals, and DCF are ready; blockers still reduce breadth: {', '.join(blocked) or 'none'}."
+        return f"Data confidence is {data_label}: core price, fundamentals, and DCF are ready; blockers still reduce breadth: {', '.join(blocked) or 'none'}."
     if bucket == "Monitor":
-        return f"Confidence is {data_label}: monitoring is supported by {', '.join(ready) or 'limited ready features'}, while {', '.join(blocked) or 'no blocked features'} remains unavailable."
+        return f"Data confidence is {data_label}: monitoring is supported by {', '.join(ready) or 'limited ready features'}, while {', '.join(blocked) or 'no blocked features'} remains unavailable."
     if bucket == "Blocked by Data":
-        return f"Confidence is {data_label}: primary blocker is {primary_blocker}; blocked features are {', '.join(blocked) or 'not specified'}."
+        return f"Data confidence is {data_label}: primary blocker is {primary_blocker}; blocked features are {', '.join(blocked) or 'not specified'}."
     if bucket == "Excluded":
-        return f"Confidence is {data_label}: excluded features are {', '.join(excluded) or 'not specified'}, so unsupported analysis is intentionally omitted."
-    return f"Confidence is {data_label}: current readiness does not support a stronger classification."
+        return f"Data confidence is {data_label}: excluded features are {', '.join(excluded) or 'not specified'}, so unsupported analysis is intentionally omitted."
+    return f"Data confidence is {data_label}: current readiness does not support a stronger classification."
 
 
 def _evaluation_status(bucket: str, subtype: str, primary_blocker: str, asset_type: str) -> str:
@@ -730,6 +803,7 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
                 "theme": row.get("theme", ""),
                 "decision_bucket": bucket,
                 "decision_subtype": subtype,
+                "decision_boundary": _decision_boundary(bucket, subtype, primary_blocker, asset_type),
                 "confidence": round(float(confidence), 3),
                 "main_reason": main_reason,
                 "primary_blocker": primary_blocker,
