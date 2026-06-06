@@ -7813,6 +7813,10 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
     assert "missing inputs are not negative signals" in rendered
     assert "monitor examples: qqq, smh" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
+    assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
+    assert cards[2]["command"] == "make focus-fundamentals TICKER=META"
+    assert cards[3]["command"] == "make stock-report-md TICKER=QQQ"
+    assert "make focus-fundamentals ticker=meta" in rendered
     assert "make stock-report-md ticker=qqq" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

@@ -16347,6 +16347,13 @@ def valuation_plain_language_cards(
     blocked_companies: pd.DataFrame,
     excluded_rows: pd.DataFrame,
 ) -> list[dict[str, object]]:
+    def first_ticker(frame: pd.DataFrame, fallback: str) -> str:
+        if frame.empty or "ticker" not in frame.columns:
+            return fallback
+        values = frame["ticker"].dropna().astype(str).str.upper().str.strip()
+        values = values.loc[values.ne("")]
+        return values.iloc[0] if not values.empty else fallback
+
     def examples(frame: pd.DataFrame, *, column: str = "ticker", limit: int = 3) -> str:
         if frame.empty or column not in frame.columns:
             return "none yet"
@@ -16360,6 +16367,9 @@ def valuation_plain_language_cards(
     ready_examples = examples(ready_companies)
     blocked_examples = examples(blocked_companies)
     excluded_examples = examples(excluded_rows)
+    ready_ticker = first_ticker(ready_companies, "NVDA")
+    blocked_ticker = first_ticker(blocked_companies, "TICKER")
+    excluded_ticker = first_ticker(excluded_rows, "QQQ")
     return [
         {
             "kicker": "WHAT THIS MEANS",
@@ -16379,7 +16389,7 @@ def valuation_plain_language_cards(
                 "Treat the output as research context, not an instruction."
             ),
             "badges": ["DCF assumptions", "sensitivity"],
-            "command": "make stock-report-md TICKER=NVDA",
+            "command": stock_report_md_command(ready_ticker),
         },
         {
             "kicker": "WHAT IS STILL LOCKED",
@@ -16389,14 +16399,14 @@ def valuation_plain_language_cards(
                 "and source/freshness inputs exist. Missing inputs are not negative signals."
             ),
             "badges": ["missing inputs", "no inference"],
-            "command": "make sec-stage-queue TOP_N=25",
+            "command": f"make focus-fundamentals TICKER={blocked_ticker}" if blocked_ticker != "TICKER" else "make sec-stage-queue TOP_N=25",
         },
         {
             "kicker": "WHAT IS EXCLUDED",
             "title": f"Monitor examples: {excluded_examples}",
             "body": "ETF/index/fund rows can support market, theme, liquidity, or risk context; operating-company DCF is excluded, not failed.",
             "badges": ["monitor context", "DCF excluded"],
-            "command": "make stock-report-md TICKER=QQQ",
+            "command": stock_report_md_command(excluded_ticker),
         },
     ]
 
