@@ -506,12 +506,16 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert price_gap_cards[2]["command"] == "make data-wizard TOP_N=10"
     assert price_gap_cards[3]["command"] == "make optional-context-worklist TOP_N=25"
+    assert price_gap_cards[4]["command"] == "make readiness && make status-check TOP_N=5"
     assert "scalable dry run" in rendered
     assert "instead of repeating 25-ticker refreshes manually" in rendered
     assert "blocked rows are useful, but they are a data-unlock queue, not a conclusion list" in rendered
     assert "no data, no conclusion" in rendered
     assert "earnings and analyst estimates are not broken" in rendered
     assert "optional context is available" in rendered
+    assert "prove the unlock before reading conclusions" in rendered
+    assert "rerun readiness before interpreting changed cards" in rendered
+    assert "make readiness, then make status-check top_n=5, then reopen home" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7989,6 +7993,7 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
         "WHAT YOU CAN ANALYZE NOW",
         "WHAT IS STILL LOCKED",
         "WHAT IS EXCLUDED",
+        "PROOF PATH",
     ]
     assert "2 ready / 4 locked / 2 excluded" in rendered
     assert "readiness-gated valuation page" in rendered
@@ -8004,8 +8009,13 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[2]["command"] == "make focus-fundamentals TICKER=META"
     assert cards[3]["command"] == "make stock-report-md TICKER=QQQ"
+    assert cards[4]["command"] == "make dcf-readiness && make readiness"
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make stock-report-md ticker=qqq" in rendered
+    assert "prove valuation readiness before interpretation" in rendered
+    assert "run make dcf-readiness and make readiness before reading value / re-rating again" in rendered
+    assert "ready means dcf assumptions can be reviewed" in rendered
+    assert "does not create a price target or peer-relative conclusion" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

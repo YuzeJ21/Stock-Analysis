@@ -17780,6 +17780,16 @@ def valuation_plain_language_cards(
             "badges": ["monitor context", "DCF excluded"],
             "command": stock_report_md_command(excluded_ticker),
         },
+        {
+            "kicker": "PROOF PATH",
+            "title": "Prove valuation readiness before interpretation",
+            "body": (
+                "After fundamentals change, run make dcf-readiness and make readiness before reading Value / Re-rating again. "
+                "Ready means DCF assumptions can be reviewed; it does not create a price target or peer-relative conclusion."
+            ),
+            "badges": ["proof first", "no overclaim"],
+            "command": "make dcf-readiness && make readiness",
+        },
     ]
 
 
@@ -18456,6 +18466,16 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "body": optional_body,
             "badges": ["not required"],
             "command": "make optional-context-worklist TOP_N=25",
+        },
+        {
+            "kicker": "PROOF PATH",
+            "title": "Prove the unlock before reading conclusions",
+            "body": (
+                "After a refresh or import, rerun readiness before interpreting changed cards. "
+                "Use make readiness, then make status-check TOP_N=5, then reopen Home so ready and locked counts are current."
+            ),
+            "badges": ["proof first", "copy-only"],
+            "command": "make readiness && make status-check TOP_N=5",
         },
     ]
 
