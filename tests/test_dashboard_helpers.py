@@ -7298,6 +7298,14 @@ def test_stock_report_valuation_boundary_cards_explain_source_product_and_locked
             "relative_valuation": {"status": "calculated", "peer_count": 2},
         },
     }
+    trend_only_payload = {
+        "asset_type": "company",
+        "valuation_readiness": {"dcf_ready": True, "peer_ready": False, "peer_trend_comparison_ready": True},
+        "valuation_snapshot": {
+            "dcf_result": {"status": "calculated"},
+            "relative_valuation": {"status": "peer_data_unavailable", "peer_count": 2},
+        },
+    }
     etf_payload = {
         "asset_type": "etf",
         "valuation_readiness": {"dcf_ready": False, "peer_ready": False},
@@ -7309,10 +7317,11 @@ def test_stock_report_valuation_boundary_cards_explain_source_product_and_locked
 
     ready_cards = dashboard.stock_report_valuation_boundary_cards(ready_payload)
     blocked_cards = dashboard.stock_report_valuation_boundary_cards(blocked_payload)
+    trend_only_cards = dashboard.stock_report_valuation_boundary_cards(trend_only_payload)
     etf_cards = dashboard.stock_report_valuation_boundary_cards(etf_payload)
     rendered = " ".join(
         str(value)
-        for card in ready_cards + blocked_cards + etf_cards
+        for card in ready_cards + blocked_cards + trend_only_cards + etf_cards
         for value in card.values()
     ).lower()
 
@@ -7326,6 +7335,9 @@ def test_stock_report_valuation_boundary_cards_explain_source_product_and_locked
     assert "dcf remains locked" in rendered
     assert "projected fcf, terminal value, equity value, fair value/share, and sensitivity withheld" in rendered
     assert "peer valuation withheld" in rendered
+    assert "peer trend available; valuation withheld" in rendered
+    assert "mapped peer price history can support peer trend context" in rendered
+    assert "peer-relative valuation, premium/discount, and peer dcf comparison stay withheld" in rendered
     assert "dcf excluded for monitor context" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "missing data never becomes a valuation opinion" in rendered

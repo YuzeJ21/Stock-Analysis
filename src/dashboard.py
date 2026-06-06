@@ -4068,6 +4068,19 @@ def stock_report_valuation_boundary_cards(report_payload: dict[str, object]) -> 
     dcf_ready = bool(readiness.get("dcf_ready")) or format_missing(dcf_result.get("status"), "").lower() == "calculated"
     peer_ready = stock_report_peer_relative_display_ready(report_payload)
 
+    def _ready_flag(value: object) -> bool:
+        return str(value).strip().lower() in {"true", "1", "yes", "y", "ready", "calculated"}
+
+    peer_trend_ready = any(
+        _ready_flag(value)
+        for value in (
+            report_payload.get("peer_trend_comparison_ready"),
+            readiness.get("peer_trend_comparison_ready"),
+            (report_payload.get("peer_analysis", {}) or {}).get("peer_trend_comparison_ready"),
+            (report_payload.get("peer_context", {}) or {}).get("peer_trend_comparison_ready"),
+        )
+    )
+
     if is_monitor:
         dcf_title = "DCF excluded for monitor context"
         dcf_body = "ETF/index/fund rows can support market, theme, liquidity, or risk context; operating-company DCF is excluded, not failed."
@@ -4081,13 +4094,21 @@ def stock_report_valuation_boundary_cards(report_payload: dict[str, object]) -> 
         dcf_body = "Missing trusted company inputs keep base FCF, projected FCF, terminal value, equity value, fair value/share, and sensitivity withheld."
         dcf_badges = ["locked", "no conclusion"]
 
-    peer_body = (
-        "Source-backed peer mappings and peer valuation inputs are ready, so the product can show peer-relative context separately from standalone DCF."
-        if peer_ready
-        else stock_report_peer_relative_empty_message(report_payload)
-    )
-    peer_title = "Peer valuation available" if peer_ready else "Peer valuation withheld"
-    peer_badges = ["trusted peers", "relative context"] if peer_ready else ["locked", "trusted peers needed"]
+    if peer_ready:
+        peer_title = "Peer valuation available"
+        peer_body = "Source-backed peer mappings and peer valuation inputs are ready, so the product can show peer-relative context separately from standalone DCF."
+        peer_badges = ["trusted peers", "relative context"]
+    elif peer_trend_ready and dcf_ready and not is_monitor:
+        peer_title = "Peer trend available; valuation withheld"
+        peer_body = (
+            "Mapped peer price history can support peer trend context, but peer-relative valuation, premium/discount, "
+            "and peer DCF comparison stay withheld until source-backed peer valuation inputs pass readiness."
+        )
+        peer_badges = ["trend only", "valuation withheld"]
+    else:
+        peer_title = "Peer valuation withheld"
+        peer_body = stock_report_peer_relative_empty_message(report_payload)
+        peer_badges = ["locked", "trusted peers needed"]
 
     return [
         {
