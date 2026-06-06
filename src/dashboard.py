@@ -93,24 +93,28 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "analyze": "Current market-wide readiness, recent progress, example reports, and the safest next local research path.",
             "locked": "Any module without trusted local rows stays locked; broad universe coverage is not the same as analysis readiness.",
             "read": "Read readiness cards first, then What Changed Recently, then the next-step cards. Treat big universe counts as coverage, not proof that every ticker is analysis-ready.",
+            "proof": "After any refresh or import, run make readiness and reopen Home before interpreting changed counts.",
             "command": "make status-check TOP_N=5",
         },
         "Single-Stock Report": {
             "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source/freshness notes.",
             "locked": "Unsupported DCF, peer valuation, earnings, and estimate sections stay withheld instead of being filled.",
             "read": "Read At A Glance, then Quick Read, then the source/freshness audit. Locked sections are boundaries, not hidden conclusions.",
+            "proof": "After an unlock, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
             "command": "make stock-report-md TICKER=NVDA",
         },
         "Value / Re-rating": {
             "analyze": "DCF-ready company rows can support assumption, scenario, sensitivity, and source-freshness review.",
             "locked": "Blocked company rows need trusted fundamentals or DCF fields; ETF/index/fund rows are monitor context, not failed DCF.",
             "read": "Read the DCF-ready, DCF-blocked, and DCF-excluded split before looking at rankings. DCF-ready means assumption review, not a price target.",
+            "proof": "After fundamentals change, run make dcf-readiness and make readiness before reading valuation output.",
             "command": "make dcf-readiness",
         },
         "Data Health": {
             "analyze": "Which trusted inputs are ready across prices, fundamentals, DCF, peers, earnings, and analyst estimates.",
             "locked": "Missing inputs are an unlock queue, not weak conclusions; imports should validate, preview, and apply before trust.",
             "read": "Start with the unlock lane cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
+            "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a lane as unlocked.",
             "command": "make data-wizard TOP_N=10",
         },
     }
@@ -120,6 +124,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "analyze": "The local rows and summaries already generated for this workflow page.",
             "locked": "Rows missing trusted inputs remain visible as blocked or partial rather than inferred.",
             "read": "Read summary cards first, then the table. Use the command card only when you want to refresh local outputs from a terminal.",
+            "proof": "After local data changes, rerun readiness before interpreting changed outputs.",
             "command": "make status-check TOP_N=5",
         },
     )
@@ -141,7 +146,11 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         {
             "kicker": "COPY NEXT",
             "title": "What command should I copy next?",
-            "body": "Copy the command into a terminal only when you are ready. The dashboard does not run refreshes, imports, or external account actions.",
+            "body": (
+                "Copy the command into a terminal only when you are ready. "
+                "The dashboard does not run refreshes, imports, or external account actions. "
+                f"Proof after unlock: {guide['proof']}"
+            ),
             "badges": ["copy-only", "research-only"],
             "command": guide["command"],
         },

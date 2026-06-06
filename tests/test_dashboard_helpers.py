@@ -233,6 +233,11 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-freshness review" in rendered
     assert "missing inputs are an unlock queue, not weak conclusions" in rendered
     assert "dashboard does not run refreshes, imports, or external account actions" in rendered
+    assert "proof after unlock:" in rendered
+    assert "run make readiness and reopen home before interpreting changed counts" in rendered
+    assert "regenerate the markdown report before reading newly available sections" in rendered
+    assert "run make dcf-readiness and make readiness before reading valuation output" in rendered
+    assert "run the matching readiness command and reopen data health before treating a lane as unlocked" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make dcf-readiness" in rendered
     assert "make data-wizard top_n=10" in rendered
