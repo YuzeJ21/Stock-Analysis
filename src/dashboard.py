@@ -16967,30 +16967,35 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
             "title": f"{master:,} tickers tracked",
             "body": f"{active:,} are in the active research list. The broad list is tracked, but only data-ready names are analyzed deeply.",
             "badges": ["broad list", "active list"],
+            "command": "make status-check TOP_N=5",
         },
         {
             "kicker": "READY TO REVIEW",
             "title": f"{price_ready:,} have price data",
             "body": f"{partial:,} names have partial coverage. Momentum-style review is available only where price history is ready.",
             "badges": ["price first", "no guessing"],
+            "command": "make price-refresh-loop DRY_RUN=1",
         },
         {
             "kicker": "DEEP ANALYSIS",
             "title": f"{dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready",
             "body": "Valuation and peer comparison appear only when the needed inputs exist. Missing peers or fundamentals stay visible.",
             "badges": ["valuation gated", "source-aware"],
+            "command": "make sec-stage-queue TOP_N=25",
         },
         {
             "kicker": "OPTIONAL CONTEXT",
             "title": f"{earnings_ready:,} earnings / {estimates_ready:,} estimates",
             "body": "Earnings and analyst estimates are intentionally locked until trusted local rows are available.",
             "badges": ["trusted data only"],
+            "command": "make optional-context-worklist TOP_N=10",
         },
         {
             "kicker": "DECISIONS",
             "title": f"{research_now:,} research now / {monitor:,} monitor",
             "body": f"{blocked:,} names are blocked by missing data. That is a data-quality state, not a product failure.",
             "badges": ["readiness gated"],
+            "command": "make research-health TOP_N=10",
         },
     ]
 

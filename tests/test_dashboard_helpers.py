@@ -106,6 +106,58 @@ def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations
     assert "broker" not in rendered
 
 
+def test_plain_home_readiness_cards_include_copyable_next_commands():
+    cards = dashboard._plain_home_readiness_cards(
+        {
+            "master_universe": 3538,
+            "active_universe": 12,
+            "price_ready": 240,
+            "dcf_ready": 23,
+            "peer_ready": 3,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+            "blocked": 3298,
+            "partial": 240,
+        },
+        pd.DataFrame(
+            {
+                "decision_bucket": [
+                    "Research Now",
+                    "Research Now",
+                    "Monitor",
+                    "Blocked by Data",
+                ]
+            }
+        ),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "UNIVERSE",
+        "READY TO REVIEW",
+        "DEEP ANALYSIS",
+        "OPTIONAL CONTEXT",
+        "DECISIONS",
+    ]
+    assert "3,538 tickers tracked" in rendered
+    assert "12 are in the active research list" in rendered
+    assert "240 have price data" in rendered
+    assert "23 dcf-ready / 3 peer-ready" in rendered
+    assert "0 earnings / 0 estimates" in rendered
+    assert "2 research now / 1 monitor" in rendered
+    assert "3,298 names are blocked by missing data" in rendered
+    assert "make status-check top_n=5" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make optional-context-worklist top_n=10" in rendered
+    assert "make research-health top_n=10" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_dashboard_badges_use_high_contrast_html():
     html = dashboard.status_badge("Watch")
     assert "background" in html
