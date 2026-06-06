@@ -8790,7 +8790,10 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
         {
             "kicker": "DATA CONFIDENCE",
             "title": f"{low_confidence_count} low-data-confidence row(s)",
-            "body": "Data confidence falls when core inputs, peer context, source freshness, earnings, or analyst estimates are missing.",
+            "body": (
+                "Data confidence is input coverage, not conviction or recommendation strength. It falls when core inputs, "
+                "peer context, source freshness, earnings, or analyst estimates are missing."
+            ),
             "badges": ["data confidence", "missing inputs"],
         },
         {

@@ -14064,7 +14064,8 @@ def test_final_decision_table_guide_cards_explain_columns_before_rows():
     assert "workflow state, not a call" in rendered
     assert "deeper review, monitor context, or data-unlock work" in rendered
     assert "2 low-data-confidence row(s)" in rendered
-    assert "data confidence falls when core inputs, peer context" in rendered
+    assert "data confidence is input coverage, not conviction or recommendation strength" in rendered
+    assert "it falls when core inputs, peer context" in rendered
     assert "top blocker:" in rendered
     assert "use primary_blocker, missing_data, blocked_features, and excluded_features" in rendered
     assert "3 row(s) with next steps" in rendered
@@ -14105,7 +14106,8 @@ def test_final_decision_table_guide_cards_prefer_data_confidence_column():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert confidence_card["title"] == "2 low-data-confidence row(s)"
-    assert "data confidence falls when core inputs" in rendered
+    assert "data confidence is input coverage, not conviction or recommendation strength" in rendered
+    assert "it falls when core inputs" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
