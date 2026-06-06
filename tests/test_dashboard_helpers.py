@@ -8018,8 +8018,13 @@ def test_valuation_quick_read_cards_prioritize_missing_inputs_when_no_ready_rows
 
     assert cards[0]["title"] == "Fix missing valuation inputs first"
     assert cards[0]["command"] == "make focus-fundamentals TICKER=META"
+    assert cards[1]["title"] == "0 DCF-ready company row(s)"
+    assert cards[1]["command"] == "make dcf-readiness"
     assert cards[2]["command"] == "make focus-fundamentals TICKER=META"
     assert "start with meta" in rendered
+    assert "no operating-company dcf assumptions or sensitivity should be reviewed yet" in rendered
+    assert "use the locked-input and monitor-context cards until trusted dcf rows exist" in rendered
+    assert "open the next dcf-ready ticker" not in rendered
     assert "free cash flow, shares outstanding" in rendered
     assert "until free cash flow, shares outstanding pass readiness" in rendered
     assert "missing inputs are not undervalued, overvalued, or weak-company conclusions" in rendered
@@ -8035,8 +8040,12 @@ def test_valuation_quick_read_cards_keep_etf_rows_monitor_only_when_no_company_r
 
     assert cards[0]["title"] == "Use monitor context only"
     assert cards[0]["command"] == "make stock-report-md TICKER=QQQ"
+    assert cards[1]["title"] == "0 DCF-ready company row(s)"
+    assert cards[1]["command"] == "make dcf-readiness"
     assert cards[3]["command"] == "make stock-report-md TICKER=QQQ"
     assert "start with qqq" in rendered
+    assert "no operating-company dcf assumptions or sensitivity should be reviewed yet" in rendered
+    assert "open the next dcf-ready ticker" not in rendered
     assert "qqq use monitor context because operating-company dcf does not apply" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "monitor only" in rendered

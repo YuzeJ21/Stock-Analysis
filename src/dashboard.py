@@ -11894,6 +11894,18 @@ def valuation_quick_read_cards(
     ready_command = stock_report_md_command(ready_ticker) if not ready.empty else "make dcf-readiness"
     blocked_command = f"make focus-fundamentals TICKER={blocked_ticker}" if not blocked.empty else "make sec-stage-queue TOP_N=25"
     excluded_command = stock_report_md_command(excluded_ticker) if not excluded.empty else "make stock-report-md TICKER=QQQ"
+    if ready.empty:
+        analyze_title = "0 DCF-ready company row(s)"
+        analyze_body = (
+            "What you can analyze now: no operating-company DCF assumptions or sensitivity should be reviewed yet. "
+            "Use the locked-input and monitor-context cards until trusted DCF rows exist."
+        )
+    else:
+        analyze_title = f"{len(ready)} DCF-ready company row(s)"
+        analyze_body = (
+            f"What you can analyze now: open {ready_ticker} for DCF assumptions, scenarios, "
+            "sensitivity, and source freshness. Peer-relative valuation still needs trusted peer inputs."
+        )
 
     return [
         {
@@ -11905,11 +11917,8 @@ def valuation_quick_read_cards(
         },
         {
             "kicker": "ANALYZE NOW",
-            "title": f"{len(ready)} DCF-ready company row(s)",
-            "body": (
-                f"What you can analyze now: open {ready_ticker if not ready.empty else 'the next DCF-ready ticker'} for DCF assumptions, scenarios, "
-                "sensitivity, and source freshness. Peer-relative valuation still needs trusted peer inputs."
-            ),
+            "title": analyze_title,
+            "body": analyze_body,
             "badges": ["assumptions", "sensitivity"],
             "command": ready_command,
         },
