@@ -179,6 +179,41 @@ def test_dashboard_page_query_supports_visitor_friendly_deep_links():
     assert dashboard.dashboard_page_from_query(None) == "Home"
 
 
+def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
+    pages = ["Home", "Single-Stock Report", "Value / Re-rating", "Data Health"]
+    cards = [card for page in pages for card in dashboard.dashboard_page_reader_cards(page)]
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 12
+    assert all(card["kicker"] in {"PAGE GUIDE", "LOCKED / EXCLUDED", "COPY NEXT"} for card in cards)
+    assert "home: what can i analyze now?" in rendered
+    assert "single-stock report: what can i analyze now?" in rendered
+    assert "value / re-rating: what can i analyze now?" in rendered
+    assert "data health: what can i analyze now?" in rendered
+    assert "unsupported dcf, peer valuation, earnings, and estimate sections stay withheld" in rendered
+    assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-freshness review" in rendered
+    assert "missing inputs are an unlock queue, not weak conclusions" in rendered
+    assert "dashboard does not run refreshes, imports, or external account actions" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "make dcf-readiness" in rendered
+    assert "make data-wizard top_n=10" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_major_dashboard_pages_render_plain_english_reader_guides():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert 'render_signal_cards(dashboard_page_reader_cards("Home"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_cards("Single-Stock Report"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_cards("Data Health"))' in source
+    assert 'if title == "Value / Re-rating":' in source
+    assert "render_signal_cards(dashboard_page_reader_cards(title))" in source
+
+
 def test_sidebar_navigation_note_matches_selected_page():
     home_title, home_body = dashboard.sidebar_navigation_note("Home")
     report_title, report_body = dashboard.sidebar_navigation_note("Single-Stock Report")

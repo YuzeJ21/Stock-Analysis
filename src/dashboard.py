@@ -84,6 +84,65 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
         f"Viewing {selected_page}.",
         "Use this page for the selected workflow. If you feel lost, return to Home for the plain-language readiness summary.",
     )
+
+
+def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
+    page = format_missing(page_title, "Home")
+    guides = {
+        "Home": {
+            "analyze": "Current market-wide readiness, recent progress, example reports, and the safest next local research path.",
+            "locked": "Any module without trusted local rows stays locked; broad universe coverage is not the same as analysis readiness.",
+            "command": "make status-check TOP_N=5",
+        },
+        "Single-Stock Report": {
+            "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source/freshness notes.",
+            "locked": "Unsupported DCF, peer valuation, earnings, and estimate sections stay withheld instead of being filled.",
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        "Value / Re-rating": {
+            "analyze": "DCF-ready company rows can support assumption, scenario, sensitivity, and source-freshness review.",
+            "locked": "Blocked company rows need trusted fundamentals or DCF fields; ETF/index/fund rows are monitor context, not failed DCF.",
+            "command": "make dcf-readiness",
+        },
+        "Data Health": {
+            "analyze": "Which trusted inputs are ready across prices, fundamentals, DCF, peers, earnings, and analyst estimates.",
+            "locked": "Missing inputs are an unlock queue, not weak conclusions; imports should validate, preview, and apply before trust.",
+            "command": "make data-wizard TOP_N=10",
+        },
+    }
+    guide = guides.get(
+        page,
+        {
+            "analyze": "The local rows and summaries already generated for this workflow page.",
+            "locked": "Rows missing trusted inputs remain visible as blocked or partial rather than inferred.",
+            "command": "make status-check TOP_N=5",
+        },
+    )
+    return [
+        {
+            "kicker": "PAGE GUIDE",
+            "title": f"{page}: what can I analyze now?",
+            "body": guide["analyze"],
+            "badges": ["plain English", "readiness first"],
+            "command": guide["command"],
+        },
+        {
+            "kicker": "LOCKED / EXCLUDED",
+            "title": "What stays unavailable?",
+            "body": guide["locked"],
+            "badges": ["no inference", "data honest"],
+            "command": guide["command"],
+        },
+        {
+            "kicker": "COPY NEXT",
+            "title": "What command should I copy next?",
+            "body": "Copy the command into a terminal only when you are ready. The dashboard does not run refreshes, imports, or external account actions.",
+            "badges": ["copy-only", "research-only"],
+            "command": guide["command"],
+        },
+    ]
+
+
 IMPORT_HEALTH_DATASETS = [
     {
         "dataset": "prices",
@@ -17639,6 +17698,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "Copy-only dashboard.",
         "Cards display commands for you to copy into a terminal; the dashboard itself does not run refreshes, imports, or external account actions.",
     )
+    render_signal_cards(dashboard_page_reader_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
 
     render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
@@ -17886,6 +17946,8 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     filename = TAB_TO_FILE[title]
     frame, message = output_frames[filename]
     render_section_header(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
+    if title == "Value / Re-rating":
+        render_signal_cards(dashboard_page_reader_cards(title))
     if message and frame is None:
         render_notice_card(
             f"{title} output is not available yet",
@@ -17919,6 +17981,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         "One-ticker research workflow. Saved local data is the default. "
         "Optional online research mode stays off by default and is labeled unofficial / research-grade.",
     )
+    render_signal_cards(dashboard_page_reader_cards("Single-Stock Report"))
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
     selected = selection_cols[0].selectbox(
@@ -18806,6 +18869,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "Data Health",
         "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next.",
     )
+    render_signal_cards(dashboard_page_reader_cards("Data Health"))
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
