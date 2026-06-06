@@ -3104,6 +3104,7 @@ def optional_context_ladder_frame(
     columns = [
         "Dataset",
         "Current State",
+        "Trusted Row Gate",
         "Ready Rows",
         "Blocked Rows",
         "Schema Only Example",
@@ -3138,10 +3139,17 @@ def optional_context_ladder_frame(
             state = "Partial: some trusted rows ready"
         else:
             state = "Ready: trusted rows available"
+        if ready_count == 0:
+            trusted_gate = "Locked until trusted local rows pass validation, preview, apply, and optional-context readiness."
+        elif blocked_count:
+            trusted_gate = "Partial: review only ready trusted rows; keep missing optional context locked."
+        else:
+            trusted_gate = "Ready: trusted local rows passed optional-context readiness; still context only."
         rows.append(
             {
                 "Dataset": config["label"],
                 "Current State": state,
+                "Trusted Row Gate": trusted_gate,
                 "Ready Rows": ready_count,
                 "Blocked Rows": blocked_count,
                 "Schema Only Example": config["schema"],
@@ -3191,6 +3199,7 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
             "title": format_missing(first.get("Dataset"), "Optional dataset"),
             "body": (
                 f"State: {format_missing(first.get('Current State'), 'locked')}. "
+                f"Trusted row gate: {format_missing(first.get('Trusted Row Gate'), 'locked until trusted rows pass readiness')}. "
                 f"Schema-only example: {format_missing(first.get('Schema Only Example'), '')}. "
                 "Templates are not data."
             ),

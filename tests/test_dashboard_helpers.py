@@ -15126,6 +15126,7 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert list(frame.columns) == [
         "Dataset",
         "Current State",
+        "Trusted Row Gate",
         "Ready Rows",
         "Blocked Rows",
         "Schema Only Example",
@@ -15141,9 +15142,13 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert frame["Dataset"].tolist() == ["Earnings", "Analyst estimates"]
     assert frame.loc[frame["Dataset"].eq("Earnings"), "Ready Rows"].iloc[0] == 1
     assert frame.loc[frame["Dataset"].eq("Earnings"), "Blocked Rows"].iloc[0] == 1
+    assert frame.loc[frame["Dataset"].eq("Earnings"), "Trusted Row Gate"].iloc[0] == "Partial: review only ready trusted rows; keep missing optional context locked."
     assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "Ready Rows"].iloc[0] == 0
+    assert frame.loc[frame["Dataset"].eq("Analyst estimates"), "Trusted Row Gate"].iloc[0] == "Locked until trusted local rows pass validation, preview, apply, and optional-context readiness."
     assert "1 ready / 3 locked row(s)" in rendered
     assert "empty optional context is intentional until trusted local csv rows pass validation" in rendered
+    assert "trusted row gate: locked until trusted local rows pass validation, preview, apply, and optional-context readiness" in rendered
+    assert "partial: review only ready trusted rows; keep missing optional context locked" in rendered
     assert "ticker, fiscal_period, report_date" in rendered
     assert "ticker, period, eps_estimate" in rendered
     assert "templates are not data" in rendered
