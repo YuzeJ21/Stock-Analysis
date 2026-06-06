@@ -13503,6 +13503,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
     input_card = next(card for card in cards if card["kicker"] == "INPUT PATH")
     field_gap_card = next(card for card in cards if card["kicker"] == "DCF FIELD GAPS")
+    proof_ladder_card = next(card for card in cards if card["kicker"] == "DCF PROOF LADDER")
 
     assert "1 price-ready companies" in rendered
     assert "1 active-universe" in rendered
@@ -13519,6 +13520,12 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "schema guide: ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at" in rendered
     assert "validation sequence: make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
     assert "rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
+    assert proof_ladder_card["title"] == "Input -> readiness -> DCF -> report"
+    assert proof_ladder_card["command"] == "make focus-fundamentals TICKER=META"
+    assert "trusted fundamentals row, then import validation, then dcf readiness, then the single-stock report" in rendered
+    assert "source/freshness, missing fields, dcf calculation path, and valuation boundaries" in rendered
+    assert "make stock-report-md ticker=meta" in rendered
+    assert "no black box" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
     assert "1 dcf-ready companies" in rendered
     assert input_card["title"] == "SEC import draft workflow"

@@ -8284,6 +8284,16 @@ def fundamentals_dcf_diagnostic_cards(
             f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
         )
         dcf_field_gap_command = "make dcf-readiness"
+    dcf_proof_command = (
+        f"make focus-fundamentals TICKER={next_ticker}"
+        if next_ticker != "Not available"
+        else "make dcf-readiness"
+    )
+    dcf_report_command = (
+        stock_report_md_command(next_ticker)
+        if next_ticker != "Not available"
+        else "make stock-report-md TICKER=NVDA"
+    )
     return [
         {
             "kicker": "FUNDAMENTALS GAP",
@@ -8308,6 +8318,19 @@ def fundamentals_dcf_diagnostic_cards(
             "body": dcf_field_gap_body,
             "badges": ["missing fields explicit", "field-level next step", "excluded is not failed"],
             "command": dcf_field_gap_command,
+        },
+        {
+            "kicker": "DCF PROOF LADDER",
+            "title": "Input -> readiness -> DCF -> report",
+            "body": (
+                "Use this to audit the method before reading valuation output: trusted fundamentals row, then import validation, "
+                "then DCF readiness, then the single-stock report. The report should show source/freshness, missing fields, "
+                "DCF calculation path, and valuation boundaries before any interpretation. "
+                f"Copy sequence: `{dcf_proof_command}` -> `make imports-validate` -> `make imports-preview` -> "
+                f"`make imports-apply` -> `make dcf-readiness` -> `{dcf_report_command}`."
+            ),
+            "badges": ["method proof", "no black box"],
+            "command": dcf_proof_command,
         },
         {
             "kicker": "DCF-READY PEER BLOCKERS",
