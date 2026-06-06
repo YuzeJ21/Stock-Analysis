@@ -37,12 +37,14 @@ if [ -n "$MAX_CANDIDATES" ]; then
 fi
 
 TOTAL_CANDIDATES=$((BATCHES * TOP_N))
+MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))
 
 echo "Research-only capped price refresh loop."
 echo "Batches: $BATCHES; tickers per batch: $TOP_N; provider: $PROVIDER; sleep seconds: $SLEEP_SECONDS"
 echo "This updates local CSV files only. It does not connect to brokers, place orders, or make recommendations."
 echo "Plan: review up to $TOTAL_CANDIDATES missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
 echo "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually."
+echo "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)."
 echo "Start with DRY_RUN=1 so you can review the batch size before any local CSV changes."
 echo "Before a real run, copy make readiness-snapshot so you can compare readiness before and after the refresh."
 echo "Plain planning knob: set MAX_CANDIDATES=3500 to let the loop calculate capped batches from TOP_N."
@@ -54,6 +56,7 @@ fi
 if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Dry run only. No local CSV files were changed."
   echo "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)."
+  echo "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES."
   if [ -n "$MAX_CANDIDATES" ]; then
     echo "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
   else
@@ -75,6 +78,7 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again."
   echo "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER"
   echo "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER"
+  echo "After reviewing the dry run, copy the one planned loop command instead of running many 25-ticker commands by hand."
   echo "This replaces repeating 25-ticker refreshes manually; keep batches capped and review generated CSV churn before committing."
   exit 0
 fi

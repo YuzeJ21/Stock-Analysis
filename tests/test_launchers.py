@@ -242,8 +242,10 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "MAX_CANDIDATES must be a positive integer when provided." in script
     assert 'BATCHES=$(((MAX_CANDIDATES + TOP_N - 1) / TOP_N))' in script
     assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
+    assert "MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))" in script
     assert "review up to $TOTAL_CANDIDATES missing-price candidates" in script
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
+    assert "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)." in script
     assert "Before a real run, copy make readiness-snapshot" in script
     assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
     assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
@@ -251,6 +253,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "do not babysit hundreds of tiny commands" in script
     assert "Dry run only. No local CSV files were changed." in script
     assert "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)." in script
+    assert "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES." in script
     assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
@@ -265,6 +268,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again." in script
     assert "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
+    assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in script
     assert "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=..." in script
     assert "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
