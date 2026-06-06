@@ -381,6 +381,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in markdown
     assert "Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality" in markdown
     assert "Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker" in markdown
+    assert "Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command" in markdown
+    assert "Reader audit path: check Source/Freshness first, then Data Readiness, then DCF Calculation Path or Peer Workflow" in markdown
     assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
     assert "DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing" in markdown
     assert "standalone DCF projects free cash flow under bear/base/bull assumptions" in markdown
