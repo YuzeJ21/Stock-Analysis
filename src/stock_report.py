@@ -862,6 +862,92 @@ def _stock_report_dcf_calculation_path_lines(
     return lines
 
 
+DCF_INPUT_TRIAGE = {
+    "price": {
+        "why": "anchors per-share valuation and lets the report verify market context before deeper company analysis.",
+        "path": "run `make focus-price TICKER={ticker}` first, then use the price import validate/preview/apply flow if local rows are missing.",
+    },
+    "fundamentals": {
+        "why": "provides the company row used to connect revenue, cash-flow, balance-sheet, and share-count fields.",
+        "path": "run `make focus-fundamentals TICKER={ticker}` and stage SEC or trusted manual rows before import validation.",
+    },
+    "revenue": {
+        "why": "sets the operating scale used for forecast assumptions when direct free cash flow is not enough by itself.",
+        "path": "use `make focus-fundamentals TICKER={ticker}`, then `make sec-stage TICKERS={ticker}` or trusted manual fundamentals import.",
+    },
+    "free_cash_flow": {
+        "why": "drives base FCF for projected cash flows; without it the DCF cannot calculate operating cash generation.",
+        "path": "add trusted free-cash-flow rows through SEC staging or `data/imports/fundamentals.csv`, then validate and preview.",
+    },
+    "fcf_margin": {
+        "why": "lets the model estimate free cash flow from revenue when direct free cash flow is unavailable.",
+        "path": "add a trusted FCF margin or direct free-cash-flow field before rerunning DCF readiness.",
+    },
+    "shares_outstanding": {
+        "why": "converts equity value into fair value per share; missing share count blocks per-share DCF output.",
+        "path": "add trusted shares outstanding in the fundamentals import, then run `make imports-validate` and `make dcf-readiness`.",
+    },
+    "market_cap_or_price_and_shares": {
+        "why": "lets the product reconcile market value or per-share inputs before showing valuation context.",
+        "path": "refresh trusted price rows and add share-count fundamentals before rerunning readiness.",
+    },
+}
+
+
+def _stock_report_dcf_input_triage_lines(
+    *,
+    ticker: str,
+    dcf: dict[str, Any],
+    valuation_readiness: dict[str, Any],
+    dcf_status_text: str,
+    monitor_context: bool,
+) -> list[str]:
+    if monitor_context or dcf_status_text.lower() == "excluded":
+        return [
+            "- DCF input triage: not required for ETF/index/fund monitor context; operating-company valuation is excluded rather than repaired.",
+        ]
+    raw_missing = dcf.get("missing_dcf_fields") or valuation_readiness.get("dcf_missing_fields") or dcf.get("reason_not_ready")
+    if dcf_status_text.lower() == "ready":
+        return [
+            "- DCF input triage: required inputs passed readiness for standalone DCF review.",
+            "- Next check: review assumptions, sensitivity, and source freshness; do not convert fair value math into a recommendation.",
+        ]
+    missing_parts: list[str] = []
+    if isinstance(raw_missing, str):
+        text = raw_missing.strip()
+        if text.lower().startswith("missing "):
+            text = text[8:].strip()
+        missing_parts = [part.strip().strip("`.,;:") for part in re.split(r"[,;]", text) if part.strip()]
+    elif isinstance(raw_missing, (list, tuple, set)):
+        missing_parts = [str(part).strip().strip("`.,;:") for part in raw_missing if _display_value(part, "")]
+
+    if not missing_parts:
+        missing_parts = ["fundamentals"]
+
+    lines = [
+        "- DCF input triage: blocked inputs are repair steps, not negative company signals.",
+    ]
+    for raw_field in missing_parts[:6]:
+        normalized = raw_field.strip()
+        label = _display_field_name(normalized)
+        key = normalized if normalized in DCF_INPUT_TRIAGE else normalized.lower().replace(" ", "_")
+        detail = DCF_INPUT_TRIAGE.get(key)
+        if detail is None:
+            lines.append(
+                f"- Missing {label}: this required DCF input is unavailable from trusted local rows; "
+                f"run `make focus-fundamentals TICKER={ticker}` before attempting valuation review."
+            )
+            continue
+        lines.append(
+            f"- Missing {label}: {detail['why']} Unlock path: {detail['path'].format(ticker=ticker)}"
+        )
+    lines.append(
+        "- Safe sequence: `make focus-fundamentals TICKER={ticker}` -> `make imports-validate` -> "
+        "`make imports-preview` -> `make imports-apply` -> `make dcf-readiness`.".format(ticker=ticker)
+    )
+    return lines
+
+
 def _stock_report_valuation_boundary_checklist_lines(
     *,
     dcf_status_text: str,
@@ -1887,6 +1973,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
     )
+    dcf_input_triage_lines = _stock_report_dcf_input_triage_lines(
+        ticker=report.ticker,
+        dcf=dcf,
+        valuation_readiness=valuation_readiness,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+    )
     valuation_boundary_lines = _stock_report_valuation_boundary_checklist_lines(
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
@@ -2115,6 +2208,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## DCF Calculation Path",
         *dcf_calculation_lines,
         "",
+        "## DCF Input Triage",
+        *dcf_input_triage_lines,
+        "",
         "## Valuation Boundary Checklist",
         *valuation_boundary_lines,
         "",
@@ -2229,6 +2325,13 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         valuation_snapshot=valuation_snapshot_for_report,
         valuation_readiness={"dcf_missing_fields": []},
         dcf=dcf,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+    )
+    dcf_input_triage_lines = _stock_report_dcf_input_triage_lines(
+        ticker=symbol,
+        dcf=dcf,
+        valuation_readiness={"dcf_missing_fields": []},
         dcf_status_text=dcf_status_text,
         monitor_context=monitor_context,
     )
@@ -2454,6 +2557,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## DCF Calculation Path",
         *dcf_calculation_lines,
+        "",
+        "## DCF Input Triage",
+        *dcf_input_triage_lines,
         "",
         "## Valuation Boundary Checklist",
         *valuation_boundary_lines,

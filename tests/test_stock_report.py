@@ -20,6 +20,7 @@ from src.providers.mock_market_data import MockMarketDataProvider
 from src.stock_report import (
     _display_setup_text,
     _format_inline_make_commands,
+    _stock_report_dcf_input_triage_lines,
     _stock_report_reader_guide_lines,
     _stock_report_reader_question_lines,
     _stock_report_valuation_lines,
@@ -58,6 +59,50 @@ def test_stock_report_setup_text_relabels_not_ready_company_rows_as_data_limited
     assert "valuation readiness is not ready" in text
     assert "treat as data-limited review until missing data is resolved" in text
     assert "treat as monitor-only" not in text.lower()
+
+
+def test_stock_report_dcf_input_triage_explains_missing_fields_without_recommendations():
+    lines = _stock_report_dcf_input_triage_lines(
+        ticker="TSLA",
+        dcf={"missing_dcf_fields": ["revenue", "free_cash_flow", "shares_outstanding"]},
+        valuation_readiness={},
+        dcf_status_text="blocked",
+        monitor_context=False,
+    )
+    rendered = " ".join(lines).lower()
+
+    assert "blocked inputs are repair steps, not negative company signals" in rendered
+    assert "missing revenue" in rendered
+    assert "sets the operating scale used for forecast assumptions" in rendered
+    assert "missing free cash flow" in rendered
+    assert "drives base fcf for projected cash flows" in rendered
+    assert "missing shares outstanding" in rendered
+    assert "converts equity value into fair value per share" in rendered
+    assert "make focus-fundamentals ticker=tsla" in rendered
+    assert "make sec-stage tickers=tsla" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "make dcf-readiness" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_dcf_input_triage_marks_monitor_context_as_excluded():
+    lines = _stock_report_dcf_input_triage_lines(
+        ticker="QQQ",
+        dcf={"missing_dcf_fields": ["revenue"]},
+        valuation_readiness={},
+        dcf_status_text="excluded",
+        monitor_context=True,
+    )
+
+    assert lines == [
+        "- DCF input triage: not required for ETF/index/fund monitor context; operating-company valuation is excluded rather than repaired.",
+    ]
 
 
 def test_stock_report_reader_questions_route_optional_locked_core_ready_names():
@@ -288,6 +333,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "State: ready; standalone DCF math is calculated locally from trusted price and fundamentals inputs" in markdown
     assert "Input source: local price/fundamentals rows; base revenue=$250.0B; base FCF=$90.0B; shares outstanding=7.4B" in markdown
     assert "Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation" in markdown
+    assert "## DCF Input Triage" in markdown
+    assert "DCF input triage: required inputs passed readiness for standalone DCF review" in markdown
+    assert "Next check: review assumptions, sensitivity, and source freshness; do not convert fair value math into a recommendation" in markdown
     assert "## Valuation Boundary Checklist" in markdown
     assert "DCF boundary: ready for assumption, scenario, and sensitivity review; still research context, not a price target" in markdown
     assert "Peer-relative boundary: blocked until source-backed peer mappings and peer valuation inputs pass readiness" in markdown
@@ -619,6 +667,8 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "not a failed valuation input" in markdown
     assert "State: excluded; operating-company DCF is not the right method for ETF/index/fund monitor context" in markdown
     assert "Formula path: not run for this ticker because the asset-type gate excludes company DCF" in markdown
+    assert "## DCF Input Triage" in markdown
+    assert "DCF input triage: not required for ETF/index/fund monitor context; operating-company valuation is excluded rather than repaired" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
     assert "## Purpose Evaluation" in markdown
     assert "Research-only purpose brief" in markdown
@@ -846,6 +896,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "## Valuation Readiness" in markdown
     assert "DCF missing inputs:" in markdown
     assert "Why DCF is blocked:" in markdown
+    assert "## DCF Input Triage" in markdown
+    assert "DCF input triage: blocked inputs are repair steps, not negative company signals" in markdown
+    assert "Safe sequence: `make focus-fundamentals TICKER=APLD` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`" in markdown
     assert "Relative valuation: withheld until trusted fundamentals and DCF readiness pass" in markdown
     assert "background relative-multiple calculation is not reader-ready yet" in markdown
     assert "## DCF Calculation Path" in markdown
