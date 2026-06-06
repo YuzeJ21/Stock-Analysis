@@ -12,10 +12,10 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Next local step: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
 
 ## Reader Guide
-- What can I analyze now? Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
-- What is still locked or excluded? Blocked features: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
-- What trusted input matters next? Trusted local price history.
-- Next copy-only command: `make focus-price TICKER=APLD`.
+- Analyze now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
+- Still locked: Blocked features: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- Trusted input: Trusted local price history.
+- Copy next: `make focus-price TICKER=APLD`.
 - Next research step: Add or refresh trusted local price history for APLD; run `make focus-price TICKER=APLD` before interpreting setup, fundamentals, DCF, or peer context.
 
 ## How To Read This Report
@@ -64,6 +64,8 @@ APLD state: blocked. Decision: Blocked by Data - Missing Price. Primary blocker:
 ## Methodology
 - Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
+- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
+- Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
 - DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
@@ -153,6 +155,16 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Formula path: withheld before base FCF, projected FCF, terminal value, equity value, or fair value/share are calculated.
 - Sensitivity: unavailable until the base DCF can be calculated from trusted inputs.
 
+## DCF Input Triage
+- DCF input triage: blocked inputs are repair steps, not negative company signals.
+- Calculation dependency: trusted price and share count anchor per-share output; revenue plus free cash flow or FCF margin builds base FCF; cash/debt adjusts enterprise value to equity value.
+- Missing free cash flow: drives base FCF for projected cash flows; without it the DCF cannot calculate operating cash generation. Unlock path: add trusted free-cash-flow rows through SEC staging or `data/imports/fundamentals.csv`, then validate and preview.
+- Missing shares outstanding: converts equity value into fair value per share; missing share count blocks per-share DCF output. Unlock path: add trusted shares outstanding in the fundamentals import, then run `make imports-validate` and `make dcf-readiness`.
+- Missing revenue: sets the operating scale used for forecast assumptions when direct free cash flow is not enough by itself. Unlock path: use `make focus-fundamentals TICKER=APLD`, then `make sec-stage TICKERS=APLD` or trusted manual fundamentals import.
+- Missing FCF margin: lets the model estimate free cash flow from revenue when direct free cash flow is unavailable. Unlock path: add a trusted FCF margin or direct free-cash-flow field before rerunning DCF readiness.
+- Missing price: anchors per-share valuation and lets the report verify market context before deeper company analysis. Unlock path: run `make focus-price TICKER=APLD` first, then use the price import validate/preview/apply flow if local rows are missing.
+- Safe sequence: `make focus-fundamentals TICKER=APLD` -> stage SEC or trusted manual fundamentals rows -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`.
+
 ## Valuation Boundary Checklist
 - DCF boundary: blocked until trusted price, fundamentals, cash-flow or margin, share-count, and DCF fields pass readiness.
 - Peer-relative boundary: withheld until trusted fundamentals and DCF readiness pass first.
@@ -164,12 +176,27 @@ Research-only purpose brief. It separates what local data supports from what rem
 - What can be reviewed now: only the ready local inputs listed above; peer rows should not create valuation context yet.
 - What is still locked: peer trend and peer valuation remain withheld until core company inputs are ready.
 - Trusted input path: resolve fundamentals / DCF first, then use `make focus-peers TICKER=APLD` if peer context is still needed.
+- Peer ladder: paused behind core company readiness.
+- Mapping evidence: mapping status=missing mapping; peer count=0. Do not use peer rows to bypass missing price, fundamentals, or DCF inputs.
+- Trend evidence: withheld until core company readiness passes and mapped peer price history is useful.
+- Valuation evidence: withheld until standalone DCF plus source-backed peer mappings and peer valuation inputs pass readiness.
+- Next safe command: `make focus-peers TICKER=APLD` only after the core DCF blockers are resolved.
 - Peer blocker type: blocked until fundamentals / DCF
 - Mapping status: waiting for price, fundamentals, and DCF
 - Peer count: 0
 - Trend comparison ready: not ready
 - Valuation comparison ready: not ready
 - Next peer action: Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+
+## Optional Context Workflow
+- Optional context ladder: earnings and analyst estimates add timing, consensus, and revision context only; they never create a valuation conclusion by themselves.
+- Earnings evidence: locked; missing trusted local CSV input is an intentional state, not broken analysis. Use schema-only templates first; templates are not data.
+- Analyst-estimate evidence: locked; missing trusted local CSV input is an intentional state, not hidden consensus analysis.
+- Earnings path: `make templates` -> place trusted rows in `data/staged/earnings/` -> `make import-earnings` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.
+- Analyst-estimates path: `make templates` -> place trusted rows in `data/staged/analyst_estimates/` -> `make import-analyst-estimates` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.
+- Rejected-row checks: review `data/rejected/earnings_import_rejected.csv` and `data/rejected/analyst_estimates_import_rejected.csv` before trusting optional context.
+- Rebuild proof: run `make optional-context-readiness`, then `make stock-report-md TICKER=APLD` to confirm optional sections changed from locked to available.
+- No-conclusion boundary: missing earnings or estimates must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.
 
 ## Missing Data
 - needs at least 5 valid price rows with positive close; DCF: free cash flow, shares outstanding, revenue, FCF margin, price; peers: needs at least 2 source-backed peer mappings; earnings: trusted local CSV input; analyst estimates: trusted local CSV input
@@ -187,17 +214,21 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Price first: `make focus-price TICKER=APLD`.
 - Price queue: `make price-worklist TICKERS=APLD TOP_N=10`.
 - Price import safety: `make price-validate && make price-preview && make price-apply`.
+- Price rebuild proof: `make price-coverage TOP_N=25 && make readiness` before interpreting setup, trend, or valuation context.
 - Fundamentals / DCF: `make focus-fundamentals TICKER=APLD`.
 - SEC/manual import review: `make sec-stage-queue TICKERS=APLD TOP_N=10`.
 - Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.
+- DCF rebuild proof: `make dcf-readiness && make readiness` before reading standalone DCF output.
 - Peer mapping: `make focus-peers TICKER=APLD`.
 - Peer queue: `make peer-mapping-queue TICKERS=APLD TOP_N=10`.
 - Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.
+- Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=APLD TOP_N=10` before reading peer-relative valuation.
 - Optional context queue: `make optional-context-worklist TICKERS=APLD TOP_N=10`.
 - Optional templates: `make templates`.
 - Earnings import: `make import-earnings`.
 - Analyst-estimates import: `make import-analyst-estimates`.
 - Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.
+- Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
 ## Source/Freshness Audit
 - Prices: not ready; local source `data/prices.csv`; coverage unknown to unknown; rows=0; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.

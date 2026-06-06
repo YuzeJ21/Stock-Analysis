@@ -1464,10 +1464,10 @@ def _stock_report_reader_question_lines(
         next_input = "Review source/freshness notes before interpreting the supported sections."
         command = f"make stock-report-md TICKER={ticker}"
     return [
-        f"- What can I analyze now? {_sentence_value(supported_now)}.",
-        f"- What is still locked or excluded? {_sentence_value(locked_now)}.",
-        f"- What trusted input matters next? {_sentence_value(next_input)}.",
-        f"- Next copy-only command: `{command}`.",
+        f"- Analyze now: {_sentence_value(supported_now)}.",
+        f"- Still locked: {_sentence_value(locked_now)}.",
+        f"- Trusted input: {_sentence_value(next_input)}.",
+        f"- Copy next: `{command}`.",
         f"- Next research step: {_sentence_value(_humanize_schema_terms(next_action), 'No next local action is available')}.",
     ]
 

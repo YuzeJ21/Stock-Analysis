@@ -12,10 +12,10 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Next local step: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
 ## Reader Guide
-- What can I analyze now? Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
-- What is still locked or excluded? Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
-- What trusted input matters next? No company DCF input is required for monitor context.
-- Next copy-only command: `make stock-report-md TICKER=QQQ`.
+- Analyze now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
+- Still locked: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- Trusted input: No company DCF input is required for monitor context.
+- Copy next: `make stock-report-md TICKER=QQQ`.
 - Next research step: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
 ## How To Read This Report
@@ -61,6 +61,8 @@ QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 ## Methodology
 - Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
+- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
+- Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
 - DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
@@ -150,6 +152,9 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Formula path: not run for this ticker because the asset-type gate excludes company DCF.
 - Reader takeaway: use supported market, theme, liquidity, or risk context instead of treating DCF as failed.
 
+## DCF Input Triage
+- DCF input triage: not required for ETF/index/fund monitor context; operating-company valuation is excluded rather than repaired.
+
 ## Valuation Boundary Checklist
 - DCF boundary: excluded for ETF/index/fund monitor context; this is not a failed company DCF input.
 - Peer-relative boundary: excluded for monitor context; peer-relative company valuation is not shown.
@@ -161,6 +166,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - What can be reviewed now: market, theme, liquidity, or risk proxy context from the ticker's own ready local inputs.
 - What is still locked: operating-company peer valuation is not a repair item for this monitor role.
 - Trusted input path: no peer import is required for monitor context; do not add guessed peers to force valuation.
+- Peer ladder: monitor context; operating-company peer valuation is excluded rather than repaired.
+- Mapping evidence: optional context only for ETF/index/fund monitor rows; do not add guessed peers to force company valuation.
+- Trend evidence: use the ticker's own ready market, theme, liquidity, or risk inputs instead.
+- Valuation evidence: excluded; no peer-relative premium/discount or peer DCF comparison is shown.
 - Peer blocker type: monitor context
 - Mapping status: monitor context
 - Peer count: 0
@@ -169,6 +178,16 @@ Research-only purpose brief. It separates what local data supports from what rem
 - DCF peer comparison ready: not ready
 - Sample peers: none configured
 - Next peer action: No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context.
+
+## Optional Context Workflow
+- Optional context ladder: earnings and analyst estimates add timing, consensus, and revision context only; they never create a valuation conclusion by themselves.
+- Earnings evidence: locked; missing trusted local CSV input is an intentional state, not broken analysis. Use schema-only templates first; templates are not data.
+- Analyst-estimate evidence: locked; missing trusted local CSV input is an intentional state, not hidden consensus analysis.
+- Earnings path: `make templates` -> place trusted rows in `data/staged/earnings/` -> `make import-earnings` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.
+- Analyst-estimates path: `make templates` -> place trusted rows in `data/staged/analyst_estimates/` -> `make import-analyst-estimates` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`.
+- Rejected-row checks: review `data/rejected/earnings_import_rejected.csv` and `data/rejected/analyst_estimates_import_rejected.csv` before trusting optional context.
+- Rebuild proof: run `make optional-context-readiness`, then `make stock-report-md TICKER=QQQ` to confirm optional sections changed from locked to available.
+- No-conclusion boundary: missing earnings or estimates must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis.
 
 ## Missing Data
 - Operating-company DCF and peer valuation are excluded for this monitor context, so company valuation fields are not treated as repair items.
@@ -204,6 +223,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Earnings import: `make import-earnings`.
 - Analyst-estimates import: `make import-analyst-estimates`.
 - Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.
+- Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
 ## Source/Freshness Audit
 - Prices: ready; local source `data/prices.csv`; coverage 2026-02-10 to 2026-03-14; rows=25; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
