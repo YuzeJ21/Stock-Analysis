@@ -14854,6 +14854,8 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
         "price_ready": True,
         "dcf_status": "ready",
         "peer_ready": False,
+        "peer_trend_comparison_ready": True,
+        "peer_valuation_comparison_ready": False,
         "earnings_ready": False,
         "analyst_estimates_ready": False,
         "next_action": "Add source-backed peer mappings before peer-relative valuation.",
@@ -14865,8 +14867,9 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
 
     assert list(frame.columns) == ["Question", "Answer", "Trusted Input Needed", "Copy-Only Command"]
     assert [card["kicker"] for card in cards] == ["ANALYZE NOW", "LOCKED / EXCLUDED", "NEXT STEP"]
-    assert "standalone dcf assumptions, scenario math, sensitivity" in rendered
-    assert "peer-relative valuation remains locked" in rendered
+    assert "standalone dcf assumptions, scenario math, sensitivity, source freshness, and peer trend context" in rendered
+    assert "mapped peer price history can be reviewed" in rendered
+    assert "peer-relative valuation, premium/discount, and peer dcf comparison remain locked" in rendered
     assert "trusted input needed:" in rendered
     assert "trusted peer mappings in data/imports/peers.csv plus peer inputs when needed" in rendered
     assert "use only current local/provider rows that already passed readiness" in rendered
@@ -14936,6 +14939,8 @@ def test_single_stock_quick_read_cards_route_dcf_ready_peer_locked():
         "price_ready": True,
         "dcf_status": "ready",
         "peer_ready": False,
+        "peer_trend_comparison_ready": True,
+        "peer_valuation_comparison_ready": False,
         "earnings_ready": False,
         "analyst_estimates_ready": False,
         "one_minute_summary": "NVDA is partial; DCF inputs are ready, but peer context is locked.",
@@ -14947,8 +14952,9 @@ def test_single_stock_quick_read_cards_route_dcf_ready_peer_locked():
     assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED", "COPY ONLY"]
     assert cards[0]["title"] == "Standalone DCF is reviewable; peers are still locked."
     assert cards[0]["command"] == "make focus-peers TICKER=NVDA"
-    assert "dcf assumptions, sensitivity, source freshness" in rendered
-    assert "peer-relative valuation waits for source-backed peer mappings" in rendered
+    assert "dcf assumptions, sensitivity, source freshness, company setup, and peer trend context" in rendered
+    assert "mapped peer price history" in rendered
+    assert "peer-relative valuation, premium/discount, and peer dcf comparison wait" in rendered
     assert "does not run refreshes, imports, or external account actions" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

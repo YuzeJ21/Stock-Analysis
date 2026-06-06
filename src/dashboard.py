@@ -11335,6 +11335,7 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     price_ready = bool(snapshot.get("price_ready"))
     peer_ready = bool(snapshot.get("peer_ready"))
+    peer_trend_ready = str(snapshot.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes", "y", "ready"}
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -11355,8 +11356,15 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
         command = f"make focus-fundamentals TICKER={ticker}"
     elif dcf_status == "ready" and not peer_ready:
-        can_analyze = "Standalone DCF assumptions, scenario math, sensitivity, and source freshness can be reviewed."
-        locked = "Peer-relative valuation remains locked until source-backed peer mappings and peer valuation inputs pass readiness."
+        if peer_trend_ready:
+            can_analyze = (
+                "Standalone DCF assumptions, scenario math, sensitivity, source freshness, and peer trend context "
+                "from mapped peer price history can be reviewed."
+            )
+            locked = "Peer-relative valuation, premium/discount, and peer DCF comparison remain locked until source-backed peer valuation inputs pass readiness."
+        else:
+            can_analyze = "Standalone DCF assumptions, scenario math, sensitivity, and source freshness can be reviewed."
+            locked = "Peer-relative valuation remains locked until source-backed peer mappings and peer valuation inputs pass readiness."
         next_input = "Trusted peer mappings in data/imports/peers.csv plus peer inputs when needed."
         command = f"make focus-peers TICKER={ticker}"
     elif not earnings_ready or not estimates_ready:
@@ -11424,6 +11432,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     price_ready = bool(snapshot.get("price_ready"))
     peer_ready = bool(snapshot.get("peer_ready"))
+    peer_trend_ready = str(snapshot.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes", "y", "ready"}
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -11454,8 +11463,15 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         badges = ["fundamentals needed", "no valuation conclusion"]
     elif dcf_status == "ready" and not peer_ready:
         first_read = "Standalone DCF is reviewable; peers are still locked."
-        analyze_now = "DCF assumptions, sensitivity, source freshness, and company setup can be reviewed from trusted local inputs."
-        still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
+        if peer_trend_ready:
+            analyze_now = (
+                "DCF assumptions, sensitivity, source freshness, company setup, and peer trend context from mapped peer price history "
+                "can be reviewed from trusted local inputs."
+            )
+            still_locked = "Peer-relative valuation, premium/discount, and peer DCF comparison wait for source-backed peer valuation inputs."
+        else:
+            analyze_now = "DCF assumptions, sensitivity, source freshness, and company setup can be reviewed from trusted local inputs."
+            still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
         command = f"make focus-peers TICKER={ticker}"
         badges = ["DCF ready", "peer gated"]
     elif not earnings_ready or not estimates_ready:
