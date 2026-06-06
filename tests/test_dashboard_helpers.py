@@ -353,7 +353,10 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Show more explanation" in source
     assert "#### Where to go next" in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Help for using the app"' in source
+    assert 'st.expander("Quick help and safe commands"' in source
+    assert "Start here when a page feels noisy" in source
+    assert "Use the plain-language labels first" in source
+    assert 'st.expander("Help for using the app"' not in source
     assert 'st.expander("Help, commands, and paths"' not in source
     assert 'st.expander("Advanced command help"' not in source
     assert 'st.expander("How to read status labels"' not in source

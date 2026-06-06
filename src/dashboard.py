@@ -20933,10 +20933,10 @@ def main() -> None:
         render_context_note(note_title, note_body, tone="success")
         st.markdown("#### Where to go next")
         render_action_cards(dashboard_navigation_cards())
-        with st.expander("Help for using the app", expanded=False):
+        with st.expander("Quick help and safe commands", expanded=False):
             render_context_note(
-                "Safe local commands.",
-                "Preview capped refreshes first. The dashboard shows copyable commands only and never runs imports, refreshes, or account actions.",
+                "Start here when a page feels noisy.",
+                "Use the plain-language labels first, then copy a safe local command only when you are ready. The dashboard never runs imports, refreshes, or account actions.",
             )
             st.code(
                 "make help\nmake status-check TOP_N=5\nmake price-refresh-loop DRY_RUN=1\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report-md TICKER=NVDA\nmake dashboard-smoke",
