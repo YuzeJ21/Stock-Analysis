@@ -5079,10 +5079,11 @@ def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> l
             "title": f"{price_ready} price-ready",
             "body": (
                 "Function status: usable for setup, trend, liquidity, and market-context review when local history is ready. "
-                "Without price coverage, deeper analysis stays premature."
+                "For broad coverage, dry-run the capped refresh loop first instead of repeating small worklists by hand. "
+                "Use focused worklists only when diagnosing specific ticker gaps."
             ),
             "badges": ["setup review", "history first"],
-            "command": "make price-worklist TOP_N=10",
+            "command": "make price-refresh-loop DRY_RUN=1",
         },
         {
             "kicker": "DCF UNLOCK",
@@ -6981,6 +6982,12 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
                 "then run make imports-validate -> make imports-preview -> make imports-apply."
             )
             command = "make templates"
+        elif feature_key == "price":
+            body = (
+                f"{body} For broad coverage, dry-run the capped refresh loop first; this avoids repeating small "
+                "worklists manually and previews local CSV churn before any provider-backed update."
+            )
+            command = "make price-refresh-loop DRY_RUN=1"
         cards.append(
             {
                 "kicker": section.upper(),
@@ -15471,12 +15478,12 @@ def monthly_picks_next_step_cards(
             "command": "make monthly",
         }
     elif picks_frame.empty:
-        coverage_command = "make price-worklist TOP_N=10"
+        coverage_command = "make price-refresh-loop DRY_RUN=1"
         primary = {
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                f"Current local filters did not support any monthly candidates. Run {coverage_command} to find the next broad coverage targets instead of forcing weaker names into the list."
+                f"Current local filters did not support any monthly candidates. Run {coverage_command} to preview the capped broad coverage plan instead of repeating small worklists or forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
             "command": coverage_command,

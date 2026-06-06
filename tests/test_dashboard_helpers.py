@@ -6971,7 +6971,7 @@ def test_monthly_picks_coverage_gap_uses_data_wizard_without_blocker_queue():
     assert "sell" not in rendered
 
 
-def test_monthly_picks_empty_candidates_use_broad_worklist_not_random_ticker():
+def test_monthly_picks_empty_candidates_use_dry_run_loop_not_random_ticker():
     queue = pd.DataFrame(
         [
             {
@@ -6990,8 +6990,9 @@ def test_monthly_picks_empty_candidates_use_broad_worklist_not_random_ticker():
     rendered = " ".join(str(value) for card in cards for value in card.values())
 
     assert cards[0]["title"] == "Improve candidate coverage"
-    assert cards[0]["command"] == "make price-worklist TOP_N=10"
-    assert "make price-worklist TOP_N=10" in rendered
+    assert cards[0]["command"] == "make price-refresh-loop DRY_RUN=1"
+    assert "make price-refresh-loop DRY_RUN=1" in rendered
+    assert "preview the capped broad coverage plan" in rendered
     assert "make focus-price TICKER=AIAI" not in rendered
 
 
@@ -8298,6 +8299,8 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
     assert "586 price-ready" in rendered
     assert "function status: usable" in rendered
     assert "setup, trend, liquidity, and market-context review" in rendered
+    assert "dry-run the capped refresh loop first" in rendered
+    assert "instead of repeating small worklists by hand" in rendered
     assert "23 dcf-ready" in rendered
     assert "function status: good for dcf-ready companies only" in rendered
     assert "company-level assumptions and sensitivity review" in rendered
@@ -8309,7 +8312,7 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
     assert "0 earnings / 0 estimates" in rendered
     assert "function status: intentionally locked until trusted rows exist" in rendered
     assert "empty optional files are not a broken analysis path" in rendered
-    assert "make price-worklist top_n=10" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=10" in rendered
     assert "make optional-context-worklist top_n=10" in rendered
@@ -12459,7 +12462,8 @@ def test_feature_readiness_cards_show_feature_level_product_status():
 
     assert "dcf: 23/3538 ready" in rendered
     assert "price: 240/3538 ready" in rendered
-    assert "make price-worklist top_n=25" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "avoids repeating small worklists manually" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trade" not in rendered
