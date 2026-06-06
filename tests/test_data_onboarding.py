@@ -933,6 +933,14 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
         sys.argv = previous_argv
 
     assert "peer mapping queue" in output
+    assert "summary:" in output
+    assert "work focus:" in output
+    assert "active-universe row(s)" in output
+    assert "dcf-ready row(s)" in output
+    assert "mapped row(s) still waiting on peer valuation inputs" in output
+    assert "peer trend can be reviewed from mapped peer price history when ready" in output
+    assert "peer valuation needs source-backed mappings plus trusted peer fundamentals or market metrics" in output
+    assert "copy path: use make focus-peers ticker=..." in output
     assert "group=" in output
     assert "scope=" in output
     assert "validation:" in output
