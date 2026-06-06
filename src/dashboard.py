@@ -11299,11 +11299,14 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
     }
     for _, row in frame.iterrows():
         question = format_missing(row.get("Question"))
+        answer = format_missing(row.get("Answer"))
+        trusted_input = format_missing(row.get("Trusted Input Needed"))
+        body = answer if trusted_input == "Not available" else f"{answer} Trusted input needed: {trusted_input}"
         cards.append(
             {
                 "kicker": kicker_map.get(question, "SINGLE-STOCK GUIDE"),
                 "title": question,
-                "body": format_missing(row.get("Answer")),
+                "body": body,
                 "badges": ["plain English", "copy only"],
                 "command": format_missing(row.get("Copy-Only Command")),
             }

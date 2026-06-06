@@ -14790,6 +14790,9 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     assert [card["kicker"] for card in cards] == ["ANALYZE NOW", "LOCKED / EXCLUDED", "NEXT STEP"]
     assert "standalone dcf assumptions, scenario math, sensitivity" in rendered
     assert "peer-relative valuation remains locked" in rendered
+    assert "trusted input needed:" in rendered
+    assert "trusted peer mappings in data/imports/peers.csv plus peer inputs when needed" in rendered
+    assert "use only current local/provider rows that already passed readiness" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make stock-report-md ticker=a" in rendered
@@ -14822,13 +14825,23 @@ def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
         "next_action": "Add trusted price rows first.",
     }
 
-    etf_rendered = " ".join(dashboard.single_stock_reader_guide_frame(etf).astype(str).to_numpy().flatten()).lower()
-    blocked_rendered = " ".join(dashboard.single_stock_reader_guide_frame(blocked).astype(str).to_numpy().flatten()).lower()
+    etf_frame = dashboard.single_stock_reader_guide_frame(etf)
+    blocked_frame = dashboard.single_stock_reader_guide_frame(blocked)
+    etf_cards = dashboard.single_stock_reader_guide_cards(etf)
+    blocked_cards = dashboard.single_stock_reader_guide_cards(blocked)
+    etf_rendered = " ".join(
+        etf_frame.astype(str).to_numpy().flatten().tolist() + [str(value) for card in etf_cards for value in card.values()]
+    ).lower()
+    blocked_rendered = " ".join(
+        blocked_frame.astype(str).to_numpy().flatten().tolist() + [str(value) for card in blocked_cards for value in card.values()]
+    ).lower()
 
     assert "market, theme, liquidity, or risk monitor context" in etf_rendered
     assert "operating-company dcf and peer valuation are excluded" in etf_rendered
+    assert "trusted input needed: no company dcf input is required" in etf_rendered
     assert "make stock-report-md ticker=qqq" in etf_rendered
     assert "trusted price rows exist" in blocked_rendered
+    assert "trusted input needed: trusted local price history" in blocked_rendered
     assert "prices, momentum, dcf, peer context" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
     assert "broker" not in etf_rendered + blocked_rendered
