@@ -246,6 +246,8 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "review up to $TOTAL_CANDIDATES missing-price candidates" in script
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
     assert "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)." in script
+    assert "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time." in script
+    assert "Resume behavior: each batch uses the missing-price worklist" in script
     assert "Before a real run, copy make readiness-snapshot" in script
     assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
     assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
@@ -254,6 +256,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Dry run only. No local CSV files were changed." in script
     assert "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)." in script
     assert "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES." in script
+    assert "If interrupted or provider-limited, rerun the dry run" in script
     assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
@@ -271,6 +274,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in script
     assert "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=..." in script
     assert "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize" in script
+    assert "Resume note: after fixing the source issue, rerun make price-refresh-loop DRY_RUN=1" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
     assert "Price refresh batch $i failed." in script
     assert "This replaces repeating 25-ticker refreshes manually" in script
@@ -340,6 +344,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make price-worklist TOP_N=10",
         "make price-refresh-loop DRY_RUN=1",
         "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "estimated wait time, resume behavior",
         "Before a real broad run, use `make readiness-snapshot`",
         "after the run, use `make diff-hygiene`",
         "refreshed generated CSV churn stays local unless intentionally reviewed",

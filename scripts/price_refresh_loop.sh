@@ -38,6 +38,7 @@ fi
 
 TOTAL_CANDIDATES=$((BATCHES * TOP_N))
 MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))
+WAIT_SECONDS=$(((BATCHES - 1) * SLEEP_SECONDS))
 
 echo "Research-only capped price refresh loop."
 echo "Batches: $BATCHES; tickers per batch: $TOP_N; provider: $PROVIDER; sleep seconds: $SLEEP_SECONDS"
@@ -45,6 +46,8 @@ echo "This updates local CSV files only. It does not connect to brokers, place o
 echo "Plan: review up to $TOTAL_CANDIDATES missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
 echo "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually."
 echo "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)."
+echo "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time."
+echo "Resume behavior: each batch uses the missing-price worklist, so reruns continue from the current local CSV state rather than requiring hand-counted batches."
 echo "Start with DRY_RUN=1 so you can review the batch size before any local CSV changes."
 echo "Before a real run, copy make readiness-snapshot so you can compare readiness before and after the refresh."
 echo "Plain planning knob: set MAX_CANDIDATES=3500 to let the loop calculate capped batches from TOP_N."
@@ -57,6 +60,8 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Dry run only. No local CSV files were changed."
   echo "Planned coverage: up to $TOTAL_CANDIDATES missing-price candidates across $BATCHES capped batch(es)."
   echo "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES."
+  echo "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time."
+  echo "If interrupted or provider-limited, rerun the dry run; missing-only batches recalculate from current local prices."
   if [ -n "$MAX_CANDIDATES" ]; then
     echo "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
   else
@@ -91,6 +96,7 @@ while [ "$i" -le "$BATCHES" ]; do
     echo "Price refresh batch $i failed. Local files may be partially updated; review provider output, keep generated CSV churn unstaged, then rerun a dry run before continuing." >&2
     echo "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=... to switch to the local import draft workflow." >&2
     echo "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize, then run make price-validate, make price-preview, and make price-apply." >&2
+    echo "Resume note: after fixing the source issue, rerun make price-refresh-loop DRY_RUN=1 so the next missing-only plan reflects the current local CSV state." >&2
     exit 1
   fi
   if [ "$i" -lt "$BATCHES" ] && [ "$SLEEP_SECONDS" -gt 0 ]; then
