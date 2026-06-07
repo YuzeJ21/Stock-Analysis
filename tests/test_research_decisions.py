@@ -127,6 +127,10 @@ def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing()
     assert "data/imports/fundamentals.csv" in row["next_best_action"]
     assert "make imports-validate, make imports-preview, make imports-apply, make dcf-readiness, and make readiness" in row["next_best_action"]
     assert "before reading DCF output" in row["next_best_action"]
+    assert row["next_research_question"] == (
+        "Which trusted fundamentals or DCF fields are missing, and can SEC staging or manual import fill them?"
+    )
+    assert "import draft workflow" not in row["next_research_question"]
 
 
 def test_research_decisions_only_research_now_when_core_data_is_ready():
