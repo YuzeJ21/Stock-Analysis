@@ -26,10 +26,10 @@
   <g font-family="Verdana, sans-serif">
     <rect x="112" y="164" width="214" height="124" rx="18" fill="#ffffff" stroke="#d8dfd2"/>
     <text x="132" y="198" fill="#597164" font-size="13" font-weight="700">PRICE READY</text>
-    <text x="132" y="244" fill="#172820" font-size="42" font-weight="700">240</text>
+    <text x="132" y="244" fill="#172820" font-size="42" font-weight="700">265</text>
     <text x="226" y="244" fill="#768276" font-size="20">/ 3538</text>
     <rect x="132" y="260" width="138" height="8" rx="4" fill="#dce8d3"/>
-    <rect x="132" y="260" width="42" height="8" rx="4" fill="#2f6f5e"/>
+    <rect x="132" y="260" width="46" height="8" rx="4" fill="#2f6f5e"/>
 
     <rect x="348" y="164" width="214" height="124" rx="18" fill="#ffffff" stroke="#d8dfd2"/>
     <text x="368" y="198" fill="#597164" font-size="13" font-weight="700">DCF READY</text>
@@ -40,10 +40,10 @@
 
     <rect x="584" y="164" width="214" height="124" rx="18" fill="#ffffff" stroke="#d8dfd2"/>
     <text x="604" y="198" fill="#597164" font-size="13" font-weight="700">PEER READY</text>
-    <text x="604" y="244" fill="#172820" font-size="42" font-weight="700">3</text>
+    <text x="604" y="244" fill="#172820" font-size="42" font-weight="700">9</text>
     <text x="650" y="244" fill="#768276" font-size="20">/ 3538</text>
     <rect x="604" y="260" width="138" height="8" rx="4" fill="#eadfc9"/>
-    <rect x="604" y="260" width="8" height="8" rx="4" fill="#c27b37"/>
+    <rect x="604" y="260" width="10" height="8" rx="4" fill="#c27b37"/>
 
     <rect x="820" y="164" width="336" height="124" rx="18" fill="#fff8ec" stroke="#e3c78e"/>
     <text x="842" y="198" fill="#9a6429" font-size="13" font-weight="700">RESEARCH GUARDRAIL</text>
@@ -53,8 +53,8 @@
 
   <g font-family="Verdana, sans-serif">
     <rect x="112" y="326" width="506" height="264" rx="22" fill="#ffffff" stroke="#d8dfd2"/>
-    <text x="136" y="363" fill="#172820" font-size="21" font-weight="700">Next Action Queue</text>
-    <text x="136" y="390" fill="#68796f" font-size="14">Copy-only commands, capped and targeted.</text>
+    <text x="136" y="363" fill="#172820" font-size="21" font-weight="700">Next Safe Steps</text>
+    <text x="136" y="390" fill="#68796f" font-size="14">Copy-only checklists, capped and targeted.</text>
 
     <rect x="136" y="421" width="454" height="44" rx="12" fill="#f5f1e8"/>
     <text x="156" y="449" fill="#172820" font-size="15">make price-worklist TOP_N=10</text>
