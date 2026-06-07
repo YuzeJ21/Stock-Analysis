@@ -9985,8 +9985,8 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         {
             "kicker": "MONITOR",
             "title": f"{monitor} row(s)",
-            "body": "Useful for market, theme, ETF/index, liquidity, or risk context where operating-company valuation may be excluded.",
-            "badges": ["context", "DCF may be excluded"],
+            "body": "Useful for market, theme, ETF/index, liquidity, or risk context where company valuation may be excluded.",
+            "badges": ["context", "valuation may be excluded"],
             "command": stock_report_md_command("QQQ"),
         },
         {
@@ -10035,7 +10035,7 @@ def decision_interpretation_ladder_frame() -> pd.DataFrame:
             },
             {
                 "Step": "5. Copy the next action",
-                "What It Means": "next_best_action points to the safest local workflow step; it is not a dashboard action or recommendation.",
+                "What It Means": "The next local step points to the safest workflow to review; it is not a dashboard action or recommendation.",
                 "What To Check Next": "Run the command manually only after reviewing source readiness notes.",
                 "Safe Command": "make status-check TOP_N=5",
             },

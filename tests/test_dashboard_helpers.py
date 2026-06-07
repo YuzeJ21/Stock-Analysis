@@ -15484,6 +15484,8 @@ def test_decision_interpretation_ladder_explains_reading_order_without_recommend
     assert "subtype explains why the broad bucket exists" in rendered
     assert "do not interpret valuation, peers, earnings, or estimates until the blocker is resolved" in rendered
     assert "data confidence is a data-quality state" in rendered
+    assert "the next local step points to the safest workflow to review" in rendered
+    assert "next_best_action points" not in rendered
     assert "not a dashboard action or recommendation" in rendered
     assert "make onboarding TOP_N=10".lower() in rendered
     assert "broker" not in rendered
@@ -15535,6 +15537,8 @@ def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommen
     assert "review-queue label" in rendered
     assert "not a direct action, allocation instruction, or recommendation" in rendered
     assert "market, theme, etf/index, liquidity, or risk context" in rendered
+    assert "where company valuation may be excluded" in rendered
+    assert "dcf may be excluded" not in rendered
     assert "blocked rows are data-unlock work" in rendered
     assert "not weak-company conclusions" in rendered
     assert "project readiness gates" in rendered
