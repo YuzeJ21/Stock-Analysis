@@ -18,5 +18,5 @@ Screenshots:
 
 Boundary checked:
 
-- No broker workflow, order execution, auto-trading, or direct buy/sell instruction language appeared in the checked pages.
+- No broker integration, order execution, auto-trading, or direct buy/sell instruction language appeared in the checked pages.
 - Commands remain copy-only; the dashboard does not execute refreshes or imports from the UI.

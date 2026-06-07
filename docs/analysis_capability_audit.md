@@ -70,7 +70,7 @@ The product now uses the same plain modes across the dashboard and single-stock 
 
 ## Methodology And Provenance
 
-The analysis method is implemented in this repository under `src/`. The shipped product is not a wrapper around external investing services, ranking services, account-execution tools, or broker workflows:
+The analysis method is implemented in this repository under `src/`. The shipped product is not a wrapper around external investing services, ranking services, account-execution tools, or broker/execution systems:
 
 - `src/indicators.py`: moving averages, returns, relative strength, and ATR versus close-to-close volatility-proxy labeling.
 - `src/momentum_engine.py`: rule-based setup classification.
