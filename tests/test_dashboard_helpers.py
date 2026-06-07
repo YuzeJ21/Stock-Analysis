@@ -16275,6 +16275,23 @@ def test_valuation_excluded_context_frame_explains_excluded_not_failed():
     assert "sell" not in rendered
 
 
+def test_value_re_rating_detail_tables_are_collapsed_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    quick_read_index = source.index('render_section_header("Valuation Quick Read"')
+    at_glance_index = source.index('render_section_header("Value / Re-rating At A Glance"')
+    blocked_detail_index = source.index('st.expander("Companies waiting for valuation inputs"')
+    excluded_detail_index = source.index('st.expander("ETF / index proxy exclusions"')
+    full_table_index = source.index('st.expander("Full valuation output table"')
+
+    assert quick_read_index < at_glance_index < blocked_detail_index < full_table_index
+    assert blocked_detail_index < excluded_detail_index < full_table_index
+    assert 'st.expander("Companies waiting for valuation inputs", expanded=False)' in source
+    assert 'st.expander("ETF / index proxy exclusions", expanded=False)' in source
+    assert 'st.expander("Raw valuation input details", expanded=False)' in source
+    assert 'st.expander("Raw ETF / index exclusion details", expanded=False)' in source
+
+
 def test_dashboard_splits_risk_context_by_price_ready_status():
     liquidity = pd.DataFrame(
         {

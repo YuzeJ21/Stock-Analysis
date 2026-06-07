@@ -17877,7 +17877,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         value_ready = frame.loc[frame["Ticker"].astype(str).str.upper().isin(ready_tickers)].copy() if "Ticker" in frame.columns else pd.DataFrame()
         render_table(value_ready, "value-re-rating", show_reason_details=False)
     if not not_ready_companies.empty:
-        with st.expander("Companies waiting for valuation inputs", expanded=True):
+        with st.expander("Companies waiting for valuation inputs", expanded=False):
             st.write(
                 "Start here when company valuation is locked. These rows are missing trusted inputs; "
                 "they are not negative company conclusions."
@@ -17891,7 +17891,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
             columns = _readiness_columns(not_ready_companies, ["ticker", "asset_type", "missing_dcf_fields", "reason_not_ready", "has_price", "has_free_cash_flow", "has_shares_outstanding", "has_revenue", "has_fcf_margin"])
             st.dataframe(clean_display_frame(not_ready_companies[columns]), width="stretch", hide_index=True)
     if not excluded.empty:
-        with st.expander("ETF / index proxy exclusions", expanded=True):
+        with st.expander("ETF / index proxy exclusions", expanded=False):
             st.write(
                 "These rows can still be useful as market, sector, or theme monitors. "
                 "They are excluded from operating-company DCF because that method does not fit the asset type."
