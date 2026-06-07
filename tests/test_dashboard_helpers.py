@@ -7350,6 +7350,19 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     assert "dashboard-smoke" in cards[0]["body"]
 
 
+def test_monthly_picks_page_copy_uses_context_and_proof_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Monthly candidate context is not ready yet" in source
+    assert "refresh local monthly proof" in source
+    assert "Built from local monthly context" in source
+    assert "Track-record proof is still unavailable" in source
+    assert "Track-record proof is calculated only from local historical price data" in source
+    assert "Monthly candidate outputs are unavailable right now" not in source
+    assert "Generated from local outputs" not in source
+    assert "Track-record files are still unavailable" not in source
+
+
 def test_monthly_picks_track_record_gap_points_to_blocker_command():
     queue = pd.DataFrame(
         [
