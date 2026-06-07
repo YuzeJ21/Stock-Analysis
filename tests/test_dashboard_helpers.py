@@ -16945,6 +16945,7 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():
     assert dashboard.COLUMN_LABELS["GoalSummary"] == "Goal Summary"
+    assert dashboard.COLUMN_LABELS["evaluation_lane"] == "Workflow Path"
     assert dashboard.COLUMN_LABELS["TargetGoal"] == "Target Goal"
     assert dashboard.COLUMN_LABELS["RowsNeeded"] == "Rows Needed"
     assert dashboard.COLUMN_LABELS["TargetHistoryRows"] == "Target History Rows"
@@ -18447,7 +18448,9 @@ def test_active_evaluation_lane_detail_groups_runbook_without_overclaiming():
     assert "make imports-validate" in rendered
     assert "peer-relative valuation is withheld" in rendered
     assert "operating-company dcf is excluded" in rendered
-    assert "3 lane(s), 4 ticker(s)" in rendered_cards
+    assert "3 workflow path(s), 4 ticker(s)" in rendered_cards
+    assert "first path" in rendered_cards
+    assert "lane details" not in rendered_cards
     assert "peer-relative valuation is withheld" in rendered_cards
     assert "no overclaiming" in rendered_cards
     assert "broker" not in rendered
@@ -18507,14 +18510,14 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
                 "evaluation_lane": "Review supported thesis; optional context locked",
                 "ticker_count": 1,
                 "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
-                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Earnings and analyst-estimate context is withheld; core supported analysis may still be reviewed.",
             },
             {
                 "evaluation_lane": "Monitor ETF / market proxy",
                 "ticker_count": 1,
                 "validation_sequence": "make stock-report TICKER=QQQ -> compare source/freshness notes",
-                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
             },
         ]
@@ -18736,7 +18739,7 @@ def test_product_page_logic_audit_flags_placeholder_copyable_commands():
             {
                 "evaluation_lane": "Monitor ETF / market proxy",
                 "validation_sequence": "make stock-report TICKER=<ticker> -> compare source/freshness notes",
-                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
             }
         ]
@@ -18919,7 +18922,7 @@ def test_product_page_logic_audit_flags_execution_or_direct_recommendation_langu
             {
                 "evaluation_lane": "Review supported thesis; optional context locked",
                 "validation_sequence": "make stock-report TICKER=BAD -> compare source/freshness notes",
-                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Earnings and analyst-estimate context is withheld.",
             }
         ]
@@ -19029,7 +19032,7 @@ def test_product_page_logic_audit_allows_company_names_with_restricted_words():
             {
                 "evaluation_lane": "Unlock fundamentals / DCF",
                 "validation_sequence": "make focus-fundamentals TICKER=BBY -> make imports-validate",
-                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Valuation is withheld until trusted fundamentals are ready.",
             }
         ]
@@ -19112,7 +19115,7 @@ def test_product_page_logic_audit_flags_stale_peer_action_text():
             {
                 "evaluation_lane": "Review standalone thesis, then unlock peers",
                 "validation_sequence": "make focus-peers TICKER=COHR -> make imports-validate -> make imports-preview -> make imports-apply",
-                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Peer valuation context is withheld until source-backed peer rows exist.",
             }
         ]
@@ -19163,7 +19166,7 @@ def test_product_page_logic_audit_requires_visible_peer_action_text():
             {
                 "evaluation_lane": "Review standalone thesis, then unlock peers",
                 "validation_sequence": "make focus-peers TICKER=COHR -> make imports-validate -> make imports-preview -> make imports-apply",
-                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Peer valuation context is withheld until source-backed peer rows exist.",
             }
         ]
@@ -19292,7 +19295,7 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     assert cards[0]["title"] == "4 active ticker(s) ranked"
     assert "priority rationale" in cards[1]["body"].lower()
     assert "peer-relative valuation is withheld" in cards[1]["body"].lower()
-    assert "+1 more lane(s)" in cards[2]["title"]
+    assert "+1 more path(s)" in cards[2]["title"]
     assert "not an action list" in rendered_cards
     assert "recommendation" not in rendered_cards
     assert "no dashboard execution" in rendered_cards
