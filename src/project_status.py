@@ -113,6 +113,12 @@ def _normalize_price_action_row(row: dict[str, Any]) -> dict[str, Any]:
 def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
     step = str(row.get("Step") or "")
     freshness = str(row.get("FreshnessContext") or "")
+    if freshness:
+        row["FreshnessContext"] = freshness.replace(
+            "verify source/freshness and generated CSV churn after any refresh",
+            "verify source/readiness notes and local CSV changes after any refresh",
+        )
+        freshness = str(row.get("FreshnessContext") or "")
     if "Bundle" in step or "bundle" in freshness or "runbook" in step.lower():
         step = step.replace("Price Coverage Bundle", "Price Coverage Guided Data Batch")
         step = step.replace("SEC Fundamentals Bundle", "SEC Fundamentals Guided Data Batch")
@@ -579,7 +585,7 @@ def _recommended_next_command_rows(
                         "if you choose; Yahoo rows are research-grade and the manual import draft fallback remains available."
                     ),
                     source_context="data/imports/prices.csv fallback plus optional Yahoo refresh",
-                    freshness_context="dry-run first; verify source/freshness and generated CSV churn after any refresh",
+                    freshness_context="dry-run first; verify source/readiness notes and local CSV changes after any refresh",
                 )
             )
         command = _first_non_empty(top_action.get("focus_command"), top_action.get("example_command"))
@@ -788,7 +794,7 @@ def write_project_status_output(
 
 def _print_human(payload: dict[str, Any]) -> None:
     summary = payload["summary"]
-    print("Read-only operator snapshot.")
+    print("Read-only project snapshot.")
     print("Commands below are copy-only local research helpers; this status view does not run them.")
     print("Project status summary:")
     print(f"- Data sources: {summary['data_sources_available']}/{summary['data_sources_total']} available")
@@ -853,7 +859,7 @@ def main() -> None:
     parser.add_argument(
         "--refresh-artifacts",
         action="store_true",
-        help="Refresh supporting read-only operator artifacts before printing status.",
+        help="Refresh supporting read-only status files before printing status.",
     )
     parser.add_argument("--project-root", help="Project root for default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
