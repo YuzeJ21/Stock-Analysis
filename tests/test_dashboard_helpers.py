@@ -502,6 +502,17 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'render_section_header("Priority Fixes"' not in source
 
 
+def test_dashboard_first_read_copy_avoids_engineering_queue_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Ticker-level readiness, decision, missing-data, and next-action context without loading every detail first." in source
+    assert "Plain-English fundamentals unlock queue before the detailed workflow fields." in source
+    assert "Plain-English peer unlock queue before the detailed peer mapping fields." in source
+    assert "Lazy ticker-level readiness" not in source
+    assert "raw worklist fields" not in source
+    assert "raw peer mapping fields" not in source
+
+
 def test_overview_default_view_keeps_best_path_before_detailed_queues():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

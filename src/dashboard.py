@@ -20223,7 +20223,7 @@ def render_market_command_center(
     else:
         st.info("No readiness rows match the current filters.")
 
-    render_section_header("Single-Stock Drilldown", "Lazy ticker-level readiness, decision, missing-data, and next-action context.")
+    render_section_header("Single-Stock Drilldown", "Ticker-level readiness, decision, missing-data, and next-action context without loading every detail first.")
     ticker_options = default_ticker_options
     drill_cols = st.columns([1.4, 2.4])
     selected_ticker = drill_cols[0].selectbox(
@@ -20614,7 +20614,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 if not fundamentals_unlock.empty:
                     render_section_header(
                         "Price-Ready, Fundamentals-Locked Companies",
-                        "Plain-English fundamentals unlock queue before the raw worklist fields.",
+                        "Plain-English fundamentals unlock queue before the detailed workflow fields.",
                     )
                     render_signal_cards(data_health_fundamentals_unlock_cards(fundamentals_unlock))
                     st.dataframe(clean_display_frame(fundamentals_unlock), width="stretch", hide_index=True)
@@ -20772,7 +20772,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 if not peer_unlock.empty:
                     render_section_header(
                         "DCF-Ready, Peer-Locked Companies",
-                        "Plain-English peer unlock queue before the raw peer mapping fields.",
+                        "Plain-English peer unlock queue before the detailed peer mapping fields.",
                     )
                     render_signal_cards(data_health_peer_unlock_cards(peer_unlock))
                     st.dataframe(clean_display_frame(peer_unlock), width="stretch", hide_index=True)
