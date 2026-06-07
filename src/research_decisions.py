@@ -276,7 +276,7 @@ def _decision_boundary(bucket: str, subtype: str, primary_blocker: str, asset_ty
             "Method-exclusion state: this analysis is intentionally omitted for the ticker or asset type, "
             "not treated as a failed calculation."
         )
-    return "Review state only: use readiness, blockers, and source/freshness before drawing a conclusion."
+    return "Review state only: use readiness, blockers, and source readiness before drawing a conclusion."
 
 
 def _text_value(value: Any, fallback: str = "Not available") -> str:
@@ -445,7 +445,7 @@ def _purpose_supported_analysis(asset_type: str, watch_row: pd.Series, ready: li
     if family == "momentum" and {"price", "momentum"} <= set(ready):
         return "Purpose-specific support: momentum review can use trend, setup, and relative-strength context, while valuation remains secondary."
     if family == "compounder" and "fundamentals" in ready and "dcf" in ready:
-        return "Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source freshness."
+        return "Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source readiness."
     if family == "etf_hedge" and "price" in ready:
         return "Purpose-specific support: ETF/hedge review can use market, theme, liquidity, and correlation context; company valuation is excluded."
     if family == "speculative" and "price" in ready:
@@ -488,7 +488,7 @@ def _unsupported_analysis(asset_type: str, watch_row: pd.Series, blocked: list[s
     if family == "speculative" and "price" in blocked:
         unsupported.append("speculative setup and volatility read")
     if not unsupported:
-        return "Unsupported analysis: no major blocked analysis areas are listed, but conclusions still depend on source freshness and assumptions."
+        return "Unsupported analysis: no major blocked analysis areas are listed, but conclusions still depend on source readiness and assumptions."
     return f"Unsupported analysis: {', '.join(dict.fromkeys(unsupported))}."
 
 
@@ -706,7 +706,7 @@ def _missing_data_summary(blocked: list[str], excluded: list[str], missing_data:
 
 def _source_freshness_summary(row: pd.Series) -> str:
     updated = _text_value(row.get("updated_at"), "not available")
-    return f"Based on current local CSV readiness outputs; readiness row updated {updated}. Verify source/freshness before relying on stale imported data."
+    return f"Based on current local CSV readiness outputs; readiness row updated {updated}. Verify source readiness before relying on stale imported data."
 
 
 def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.DataFrame | None = None) -> pd.DataFrame:

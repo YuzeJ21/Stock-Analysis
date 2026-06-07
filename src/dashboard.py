@@ -99,9 +99,9 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "command": "make status-check TOP_N=5",
         },
         "Single-Stock Report": {
-            "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source/freshness notes.",
+            "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source readiness notes.",
             "locked": "Unsupported DCF, peer valuation, earnings, and estimate sections stay withheld instead of being filled.",
-            "read": "Read At A Glance, then Quick Read, then the source/freshness audit. Locked sections are boundaries, not hidden conclusions.",
+            "read": "Read At A Glance, then Quick Read, then the source readiness check. Locked sections are boundaries, not hidden conclusions.",
             "proof": "After an unlock, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
             "guided_path": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact unlock path if anything is still locked.",
             "workflow_path": "Single-Stock Review",
@@ -517,7 +517,7 @@ COLUMN_LABELS = {
     "rejected_report": "Rejected Report",
     "rejected_row_count": "Rejected Row Count",
     "rejected_status": "Rejected Status",
-    "source_freshness_note": "Source/Freshness Note",
+    "source_freshness_note": "Source Readiness Note",
     "trusted_input_needed": "Trusted Input Needed",
     "unlock_stage": "Unlock Stage",
     "updated_at": "Updated At",
@@ -3177,7 +3177,7 @@ def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[
                 f"Rejected-row report: {format_missing(validate.get('Trusted Input'), 'rejected rows report')}. "
                 f"Rebuild proof: {format_missing(rebuild.get('Copy Command'), 'make optional-context-readiness')}."
             ),
-            "badges": ["not a recommendation", "source/freshness"],
+            "badges": ["not a recommendation", "source readiness"],
             "command": f"{format_missing(validate.get('Copy Command'), '')} && {format_missing(rebuild.get('Copy Command'), '')}",
         },
     ]
@@ -3601,7 +3601,7 @@ def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: 
     ticker_text = format_missing(ticker, "TICKER").upper()
     asset_text = format_missing(asset_type, "").lower()
     if dataset == "monitor_context":
-        return f"make stock-report-md TICKER={ticker_text} -> review source/freshness notes, monitor role, and operating-company DCF exclusion"
+        return f"make stock-report-md TICKER={ticker_text} -> review source readiness notes, monitor role, and operating-company DCF exclusion"
     if dataset == "prices":
         return f"make focus-price TICKER={ticker_text} -> make imports-validate -> make imports-preview -> make imports-apply"
     if dataset == "fundamentals":
@@ -3793,7 +3793,7 @@ def build_active_universe_unlock_frame(
         trusted_input_needed = active_unlock_trusted_input_needed(dataset, ticker, row.get("asset_type"))
         validation_sequence = active_unlock_validation_sequence(ticker, dataset, row.get("asset_type"))
         source_freshness_note = (
-            "Uses local readiness, decision, and stock-report source/freshness outputs; no import file is required for monitor context."
+            "Uses local readiness, decision, and stock-report source readiness outputs; no import file is required for monitor context."
             if dataset == "monitor_context"
             else f"Uses local readiness outputs plus {format_missing(import_row.get('rejected_report'), 'rejected-row report status')}."
         )
@@ -4124,7 +4124,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
 
     if dcf_ready and core_ready == len(core_fields):
         title = "DCF inputs ready"
-        body = "Revenue, free cash flow, FCF margin, and share count are present. Review assumptions and source freshness before interpreting valuation."
+        body = "Revenue, free cash flow, FCF margin, and share count are present. Review assumptions and source readiness before interpreting valuation."
         badges = ["DCF inputs", "reviewable"]
     elif fundamentals_ready:
         title = "Partial fundamentals context"
@@ -4137,7 +4137,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
 
     if dcf_ready:
         next_title = "Review DCF proof"
-        next_body = "DCF input gate is ready. Review assumptions, sensitivity, source freshness, and peer boundaries before interpreting valuation context."
+        next_body = "DCF input gate is ready. Review assumptions, sensitivity, source readiness, and peer boundaries before interpreting valuation context."
         next_command = report_command
         next_badges = ["proof first", "no price target"]
     elif price_ready:
@@ -4208,7 +4208,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
         mode = "DCF-ready review"
         supported = "Price setup, company fundamentals, standalone DCF, and peer-relative context."
         withheld = "Unsupported recommendations and allocation instructions remain withheld."
-        next_review = "Review assumptions, sensitivity, peer inputs, warnings, and source freshness before forming a research view."
+        next_review = "Review assumptions, sensitivity, peer inputs, warnings, and source readiness before forming a research view."
     elif dcf_ready:
         mode = "Standalone DCF review"
         supported = "Price setup, company fundamentals, and standalone DCF assumptions."
@@ -4767,7 +4767,7 @@ def stock_report_peer_relative_summary(report_payload: dict[str, object]) -> dic
         "peer_group": format_missing(relative.get("peer_group"), "Not configured"),
         "peer_count": report_display_value(relative.get("peer_count"), "integer"),
         "relative_score": report_display_value(relative.get("relative_opportunity_score"), "number"),
-        "note": "Trusted peer-relative context is available; review caveats and source freshness before interpretation.",
+        "note": "Trusted peer-relative context is available; review caveats and source readiness before interpretation.",
     }
 
 
@@ -4859,7 +4859,7 @@ def valuation_legacy_diagnostic_frame(frame: pd.DataFrame | None) -> pd.DataFram
         | missing.ne("")
     )
     diagnostic["ReaderBoundary"] = (
-        "Ready-row context only; verify DCF assumptions, peers, and source freshness before interpretation."
+        "Ready-row context only; verify DCF assumptions, peers, and source readiness before interpretation."
     )
     diagnostic.loc[blocked, "ReaderBoundary"] = (
         "No valuation conclusion; compatibility fields stay blocked until trusted inputs pass readiness."
@@ -5077,7 +5077,7 @@ def stock_report_next_step_cards(
                 "title": "Review full report",
                 "body": (
                     f"{ticker} already has the minimum local context for a deeper single-name pass. "
-                    "Move through valuation, trend and risk context, and source/freshness together."
+                    "Move through valuation, trend and risk context, and source readiness together."
                 ),
                 "badges": ["ready", "single name"],
                 "command": f"make stock-report-md TICKER={ticker}",
@@ -5562,7 +5562,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_title = "Review single-stock reports"
         first_body = "Core unlock paths look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and freshness."
         first_command = "make stock-report-md TICKER=NVDA"
-        first_badges = ["single-stock review", "source freshness"]
+        first_badges = ["single-stock review", "source readiness"]
 
     return [
         {
@@ -7088,7 +7088,7 @@ def readiness_recent_progress_cards(
                 "body": (
                     f"Compared with prior snapshot {prior_label}; prior generated: {format_missing(prior_latest)}. "
                     f"Newly ready tickers: {newly_ready or 'none detected'}. "
-                    "This is a count comparison only; review source/freshness before interpreting analysis."
+                    "This is a count comparison only; review source readiness before interpreting analysis."
                 ),
                 "badges": ["previous vs current", "no fabricated deltas"],
                 "command": "make readiness",
@@ -7986,7 +7986,7 @@ def peer_unlock_operator_cards(
             lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
         )
         frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
-            lambda ticker: f"{stock_report_md_command(ticker)} -> review source/freshness and DCF exclusion"
+            lambda ticker: f"{stock_report_md_command(ticker)} -> review source readiness and DCF exclusion"
         )
         frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(stock_report_md_command)
         frame.loc[monitor_proxy, "copy_only_note"] = "Copy command only; review monitor context without peer valuation conclusions."
@@ -8476,7 +8476,7 @@ def fundamentals_dcf_diagnostic_cards(
             "title": "Input -> readiness -> DCF -> report",
             "body": (
                 "Use this to audit the method before reading valuation output: trusted fundamentals row, then import validation, "
-                "then DCF readiness, then the single-stock report. The report should show source/freshness, missing fields, "
+                "then DCF readiness, then the single-stock report. The report should show source readiness, missing fields, "
                 "DCF calculation path, and valuation boundaries before any interpretation. "
                 f"Copy sequence: `{dcf_proof_command}` -> `make imports-validate` -> `make imports-preview` -> "
                 f"`make imports-apply` -> `make dcf-readiness` -> `{dcf_report_command}`."
@@ -8501,7 +8501,7 @@ def fundamentals_dcf_diagnostic_cards(
                 f"Always run {fundamentals_validation_sequence} before claiming readiness improved. "
                 f"Rejected rows appear in {fundamentals_rejected_path}."
             ),
-            "badges": ["source/freshness audit", "copy only"],
+            "badges": ["source readiness", "copy only"],
             "command": sec_stage_command,
         },
     ]
@@ -8566,7 +8566,7 @@ def fundamentals_peer_unlock_story_cards(
             "kicker": "WHAT YOU CAN ANALYZE NOW",
             "title": f"{len(dcf_ready_peer_ready)} DCF + peer-ready company row(s)",
             "body": (
-                f"Examples: {example_text(dcf_ready_peer_ready)}. Review assumptions, sensitivity, peer caveats, and source freshness; "
+                f"Examples: {example_text(dcf_ready_peer_ready)}. Review assumptions, sensitivity, peer caveats, and source readiness; "
                 "do not turn readiness into allocation instructions."
             ),
             "badges": ["supported review", "research-only"],
@@ -9039,7 +9039,7 @@ def first_fundamentals_unlock_cards(sec_configured: bool, next_ticker: str | Non
             "kicker": "READINESS PROOF",
             "title": "Validate, preview, apply, then rebuild",
             "body": "Do not treat fundamentals_ready or dcf_ready as improved until trusted rows pass the import workflow and readiness is regenerated.",
-            "badges": ["no fabricated data", "source/freshness"],
+            "badges": ["no fabricated data", "source readiness"],
             "command": "make imports-validate && make imports-preview && make imports-apply",
         },
     ]
@@ -9510,7 +9510,7 @@ def build_peer_mapping_studio_frame(
             lambda ticker: f"outputs/stock_reports/{str(ticker).strip().lower()}.md"
         )
         frame.loc[monitor_proxy, "validation_sequence"] = frame.loc[monitor_proxy, "ticker"].apply(
-            lambda ticker: f"{stock_report_md_command(ticker)} -> review source/freshness and DCF exclusion"
+            lambda ticker: f"{stock_report_md_command(ticker)} -> review source readiness and DCF exclusion"
         )
         frame.loc[monitor_proxy, "focus_command"] = frame.loc[monitor_proxy, "ticker"].apply(stock_report_md_command)
         frame.loc[monitor_proxy, "copy_only_note"] = "Copy command only; monitor context is not peer valuation."
@@ -9815,7 +9815,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         {
             "kicker": "LOGIC SOURCE",
             "title": "Project readiness gates",
-            "body": "Decision buckets are assembled from local readiness, blocker, and source/freshness outputs in project code; shipped decisions come from project code and local data.",
+            "body": "Decision buckets are assembled from local readiness, blocker, and source readiness outputs in project code; shipped decisions come from project code and local data.",
             "badges": ["project rules", "transparent"],
             "command": "make project-status",
         },
@@ -9852,7 +9852,7 @@ def decision_interpretation_ladder_frame() -> pd.DataFrame:
             {
                 "Step": "5. Copy the next action",
                 "What It Means": "next_best_action points to the safest local workflow step; it is not a dashboard action or recommendation.",
-                "What To Check Next": "Run the command manually only after reviewing source/freshness notes.",
+                "What To Check Next": "Run the command manually only after reviewing source readiness notes.",
                 "Safe Command": "make status-check TOP_N=5",
             },
         ]
@@ -9946,7 +9946,7 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
             "title": f"{low_confidence_count} low-data-confidence row(s)",
             "body": (
                 "Data confidence is input coverage, not conviction or recommendation strength. It falls when core inputs, "
-                "peer context, source freshness, earnings, or analyst estimates are missing."
+                "peer context, source readiness, earnings, or analyst estimates are missing."
             ),
             "badges": ["data confidence", "missing inputs"],
         },
@@ -10072,7 +10072,7 @@ def decision_proof_queue_frame(
                 row.get("unsupported_analysis"),
                 row.get("blocked_features"),
                 row.get("missing_data"),
-                fallback="No blocked section is listed, but conclusions still depend on source freshness and assumptions.",
+                fallback="No blocked section is listed, but conclusions still depend on source readiness and assumptions.",
             )
         action = decision_next_action_summary(row)
         command = (
@@ -10750,7 +10750,7 @@ def active_evaluation_validation_sequence(row: pd.Series) -> str:
         return f"make focus-price TICKER={ticker} -> run capped refresh or stage OHLCV -> make imports-validate -> make imports-preview -> make imports-apply"
     if "optional" in lane:
         return "make templates -> fill trusted earnings or analyst estimates CSV -> make imports-validate -> make imports-preview -> make imports-apply"
-    return f"{stock_report_md_command(ticker)} -> compare purpose, supported analysis, unsupported analysis, and source/freshness notes"
+    return f"{stock_report_md_command(ticker)} -> compare purpose, supported analysis, unsupported analysis, and source readiness notes"
 
 
 def active_evaluation_withheld_conclusion(row: pd.Series) -> str:
@@ -10910,7 +10910,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
         {
             "kicker": "COPY ONLY",
             "title": "No dashboard execution",
-            "body": "Commands are displayed for copying into a terminal after reviewing source/freshness notes; the dashboard does not run refreshes or imports.",
+            "body": "Commands are displayed for copying into a terminal after reviewing source readiness notes; the dashboard does not run refreshes or imports.",
             "badges": ["research-only", "local CSV"],
             "command": "make project-status",
         },
@@ -11817,7 +11817,7 @@ def next_action_console_plain_english_state(category: str) -> dict[str, str]:
             "copy_next": "validate first, preview second, apply only after reviewing rejected-row reports.",
         },
         "Single-Stock Review": {
-            "can_analyze": "one ticker can be checked for readiness, source freshness, DCF boundary, peer boundary, and optional-context gaps.",
+            "can_analyze": "one ticker can be checked for readiness, source readiness, DCF boundary, peer boundary, and optional-context gaps.",
             "locked": "the report withholds unsupported valuation, peer, earnings, and estimate sections instead of filling gaps.",
             "copy_next": "run the ticker report and read the plain-English gaps before opening detailed data tables.",
         },
@@ -12643,12 +12643,12 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
     elif dcf_status == "ready" and not peer_ready:
         if peer_trend_ready:
             can_analyze = (
-                "Standalone DCF assumptions, scenario math, sensitivity, source freshness, and peer trend context "
+                "Standalone DCF assumptions, scenario math, sensitivity, source readiness, and peer trend context "
                 "from mapped peer price history can be reviewed."
             )
             locked = "Peer-relative valuation, premium/discount, and peer DCF comparison remain locked until source-backed peer valuation inputs pass readiness."
         else:
-            can_analyze = "Standalone DCF assumptions, scenario math, sensitivity, and source freshness can be reviewed."
+            can_analyze = "Standalone DCF assumptions, scenario math, sensitivity, and source readiness can be reviewed."
             locked = "Peer-relative valuation remains locked until source-backed peer mappings and peer valuation inputs pass readiness."
         next_input = "Trusted peer mappings in data/imports/peers.csv plus peer inputs when needed."
         command = f"make focus-peers TICKER={ticker}"
@@ -12667,8 +12667,8 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         )
     else:
         can_analyze = "Supported single-stock review is available from current trusted local inputs."
-        locked = "No core analysis lock detected; continue to source/freshness and assumption review."
-        next_input = "Review the Markdown report and source/freshness notes before interpreting the result."
+        locked = "No core analysis lock detected; continue to source readiness and assumption review."
+        next_input = "Review the Markdown report and source readiness notes before interpreting the result."
         command = stock_report_md_command(ticker)
         proof_command = "Run the Markdown report again after any import or refresh to confirm the ready state still holds."
 
@@ -12795,12 +12795,12 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         first_read = "Standalone DCF is reviewable; peers are still locked."
         if peer_trend_ready:
             analyze_now = (
-                "DCF assumptions, sensitivity, source freshness, company setup, and peer trend context from mapped peer price history "
+                "DCF assumptions, sensitivity, source readiness, company setup, and peer trend context from mapped peer price history "
                 "can be reviewed from trusted local inputs."
             )
             still_locked = "Peer-relative valuation, premium/discount, and peer DCF comparison wait for source-backed peer valuation inputs."
         else:
-            analyze_now = "DCF assumptions, sensitivity, source freshness, and company setup can be reviewed from trusted local inputs."
+            analyze_now = "DCF assumptions, sensitivity, source readiness, and company setup can be reviewed from trusted local inputs."
             still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
         command = f"make focus-peers TICKER={ticker}"
         proof_command = (
@@ -12820,8 +12820,8 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         badges = ["core ready", "optional locked"]
     else:
         first_read = "Supported single-stock review is available."
-        analyze_now = "Price, fundamentals, DCF, peer context, earnings, estimates, source freshness, and assumptions can be reviewed."
-        still_locked = "No core lock detected; still review source freshness and methodology notes before interpreting outputs."
+        analyze_now = "Price, fundamentals, DCF, peer context, earnings, estimates, source readiness, and assumptions can be reviewed."
+        still_locked = "No core lock detected; still review source readiness and methodology notes before interpreting outputs."
         command = stock_report_md_command(ticker)
         proof_command = "Run the Markdown report again after any import or refresh to confirm the ready state still holds."
         badges = ["review ready", "source check"]
@@ -12888,7 +12888,7 @@ def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[d
         dcf_title = "DCF blocked by missing trusted inputs"
         dcf_body = (
             "Price/setup context can be reviewed, but valuation math stays locked until trusted fundamentals, "
-            "cash-flow or margin, share count, and source freshness pass readiness."
+            "cash-flow or margin, share count, and source readiness pass readiness."
         )
         dcf_badges = ["missing inputs", "no valuation conclusion"]
         dcf_command = f"make focus-fundamentals TICKER={ticker}"
@@ -12902,7 +12902,7 @@ def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[d
         peer_body = "Operating-company peer valuation is excluded for this monitor context."
         peer_badges = ["peer valuation excluded", "monitor"]
     elif peer_ready:
-        peer_body = "Source-backed peer context is available; review peer caveats and source freshness before interpretation."
+        peer_body = "Source-backed peer context is available; review peer caveats and source readiness before interpretation."
         peer_badges = ["source-backed peers", "review caveats"]
     else:
         peer_body = "Peer-relative valuation remains blocked until trusted peer mappings and peer valuation inputs are ready."
@@ -13122,7 +13122,7 @@ def valuation_readiness_operator_frame(
         suffix = f" +{len(tickers) - limit} more" if len(tickers) > limit else ""
         return ", ".join(tickers[:limit]) + suffix
 
-    top_missing = "trusted fundamentals, free cash flow or margin, share count, and source freshness"
+    top_missing = "trusted fundamentals, free cash flow or margin, share count, and source readiness"
     if not blocked_companies.empty and "missing_dcf_fields" in blocked_companies.columns:
         missing_counts: dict[str, int] = {}
         for value in blocked_companies["missing_dcf_fields"].dropna().astype(str):
@@ -13334,7 +13334,7 @@ def valuation_quick_read_cards(
     elif not ready.empty:
         first_title = "Review DCF-ready companies first"
         first_body = (
-            f"Start with {ready_ticker}. DCF-ready rows can support assumption, scenario, sensitivity, and source/freshness review; "
+            f"Start with {ready_ticker}. DCF-ready rows can support assumption, scenario, sensitivity, and source readiness review; "
             "they are still research context, not price targets."
         )
         first_command = stock_report_md_command(ready_ticker)
@@ -13369,7 +13369,7 @@ def valuation_quick_read_cards(
         analyze_title = f"{len(ready)} DCF-ready company row(s)"
         analyze_body = (
             f"What you can analyze now: open {ready_ticker} for DCF assumptions, scenarios, "
-            "sensitivity, and source freshness. Peer trend can be reviewed only when mapped peer price history is ready; "
+            "sensitivity, and source readiness. Peer trend can be reviewed only when mapped peer price history is ready; "
             "peer-relative valuation still needs trusted peer valuation inputs. This is a valuation-readiness review, "
             "not a recommendation, price target, or full investment conclusion."
         )
@@ -17102,7 +17102,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "title": "Open single-stock review next",
             "body": (
                 "Use a candidate as a starting point for make stock-report-md TICKER=..., then read valuation readiness, "
-                "fundamental gaps, peer gaps, and source freshness before forming any personal research view."
+                "fundamental gaps, peer gaps, and source readiness before forming any personal research view."
             ),
             "badges": ["next step", "single-stock depth"],
         },
@@ -17828,7 +17828,7 @@ def valuation_workflow_guidance_cards(
             "title": f"{blocked_count} company row(s) blocked",
             "body": (
                 "Blocked rows are not weak valuation calls. They need trusted price, fundamentals, free cash flow or margin, "
-                "share count, and source/freshness checks before DCF interpretation appears."
+                "share count, and source readiness checks before DCF interpretation appears."
             ),
             "badges": ["no inference", "missing fields shown"],
             "command": "make sec-stage-queue TOP_N=25",
@@ -17886,7 +17886,7 @@ def valuation_plain_language_cards(
             "kicker": "WHAT YOU CAN ANALYZE NOW",
             "title": f"DCF-ready examples: {ready_examples}",
             "body": (
-                "Review DCF assumptions, scenario math, sensitivity, and source freshness for ready company rows only. "
+                "Review DCF assumptions, scenario math, sensitivity, and source readiness for ready company rows only. "
                 "Peer trend is a separate context layer when mapped peer price history is ready; peer valuation stays locked "
                 "until source-backed peer valuation inputs pass readiness. Treat the output as research context, not an instruction."
             ),
@@ -17898,7 +17898,7 @@ def valuation_plain_language_cards(
             "title": f"Locked examples: {blocked_examples}",
             "body": (
                 "Company valuation stays locked until trusted price, fundamentals, free cash flow or margin, share count, "
-                "and source/freshness inputs exist. Missing inputs are not negative signals."
+                "and source readiness inputs exist. Missing inputs are not negative signals."
             ),
             "badges": ["missing inputs", "no inference"],
             "command": f"make focus-fundamentals TICKER={blocked_ticker}" if blocked_ticker != "TICKER" else "make sec-stage-queue TOP_N=25",
@@ -18788,7 +18788,7 @@ def _plain_home_demo_example_frame() -> pd.DataFrame:
                 "Comparison Role": "Richer company example",
                 "What It Shows": "Company report with trusted local DCF inputs, input path, assumptions, and sensitivity.",
                 "Review Mode": "Standalone DCF review",
-                "What To Check": "DCF assumptions, sensitivity, blocked peer valuation, and source/freshness notes.",
+                "What To Check": "DCF assumptions, sensitivity, blocked peer valuation, and source readiness notes.",
                 "Copy Command": "make stock-report-md TICKER=NVDA",
             },
             {
@@ -18844,7 +18844,7 @@ def _plain_home_provenance_cards() -> list[dict[str, object]]:
         {
             "kicker": "DATA ADAPTER",
             "title": "yfinance is optional and research-grade",
-            "body": "The CSV-first local path is default. Online provider data stays optional and should be checked through source/freshness notes.",
+            "body": "The CSV-first local path is default. Online provider data stays optional and should be checked through source readiness notes.",
             "badges": ["off by default"],
         },
         {
@@ -18868,7 +18868,7 @@ def methodology_ladder_frame() -> pd.DataFrame:
             {
                 "Step": "2. Supported calculations",
                 "What The Product Does": "Runs only project calculations the ready data can support: price/momentum, DCF scenarios, peer checks, or optional context.",
-                "What Users See": "Visible assumptions, sensitivity, and source/freshness notes when inputs are ready.",
+                "What Users See": "Visible assumptions, sensitivity, and source readiness notes when inputs are ready.",
                 "Main Code": "src/indicators.py, src/momentum_engine.py, src/value_engine.py, src/valuation.py",
             },
             {
@@ -18908,7 +18908,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
             {
                 "Roadmap Area": "Product workflow",
                 "Current Status": "Implemented",
-                "Evidence": "Universe Layers, grouped Next Steps, source/freshness notes, row limits, and copy-only commands are visible in the dashboard.",
+                "Evidence": "Universe Layers, grouped Next Steps, source readiness notes, row limits, and copy-only commands are visible in the dashboard.",
                 "Next Safe Step": "Use Home or Overview to choose a capped or ticker-targeted command.",
                 "Copy Command": "make dashboard-smoke",
             },
@@ -19007,7 +19007,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Best Use Today": "Review the DCF input path, assumptions, scenarios, and sensitivity when trusted fundamentals and price inputs exist.",
                 "Current Status": dcf_status,
                 "Supported Today": "DCF-ready company analysis with visible input path, assumptions, and sensitivity.",
-                "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source freshness.",
+                "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source readiness.",
                 "Logic Source": "Project assumptions in src/value_engine.py and src/valuation.py.",
             },
             {
@@ -19031,10 +19031,10 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             {
                 "Function Area": "Single-stock report",
                 "Quality Verdict": "Strongest visitor-facing workflow",
-                "Best Use Today": "Open one ticker to see ready, blocked, excluded, optional, and source/freshness states step by step.",
+                "Best Use Today": "Open one ticker to see ready, blocked, excluded, optional, and source readiness states step by step.",
                 "Current Status": "Clear for one ticker's ready, blocked, excluded, and monitor-only analysis.",
                 "Supported Today": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
-                "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source/freshness outputs.",
+                "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source readiness outputs.",
                 "Logic Source": "Project report assembly in src/stock_report.py and src/dashboard.py separates source rows from product calculations and blocked-section wording.",
             },
             {
@@ -19097,7 +19097,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         [
             (
                 "Review one stock",
-                "Open a ticker-level report with price, valuation readiness, missing data, and source freshness.",
+                "Open a ticker-level report with price, valuation readiness, missing data, and source readiness.",
                 "Single-Stock Report",
                 "neutral",
             ),
@@ -19428,7 +19428,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         return
 
     if st.session_state.get("single_stock_report_provider") == "yfinance":
-        st.info("Using yfinance as an unofficial / research-grade source. Review source/freshness notes carefully.")
+        st.info("Using yfinance as an unofficial / research-grade source. Review source readiness notes carefully.")
 
     readiness = report_payload.get("valuation_readiness", {})
     render_section_header(
@@ -19696,7 +19696,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         else:
             st.success(warning_text)
 
-        st.markdown("#### Source / Freshness")
+        st.markdown("#### Source Readiness")
         st.dataframe(
             clean_display_frame(stock_report_source_frame(report_payload.get("data_freshness", []))),
             width="stretch",
@@ -19860,7 +19860,7 @@ def render_market_command_center(
         st.dataframe(clean_display_frame(purpose_evaluation_summary_frame.head(25)), width="stretch", hide_index=True)
     render_section_header(
         "Purpose Evaluation Drilldown",
-        "Ticker-level purpose, supported analysis, blocked analysis, source/freshness, and exact copy-only unlock commands.",
+        "Ticker-level purpose, supported analysis, blocked analysis, source readiness, and exact copy-only unlock commands.",
     )
     drilldown_filter_cols = st.columns([1.3, 1.3, 1.3, 1, 1])
     purpose_family_options = ["All"]
@@ -20109,7 +20109,7 @@ def render_market_command_center(
             width="stretch",
             hide_index=True,
         )
-    render_section_header("Next Steps", "Grouped actions with source/freshness notes. These cards are copyable commands only; the dashboard does not run them.")
+    render_section_header("Next Steps", "Grouped actions with source readiness notes. These cards are copyable commands only; the dashboard does not run them.")
     render_signal_cards(next_action_console_cards(action_console))
     if action_console.empty:
         st.info("No grouped next-step rows are available. Run make project-status and make onboarding TOP_N=10 to refresh action guidance.")

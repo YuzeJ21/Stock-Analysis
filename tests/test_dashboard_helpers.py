@@ -7251,7 +7251,7 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     assert "plugins can help development review" not in rendered
     assert "make stock-report-md ticker=..." in rendered
     assert "valuation readiness" in rendered
-    assert "source freshness" in rendered
+    assert "source readiness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7772,7 +7772,7 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     assert [card["kicker"] for card in ready_cards] == ["FUNDAMENTALS QUALITY", "NEXT TRUSTED INPUT", "QUALITY CONTEXT", "LOGIC SOURCE"]
     assert "dcf inputs ready" in rendered
     assert "review dcf proof" in rendered
-    assert "review assumptions and source freshness" in rendered
+    assert "review assumptions and source readiness" in rendered
     assert "partial fundamentals context" in rendered
     assert "missing: fcf margin" in rendered
     assert "unlock fundamentals before valuation" in rendered
@@ -8211,7 +8211,7 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
     assert "2 ready / 4 locked / 2 excluded" in rendered
     assert "readiness-gated valuation page" in rendered
     assert "dcf-ready examples: nvda, a" in rendered
-    assert "review dcf assumptions, scenario math, sensitivity, and source freshness" in rendered
+    assert "review dcf assumptions, scenario math, sensitivity, and source readiness" in rendered
     assert "peer trend is a separate context layer when mapped peer price history is ready" in rendered
     assert "peer valuation stays locked until source-backed peer valuation inputs pass readiness" in rendered
     assert "locked examples: meta, amd, cohr +1 more" in rendered
@@ -8350,7 +8350,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert "start with nvda" in rendered
     assert "copy next: `make stock-report-md ticker=nvda`" in rendered
     assert "does not run refreshes, imports, or external account actions" in rendered
-    assert "assumption, scenario, sensitivity, and source/freshness review" in rendered
+    assert "assumption, scenario, sensitivity, and source readiness review" in rendered
     assert "not price targets" in rendered
     assert "1 dcf-ready company row(s)" in rendered
     assert "open nvda for dcf assumptions" in rendered
@@ -12406,7 +12406,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
                 "Command": "make price-refresh-loop DRY_RUN=1",
                 "Reason": "Advance the broad-universe price frontier safely.",
                 "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
-                "FreshnessContext": "capped refresh; verify source/freshness after merge",
+                "FreshnessContext": "capped refresh; verify source readiness after merge",
             }
         ]
     }
@@ -12457,7 +12457,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "peer valuation needs trusted peer mappings and peer metrics" in rendered
     assert "the report withholds unsupported valuation, peer, earnings, and estimate sections" in rendered
     assert "dry-run-first capped yahoo refresh loops" in rendered
-    assert "capped refresh; verify source/freshness after merge" in rendered
+    assert "capped refresh; verify source readiness after merge" in rendered
     assert "output_to_check" in console.columns
     assert "when_to_use" in console.columns
     assert "single-stock report" in rendered
@@ -12494,7 +12494,7 @@ def test_next_action_console_plain_english_states_cover_unlock_lanes():
     assert "peer valuation needs trusted peer mappings and peer metrics" in rendered
     assert "earnings context stays unavailable until trusted local rows pass validate, preview, and apply" in rendered
     assert "consensus is context, not a conclusion" in rendered
-    assert "source freshness, dcf boundary, peer boundary, and optional-context gaps" in rendered
+    assert "source readiness, dcf boundary, peer boundary, and optional-context gaps" in rendered
     assert "unsupported valuation, peer, earnings, and estimate sections" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -13844,7 +13844,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert proof_ladder_card["title"] == "Input -> readiness -> DCF -> report"
     assert proof_ladder_card["command"] == "make focus-fundamentals TICKER=META"
     assert "trusted fundamentals row, then import validation, then dcf readiness, then the single-stock report" in rendered
-    assert "source/freshness, missing fields, dcf calculation path, and valuation boundaries" in rendered
+    assert "source readiness, missing fields, dcf calculation path, and valuation boundaries" in rendered
     assert "make stock-report-md ticker=meta" in rendered
     assert "no black box" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
@@ -14985,7 +14985,7 @@ def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommen
     assert "blocked rows are data-unlock work" in rendered
     assert "not weak-company conclusions" in rendered
     assert "project readiness gates" in rendered
-    assert "local readiness, blocker, and source/freshness outputs in project code" in rendered
+    assert "local readiness, blocker, and source readiness outputs in project code" in rendered
     assert "shipped decisions come from project code and local data" in rendered
     assert "plugins can help development review" not in rendered
     assert "not hidden recommendation engines" not in rendered
@@ -15949,7 +15949,7 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
 
     assert list(frame.columns) == ["Question", "Answer", "Trusted Input Needed", "Proof Command", "Copy-Only Command"]
     assert [card["kicker"] for card in cards] == ["ANALYZE NOW", "LOCKED / EXCLUDED", "NEXT STEP", "PROOF PATH"]
-    assert "standalone dcf assumptions, scenario math, sensitivity, source freshness, and peer trend context" in rendered
+    assert "standalone dcf assumptions, scenario math, sensitivity, source readiness, and peer trend context" in rendered
     assert "mapped peer price history can be reviewed" in rendered
     assert "peer-relative valuation, premium/discount, and peer dcf comparison remain locked" in rendered
     assert "trusted input needed:" in rendered
@@ -16046,7 +16046,7 @@ def test_single_stock_quick_read_cards_route_dcf_ready_peer_locked():
     assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED", "COPY ONLY"]
     assert cards[0]["title"] == "Standalone DCF is reviewable; peers are still locked."
     assert cards[0]["command"] == "make focus-peers TICKER=NVDA"
-    assert "dcf assumptions, sensitivity, source freshness, company setup, and peer trend context" in rendered
+    assert "dcf assumptions, sensitivity, source readiness, company setup, and peer trend context" in rendered
     assert "mapped peer price history" in rendered
     assert "peer-relative valuation, premium/discount, and peer dcf comparison wait" in rendered
     assert "does not run refreshes, imports, or external account actions" in rendered
@@ -18438,7 +18438,7 @@ def test_active_evaluation_lane_detail_groups_runbook_without_overclaiming():
                 "exact_command": "make stock-report TICKER=QQQ",
                 "review_command": "make stock-report TICKER=QQQ",
                 "data_unlock_command": "",
-                "validation_sequence": "make stock-report TICKER=<ticker> -> compare purpose, supported analysis, unsupported analysis, and source/freshness notes",
+                "validation_sequence": "make stock-report TICKER=<ticker> -> compare purpose, supported analysis, unsupported analysis, and source readiness notes",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
                 "next_operator_step": "Open QQQ's stock report and compare market-proxy context.",
                 "reason": "ETF monitor context.",
@@ -18535,7 +18535,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
             {
                 "evaluation_lane": "Monitor ETF / market proxy",
                 "ticker_count": 1,
-                "validation_sequence": "make stock-report TICKER=QQQ -> compare source/freshness notes",
+                "validation_sequence": "make stock-report TICKER=QQQ -> compare source readiness notes",
                 "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
             },
@@ -18586,7 +18586,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
             {
                 "action_category": "Single-Stock Review",
                 "command": "make stock-report TICKER=QQQ",
-                "why_it_matters": "Use one ticker drilldown to verify readiness and source/freshness notes.",
+                "why_it_matters": "Use one ticker drilldown to verify readiness and source readiness notes.",
                 "safety_note": "Ticker-targeted command; copy into a terminal when ready. The dashboard does not execute it.",
             }
         ]
@@ -18659,7 +18659,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
             [
                 {
                     "kicker": "TICKER STATUS",
-                    "body": "Review monitor context and source/freshness notes.",
+                    "body": "Review monitor context and source readiness notes.",
                     "command": "make stock-report TICKER=QQQ",
                 }
             ]
@@ -18749,7 +18749,7 @@ def test_product_page_logic_audit_flags_placeholder_copyable_commands():
                 "ticker": "QQQ",
                 "evaluation_lane": "Monitor ETF / market proxy",
                 "exact_command": "make stock-report TICKER=QQQ",
-                "validation_sequence": "make stock-report TICKER=<ticker> -> compare source/freshness notes",
+                "validation_sequence": "make stock-report TICKER=<ticker> -> compare source readiness notes",
             }
         ]
     )
@@ -18757,7 +18757,7 @@ def test_product_page_logic_audit_flags_placeholder_copyable_commands():
         [
             {
                 "evaluation_lane": "Monitor ETF / market proxy",
-                "validation_sequence": "make stock-report TICKER=<ticker> -> compare source/freshness notes",
+                "validation_sequence": "make stock-report TICKER=<ticker> -> compare source readiness notes",
                 "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
             }
@@ -18940,7 +18940,7 @@ def test_product_page_logic_audit_flags_execution_or_direct_recommendation_langu
         [
             {
                 "evaluation_lane": "Review supported thesis; optional context locked",
-                "validation_sequence": "make stock-report TICKER=BAD -> compare source/freshness notes",
+                "validation_sequence": "make stock-report TICKER=BAD -> compare source readiness notes",
                 "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Earnings and analyst-estimate context is withheld.",
             }
