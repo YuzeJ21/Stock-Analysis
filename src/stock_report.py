@@ -1321,7 +1321,7 @@ def _stock_report_function_quality_lines(
         f"- Fundamentals / DCF: {valuation_status}.",
         f"- Peer comparison: {peer_status}.",
         f"- Optional context: {optional_status}.",
-        "- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.",
+        "- Method source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.",
     ]
 
 
@@ -1403,9 +1403,9 @@ def _stock_report_source_logic_lines(
     return [
         "- Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.",
         "- Product checks: project readiness gates decide whether each input is usable before report sections appear.",
-        f"- Product DCF logic: {dcf_logic}; the report does not ask a third party or model to create a valuation opinion.",
-        f"- Product peer logic: {peer_logic}; sector or industry fallback is not treated as trusted peer valuation.",
-        f"- Optional context logic: {optional_logic}; empty optional files are an intentional locked state, not hidden analysis.",
+        f"- DCF method: {dcf_logic}; the report does not ask a third party or model to create a valuation opinion.",
+        f"- Peer method: {peer_logic}; sector or industry fallback is not treated as trusted peer valuation.",
+        f"- Optional context method: {optional_logic}; empty optional files are an intentional locked state, not hidden analysis.",
         "- Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.",
     ]
 
@@ -1432,7 +1432,7 @@ def _stock_report_reader_guide_lines(
     return [
         "- Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.",
         f"- Current use: {current_use}",
-        "- Logic source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.",
+        "- Method source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.",
         "- Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.",
     ]
 
@@ -2315,7 +2315,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
         "",
-        "## Data Vs Product Logic",
+        "## Data And App Method",
         *source_logic_lines,
         "",
         "## Analysis Quality",
@@ -2692,7 +2692,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
         "",
-        "## Data Vs Product Logic",
+        "## Data And App Method",
         *source_logic_lines,
         "",
         "## Analysis Quality",
