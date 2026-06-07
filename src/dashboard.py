@@ -11424,7 +11424,7 @@ def product_page_logic_audit_frame(
             "check": "Readiness explorer default limit",
             "status": "pass" if 0 < explorer_rows <= DEFAULT_MARKET_ROW_LIMIT else "review",
             "evidence": f"{explorer_rows} readiness explorer row(s) displayed by default; default cap is {DEFAULT_MARKET_ROW_LIMIT}.",
-            "operator_action": "Keep broad-universe readiness exploration capped by default; use filters and search rather than full-table dumps.",
+            "operator_action": "Keep broad-universe readiness exploration capped by default; use filters and search before expanding the view.",
             "source": "dashboard readiness explorer",
         }
     )
@@ -20329,6 +20329,10 @@ def render_market_command_center(
         return
 
     render_section_header("Readiness Explorer", "Filter thousands of tickers without rendering the full market table by default.")
+    render_context_note(
+        "Table guide.",
+        "Start with Active research only and the default row limit. Use filters or search to narrow the list; missing rows are not analysis conclusions.",
+    )
     filter_cols = st.columns([1.4, 1.4, 1.4, 1.4, 1.4])
     scope = filter_cols[0].selectbox(
         "Universe scope",
@@ -20391,7 +20395,7 @@ def render_market_command_center(
     )
     visible = scoped.head(row_limit).copy()
     st.caption(
-        f"Showing {len(visible)} of {len(scoped)} filtered rows. Broad-universe views stay row-limited; narrow filters or searches are preferred over full-table dumps."
+        f"Showing {len(visible)} of {len(scoped)} filtered rows. Broad-universe views stay row-limited; narrow filters or searches are the safest way to inspect more names."
     )
     columns = market_readiness_table_columns(visible)
     if columns:
@@ -20400,6 +20404,10 @@ def render_market_command_center(
         st.info("No readiness rows match the current filters.")
 
     render_section_header("Single-Stock Drilldown", "Ticker-level readiness, decision, missing-data, and next-action context without loading every detail first.")
+    render_context_note(
+        "One ticker at a time.",
+        "Use this after the table to inspect one ticker's ready analysis, locked inputs, and next copy-only command.",
+    )
     ticker_options = default_ticker_options
     drill_cols = st.columns([1.4, 2.4])
     selected_ticker = drill_cols[0].selectbox(
@@ -20439,7 +20447,7 @@ def render_market_command_center(
     with st.expander("Single-stock reader guide table", expanded=False):
         st.dataframe(clean_display_frame(single_stock_reader_guide_frame(snapshot)), width="stretch", hide_index=True)
     render_section_header(
-        "Source Vs Product Logic",
+        "How The App Uses Trusted Data",
         "Plain-English bridge from trusted source rows to product-calculated readiness, DCF, peer gates, and optional context.",
     )
     render_signal_cards(single_stock_methodology_bridge_cards(snapshot))
