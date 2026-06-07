@@ -804,7 +804,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Research-only purpose brief" in markdown
     assert "Thesis" in markdown
     assert "Alignment" in markdown
-    assert "Research workflow summary: Monitor context" in markdown
+    assert "Research review summary: Monitor context" in markdown
     assert "operating-company DCF and peer valuation are excluded" in markdown
     assert "ETF / Defensive / Hedge" in markdown
     assert "market/risk context" in markdown
@@ -913,7 +913,8 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     assert "- Boundary: Workflow state only: standalone company and DCF review can continue" in markdown
     assert "peer-relative valuation stays locked until trusted peer inputs are ready" in markdown
     assert f"- Next action: {peer_action}" in markdown
-    assert "Research workflow summary:" in markdown
+    assert "Research review summary:" in markdown
+    assert "Research workflow summary:" not in markdown
     assert "Next blocker: peers" in markdown
     assert "Withheld:" in markdown
     assert "Purpose status unavailable" not in markdown
@@ -1069,7 +1070,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "DCF: blocked" in markdown
     assert "## Purpose Evaluation" in markdown
     assert "Research-only purpose brief" in markdown
-    assert "Research workflow summary:" in markdown
+    assert "Research review summary:" in markdown
+    assert "Research workflow summary:" not in markdown
     assert "Next blocker: price" in markdown
     assert "Can trusted local price rows be staged for APLD" in markdown
     assert "Purpose alignment for Speculative Optionality cannot be checked" in markdown

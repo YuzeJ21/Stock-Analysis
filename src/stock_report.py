@@ -1037,7 +1037,7 @@ def _stock_report_operator_summary(
     )
     if monitor_context:
         return (
-            f"Research workflow summary: Monitor context; {subtype}. "
+            f"Research review summary: Monitor context; {subtype}. "
             "Monitor role: market, theme, liquidity, or risk proxy. "
             "Withheld: operating-company DCF and peer valuation are excluded. "
             "Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring."
@@ -1054,7 +1054,7 @@ def _stock_report_operator_summary(
         f"Invalidate this research read if {ticker} no longer passes the required readiness checks.",
     )
     return (
-        f"Research workflow summary: {purpose_status}; {subtype}. "
+        f"Research review summary: {purpose_status}; {subtype}. "
         f"Next blocker: {blocker}. Withheld: {unsupported} "
         f"Invalidation: {invalidation}"
     )
@@ -2344,7 +2344,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
         f"- Thesis: {_brief_value(purpose_fields.get('purpose_thesis'), 'Purpose:')}",
         f"- Alignment: {_brief_value(purpose_fields.get('purpose_alignment'), 'Purpose alignment:')}",
-        f"- Research workflow summary: {_brief_value(operator_summary, 'Research workflow summary:')}",
+        f"- Research review summary: {_brief_value(operator_summary, 'Research review summary:')}",
         f"- Setup: {_brief_value(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
         f"- Valuation boundary: {_display_value(purpose_fields.get('valuation_evaluation'))}",
         "",
@@ -2721,7 +2721,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
         f"- Thesis: {_brief_value(purpose_fields.get('purpose_thesis'), 'Purpose:')}",
         f"- Alignment: {_brief_value(purpose_fields.get('purpose_alignment'), 'Purpose alignment:')}",
-        f"- Research workflow summary: {_brief_value(operator_summary, 'Research workflow summary:')}",
+        f"- Research review summary: {_brief_value(operator_summary, 'Research review summary:')}",
         f"- Setup: {_brief_value(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
         f"- Valuation boundary: {_display_value(purpose_fields.get('valuation_evaluation'))}",
         "",

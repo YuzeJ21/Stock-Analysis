@@ -100,7 +100,7 @@ NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready.
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Momentum Leader. Judge the brief through trend, relative strength, extension risk, and setup quality; current state is Review Thesis.
 - Alignment: Purpose alignment needs review: Momentum Leader requires relative strength support, but current local outputs flag weak relative strength.
-- Research workflow summary: Purpose alignment needs review: Momentum Leader requires relative strength support, but current local outputs flag weak relative strength; Research Candidate - Core Data Ready. Next blocker: earnings. Withheld: earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the momentum research setup if relative strength weakens, trend support fails, or extension risk dominates the setup.
+- Research review summary: Purpose alignment needs review: Momentum Leader requires relative strength support, but current local outputs flag weak relative strength; Research Candidate - Core Data Ready. Next blocker: earnings. Withheld: earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the momentum research setup if relative strength weakens, trend support fails, or extension risk dominates the setup.
 - Setup: Momentum setup: Setup Forming; final state: Review Thesis. Check relative strength, trend, volume context, and extension risk before deeper research. Base score 45 from final state `Review Thesis`. Added 3 points because the ticker is already a holding. Adjusted +0 points for value category `Insufficient Data`.
 - Valuation boundary: Report-local peer valuation is calculated from trusted peer inputs; broad value labels may still remain limited when optional value-engine fields are missing.
 
@@ -177,14 +177,14 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions.
 
 ## Peer Workflow
-- What this means: peer context is ready from source-backed peer inputs; review mapped peers and freshness before interpreting relative valuation.
+- What this means: peer context is ready from source-backed peer inputs; review mapped peers and source readiness before interpreting relative valuation.
 - What can be reviewed now: peer trend status=ready; peer valuation status=ready; peer count=2.
 - What is still locked: any missing peer metric listed below stays unavailable and should not be inferred from sector or industry fallback.
 - Trusted input path: review `data/peers.csv` and rerun `make focus-peers TICKER=NVDA` before relying on peer-relative context.
 - Peer ladder: ready for source-backed peer context.
 - Mapping evidence: mapping status=mapped; peer count=2.
 - Trend evidence: ready from mapped peer price history.
-- Valuation evidence: available only from trusted peer mappings and peer valuation inputs; review freshness before interpretation.
+- Valuation evidence: available only from trusted peer mappings and peer valuation inputs; review source readiness before interpretation.
 - Next safe command: `make focus-peers TICKER=NVDA` to inspect mapped peer evidence before reading relative context.
 - Peer blocker type: ready
 - Mapping status: mapped
@@ -227,7 +227,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Data Health lane: Optional Context Unlock. Copy `make optional-context-worklist TICKERS=NVDA TOP_N=10`, then confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (621 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context.
-- Peer unlock: Peer context is usable now; review mapped peers and freshness before interpreting peer-relative context.
+- Peer unlock: Peer context is usable now; review mapped peers and source readiness before interpreting peer-relative context.
 - Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 

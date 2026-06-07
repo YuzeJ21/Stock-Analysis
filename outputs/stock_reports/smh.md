@@ -100,7 +100,7 @@ SMH state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: ETF / Defensive / Hedge. Evaluate as market, theme, liquidity, or risk context; operating-company valuation remains excluded.
 - Alignment: ETF / Defensive / Hedge is evaluated as market/risk context when price, liquidity, and correlation data are ready; operating-company valuation is not applicable.
-- Research workflow summary: Monitor context; Monitor - ETF Market Proxy. Monitor role: market, theme, liquidity, or risk proxy. Withheld: operating-company DCF and peer valuation are excluded. Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring.
+- Research review summary: Monitor context; Monitor - ETF Market Proxy. Monitor role: market, theme, liquidity, or risk proxy. Withheld: operating-company DCF and peer valuation are excluded. Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring.
 - Setup: Setup Forming; final state: Setup Forming. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`. Capped score at 50 because valuation readiness is not ready; treat as data-limited review until missing data is resolved.
 - Valuation boundary: Operating-company DCF is excluded for this asset type; use market/risk context instead of valuation conclusions.
 
