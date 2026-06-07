@@ -410,6 +410,24 @@ def test_data_health_bundle_detail_copy_uses_operator_language():
     assert "generate ticker-level bundle detail rows" not in source
 
 
+def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
+    fix_first_index = source.index('render_section_header("Fix First"')
+    action_paths_index = source.index('render_section_header("Action Paths"')
+    planning_expander_index = source.index('st.expander("Planning details: price, valuation, and analysis unlocks"')
+    market_expander_index = source.index('st.expander("Full market-wide command center details"')
+    bundle_expander_index = source.index('st.expander("Command bundle details"')
+
+    assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
+    assert planning_expander_index < market_expander_index < bundle_expander_index
+    assert 'st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False)' in source
+    assert 'st.expander("Full market-wide command center details", expanded=False)' in source
+    assert 'st.expander("Command bundle details", expanded=False)' in source
+    assert 'render_section_header("Priority Fixes"' not in source
+
+
 def test_home_capability_cards_explain_quality_limits_and_provenance():
     cards = dashboard._plain_home_capability_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

@@ -20214,33 +20214,39 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_section_header("Data Health Quick Read", "Which unlock lane should you inspect first, before opening detailed tables.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
-    render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local generated-data churn.")
-    render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
-    render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
-    render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
-    render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
-    render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
-    render_section_header(
-        "Valuation Unlock Snapshot",
-        "Plain-English valuation queues before the full command center details.",
-    )
-    render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
-    render_market_command_center(
-        ticker_readiness_frame,
-        coverage_frame,
-        decisions_frame,
-        action_queue_frame,
-        project_status_payload,
-        feature_summary_frame,
-        peer_readiness_frame,
-        peer_mapping_queue_frame,
-        peer_unlock_worklist_frame,
-        dcf_readiness_frame,
-        earnings_readiness_frame,
-        analyst_readiness_frame,
-        purpose_evaluation_summary_frame,
-        purpose_classification_frame,
-    )
+    render_section_header("Fix First", "The shortest safe local path before deeper Data Health details.")
+    render_action_cards(data_health_fix_first_cards(actions_frame))
+    render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers lanes.")
+    render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
+    with st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False):
+        render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local generated-data churn.")
+        render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
+        render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
+        render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
+        render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
+        render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
+        render_section_header(
+            "Valuation Unlock Snapshot",
+            "Plain-English valuation queues before the full command center details.",
+        )
+        render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
+    with st.expander("Full market-wide command center details", expanded=False):
+        render_market_command_center(
+            ticker_readiness_frame,
+            coverage_frame,
+            decisions_frame,
+            action_queue_frame,
+            project_status_payload,
+            feature_summary_frame,
+            peer_readiness_frame,
+            peer_mapping_queue_frame,
+            peer_unlock_worklist_frame,
+            dcf_readiness_frame,
+            earnings_readiness_frame,
+            analyst_readiness_frame,
+            purpose_evaluation_summary_frame,
+            purpose_classification_frame,
+        )
     if feature_summary_frame is None and feature_summary_message:
         render_notice_card(
             "Feature readiness summary has not been generated",
@@ -20280,23 +20286,19 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             wizard_notice_body,
             wizard_notice_command,
         )
-    render_section_header("Priority Fixes", "Highest-priority local data actions. Apply/merge steps remain copy-only and reviewable.")
-    render_action_cards(data_health_fix_first_cards(actions_frame))
-    render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers lanes.")
-    render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
-    render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
-    render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
-    render_section_header("Bundle Runbook", "Ordered command steps for each current bundle lane so the local follow-through stays explicit.")
-    render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
-    if command_bundles_frame is None:
-        bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
-        render_notice_card(
-            "Command bundles have not been generated yet",
-            bundle_notice_body,
-            bundle_notice_command,
-        )
-    if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
-        with st.expander("Ticker-level bundle steps", expanded=False):
+    with st.expander("Command bundle details", expanded=False):
+        render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
+        render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
+        render_section_header("Bundle Runbook", "Ordered command steps for each current bundle lane so the local follow-through stays explicit.")
+        render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
+        if command_bundles_frame is None:
+            bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
+            render_notice_card(
+                "Command bundles have not been generated yet",
+                bundle_notice_body,
+                bundle_notice_command,
+            )
+        if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
             detail_columns = [
                 column
                 for column in [
@@ -20319,16 +20321,16 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 if column in command_bundle_details_frame.columns
             ]
+            st.caption("Ticker-level bundle steps.")
             st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
-    elif command_bundle_details_frame is None:
-        detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
-        render_notice_card(
-            "Ticker-level bundle steps are not available yet",
-            detail_notice_body,
-            detail_notice_command,
-        )
-    if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
-        with st.expander("Command bundle runbook", expanded=False):
+        elif command_bundle_details_frame is None:
+            detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
+            render_notice_card(
+                "Ticker-level bundle steps are not available yet",
+                detail_notice_body,
+                detail_notice_command,
+            )
+        if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
             runbook_columns = [
                 column
                 for column in [
@@ -20347,14 +20349,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 if column in command_bundle_runbook_frame.columns
             ]
+            st.caption("Command bundle runbook.")
             st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
-    elif command_bundle_runbook_frame is None:
-        runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
-        render_notice_card(
-            "Command bundle runbook is not available yet",
-            runbook_notice_body,
-            runbook_notice_command,
-        )
+        elif command_bundle_runbook_frame is None:
+            runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
+            render_notice_card(
+                "Command bundle runbook is not available yet",
+                runbook_notice_body,
+                runbook_notice_command,
+            )
 
     if not validation_rows.empty:
         missing_optional = validation_rows.loc[
