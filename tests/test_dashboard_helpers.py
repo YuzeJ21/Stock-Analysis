@@ -336,6 +336,11 @@ def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
     assert '[data-testid="stDataFrame"]' in css
     assert '[data-testid="stExpander"]' in css
     assert '[data-baseweb="popover"]' in css
+    assert "#MainMenu" in css
+    assert '[data-testid="stToolbar"]' in css
+    assert '[data-testid="stDeployButton"]' in css
+    assert ".stDeployButton" in css
+    assert "visibility: hidden !important" in css
     assert "color: #111827 !important" in css
     assert "background: #fffefa !important" in css
 

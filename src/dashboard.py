@@ -1517,6 +1517,16 @@ def apply_dashboard_theme() -> None:
           background: var(--research-bg) !important;
           color: var(--research-text) !important;
         }
+        #MainMenu,
+        footer,
+        [data-testid="stToolbar"],
+        [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"],
+        [data-testid="stDeployButton"],
+        .stDeployButton {
+          display: none !important;
+          visibility: hidden !important;
+        }
         [data-testid="stSidebar"] {
           background: #f8faf5 !important;
           border-right: 1px solid var(--research-border);
