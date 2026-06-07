@@ -585,7 +585,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     fix_first_index = source.index('render_section_header("Fix First"')
     action_paths_index = source.index('render_section_header("Copy-Only Next Steps"')
     planning_expander_index = source.index('st.expander("Unlock planning cards"')
-    market_expander_index = source.index('st.expander("Detailed market-wide workspace"')
+    market_expander_index = source.index('st.expander("Detailed market-wide review"')
     advanced_map_index = source.index('render_section_header(\n            "Advanced Unlock Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
@@ -596,10 +596,11 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert market_expander_index < advanced_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Read these next three sections first." in source
-    assert "without opening the detailed market-wide workspace" in source
+    assert "without opening the detailed market-wide review" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Unlock planning cards", expanded=False)' in source
-    assert 'st.expander("Detailed market-wide workspace", expanded=False)' in source
+    assert 'st.expander("Detailed market-wide review", expanded=False)' in source
+    assert "detailed market-wide workspace" not in source
     assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
     assert 'st.expander("Guided coverage plan details", expanded=False)' in source
     assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
@@ -9123,7 +9124,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Which unlock path should you inspect first, before opening detailed tables." in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
-    assert "Plain-English valuation worklists before the detailed market-wide workspace." in source
+    assert "Plain-English valuation worklists before the detailed market-wide review." in source
     assert "Plain-English valuation queues before the full command center details." not in source
     assert "When Is A Stock Ready Enough?" not in source
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
