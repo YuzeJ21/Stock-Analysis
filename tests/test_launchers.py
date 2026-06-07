@@ -392,6 +392,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "docs/METHODOLOGY.md" in readme
     assert "docs/analysis_capability_audit.md" in readme
     assert "[Local Workflow Guide](docs/OPERATOR_GUIDE.md)" in readme
+    assert "[Data Strategy](docs/DATA_STRATEGY.md)" in readme
     assert "pip install -e '.[dev]'" in readme
     assert "pip install -e .[dev]" not in readme
     for phrase in (
@@ -764,6 +765,8 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "`make optional-context-worklist TOP_N=25`",
         "Source readiness guidance",
         "`make public-check`, `make diff-hygiene`",
+        "Data strategy",
+        "Read `docs/DATA_STRATEGY.md`, then use the targeted commands above for a 5-10 company pilot.",
         "Do not publish broad generated CSV churn unless it is the reviewed artifact for that release",
         "Do not add execution workflows, direct recommendations, fabricated data, or unsupported valuation labels",
     ):
@@ -1281,9 +1284,14 @@ def test_stock_report_cli_help_uses_readable_report_language():
 def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     readme = Path("README.md").read_text(encoding="utf-8")
     operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
+    data_strategy = Path("docs/DATA_STRATEGY.md").read_text(encoding="utf-8")
 
     assert "Research-Only Guardrails" in readme
     assert "not a trading system" in readme
+    assert "docs/DATA_STRATEGY.md" in operator_guide
+    assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
+    assert "provider-assisted rows are optional inputs" in data_strategy
+    assert "Peer relationships inferred only from sector labels" in data_strategy
     for phrase in (
         "place orders",
         "connect to brokers",

@@ -1,6 +1,7 @@
 # Local Workflow Guide
 
 Use this guide when you want to run the command center locally after reading the short README.
+For the higher-level data coverage strategy, see `docs/DATA_STRATEGY.md`.
 
 The product principle stays the same:
 

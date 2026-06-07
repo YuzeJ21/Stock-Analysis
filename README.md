@@ -96,7 +96,7 @@ Example map:
 
 In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then a `Reader Guide` that answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and which copy-only command to run. They only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
-For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). That guide covers targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
+For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md). Those guides cover targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
 
 ## Local Data Hygiene
 

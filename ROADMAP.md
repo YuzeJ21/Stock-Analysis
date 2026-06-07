@@ -242,6 +242,7 @@ This stage should improve breadth without pretending the whole 3,538-ticker univ
 | Source-backed peers | Prioritize active-universe and DCF-ready peer blockers before broad peer work. | `make peer-mapping-queue TOP_N=25`, `make focus-peers TICKER=...`, `make templates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Peer trend and peer valuation states are separated; peer valuation appears only when trusted peer inputs pass readiness. |
 | Optional context | Keep earnings and analyst estimates locked until trusted local rows exist. | `make optional-context-worklist TOP_N=25`, `make import-earnings`, `make import-analyst-estimates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Empty optional context reads as intentionally locked, not broken or inferred. |
 | Source readiness guidance | Make source age, rejected-row reports, and generated-data hygiene visible before interpretation. | `make project-status`, `make research-health-check TOP_N=10`, `make public-check`, `make diff-hygiene`. | Visitors can see what is fresh, what is stale, what is local-only, and what should not be committed. |
+| Data strategy | Keep a public, data-honest explanation of what can refresh safely and what still needs trusted human/source review. | Read `docs/DATA_STRATEGY.md`, then use the targeted commands above for a 5-10 company pilot. | Visitors understand why broad valuation coverage is limited and how the next trusted unlock should happen. |
 
 Public-share rules for this stage:
 
