@@ -10776,7 +10776,7 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
         {
             "kicker": "ACTIVE BRIEFS",
             "title": f"{len(frame)} active ticker(s)",
-            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs include a research workflow summary plus purpose, setup, valuation, supported and unsupported analysis, risk, invalidation, and next question.",
+            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs include a research review summary plus purpose, setup, valuation, supported and unsupported analysis, risk, invalidation, and next question.",
             "badges": ["analysis layer", "row-limited"],
             "command": top_command,
         },

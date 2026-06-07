@@ -18800,7 +18800,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "peer-relative context is incomplete" in rendered
     assert "operating-company dcf is excluded" in rendered
     assert cards[0]["title"] == "2 active ticker(s)"
-    assert "research workflow summary plus purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
+    assert "research review summary plus purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
     assert "purpose check" in rendered_cards
     assert "purpose groups" in rendered_cards
     assert "next question" in rendered_cards
