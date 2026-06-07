@@ -17165,7 +17165,8 @@ def monthly_picks_next_step_cards(
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                f"Current local filters did not support any monthly candidates. Run {coverage_command} to preview the capped broad coverage plan instead of repeating small worklists or forcing weaker names into the list."
+                "Current local filters did not support any monthly candidates. Use the command area to preview a capped broad coverage plan "
+                "instead of repeating small worklists or forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
             "command": coverage_command,
@@ -17175,7 +17176,8 @@ def monthly_picks_next_step_cards(
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                f"Only {candidate_count} of {top_n} conservative slots are filled. Run {coverage_command} to improve local price or fundamentals coverage before forcing weaker names into the list."
+                f"Only {candidate_count} of {top_n} conservative slots are filled. Use the command area to improve local price or fundamentals coverage "
+                "before forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
             "command": coverage_command,
@@ -17188,7 +17190,8 @@ def monthly_picks_next_step_cards(
             "kicker": "NEXT STEP",
             "title": "Improve track-record coverage",
             "body": (
-                f"Candidates exist, but local history is still too short for a fuller benchmark comparison. Run {track_record_command} to refresh or improve track-record coverage before treating performance context as complete."
+                "Candidates exist, but local history is still too short for a fuller benchmark comparison. Use the command area to refresh or improve "
+                "track-record coverage before treating performance context as complete."
             ),
             "badges": ["history needed", "sp y benchmark".replace(" ", "")],
             "command": track_record_command,
@@ -17197,7 +17200,7 @@ def monthly_picks_next_step_cards(
         primary = {
             "kicker": "NEXT STEP",
             "title": "Review current candidates",
-            "body": "The current monthly list and track record are both present. Run make dashboard-smoke first, then move through the candidate cards, score context, and archive together.",
+            "body": "The current monthly list and track record are both present. Confirm the dashboard is healthy, then move through the candidate cards, score context, and archive together.",
             "badges": ["ready", "research only"],
             "command": "make dashboard-smoke",
         }
@@ -17290,7 +17293,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "kicker": "METHODOLOGY",
             "title": "Project scoring method",
             "body": (
-                "Score components and report wording come from this repository's saved local research views and src/monthly_picks.py. "
+                "Score components and report wording come from this repository's saved local research views and project scoring code. "
                 "Public libraries support data/UI. Shipped scoring comes from project code and local data."
             ),
             "badges": ["project rules", "transparent"],
@@ -17299,7 +17302,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "kicker": "BEST USE",
             "title": "Open single-stock review next",
             "body": (
-                "Use a candidate as a starting point for make stock-report-md TICKER=..., then read valuation readiness, "
+                "Use a candidate as a starting point for one-ticker review, then read valuation readiness, "
                 "fundamental gaps, peer gaps, and source readiness before forming any personal research view."
             ),
             "badges": ["next step", "single-stock depth"],
@@ -18234,10 +18237,10 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
     decisions, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
     if decisions is not None and not decisions.empty:
         render_section_header("Decision Quality", "How to interpret Research Now, Monitor, and Blocked by Data before reading the table.")
-        render_signal_cards(decision_interpretation_ladder_cards())
+        render_signal_cards(decision_interpretation_ladder_cards(), show_commands=False)
         with st.expander("Decision interpretation ladder", expanded=False):
             st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
-        render_signal_cards(final_decision_quality_cards(decisions))
+        render_signal_cards(final_decision_quality_cards(decisions), show_commands=False)
         with st.expander("More decision detail: review states, proof queue, and table guide", expanded=False):
             render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock states.")
             render_signal_cards(decision_workflow_summary_cards(decisions))
@@ -18410,7 +18413,8 @@ def render_overview(
             prior_ticker_readiness_frame,
             feature_summary_frame,
             previous_snapshot_label=prior_ticker_readiness_message,
-        )
+        ),
+        show_commands=False,
     )
     render_signal_cards(
         overview_landing_cards(
@@ -18419,9 +18423,13 @@ def render_overview(
             latest_price,
             watchlist_count,
             monthly_count,
-        )
+        ),
+        show_commands=False,
     )
-    render_signal_cards([overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary)])
+    render_signal_cards(
+        [overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary)],
+        show_commands=False,
+    )
     render_section_header("Current Best Paths", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next page.")
     render_signal_cards(
         overview_current_top_surfaces_cards(
@@ -18431,7 +18439,8 @@ def render_overview(
             peer_mapping_queue_frame,
             project_status_payload,
             action_queue_frame,
-        )
+        ),
+        show_commands=False,
     )
     with st.expander("Readiness and data-quality details", expanded=False):
         render_section_header("Data Quality / Readiness", "Use these readiness details before interpreting rankings or research conclusions.")
@@ -18471,7 +18480,8 @@ def render_overview(
             holdings,
             project_status_payload,
             action_queue_frame,
-        )
+        ),
+        show_commands=False,
     )
 
     with st.expander("More readiness and routing detail", expanded=False):
@@ -19407,7 +19417,8 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             top_n,
             latest_price,
             universe_count,
-        )
+        ),
+        show_commands=False,
     )
     render_signal_cards(
         monthly_picks_next_step_cards(
@@ -19416,9 +19427,10 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             equity_frame,
             top_n,
             action_queue_frame,
-        )
+        ),
+        show_commands=False,
     )
-    render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n))
+    render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n), show_commands=False)
     render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and method provenance before reading any ranked names.")
     render_signal_cards(monthly_picks_function_quality_cards())
 
@@ -19428,7 +19440,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             ("Current Month", "Not ready yet" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"), "Built from local monthly context"),
             ("Benchmark", "SPY", "For local track-record comparison"),
             ("Universe", universe_count, "Current local universe size"),
-            ("Latest Price", latest_price, "From data/prices.csv"),
+            ("Latest Price", latest_price, "Latest local price date"),
         ]
     )
     blocker_command = monthly_picks_next_step_cards(
@@ -19443,13 +19455,13 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         render_notice_card(
             "Monthly context not ready yet",
             picks_message or "Build local monthly proof before interpreting this tab. This stays research-only and may still return fewer than five names.",
-            "make monthly",
+            "",
         )
     elif picks_frame.empty:
         render_notice_card(
             "No monthly candidates passed the current filters",
             "The output exists, but the conservative scoring rules did not find supported local candidates. Improve price/fundamental coverage before broadening interpretation.",
-            blocker_command,
+            "",
             tone="warning",
         )
     else:
@@ -19514,7 +19526,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         render_notice_card(
             "Track record needs more local history",
             track_record_status_message(track_frame, equity_frame),
-            blocker_command,
+            "",
         )
     with st.expander("Track-record table and archive detail", expanded=False):
         if track_frame is not None and not track_frame.empty:

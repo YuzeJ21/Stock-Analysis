@@ -738,6 +738,10 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     assert local_path_index < next_tabs_index < status_unlock_index
     assert readiness_expander_index < readiness_index < overview_queue_index
     assert status_unlock_index < project_status_index < next_data_unlocks_index
+    assert "readiness_recent_progress_cards(\n            ticker_readiness_frame," in source
+    assert "overview_current_top_surfaces_cards(\n            coverage_frame," in source
+    assert "overview_best_local_research_path_cards(\n            coverage_frame," in source
+    assert source.count("show_commands=False") >= 8
     assert 'st.expander("Readiness and data-quality details", expanded=False)' in source
     assert 'st.expander("More overview worklists", expanded=False)' in source
     assert 'st.expander("More status, unlock worklists, and local files", expanded=False)' in source
@@ -7545,11 +7549,13 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     assert "does not provide allocation, position sizing, account actions, or direct recommendations" in rendered
     assert "empty slots and missing fields stay visible" in rendered
     assert "project scoring method" in rendered
-    assert "src/monthly_picks.py" in rendered
+    assert "project scoring code" in rendered
+    assert "src/monthly_picks.py" not in rendered
     assert "libraries support data/ui" in rendered
     assert "shipped scoring comes from project code and local data" in rendered
     assert "plugins can help development review" not in rendered
-    assert "make stock-report-md ticker=..." in rendered
+    assert "one-ticker review" in rendered
+    assert "make stock-report-md ticker=..." not in rendered
     assert "valuation readiness" in rendered
     assert "source readiness" in rendered
     assert "broker" not in rendered
@@ -7583,7 +7589,8 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": "Return3M"}] * 4)
     cards = dashboard.monthly_picks_next_step_cards(picks, None, None, 5, queue)
     assert cards[0]["title"] == "Improve candidate coverage"
-    assert "make price-worklist" in cards[0]["body"]
+    assert "use the command area to improve local price or fundamentals coverage" in cards[0]["body"].lower()
+    assert "make price-worklist" not in cards[0]["body"]
 
     full_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": ""}] * 5)
     cards = dashboard.monthly_picks_next_step_cards(full_picks, None, None, 5, queue)
@@ -7595,7 +7602,8 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     cards = dashboard.monthly_picks_next_step_cards(full_picks, track, equity, 5, queue)
     assert cards[0]["title"] == "Review current candidates"
     assert cards[0]["command"] == "make dashboard-smoke"
-    assert "dashboard-smoke" in cards[0]["body"]
+    assert "confirm the dashboard is healthy" in cards[0]["body"].lower()
+    assert "dashboard-smoke" not in cards[0]["body"]
 
 
 def test_monthly_picks_page_copy_uses_context_and_proof_language():
@@ -7607,6 +7615,8 @@ def test_monthly_picks_page_copy_uses_context_and_proof_language():
     assert "Built from local monthly context" in source
     assert "Track-record proof is still unavailable" in source
     assert "Track-record proof is calculated only from local historical price data" in source
+    assert "render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n), show_commands=False)" in source
+    assert "show_commands=False,\n    )\n    render_signal_cards(\n        monthly_picks_next_step_cards" in source
     assert "Monthly candidate outputs are unavailable right now" not in source
     assert "Generated from local outputs" not in source
     assert "Track-record files are still unavailable" not in source
@@ -7632,7 +7642,8 @@ def test_monthly_picks_track_record_gap_points_to_blocker_command():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "improve track-record coverage" in rendered
-    assert "make price-worklist" in rendered
+    assert "use the command area to refresh or improve" in rendered
+    assert cards[0]["command"] == "make price-worklist"
 
 
 def test_monthly_picks_track_record_gap_uses_track_record_front_door_without_blocker_queue():
@@ -7643,7 +7654,7 @@ def test_monthly_picks_track_record_gap_uses_track_record_front_door_without_blo
 
     assert cards[0]["title"] == "Improve track-record coverage"
     assert cards[0]["command"] == "make track-record"
-    assert "make track-record" in rendered
+    assert "use the command area to refresh or improve" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -7656,7 +7667,7 @@ def test_monthly_picks_coverage_gap_uses_data_wizard_without_blocker_queue():
 
     assert cards[0]["title"] == "Improve candidate coverage"
     assert cards[0]["command"] == "make data-wizard TOP_N=10"
-    assert "make data-wizard top_n=10" in rendered
+    assert "use the command area to improve local price or fundamentals coverage" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -7681,8 +7692,8 @@ def test_monthly_picks_empty_candidates_use_dry_run_loop_not_random_ticker():
 
     assert cards[0]["title"] == "Improve candidate coverage"
     assert cards[0]["command"] == "make price-refresh-loop DRY_RUN=1"
-    assert "make price-refresh-loop DRY_RUN=1" in rendered
-    assert "preview the capped broad coverage plan" in rendered
+    assert "make price-refresh-loop DRY_RUN=1" not in cards[0]["body"]
+    assert "preview a capped broad coverage plan" in cards[0]["body"]
     assert "make focus-price TICKER=AIAI" not in rendered
 
 
@@ -15845,6 +15856,8 @@ def test_final_watchlist_tables_are_collapsed_after_decision_cards():
     assert 'st.expander("Decision proof queue detail", expanded=False)' in source
     assert 'st.expander("Research decision table", expanded=False)' in source
     assert 'st.expander("Complete research-state table", expanded=False)' in source
+    assert "render_signal_cards(decision_interpretation_ladder_cards(), show_commands=False)" in source
+    assert "render_signal_cards(final_decision_quality_cards(decisions), show_commands=False)" in source
 
 
 def test_final_decision_table_surfaces_row_level_decision_boundary():
