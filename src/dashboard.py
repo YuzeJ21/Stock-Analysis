@@ -7793,7 +7793,7 @@ def peer_readiness_product_cards(
         {
             "kicker": "PEER QUEUE",
             "title": f"{queue_rows} queued",
-            "body": "Use capped peer worklists and import draft CSV validation before relying on peer-relative context.",
+            "body": "Use capped peer worklists and import-file validation before relying on peer-relative context.",
             "badges": ["TOP_N safe", "preview first"],
             "command": "make peer-mapping-queue TOP_N=25",
         },
@@ -12735,7 +12735,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
             "Status": f"SEC_USER_AGENT={'present' if sec_present else 'missing'}; STOOQ_API_KEY={'present' if stooq_present else 'missing'}",
             "Freshness": "Missing credentials should block only the remote workflow, not local CSV reports.",
             "Local source": ".zshrc or shell environment",
-            "Manual path": "import draft CSV import folders remain available",
+            "Manual path": "local import-file folders remain available",
             "Rejected rows": "not applicable",
             "Next command": "make project-status",
         },
@@ -20285,7 +20285,7 @@ def render_market_command_center(
         st.info("No peer workflow rows match the current filter. Try All peer-blocked or run make readiness.")
     else:
         st.caption(
-            f"Showing {len(peer_studio)} peer workflow row(s). Use make peer-mapping-queue TOP_N=25 or focus commands before editing peer import draft CSVs."
+            f"Showing {len(peer_studio)} peer workflow row(s). Use make peer-mapping-queue TOP_N=25 or focus commands before editing peer import files."
         )
         peer_columns = peer_mapping_studio_table_columns(peer_studio)
         st.dataframe(clean_display_frame(peer_studio[peer_columns]), width="stretch", hide_index=True)
