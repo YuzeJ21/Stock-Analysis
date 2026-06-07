@@ -393,7 +393,7 @@ def _normalized_error_message(status: str, ticker: str, error_message: object) -
         return ""
     message = message.replace(
         "Set STOOQ_API_KEY or use the manual price import draft workflow.",
-        "Set STOOQ_API_KEY or place verified CSVs in data/staged/prices/ and run make import-prices.",
+        "Set STOOQ_API_KEY or use verified local price import files.",
     )
 
     if status != "parse_error":
@@ -466,8 +466,11 @@ def _recommended_action_needs_refresh(status: str, recommended_action: str, tick
         return False
     if normalized_action in {
         "retry later or use the manual price import draft workflow in data/imports/prices.csv.",
+        "retry later or use the manual price import file workflow in data/imports/prices.csv.",
         "use the manual price import draft workflow in data/imports/prices.csv.",
+        "use the manual price import file workflow in data/imports/prices.csv.",
         "use the manual price import draft workflow.",
+        "use the manual price import file workflow.",
     }:
         return True
     if "ohlcv rows into data/imports/prices.csv" in normalized_action:

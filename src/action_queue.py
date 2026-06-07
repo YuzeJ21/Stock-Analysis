@@ -40,8 +40,11 @@ ACTION_QUEUE_COLUMNS = [
 PROBLEM_PRICE_STATUSES = {"parse_error", "source_unavailable", "network_error", "no_rows", "failed"}
 STALE_PRICE_RECOMMENDED_ACTIONS = {
     "use the manual price import draft workflow.",
+    "use the manual price import file workflow.",
     "retry later or use the manual price import draft workflow in data/imports/prices.csv.",
+    "retry later or use the manual price import file workflow in data/imports/prices.csv.",
     "use the manual price import draft workflow in data/imports/prices.csv.",
+    "use the manual price import file workflow in data/imports/prices.csv.",
 }
 STALE_ONBOARDING_REASONS = {
     "prices",
