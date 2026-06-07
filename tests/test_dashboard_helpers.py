@@ -336,16 +336,18 @@ def test_sidebar_navigation_note_matches_selected_page():
 def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
     captured: dict[str, object] = {}
 
-    def fake_markdown(body: str, unsafe_allow_html: bool = False) -> None:
+    def fake_html(body: str) -> None:
         captured["body"] = body
-        captured["unsafe_allow_html"] = unsafe_allow_html
 
-    monkeypatch.setattr(dashboard.st, "markdown", fake_markdown)
+    def fail_markdown(*_args, **_kwargs) -> None:
+        raise AssertionError("Global dashboard CSS should not be rendered through markdown.")
+
+    monkeypatch.setattr(dashboard.st, "html", fake_html)
+    monkeypatch.setattr(dashboard.st, "markdown", fail_markdown)
 
     dashboard.apply_dashboard_theme()
 
     css = str(captured["body"])
-    assert captured["unsafe_allow_html"] is True
     assert '[data-testid="stAppViewContainer"]' in css
     assert '[data-testid="stDataFrame"]' in css
     assert '[data-testid="stExpander"]' in css
