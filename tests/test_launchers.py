@@ -1186,7 +1186,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     refresh_index = dashboard.index("make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30")
 
     assert dry_run_index < refresh_index
-    assert "broad refresh churn should be inspected before it is committed or shared publicly" in dashboard
+    assert "Inspect broad refresh changes before committing or sharing them publicly" in dashboard
+    assert "broad refresh churn should be inspected before it is committed or shared publicly" not in dashboard
     assert "Build Local Report Preview" in dashboard
     assert "Generate Local Stock Report" not in dashboard
     assert "Use research-grade online data" in dashboard
@@ -1210,6 +1211,15 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "names checked" in dashboard
     assert "CSV-first research cockpit" not in dashboard
     assert "stocks checked" not in dashboard
+    assert "Today's Best Local Research Path" in dashboard
+    assert "One compact review path" in dashboard
+    assert "operator path" not in dashboard
+    assert "Local file checklist" in dashboard
+    assert "Local generated file checklist" not in dashboard
+    assert "Next Steps" in dashboard
+    assert "Next Action Console" not in dashboard
+    assert "local file changes" in dashboard
+    assert "generated-data churn" not in dashboard
 
 
 def test_stock_report_cli_help_uses_readable_report_language():

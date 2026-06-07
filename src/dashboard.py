@@ -18253,7 +18253,7 @@ def render_overview(
         render_section_header("Current Review Queue", "Which currently usable names are easiest to review next with the local data already available.")
         render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
 
-    render_section_header("Today's Best Local Research Path", "One compact operator path: the strongest locally usable name, the next project command, and the next page to open after that.")
+    render_section_header("Today's Best Local Research Path", "One compact review path: the strongest locally usable name, the next project command, and the next page to open after that.")
     render_signal_cards(
         overview_best_local_research_path_cards(
             coverage_frame,
@@ -18418,10 +18418,10 @@ def render_overview(
                     "Message": message or "",
                 }
             )
-        with st.expander("Local generated file checklist", expanded=False):
+        with st.expander("Local file checklist", expanded=False):
             render_context_note(
-                "Local generated files.",
-                "These CSVs are useful for review, but broad refresh churn should be inspected before it is committed or shared publicly.",
+                "Local review files.",
+                "These CSVs are useful for review. Inspect broad refresh changes before committing or sharing them publicly.",
             )
             st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
 
@@ -18908,7 +18908,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
             {
                 "Roadmap Area": "Product workflow",
                 "Current Status": "Implemented",
-                "Evidence": "Universe Layers, grouped Next Action Console, source/freshness notes, row limits, and copy-only commands are visible in the dashboard.",
+                "Evidence": "Universe Layers, grouped Next Steps, source/freshness notes, row limits, and copy-only commands are visible in the dashboard.",
                 "Next Safe Step": "Use Home or Overview to choose a capped or ticker-targeted command.",
                 "Copy Command": "make dashboard-smoke",
             },
@@ -20109,10 +20109,10 @@ def render_market_command_center(
             width="stretch",
             hide_index=True,
         )
-    render_section_header("Next Action Console", "Grouped feature-level actions with source/freshness notes. These cards are copyable commands only; the dashboard does not run them.")
+    render_section_header("Next Steps", "Grouped actions with source/freshness notes. These cards are copyable commands only; the dashboard does not run them.")
     render_signal_cards(next_action_console_cards(action_console))
     if action_console.empty:
-        st.info("No grouped action console rows are available. Run make project-status and make onboarding TOP_N=10 to refresh action guidance.")
+        st.info("No grouped next-step rows are available. Run make project-status and make onboarding TOP_N=10 to refresh action guidance.")
     else:
         st.caption("Commands are capped, ticker-targeted, or preview/import oriented. Copy them only after reviewing the source and safety notes.")
         st.dataframe(clean_display_frame(action_console), width="stretch", hide_index=True)
@@ -20337,7 +20337,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     with st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False):
-        render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local generated-data churn.")
+        render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
         render_section_header("Analysis Unlock Map", "What each trusted data path makes available to review next.")
         render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
