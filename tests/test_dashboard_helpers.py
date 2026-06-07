@@ -11520,7 +11520,9 @@ def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
         "Data Quality Unlock Guide",
         "Data Quality Unlock Guide rows",
         "Coverage unlock guide has not been generated",
-        "Data Coverage Unlock Guide Rows",
+        "Coverage Guide Rows",
+        "Top Data Actions",
+        "Peer Review Queue",
     ):
         assert phrase in source
 
@@ -11528,6 +11530,9 @@ def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
         '"data_coverage_wizard.csv": "Data Coverage Wizard"',
         '"data_quality_wizard.csv": "Data Quality Wizard"',
         "Data Coverage Wizard Rows",
+        "Data Coverage Unlock Guide Rows",
+        "Top Onboarding Actions",
+        "Peer Mapping Queue",
         "Coverage wizard has not been generated",
     ):
         assert old_label not in source

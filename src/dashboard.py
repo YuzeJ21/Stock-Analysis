@@ -20898,7 +20898,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     st.info(correlation_message or "No correlation rows are available.")
 
             if actions_frame is not None and not actions_frame.empty:
-                with st.expander("Top Onboarding Actions", expanded=False):
+                with st.expander("Top Data Actions", expanded=False):
                     top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
                     action_columns = [
                         column
@@ -20910,7 +20910,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 st.info(actions_message)
 
             if wizard_frame is not None and not wizard_frame.empty:
-                with st.expander("Data Coverage Unlock Guide Rows", expanded=False):
+                with st.expander("Coverage Guide Rows", expanded=False):
                     wizard_columns = [
                         column
                         for column in [
@@ -21008,7 +21008,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             elif sec_stage_queue_message:
                 st.info(sec_stage_queue_message)
             if peer_mapping_queue_frame is not None and not peer_mapping_queue_frame.empty:
-                with st.expander("Peer Mapping Queue", expanded=False):
+                with st.expander("Peer Review Queue", expanded=False):
                     peer_columns = operator_workflow_table_columns(
                         peer_mapping_queue_frame,
                         [
