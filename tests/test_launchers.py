@@ -221,6 +221,12 @@ def test_makefile_help_documents_key_workflows():
 
     assert makefile.index("make stock-report-md TICKER=NVDA") < makefile.index("make stock-report TICKER=NVDA")
     assert makefile.index("First-time path:") < makefile.index("Core:")
+    assert makefile.index("make price-refresh-loop DRY_RUN=1 Preview") < makefile.index(
+        "make price-refresh [TOP_N=25]"
+    )
+    assert makefile.index("make price-refresh-loop [MAX_CANDIDATES=3500]") < makefile.index(
+        "make price-refresh TICKERS=NVDA,MSFT"
+    )
 
 
 def test_price_refresh_defaults_to_capped_broad_universe_batch():
