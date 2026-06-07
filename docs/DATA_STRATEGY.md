@@ -30,6 +30,17 @@ Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/i
 6. For manual imports, run `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
 7. Prove the result with `make readiness`, `make project-status`, and `make stock-report-md TICKER=...`.
 
+## Pilot Evidence Checklist
+
+A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists.
+
+- The single-stock report opens with the correct mode: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data-unlock only.
+- DCF-ready companies show assumptions, sensitivity, source readiness, and any locked optional context before interpretation.
+- Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next.
+- Fundamentals-limited companies show the missing fields and whether SEC staging or manual fundamentals imports are the next trusted path.
+- Optional earnings or analyst-estimate context stays locked unless trusted local rows pass validation, preview, and apply.
+- The final proof is a regenerated report plus refreshed readiness counts; broad generated CSV churn should still stay out of the public branch unless intentionally reviewed.
+
 ## What Not To Automate Yet
 
 - Broad fundamentals claims without trusted source rows.

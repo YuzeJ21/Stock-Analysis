@@ -1352,6 +1352,10 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Provider-assisted does not mean provider-decided" in data_strategy
     assert "make price-worklist TOP_N=10" in data_strategy
     assert "then preview any broader update with `make price-refresh-loop DRY_RUN=1`" in data_strategy
+    assert "Pilot Evidence Checklist" in data_strategy
+    assert "A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists." in data_strategy
+    assert "Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next." in data_strategy
+    assert "The final proof is a regenerated report plus refreshed readiness counts" in data_strategy
     assert "Applying SEC/manual fundamentals rows without validation and preview" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
     for phrase in (
