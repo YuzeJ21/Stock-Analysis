@@ -11751,9 +11751,11 @@ def test_output_tab_function_quality_cards_explain_broad_page_limits():
     assert "no automatic timing call" in rendered
     assert "review holding purpose and risk" in rendered
     assert "no portfolio action instruction" in rendered
-    assert "does not rebalance" in rendered
+    assert "does not provide allocation changes" in rendered
     assert "research context only" in rendered
     assert "market-timing signals" in rendered
+    assert "rebalance" not in rendered
+    assert "resize" not in rendered
     assert "trade" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

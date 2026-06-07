@@ -13625,7 +13625,7 @@ def output_tab_function_quality_cards(title: str) -> list[dict[str, object]]:
             {
                 "kicker": "WHAT IT CANNOT DO",
                 "title": "No portfolio action instruction",
-                "body": "This page does not rebalance, resize, place account actions, or recommend portfolio moves. It keeps review context separate from decisions.",
+                "body": "This page does not provide allocation changes, account actions, or portfolio-move instructions. It keeps review context separate from decisions.",
                 "badges": ["review only", "no account actions"],
             },
         ]
