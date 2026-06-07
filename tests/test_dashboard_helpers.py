@@ -7552,7 +7552,7 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     assert "project scoring method" in rendered
     assert "project scoring code" in rendered
     assert "src/monthly_picks.py" not in rendered
-    assert "libraries support data/ui" in rendered
+    assert "libraries support data handling and the interface" in rendered
     assert "shipped scoring comes from project code and local data" in rendered
     assert "plugins can help development review" not in rendered
     assert "one-ticker review" in rendered

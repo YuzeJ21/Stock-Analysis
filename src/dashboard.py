@@ -4598,7 +4598,7 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
                 "Function": "Methodology / provenance",
                 "Current Status": "Project rules",
                 "What To Trust": (
-                    "Rules live in project code; libraries and adapters support data/UI. "
+                    "Rules live in project code; libraries and adapters support data handling and the interface. "
                     "Shipped analysis comes from project code and local data. Source rows provide inputs; "
                     "project gates, DCF math, peer blockers, and report wording decide what can be analyzed now and what remains locked."
                 ),
@@ -4934,7 +4934,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
             "title": logic.get("status", "Project rules"),
             "body": logic.get(
                 "trust",
-                    "Rules live in project code; libraries and adapters support data/UI. Shipped analysis comes from project code and local data. Source rows provide inputs; project gates, DCF math, peer blockers, and report wording decide what can be analyzed now and what remains locked.",
+                    "Rules live in project code; libraries and adapters support data handling and the interface. Shipped analysis comes from project code and local data. Source rows provide inputs; project gates, DCF math, peer blockers, and report wording decide what can be analyzed now and what remains locked.",
             ),
             "badges": ["project rules", "transparent"],
         },
@@ -17294,7 +17294,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "title": "Project scoring method",
             "body": (
                 "Score components and report wording come from this repository's saved local research views and project scoring code. "
-                "Public libraries support data/UI. Shipped scoring comes from project code and local data."
+                "Public libraries support data handling and the interface. Shipped scoring comes from project code and local data."
             ),
             "badges": ["project rules", "transparent"],
         },
