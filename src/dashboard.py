@@ -5251,6 +5251,21 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
     ]
 
 
+def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "ONE-TICKER REVIEW",
+            "title": "Build one readable report",
+            "body": (
+                "Select a ticker, build the local preview, then read At A Glance first. "
+                "The report separates ready analysis, locked inputs, excluded ETF/index DCF, and the next copy-only local step."
+            ),
+            "badges": ["plain English", "readiness first", "copy-only"],
+            "command": "make stock-report-md TICKER=NVDA",
+        }
+    ]
+
+
 def stock_report_technical_context_frame(report_payload: dict[str, object]) -> pd.DataFrame:
     screener_context = report_payload.get("screener_context", {}) or {}
     momentum = screener_context.get("momentum_leaders", {}) or {}
@@ -19353,7 +19368,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
-    render_signal_cards(single_stock_report_intro_cards())
+    render_signal_cards(single_stock_report_intro_summary_cards())
+    with st.expander("How single-stock reports work", expanded=False):
+        render_signal_cards(single_stock_report_intro_cards())
 
     if st.button("Build Local Report Preview", key="single-stock-report-button"):
         if not ticker:

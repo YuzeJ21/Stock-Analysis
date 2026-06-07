@@ -9355,7 +9355,9 @@ def test_stock_report_technical_context_frame_formats_missing_values_cleanly():
 
 def test_single_stock_report_intro_cards_explain_output_before_generation():
     cards = dashboard.single_stock_report_intro_cards()
+    summary_cards = dashboard.single_stock_report_intro_summary_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    summary_rendered = " ".join(str(value) for card in summary_cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
         "WHAT THIS MEANS",
@@ -9376,13 +9378,37 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "start with a demo or one selected ticker" in rendered
     assert "for a visitor demo, copy the markdown report command" in rendered
     assert "read the at a glance and reader guide before opening detailed tables" in rendered
+    assert len(summary_cards) == 1
+    assert summary_cards[0]["kicker"] == "ONE-TICKER REVIEW"
+    assert "build one readable report" in summary_rendered
+    assert "select a ticker, build the local preview, then read at a glance first" in summary_rendered
+    assert "locked inputs" in summary_rendered
+    assert "excluded etf/index dcf" in summary_rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=apld" in rendered
+    assert "make stock-report-md ticker=nvda" in summary_rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+    assert "broker" not in summary_rendered
+    assert "order" not in summary_rendered
+    assert "trading" not in summary_rendered
+    assert "buy" not in summary_rendered
+    assert "sell" not in summary_rendered
+
+
+def test_single_stock_page_keeps_full_intro_collapsed_before_build():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
+    expander_index = source.index('st.expander("How single-stock reports work"')
+    full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
+    build_button_index = source.index('st.button("Build Local Report Preview"')
+
+    assert summary_index < expander_index < full_intro_index < build_button_index
+    assert 'st.expander("How single-stock reports work", expanded=False)' in source
 
 
 def test_stock_report_source_frame_hides_raw_missing_values():
