@@ -751,7 +751,7 @@ def test_product_spec_keeps_execution_features_permanently_out_of_scope():
 
     for phrase in (
         "## Current Product Surfaces",
-        "`Home`: plain-language readiness cards, next-action cards, methodology ladder, and example report comparisons",
+        "`Home`: plain-language readiness cards and next-action cards first, with methodology ladder and example report comparisons in collapsed sections",
         "`Single-Stock Report`: ticker-level At A Glance status, methodology cue, analysis quality, valuation state, source readiness check, and copyable local unlock commands",
         "`Data Health`: trusted local data paths, import validation, rejected-row reports, and unlock queues",
         "`Value / Re-rating`: DCF-ready, peer-limited, blocked, and ETF/index/fund excluded valuation states",
