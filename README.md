@@ -54,7 +54,7 @@ Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final d
 
 ## Preview
 
-The dashboard is designed as an operator console: `Home` shows readiness, blockers, methodology, examples, and next commands; focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+The dashboard is designed as a guided research workspace: `Home` shows readiness, blockers, methodology, examples, and next commands; focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 
 ## Quick Start
 
@@ -114,7 +114,7 @@ In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticke
 
 Dashboard pages also support simple local deep links such as `http://localhost:8501/?page=single-stock-report`.
 
-For a deeper local runbook, see [Operator Guide](docs/OPERATOR_GUIDE.md).
+For deeper local workflow details, see [Operator Guide](docs/OPERATOR_GUIDE.md).
 
 Targeted data-unlock examples:
 ```bash
@@ -133,7 +133,7 @@ make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECON
 make diff-hygiene
 ```
 
-The dry run prints the requested target, rounded batch capacity, estimated wait time, resume behavior, and next sequence before changing local files. For broad coverage, set `MAX_CANDIDATES` and keep `TOP_N` capped so the loop calculates the needed batches for you; the final batch can have unused capacity if fewer missing tickers remain. Before a real broad run, use `make readiness-snapshot`; after the run, use `make diff-hygiene` before staging so refreshed generated CSV churn stays local unless intentionally reviewed. Advanced users can still tune `BATCHES` directly. Run the capped loop only when you are ready to update local CSVs and review the generated data churn. You should not need to repeat a 25-ticker command 100+ times.
+The dry run prints the requested target, rounded batch capacity, estimated wait time, resume behavior, and next sequence before changing local files. For broad coverage, set `MAX_CANDIDATES` and keep `TOP_N` capped so the loop calculates the needed batches for you; the final batch can have unused capacity if fewer missing tickers remain. Before a real broad run, use `make readiness-snapshot`; after the run, use `make diff-hygiene` before staging so refreshed CSV changes stay local unless intentionally reviewed. You can still tune `BATCHES` directly for unusual local runs. Run the capped loop only when you are ready to update local CSVs and review the changed files. You should not need to repeat a 25-ticker command 100+ times.
 
 Preview-first import flow:
 
@@ -146,9 +146,9 @@ make imports-apply
 
 ## Generated Data Hygiene
 
-Small example outputs are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and generated report CSVs are local working data by default. Review them before committing; do not publish broad refresh churn unless intentionally selected.
+Small example outputs are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.
 
-Before sharing or committing, run `make public-check`, then `make diff-hygiene`. For a large dirty tree, run `make diff-hygiene-files` and review the ignored local pathspec files under `outputs/staging/` before staging. After staging, run `make staged-hygiene-check` before committing. The public check includes `make public-wording-check`, which scans visitor-facing docs, dashboard/report copy, and sample reports for unsupported advice, execution language, internal development notes, and stale repo links. Use the safe staging suggestion for product files and reviewed Markdown reports, and leave generated CSV/JSON churn out unless it is the specific artifact you intend to publish.
+Before sharing or committing, run `make public-check`, then `make diff-hygiene`. For a large dirty tree, run `make diff-hygiene-files` and review the ignored local pathspec files under `outputs/staging/` before staging. After staging, run `make staged-hygiene-check` before committing. The public check includes `make public-wording-check`, which scans visitor-facing docs, dashboard/report copy, and sample reports for unsupported advice, execution language, internal development notes, and stale repo links. Use the safe staging suggestion for product files and reviewed Markdown reports, and leave large generated CSV/JSON changes out unless they are the specific artifact you intend to publish.
 
 The tracked `data/holdings.csv` file is a zero-position sample for portfolio-review demos. Keep real holdings, account exports, and personal cost-basis details out of the public branch.
 
@@ -176,4 +176,4 @@ The app is organized around `src/dashboard.py`, `src/readiness_engine.py`, `src/
 
 ## Roadmap Snapshot
 
-The next product stage is not more unsupported indicators. It is better operator workflow: clearer readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source/freshness auditability.
+The next product stage is not more unsupported indicators. It is a clearer research workflow: readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source/readiness explanations.
