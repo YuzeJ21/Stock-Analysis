@@ -20554,7 +20554,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
     with st.expander("Detailed market-wide review", expanded=False):
         render_section_header(
-            "Advanced Unlock Map",
+            "Detailed Unlock Map",
             "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context.",
         )
         render_signal_cards(
@@ -20848,7 +20848,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             )
             render_signal_cards(dcf_missing_field_guide_cards(field_guide))
             if not field_guide.empty:
-                with st.expander("DCF missing-field guide table", expanded=False):
+                with st.expander("DCF missing-field details", expanded=False):
                     st.dataframe(clean_display_frame(field_guide), width="stretch", hide_index=True)
             if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
                 dcf_columns = [
@@ -20897,7 +20897,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "Schema-only examples, trusted input paths, rejected-row reports, and readiness proof before optional context appears.",
             )
             render_signal_cards(optional_context_ladder_cards(optional_ladder))
-            with st.expander("Optional context ladder table", expanded=False):
+            with st.expander("Optional context details", expanded=False):
                 st.dataframe(clean_display_frame(optional_ladder), width="stretch", hide_index=True)
             render_section_header(
                 "First Trusted Optional Context Unlock",

@@ -586,20 +586,21 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     action_paths_index = source.index('render_section_header("Copy-Only Next Steps"')
     planning_expander_index = source.index('st.expander("Unlock planning cards"')
     market_expander_index = source.index('st.expander("Detailed market-wide review"')
-    advanced_map_index = source.index('render_section_header(\n            "Advanced Unlock Map"', market_expander_index)
+    detailed_map_index = source.index('render_section_header(\n            "Detailed Unlock Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
 
     assert beginner_note_index < quick_read_index < fix_first_index < action_paths_index < planning_expander_index
     assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
-    assert market_expander_index < advanced_map_index < market_command_index
+    assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Read these next three sections first." in source
     assert "without opening the detailed market-wide review" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Unlock planning cards", expanded=False)' in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
+    assert "Advanced Unlock Map" not in source
     assert "detailed market-wide workspace" not in source
     assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
     assert 'st.expander("Guided coverage plan details", expanded=False)' in source
@@ -14744,7 +14745,8 @@ def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without
     assert "treat these as repair steps, not company-quality conclusions" in rendered
     assert "qqq" not in frame["Example Tickers"].astype(str).str.lower().str.cat(sep=" ")
     assert "render_signal_cards(dcf_missing_field_guide_cards(field_guide))" in source
-    assert "dcf missing-field guide table" in source.lower()
+    assert 'st.expander("DCF missing-field details", expanded=False)' in source
+    assert "dcf missing-field guide table" not in source.lower()
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -16018,7 +16020,8 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert "before treating optional context as available" in rendered
     assert "missing rows must not appear as event timing, consensus, revision, upside, downside, undervalued, or overvalued analysis" in rendered
     assert "render_signal_cards(optional_context_ladder_cards(optional_ladder))" in source
-    assert "optional context ladder table" in source.lower()
+    assert 'st.expander("Optional context details", expanded=False)' in source
+    assert "optional context ladder table" not in source.lower()
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
