@@ -9845,6 +9845,8 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
     assert 'st.expander("More quick-read cards", expanded=False)' in source
     assert "Open this only when you want price, performance, data-quality, and next-step cards" in source
     assert 'st.expander("More report interpretation and methodology", expanded=False)' in source
+    assert 'st.expander("Detailed readiness status", expanded=False)' in source
+    assert 'st.expander("Detailed function status", expanded=False)' not in source
 
 
 def test_stock_report_source_frame_hides_raw_missing_values():

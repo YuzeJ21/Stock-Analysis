@@ -19692,7 +19692,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         )
         st.markdown("#### What This Report Can Evaluate")
         render_signal_cards(stock_report_function_quality_cards(report_payload))
-        with st.expander("Detailed function status", expanded=False):
+        with st.expander("Detailed readiness status", expanded=False):
             st.dataframe(
                 clean_display_frame(stock_report_function_quality_frame(report_payload)),
                 width="stretch",
