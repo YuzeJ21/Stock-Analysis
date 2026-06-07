@@ -17953,7 +17953,7 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
         with st.expander(f"{page_label}: {title}", expanded=False):
             st.dataframe(style_frame(presentation_frame(section_frame)), width="stretch", hide_index=True)
 
-    with st.expander(f"{page_label}: Complete table", expanded=False):
+    with st.expander(f"{page_label}: Complete review list", expanded=False):
         st.dataframe(style_frame(presentation_frame(filtered)), width="stretch", hide_index=True)
 
 
@@ -20343,7 +20343,7 @@ def render_market_command_center(
 
     render_section_header("Readiness Explorer", "Filter thousands of tickers without rendering the full market table by default.")
     render_context_note(
-        "Table guide.",
+        "Review guide.",
         "Start with Active research only and the default row limit. Use filters or search to narrow the list; missing rows are not analysis conclusions.",
     )
     filter_cols = st.columns([1.4, 1.4, 1.4, 1.4, 1.4])
