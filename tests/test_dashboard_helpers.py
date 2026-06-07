@@ -14876,6 +14876,13 @@ def test_decision_interpretation_ladder_cards_keep_next_action_copy_only():
     assert cards[0]["command"] == "make project-status"
     assert cards[1]["command"] == "make onboarding TOP_N=10"
     assert cards[2]["command"] == "make status-check TOP_N=5"
+    assert [card["title"] for card in cards] == [
+        "Read the bucket",
+        "Read the blocker",
+        "Copy the next action",
+    ]
+    assert "3. read the blocker" not in rendered
+    assert "5. copy the next action" not in rendered
     assert "decision reading order" in rendered
     assert "blocker before conclusion" in rendered
     assert "next action is copy-only" in rendered

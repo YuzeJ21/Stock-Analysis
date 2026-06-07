@@ -9846,21 +9846,21 @@ def decision_interpretation_ladder_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "DECISION READING ORDER",
-            "title": format_missing(bucket.get("Step"), "Read the bucket"),
+            "title": "Read the bucket",
             "body": format_missing(bucket.get("What It Means"), ""),
             "badges": ["workflow state", "not advice"],
             "command": format_missing(bucket.get("Safe Command"), ""),
         },
         {
             "kicker": "BLOCKER BEFORE CONCLUSION",
-            "title": format_missing(blocker.get("Step"), "Read the blocker"),
+            "title": "Read the blocker",
             "body": format_missing(blocker.get("What To Check Next"), ""),
             "badges": ["missing data first", "no inference"],
             "command": format_missing(blocker.get("Safe Command"), ""),
         },
         {
             "kicker": "NEXT ACTION IS COPY-ONLY",
-            "title": format_missing(next_action.get("Step"), "Copy the next action"),
+            "title": "Copy the next action",
             "body": format_missing(next_action.get("What It Means"), ""),
             "badges": ["manual terminal workflow", "research-only"],
             "command": format_missing(next_action.get("Safe Command"), ""),
