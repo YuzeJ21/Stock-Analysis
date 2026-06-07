@@ -15860,7 +15860,7 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert "prove optional context before showing it" in rendered
     assert "copy next: `make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding top_n=10`" in rendered
-    assert "schema-only examples and templates remain operator aids, not data" in rendered
+    assert "schema-only examples and templates remain workflow aids, not data" in rendered
     assert "optional proof ladder" in rendered
     assert "template -> import -> readiness -> report" in rendered
     assert "schema-only template, trusted local rows, import command, validation, preview, apply, optional-context readiness, then the single-stock report" in rendered
@@ -16019,7 +16019,7 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert company["primary_blocker"] == "peers"
     assert company["data_confidence"] == "medium-high"
     assert etf["data_confidence"] == "limited"
-    assert "Operator summary:" in company["operator_summary"]
+    assert "Research workflow summary:" in company["operator_summary"]
     assert "Next blocker: peers" in company["operator_summary"]
     assert "peer-relative valuation remains withheld" in company["operator_summary"]
     assert company["peer_count"] == 2
@@ -16031,7 +16031,7 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert etf["peer_mapping_status"] == "monitor_context"
     assert "no peer import is required" in etf["next_peer_action"].lower()
     assert etf["next_action"] == "Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded."
-    assert "Operator summary: Monitor context" in etf["operator_summary"]
+    assert "Research workflow summary: Monitor context" in etf["operator_summary"]
     assert "operating-company DCF and peer valuation are excluded" in etf["operator_summary"]
     assert "excluded" in str(etf["dcf_reason"]).lower()
     assert "DCF is excluded" in etf["one_minute_summary"]
@@ -16072,7 +16072,7 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "nvda: partial" in rendered
-    assert "Operator summary" in detail["Field"].tolist()
+    assert "Research workflow summary" in detail["Field"].tolist()
     assert "one-minute read" in rendered
     assert "decision: research candidate - dcf ready but peer blocked" in rendered
     assert "data confidence: medium-high" in rendered
@@ -18466,7 +18466,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert brief.loc[brief["ticker"].eq("META"), "exact_command"].iloc[0] == "make stock-report-md TICKER=META"
     assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
     assert brief.loc[brief["ticker"].eq("META"), "purpose_status"].iloc[0] == "Purpose review needed"
-    assert "Operator summary: Purpose review needed" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
+    assert "Research workflow summary: Purpose review needed" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
     assert "Next blocker: peers" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
     assert "Invalidation:" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
     assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
@@ -18476,14 +18476,14 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "operating-company dcf and peer valuation are excluded" in qqq_summary
     assert "next blocker: peers" not in qqq_summary
     assert "research brief" in rendered
-    assert "operator summary" in rendered
+    assert "research workflow summary" in rendered
     assert "purpose alignment needs review" in rendered
     assert "supported analysis" in rendered
     assert "unsupported analysis" in rendered
     assert "peer-relative context is incomplete" in rendered
     assert "operating-company dcf is excluded" in rendered
     assert cards[0]["title"] == "2 active ticker(s)"
-    assert "operator summary plus purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
+    assert "research workflow summary plus purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
     assert "purpose check" in rendered_cards
     assert "purpose groups" in rendered_cards
     assert "next question" in rendered_cards
@@ -18585,7 +18585,7 @@ def test_active_research_brief_frame_builds_schema_light_fallbacks_without_overc
     assert "BROAD" not in set(brief["ticker"])
     assert not brief[rich_columns].apply(lambda column: column.astype(str).str.lower().eq("not available")).any().any()
     assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
-    assert "operator summary" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
+    assert "research workflow summary" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
     assert "next blocker: peers" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
     assert "invalidation:" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
     assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
