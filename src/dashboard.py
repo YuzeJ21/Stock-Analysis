@@ -17601,6 +17601,18 @@ def detail_sections(frame: pd.DataFrame, show_reason_details: bool) -> list[tupl
     return sections
 
 
+def table_page_label(key: str) -> str:
+    key_labels = {
+        "value-re-rating": "Value / Re-rating",
+        "monthly-research-picks": "Monthly Picks",
+        "final-watchlist": "Final Watchlist",
+        "momentum-leaders": "Momentum Leaders",
+        "market-direction": "Market Direction",
+        "portfolio-review": "Portfolio Review",
+    }
+    return key_labels.get(key, display_column_label(key.replace("-", " ")) if "-" in key else key.title())
+
+
 def pick_filter_column(frame: pd.DataFrame, candidates: list[str]) -> str | None:
     for column in candidates:
         if column in frame.columns:
@@ -17623,14 +17635,6 @@ def filter_summary_text(
     filtered_count: int,
     total_count: int,
 ) -> str:
-    key_labels = {
-        "value-re-rating": "Value / Re-rating",
-        "monthly-research-picks": "Monthly Picks",
-        "final-watchlist": "Final Watchlist",
-        "momentum-leaders": "Momentum Leaders",
-        "market-direction": "Market Direction",
-        "portfolio-review": "Portfolio Review",
-    }
     labels: list[str] = []
     if search_value.strip():
         labels.append(f"search `{search_value.strip()}`")
@@ -17649,8 +17653,7 @@ def filter_summary_text(
 
     scope = f"{filtered_count} of {total_count} rows visible" if total_count else "No rows available"
     if not labels:
-        label = key_labels.get(key, display_column_label(key.replace("-", " ")) if "-" in key else key.title())
-        return f"{label}: {scope}. Use search or filters to narrow the table."
+        return f"{table_page_label(key)}: {scope}. Use search or filters to narrow the table."
     return f"{scope}. Active filters: " + " | ".join(labels) + "."
 
 
@@ -17739,11 +17742,12 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
     )
     st.dataframe(style_frame(presentation_frame(display_frame[compact_columns])), width="stretch", hide_index=True)
 
+    page_label = table_page_label(key)
     for title, section_frame in detail_sections(filtered, show_reason_details):
-        with st.expander(f"{key} {title.lower()}", expanded=False):
+        with st.expander(f"{page_label}: {title}", expanded=False):
             st.dataframe(style_frame(presentation_frame(section_frame)), width="stretch", hide_index=True)
 
-    with st.expander(f"{key} full table", expanded=False):
+    with st.expander(f"{page_label}: Full table", expanded=False):
         st.dataframe(style_frame(presentation_frame(filtered)), width="stretch", hide_index=True)
 
 

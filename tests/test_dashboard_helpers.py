@@ -1166,6 +1166,18 @@ def test_filter_summary_text_handles_no_active_filters():
     assert "Use search or filters" in text
 
 
+def test_table_page_label_keeps_expanders_visitor_friendly():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert dashboard.table_page_label("market-direction") == "Market Direction"
+    assert dashboard.table_page_label("final-watchlist") == "Final Watchlist"
+    assert dashboard.table_page_label("value-re-rating") == "Value / Re-rating"
+    assert 'st.expander(f"{page_label}: {title}", expanded=False)' in source
+    assert 'st.expander(f"{page_label}: Full table", expanded=False)' in source
+    assert 'st.expander(f"{key} {title.lower()}", expanded=False)' not in source
+    assert 'st.expander(f"{key} full table", expanded=False)' not in source
+
+
 def test_filter_summary_text_uses_user_facing_value_page_name():
     text = dashboard.filter_summary_text(
         "value-re-rating",
