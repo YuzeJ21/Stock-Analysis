@@ -2565,7 +2565,7 @@ def build_command_bundle_runbook(
                     (
                         "Refresh status outputs",
                         "make status",
-                        "After the bundle flow finishes, refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
+                        "After the bundle flow finishes, refresh the local status outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
                     ),
                 ]
             )
@@ -2590,7 +2590,7 @@ def build_command_bundle_runbook(
                 (
                     "Refresh status outputs",
                     "make status",
-                    "After the bundle flow finishes, refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
+                    "After the bundle flow finishes, refresh the local status outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
                 ),
             ]
         elif bundle.lane == "peers":
@@ -2619,7 +2619,7 @@ def build_command_bundle_runbook(
                 (
                     "Refresh status outputs",
                     "make status",
-                    "After the bundle flow finishes, refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
+                    "After the bundle flow finishes, refresh the local status outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
                 ),
             ]
         else:
@@ -2629,7 +2629,7 @@ def build_command_bundle_runbook(
                 (
                     "Refresh status outputs",
                     "make status",
-                    "After the bundle flow finishes, refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
+                    "After the bundle flow finishes, refresh the local status outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
                 ),
             ]
         for step_order, (step_label, command, safe_next_step) in enumerate(step_specs, start=1):

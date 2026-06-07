@@ -6432,7 +6432,7 @@ def test_overview_next_command_cards_normalize_legacy_dashboard_command_rows():
             {
                 "Step": "Refresh local snapshot",
                 "Command": "make dashboard",
-                "Reason": "Open the dashboard after refreshing the local operator outputs.",
+                "Reason": "Open the dashboard after refreshing the local status outputs.",
             }
         ]
     }
@@ -18688,7 +18688,7 @@ def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
                 "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
                 "target_file": "data/imports/peers.csv",
                 "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
-                "safe_next_step": "Refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
+                "safe_next_step": "Refresh the local status outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
             },
         ]
     )

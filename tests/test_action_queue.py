@@ -908,7 +908,7 @@ def test_action_queue_uses_status_for_unknown_global_gap_fallback():
                     "ticker": "",
                     "status": "partial",
                     "reason": "Generated outputs need a refresh.",
-                    "recommended_action": "Refresh the operator outputs.",
+                    "recommended_action": "Refresh the local status outputs.",
                     "local_file": "outputs/final_watchlist.csv",
                 }
             ]
