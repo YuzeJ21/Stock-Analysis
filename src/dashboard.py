@@ -6037,6 +6037,60 @@ def data_health_action_path_cards(
     return cards[:4]
 
 
+def data_health_advanced_unlock_map_cards(
+    fundamentals_peer_worklist_frame: pd.DataFrame | None,
+    peer_unlock_worklist_frame: pd.DataFrame | None,
+    optional_context_worklist_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    fp_summary = summarize_fundamentals_peer_worklist(fundamentals_peer_worklist_frame)
+    optional_summary = summarize_optional_context_worklist(optional_context_worklist_frame)
+
+    peer_rows = 0 if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty else len(peer_unlock_worklist_frame)
+    peer_priority_1 = 0
+    peer_first_ticker = "Not available"
+    if peer_unlock_worklist_frame is not None and not peer_unlock_worklist_frame.empty:
+        peer_frame = peer_unlock_worklist_frame.copy()
+        priorities = pd.to_numeric(peer_frame.get("priority", pd.Series(dtype=float)), errors="coerce").fillna(0)
+        peer_priority_1 = int(priorities.eq(1).sum())
+        if "ticker" in peer_frame.columns:
+            sorted_peer = peer_frame.assign(_priority=priorities).sort_values(["_priority", "ticker"], na_position="last")
+            peer_first_ticker = format_missing(sorted_peer.iloc[0].get("ticker"), "Not available")
+
+    optional_locked = optional_summary["missing_both"] + optional_summary["missing_one"]
+    return [
+        {
+            "kicker": "FUNDAMENTALS / DCF",
+            "title": f"{fp_summary['fundamentals_priority_1']} fundamentals-first target(s)",
+            "body": (
+                f"{fp_summary['dcf_ready']} DCF-ready and {fp_summary['peer_ready']} peer-ready row(s) are already visible. "
+                "Use this lane when a price-ready company still needs trusted fundamentals before valuation can be reviewed."
+            ),
+            "badges": ["trusted fundamentals", "DCF gate"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "PEER MAPPING",
+            "title": f"{peer_rows} peer unlock row(s)",
+            "body": (
+                f"{peer_priority_1} priority-1 peer row(s). First row to inspect: {peer_first_ticker}. "
+                "Peer trend and peer valuation stay separate until source-backed mappings and peer inputs pass readiness."
+            ),
+            "badges": ["source-backed peers", "valuation gated"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"{optional_locked} optional-context row(s) locked",
+            "body": (
+                f"{optional_summary['earnings_ready']} earnings-ready and {optional_summary['estimates_ready']} estimate-ready row(s). "
+                "Earnings and analyst estimates remain intentionally unavailable until trusted local rows validate."
+            ),
+            "badges": ["optional", "locked is safe"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+    ]
+
+
 def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if bundle_frame is None or bundle_frame.empty:
         return [
@@ -20491,6 +20545,17 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         )
         render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
     with st.expander("Detailed market-wide workspace", expanded=False):
+        render_section_header(
+            "Advanced Unlock Map",
+            "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context.",
+        )
+        render_signal_cards(
+            data_health_advanced_unlock_map_cards(
+                fundamentals_peer_worklist_frame,
+                peer_unlock_worklist_frame,
+                optional_context_worklist_frame,
+            )
+        )
         render_market_command_center(
             ticker_readiness_frame,
             coverage_frame,
