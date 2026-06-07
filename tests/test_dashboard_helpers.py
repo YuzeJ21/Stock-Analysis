@@ -4195,10 +4195,11 @@ def test_holdings_deep_research_cards_keep_staged_import_front_doors_when_comman
     fundamentals_card = next(card for card in cards if card["kicker"] == "NVDA")
     peer_card = next(card for card in cards if card["kicker"] == "TSLA")
 
-    assert fundamentals_card["title"] == "Review fundamentals import draft"
+    assert fundamentals_card["title"] == "Review fundamentals import file"
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "fundamentals import draft" in fundamentals_card["body"].lower()
-    assert peer_card["title"] == "Review peer import draft"
+    assert "fundamentals import file" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" not in fundamentals_card["body"].lower()
+    assert peer_card["title"] == "Review peer import file"
 
 
 def test_holdings_deep_research_cards_upgrade_generic_staged_notes_to_explicit_follow_through():
@@ -4247,7 +4248,8 @@ def test_holdings_deep_research_cards_upgrade_generic_staged_notes_to_explicit_f
     assert "make imports-apply" in peer_card["body"].lower()
     assert "use local import draft workflows if the free refresh fails" not in peer_card["body"].lower()
     assert peer_card["command"] == "make imports-validate"
-    assert "peer import draft ready" in peer_card["body"].lower()
+    assert "peer import file ready" in peer_card["body"].lower()
+    assert "peer import draft ready" not in peer_card["body"].lower()
 
 
 def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
@@ -4702,14 +4704,16 @@ def test_theme_deep_research_cards_keep_staged_import_front_doors_when_commands_
     fundamentals_card = next(card for card in cards if card["kicker"] == "AI Semiconductors")
     peer_card = next(card for card in cards if card["kicker"] == "Semiconductor ETF")
 
-    assert fundamentals_card["title"] == "Review fundamentals import draft"
+    assert fundamentals_card["title"] == "Review fundamentals import file"
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "fundamentals import draft" in fundamentals_card["body"].lower()
+    assert "fundamentals import file" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" not in fundamentals_card["body"].lower()
     assert "make imports-preview" in fundamentals_card["body"].lower()
     assert "make imports-apply" in fundamentals_card["body"].lower()
-    assert peer_card["title"] == "Review peer import draft"
+    assert peer_card["title"] == "Review peer import file"
     assert peer_card["command"] == "make imports-validate"
-    assert "peer import draft" in peer_card["body"].lower()
+    assert "peer import file" in peer_card["body"].lower()
+    assert "peer import draft" not in peer_card["body"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
 
@@ -4916,9 +4920,10 @@ def test_overview_deep_research_leverage_cards_use_staged_peer_import_title_when
     cards = dashboard.overview_deep_research_leverage_cards(holdings, sec_queue, peer_queue)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "peer import draft path" in rendered
+    assert "peer import file path" in rendered
+    assert "peer import draft path" not in rendered
     assert "make imports-validate" in rendered
-    assert "import draft" in rendered
+    assert "import file" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5056,14 +5061,16 @@ def test_overview_deep_research_leverage_cards_keep_staged_import_paths_when_com
     fundamentals_card = next(card for card in cards if card["kicker"] == "DCF LEVERAGE")
     peer_card = next(card for card in cards if card["kicker"] == "PEER LEVERAGE")
 
-    assert fundamentals_card["title"] == "Fundamentals import draft path"
+    assert fundamentals_card["title"] == "Fundamentals import file path"
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "fundamentals import draft" in fundamentals_card["body"].lower()
+    assert "fundamentals import file" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" not in fundamentals_card["body"].lower()
     assert "make imports-preview" in fundamentals_card["body"].lower()
     assert "make imports-apply" in fundamentals_card["body"].lower()
-    assert peer_card["title"] == "Peer import draft path"
+    assert peer_card["title"] == "Peer import file path"
     assert peer_card["command"] == "make imports-validate"
-    assert "peer import draft" in peer_card["body"].lower()
+    assert "peer import file" in peer_card["body"].lower()
+    assert "peer import draft" not in peer_card["body"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
 
@@ -5174,9 +5181,10 @@ def test_overview_deep_research_priority_bridge_cards_keep_staged_peer_command_w
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["kicker"] == "TSLA"
-    assert cards[0]["title"] == "Review peer import draft"
+    assert cards[0]["title"] == "Review peer import file"
     assert cards[0]["command"] == "make imports-validate"
-    assert "review peer import draft" in rendered
+    assert "review peer import file" in rendered
+    assert "review peer import draft" not in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "buy" not in rendered
@@ -5304,13 +5312,15 @@ def test_overview_deep_research_priority_bridge_cards_keep_staged_import_paths_w
     fundamentals_card = next(card for card in cards if card["kicker"] == "NVDA")
     peer_card = next(card for card in cards if card["kicker"] == "TSLA")
 
-    assert fundamentals_card["title"] == "Review fundamentals import draft"
+    assert fundamentals_card["title"] == "Review fundamentals import file"
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "fundamentals import draft" in fundamentals_card["body"].lower()
+    assert "fundamentals import file" in fundamentals_card["body"].lower()
+    assert "fundamentals import draft" not in fundamentals_card["body"].lower()
     assert "make imports-preview" in fundamentals_card["command_reason"].lower()
-    assert peer_card["title"] == "Review peer import draft"
+    assert peer_card["title"] == "Review peer import file"
     assert peer_card["command"] == "make imports-validate"
-    assert "peer import draft" in peer_card["body"].lower()
+    assert "peer import file" in peer_card["body"].lower()
+    assert "peer import draft" not in peer_card["body"].lower()
 
 
 def test_overview_deep_research_priority_bridge_cards_upgrade_generic_staged_notes_to_explicit_follow_through():
@@ -5478,7 +5488,8 @@ def test_overview_deep_research_handoff_cards_keep_staged_fundamentals_reason_an
     assert cards[0]["title"] == "NVDA"
     assert cards[0]["command"] == "make imports-validate"
     assert cards[1]["title"] == "make imports-validate"
-    assert "fundamentals import draft" in cards[1]["body"].lower()
+    assert "fundamentals import file" in cards[1]["body"].lower()
+    assert "fundamentals import draft" not in cards[1]["body"].lower()
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "buy" not in rendered
@@ -6133,7 +6144,8 @@ def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in
 
     assert cards[1]["title"] == "AMD"
     assert cards[1]["command"] == "make imports-validate"
-    assert "review fundamentals import draft" in cards[1]["body"].lower()
+    assert "review fundamentals import file" in cards[1]["body"].lower()
+    assert "review fundamentals import draft" not in cards[1]["body"].lower()
     assert "make imports-apply" in cards[1]["body"].lower()
     assert "make status-check top_n=5" in rendered
     assert cards[3]["title"] == "Single-Stock Report"
@@ -9358,9 +9370,10 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
-    assert cards[0]["title"] == "Review fundamentals import draft"
+    assert cards[0]["title"] == "Review fundamentals import file"
     assert cards[0]["command"] == "make imports-validate"
-    assert "fundamentals import drafts" in cards[0]["body"].lower()
+    assert "fundamentals import file" in cards[0]["body"].lower()
+    assert "fundamentals import drafts" not in cards[0]["body"].lower()
 
     payload["valuation_readiness"]["dcf_ready"] = True
     coverage = pd.DataFrame(
@@ -9387,9 +9400,10 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
-    assert cards[0]["title"] == "Review peer import draft"
+    assert cards[0]["title"] == "Review peer import file"
     assert cards[0]["command"] == "make imports-validate"
-    assert "peer mapping import drafts" in cards[0]["body"].lower()
+    assert "peer mapping import file" in cards[0]["body"].lower()
+    assert "peer mapping import drafts" not in cards[0]["body"].lower()
 
     payload["valuation_readiness"]["peer_ready"] = True
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": True})
@@ -9539,7 +9553,7 @@ def test_stock_report_next_step_cards_use_staged_import_front_doors_when_command
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
-    assert cards[0]["title"] == "Review fundamentals import draft"
+    assert cards[0]["title"] == "Review fundamentals import file"
     assert cards[0]["command"] == "make imports-validate"
 
     payload["valuation_readiness"]["dcf_ready"] = True
@@ -9555,7 +9569,7 @@ def test_stock_report_next_step_cards_use_staged_import_front_doors_when_command
         ]
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
-    assert cards[0]["title"] == "Review peer import draft"
+    assert cards[0]["title"] == "Review peer import file"
     assert cards[0]["command"] == "make imports-validate"
 
 
