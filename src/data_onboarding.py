@@ -820,7 +820,8 @@ def _missing_join(items: list[str]) -> str:
 
 def _price_action_text(ticker: str) -> str:
     return (
-        f"Run make focus-price TICKER={ticker}, or run make price-refresh TICKERS={ticker}; "
+        f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; "
         "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
 

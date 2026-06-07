@@ -395,7 +395,7 @@ def test_show_price_update_status_enriches_legacy_rows_with_commands(tmp_path: P
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             }
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
@@ -428,7 +428,7 @@ def test_show_price_update_status_respects_top_n(tmp_path: Path):
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             },
             {
                 "run_timestamp": "2026-05-21T00:00:00+00:00",
@@ -442,7 +442,7 @@ def test_show_price_update_status_respects_top_n(tmp_path: Path):
                 "error_category": "source_unavailable",
                 "error_message": "NVDA: unavailable",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=NVDA, or run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=NVDA first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             },
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
@@ -472,7 +472,7 @@ def test_show_price_update_status_respects_ticker_filter(tmp_path: Path):
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             },
             {
                 "run_timestamp": "2026-05-21T00:00:00+00:00",
@@ -486,7 +486,7 @@ def test_show_price_update_status_respects_ticker_filter(tmp_path: Path):
                 "error_category": "source_unavailable",
                 "error_message": "NVDA: unavailable",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=NVDA, or run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=NVDA first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             },
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
@@ -516,7 +516,7 @@ def test_price_status_cli_uses_read_only_summary_wording(tmp_path: Path, capsys)
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             }
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
@@ -578,7 +578,7 @@ def test_enrich_price_update_status_frame_normalizes_parse_error_messages():
                 "ticker": "META",
                 "status": "parse_error",
                 "error_message": "META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)",
-                "recommended_action": "Run make focus-price TICKER=META, or run make price-refresh TICKERS=META; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=META first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=META; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             }
         ]
     )
@@ -597,7 +597,7 @@ def test_enrich_price_update_status_frame_refreshes_stale_example_command():
                 "status": "parse_error",
                 "requested_start": "",
                 "rows_merged": 0,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "example_command": "make onboarding",
             }
         ]
@@ -616,7 +616,7 @@ def test_enrich_price_update_status_frame_refreshes_legacy_raw_price_command():
                 "status": "parse_error",
                 "requested_start": "",
                 "rows_merged": 0,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "example_command": "python3 -m src.data_update --tickers AMD",
             }
         ]

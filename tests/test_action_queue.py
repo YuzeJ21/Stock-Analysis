@@ -1199,7 +1199,8 @@ def test_action_queue_payload_normalizes_legacy_parse_error_reason_from_price_st
                 "PriceHistoryDays": 0,
                 "MissingDataFields": "prices",
                 "NextBestAction": (
-                    "Run make focus-price TICKER=META, or run make price-refresh TICKERS=META; "
+                    "Run make focus-price TICKER=META first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
+                    "if you choose to refresh this ticker, run make price-refresh TICKERS=META; "
                     "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
                 ),
                 "FocusCommand": "make focus-price TICKER=META",
@@ -1301,7 +1302,7 @@ def test_data_quality_needs_refresh_rejects_stale_example_commands():
             {
                 "Ticker": "AMD",
                 "ReadinessStatus": "Needs Price Data",
-                "NextBestAction": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "NextBestAction": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "FocusCommand": "make focus-price TICKER=AMD",
                 "ExampleCommand": "make status",
             },
@@ -1376,7 +1377,7 @@ def test_action_queue_rows_normalize_stale_onboarding_example_commands():
                     "dataset": "prices",
                     "ticker": "AMD",
                     "status": "missing_or_incomplete",
-                    "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                    "recommended_action": "Run make focus-price TICKER=AMD first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                     "focus_command": "make focus-price TICKER=AMD",
                     "example_command": "make status",
                     "target_file": "data/imports/prices.csv",
