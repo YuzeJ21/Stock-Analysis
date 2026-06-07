@@ -5757,7 +5757,7 @@ def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> l
             "kicker": "PEER UNLOCK",
             "title": f"{peer_ready} peer-ready",
             "body": (
-                "Function status: workflow-ready but coverage-limited. Source-backed peer mappings and peer metrics unlock "
+                "Function status: ready when peer data exists. Source-backed peer mappings and peer metrics unlock "
                 "peer-relative context; missing peers stay blocked instead of guessed."
             ),
             "badges": ["manual peers", "no guessed mappings"],
@@ -19223,10 +19223,10 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Peer comparison",
-                "Quality Verdict": "Workflow-ready, coverage-limited",
+                "Quality Verdict": "Ready when peer data exists",
                 "Best Use Today": "Use as a peer data-unlock queue until source-backed peer mappings and metrics are ready.",
                 "Current Status": peer_status,
-                "Supported Today": "Workflow-ready peer context after source-backed peer rows and peer metrics exist.",
+                "Supported Today": "Peer context after source-backed peer rows and peer metrics exist.",
                 "Needs Trusted Data": "Manual peer mappings plus peer fundamentals or peer market context.",
                 "Methodology / Provenance": "Project peer readiness and valuation checks; no guessed peer mappings.",
             },
@@ -19241,7 +19241,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Single-stock report",
-                "Quality Verdict": "Strongest visitor-facing workflow",
+                "Quality Verdict": "Clearest visitor-facing review",
                 "Best Use Today": "Open one ticker to see ready, blocked, excluded, optional, and source readiness states step by step.",
                 "Current Status": "Clear for one ticker's ready, blocked, excluded, and monitor-only analysis.",
                 "Supported Today": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",

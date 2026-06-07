@@ -1043,7 +1043,7 @@ def test_home_function_quality_frame_explains_supported_scope_and_provenance():
     assert "23 / 3,538 dcf-ready" in rendered
     assert "dcf-ready company analysis with visible input path, assumptions, and sensitivity" in rendered
     assert "peer comparison" in rendered
-    assert "workflow-ready, coverage-limited" in rendered
+    assert "ready when peer data exists" in rendered
     assert "3 / 3,538 peer-ready" in rendered
     assert "no guessed peer mappings" in rendered
     assert "earnings / estimates" in rendered
@@ -1053,7 +1053,7 @@ def test_home_function_quality_frame_explains_supported_scope_and_provenance():
     assert "0 / 3,538 analyst-estimate-ready" in rendered
     assert "intentionally unavailable" in rendered
     assert "single-stock report" in rendered
-    assert "strongest visitor-facing workflow" in rendered
+    assert "clearest visitor-facing review" in rendered
     assert "supported, blocked, excluded, and monitor-only analysis" in rendered
     assert "support packages and optional provider adapters" in rendered
     assert "support layer, not analysis rules" in rendered
@@ -9063,7 +9063,7 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
     assert "company-level assumptions and sensitivity review" in rendered
     assert "not automatic valuation conclusions" in rendered
     assert "3 peer-ready" in rendered
-    assert "function status: workflow-ready but coverage-limited" in rendered
+    assert "function status: ready when peer data exists" in rendered
     assert "peer-relative context" in rendered
     assert "missing peers stay blocked instead of guessed" in rendered
     assert "0 earnings / 0 estimates" in rendered

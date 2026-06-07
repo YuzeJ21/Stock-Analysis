@@ -1072,7 +1072,7 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Best use today",
         "Strong today",
         "Good for DCF-ready companies only",
-        "Workflow-ready, coverage-limited",
+        "Ready when peer data exists",
         "Support layer, not analysis rules",
         "What it refuses to do",
         "src/valuation.py",
