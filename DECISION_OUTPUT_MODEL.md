@@ -78,10 +78,10 @@ turn missing data into recommendations.
 - `confidence_explanation`: why confidence is high, medium, low, or blocked.
 - `feature_summary`: compact ready/partial/blocked/excluded feature summary.
 
-## Current Decision Subtypes
+## Current Review Details
 
-The product uses `decision_subtype` to make broad buckets more specific without
-turning them into recommendations.
+The product uses the internal `decision_subtype` field to show a plain review
+detail for each broad bucket without turning it into a recommendation.
 
 - `Research Candidate - Core Data Ready`: core company data is ready for a supported research pass.
 - `Research Candidate - DCF Ready But Peer Blocked`: standalone DCF is ready, but peer-relative valuation waits for source-backed peer inputs.

@@ -1181,7 +1181,7 @@ def test_decision_output_model_matches_current_evaluation_contract():
         "next_research_step",
         "source_freshness_summary",
         "feature_summary",
-        "Current Decision Subtypes",
+        "Current Review Details",
         "Research Candidate - DCF Ready But Peer Blocked",
         "Research Candidate - Optional Context Locked",
         "Monitor - ETF Market Proxy",
