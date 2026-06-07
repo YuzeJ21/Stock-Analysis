@@ -113,8 +113,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Supported Analysis
 - Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, fundamental context, standalone DCF scenario analysis, peer-relative comparison. Purpose-specific support: momentum review can use trend, setup, and relative-strength context, while valuation remains secondary.
 
-## Blocked Analysis
-- Unsupported analysis: earnings timing or surprise context, analyst estimate trend context.
+## Locked Analysis
+- Currently withheld: earnings timing or surprise context, analyst estimate trend context.
 
 ## Setup / Momentum
 - Momentum setup: Setup Forming; final state: Review Thesis. Check relative strength, trend, volume context, and extension risk before deeper research. Base score 45 from final state `Review Thesis`. Added 3 points because the ticker is already a holding. Adjusted +0 points for value category `Insufficient Data`.

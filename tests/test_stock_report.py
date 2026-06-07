@@ -864,12 +864,12 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "ETF / Defensive / Hedge" in markdown
     assert "market/risk context" in markdown
     assert "## Supported Analysis" in markdown
-    assert "## Blocked Analysis" in markdown
+    assert "## Locked Analysis" in markdown
     assert "## Risk Notes" in markdown
     assert "market, theme, liquidity, or risk context" in markdown
     assert "Operating-company DCF is excluded" in markdown
     assert "Supported analysis" in markdown
-    assert "Unsupported analysis" in markdown
+    assert "Currently withheld" in markdown
     assert "operating-company DCF conclusions" in markdown
     assert "Invalidate market-proxy usefulness" in markdown
     assert "What market, theme, liquidity, or risk context should QQQ monitor" in markdown
@@ -1131,9 +1131,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Purpose alignment for Speculative Optionality cannot be checked" in markdown
     assert "Setup cannot be evaluated because usable price history is missing" in markdown
     assert "## Supported Analysis" in markdown
-    assert "## Blocked Analysis" in markdown
+    assert "## Locked Analysis" in markdown
     assert "Supported analysis: none yet" in markdown
-    assert "Unsupported analysis: trend, setup, liquidity" in markdown
+    assert "Currently withheld: trend, setup, liquidity" in markdown
     assert "analytical blindness" in markdown
     assert "Unlock priority: price is the first blocker" in markdown
     assert "primary blocker is price" in markdown

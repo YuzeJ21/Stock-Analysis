@@ -113,8 +113,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Supported Analysis
 - Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, fundamental context, standalone DCF scenario analysis. Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source readiness.
 
-## Blocked Analysis
-- Unsupported analysis: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context.
+## Locked Analysis
+- Currently withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context.
 
 ## Setup / Momentum
 - Compounder setup: Setup Forming; final state: Setup Forming. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`.

@@ -113,8 +113,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Supported Analysis
 - Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context.
 
-## Blocked Analysis
-- Unsupported analysis: fundamental quality and operating-company valuation, DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
+## Locked Analysis
+- Currently withheld: fundamental quality and operating-company valuation, DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
 
 ## Setup / Momentum
 - Compounder setup: No Setup; final state: Not Prioritized. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Not-prioritized names are left unranked.

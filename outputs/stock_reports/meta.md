@@ -113,8 +113,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Supported Analysis
 - Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context. Partial inputs present: fundamentals.
 
-## Blocked Analysis
-- Unsupported analysis: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
+## Locked Analysis
+- Currently withheld: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
 
 ## Setup / Momentum
 - Compounder setup: Thesis Review Needed; final state: Thesis Review Needed. Trend conflict matters because it can challenge the stated long-duration purpose. Base score 10 from final state `Thesis Review Needed`. Added 3 points because the ticker is already a holding. Adjusted +0 points for value category `Insufficient Data`. Capped score at 50 because valuation readiness is not ready; treat as data-limited review until missing data is resolved.

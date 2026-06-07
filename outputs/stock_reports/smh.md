@@ -113,8 +113,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Supported Analysis
 - Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, ETF/index monitoring, not operating-company valuation. Purpose-specific support: ETF/hedge review can use market, theme, liquidity, and correlation context; company valuation is excluded.
 
-## Blocked Analysis
-- Unsupported analysis: fundamental quality and operating-company valuation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, operating-company DCF conclusions.
+## Locked Analysis
+- Currently withheld: fundamental quality and operating-company valuation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, operating-company DCF conclusions.
 
 ## Setup / Momentum
 - Setup Forming; final state: Setup Forming. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`. Capped score at 50 because valuation readiness is not ready; treat as data-limited review until missing data is resolved.
