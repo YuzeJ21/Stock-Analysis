@@ -4943,7 +4943,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
 
 def valuation_legacy_output_note() -> str:
     return (
-        "Saved compatibility output behind this page uses an older file name, but this page treats it as "
+        "Saved compatibility output behind this page uses an earlier file name, but this page treats it as "
         "valuation-readiness and re-rating context. It is not an automatic undervalued-stock list; "
         "rows missing trusted inputs stay blocked instead of being inferred."
     )
@@ -18137,7 +18137,7 @@ def valuation_plain_language_cards(
 def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
-    render_section_header("Valuation Quick Read", "Which valuation path to inspect first before reading tables or older value columns.")
+    render_section_header("Valuation Quick Read", "Which valuation path to inspect first before reading detailed valuation outputs.")
     render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
     with st.expander("More valuation context, boundaries, and method", expanded=False):
         render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or detailed output columns.")
@@ -18224,7 +18224,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     with st.expander("Complete valuation context table", expanded=False):
         st.caption(valuation_legacy_output_note())
         st.write(
-            "Reader boundary is added by the dashboard so legacy value categories are interpreted as readiness context, "
+            "Reader boundary is added by the dashboard so saved value categories are interpreted as readiness context, "
             "not standalone conclusions."
         )
         st.dataframe(clean_display_frame(valuation_legacy_diagnostic_frame(frame)), width="stretch", hide_index=True)

@@ -8519,7 +8519,8 @@ def test_valuation_legacy_output_note_explains_compatibility_filename():
     note = dashboard.valuation_legacy_output_note().lower()
 
     assert "saved compatibility output" in note
-    assert "older file name" in note
+    assert "earlier file name" in note
+    assert "older file name" not in note
     assert "valuation-readiness and re-rating context" in note
     assert "not an automatic undervalued-stock list" in note
     assert "missing trusted inputs stay blocked" in note
@@ -16974,6 +16975,10 @@ def test_value_re_rating_detail_tables_are_collapsed_by_default():
     assert 'st.expander("ETF / index proxy exclusions", expanded=False)' in source
     assert 'st.expander("Valuation input checklist", expanded=False)' in source
     assert 'st.expander("ETF / index exclusion checklist", expanded=False)' in source
+    assert "detailed valuation outputs" in source
+    assert "older value columns" not in source
+    assert "legacy value categories" not in source
+    assert "saved value categories" in source
 
 
 def test_dashboard_splits_risk_context_by_price_ready_status():
