@@ -6479,7 +6479,8 @@ def test_overview_next_command_cards_use_bundle_and_import_fallbacks_when_reason
     cards = dashboard.overview_next_command_cards(payload, None, limit=2)
 
     assert cards[0]["title"] == "make imports-validate"
-    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "review first" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "staged flow" not in [badge.lower() for badge in cards[0]["badges"]]
     assert "make imports-preview" in cards[0]["body"].lower()
     assert "make imports-apply" in cards[0]["body"].lower()
     assert cards[1]["title"] == "make bundle-prices"
@@ -6659,7 +6660,8 @@ def test_overview_workflow_path_cards_use_imports_and_bundle_fallbacks_when_acti
     bundle_cards = dashboard.overview_workflow_path_cards(None, bundle_queue)
 
     assert imports_cards[0]["title"] == "make imports-validate"
-    assert "staged flow" in [badge.lower() for badge in imports_cards[0]["badges"]]
+    assert "review first" in [badge.lower() for badge in imports_cards[0]["badges"]]
+    assert "staged flow" not in [badge.lower() for badge in imports_cards[0]["badges"]]
     assert "make imports-preview" in imports_cards[0]["body"].lower()
     assert "make imports-apply" in imports_cards[0]["body"].lower()
     assert bundle_cards[0]["title"] == "make bundle-peers"
@@ -6674,7 +6676,8 @@ def test_overview_workflow_path_cards_use_explicit_import_follow_through_when_im
     cards = dashboard.overview_workflow_path_cards(payload, None)
 
     assert cards[0]["title"] == "make imports-validate"
-    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "review first" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "staged flow" not in [badge.lower() for badge in cards[0]["badges"]]
     assert "make imports-preview" in cards[0]["body"].lower()
     assert "make imports-apply" in cards[0]["body"].lower()
     assert "not available" not in " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -6793,7 +6796,8 @@ def test_overview_workflow_path_cards_use_command_family_fallback_when_reason_is
     cards = dashboard.overview_workflow_path_cards(payload, None)
 
     assert cards[0]["title"] == "make imports-validate"
-    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "review first" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "staged flow" not in [badge.lower() for badge in cards[0]["badges"]]
     assert "make imports-preview" in cards[0]["body"].lower()
     assert "make imports-apply" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()

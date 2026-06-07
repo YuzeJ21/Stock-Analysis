@@ -16126,13 +16126,13 @@ def overview_next_command_cards(
                     body = reason
                 else:
                     body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
-                badges = ["staged flow", "command"]
+                badges = ["review first", "import file"]
             elif lowered == "make price-validate":
                 if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
                     body = reason
                 else:
                     body = "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
-                badges = ["staged flow", "command"]
+                badges = ["review first", "import file"]
             elif "bundle-" in lowered:
                 body = reason if has_reason else GUIDED_BATCH_FIRST_COPY
                 badges = ["guided batch", "command"]
@@ -16586,13 +16586,13 @@ def overview_workflow_path_cards(
                 badges = ["today", "guided batch"] if index == 1 else ["guided batch", "workflow"]
                 body = reason if has_reason else GUIDED_BATCH_FIRST_COPY
             elif "imports-" in lowered:
-                badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
+                badges = ["today", "review first"] if index == 1 else ["review first", "import file"]
                 if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
                     body = reason
                 else:
                     body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
             elif lowered == "make price-validate":
-                badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
+                badges = ["today", "review first"] if index == 1 else ["review first", "import file"]
                 if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
                     body = reason
                 else:
@@ -16641,7 +16641,7 @@ def overview_workflow_path_cards(
         first_badges = ["today", "guided batch"]
     elif "imports-" in lowered_first:
         first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
-        first_badges = ["today", "staged flow"]
+        first_badges = ["today", "review first"]
     elif "runbook-" in lowered_first:
         first_body = GUIDED_BATCH_WORKFLOW_COPY
         first_badges = ["today", "guided batch"]
