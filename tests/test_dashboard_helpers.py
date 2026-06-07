@@ -162,7 +162,9 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
     assert "3,538 tickers tracked" in rendered
     assert "12 are in the active research list" in rendered
     assert "240 have price data" in rendered
-    assert "23 dcf-ready / 3 peer-ready" in rendered
+    assert "23 valuation models / 3 peer comparisons" in rendered
+    assert "dcf-ready /" not in rendered
+    assert "peer-ready" not in rendered
     assert "source checked" in rendered
     assert "deep analysis" not in rendered
     assert "source-aware" not in rendered

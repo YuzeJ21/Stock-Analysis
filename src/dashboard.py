@@ -18690,9 +18690,9 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
         },
         {
             "kicker": "VALUATION READY",
-            "title": f"{dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready",
-            "body": "Valuation and peer comparison appear only when the needed inputs exist. Missing peers or fundamentals stay visible.",
-            "badges": ["valuation gated", "source checked"],
+            "title": f"{dcf_ready:,} valuation models / {peer_ready:,} peer comparisons",
+            "body": "Company valuation review and peer comparison appear only when the needed inputs exist. Missing peers or fundamentals stay visible.",
+            "badges": ["inputs checked", "source checked"],
             "command": "make sec-stage-queue TOP_N=25",
         },
         {
