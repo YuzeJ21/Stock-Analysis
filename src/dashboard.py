@@ -9894,7 +9894,7 @@ def decision_interpretation_ladder_cards() -> list[dict[str, object]]:
             "kicker": "NEXT ACTION IS COPY-ONLY",
             "title": "Copy the next action",
             "body": format_missing(next_action.get("What It Means"), ""),
-            "badges": ["manual terminal workflow", "research-only"],
+            "badges": ["manual review workflow", "research-only"],
             "command": format_missing(next_action.get("Safe Command"), ""),
         },
     ]
@@ -19861,7 +19861,7 @@ def render_market_command_center(
         with st.expander("Active queue detail: grouped guided steps", expanded=False):
             render_signal_cards(active_evaluation_lane_detail_cards(active_queue_detail))
             st.caption(
-                "Grouped workflow guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual terminal workflows."
+                "Grouped workflow guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual review workflows."
             )
             st.dataframe(clean_display_frame(active_queue_detail), width="stretch", hide_index=True)
     render_section_header(

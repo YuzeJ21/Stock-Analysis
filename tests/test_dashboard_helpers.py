@@ -14993,7 +14993,8 @@ def test_decision_interpretation_ladder_cards_keep_next_action_copy_only():
     assert "decision reading order" in rendered
     assert "blocker before conclusion" in rendered
     assert "next action is copy-only" in rendered
-    assert "manual terminal workflow" in rendered
+    assert "manual review workflow" in rendered
+    assert "manual terminal workflow" not in rendered
     assert "research-only" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
