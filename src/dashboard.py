@@ -7941,7 +7941,7 @@ def peer_function_quality_frame(
             [
                 {
                     "Peer Area": "Peer workflow",
-                    "Current Coverage": "Peer readiness not generated",
+                    "Current Coverage": "Peer readiness not ready yet",
                     "Supported Today": "Nothing yet; run readiness before interpreting peer context.",
                     "Not Supported Yet": "Peer trend or valuation comparison.",
                     "Logic Source": "Project peer readiness checks after make readiness.",
@@ -8437,7 +8437,7 @@ def fundamentals_dcf_diagnostic_cards(
         return [
             {
                 "kicker": "FUNDAMENTALS / DCF",
-                "title": "Readiness not generated",
+                "title": "Readiness not ready yet",
                 "body": "Run make readiness before reviewing the fundamentals and DCF unlock guide.",
                 "badges": ["blocked"],
                 "command": "make readiness",
@@ -9306,7 +9306,7 @@ def fundamentals_dcf_function_quality_frame(
             [
                 {
                     "Function Area": "Fundamentals / DCF",
-                    "Current Coverage": "Readiness not generated",
+                    "Current Coverage": "Readiness not ready yet",
                     "Supported Today": "Nothing yet; run readiness before interpreting fundamentals or DCF status.",
                     "Not Supported Yet": "Any company valuation conclusion.",
                     "Logic Source": "Project readiness checks after make readiness.",
@@ -15599,7 +15599,7 @@ def overview_deep_research_handoff_cards(
             "kicker": "DEEP RESEARCH NAME",
             "title": ticker,
             "body": (
-                "Deep-research queues are not available yet. Refresh the onboarding outputs before ranking the next SEC or peer-research lane."
+                "Deep-research queues are not ready yet. Refresh the onboarding outputs before ranking the next SEC or peer-research lane."
                 if empty_shortlist
                 else f"{ticker} is the clearest current name for {lane.lower()} based on the local SEC and peer queues."
             ),
@@ -15912,7 +15912,7 @@ ARTIFACT_NOTICE_DEFAULTS: dict[str, tuple[str, str]] = {
         "make action-queue",
     ),
     "research_health": (
-        "Research health outputs are not available yet. Run make research-health to refresh those review notes, or make verify for the broader local validation pass.",
+        "Research health outputs are not ready yet. Run make research-health to refresh those review notes, or make verify for the broader local validation pass.",
         "make research-health",
     ),
     "data_source_status": (
@@ -15961,7 +15961,7 @@ def overview_benchmark_pressure_cards(
     pressure_body = (
         f"{missing_prices}/{total_tickers} tickers still need verified local price history."
         if total_tickers
-        else "Ticker coverage is not available yet."
+        else "Ticker coverage is not ready yet."
     )
     if parse_or_source_errors:
         pressure_body += f" Latest refresh surfaced {parse_or_source_errors} price-source issue(s), so reviewed local import drafts may still be the safer path."
@@ -15969,7 +15969,7 @@ def overview_benchmark_pressure_cards(
     benchmark_body = (
         f"Strongest current local theme is {strongest_theme} at {relative_spy} vs SPY."
         if strongest_theme != "Not available"
-        else "Local benchmark-relative theme context is not available yet."
+        else "Local benchmark-relative theme context is not ready yet."
     )
 
     return [
@@ -19339,7 +19339,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
 
     if picks_frame is None:
         render_notice_card(
-            "Monthly context is not available yet",
+            "Monthly context not ready yet",
             picks_message or "Run make monthly to refresh local monthly proof before interpreting this tab. This stays research-only and may still return fewer than five names.",
             "make monthly",
         )
@@ -19422,7 +19422,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             st.dataframe(clean_display_frame(track_frame[archive_columns]), width="stretch", hide_index=True)
         else:
             render_notice_card(
-                "Track-record table is not available yet",
+                "Track-record table not ready yet",
                 "Track-record proof is still unavailable. Run the current blocker path first; if local price history is still short afterward, the track-record state will stay explicit instead of fabricating performance.",
                 blocker_command,
             )
@@ -19446,7 +19446,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
         render_signal_cards(dashboard_page_reader_summary_cards(title))
     if message and frame is None:
         render_notice_card(
-            f"{title} output is not available yet",
+            f"{title} output not ready yet",
             message,
             "make verify",
         )
@@ -19618,7 +19618,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 )
         else:
             render_notice_card(
-                "Price chart not available yet",
+                "Price chart not ready yet",
                 "The report generated, but there is not enough provider-backed daily close history to render a chart. Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize, then run make price-validate, make price-preview, and make price-apply.",
                 "make runbook-prices-broader",
                 tone="warning",
@@ -20629,7 +20629,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
-            "Local validation is not available yet",
+            "Local validation not ready yet",
             "Run make verify to refresh local validation rows and confirm which CSV datasets are present, partial, or missing before relying on broader outputs.",
             "make verify",
             tone="warning",
@@ -20651,7 +20651,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         if action_queue_frame is None:
             action_queue_notice_body, action_queue_notice_command = artifact_notice_copy("action_queue", action_queue_message)
             render_notice_card(
-                "Action queue is not available yet",
+                "Action queue not ready yet",
                 action_queue_notice_body,
                 action_queue_notice_command,
                 tone="warning",
@@ -21277,7 +21277,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         else:
             price_worklist_notice_body, price_worklist_notice_command = onboarding_notice_copy("price_worklist", price_worklist_message)
             render_notice_card(
-                "Price history worklist is not available yet",
+                "Price history worklist not ready yet",
                 price_worklist_notice_body,
                 price_worklist_notice_command,
                 tone="warning",
@@ -21307,7 +21307,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "fundamentals_peer_worklist", fundamentals_peer_worklist_message
             )
             render_notice_card(
-                "Fundamentals and peer worklist is not available yet",
+                "Fundamentals and peer worklist not ready yet",
                 fundamentals_peer_notice_body,
                 fundamentals_peer_notice_command,
                 tone="warning",
@@ -21336,7 +21336,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "optional_context_worklist", optional_context_worklist_message
             )
             render_notice_card(
-                "Optional context worklist is not available yet",
+                "Optional context worklist not ready yet",
                 optional_context_notice_body,
                 optional_context_notice_command,
                 tone="warning",
@@ -21353,7 +21353,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "ticker_unlock_ladder", ticker_unlock_ladder_message
             )
             render_notice_card(
-                "Ticker unlock ladder is not available yet",
+                "Ticker unlock ladder not ready yet",
                 ticker_unlock_notice_body,
                 ticker_unlock_notice_command,
                 tone="warning",
@@ -21370,7 +21370,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "unlock_priority_summary", unlock_priority_summary_message
             )
             render_notice_card(
-                "Unlock priority summary is not available yet",
+                "Unlock priority summary not ready yet",
                 unlock_priority_notice_body,
                 unlock_priority_notice_command,
                 tone="warning",
