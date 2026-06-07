@@ -797,6 +797,10 @@ def test_operator_guide_is_command_focused_and_research_only():
         "make imports-preview",
         "make imports-apply",
         "make price-refresh-loop DRY_RUN=1",
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "make readiness-snapshot",
+        "make diff-hygiene",
+        "snapshot readiness, then run one capped loop",
         "At A Glance",
         "method cue",
         "Analysis Quality",
@@ -825,6 +829,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         assert phrase in guide
     assert "META` demonstrates company-level analysis where peer context is still locked" not in guide
     assert "For local import draft workflows" not in guide
+    assert "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30" not in guide
 
     for forbidden in (
         "buy recommendation",

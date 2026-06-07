@@ -99,10 +99,12 @@ For larger price refreshes, dry-run first and keep batches capped:
 ```bash
 make price-refresh-loop DRY_RUN=1
 make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo
-make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+make readiness-snapshot
+make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
+make diff-hygiene
 ```
 
-The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover, dry-run again, then run the capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. Large refreshed CSVs are local working data, so review generated changes before committing them.
+The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover, dry-run again, snapshot readiness, then run one capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. Large refreshed CSVs are local working data, so review generated changes before committing them.
 
 ## Function Quality Checklist
 
