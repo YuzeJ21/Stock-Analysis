@@ -5343,7 +5343,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "title": "Start with a demo or one selected ticker",
             "body": (
                 "For a visitor demo, copy the Markdown report command. For your own ticker, select a local ticker above, "
-                "build the preview, then read the At A Glance and Reader Guide before opening detailed tables."
+                "build the preview, then read At A Glance and the reader guide before opening detailed sections."
             ),
             "badges": ["visitor path", "one ticker"],
             "command": "make stock-report-md TICKER=NVDA",
@@ -20534,9 +20534,9 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "Beginner view.",
         "Read these next three sections first. They show the safest unlock path without opening the detailed market-wide review.",
     )
-    render_section_header("Data Health Quick Read", "Which unlock path should you inspect first, before opening detailed tables.")
+    render_section_header("Data Health Quick Read", "Which unlock path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
-    render_section_header("Fix First", "The shortest safe local path before deeper Data Health details.")
+    render_section_header("Fix First", "The shortest safe local path before deeper unlock queues.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))

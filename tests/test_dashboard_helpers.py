@@ -9125,7 +9125,10 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert 'st.expander("Refresh status note", expanded=False)' in source
     assert "Beginner view." in source
     assert "Data Health Quick Read" in source
-    assert "Which unlock path should you inspect first, before opening detailed tables." in source
+    assert "Which unlock path should you inspect first, before opening detailed sections." in source
+    assert "The shortest safe local path before deeper unlock queues." in source
+    assert "before opening detailed tables" not in source
+    assert "deeper Data Health details" not in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
     assert "Plain-English valuation worklists before the detailed market-wide review." in source
@@ -9664,7 +9667,7 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "does not convert partial data into a portfolio action" in rendered
     assert "start with a demo or one selected ticker" in rendered
     assert "for a visitor demo, copy the markdown report command" in rendered
-    assert "read the at a glance and reader guide before opening detailed tables" in rendered
+    assert "read at a glance and the reader guide before opening detailed sections" in rendered
     assert len(summary_cards) == 1
     assert summary_cards[0]["kicker"] == "ONE-TICKER REVIEW"
     assert "build one local preview" in summary_rendered
