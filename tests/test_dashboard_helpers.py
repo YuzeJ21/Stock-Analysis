@@ -620,7 +620,7 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     explorer_header_index = source.index('render_section_header("Readiness Explorer"')
-    table_guide_index = source.index('render_context_note(\n        "Table guide."', explorer_header_index)
+    table_guide_index = source.index('render_context_note(\n        "Review guide."', explorer_header_index)
     filter_index = source.index("filter_cols = st.columns", explorer_header_index)
     drilldown_header_index = source.index('render_section_header("Single-Stock Drilldown"')
     ticker_note_index = source.index('render_context_note(\n        "One ticker at a time."', drilldown_header_index)
@@ -1408,7 +1408,7 @@ def test_table_page_label_keeps_expanders_visitor_friendly():
     assert dashboard.table_page_label("final-watchlist") == "Final Watchlist"
     assert dashboard.table_page_label("value-re-rating") == "Value / Re-rating"
     assert 'st.expander(f"{page_label}: {title}", expanded=False)' in source
-    assert 'st.expander(f"{page_label}: Complete table", expanded=False)' in source
+    assert 'st.expander(f"{page_label}: Complete review list", expanded=False)' in source
     assert 'st.expander(f"{key} {title.lower()}", expanded=False)' not in source
     assert 'st.expander(f"{key} full table", expanded=False)' not in source
 
