@@ -2972,6 +2972,27 @@ def compact_reason(value: object, max_sentences: int = 2, max_chars: int = 260) 
     return compact
 
 
+def validation_sequence_summary(value: object, *, fallback: str = "Follow the proof path in the detail table.") -> str:
+    """Turn long command chains into plain dashboard guidance."""
+    text = format_missing(value, "").strip()
+    if not text:
+        return fallback
+    lower = text.lower()
+    if "peer-mapping-queue" in lower or "data/imports/peers.csv" in lower:
+        return "Add source-backed peer rows, validate and preview them, apply only reviewed rows, then rerun readiness and the peer queue."
+    if "optional-context-readiness" in lower or "earnings" in lower or "analyst" in lower:
+        return "Use schema-only templates, add trusted optional rows, validate and preview them, apply only reviewed rows, then rebuild optional readiness."
+    if "dcf-readiness" in lower and "price-" in lower:
+        return "Validate or refresh trusted price rows, preview/apply the reviewed rows, then rebuild DCF readiness."
+    if "dcf-readiness" in lower:
+        return "Validate and preview trusted fundamentals, apply only reviewed rows, then rebuild DCF readiness."
+    if "stock-report" in lower:
+        return "Open the stock report and review supported analysis, withheld conclusions, and source readiness notes."
+    if "imports-validate" in lower and "imports-preview" in lower and "imports-apply" in lower:
+        return "Validate trusted rows, preview the changes, apply only reviewed rows, then rerun the relevant readiness proof."
+    return fallback
+
+
 def monthly_pick_availability_message(candidate_count: int, top_n: int) -> str:
     if candidate_count >= top_n:
         return f"{top_n} of {top_n} research candidates available."
@@ -3498,6 +3519,10 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
     ready_counts = pd.to_numeric(frame.get("Ready Rows"), errors="coerce").fillna(0)
     first_locked = frame.loc[ready_counts.eq(0)]
     first = first_locked.iloc[0] if not first_locked.empty else frame.iloc[0]
+    copy_command = format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply")
+    first_ticker_command = format_missing(first.get("First Ticker Command"), "make stock-report-md TICKER=NVDA")
+    proof_summary = validation_sequence_summary(first.get("Copy-Only Command"))
+    validation_summary = validation_sequence_summary(first.get("Validation Path"))
     return [
         {
             "kicker": "OPTIONAL CONTEXT LADDER",
@@ -3526,37 +3551,36 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
             "kicker": "COPY NEXT",
             "title": "Prove optional context before showing it",
             "body": (
-                f"Copy next: `{format_missing(first.get('Copy-Only Command'), 'make imports-validate && make imports-preview && make imports-apply')}`. "
-                "Run the import, validation, preview, apply, optional-context readiness, and onboarding sequence before treating earnings or estimates as available. "
+                f"Next proof: {proof_summary} "
+                "Do this before treating earnings or estimates as available in a report. "
                 "Schema-only examples and templates remain workflow aids, not data."
             ),
             "badges": ["copy-only", "proof before context"],
-            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
+            "command": copy_command,
         },
         {
             "kicker": "OPTIONAL PROOF LADDER",
             "title": "Template -> import -> readiness -> report",
             "body": (
-                "Use this sequence before reading optional context: schema-only template, trusted local rows, import command, "
-                "validation, preview, apply, optional-context readiness, then the single-stock report. "
+                "Use this sequence before reading optional context: schema-only template, trusted local rows, import proof, "
+                "optional-context readiness, then the single-stock report. "
                 "Available earnings or estimates add timing, consensus, and revision context only; they do not create valuation conclusions. "
-                f"Copy sequence: `{format_missing(first.get('Copy-Only Command'), 'make imports-validate && make imports-preview && make imports-apply')}` -> "
-                f"`{format_missing(first.get('First Ticker Command'), 'make stock-report-md TICKER=NVDA')}`."
+                f"Exact command is copyable from this card; then open `{first_ticker_command}`."
             ),
             "badges": ["method proof", "context only"],
-            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
+            "command": copy_command,
         },
         {
             "kicker": "TRUSTED OPTIONAL PATH",
             "title": format_missing(first.get("Trusted Input Path"), "Trusted optional input path"),
             "body": (
                 f"Rejected rows: {format_missing(first.get('Rejected Rows'), '')}. "
-                f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Validation proof: {validation_summary} "
                 f"Readiness proof: {format_missing(first.get('Readiness Proof'), 'make optional-context-readiness')}. "
                 f"Boundary: {format_missing(first.get('What Stays Locked'), '')}"
             ),
             "badges": ["validate", "preview before apply", "proof before context"],
-            "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
+            "command": copy_command,
         },
     ]
 
@@ -9158,6 +9182,8 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
     proof = format_missing(first.get("Readiness Proof"), "Run make readiness and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
+    sequence_summary = validation_sequence_summary(sequence)
+    validation_summary = validation_sequence_summary(first.get("Validation Path"))
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
     peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
     return [
@@ -9183,8 +9209,8 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             "kicker": "TRUSTED PEER PATH",
             "title": format_missing(first.get("Trusted Input Path"), "data/imports/peers.csv"),
             "body": (
-                f"Schema guide: {peer_schema_guide}. {sequence} "
-                f"Validation path: {format_missing(first.get('Validation Path'), 'make templates -> fill data/imports/peers.csv -> make imports-validate -> make imports-preview -> make imports-apply')}. "
+                f"Schema guide: {peer_schema_guide}. Next proof: {sequence_summary} "
+                f"Validation proof: {validation_summary} "
                 f"Readiness proof: {proof}"
             ),
             "badges": ["validate", "preview before apply", "proof before valuation"],
@@ -9433,9 +9459,9 @@ def dcf_missing_field_guide_cards(field_guide_frame: pd.DataFrame | None) -> lis
             "kicker": "TRUSTED INPUT PATH",
             "title": format_missing(first.get("Trusted Input Path"), "Trusted input path"),
             "body": (
-                f"{format_missing(first.get('Next Safe Sequence'), '')} "
+                f"Next proof: {validation_sequence_summary(first.get('Next Safe Sequence'))} "
                 f"Schema fields: {format_missing(first.get('Schema Fields'), 'listed in make templates')}. "
-                f"Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Validation proof: {validation_sequence_summary(first.get('Validation Path'))} "
                 f"Boundary: {format_missing(first.get('Conclusion Boundary'), '')}"
             ),
             "badges": ["validate", "preview before apply"],

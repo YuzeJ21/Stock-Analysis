@@ -14887,7 +14887,8 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "trusted peer requirement: peer mapping, peer fundamentals" in rendered
     assert "boundary: do not show peer-relative valuation, peer premium/discount, or peer dcf comparison" in rendered
     assert "schema guide: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
-    assert "add source-backed peer rows in `data/imports/peers.csv`" in rendered
+    assert "next proof: add source-backed peer rows, validate and preview them, apply only reviewed rows" in rendered
+    assert "validation proof: add source-backed peer rows, validate and preview them, apply only reviewed rows" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -16310,15 +16311,15 @@ def test_optional_context_ladder_frame_and_cards_explain_locked_schema_only_work
     assert "make import-analyst-estimates" in rendered
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert "prove optional context before showing it" in rendered
-    assert "copy next: `make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding top_n=10`" in rendered
+    assert "next proof: use schema-only templates, add trusted optional rows, validate and preview them" in rendered
+    assert cards[2]["command"] == "make templates && make import-analyst-estimates && make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
     assert "schema-only examples and templates remain workflow aids, not data" in rendered
     assert "optional proof ladder" in rendered
     assert "template -> import -> readiness -> report" in rendered
-    assert "schema-only template, trusted local rows, import command, validation, preview, apply, optional-context readiness, then the single-stock report" in rendered
+    assert "schema-only template, trusted local rows, import proof, optional-context readiness, then the single-stock report" in rendered
     assert "available earnings or estimates add timing, consensus, and revision context only" in rendered
     assert "they do not create valuation conclusions" in rendered
-    assert "`make templates && make import-analyst-estimates" in rendered
-    assert "-> `make stock-report-md ticker=nvda`" in rendered
+    assert "exact command is copyable from this card; then open `make stock-report-md ticker=nvda`" in rendered
     assert "data/rejected/earnings_import_rejected.csv" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "make imports-validate" in rendered
