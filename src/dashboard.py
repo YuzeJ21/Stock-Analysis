@@ -5607,7 +5607,7 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
                 "Data Health is not an error page. It shows what you can analyze now, what is still locked, "
                 "which trusted local inputs are ready, and which safe command to copy next."
             ),
-            "badges": ["workflow guide", "copy only"],
+            "badges": ["review guide", "copy only"],
             "command": "make status-check TOP_N=5",
         },
         {
@@ -9897,7 +9897,7 @@ def decision_workflow_summary_cards(
         {
             "kicker": "DECISION BUCKETS",
             "title": f"{research_now} research / {blocked} blocked",
-            "body": f"Monitor: {monitor}. Excluded: {excluded}. Review later: {review_later}. Buckets are readiness-gated research workflow labels, not execution guidance.",
+            "body": f"Monitor: {monitor}. Excluded: {excluded}. Review later: {review_later}. Buckets are readiness-gated review labels, not execution guidance.",
             "badges": ["readiness-gated", "research-only"],
             "command": "make project-status",
         },
@@ -10123,7 +10123,7 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
             "kicker": "BUCKET",
             "title": "Workflow state, not a call",
             "body": "Read decision_bucket as where the ticker belongs in the research workflow: deeper review, monitor context, or data-unlock work.",
-            "badges": ["workflow label", "not advice"],
+            "badges": ["review label", "not advice"],
         },
         {
             "kicker": "DATA CONFIDENCE",

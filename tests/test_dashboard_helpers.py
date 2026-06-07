@@ -581,6 +581,12 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Grouped workflow guide." not in source
     assert "No review route detail" in source
     assert "No workflow detail" not in source
+    assert '"review guide", "copy only"' in source
+    assert '"workflow guide", "copy only"' not in source
+    assert "Buckets are readiness-gated review labels, not execution guidance." in source
+    assert "Buckets are readiness-gated research workflow labels, not execution guidance." not in source
+    assert '"review label", "not advice"' in source
+    assert '"workflow label", "not advice"' not in source
 
 
 def test_data_health_bundle_detail_copy_uses_public_product_language():
