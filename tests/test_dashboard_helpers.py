@@ -259,7 +259,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "unsupported dcf, peer valuation, earnings, and estimate sections stay withheld" in rendered
     assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-freshness review" in rendered
     assert "missing inputs are an unlock queue, not weak conclusions" in rendered
-    assert "dashboard does not run refreshes, imports, or external account actions" in rendered
+    assert "dashboard does not run refreshes, imports, or external actions" in rendered
     assert "proof after unlock:" in rendered
     assert "run make readiness and reopen home before interpreting changed counts" in rendered
     assert "regenerate the markdown report before reading newly available sections" in rendered
@@ -289,7 +289,7 @@ def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
     assert "guided path:" not in rendered
     assert "locked sections stay visible when trusted inputs are missing" in rendered
     assert "make status-check top_n=5" in rendered
-    assert "dashboard never runs refreshes, imports, or external account actions" in rendered
+    assert "dashboard never runs refreshes, imports, or external actions" in rendered
     assert len(str(cards[0]["body"])) < 360
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -549,7 +549,7 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "ready-data research" in rendered
     assert "blocked fundamentals, peers, earnings, or estimates" in rendered
     assert "copy commands, then run them yourself" in rendered
-    assert "do not run refreshes, imports, or external account actions" in rendered
+    assert "do not run refreshes, imports, or external actions" in rendered
     assert "implemented in the project code" in rendered
     assert "project rules" in rendered
     assert "product boundary" in rendered
@@ -7234,7 +7234,7 @@ def test_monthly_picks_quality_cards_explain_candidate_boundary_without_recommen
     assert "weaker names are not forced into the list" in rendered
     assert "no allocation conclusion" in rendered
     assert "position sizing" in rendered
-    assert "external account actions" in rendered
+    assert "external actions" in rendered
     assert "direct portfolio actions" in rendered
     assert "track record limited" in rendered
     assert "track record ready" in rendered
@@ -8363,7 +8363,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert cards[4]["command"] == "make stock-report-md TICKER=QQQ"
     assert "start with nvda" in rendered
     assert "copy next: `make stock-report-md ticker=nvda`" in rendered
-    assert "does not run refreshes, imports, or external account actions" in rendered
+    assert "does not run refreshes, imports, or external actions" in rendered
     assert "assumption, scenario, sensitivity, and source readiness review" in rendered
     assert "not price targets" in rendered
     assert "1 dcf-ready company row(s)" in rendered
@@ -16063,7 +16063,7 @@ def test_single_stock_quick_read_cards_route_dcf_ready_peer_locked():
     assert "dcf assumptions, sensitivity, source readiness, company setup, and peer trend context" in rendered
     assert "mapped peer price history" in rendered
     assert "peer-relative valuation, premium/discount, and peer dcf comparison wait" in rendered
-    assert "does not run refreshes, imports, or external account actions" in rendered
+    assert "does not run refreshes, imports, or external actions" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

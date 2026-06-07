@@ -158,7 +158,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "title": "What command should I copy next?",
             "body": (
                 "Copy next: copy the command into a terminal only when you are ready. "
-                "The dashboard does not run refreshes, imports, or external account actions. "
+                "The dashboard does not run refreshes, imports, or external actions. "
                 f"Workflow path: {guide['workflow_path']}. "
                 f"Proof after unlock: {guide['proof']}"
             ),
@@ -194,7 +194,7 @@ def dashboard_page_reader_summary_cards(page_title: str) -> list[dict[str, objec
             "title": "How to use this page.",
             "body": (
                 f"{guide_body} Locked sections stay visible when trusted inputs are missing. "
-                "Commands are copy-only; the dashboard never runs refreshes, imports, or external account actions."
+                "Commands are copy-only; the dashboard never runs refreshes, imports, or external actions."
             ),
             "badges": ["plain English", "copy-only", "research-only"],
             "command": str(copy_next.get("command") or page_guide.get("command") or "make status-check TOP_N=5"),
@@ -10858,7 +10858,7 @@ def build_active_evaluation_queue_frame(
         ),
         axis=1,
     )
-    frame["copy_only_note"] = "Copy-only command; the dashboard does not execute refreshes, imports, or external account actions."
+    frame["copy_only_note"] = "Copy-only command; the dashboard does not execute refreshes, imports, or external actions."
     frame["reason"] = frame.apply(active_evaluation_reason, axis=1)
     frame = frame.sort_values(["priority", "ticker"], kind="stable")
     return frame[ACTIVE_EVALUATION_QUEUE_COLUMNS].head(limit).reset_index(drop=True)
@@ -10954,7 +10954,7 @@ def build_active_evaluation_lane_detail_frame(queue_frame: pd.DataFrame | None, 
                     max_sentences=3,
                     max_chars=360,
                 ),
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes, imports, or external account actions.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes, imports, or external actions.",
             }
         )
     detail = pd.DataFrame(rows, columns=ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS)
@@ -12851,7 +12851,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
             "kicker": "COPY ONLY",
             "title": "Copy the next command when ready",
             "body": (
-                "The dashboard explains the next local step, but it does not run refreshes, imports, or external account actions. "
+                "The dashboard explains the next local step, but it does not run refreshes, imports, or external actions. "
                 f"Proof command: {proof_command}"
             ),
             "badges": ["manual step", "research only"],
@@ -13387,7 +13387,7 @@ def valuation_quick_read_cards(
             "body": (
                 f"Copy next: `{first_command}`. Use this command to prove the current valuation path before reading "
                 "DCF assumptions, locked-input worklists, or monitor-context rows. The dashboard displays the command only; "
-                "it does not run refreshes, imports, or external account actions."
+                "it does not run refreshes, imports, or external actions."
             ),
             "badges": ["copy-only", "research-only"],
             "command": first_command,
@@ -17058,7 +17058,7 @@ def monthly_picks_quality_cards(
         {
             "kicker": "WHAT STAYS WITHHELD",
             "title": "No allocation conclusion",
-            "body": "Monthly Picks is a research queue. It does not provide position sizing, external account actions, or direct portfolio actions.",
+            "body": "Monthly Picks is a research queue. It does not provide position sizing, external actions, or direct portfolio actions.",
             "badges": ["research-only", "copy-only"],
         },
         {
@@ -18761,7 +18761,7 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         {
             "kicker": "OPERATOR SAFETY",
             "title": "Copy commands, then run them yourself",
-            "body": "Dashboard buttons and cards show local commands for review. They do not run refreshes, imports, or external account actions.",
+            "body": "Dashboard buttons and cards show local commands for review. They do not run refreshes, imports, or external actions.",
             "badges": ["copy-only", "local"],
         },
         {
@@ -19935,7 +19935,7 @@ def render_market_command_center(
         st.info("No purpose drilldown rows match the current filters. Try All filters or run make pipeline and make readiness.")
     else:
         st.caption(
-            "Purpose drilldown rows are generated from current local CSV outputs. Commands are copy-only; this dashboard does not execute refreshes, imports, or external account actions."
+            "Purpose drilldown rows are generated from current local CSV outputs. Commands are copy-only; this dashboard does not execute refreshes, imports, or external actions."
         )
         st.dataframe(clean_display_frame(purpose_drilldown), width="stretch", hide_index=True)
     action_console = build_next_action_console_frame(
