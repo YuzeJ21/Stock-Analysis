@@ -2773,7 +2773,7 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
     st.markdown(
         f"""
         <div class="app-hero">
-          <div class="hero-kicker">CSV-first research cockpit</div>
+          <div class="hero-kicker">Local stock research dashboard</div>
           <div class="hero-title">Stock Research Command Center</div>
           <div class="hero-subtitle">
             A local, explainable workflow for market direction, momentum leadership, portfolio review,
@@ -2781,7 +2781,7 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
           </div>
           <div class="hero-pills">
             <span class="hero-pill">{tickers} tickers tracked</span>
-            <span class="hero-pill">{final_count} stocks checked</span>
+            <span class="hero-pill">{final_count} names checked</span>
             <span class="hero-pill">{monthly_count} monthly ideas</span>
             <span class="hero-pill">Latest price: {html.escape(latest_price)}</span>
           </div>
@@ -14459,7 +14459,7 @@ def overview_landing_cards(
     return [
         {
             "kicker": "RESEARCH FLOW",
-            "title": f"{watchlist_count} stocks checked",
+            "title": f"{watchlist_count} names checked",
             "body": f"{monthly_count} current monthly candidates and latest local price date {latest_price}.",
             "badges": ["local outputs"],
             "command": "make monthly",
