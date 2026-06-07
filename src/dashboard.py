@@ -1523,7 +1523,10 @@ def apply_dashboard_theme() -> None:
         [data-testid="stDecoration"],
         [data-testid="stStatusWidget"],
         [data-testid="stDeployButton"],
-        .stDeployButton {
+        [data-testid="stAppDeployButton"],
+        [data-testid="stBaseButton-header"],
+        .stDeployButton,
+        .stAppDeployButton {
           display: none !important;
           visibility: hidden !important;
         }
