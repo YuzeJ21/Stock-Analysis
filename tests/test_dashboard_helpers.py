@@ -456,7 +456,7 @@ def test_data_health_bundle_detail_copy_uses_operator_language():
 
     assert "Ticker-level bundle steps" in source
     assert "Ticker-level bundle steps are not available yet" in source
-    assert "generate ticker-level bundle steps" in source
+    assert "generate ticker-level guided-batch steps" in source
     assert "Command bundle detail rows" not in source
     assert "generate ticker-level bundle detail rows" not in source
 
@@ -470,14 +470,14 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     planning_expander_index = source.index('st.expander("Planning details: price, valuation, and analysis unlocks"')
     market_expander_index = source.index('st.expander("Full market-wide command center details"')
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
-    bundle_expander_index = source.index('st.expander("Command bundle details"')
+    bundle_expander_index = source.index('st.expander("Guided data batch details"')
 
     assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
     assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
     assert 'st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False)' in source
     assert 'st.expander("Full market-wide command center details", expanded=False)' in source
     assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
-    assert 'st.expander("Command bundle details", expanded=False)' in source
+    assert 'st.expander("Guided data batch details", expanded=False)' in source
     assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
     assert 'render_section_header("Priority Fixes"' not in source
 
@@ -6083,7 +6083,7 @@ def test_onboarding_notice_copy_uses_onboarding_front_door_for_generated_artifac
     unlock_body, unlock_command = dashboard.onboarding_notice_copy("unlock_priority_summary")
 
     assert bundle_command == "make onboarding"
-    assert "generate holdings-first local command bundles" in bundle_body.lower()
+    assert "generate holdings-first guided data batches" in bundle_body.lower()
     assert price_command == "make onboarding"
     assert "safe manual-import path" in price_body.lower()
     assert unlock_command == "make onboarding"
@@ -10412,7 +10412,7 @@ def test_data_health_onboarding_fallback_cards_use_status_refresh():
     ).lower()
 
     assert bundle_cards[0]["command"] == "make onboarding"
-    assert bundle_cards[0]["title"] == "No command bundles yet"
+    assert bundle_cards[0]["title"] == "No guided data batches yet"
     assert runbook_cards[0]["command"] == "make onboarding"
     assert runbook_cards[0]["title"] == "No bundle runbook yet"
     assert target_cards[0]["command"] == "make onboarding"
@@ -11443,7 +11443,7 @@ def test_overview_bundle_empty_states_use_operator_facing_titles():
     handoff_cards = dashboard.overview_bundle_handoff_cards(None, None, None)
     runbook_cards = dashboard.overview_bundle_runbook_cards(None)
 
-    assert bundle_cards[0]["title"] == "No command bundles yet"
+    assert bundle_cards[0]["title"] == "No guided data batches yet"
     assert handoff_cards[0]["title"] == "No bundle guidance yet"
     assert runbook_cards[0]["title"] == "No bundle runbook yet"
     assert bundle_cards[0]["command"] == "make onboarding"
