@@ -88,7 +88,7 @@ make stock-report-md TICKER=A    # standalone DCF report with peer review still 
 make stock-report-md TICKER=META # price/setup report with valuation still gated
 make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded
 make stock-report-md TICKER=SMH  # sector ETF monitor report
-make stock-report-md TICKER=APLD # partial-data blocker report
+make stock-report-md TICKER=APLD # price/setup report with fundamentals still locked
 make dashboard
 ```
 
@@ -100,7 +100,7 @@ Example map:
 | [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | Reader Guide, DCF assumptions, and the next peer data-unlock step. |
 | [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Reader Guide, supported setup analysis, valuation blockers, and caveats. |
 | [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |
-| [APLD](outputs/stock_reports/apld.md) | Blocked-data handling. | Reader Guide. No valuation conclusion appears until trusted price rows exist. |
+| [APLD](outputs/stock_reports/apld.md) | Price/setup review with valuation still locked. | Reader Guide, supported setup context, and the next trusted fundamentals unlock step. |
 
 In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then a `Reader Guide`, then `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what to read first, what trusted input matters next, and which copy-only command to run. They only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
