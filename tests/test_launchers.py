@@ -901,13 +901,15 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     diff_audit = Path("docs/DIFF_HYGIENE_AUDIT.md").read_text(encoding="utf-8")
 
     assert "docs/OPERATOR_GUIDE.md" in checklist
+    assert "docs/DATA_STRATEGY.md" in checklist
     assert "docs/LICENSE_DECISION_GUIDE.md" in checklist
     assert "docs/DIFF_HYGIENE_AUDIT.md" in checklist
     assert "portfolio/demo project" in checklist
     assert "deeper local workflow guide" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
-    assert "`At A Glance`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
+    assert "`At A Glance`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
+    assert "small pilot" in checklist
     assert "After it passes, run `make diff-hygiene`" in checklist
     assert "make diff-hygiene-files" in checklist
     assert "make staged-hygiene-check" in checklist
@@ -1007,14 +1009,16 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
 
     for phrase in (
         "At A Glance",
+        "Best Review Path",
         "Analysis Quality",
         "Methodology",
         "Evaluation Function Check",
         "Copyable Unlock Commands",
         "mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
         "which local method is being used",
+        "what to read first",
         "with the DCF method path visible before detailed report tables",
-        "At A Glance status, method cue, DCF assumptions",
+        "At A Glance status, Best Review Path, method cue, DCF assumptions",
         "what command would unlock the next trusted input",
         "DCF-ready review",
         "DCF-ready review",
@@ -1027,6 +1031,9 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "data-unlock work",
         "ready, blocked, excluded, or optional",
         "CSV-first, preview-first local import workflows",
+        "public Data Strategy guide",
+        "5-10 company pilot",
+        "docs/DATA_STRATEGY.md",
         "preview-first local import validation",
         "Original local analysis rules for readiness gates",
         "support data handling and UI",
@@ -1057,6 +1064,20 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "no broker integration",
     ):
         assert guardrail_phrase in brief
+
+
+def test_dashboard_qa_records_latest_public_flow_browser_check():
+    qa = Path("docs/DASHBOARD_QA.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        "2026-06-07 Public Product Flow Pass",
+        "`Review one stock`, `Explore ready names`, and `Improve data coverage`",
+        "trusted-data pilot path for improving 5-10 companies first",
+        "`At A Glance` followed by `Best Review Path`",
+        "routes the DCF/peer-ready `NVDA` example to review DCF, peers, and source readiness",
+        "Commands remain copy-only",
+    ):
+        assert phrase in qa
 
 
 def test_analysis_capability_audit_is_public_and_data_honest():
