@@ -19404,16 +19404,19 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
     selected = selection_cols[0].selectbox(
-        "Local ticker",
+        "Choose ticker",
         ["Custom"] + local_tickers if local_tickers else ["Custom"],
         index=preferred_single_stock_default(local_tickers),
         help="Defaults to NVDA when it exists in local data because it is a richer demo report.",
     )
-    manual_ticker = selection_cols[1].text_input("Manual ticker", value="" if selected != "Custom" else "AAPL")
+    manual_ticker = selection_cols[1].text_input("Enter ticker", value="" if selected != "Custom" else "AAPL")
     use_yfinance = selection_cols[2].checkbox(
-        "Use research-grade online data",
+        "Optional online research source",
         value=False,
-        help="Optional online provider mode. Leave this off for the saved local-data path.",
+        help=(
+            "Leave this off for the saved local-data path. If enabled, online data is unofficial / "
+            "research-grade and should be checked against source readiness notes."
+        ),
     )
     ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
     provider_name = "yfinance" if use_yfinance else "local"
@@ -19442,9 +19445,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     with st.expander("How single-stock reports work", expanded=False):
         render_signal_cards(single_stock_report_intro_cards())
 
-    if st.button("Build Local Report Preview", key="single-stock-report-button"):
+    if st.button("Show Report Preview", key="single-stock-report-button"):
         if not ticker:
-            st.warning("Enter a ticker to generate a stock report.")
+            st.warning("Enter a ticker to build a report preview.")
         else:
             try:
                 chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)
