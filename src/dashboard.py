@@ -131,7 +131,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         {
             "analyze": "The local rows and summaries already generated for this workflow page.",
             "locked": "Rows missing trusted inputs remain visible as blocked or partial rather than inferred.",
-            "read": "Read summary cards first, then the table. Use the command card only when you want to refresh local outputs from a terminal.",
+            "read": "Read summary cards first, then the table. Use the command card only when you intentionally want to refresh local outputs.",
             "proof": "After local data changes, rerun readiness before interpreting changed outputs.",
             "guided_path": "Use Home for the current state, Single-Stock Report for ticker proof, and Data Health for locked-input unlock steps.",
             "workflow_path": "Current page summary",
@@ -157,7 +157,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "kicker": "COPY NEXT",
             "title": "What command should I copy next?",
             "body": (
-                "Copy next: copy the command into a terminal only when you are ready. "
+                "Copy next: use the command only when you are ready to run it yourself. "
                 "The dashboard does not run refreshes, imports, or external actions. "
                 f"Workflow path: {guide['workflow_path']}. "
                 f"Proof after unlock: {guide['proof']}"
@@ -10925,7 +10925,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
         {
             "kicker": "COPY ONLY",
             "title": "No dashboard execution",
-            "body": "Commands are displayed for copying into a terminal after reviewing source readiness notes; the dashboard does not run refreshes or imports.",
+            "body": "Commands are displayed for manual copy after reviewing source readiness notes; the dashboard does not run refreshes or imports.",
             "badges": ["research-only", "local CSV"],
             "command": "make project-status",
         },
@@ -11842,7 +11842,7 @@ def next_action_console_plain_english_state(category: str) -> dict[str, str]:
         {
             "can_analyze": "current local outputs can be reviewed for the stated workflow lane.",
             "locked": "missing trusted inputs stay locked rather than inferred.",
-            "copy_next": "copy the command into a terminal only after reviewing the lane context.",
+            "copy_next": "copy the command only after reviewing the lane context.",
         },
     )
 
@@ -11851,13 +11851,13 @@ def next_action_console_safety_note(command: object) -> str:
     command_text = format_missing(command, "")
     lowered = command_text.lower()
     if "price-refresh-loop" in lowered and "dry_run=1" in lowered:
-        return "Dry-run only; previews capped missing-price batches without changing local CSV files. Copy into a terminal when ready."
+        return "Dry-run only; previews capped missing-price batches without changing local CSV files. Copy manually when ready."
     if "price-refresh-loop" in lowered:
         return "Capped refresh loop; updates local price CSVs only after the dry run is reviewed. Rerun readiness and diff hygiene afterward."
     if "top_n=" in lowered:
-        return "Capped batch; copy into a terminal when ready. The dashboard does not execute it."
+        return "Capped batch; copy manually when ready. The dashboard does not execute it."
     if "ticker=" in lowered or "tickers=" in lowered:
-        return "Ticker-targeted command; copy into a terminal when ready. The dashboard does not execute it."
+        return "Ticker-targeted command; copy manually when ready. The dashboard does not execute it."
     if "imports-validate" in lowered or "imports-preview" in lowered or "imports-apply" in lowered or "import-" in lowered or "templates" in lowered:
         return "Preview or import workflow; validate before apply. The dashboard does not execute it."
     return "Copyable local command only; the dashboard does not execute it."
@@ -18369,7 +18369,7 @@ def render_overview(
         if status_cards:
             render_section_header(
                 "Project Status",
-                "The same read-only snapshot shown by `make status-check TOP_N=5`, surfaced here so the dashboard and terminal agree.",
+                "The same read-only snapshot shown by `make status-check TOP_N=5`, surfaced here so the dashboard and local status check agree.",
             )
             render_metric_cards(status_cards)
             command_rows = project_status_command_rows(project_status_payload)
@@ -18379,7 +18379,7 @@ def render_overview(
         else:
             render_section_header(
                 "Project Status",
-                "Optional read-only status snapshot for matching the dashboard to terminal output.",
+                "Optional read-only status snapshot for matching the dashboard to local status output.",
             )
             st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
 
