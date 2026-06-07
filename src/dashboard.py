@@ -20387,28 +20387,28 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         )
     if feature_summary_frame is None and feature_summary_message:
         render_notice_card(
-            "Feature readiness summary has not been generated",
+            "Feature readiness summary not ready yet",
             feature_summary_message,
             "make readiness",
             tone="warning",
         )
     if peer_unlock_worklist_frame is None and peer_unlock_worklist_message:
         render_notice_card(
-            "Peer unlock worklist has not been generated",
+            "Peer unlock worklist not ready yet",
             peer_unlock_worklist_message,
             "make readiness",
             tone="warning",
         )
     if peer_readiness_frame is None and peer_readiness_message:
         render_notice_card(
-            "Peer readiness report has not been generated",
+            "Peer readiness report not ready yet",
             peer_readiness_message,
             "make readiness",
             tone="warning",
         )
     if decisions_frame is None and decisions_message:
         render_notice_card(
-            "Research decisions have not been generated",
+            "Research decisions not ready yet",
             decisions_message,
             "make pipeline",
             tone="warning",
@@ -20421,7 +20421,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         if wizard_frame is None:
             wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
             render_notice_card(
-                "Coverage unlock guide has not been generated",
+                "Coverage unlock guide not ready yet",
                 wizard_notice_body,
                 wizard_notice_command,
             )
@@ -21073,7 +21073,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         if status_frame is None and gap_frame is None:
             data_source_notice_body, data_source_notice_command = artifact_notice_copy("data_source_status")
             render_notice_card(
-                "Data source status is not generated yet",
+                "Data source status not ready yet",
                 data_source_notice_body,
                 data_source_notice_command,
                 tone="warning",
