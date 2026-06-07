@@ -1201,8 +1201,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert dry_run_index < refresh_index
     assert "Inspect broad refresh changes before committing or sharing them publicly" in dashboard
     assert "broad refresh churn should be inspected before it is committed or shared publicly" not in dashboard
-    assert "Show Report Preview" in dashboard
-    assert "Build Local Report Preview" not in dashboard
+    assert "Build Local Report Preview" in dashboard
+    assert "Show Report Preview" not in dashboard
     assert "Generate Local Stock Report" not in dashboard
     assert "Optional online research source" in dashboard
     assert "Use research-grade online data" not in dashboard
