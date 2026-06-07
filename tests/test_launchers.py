@@ -811,7 +811,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "Use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.",
         "make dashboard",
         "make dashboard-smoke",
-        "Use the Home page `Example Reports` table to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples",
+        "Open the Home page `Example reports` section to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples",
         "make price-worklist TOP_N=10",
         "make focus-fundamentals TICKER=NVDA",
         "make peer-mapping-queue TOP_N=10",

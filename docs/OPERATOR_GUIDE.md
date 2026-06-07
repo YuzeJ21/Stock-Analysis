@@ -33,7 +33,7 @@ make dashboard-smoke
 
 - Open `make dashboard` for the product page.
 - Start on `Home` to see readiness, blockers, and next safe commands.
-- Use the Home page `Example Reports` table to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples without reading raw CSVs first.
+- Open the Home page `Example reports` section to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples without reading raw CSVs first.
 - Open `Single-Stock Report` for one ticker when you want the clearest stock-level explanation.
 - Open `Data Health` when the app says analysis is blocked by missing local data.
 
