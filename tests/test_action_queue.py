@@ -150,6 +150,15 @@ def test_action_queue_cli_check_uses_read_only_summary_wording(tmp_path: Path, c
 
     assert "action queue summary:" in output
     assert "generated action queue output:" not in output
+    assert "local folders:" in output
+    assert "project: current repository root" in output
+    assert "data: data" in output
+    assert "outputs: outputs" in output
+    assert str(tmp_path).lower() not in output
+    assert "suggested check:" in output
+    assert "next local command:" in output
+    assert "\n  focus:" not in output
+    assert "\n  command:" not in output
 
 
 def test_action_queue_uses_research_health_when_price_data_is_missing():
