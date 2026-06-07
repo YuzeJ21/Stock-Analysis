@@ -15415,7 +15415,8 @@ def test_decision_interpretation_ladder_explains_reading_order_without_recommend
         "4. Read data confidence",
         "5. Copy the next action",
     ]
-    assert "workflow states, not direct actions" in rendered
+    assert "review states, not direct actions" in rendered
+    assert "workflow states, not direct actions" not in rendered
     assert "subtype explains why the broad bucket exists" in rendered
     assert "do not interpret valuation, peers, earnings, or estimates until the blocker is resolved" in rendered
     assert "data confidence is a data-quality state" in rendered
@@ -15531,7 +15532,8 @@ def test_final_decision_table_guide_cards_explain_columns_before_rows():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["BUCKET", "DATA CONFIDENCE", "BLOCKER", "NEXT ACTION"]
-    assert "workflow state, not a call" in rendered
+    assert "review state, not a call" in rendered
+    assert "workflow state, not a call" not in rendered
     assert "deeper review, monitor context, or data-unlock work" in rendered
     assert "2 low-data-confidence row(s)" in rendered
     assert "data confidence is input coverage, not conviction or recommendation strength" in rendered
@@ -15678,7 +15680,8 @@ def test_decision_proof_queue_translates_rows_without_overclaiming():
     assert "make price-coverage top_n=25" in queue.iloc[1]["proof_after_unlock"].lower()
     assert queue.iloc[2]["copy_only_command"] == "make stock-report-md TICKER=QQQ"
     assert "operating-company dcf and peer-relative company valuation are excluded" in rendered
-    assert "decision labels are workflow states" in rendered
+    assert "decision labels are review states" in rendered
+    assert "decision labels are workflow states" not in rendered
     assert cards[0]["title"] == "3 row(s) translated"
     assert "what can be reviewed now" in rendered_cards
     assert "what proves an unlock" in rendered_cards

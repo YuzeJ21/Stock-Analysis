@@ -7561,7 +7561,7 @@ def universe_layer_cards(summary: dict[str, object], decisions: pd.DataFrame | N
         {
             "kicker": "DECISION LAYER",
             "title": f"{research_now:,} research now / {monitor:,} monitor",
-            "body": f"{blocked:,} ticker(s) remain blocked by missing inputs. Decisions summarize readiness and research workflow state, not unsupported instructions.",
+            "body": f"{blocked:,} ticker(s) remain blocked by missing inputs. Decisions summarize readiness and research review state, not unsupported instructions.",
             "badges": ["readiness first", "research-only"],
         },
     ]
@@ -7621,7 +7621,7 @@ def universe_layer_frame(summary: dict[str, object], decisions: pd.DataFrame | N
         {
             "Layer": "Research decision layer",
             "Current count": f"{research_now:,} research now / {monitor:,} monitor / {blocked:,} blocked",
-            "What it means": "Decision buckets reflect readiness and review workflow state.",
+            "What it means": "Decision buckets reflect readiness and review state.",
             "Safe next step": "Read primary blocker and next_best_action before opening detailed analysis.",
         },
     ]
@@ -9921,7 +9921,7 @@ def decision_workflow_summary_cards(
             "body": (
                 ", ".join(f"{key}: {int(value)}" for key, value in list(confidence_counts.items())[:3])
                 if not confidence_counts.empty
-                else "No data-confidence column found yet. Treat decision rows as workflow states until readiness is regenerated."
+                else "No data-confidence column found yet. Treat decision rows as review states until readiness is regenerated."
             )
             + " Data confidence describes local input coverage and falls when core, peer, earnings, or estimate context is missing.",
             "badges": ["data quality", "not a rating"],
@@ -10011,7 +10011,7 @@ def decision_interpretation_ladder_frame() -> pd.DataFrame:
         [
             {
                 "Step": "1. Read the bucket",
-                "What It Means": "Research Now, Monitor, and Blocked by Data are workflow states, not direct actions.",
+                "What It Means": "Research Now, Monitor, and Blocked by Data are review states, not direct actions.",
                 "What To Check Next": "Confirm whether the row is deeper research, monitor context, or data-unlock work.",
                 "Safe Command": "make project-status",
             },
@@ -10053,7 +10053,7 @@ def decision_interpretation_ladder_cards() -> list[dict[str, object]]:
             "kicker": "DECISION READING ORDER",
             "title": "Read the bucket",
             "body": format_missing(bucket.get("What It Means"), ""),
-            "badges": ["workflow state", "not advice"],
+            "badges": ["review state", "not advice"],
             "command": format_missing(bucket.get("Safe Command"), ""),
         },
         {
@@ -10121,8 +10121,8 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
     return [
         {
             "kicker": "BUCKET",
-            "title": "Workflow state, not a call",
-            "body": "Read decision_bucket as where the ticker belongs in the research workflow: deeper review, monitor context, or data-unlock work.",
+            "title": "Review state, not a call",
+            "body": "Read decision_bucket as where the ticker belongs in the research review: deeper review, monitor context, or data-unlock work.",
             "badges": ["review label", "not advice"],
         },
         {
@@ -10278,7 +10278,7 @@ def decision_proof_queue_frame(
                 "proof_after_unlock": decision_next_action_proof(row),
                 "source_note": (
                     f"Local readiness updated {format_missing(row.get('updated_at'), 'not available')}; "
-                    "decision labels are workflow states, not recommendations."
+                    "decision labels are review states, not recommendations."
                 ),
             }
         )
