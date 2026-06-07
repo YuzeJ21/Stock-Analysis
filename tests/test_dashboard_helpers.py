@@ -568,7 +568,8 @@ def test_data_health_bundle_detail_copy_uses_public_product_language():
 
     assert "Ticker-level coverage steps" in source
     assert "Ticker-level coverage steps not ready yet" in source
-    assert "refresh ticker-level coverage steps" in source
+    assert "Build ticker-level coverage steps before reviewing the guided worklist." in source
+    assert "refresh ticker-level coverage steps" not in source
     assert "Ticker-level guided steps" not in source
     assert "Ticker-level guided steps not ready yet" not in source
     assert "Ticker-level guided steps are not available yet" not in source
@@ -586,7 +587,8 @@ def test_dashboard_not_ready_notices_avoid_generated_file_language():
     assert "Build the readiness-aware decision buckets before reading the table." in source
     assert "refresh readiness-aware decision buckets" not in source
     assert "Ticker readiness report not ready yet" in source
-    assert "refresh ticker readiness proof" in source
+    assert "Build ticker readiness proof before using the market-wide filters." in source
+    assert "refresh ticker readiness proof" not in source
     assert "Guided coverage plans not ready yet" in source
     assert "Guided coverage steps not ready yet" in source
     assert "Research decisions are not available yet" not in source
@@ -5578,7 +5580,8 @@ def test_overview_deep_research_handoff_cards_fall_back_to_safe_command():
     assert cards[0]["command"] == "make onboarding"
     assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
-    assert "refresh the onboarding outputs" in rendered
+    assert "build the local workflow" in rendered
+    assert "refresh the onboarding outputs" not in rendered
     assert "sec stage and peer-mapping queues" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -5708,7 +5711,8 @@ def test_overview_best_current_name_cards_handle_metadata_only_coverage_graceful
     assert len(cards) == 1
     assert cards[0]["title"] == "No current ready names yet"
     assert cards[0]["command"] == "make onboarding"
-    assert "refresh local coverage" in rendered
+    assert "build local coverage" in rendered
+    assert "refresh local coverage" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5750,7 +5754,8 @@ def test_overview_best_current_name_cards_use_actionable_empty_state_when_no_nam
     assert cards[0]["kicker"] == "READY NAME STATUS"
     assert cards[0]["title"] == "No current ready names yet"
     assert cards[0]["command"] == "make onboarding"
-    assert "refresh local coverage" in rendered
+    assert "build local coverage" in rendered
+    assert "refresh local coverage" not in rendered
     assert "price-ready names" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -5857,7 +5862,8 @@ def test_overview_ready_name_handoff_cards_handle_missing_inputs_gracefully():
     assert "clear blockers before treating any name as ready" in cards[0]["body"].lower()
     assert "next read matches the current local workflow state" in cards[2]["body"].lower()
     assert "for no current ready names yet" not in cards[2]["body"].lower()
-    assert "refresh local coverage and onboarding outputs" in rendered
+    assert "build local coverage and onboarding outputs" in rendered
+    assert "refresh local coverage and onboarding outputs" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5887,7 +5893,8 @@ def test_overview_ready_name_handoff_cards_use_runbook_fallback_when_no_ready_na
     assert cards[2]["title"] == "Data Health"
     assert "no locally ready name yet" in cards[0]["body"].lower()
     assert "clear blockers before treating any name as ready" in cards[0]["body"].lower()
-    assert "refresh local coverage and onboarding outputs" in rendered
+    assert "build local coverage and onboarding outputs" in rendered
+    assert "refresh local coverage and onboarding outputs" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -6340,7 +6347,8 @@ def test_onboarding_notice_copy_uses_onboarding_front_door_for_generated_artifac
     unlock_body, unlock_command = dashboard.onboarding_notice_copy("unlock_priority_summary")
 
     assert bundle_command == "make onboarding"
-    assert "refresh holdings-first coverage plans" in bundle_body.lower()
+    assert "build holdings-first coverage plans" in bundle_body.lower()
+    assert "refresh holdings-first coverage plans" not in bundle_body.lower()
     assert "guided data batches" not in bundle_body.lower()
     assert "generate holdings-first guided data batches" not in bundle_body.lower()
     assert price_command == "make onboarding"
@@ -6357,7 +6365,8 @@ def test_artifact_notice_copy_uses_narrow_front_doors_for_specific_artifacts():
     assert action_command == "make action-queue"
     assert "research action queue" in action_body.lower()
     assert health_command == "make research-health"
-    assert "research health outputs are not ready yet" in health_body.lower()
+    assert "research health notes are not ready yet" in health_body.lower()
+    assert "research health outputs are not ready yet" not in health_body.lower()
     assert sources_command == "make data-sources"
     assert "local source registry" in sources_body.lower()
 
@@ -6569,7 +6578,8 @@ def test_overview_next_command_cards_use_onboarding_front_door_without_guidance(
 
     assert cards[0]["title"] == "make onboarding"
     assert cards[0]["command"] == "make onboarding"
-    assert "refresh local coverage and next-step guidance" in rendered
+    assert "build local coverage and next-step guidance" in rendered
+    assert "refresh local coverage and next-step guidance" not in rendered
     assert "operator guidance" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -10796,7 +10806,8 @@ def test_data_health_onboarding_fallback_cards_use_status_refresh():
     assert runbook_cards[0]["title"] == "No guided data batch plan yet"
     assert target_cards[0]["command"] == "make onboarding"
     assert target_cards[0]["title"] == "No price-history targets yet"
-    assert "run make onboarding to refresh the onboarding outputs" in rendered
+    assert "build holdings-first guided data batches" in rendered
+    assert "run make onboarding to refresh the onboarding outputs" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -11816,7 +11827,8 @@ def test_deep_research_target_fallback_cards_use_onboarding_refresh():
     assert overview_cards[0]["title"] == "No DCF or peer targets yet"
     assert price_cards[0]["command"] == "make onboarding"
     assert price_cards[0]["title"] == "No price-history targets yet"
-    assert "run make onboarding" in rendered
+    assert "build explicit fundamentals" in rendered
+    assert "run make onboarding" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -17785,7 +17797,9 @@ def test_overview_onboarding_fallback_cards_use_status_refresh():
     assert bundle_cards[0]["command"] == "make onboarding"
     assert handoff_cards[0]["command"] == "make onboarding"
     assert runbook_cards[0]["command"] == "make onboarding"
-    assert "run make onboarding" in rendered
+    assert "build holdings-first guided data batches" in rendered
+    assert "build onboarding coverage first" in rendered
+    assert "run make onboarding" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

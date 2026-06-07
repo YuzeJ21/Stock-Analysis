@@ -6014,7 +6014,7 @@ def data_health_action_path_cards(
             {
                 "kicker": "ACTION PATHS",
                 "title": "No action paths yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and action queue, then use the best local command path for prices, fundamentals, peers, and optional context.",
+                "body": "Build the local coverage guide and action queue before choosing the best command path for prices, fundamentals, peers, or optional context.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -6136,7 +6136,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
             {
                 "kicker": "DATA BATCHES",
                 "title": "No guided data batches yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first guided data batches for prices, SEC staging workflow, and peer mapping.",
+                "body": "Build holdings-first guided data batches for prices, SEC staging workflow, and peer mapping.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -6208,7 +6208,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             {
                 "kicker": "GUIDED STEPS",
                 "title": "No guided data batch plan yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC staging workflow, and peer mapping.",
+                "body": "Build ordered guided steps for prices, SEC staging workflow, and peer mapping before using this plan.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -6304,7 +6304,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         {
             "kicker": "GUIDED STEPS",
             "title": "No guided data batch plan yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC staging workflow, and peer mapping.",
+            "body": "Build ordered guided steps for prices, SEC staging workflow, and peer mapping before using this plan.",
             "badges": ["read-only"],
             "command": "make onboarding",
         }
@@ -6317,7 +6317,7 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
             {
                 "kicker": "PRICE HISTORY",
                 "title": "No price-history targets yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface exact history targets for Monthly Picks, track record, and fuller 1Y local coverage.",
+                "body": "Build exact price-history targets for Monthly Picks, track record, and fuller 1Y local coverage.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -6482,7 +6482,7 @@ def data_health_deep_research_target_cards(
         {
             "kicker": "DEEP TARGETS",
             "title": "No DCF or peer targets yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and surface explicit fundamentals and peer-relative target queues.",
+            "body": "Build explicit fundamentals and peer-relative target queues before deeper valuation review.",
             "badges": ["read-only"],
             "command": "make onboarding",
         }
@@ -6590,7 +6590,7 @@ def overview_deep_research_target_cards(
         {
             "kicker": "DEEP TARGETS",
             "title": "No DCF or peer targets yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and surface the next exact fundamentals and peer-relative targets.",
+            "body": "Build the next exact fundamentals and peer-relative targets before deeper valuation review.",
             "badges": ["read-only", "data moat"],
             "command": "make onboarding",
         }
@@ -6603,7 +6603,7 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
             {
                 "kicker": "PRICE HISTORY",
                 "title": "No price-history targets yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface the next exact history targets for Monthly Picks, track record, and fuller local coverage.",
+                "body": "Build the next exact price-history targets for Monthly Picks, track record, and fuller local coverage.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -14827,7 +14827,7 @@ def holdings_unlock_cards(
             {
                 "kicker": "HOLDINGS FIRST",
                 "title": "No holdings unlock board yet",
-                "body": "Add holdings rows, then run make onboarding to refresh onboarding outputs and surface blocked portfolio names before broader universe work.",
+                "body": "Add holdings rows, then build onboarding coverage to surface blocked portfolio names before broader universe work.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -14958,7 +14958,7 @@ def holdings_deep_research_cards(
             {
                 "kicker": "HOLDINGS DCF / PEERS",
                 "title": "No holdings deep-research board yet",
-                "body": "Add holdings rows, then run make onboarding to refresh onboarding outputs and see which portfolio names next benefit from SEC staging workflow or manual peer research.",
+                "body": "Add holdings rows, then build onboarding coverage to see which portfolio names next benefit from SEC staging workflow or manual peer research.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15091,7 +15091,7 @@ def holdings_deep_research_cards(
         {
             "kicker": "HOLDINGS DCF / PEERS",
             "title": "No holdings DCF / peer queue yet",
-            "body": "Run make onboarding to refresh the local workflow and show the fundamentals and peer review queues for holdings-first deep-research blockers.",
+            "body": "Build the local workflow to show fundamentals and peer review queues for holdings-first deep-research blockers.",
             "badges": ["read-only"],
             "command": "make onboarding",
         }
@@ -15107,7 +15107,7 @@ def theme_unlock_cards(
             {
                 "kicker": "THEME FIRST",
                 "title": "No theme unlock board yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface which local themes or sector ETF clusters are blocked first.",
+                "body": "Build the theme unlock board to see which local themes or sector ETF clusters are blocked first.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15121,7 +15121,7 @@ def theme_unlock_cards(
             {
                 "kicker": "THEME FIRST",
                 "title": "No grouped theme unlocks yet",
-                "body": "Run make universe-preview to stage broader local universe context, then refresh onboarding outputs so grouped theme and sector ETF unlock rows can appear here.",
+                "body": "Create a local universe preview before grouped theme and sector ETF unlock rows can appear here.",
                 "badges": ["read-only"],
                 "command": "make universe-preview",
             }
@@ -15299,7 +15299,7 @@ def theme_deep_research_cards(
             {
                 "kicker": "THEME DCF / PEERS",
                 "title": "No theme deep-research board yet",
-                "body": "Run make onboarding to refresh the local workflow and show the fundamentals and peer review queues for theme-level deep-research blockers.",
+                "body": "Build the local workflow to show fundamentals and peer review queues for theme-level deep-research blockers.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15505,7 +15505,7 @@ def overview_deep_research_leverage_cards(
             {
                 "kicker": "DEEP RESEARCH LEVERAGE",
                 "title": "No deep-research leverage view yet",
-                "body": "Run make onboarding to refresh the local workflow and show the fundamentals and peer review queues before ranking the highest-leverage deep-research path.",
+                "body": "Build the fundamentals and peer review queues before ranking the highest-leverage deep-research path.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15623,7 +15623,7 @@ def overview_deep_research_priority_bridge_cards(
             {
                 "kicker": "DEEP RESEARCH PRIORITIES",
                 "title": "No deep-research shortlist yet",
-                "body": "Run make onboarding to refresh the local workflow and show the fundamentals and peer review queues for the next deep-research names.",
+                "body": "Build the local workflow to show fundamentals and peer review queues for the next deep-research names.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15701,7 +15701,7 @@ def overview_deep_research_handoff_cards(
             "kicker": "DEEP RESEARCH NAME",
             "title": ticker,
             "body": (
-                "Deep-research queues are not ready yet. Refresh the onboarding outputs before ranking the next SEC or peer-research lane."
+                "Deep-research queues are not ready yet. Build the local workflow before ranking the next SEC or peer-research lane."
                 if empty_shortlist
                 else f"{ticker} is the clearest current name for {lane.lower()} based on the local SEC and peer queues."
             ),
@@ -15722,7 +15722,7 @@ def overview_deep_research_handoff_cards(
                 f"Use {next_tab.get('title', 'Data Health')} to confirm the queue status for {ticker}, "
                 f"then return to Single-Stock Report once the local {lane.lower()} step is complete."
                 if not empty_shortlist
-                else "Use Data Health after onboarding refresh to confirm the SEC stage and peer-mapping queues before deeper interpretation."
+                else "Use Data Health after building onboarding coverage to confirm the SEC stage and peer-mapping queues before deeper interpretation."
             ),
             "badges": [str(item) for item in next_tab.get("badges", [])][:2] or ["coverage", "read-only"],
         },
@@ -15740,7 +15740,7 @@ def overview_ready_blocked_cards(
             {
                 "kicker": "READY NOW VS BLOCKED",
                 "title": "No readiness shortlist yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and separate names that are already usable from names still blocked by local data gaps.",
+                "body": "Build the readiness shortlist to separate usable names from names still blocked by local data gaps.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15847,7 +15847,7 @@ def overview_best_current_name_cards(
             {
                 "kicker": "READY NAME STATUS",
                 "title": "No current ready names yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface which names are already usable with today’s local coverage.",
+                "body": "Build the ready-name view to see which names are already usable with today’s local coverage.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15885,7 +15885,7 @@ def overview_best_current_name_cards(
             {
                 "kicker": "READY NAME STATUS",
                 "title": "No current ready names yet",
-                "body": "Run make onboarding to refresh local coverage and unblock the next price-ready names before treating any name as ready.",
+                "body": "Build local coverage and unblock the next price-ready names before treating any name as ready.",
                 "badges": ["needs prices"],
                 "command": "make onboarding",
             }
@@ -15992,15 +15992,15 @@ def overview_market_context_cards(
 
 
 ONBOARDING_NOTICE_DEFAULTS: dict[str, str] = {
-    "coverage_wizard": "Run make onboarding to refresh the local coverage guide and see the next best coverage unlocks.",
-    "command_bundles": "Run make onboarding to refresh holdings-first coverage plans.",
-    "command_bundle_details": "Run make onboarding to refresh ticker-level coverage steps.",
-    "command_bundle_runbook": "Run make onboarding to refresh ordered coverage steps.",
-    "price_worklist": "Run make onboarding to refresh the onboarding outputs and see exact local price-history gaps plus the safe manual-import path.",
-    "fundamentals_peer_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still need SEC fundamentals or manual peer mappings.",
-    "optional_context_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still have optional earnings or analyst-estimate gaps.",
-    "ticker_unlock_ladder": "Run make onboarding to refresh the onboarding outputs and see the next per-ticker local data unlock stage.",
-    "unlock_priority_summary": "Run make onboarding to refresh the onboarding outputs and see grouped unlock priorities by holdings, theme, and sector ETF.",
+    "coverage_wizard": "Build the local coverage guide to see the next best coverage unlocks.",
+    "command_bundles": "Build holdings-first coverage plans before reviewing grouped unlock work.",
+    "command_bundle_details": "Build ticker-level coverage steps before reviewing the guided worklist.",
+    "command_bundle_runbook": "Build ordered coverage steps before using the guided runbook.",
+    "price_worklist": "Build the local coverage view to see exact price-history gaps plus the safe manual-import path.",
+    "fundamentals_peer_worklist": "Build the local coverage view to see which tickers still need SEC fundamentals or manual peer mappings.",
+    "optional_context_worklist": "Build the local coverage view to see which tickers still have optional earnings or analyst-estimate gaps.",
+    "ticker_unlock_ladder": "Build the local coverage view to see the next per-ticker data unlock stage.",
+    "unlock_priority_summary": "Build grouped unlock priorities by holdings, theme, and sector ETF before choosing the next coverage task.",
 }
 
 
@@ -16010,19 +16010,19 @@ def onboarding_notice_copy(kind: str, message: str | None = None) -> tuple[str, 
 
 ARTIFACT_NOTICE_DEFAULTS: dict[str, tuple[str, str]] = {
     "action_queue": (
-        "Run make action-queue to refresh the research action queue and surface priority price, fundamentals, peer, and onboarding tasks.",
+        "Build the research action queue to surface priority price, fundamentals, peer, and onboarding tasks.",
         "make action-queue",
     ),
     "research_health": (
-        "Research health outputs are not ready yet. Run make research-health to refresh those review notes, or make verify for the broader local validation pass.",
+        "Research health notes are not ready yet. Build the review notes first, or run the broader local validation pass.",
         "make research-health",
     ),
     "data_source_status": (
-        "Run make data-sources to refresh the local source registry so this tab can show what is available, partial, manual-only, or missing.",
+        "Build the local source registry so this tab can show what is available, partial, manual-only, or missing.",
         "make data-sources",
     ),
     "data_source_rows": (
-        "Run make data-sources to refresh the local source registry and inspect dataset availability plus fallback actions.",
+        "Build the local source registry before inspecting dataset availability and fallback actions.",
         "make data-sources",
     ),
 }
@@ -16182,7 +16182,7 @@ def overview_next_command_cards(
             {
                 "kicker": "NEXT COMMAND",
                 "title": "make onboarding",
-                "body": "Run make onboarding to refresh local coverage and next-step guidance before broader research work.",
+                "body": "Build local coverage and next-step guidance before broader research work.",
                 "badges": ["data moat", "command"],
                 "command": "make onboarding",
             }
@@ -16205,7 +16205,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
             {
                 "kicker": "DATA BUNDLE",
                 "title": "No guided data batches yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first guided data batches for prices, SEC staging workflow, and peer mapping.",
+                "body": "Build holdings-first guided data batches for prices, SEC staging workflow, and peer mapping.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -16280,7 +16280,7 @@ def overview_bundle_handoff_cards(
             {
                 "kicker": "BUNDLE HANDOFF",
                 "title": "No bundle guidance yet",
-                "body": "Run make onboarding first, then use Data Health to inspect the current guided data batch workflow.",
+                "body": "Build onboarding coverage first, then use Data Health to inspect the current guided data batch workflow.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -16452,7 +16452,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             {
                 "kicker": "GUIDED BATCH",
                 "title": "No guided data batch plan yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered price, SEC fundamentals, and peer-mapping steps.",
+                "body": "Build ordered price, SEC fundamentals, and peer-mapping steps before using this guided batch plan.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -16548,7 +16548,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         {
             "kicker": "GUIDED BATCH",
             "title": "No guided data batch plan yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered price, SEC fundamentals, and peer-mapping steps.",
+            "body": "Build ordered price, SEC fundamentals, and peer-mapping steps before using this guided batch plan.",
             "badges": ["read-only", "data moat"],
             "command": "make onboarding",
         }
@@ -16871,7 +16871,7 @@ def overview_ready_name_handoff_cards(
     elif surface == "No current ready names yet":
         command_text = "make onboarding"
         badges = ["data moat", "command"]
-        body = "Run make onboarding to refresh local coverage and onboarding outputs before treating any name as ready."
+        body = "Build local coverage and onboarding outputs before treating any name as ready."
     else:
         fallback = next_command[0] if next_command else {"title": "make help", "badges": ["safe default"]}
         command_text = format_missing(fallback.get("title"), "make help")
@@ -20343,7 +20343,7 @@ def render_market_command_center(
     render_section_header("Next Steps", "Grouped actions with source readiness notes. These cards are copyable commands only; the dashboard does not run them.")
     render_signal_cards(next_action_console_cards(action_console))
     if action_console.empty:
-        st.info("No grouped next-step rows are available. Run make project-status and make onboarding TOP_N=10 to refresh action guidance.")
+        st.info("No grouped next-step rows are available. Build the project status and onboarding guide first.")
     else:
         st.caption("Commands are capped, ticker-targeted, or preview/import oriented. Copy them only after reviewing the source and safety notes.")
         st.dataframe(clean_display_frame(action_console), width="stretch", hide_index=True)
@@ -20361,7 +20361,7 @@ def render_market_command_center(
     if ticker_readiness_frame is None or ticker_readiness_frame.empty:
         render_notice_card(
             "Ticker readiness report not ready yet",
-            "Run make readiness to refresh ticker readiness proof before using the market-wide filters.",
+            "Build ticker readiness proof before using the market-wide filters.",
             "make readiness",
             tone="warning",
         )
@@ -21082,7 +21082,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 st.dataframe(clean_display_frame(ticker_readiness_frame[readiness_columns].head(200)), width="stretch", hide_index=True)
             else:
-                st.info(ticker_readiness_message or "Run make readiness to refresh ticker readiness proof.")
+                st.info(ticker_readiness_message or "Build ticker readiness proof before reviewing this table.")
 
             with st.expander("Liquidity Context", expanded=False):
                 if liquidity_frame is not None and not liquidity_frame.empty:
