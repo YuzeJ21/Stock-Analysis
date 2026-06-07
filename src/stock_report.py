@@ -1186,7 +1186,7 @@ def _stock_report_decision_boundary(*, readiness: dict[str, Any], decision: dict
         return f"Data-unlock state: {blocker} blocks evaluation, so conclusions stay withheld."
     if "excluded" in bucket:
         return "Method-exclusion state: the analysis is intentionally omitted, not treated as a failed calculation."
-    return "Review state only: use readiness, blockers, and source/freshness before drawing a conclusion."
+    return "Review state only: use readiness, blockers, and source readiness before drawing a conclusion."
 
 
 def _stock_report_next_action(
@@ -1358,14 +1358,14 @@ def _stock_report_methodology_lines(
         "- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.",
         "- Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.",
         "- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command.",
-        "- Reader audit path: check Source/Freshness first, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.",
+        "- Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.",
         "- Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.",
         "- DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.",
         "- DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.",
         f"- DCF method: {valuation_method}.",
         f"- Peer method: {peer_method}.",
         "- Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.",
-        "- Report method: text is generated from local readiness, DCF, peer, decision, and source/freshness outputs; blocked or excluded sections are explained instead of filled.",
+        "- Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs; blocked or excluded sections are explained instead of filled.",
     ]
 
 
@@ -1463,7 +1463,7 @@ def _stock_report_reader_question_lines(
         next_input = "Trusted optional earnings or analyst-estimate CSV rows, only if you have a source you trust."
         command = f"make optional-context-worklist TICKERS={ticker} TOP_N=10"
     else:
-        next_input = "Review source/freshness notes before interpreting the supported sections."
+        next_input = "Review source readiness notes before interpreting the supported sections."
         command = f"make stock-report-md TICKER={ticker}"
     lane = _stock_report_data_health_handoff_line(
         ticker=ticker,
@@ -1735,7 +1735,7 @@ def _stock_report_data_unlock_lines(
         f"- Fundamentals / DCF unlock: {dcf_line}",
         f"- Peer unlock: {peer_line}",
         f"- Optional context unlock: {optional_line}",
-        "- Import paths, rejected-row files, and credential state are listed in the Source/Freshness Audit below.",
+        "- Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.",
     ]
 
 
@@ -2417,7 +2417,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Missing Data",
         *missing_lines,
         "",
-        "## Source / Freshness",
+        "## Source Readiness",
         *source_lines,
         "",
         "## Data Unlock Summary",
@@ -2426,7 +2426,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Copyable Unlock Commands",
         *unlock_command_lines,
         "",
-        "## Source/Freshness Audit",
+        "## Source Readiness Check",
         *source_audit_lines,
     ]
     return "\n".join(report_lines)
@@ -2791,7 +2791,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "## Copyable Unlock Commands",
         *unlock_command_lines,
         "",
-        "## Source/Freshness Audit",
+        "## Source Readiness Check",
         *_stock_report_source_audit_lines(
             ticker=symbol,
             readiness=readiness,

@@ -29,7 +29,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Product-page readiness filters, row limits, and single-stock drilldown.
 - [x] Peer Mapping Studio V1 with peer blocker filters and safe command cards.
 - [x] Feature readiness summary and readiness-gated decision subtype reporting.
-- [x] Single-stock report mode with readiness, methodology, source/freshness audit, DCF/peer gating, and ETF/index DCF exclusion.
+- [x] Single-stock report mode with readiness, methodology, source readiness check, DCF/peer gating, and ETF/index DCF exclusion.
 - [x] Public-facing methodology documentation that explains readiness gates, fundamentals review, DCF formula path, peer boundaries, score limits, and report explanation.
 - [x] Public README/dashboard polish for visitor-friendly demo paths, screenshot preview, generated-data hygiene, deep links, and research-only guardrails.
 
@@ -67,8 +67,8 @@ Goal: turn the Streamlit page into a research command center instead of a collec
   - Single-Stock Review
 - Keep dashboard commands copyable only; do not execute actions from the product page.
 - Keep broad-universe tables row-limited by default.
-- Add source/freshness notes wherever an action depends on local CSVs, import drafts, Yahoo price refresh, SEC staging, or manual trusted inputs.
-- [x] Add source/freshness context to `project_status_next_steps.csv`, `make project-status`, and dashboard next-action cards.
+- Add source readiness notes wherever an action depends on local CSVs, import drafts, Yahoo price refresh, SEC staging, or manual trusted inputs.
+- [x] Add source readiness context to `project_status_next_steps.csv`, `make project-status`, and dashboard next-action cards.
 - Make active-universe vs master-universe language visible wherever counts differ.
 
 ## 4. Data-Unlock Roadmap
@@ -170,7 +170,7 @@ Current status:
 - `make stock-report-md TICKER=...` generates clean Markdown reports for visitor demos.
 - `make stock-report TICKER=...` remains available when optional report data is useful for inspection.
 - The dashboard includes a Single-Stock Report page and local deep links such as `?page=single-stock-report`.
-- Reports show readiness, analysis quality, methodology, evaluation function checks, valuation status, research decision, source/freshness audit, blocked inputs, and next research steps.
+- Reports show readiness, analysis quality, methodology, evaluation function checks, valuation status, research decision, source readiness check, blocked inputs, and next research steps.
 - ETF/index/fund reports show operating-company DCF as excluded, not failed.
 - Reports now open with an `At A Glance` block so first-time visitors see mode, decision view, DCF state, peer context, optional context, and next local step before methodology detail.
 - The dashboard Single-Stock Report page includes an At A Glance methodology card explaining project readiness gates and the DCF formula path before detailed tables.
@@ -233,7 +233,7 @@ Reason: the blocker is not the lack of indicators. The blocker is missing truste
 
 Goal: turn the public project into a usable research workflow while the data universe grows through safe, reviewable unlocks.
 
-This stage should improve breadth without pretending the whole 3,538-ticker universe is analysis-ready. It should favor capped refreshes, preview-first imports, source/freshness visibility, and plain-English next actions.
+This stage should improve breadth without pretending the whole 3,538-ticker universe is analysis-ready. It should favor capped refreshes, preview-first imports, source readiness visibility, and plain-English next actions.
 
 | Workstream | Next product step | Safe command path | Completion signal |
 | --- | --- | --- | --- |
@@ -241,7 +241,7 @@ This stage should improve breadth without pretending the whole 3,538-ticker univ
 | Trusted fundamentals | Use SEC staging when configured, or trusted manual fundamentals imports when not. | `make sec-stage-queue TOP_N=25`, `make focus-fundamentals TICKER=...`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | `fundamentals_ready` and `dcf_ready` improve only from trusted rows. |
 | Source-backed peers | Prioritize active-universe and DCF-ready peer blockers before broad peer work. | `make peer-mapping-queue TOP_N=25`, `make focus-peers TICKER=...`, `make templates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Peer trend and peer valuation states are separated; peer valuation appears only when trusted peer inputs pass readiness. |
 | Optional context | Keep earnings and analyst estimates locked until trusted local rows exist. | `make optional-context-worklist TOP_N=25`, `make import-earnings`, `make import-analyst-estimates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Empty optional context reads as intentionally locked, not broken or inferred. |
-| Freshness guidance | Make source age, rejected-row reports, and generated-data hygiene visible before interpretation. | `make project-status`, `make research-health-check TOP_N=10`, `make public-check`, `make diff-hygiene`. | Visitors can see what is fresh, what is stale, what is local-only, and what should not be committed. |
+| Source readiness guidance | Make source age, rejected-row reports, and generated-data hygiene visible before interpretation. | `make project-status`, `make research-health-check TOP_N=10`, `make public-check`, `make diff-hygiene`. | Visitors can see what is fresh, what is stale, what is local-only, and what should not be committed. |
 
 Public-share rules for this stage:
 
@@ -256,7 +256,7 @@ The next roadmap milestone is complete when:
 
 - [x] The product page clearly separates the 3,538-ticker master universe, 12-ticker active universe, and analysis-ready subset through the top-level Universe Layers cards and table.
 - [x] The product page includes a grouped next-action console with safe capped or ticker-targeted commands.
-- [x] Next-action rows include source/freshness context and clearly state that dashboard commands are copyable only.
+- [x] Next-action rows include source readiness context and clearly state that dashboard commands are copyable only.
 - [x] `SEC_USER_AGENT` is detected locally, and manual fundamentals imports validate/preview through the trusted CSV workflow.
 - [ ] `fundamentals_ready` improves beyond 23/3,538 with trusted data only.
 - [ ] `dcf_ready` improves beyond 23/3,538 with trusted data only.

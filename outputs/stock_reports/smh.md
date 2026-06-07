@@ -64,13 +64,15 @@ SMH state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
 - Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
+- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command.
+- Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
 - DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
 - DCF method: operating-company DCF is excluded because this ticker is treated as ETF/index/fund monitor context; use ready price, liquidity, correlation, theme, or risk context instead.
 - Peer method: peer-relative company valuation is excluded for monitor context.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
-- Report method: text is generated from local readiness, DCF, peer, decision, and source/freshness outputs; blocked or excluded sections are explained instead of filled.
+- Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs; blocked or excluded sections are explained instead of filled.
 
 ## Evaluation Function Check
 - Readiness gate: strongest function; it decides ready, blocked, or excluded before any conclusion is shown.
@@ -198,7 +200,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - analyst estimates has no local row for this ticker.
 - earnings has no local row for this ticker.
 
-## Source / Freshness
+## Source Readiness
 - local:prices.csv: research-grade / local; freshness: daily CSV through 2026-05-22; Saved local research data.
 - local:fundamentals.csv: research-grade / local; freshness: not available in local CSVs; No local fundamentals row was found for this ticker.
 - local:earnings.csv: research-grade / local; freshness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
@@ -210,7 +212,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Fundamentals / DCF unlock: Operating-company DCF is excluded for this ETF/index/fund monitor context; no fundamentals import is required for company valuation.
 - Peer unlock: Peer valuation is excluded for monitor context; peer rows are optional context, not a required unlock.
 - Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
-- Import paths, rejected-row files, and credential state are listed in the Source/Freshness Audit below.
+- Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
 ## Copyable Unlock Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
@@ -225,7 +227,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.
 - Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
-## Source/Freshness Audit
+## Source Readiness Check
 - Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=616; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
 - Fundamentals / DCF: excluded; local source `data/fundamentals.csv`; reason dcf excluded for etf, use etf/rotation analysis instead of operating-company dcf; SEC_USER_AGENT present; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
 - Peers: monitor context; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context.

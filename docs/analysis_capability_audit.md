@@ -20,7 +20,7 @@ In plain terms: local or provider-assisted data supplies rows; this product chec
 - **DCF workflow:** DCF uses explicit assumptions, conservative caps, scenario outputs, and sensitivity tables when required inputs are available.
 - **Peer workflow:** peer comparison is withheld until source-backed peer mappings and peer metrics exist.
 - **ETF/index handling:** operating-company DCF is excluded for ETF/index/fund monitor context instead of being shown as failed.
-- **Single-stock report:** one ticker can be reviewed with At A Glance status, readiness, supported analysis, blocked analysis, valuation state, methodology, risk notes, copyable local unlock commands, next step, and source/freshness notes.
+- **Single-stock report:** one ticker can be reviewed with At A Glance status, readiness, supported analysis, blocked analysis, valuation state, methodology, risk notes, copyable local unlock commands, next step, and source readiness notes.
 - **Methodology visibility:** reports and docs show the local calculation path so visitors can see what is checked, calculated, blocked, or excluded.
 
 ## Function Quality Matrix
@@ -32,7 +32,7 @@ In plain terms: local or provider-assisted data supplies rows; this product chec
 | Fundamentals and DCF | Good for DCF-ready companies only. | Review assumptions, scenarios, and sensitivity with trusted local inputs. | Trusted fundamentals with revenue, free cash flow or FCF margin, shares outstanding, price, cash, and debt where available. | It does not label not-ready companies undervalued or overvalued. | `src/value_engine.py`, `src/valuation.py` |
 | Peer comparison | Workflow-ready, coverage-limited. | Use as a peer data-unlock workflow until source-backed peers and peer metrics are ready. | Source-backed peer mappings plus peer price/fundamentals rows. | It does not treat sector or industry fallback as trusted peer valuation. | `src/readiness_engine.py`, `src/valuation.py` |
 | ETF/index monitor context | Good for monitor context only. | Review market, theme, liquidity, and risk context without operating-company DCF. | Price, liquidity, correlation, and theme context. | It does not run operating-company DCF for ETFs, index proxies, or funds. | `src/research_decisions.py`, `src/stock_report.py` |
-| Single-stock report | Strongest visitor-facing workflow. | See one ticker's At A Glance mode, ready, blocked, excluded, optional, methodology, copyable unlock commands, and source/freshness states step by step. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not execute imports, broker actions, trades, allocation instructions, or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
+| Single-stock report | Strongest visitor-facing workflow. | See one ticker's At A Glance mode, ready, blocked, excluded, optional, methodology, copyable unlock commands, and source readiness states step by step. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not execute imports, broker actions, trades, allocation instructions, or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
 | Methodology and explanation | Strong for transparency. | Trace readiness gates, DCF formula path, peer boundaries, and report wording back to project code. | Trusted local inputs remain required before calculation output appears. | It does not hide missing inputs behind model prose or unsupported conclusions. | `docs/METHODOLOGY.md`, `src/stock_report.py`, `src/dashboard.py` |
 | Dependencies | Support layer, not analysis logic. | Handle data frames, UI, tests, YAML config, and optional research-grade provider access. | Local CSV inputs remain the source of truth by default. | They do not replace project analysis rules or trusted local data. | `pyproject.toml` |
 
@@ -40,11 +40,11 @@ In plain terms: local or provider-assisted data supplies rows; this product chec
 
 The product follows the same inspectable path for every ticker:
 
-1. Load local CSV inputs and source/freshness metadata.
+1. Load local CSV inputs and source readiness metadata.
 2. Validate whether each feature is `ready`, `partial`, `blocked`, or `excluded`.
 3. Run only calculations supported by ready inputs, such as price setup, ATR/proxy volatility, DCF scenarios, or peer context.
 4. Reduce confidence or withhold sections when required inputs are missing.
-5. Write the report from those local states: At A Glance first, supported analysis next, blocked or excluded analysis next, and copyable local data-unlock commands near the source/freshness audit.
+5. Write the report from those local states: At A Glance first, supported analysis next, blocked or excluded analysis next, and copyable local data-unlock commands near the source readiness check.
 
 That contract is why a full-data company can show fundamentals, DCF assumptions, sensitivity, and peer context, while a partial-data company shows only the supported setup or blocker explanation.
 
@@ -90,7 +90,7 @@ The project uses standard Python libraries for support work. Based on `pyproject
 | `pandas` | CSV/data-frame loading, joins, validation, and report tables. | Not a stock-analysis rule source. |
 | `PyYAML` | Configuration loading. | Not a valuation or decision engine. |
 | `streamlit` | Local dashboard UI. | Not analysis logic. |
-| `yfinance` | Optional unofficial research-grade data adapter. | Optional provider access only; local CSVs and source/freshness checks still gate analysis. |
+| `yfinance` | Optional unofficial research-grade data adapter. | Optional provider access only; local CSVs and source readiness checks still gate analysis. |
 | `pytest` | Development/test dependency. | Verifies behavior; not product logic. |
 
 These dependencies support the workflow; they are not the analysis rules, recommendation logic, valuation gates, or account-execution systems.
@@ -105,4 +105,4 @@ Any external review or research input still has to be translated into determinis
 
 The current functions are strong enough for a transparent local research prototype, single-stock review, market/ETF monitoring, and DCF-ready company analysis when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until trusted rows are imported.
 
-The next quality unlock is not more indicators. It is better data coverage, better source/freshness visibility, more trusted fundamentals/peer rows, and continued UI polish so blocked analysis feels intentional rather than broken.
+The next quality unlock is not more indicators. It is better data coverage, better source readiness visibility, more trusted fundamentals/peer rows, and continued UI polish so blocked analysis feels intentional rather than broken.

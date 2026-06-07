@@ -64,13 +64,15 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
 - Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
+- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command.
+- Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
 - DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
 - DCF method: standalone DCF projects free cash flow under bear/base/bull assumptions, discounts projected cash flows and terminal value by WACC, adjusts for cash/debt or net debt, and divides by shares outstanding.
 - Peer method: peer-relative valuation stays withheld until source-backed peer mappings and peer valuation inputs are ready.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
-- Report method: text is generated from local readiness, DCF, peer, decision, and source/freshness outputs; blocked or excluded sections are explained instead of filled.
+- Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs; blocked or excluded sections are explained instead of filled.
 
 ## Evaluation Function Check
 - Readiness gate: strongest function; it decides ready, blocked, or excluded before any conclusion is shown.
@@ -98,15 +100,15 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is Setup Forming.
 - Alignment: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below.
-- Operator summary: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below; Research Candidate - DCF Ready But Peer Blocked. Next blocker: peers. Withheld: earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
+- Operator summary: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below; Research Candidate - DCF Ready But Peer Blocked. Next blocker: peers. Withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
 - Setup: Compounder setup: Setup Forming; final state: Setup Forming. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`.
 - Valuation boundary: DCF inputs are ready, but valuation interpretation is constrained by Insufficient Data and peer status `Insufficient Peer Data`.
 
 ## Supported Analysis
-- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, fundamental context, standalone DCF scenario analysis. Partial inputs present: peer. Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source freshness.
+- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, fundamental context, standalone DCF scenario analysis. Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source freshness.
 
 ## Blocked Analysis
-- Unsupported analysis: earnings timing or surprise context, analyst estimate trend context.
+- Unsupported analysis: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context.
 
 ## Setup / Momentum
 - Compounder setup: Setup Forming; final state: Setup Forming. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`.
@@ -116,13 +118,13 @@ Research-only purpose brief. It separates what local data supports from what rem
 - ATR / volatility: Not available; missing values stay visible instead of guessed.
 
 ## Risk Notes
-- Risk watchpoint: monitor setup deterioration, valuation-input quality, and missing optional context.
+- Risk watchpoint: peer-relative context is incomplete, so valuation comparison and opportunity cost remain uncertain.
 - Invalidation condition: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
 
 ## Next Research Step
 - Next research question: Do trend, fundamentals, DCF assumptions, and thesis conflict notes still support the compounder purpose?
 - Review priority: High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation.
-- Data-confidence explanation: Data confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: peer, earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: partial
@@ -218,7 +220,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - analyst estimates has no local row for this ticker.
 - earnings has no local row for this ticker.
 
-## Source / Freshness
+## Source Readiness
 - local:prices.csv: research-grade / local; freshness: daily CSV through 2026-05-27; Saved local research data.
 - local:fundamentals.csv: research-grade / local; freshness: dataset row as of 2017-10-31; Local fundamentals data.; Dataset row source: sec_companyfacts
 - local:earnings.csv: research-grade / local; freshness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
@@ -230,7 +232,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source freshness before interpreting valuation context.
 - Peer unlock: Peer context is the next unlock after DCF: Add trusted price history for mapped peers: DHR, TMO, WAT. Add source-backed mappings in `data/imports/peers.csv`.
 - Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
-- Import paths, rejected-row files, and credential state are listed in the Source/Freshness Audit below.
+- Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
 ## Copyable Unlock Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
@@ -248,7 +250,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Optional import safety: `make imports-validate && make imports-preview && make imports-apply`.
 - Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
-## Source/Freshness Audit
+## Source Readiness Check
 - Prices: ready; local source `data/prices.csv`; coverage 2023-12-11 to 2026-05-27; rows=616; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
 - Fundamentals / DCF: ready; local source `data/fundamentals.csv`; SEC_USER_AGENT present; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
 - Peers: peer price missing; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action Add trusted price history for mapped peers: DHR, TMO, WAT.
