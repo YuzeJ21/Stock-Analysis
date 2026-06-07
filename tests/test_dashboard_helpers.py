@@ -12186,6 +12186,12 @@ def test_dashboard_import_copy_uses_plain_language_for_standard_files():
     assert "standard import files" in source
     assert "Local import files waiting for review before any standard local file update." in source
     assert "Local import drafts waiting for review before any standard local file update." not in source
+    assert "No import files to review" in source
+    assert "No import drafts to review" not in source
+    assert "safer import file review" in source
+    assert "safer import draft review" not in source
+    assert "`data/imports/*.csv` keeps import files local until reviewed." in source
+    assert "`data/imports/*.csv` keeps import drafts local until reviewed." not in source
     assert "main universe file" in source
     assert "canonical import" not in visible_source.lower()
     assert "canonical rows" not in visible_source.lower()
@@ -17158,6 +17164,8 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make price-validate" in empty_rendered
     assert "make price-preview" in empty_rendered
     assert "make price-apply" in empty_rendered
+    assert "no import files to review" in empty_rendered
+    assert "no import drafts to review" not in empty_rendered
     assert "make runbook-fundamentals-broader" in rendered
     assert "make runbook-peers-broader" in rendered
     assert "make imports-validate" in rendered

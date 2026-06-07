@@ -14366,7 +14366,7 @@ def empty_state_command_rows() -> list[dict[str, str]]:
         {"Scenario": "No local fundamentals for valuation", "Next step": "Use make runbook-fundamentals-broader or make focus-fundamentals TICKER=... first, then run make imports-validate, make imports-preview, and make imports-apply."},
         {"Scenario": "No peer-relative context", "Next step": "Use make runbook-peers-broader or make focus-peers TICKER=... first. If mappings are missing, run make templates, then fill data/imports/peers.csv; if mappings already exist, follow the peer fundamentals or price blocker the queue prints."},
         {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
-        {"Scenario": "No import drafts to review", "Next step": "Use templates or trusted price/fundamental import files first, then run make imports-validate, make imports-preview, and make imports-apply for local datasets, or use make price-validate, make price-preview, and make price-apply for price rows."},
+        {"Scenario": "No import files to review", "Next step": "Use templates or trusted price/fundamental import files first, then run make imports-validate, make imports-preview, and make imports-apply for local datasets, or use make price-validate, make price-preview, and make price-apply for price rows."},
     ]
 
 
@@ -21510,7 +21510,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
         if staged_imports["status"] == "no_staged_files":
             render_notice_card(
-                "No import drafts to review",
+                "No import files to review",
                 staged_imports["warnings"][0],
                 "make templates",
             )
@@ -21529,7 +21529,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
             preview = preview_import_merge(base_dir=BASE_DIR)
             if preview.get("preview"):
-                render_context_note("Preview only.", "Apply remains copy-only for safer import draft review.")
+                render_context_note("Preview only.", "Apply remains copy-only for safer import file review.")
                 st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
         st.markdown("#### Universe Import Review")
@@ -21541,7 +21541,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             st.write("These working files are intentionally ignored so local refreshes and previews do not clutter the public project.")
             st.write("- `data/cache/` keeps temporary downloaded data local.")
             st.write("- `data/backups/` keeps import backup files local.")
-            st.write("- `data/imports/*.csv` keeps import drafts local until reviewed.")
+            st.write("- `data/imports/*.csv` keeps import files local until reviewed.")
             st.write("- `outputs/*stock_report.json` keeps exported report data local.")
             st.write("- `outputs/project_status*.{json,csv}` keeps status refreshes local.")
 
