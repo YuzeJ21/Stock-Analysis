@@ -167,7 +167,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "command": "make dcf-readiness",
         },
         "Data Health": {
-            "analyze": "Which trusted inputs are ready across prices, fundamentals, DCF, peers, earnings, and analyst estimates.",
+            "analyze": "Which trusted inputs are ready across prices, fundamentals, company valuation, peers, earnings, and analyst estimates.",
             "locked": "Missing inputs are an unlock queue, not weak conclusions; imports should validate, preview, and apply before trust.",
             "read": "Start with the unlock path cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
             "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a path as unlocked.",

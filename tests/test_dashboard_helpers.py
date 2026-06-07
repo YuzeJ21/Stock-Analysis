@@ -289,6 +289,8 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "single-stock report: what can i analyze now?" in rendered
     assert "value / re-rating: what can i analyze now?" in rendered
     assert "data health: what can i analyze now?" in rendered
+    assert "prices, fundamentals, company valuation, peers, earnings, and analyst estimates" in rendered
+    assert "prices, fundamentals, dcf, peers" not in rendered
     assert rendered.count("analyze now:") == 4
     assert rendered.count("still locked:") == 4
     assert rendered.count("copy next:") == 4
