@@ -150,7 +150,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         },
         "Single-Stock Report": {
             "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source readiness notes.",
-            "locked": "Unsupported DCF, peer valuation, earnings, and estimate sections stay withheld instead of being filled.",
+            "locked": "Company valuation, peer comparison, earnings, and estimate sections stay withheld when trusted inputs are missing or excluded.",
             "read": "Read At A Glance, then Quick Read, then the source readiness check. Locked sections are boundaries, not hidden conclusions.",
             "proof": "After an unlock, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
             "review_route": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact unlock path if anything is still locked.",
@@ -5366,7 +5366,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
         {
             "kicker": "WHAT IS STILL LOCKED",
             "title": "Missing data stays visible",
-            "body": "Peer valuation, earnings, and analyst-estimate context stay locked unless trusted local rows exist. ETF/index/fund DCF is excluded, not failed.",
+            "body": "Peer comparison, earnings, and analyst-estimate context stay locked unless trusted local rows exist. Company valuation is excluded for ETF/index/fund monitor rows, not failed.",
             "badges": ["no guessing", "research-only"],
             "command": "make stock-report-md TICKER=QQQ",
         },
@@ -5397,7 +5397,7 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
             "title": "Build one local preview",
             "body": (
                 "Select a ticker, build the local read-only preview, then read At A Glance first. "
-                "The report separates ready analysis, locked inputs, excluded ETF/index DCF, and the next copy-only local step."
+                "The report separates ready analysis, locked inputs, excluded company valuation, and the next local proof step."
             ),
             "badges": ["plain English", "readiness first", "copy-only"],
             "command": "",
@@ -10325,7 +10325,7 @@ def decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict[st
         {
             "kicker": "WITHHELD CONTEXT",
             "title": f"Peer mentions: {peer_limited} / optional mentions: {optional_limited}",
-            "body": "Withheld context remains visible so peer valuation, earnings, estimates, or DCF exclusions do not look like hidden conclusions.",
+            "body": "Withheld context remains visible so peer comparison, earnings, estimates, or company-valuation exclusions do not look like hidden conclusions.",
             "badges": ["data-honest", "no fabrication"],
             "command": "make readiness",
         },
@@ -18808,7 +18808,7 @@ def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
             "kicker": "STEP 3",
             "title": "Keep locked sections visible",
             "body": (
-                "Missing fundamentals, peer inputs, earnings, or estimates stay locked. ETF/index/fund DCF is excluded, not failed."
+                "Missing fundamentals, peer inputs, earnings, or estimates stay locked. Company valuation is excluded for ETF/index/fund monitor rows, not failed."
             ),
             "badges": ["blocked is not negative", "excluded is not failed"],
             "command": "make data-wizard TOP_N=10",
@@ -18817,7 +18817,7 @@ def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
             "kicker": "STEP 4",
             "title": "Read the report boundary",
             "body": (
-                "Single-stock reports explain what data came from source rows, what the product calculated, what stayed withheld, and the next copy-only local step."
+                "Single-stock reports explain what data came from source rows, what the product calculated, what stayed withheld, and the next local proof step."
             ),
             "badges": ["source-to-method", "copy-only"],
             "command": "make stock-report-md TICKER=A",

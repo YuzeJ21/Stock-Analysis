@@ -39,8 +39,8 @@ The report is not a black box: local data rows provide inputs, and project rules
 
 1. Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears.
 2. Supported analysis: price-ready rows can support setup/risk context, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context.
-3. Locked or excluded boundaries: missing fundamentals, peer inputs, earnings, or estimates stay locked; ETF/index/fund DCF is excluded, not failed.
-4. Report explanation: single-stock reports show what came from source rows, what the product calculated, what stayed withheld, and the next copy-only local step.
+3. Locked or excluded boundaries: missing fundamentals, peer inputs, earnings, or estimates stay locked; company valuation is excluded for ETF/index/fund monitor rows, not failed.
+4. Report explanation: single-stock reports show what came from source rows, what the product calculated, what stayed withheld, and the next local proof step.
 
 ## Current Snapshot
 
@@ -50,7 +50,7 @@ The local sample currently tracks a broad universe of 3,538 tickers, with a smal
 
 This is a working local research prototype with deterministic outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
 
-Useful with limits: price/momentum, fundamentals/DCF, peer review, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker/execution system, or auto-refreshing trading system.
+Useful with limits: price/momentum, fundamentals/DCF, peer review, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer comparison, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker/execution system, or auto-refreshing trading system.
 
 ## Preview
 

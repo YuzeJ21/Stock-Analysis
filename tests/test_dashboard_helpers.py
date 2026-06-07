@@ -311,7 +311,8 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "use single-stock report after home or value / re-rating to prove one ticker" in rendered
     assert "use data health when home, value / re-rating, or single-stock report shows a lock" in rendered
     assert "where does this fit in the stock review path?" in rendered
-    assert "unsupported dcf, peer valuation, earnings, and estimate sections stay withheld" in rendered
+    assert "company valuation, peer comparison, earnings, and estimate sections stay withheld" in rendered
+    assert "unsupported dcf" not in rendered
     assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-readiness review" in rendered
     assert "source-freshness review" not in rendered
     assert "missing inputs are an unlock queue, not weak conclusions" in rendered
@@ -808,12 +809,14 @@ def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaimi
     assert "peer-ready rows can support source-backed relative context" in rendered
     assert "keep locked sections visible" in rendered
     assert "missing fundamentals, peer inputs, earnings, or estimates stay locked" in rendered
-    assert "etf/index/fund dcf is excluded, not failed" in rendered
+    assert "company valuation is excluded for etf/index/fund monitor rows" in rendered
+    assert "etf/index/fund dcf is excluded" not in rendered
     assert "read the report boundary" in rendered
     assert "what data came from source rows" in rendered
     assert "what the product calculated" in rendered
     assert "what stayed withheld" in rendered
-    assert "copy-only local step" in rendered
+    assert "local proof step" in rendered
+    assert "copy-only local step" not in rendered
     assert "make readiness" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make data-wizard top_n=10" in rendered
@@ -9798,8 +9801,9 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "inputs are separated from calculations" in rendered
     assert "local/provider rows supply prices and fundamentals" in rendered
     assert "runs dcf math when inputs are complete" in rendered
-    assert "peer valuation, earnings, and analyst-estimate context stay locked" in rendered
-    assert "etf/index/fund dcf is excluded, not failed" in rendered
+    assert "peer comparison, earnings, and analyst-estimate context stay locked" in rendered
+    assert "company valuation is excluded for etf/index/fund monitor rows" in rendered
+    assert "etf/index/fund dcf is excluded" not in rendered
     assert "no hidden final call" in rendered
     assert "source inputs, product calculations, blocked sections" in rendered
     assert "does not convert partial data into a portfolio action" in rendered
@@ -9811,7 +9815,9 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "build one local preview" in summary_rendered
     assert "select a ticker, build the local read-only preview, then read at a glance first" in summary_rendered
     assert "locked inputs" in summary_rendered
-    assert "excluded etf/index dcf" in summary_rendered
+    assert "excluded company valuation" in summary_rendered
+    assert "next local proof step" in summary_rendered
+    assert "copy-only local step" not in summary_rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=apld" in rendered
     assert "make stock-report-md ticker=nvda" not in summary_rendered
