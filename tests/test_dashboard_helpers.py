@@ -328,7 +328,11 @@ def test_sidebar_navigation_note_matches_selected_page():
     monthly_title, monthly_body = dashboard.sidebar_navigation_note("Monthly Picks")
     watchlist_title, watchlist_body = dashboard.sidebar_navigation_note("Final Watchlist")
     universe_title, universe_body = dashboard.sidebar_navigation_note("Universe Manager")
+    overview_title, overview_body = dashboard.sidebar_navigation_note("Overview")
+    market_title, market_body = dashboard.sidebar_navigation_note("Market Direction")
     momentum_title, momentum_body = dashboard.sidebar_navigation_note("Momentum Leaders")
+    portfolio_title, portfolio_body = dashboard.sidebar_navigation_note("Portfolio Review")
+    unknown_title, unknown_body = dashboard.sidebar_navigation_note("Unknown Page")
 
     assert home_title == "Start here."
     assert "what is ready" in home_body
@@ -351,9 +355,21 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert universe_title == "Viewing Universe Manager."
     assert "preview-first changes" in universe_body
     assert "manual apply step" in universe_body
+    assert overview_title == "Viewing Overview."
+    assert "broad command-center view" in overview_body
+    assert "copy-only next steps" in overview_body
+    assert market_title == "Viewing Market Direction."
+    assert "local market and theme context" in market_body
+    assert "not a timing signal" in market_body
     assert momentum_title == "Viewing Momentum Leaders."
-    assert "selected workflow" in momentum_body
-    assert "return to Home" in momentum_body
+    assert "local setup strength" in momentum_body
+    assert "single-stock report" in momentum_body
+    assert portfolio_title == "Viewing Portfolio Review."
+    assert "holding purpose" in portfolio_body
+    assert "without creating portfolio actions" in portfolio_body
+    assert unknown_title == "Viewing Unknown Page."
+    assert "selected workflow" in unknown_body
+    assert "return to Home" in unknown_body
 
 
 def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
