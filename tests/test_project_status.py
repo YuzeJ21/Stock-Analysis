@@ -533,7 +533,7 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     finally:
         sys.argv = argv_before
 
-    assert "top data gaps to review" in output
+    assert "top locked inputs to review" in output
     assert "trusted import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
     assert "suggested check: make focus-fundamentals ticker=nvda" in output
     assert "trusted import/fallback: make sec-stage tickers=nvda" in output

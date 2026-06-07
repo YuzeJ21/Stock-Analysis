@@ -14604,7 +14604,7 @@ def project_status_metric_cards(payload: dict[str, Any] | None) -> list[tuple[st
     peer_ready = int(summary.get("tickers_peer_ready") or 0)
     return [
         ("Data Sources", f"{available_sources}/{total_sources}", "Available local/source coverage"),
-        ("Data Gaps", int(summary.get("data_gaps") or 0), "Rows in the current gap report"),
+        ("Locked Inputs", int(summary.get("data_gaps") or 0), "Rows waiting on trusted local data"),
         ("Price Ready", f"{price_ready}/{total_tickers}", "Tickers with usable local prices"),
         ("DCF Ready", f"{dcf_ready}/{total_tickers}", "Tickers with enough local valuation fields"),
         ("Peer Ready", f"{peer_ready}/{total_tickers}", "Tickers with local peer context"),

@@ -839,7 +839,7 @@ def _print_human(payload: dict[str, Any]) -> None:
     print("Project status summary:")
     print(f"- Data sources: {summary['data_sources_available']}/{summary['data_sources_total']} available")
     print(f"- Data sources needing attention: {summary['data_sources_needing_attention']}")
-    print(f"- Data gaps: {summary['data_gaps']}")
+    print(f"- Locked input rows: {summary['data_gaps']}")
     print(f"- Tickers with prices: {summary['tickers_with_prices']}/{summary['tickers_total']}")
     print(f"- Tickers usable for momentum: {summary['tickers_usable_for_momentum']}/{summary['tickers_total']}")
     print(f"- DCF-ready tickers: {summary['tickers_dcf_ready']}/{summary['tickers_total']}")
@@ -848,7 +848,7 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- Research-purpose groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
     for warning in payload.get("warnings", []):
         print(f"Warning: {warning}")
-    print("Top data gaps to review:")
+    print("Top locked inputs to review:")
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
         print(f"- P{row['priority']} {row['dataset']}{ticker}")
