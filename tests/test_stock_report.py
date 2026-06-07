@@ -312,7 +312,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "project code implements readiness gates and report wording" in markdown
     assert "shipped analysis comes from project code and local data" in markdown
     assert "plugins can help development review" not in markdown
-    assert "freshness: daily snapshot" in markdown
+    assert "source readiness: daily snapshot" in markdown
     assert "retrieved 20" not in markdown
     assert "research context only" in markdown
     assert "account actions" in markdown
@@ -386,7 +386,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
     assert "DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing" in markdown
     assert "standalone DCF projects free cash flow under bear/base/bull assumptions" in markdown
-    assert "Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs" in markdown
+    assert "Report method: text is built from local readiness, DCF, peer, decision, and source readiness outputs" in markdown
     assert "## Evaluation Function Check" in markdown
     assert "Readiness gate: strongest function" in markdown
     assert "Price and setup: ready for local trend/setup review" in markdown
@@ -413,7 +413,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Reader takeaway: this is scenario math and methodology evidence, not a price target or direct recommendation" in markdown
     assert "## DCF Input Triage" in markdown
     assert "DCF input triage: required inputs passed readiness for standalone DCF review" in markdown
-    assert "Next check: review assumptions, sensitivity, and source freshness; do not convert fair value math into a recommendation" in markdown
+    assert "Next check: review assumptions, sensitivity, and source readiness; do not convert fair value math into a recommendation" in markdown
     assert "## Valuation Boundary Checklist" in markdown
     assert "DCF boundary: ready for assumption, scenario, and sensitivity review; still research context, not a price target" in markdown
     assert "Peer-relative boundary: blocked until source-backed peer mappings and peer valuation inputs pass readiness" in markdown
@@ -732,7 +732,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Monitor-only context when local price, liquidity, correlation, or theme inputs are ready" in markdown
     assert "shipped analysis comes from project code and local data" in markdown
     assert "plugins can help development review" not in markdown
-    assert "freshness:" in markdown
+    assert "source readiness:" in markdown
     assert "retrieved 20" not in markdown
     assert "allocation instructions" in markdown
     assert "trade instruction" not in markdown.lower()

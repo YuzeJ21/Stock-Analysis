@@ -540,7 +540,7 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
     assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
     assert "source:" in output
-    assert "freshness:" in output
+    assert "source readiness:" in output
     assert "open price coverage guided data batch: make runbook-prices" in output
 
 
@@ -648,7 +648,7 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     assert command_row["Step"] == "Refresh next capped missing-price batch"
     assert (
         command_row["FreshnessContext"]
-        == "dry-run first; verify source/readiness notes and local CSV changes after any refresh"
+        == "dry-run first; verify source readiness notes and local CSV changes after any refresh"
     )
     assert "generated CSV churn" not in command_row["FreshnessContext"]
     guided_row = payload["recommended_next_command_rows"][1]
@@ -797,7 +797,7 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
     assert payload["recommended_next_command_rows"][0]["Command"] == "make price-refresh-loop DRY_RUN=1"
     assert (
         payload["recommended_next_command_rows"][0]["FreshnessContext"]
-        == "dry-run first; verify source/readiness notes and local CSV changes after any refresh"
+        == "dry-run first; verify source readiness notes and local CSV changes after any refresh"
     )
     assert "generated CSV churn" not in payload["recommended_next_command_rows"][0]["FreshnessContext"]
     assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"

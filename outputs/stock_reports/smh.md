@@ -72,7 +72,7 @@ SMH state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - DCF method: operating-company DCF is excluded because this ticker is treated as ETF/index/fund monitor context; use ready price, liquidity, correlation, theme, or risk context instead.
 - Peer method: peer-relative company valuation is excluded for monitor context.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
-- Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs; blocked or excluded sections are explained instead of filled.
+- Report method: text is built from local readiness, DCF, peer, decision, and source readiness outputs; blocked or excluded sections are explained instead of filled.
 
 ## Evaluation Function Check
 - Readiness gate: strongest function; it decides ready, blocked, or excluded before any conclusion is shown.
@@ -201,10 +201,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - earnings has no local row for this ticker.
 
 ## Source Readiness
-- local:prices.csv: research-grade / local; freshness: daily CSV through 2026-05-22; Saved local research data.
-- local:fundamentals.csv: research-grade / local; freshness: not available in local CSVs; No local fundamentals row was found for this ticker.
-- local:earnings.csv: research-grade / local; freshness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local; freshness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-22; Saved local research data.
+- local:fundamentals.csv: research-grade / local; source readiness: not available in local CSVs; No local fundamentals row was found for this ticker.
+- local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Data Unlock Summary
 - Data Health lane: Single-Stock Review. Copy `make stock-report-md TICKER=SMH`, then confirm with `make readiness` before treating the lane as unlocked.
@@ -217,7 +217,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Copyable Unlock Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
 - Inspect this ticker: `make stock-report-md TICKER=SMH`.
-- Price freshness: `make focus-price TICKER=SMH`.
+- Price source readiness: `make focus-price TICKER=SMH`.
 - Fundamentals / DCF: no operating-company DCF command is required for ETF/index/fund monitor context.
 - Peers: no peer-valuation command is required for ETF/index/fund monitor context.
 - Optional context queue: `make optional-context-worklist TICKERS=SMH TOP_N=10`.

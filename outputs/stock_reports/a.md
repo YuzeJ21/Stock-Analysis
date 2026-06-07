@@ -72,7 +72,7 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 - DCF method: standalone DCF projects free cash flow under bear/base/bull assumptions, discounts projected cash flows and terminal value by WACC, adjusts for cash/debt or net debt, and divides by shares outstanding.
 - Peer method: peer-relative valuation stays withheld until source-backed peer mappings and peer valuation inputs are ready.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
-- Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs; blocked or excluded sections are explained instead of filled.
+- Report method: text is built from local readiness, DCF, peer, decision, and source readiness outputs; blocked or excluded sections are explained instead of filled.
 
 ## Evaluation Function Check
 - Readiness gate: strongest function; it decides ready, blocked, or excluded before any conclusion is shown.
@@ -105,7 +105,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Valuation boundary: DCF inputs are ready, but valuation interpretation is constrained by Insufficient Data and peer status `Insufficient Peer Data`.
 
 ## Supported Analysis
-- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, fundamental context, standalone DCF scenario analysis. Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source freshness.
+- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, fundamental context, standalone DCF scenario analysis. Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source readiness.
 
 ## Blocked Analysis
 - Unsupported analysis: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context.
@@ -168,7 +168,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## DCF Input Triage
 - DCF input triage: required inputs passed readiness for standalone DCF review.
-- Next check: review assumptions, sensitivity, and source freshness; do not convert fair value math into a recommendation.
+- Next check: review assumptions, sensitivity, and source readiness; do not convert fair value math into a recommendation.
 
 ## Valuation Boundary Checklist
 - DCF boundary: ready for assumption, scenario, and sensitivity review; still research context, not a price target.
@@ -221,15 +221,15 @@ Research-only purpose brief. It separates what local data supports from what rem
 - earnings has no local row for this ticker.
 
 ## Source Readiness
-- local:prices.csv: research-grade / local; freshness: daily CSV through 2026-05-27; Saved local research data.
-- local:fundamentals.csv: research-grade / local; freshness: dataset row as of 2017-10-31; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local; freshness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local; freshness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-27; Saved local research data.
+- local:fundamentals.csv: research-grade / local; source readiness: dataset row as of 2017-10-31; Local fundamentals data.; Dataset row source: sec_companyfacts
+- local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Data Unlock Summary
 - Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=A`, then confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
-- Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source freshness before interpreting valuation context.
+- Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context.
 - Peer unlock: Peer context is the next unlock after DCF: Add trusted price history for mapped peers: DHR, TMO, WAT. Add source-backed mappings in `data/imports/peers.csv`.
 - Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
@@ -237,7 +237,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Copyable Unlock Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
 - Inspect this ticker: `make stock-report-md TICKER=A`.
-- Price freshness: `make focus-price TICKER=A`.
+- Price source readiness: `make focus-price TICKER=A`.
 - DCF review: `make focus-fundamentals TICKER=A`.
 - Peer mapping: `make focus-peers TICKER=A`.
 - Peer queue: `make peer-mapping-queue TICKERS=A TOP_N=10`.

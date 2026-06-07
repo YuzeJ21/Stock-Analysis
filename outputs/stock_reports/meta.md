@@ -72,7 +72,7 @@ META state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 - DCF method: standalone DCF stays blocked until trusted local price, revenue, free cash flow or FCF margin, shares outstanding, and DCF fields pass readiness checks.
 - Peer method: peer-relative valuation stays withheld until source-backed peer mappings and peer valuation inputs are ready.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
-- Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs; blocked or excluded sections are explained instead of filled.
+- Report method: text is built from local readiness, DCF, peer, decision, and source readiness outputs; blocked or excluded sections are explained instead of filled.
 
 ## Evaluation Function Check
 - Readiness gate: strongest function; it decides ready, blocked, or excluded before any conclusion is shown.
@@ -222,10 +222,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - earnings has no local row for this ticker.
 
 ## Source Readiness
-- local:prices.csv: research-grade / local; freshness: daily CSV through 2026-05-22; Saved local research data.
-- local:fundamentals.csv: research-grade / local; freshness: dataset row as of 2017-12-31; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local; freshness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local; freshness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-22; Saved local research data.
+- local:fundamentals.csv: research-grade / local; source readiness: dataset row as of 2017-12-31; Local fundamentals data.; Dataset row source: sec_companyfacts
+- local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
 
 ## Data Unlock Summary
 - Data Health lane: Fundamentals / DCF Unlock. Copy `make focus-fundamentals TICKER=META`, then confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
@@ -238,7 +238,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Copyable Unlock Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
 - Inspect this ticker: `make stock-report-md TICKER=META`.
-- Price freshness: `make focus-price TICKER=META`.
+- Price source readiness: `make focus-price TICKER=META`.
 - Fundamentals / DCF: `make focus-fundamentals TICKER=META`.
 - SEC/manual import review: `make sec-stage-queue TICKERS=META TOP_N=10`.
 - Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.

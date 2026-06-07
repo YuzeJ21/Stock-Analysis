@@ -116,7 +116,7 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
     if freshness:
         row["FreshnessContext"] = freshness.replace(
             "verify source/freshness and generated CSV churn after any refresh",
-            "verify source/readiness notes and local CSV changes after any refresh",
+            "verify source readiness notes and local CSV changes after any refresh",
         )
         freshness = str(row.get("FreshnessContext") or "")
     if "Bundle" in step or "bundle" in freshness or "runbook" in step.lower():
@@ -585,7 +585,7 @@ def _recommended_next_command_rows(
                         "if you choose; Yahoo rows are research-grade and the manual import draft fallback remains available."
                     ),
                     source_context="data/imports/prices.csv fallback plus optional Yahoo refresh",
-                    freshness_context="dry-run first; verify source/readiness notes and local CSV changes after any refresh",
+                    freshness_context="dry-run first; verify source readiness notes and local CSV changes after any refresh",
                 )
             )
         command = _first_non_empty(top_action.get("focus_command"), top_action.get("example_command"))
@@ -833,7 +833,7 @@ def _print_human(payload: dict[str, Any]) -> None:
         if row.get("SourceContext"):
             print(f"  source: {row['SourceContext']}")
         if row.get("FreshnessContext"):
-            print(f"  freshness: {row['FreshnessContext']}")
+            print(f"  source readiness: {row['FreshnessContext']}")
 
 
 def _format_operator_path_context(root: Path, data_path: Path, output_path: Path) -> str:
