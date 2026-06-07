@@ -763,6 +763,7 @@ def test_momentum_blocked_rows_are_collapsed_by_default():
     blocked_index = source.index('st.expander("Momentum blocked by missing price data"')
 
     assert readiness_index < table_index < blocked_index
+    assert "show_commands=False,\n    )\n    if ready_frame.empty" in source
     assert 'st.expander("Momentum blocked by missing price data", expanded=False)' in source
     assert 'st.expander("Momentum blocked by missing price data", expanded=True)' not in source
 
@@ -12183,10 +12184,13 @@ def test_universe_workflow_cards_explain_preview_first_and_manual_fallback():
     assert cards[0][3] == "warning"
     assert cards[1][0] == "Universe preview"
     assert "4 preview ticker rows" in rendered
-    assert "make universe-preview" in rendered
-    assert "make universe-apply" in rendered
-    assert "custom_universe.csv" in rendered
-    assert "make templates" in rendered
+    assert "preview first" in rendered
+    assert "before any apply step" in rendered
+    assert "verified tickers only" in rendered
+    assert "make universe-preview" not in rendered
+    assert "make universe-apply" not in rendered
+    assert "custom_universe.csv" not in rendered
+    assert "make templates" not in rendered
     assert "staged universe" not in rendered
     assert "import apply step" not in rendered
 
@@ -12204,6 +12208,12 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
         }
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    visible_rendered = " ".join(
+        str(value)
+        for card in cards
+        for key, value in card.items()
+        if key != "command"
+    ).lower()
 
     assert len(cards) == 3
     assert cards[0]["title"] == "Review universe preview"
@@ -12211,12 +12221,12 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
     assert cards[2]["command"] == "make universe-apply"
     assert "12 current rows" in rendered
     assert "apply stays copy-only" in rendered
-    assert "preview csv" in rendered
+    assert "preview and review notes" in rendered
     assert "draft csv" not in rendered
     assert "cli-only" not in rendered
     assert "terminal-only" not in rendered
-    assert "make universe-preview" in rendered
-    assert "make universe-apply" in rendered
+    assert "make universe-preview" not in rendered
+    assert "make universe-apply" in " ".join(str(card["command"]) for card in cards).lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "buy" not in rendered
@@ -12234,13 +12244,20 @@ def test_universe_manager_summary_cards_surface_make_preview_and_apply():
         {"exists": True, "row_count": 4},
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    visible_rendered = " ".join(
+        str(value)
+        for card in cards
+        for key, value in card.items()
+        if key != "command"
+    ).lower()
 
     assert len(cards) == 3
     assert cards[1]["command"] == "make universe-apply"
     assert cards[1]["kicker"] == "PREVIEW FILE"
     assert cards[2]["command"] == "make universe-preview"
-    assert "make universe-preview" in rendered
-    assert "make universe-apply" in rendered
+    assert "review the preview before applying changes" in rendered
+    assert "make universe-preview" not in visible_rendered
+    assert "make universe-apply" in " ".join(str(card.get("command", "")) for card in cards).lower()
     assert "universe preview ready" in rendered
     assert "import draft" not in rendered
     assert "import draft present" not in rendered
@@ -12303,6 +12320,7 @@ def test_dashboard_uses_readable_universe_import_review_details():
     assert 'st.expander("Universe coverage and source details", expanded=False)' in source
     assert 'st.expander("Current universe list", expanded=False)' in source
     assert 'st.expander("Universe preview checks and copyable commands", expanded=False)' in source
+    assert "render_signal_cards(universe_action_path_cards(universe_summary), show_commands=False)" in source
     assert 'st.expander("Universe import checks and copyable commands", expanded=False)' not in source
     assert "Universe preview details" in source
     assert "Universe import details" not in source

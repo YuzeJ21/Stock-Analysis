@@ -3262,7 +3262,7 @@ def first_optional_context_unlock_frame(dataset: str = "earnings") -> pd.DataFra
                 "Copy Command": "make optional-context-readiness && make onboarding TOP_N=10",
                 "Trusted Input": "Trusted local optional-context rows",
             },
-        ]
+        ],
     )
 
 
@@ -6981,29 +6981,29 @@ def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str,
         (
             "Current universe",
             f"{current_rows} tickers are active. {duplicate_count} duplicate rows, {missing_context} missing/unclassified themes, and {missing_sector_etf} missing sector ETF values.",
-            "data/universe.csv",
+            "Current local universe",
             quality_tone,
         ),
         (
             "Universe preview",
             (
-                f"{staged_rows} preview ticker rows are waiting for review before make universe-apply."
+                f"{staged_rows} preview ticker rows are waiting for review before any apply step."
                 if staged_exists
-                else "No universe preview file is waiting. Build one with make universe-preview before make universe-apply."
+                else "No universe preview is waiting. Build a preview before any apply step."
             ),
-            "make universe-preview",
+            "Preview first",
             "warning" if staged_exists else "neutral",
         ),
         (
             "Safe expansion path",
-            "Run make universe-preview first, inspect the preview CSV, then run make universe-apply yourself only after review.",
-            "make universe-preview",
+            "Build a preview first, inspect the review notes, then apply changes yourself only after review.",
+            "Review before apply",
             "neutral",
         ),
         (
             "Manual fallback",
-            "If SMH or remote sources degrade, run make templates, then fill data/custom_universe.csv with verified tickers only before any universe apply step.",
-            "make templates",
+            "If source coverage degrades, use the template flow and add verified tickers only before any universe apply step.",
+            "Verified tickers only",
             "neutral",
         ),
     ]
@@ -14181,9 +14181,9 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
             "kicker": "BEST NEXT",
             "title": "Preview universe update" if not staged_exists else "Review universe preview",
             "body": (
-                "Start with make universe-preview so larger source-driven changes stay reviewable before make universe-apply."
+                "Start with a preview so larger source-driven changes stay reviewable before any apply step."
                 if not staged_exists
-                else f"{staged_rows} preview ticker rows are already visible in the dashboard; run make universe-apply only after reviewing the CSV and review notes."
+                else f"{staged_rows} preview ticker rows are already visible in the dashboard; apply only after reviewing the preview and notes."
             ),
             "badges": ["preview first", "read-only"],
             "command": "make universe-preview" if not staged_exists else "make universe-apply",
@@ -14194,13 +14194,13 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
             "body": (
                 f"{duplicate_count} duplicate ticker rows and {missing_theme_total} missing or unclassified themes are still visible in the main universe file."
             ),
-            "badges": ["data/universe.csv", "coverage"],
+            "badges": ["local universe", "coverage"],
             "command": "make templates" if missing_theme_total else "make universe-preview",
         },
         {
             "kicker": "REVIEW FLOW",
             "title": "Apply stays copy-only",
-            "body": "Run make universe-preview first, inspect the preview CSV and review notes, then run make universe-apply only after review.",
+            "body": "Build the preview first, inspect the preview and review notes, then apply only after review.",
             "badges": ["backup on apply", "csv-first"],
             "command": "make universe-apply",
         },
@@ -14217,23 +14217,23 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
                 f"{current['duplicate_ticker_count']} duplicate rows and "
                 f"{current['missing_theme_count'] + current['unclassified_theme_count']} missing or unclassified themes."
             ),
-            "badges": ["data/universe.csv"],
+            "badges": ["local universe"],
         },
         {
             "kicker": "PREVIEW FILE",
             "title": "Universe preview ready" if staged.get("exists") else "No universe preview file",
             "body": (
-                "Run make universe-preview before make universe-apply. Dashboard stays read-only for safety."
+                "Review the preview before applying changes. Dashboard stays read-only for safety."
                 if staged.get("exists")
-                else "No universe preview file is waiting; run make universe-preview before make universe-apply."
+                else "No universe preview is waiting; build a preview before any apply step."
             ),
-            "badges": ["data/imports/universe.csv"],
+            "badges": ["preview first"],
             "command": "make universe-apply",
         },
         {
             "kicker": "WORKFLOW",
             "title": "Preview first",
-            "body": "Use source presets to build a candidate universe with make universe-preview, then run make universe-apply only after reviewing the preview CSV.",
+            "body": "Use source presets to build a candidate universe, then apply only after reviewing the preview.",
             "badges": ["CSV-first", "backup on apply"],
             "command": "make universe-preview",
         },
@@ -18002,7 +18002,8 @@ def render_momentum_readiness_tab(frame: pd.DataFrame, show_reason_details: bool
                 "badges": ["ready" if not ready_frame.empty else "blocked", "prices required"],
                 "command": "make price-coverage TOP_N=25",
             }
-        ]
+        ],
+        show_commands=False,
     )
     if ready_frame.empty:
         render_notice_card(
@@ -21595,7 +21596,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     render_section_header("Universe Review Flow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
     render_action_cards(universe_workflow_cards(universe_summary))
     render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, preview-file state, and safer apply flow.")
-    render_signal_cards(universe_action_path_cards(universe_summary))
+    render_signal_cards(universe_action_path_cards(universe_summary), show_commands=False)
 
     with st.expander("Universe coverage and source details", expanded=False):
         render_signal_cards(universe_manager_summary_cards(current, staged))
