@@ -8666,6 +8666,7 @@ def fundamentals_dcf_diagnostic_cards(
     sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip()) or sec_configured_from_report
     sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
     fundamentals_validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
+    fundamentals_validation_summary = validation_sequence_summary(fundamentals_validation_sequence)
     fundamentals_input_path = "data/imports/fundamentals.csv or reviewed SEC staging rows"
     fundamentals_schema_guide = "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at"
     fundamentals_rejected_path = "data/rejected/fundamentals_import_rejected.csv"
@@ -8675,7 +8676,7 @@ def fundamentals_dcf_diagnostic_cards(
             f"Inspect {next_ticker} with `make focus-fundamentals TICKER={next_ticker}`, then add trusted fundamentals "
             f"through {fundamentals_input_path} before rerunning `make dcf-readiness`. "
             f"Schema guide: {fundamentals_schema_guide}. "
-            f"Validation sequence: {fundamentals_validation_sequence}. Rejected-row report: {fundamentals_rejected_path}. "
+            f"Validation proof: {fundamentals_validation_summary} Rejected-row report: {fundamentals_rejected_path}. "
             f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
         )
         dcf_field_gap_command = f"make focus-fundamentals TICKER={next_ticker}"
@@ -8684,7 +8685,7 @@ def fundamentals_dcf_diagnostic_cards(
             "These are field-level blockers from the DCF readiness report, not company conclusions. "
             "Run `make dcf-readiness` and `make sec-stage-queue TOP_N=25` to rebuild the missing-field view before assuming coverage improved. "
             f"When trusted rows exist, use {fundamentals_input_path}; schema guide: {fundamentals_schema_guide}. "
-            f"Validation sequence: {fundamentals_validation_sequence}. "
+            f"Validation proof: {fundamentals_validation_summary} "
             f"Rejected-row report: {fundamentals_rejected_path}. "
             f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation."
         )
@@ -8731,8 +8732,7 @@ def fundamentals_dcf_diagnostic_cards(
                 "Use this to audit the method before reading valuation output: trusted fundamentals row, then import validation, "
                 "then DCF readiness, then the single-stock report. The report should show source readiness, missing fields, "
                 "DCF calculation path, and valuation boundaries before any interpretation. "
-                f"Copy sequence: `{dcf_proof_command}` -> `make imports-validate` -> `make imports-preview` -> "
-                f"`make imports-apply` -> `make dcf-readiness` -> `{dcf_report_command}`."
+                f"Exact commands are copyable from this card and the report card; after proof passes, open `{dcf_report_command}`."
             ),
             "badges": ["method proof", "no black box"],
             "command": dcf_proof_command,
@@ -8751,7 +8751,7 @@ def fundamentals_dcf_diagnostic_cards(
                 f"Use {sec_stage_command} for SEC fundamentals staging when a trusted SEC_USER_AGENT is configured, "
                 f"or fill {fundamentals_input_path} with trusted rows. "
                 f"Schema guide: {fundamentals_schema_guide}. "
-                f"Always run {fundamentals_validation_sequence} before claiming readiness improved. "
+                f"Always validate, preview, apply reviewed rows, and rebuild DCF readiness before claiming readiness improved. "
                 f"Rejected rows appear in {fundamentals_rejected_path}."
             ),
             "badges": ["source readiness", "copy only"],
@@ -8983,6 +8983,8 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, stage trusted fundamentals only, then validate, preview, apply, and rerun DCF readiness.")
     proof = format_missing(first.get("Readiness Proof"), "Run make dcf-readiness and make readiness before reading DCF output.")
+    sequence_summary = validation_sequence_summary(sequence)
+    validation_summary = validation_sequence_summary(first.get("Validation Path"))
     command = format_missing(first.get("Copy-Only Command"), f"make focus-fundamentals TICKER={ticker}")
     return [
         {
@@ -9006,9 +9008,8 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
             "kicker": "COPY NEXT",
             "title": "Prove the fundamentals unlock before DCF",
             "body": (
-                f"Copy next: `{command}`. After trusted SEC or manual fundamentals rows are staged, run "
-                "`make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, "
-                "and `make readiness` before treating fundamentals or DCF as unlocked."
+                "Inspect the next ticker, stage only trusted SEC or manual fundamentals rows, then validate and preview before apply. "
+                "Rebuild DCF readiness and overall readiness before treating fundamentals or DCF as unlocked."
             ),
             "badges": ["copy-only", "proof before analysis"],
             "command": command,
@@ -9017,7 +9018,8 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
             "kicker": "TRUSTED INPUT PATH",
             "title": format_missing(first.get("Trusted Input Path"), "data/imports/fundamentals.csv"),
             "body": (
-                f"{sequence} Validation path: {format_missing(first.get('Validation Path'), 'make imports-validate -> make imports-preview -> make imports-apply')}. "
+                f"Next proof: {sequence_summary} "
+                f"Validation proof: {validation_summary} "
                 f"Readiness proof: {proof}"
             ),
             "badges": ["validate", "preview before apply", "proof before analysis"],

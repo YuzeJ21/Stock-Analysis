@@ -14452,12 +14452,13 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "before rerunning `make dcf-readiness`" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec staging rows" in rendered
     assert "schema guide: ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at" in rendered
-    assert "validation sequence: make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
+    assert "validation proof: validate and preview trusted fundamentals, apply only reviewed rows, then rebuild dcf readiness" in rendered
     assert "rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert proof_ladder_card["title"] == "Input -> readiness -> DCF -> report"
     assert proof_ladder_card["command"] == "make focus-fundamentals TICKER=META"
     assert "trusted fundamentals row, then import validation, then dcf readiness, then the single-stock report" in rendered
     assert "source readiness, missing fields, dcf calculation path, and valuation boundaries" in rendered
+    assert "exact commands are copyable from this card and the report card" in rendered
     assert "make stock-report-md ticker=meta" in rendered
     assert "no black box" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
@@ -14467,8 +14468,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "make sec-stage tickers=meta" in rendered
     assert "tickers=<ticker>" not in rendered
     assert "data/imports/fundamentals.csv" in rendered
-    assert "make imports-preview" in rendered
-    assert "make imports-apply" in rendered
+    assert "validate, preview, apply reviewed rows, and rebuild dcf readiness" in rendered
     assert "before claiming readiness improved" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -14698,11 +14698,12 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "free cash flow, shares outstanding" in rendered
     assert "fair value/share, and peer-relative valuation stay locked" in rendered
     assert "boundary: do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
-    assert "make sec-stage tickers=meta" in rendered
-    assert "trusted manual rows" in rendered
+    assert "stage only trusted sec or manual fundamentals rows" in rendered
     assert "prove the fundamentals unlock before dcf" in rendered
-    assert "copy next: `make focus-fundamentals ticker=meta`" in rendered
+    assert "inspect the next ticker, stage only trusted sec or manual fundamentals rows" in rendered
     assert "before treating fundamentals or dcf as unlocked" in rendered
+    assert "next proof: validate and preview trusted fundamentals, apply only reviewed rows, then rebuild dcf readiness" in rendered
+    assert "validation proof: validate and preview trusted fundamentals, apply only reviewed rows, then rebuild dcf readiness" in rendered
     assert "readiness proof: run `make dcf-readiness` and `make readiness`" in rendered
     assert "before reading dcf output" in rendered
     assert "data/imports/fundamentals.csv or reviewed sec staging rows" in rendered
