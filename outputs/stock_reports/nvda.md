@@ -4,12 +4,12 @@ Research-only local report. It summarizes readiness and does not provide allocat
 
 ## At A Glance
 - Mode: `DCF-ready review`.
-- Decision view: Research Candidate - Optional Context Locked.
+- Decision view: Research Candidate - Core Data Ready.
 - DCF: Ready for scenario review.
 - Peer context: Ready for source-backed peer review.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
-- Next local step: Optional context for NVDA stays locked unless trusted local earnings or analyst-estimate rows exist; use `make templates`, `make import-earnings` or `make import-analyst-estimates`, then run `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+- Next local step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## Reader Guide
 - Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
@@ -17,19 +17,19 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Trusted input: Trusted optional earnings or analyst-estimate CSV rows, only if you have a source you trust.
 - Data Health lane: Optional Context Unlock. Copy `make optional-context-worklist TICKERS=NVDA TOP_N=10`, then confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
 - Copy next: `make optional-context-worklist TICKERS=NVDA TOP_N=10`.
-- Next research step: Optional context for NVDA stays locked unless trusted local earnings or analyst-estimate rows exist; use `make templates`, `make import-earnings` or `make import-analyst-estimates`, then run `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+- Next research step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: DCF-ready review for company-level assumptions and sensitivity when trusted local fundamentals are ready.
-- Logic source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
+- Method source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
 - Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.
 
 ## Executive Summary
 - Bottom line: NVDA is in `DCF-ready review` mode. Price, fundamentals, standalone DCF, and peer context are ready for a fuller research pass.
 - Use now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Do not infer: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
-- Next step: Optional context for NVDA stays locked unless trusted local earnings or analyst-estimate rows exist; use `make templates`, `make import-earnings` or `make import-analyst-estimates`, then run `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+- Next step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## Analysis Mode Guide
 - `DCF-ready review` (current): Fullest company review: price, fundamentals, DCF, and source-backed peer context are ready.
@@ -39,19 +39,19 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - `Data-unlock only` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
 
 ## One-Minute Status
-NVDA state: partial. Decision: Research Candidate - Optional Context Locked. DCF: ready. Primary blocker: earnings. Peer workflow: ready for source-backed peer context. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Optional context for NVDA stays locked unless trusted local earnings or analyst-estimate rows exist; use `make templates`, `make import-earnings` or `make import-analyst-estimates`, then run `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+NVDA state: partial. Decision: Research Candidate - Core Data Ready. DCF: ready. Primary blocker: earnings. Peer workflow: ready for source-backed peer context. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## What We Can Analyze Now
 - Ready inputs: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, portfolio.
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
-## Data Vs Product Logic
+## Data And App Method
 - Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
 - Product checks: project readiness gates decide whether each input is usable before report sections appear.
-- Product DCF logic: calculated locally from trusted price, fundamentals, cash-flow or margin, share count, and cash/debt inputs; the report does not ask a third party or model to create a valuation opinion.
-- Product peer logic: available only from source-backed peer mappings and peer valuation inputs; sector or industry fallback is not treated as trusted peer valuation.
-- Optional context logic: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
+- DCF method: calculated locally from trusted price, fundamentals, cash-flow or margin, share count, and cash/debt inputs; the report does not ask a third party or model to create a valuation opinion.
+- Peer method: available only from source-backed peer mappings and peer valuation inputs; sector or industry fallback is not treated as trusted peer valuation.
+- Optional context method: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
 - Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
 
 ## Analysis Quality
@@ -81,7 +81,7 @@ NVDA state: partial. Decision: Research Candidate - Optional Context Locked. DCF
 - Fundamentals / DCF: ready for standalone DCF assumptions and sensitivity review.
 - Peer comparison: ready for peer-relative review.
 - Optional context: locked until trusted local earnings and analyst-estimate rows exist.
-- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
+- Method source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
 
 ## What This Stock Is
 - Ticker: NVDA
@@ -90,17 +90,17 @@ NVDA state: partial. Decision: Research Candidate - Optional Context Locked. DCF
 
 ## Decision
 - Bucket: Research Now
-- Subtype: Research Candidate - Optional Context Locked
-- Boundary: Workflow state only: core research can continue, but earnings and analyst-estimate context stays locked until trusted optional rows are imported.
+- Subtype: Research Candidate - Core Data Ready
+- Boundary: Workflow state only: ready for deeper manual research using supported local evidence, not a final conclusion.
 - Primary blocker: earnings
 - Main reason: Core data is ready for a supported research pass.
-- Next action: Optional context for NVDA stays locked unless trusted local earnings or analyst-estimate rows exist; use `make templates`, `make import-earnings` or `make import-analyst-estimates`, then run `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+- Next action: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## Purpose Evaluation
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Momentum Leader. Judge the brief through trend, relative strength, extension risk, and setup quality; current state is Review Thesis.
-- Alignment: Purpose alignment needs review: Momentum Leader requires relative strength support, but saved research views flag weak relative strength.
-- Research workflow summary: Purpose alignment needs review: Momentum Leader requires relative strength support, but saved research views flag weak relative strength; Research Candidate - Optional Context Locked. Next blocker: earnings. Withheld: earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the momentum research setup if relative strength weakens, trend support fails, or extension risk dominates the setup.
+- Alignment: Purpose alignment needs review: Momentum Leader requires relative strength support, but current local outputs flag weak relative strength.
+- Research workflow summary: Purpose alignment needs review: Momentum Leader requires relative strength support, but current local outputs flag weak relative strength; Research Candidate - Core Data Ready. Next blocker: earnings. Withheld: earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the momentum research setup if relative strength weakens, trend support fails, or extension risk dominates the setup.
 - Setup: Momentum setup: Setup Forming; final state: Review Thesis. Check relative strength, trend, volume context, and extension risk before deeper research. Base score 45 from final state `Review Thesis`. Added 3 points because the ticker is already a holding. Adjusted +0 points for value category `Insufficient Data`.
 - Valuation boundary: Report-local peer valuation is calculated from trusted peer inputs; broad value labels may still remain limited when optional value-engine fields are missing.
 
@@ -245,10 +245,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
 ## Source Readiness Check
-- Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=621; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
-- Fundamentals / DCF: ready; local source `data/fundamentals.csv`; SEC_USER_AGENT present; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: ready; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action Peer trend and valuation comparison are ready for NVDA.
-- Earnings: not ready; trusted local CSV only; import draft path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
-- Analyst estimates: not ready; trusted local CSV only; import draft path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
+- Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=621; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
+- Fundamentals / DCF: ready; local source `data/fundamentals.csv`; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
+- Peers: ready; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action Peer trend and valuation comparison are ready for NVDA.
+- Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
+- Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.
 - Report command: `make stock-report-md TICKER=NVDA`. Research-only Markdown output; copyable command only.
