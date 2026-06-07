@@ -5812,7 +5812,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_title = "Unlock fundamentals before valuation"
         first_body = (
             f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
-            "Missing fundamentals are an input gap, not a negative company signal. Inspect the queue first, then stage SEC or trusted manual rows only when sources are ready. "
+            "Missing fundamentals are an input gap, not a negative company signal. Review the fundamentals list first, then stage SEC or trusted manual rows only when sources are ready. "
             "Safe path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=<ticker> -> make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness."
         )
         first_command = "make sec-stage-queue TOP_N=25"
@@ -20701,7 +20701,7 @@ def render_market_command_center(
     st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)
 
 
-def render_data_health(provider, project_status_payload: dict[str, Any] | None = None) -> None:
+def render_data_health(provider, project_status_payload: dict[str, Any] | None = None, show_details: bool = False) -> None:
     render_section_header(
         "Data Health",
         "See what trusted local inputs are ready, what analysis is still locked, and which unlock path needs proof next.",
@@ -20776,7 +20776,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     )
     render_section_header("Data Health Quick Read", "Which unlock path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
-    render_section_header("Fix First", "The shortest safe local path before deeper unlock queues.")
+    render_section_header("Fix First", "The shortest safe local path before deeper unlock lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
@@ -20848,7 +20848,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "make pipeline",
             tone="warning",
         )
-    with st.expander("More readiness summaries and unlock queues", expanded=False):
+    with st.expander("More readiness summaries and unlock lists", expanded=False):
         render_signal_cards(readiness_panel_cards(readiness_summary))
         render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
         render_section_header("Next Data Unlocks", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
@@ -20962,6 +20962,13 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "make verify",
             tone="warning",
         )
+
+    if not show_details:
+        render_context_note(
+            "Detailed tables are hidden.",
+            "Turn on page tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables.",
+        )
+        return
 
     health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])
 
@@ -21898,7 +21905,7 @@ def main() -> None:
     elif selected_page == "Single-Stock Report":
         render_single_stock_report(provider, show_source_details)
     elif selected_page == "Data Health":
-        render_data_health(provider, project_status_payload)
+        render_data_health(provider, project_status_payload, show_reason_details)
     elif selected_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
 

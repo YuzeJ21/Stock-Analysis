@@ -658,15 +658,19 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     market_expander_index = source.index('st.expander("Detailed market-wide review"')
     detailed_map_index = source.index('render_section_header(\n            "Detailed Unlock Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
-    summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
+    summary_expander_index = source.index('st.expander("More readiness summaries and unlock lists"')
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
+    hidden_tables_note_index = source.index('render_context_note(\n            "Detailed tables are hidden."')
+    tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])')
 
     assert beginner_note_index < quick_read_index < fix_first_index < action_paths_index < planning_expander_index
-    assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
+    assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index < hidden_tables_note_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Read these next three sections first." in source
     assert "without opening the broader tables" in source
+    assert "Turn on page tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
+    assert "render_data_health(provider, project_status_payload, show_reason_details)" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Unlock planning cards", expanded=False)' in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
@@ -676,7 +680,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'st.expander("Ticker Unlock Ladder", expanded=False)' not in source
     assert 'st.expander("Data Gap List", expanded=False)' in source
     assert 'st.expander("Data Gap Report", expanded=False)' not in source
-    assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
+    assert 'st.expander("More readiness summaries and unlock lists", expanded=False)' in source
     assert 'st.expander("Guided coverage plan details", expanded=False)' in source
     assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
     assert 'render_section_header("Priority Fixes"' not in source
@@ -9109,7 +9113,7 @@ def test_data_health_quick_read_cards_prioritize_first_unlock_lane_without_execu
     assert cards[0]["command"] == "make sec-stage-queue TOP_N=25"
     assert "217 price-ready row(s) still need trusted fundamentals" in rendered
     assert "not a negative company signal" in rendered
-    assert "inspect the queue first" in rendered
+    assert "review the fundamentals list first" in rendered
     assert "trusted manual rows only when sources are ready" in rendered
     assert "safe path: make sec-stage-queue top_n=25 -> make focus-fundamentals ticker=<ticker>" in rendered
     assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
@@ -9378,7 +9382,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Beginner view." in source
     assert "Data Health Quick Read" in source
     assert "Which unlock path should you inspect first, before opening detailed sections." in source
-    assert "The shortest safe local path before deeper unlock queues." in source
+    assert "The shortest safe local path before deeper unlock lists." in source
     assert "before opening detailed tables" not in source
     assert "deeper Data Health details" not in source
     assert "missing_optional_labels = [public_dataset_name(name) for name in missing_optional]" in source
