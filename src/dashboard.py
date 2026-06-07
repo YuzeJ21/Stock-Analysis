@@ -7738,7 +7738,7 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
             {
                 "kicker": "FEATURE READINESS",
                 "title": "Feature readiness not ready yet",
-                "body": "Run make readiness to build data/reports/feature_readiness_summary.csv before reviewing feature-level product status.",
+                "body": "Run readiness to rebuild the feature proof before reviewing which analysis areas are ready, partial, blocked, or excluded.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
@@ -7804,7 +7804,7 @@ def peer_readiness_product_cards(
             {
                 "kicker": "PEER READINESS",
                 "title": "Peer readiness not ready yet",
-                "body": "Run make readiness to build data/reports/peer_readiness_report.csv before reviewing peer workflow blockers.",
+                "body": "Run readiness to rebuild the peer proof before reviewing peer trend, peer valuation, or source-backed peer blockers.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
