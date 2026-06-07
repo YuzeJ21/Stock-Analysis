@@ -7945,9 +7945,10 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     assert "start with price coverage" in rendered
     assert "trusted price history comes before setup, fundamentals, dcf, and peer context" in rendered
     assert "margins, cash, and debt help explain business quality only when present" in rendered
-    assert "fundamentals rules stay in project code" in rendered
-    assert "support tools are not analysis logic" in rendered
-    assert "fundamentals rules stay in project code; support tools are not analysis logic" in rendered
+    assert "uses saved fundamentals that passed readiness checks" in rendered
+    assert "keeps missing fundamentals out of valuation conclusions" in rendered
+    assert "current report payload" not in rendered
+    assert "support tools are not analysis logic" not in rendered
     assert ready_cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
     assert ready_cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert partial_cards[0]["command"] == "make focus-fundamentals TICKER=META"
@@ -8169,9 +8170,10 @@ def test_stock_report_at_a_glance_cards_match_markdown_report_flow():
     assert "optional context: locked until trusted optional rows exist" in rendered
     assert "what not to infer" in rendered
     assert "company valuation remains blocked" in rendered
-    assert "project gates and dcf math" in rendered
+    assert "readiness gates and dcf math" in rendered
     assert "what this means" in rendered
-    assert "source rows supply data" in rendered
+    assert "saved inputs are checked first" in rendered
+    assert "source rows supply data" not in rendered
     assert "projected cash flows" in rendered
     assert "discounted terminal value" in rendered
     assert "fair value per share" in rendered

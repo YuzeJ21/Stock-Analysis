@@ -4258,8 +4258,8 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
         {
             "kicker": "METHODOLOGY",
             "title": "Local fundamentals only",
-            "body": "This card reads the current report payload and local CSV-backed fundamentals. Fundamentals rules stay in project code; support tools are not analysis logic.",
-            "badges": ["project rules", "local CSV"],
+            "body": "This card uses saved fundamentals that passed readiness checks. The product shows only fields that are present and keeps missing fundamentals out of valuation conclusions.",
+            "badges": ["saved inputs", "no guessing"],
         },
     ]
 
@@ -4307,7 +4307,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
     confidence_note = (
         f"{len(warnings)} visible warning{'s' if len(warnings) != 1 else ''}; missing inputs reduce data confidence and stay visible."
         if warnings
-        else "No visible missing-data warnings in the current report payload."
+        else "No visible missing-data warnings in this saved report."
     )
 
     return pd.DataFrame(
@@ -4439,8 +4439,8 @@ def stock_report_at_a_glance_cards(
         },
         {
             "kicker": "METHOD",
-            "title": "Project gates and DCF math",
-            "body": "What this means: source rows supply data, then project gates decide what can appear. When DCF is ready, local free-cash-flow inputs flow through projected cash flows, discounted terminal value, cash/debt adjustment, and fair value per share. When inputs are missing or excluded, the section stays locked instead of becoming a weak conclusion.",
+            "title": "Readiness gates and DCF math",
+            "body": "What this means: saved inputs are checked first, then the product decides which analysis can appear. When DCF is ready, free-cash-flow inputs flow through projected cash flows, discounted terminal value, cash/debt adjustment, and fair value per share. When inputs are missing or excluded, the section stays locked instead of becoming a weak conclusion.",
             "badges": ["method visible", "local inputs"],
         },
         {
