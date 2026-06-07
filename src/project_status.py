@@ -112,11 +112,35 @@ def _normalize_price_action_row(row: dict[str, Any]) -> dict[str, Any]:
 
 def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
     step = str(row.get("Step") or "")
+    reason = str(row.get("Reason") or "")
     freshness = str(row.get("FreshnessContext") or "")
+    if step:
+        row["Step"] = (
+            step.replace("Review import drafts", "Review import files")
+            .replace("Review fundamentals import draft", "Review fundamentals import file")
+            .replace("Review peer import draft", "Review peer import file")
+            .replace("Review price import draft", "Review price import file")
+        )
+        step = str(row.get("Step") or "")
+    if reason:
+        row["Reason"] = (
+            reason.replace("manual import draft fallback", "manual import file fallback")
+            .replace("Manual import draft fallback", "Manual import file fallback")
+            .replace("import draft workflow", "import file workflow")
+            .replace("import drafts", "import files")
+            .replace("import draft", "import file")
+            .replace("Staged rows are already present", "Local import files already have rows")
+        )
     if freshness:
-        row["FreshnessContext"] = freshness.replace(
-            "verify source/freshness and generated CSV churn after any refresh",
-            "verify source readiness notes and local CSV changes after any refresh",
+        row["FreshnessContext"] = (
+            freshness.replace(
+                "verify source/freshness and generated CSV churn after any refresh",
+                "verify source readiness notes and local CSV changes after any refresh",
+            )
+            .replace("local import draft workflow rows present", "local import files present; preview before apply")
+            .replace("import draft workflow", "import file workflow")
+            .replace("import drafts", "import files")
+            .replace("import draft", "import file")
         )
         freshness = str(row.get("FreshnessContext") or "")
     if "Bundle" in step or "bundle" in freshness or "runbook" in step.lower():
@@ -528,17 +552,17 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
             dataset_text = " and ".join(datasets[:-1] + [datasets[-1]]) if len(datasets) <= 2 else ", ".join(datasets[:-1]) + f", and {datasets[-1]}"
             file_text = " and ".join(target_files[:-1] + [target_files[-1]]) if len(target_files) <= 2 else ", ".join(target_files[:-1]) + f", and {target_files[-1]}"
             reason = (
-                f"Staged rows are already present in {file_text}. "
+                f"Local import files already have rows in {file_text}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
                 f"to confirm the live local {dataset_text} inputs."
             )
             rows.append(
                 _command_row(
-                    "Review import drafts",
+                    "Review import files",
                     command,
                     reason,
                     source_context=file_text,
-                    freshness_context="local import draft workflow rows present",
+                    freshness_context="local import files present; preview before apply",
                 )
             )
             continue
@@ -547,7 +571,7 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
         dataset = str(row.get("dataset") or "data").replace("_", " ")
         status = str(row.get("availability_status") or "").strip().lower()
         if command == "make imports-validate":
-            step = f"Review {dataset} import draft"
+            step = f"Review {dataset} import file"
         elif status == "manual_only":
             step = f"Prepare {dataset} input"
         else:
@@ -582,7 +606,7 @@ def _recommended_next_command_rows(
                     "make price-refresh-loop DRY_RUN=1",
                     (
                         "Preview the broad-universe price frontier first, then run several capped batches "
-                        "if you choose; Yahoo rows are research-grade and the manual import draft fallback remains available."
+                        "if you choose; Yahoo rows are research-grade and the manual import file fallback remains available."
                     ),
                     source_context="data/imports/prices.csv fallback plus optional Yahoo refresh",
                     freshness_context="dry-run first; verify source readiness notes and local CSV changes after any refresh",

@@ -342,7 +342,7 @@ def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_step
     commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
     assert "make imports-validate" in commands
     staged_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
-    assert staged_row["Step"] == "Review fundamentals import draft"
+    assert staged_row["Step"] == "Review fundamentals import file"
     assert "make imports-apply" in staged_row["Reason"]
     assert staged_row["SourceContext"] == "data/imports/fundamentals.csv"
     assert staged_row["FreshnessContext"]
@@ -452,7 +452,7 @@ def test_project_status_combines_staged_fundamentals_and_peer_imports_into_one_f
     staged_rows = [row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate"]
     assert len(staged_rows) == 1
     staged_row = staged_rows[0]
-    assert staged_row["Step"] == "Review import drafts"
+    assert staged_row["Step"] == "Review import files"
     assert "data/imports/fundamentals.csv" in staged_row["Reason"]
     assert "data/imports/peers.csv" in staged_row["Reason"]
     assert "fundamentals and peers" in staged_row["Reason"]
@@ -627,7 +627,7 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
             {
                 "Step": "Refresh next capped missing-price batch",
                 "Command": "make price-refresh-loop DRY_RUN=1",
-                "Reason": "Preview the broad-universe price frontier first.",
+                "Reason": "Preview the broad-universe price frontier first; manual import draft fallback remains available.",
                 "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
                 "FreshnessContext": "dry-run first; verify source/freshness and generated CSV churn after any refresh",
             },
@@ -637,6 +637,13 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
                 "Reason": "Unlock Monthly Picks for 5 tickers across this bundle.",
                 "SourceContext": "data/imports/prices.csv",
                 "FreshnessContext": "bundle generated from current onboarding outputs",
+            },
+            {
+                "Step": "Review import drafts",
+                "Command": "make imports-validate",
+                "Reason": "Staged rows are already present in data/imports/fundamentals.csv; run make imports-apply after previewing import drafts.",
+                "SourceContext": "data/imports/fundamentals.csv",
+                "FreshnessContext": "local import draft workflow rows present",
             }
         ]
     ).to_csv(tmp_path / "outputs" / "project_status_next_steps.csv", index=False)
@@ -650,11 +657,19 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
         command_row["FreshnessContext"]
         == "dry-run first; verify source readiness notes and local CSV changes after any refresh"
     )
+    assert "manual import file fallback" in command_row["Reason"]
+    assert "manual import draft fallback" not in command_row["Reason"]
     assert "generated CSV churn" not in command_row["FreshnessContext"]
     guided_row = payload["recommended_next_command_rows"][1]
     assert guided_row["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
     assert guided_row["Reason"] == "Unlock Monthly Picks for 5 tickers across this guided data batch."
     assert guided_row["FreshnessContext"] == "guided batch generated from current onboarding outputs"
+    import_row = payload["recommended_next_command_rows"][2]
+    assert import_row["Step"] == "Review import files"
+    assert "Local import files already have rows" in import_row["Reason"]
+    assert "import files" in import_row["Reason"]
+    assert "import drafts" not in import_row["Reason"]
+    assert import_row["FreshnessContext"] == "local import files present; preview before apply"
 
 
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
