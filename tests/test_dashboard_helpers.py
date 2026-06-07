@@ -842,7 +842,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     price_refresh_index = source.index('render_section_header("Scalable Price Refresh"')
     examples_expander_index = source.index('st.expander("Example reports", expanded=False)')
     examples_index = source.index('render_section_header("Example Reports"')
-    learn_more_index = source.index('st.expander("Learn more: methodology, roadmap, and logic source"')
+    learn_more_index = source.index('st.expander("Learn more: methodology, roadmap, and transparency"')
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
     commands_index = source.index('st.expander("Copyable commands"')
 
@@ -855,7 +855,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert 'st.expander("How evaluation works", expanded=False)' in source
     assert 'st.expander("Advanced price refresh workflow", expanded=False)' in source
     assert 'st.expander("Example reports", expanded=False)' in source
-    assert 'st.expander("Learn more: methodology, roadmap, and logic source", expanded=False)' in source
+    assert 'st.expander("Learn more: methodology, roadmap, and transparency", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards())" in source
 
@@ -893,7 +893,7 @@ def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
     assert "sell" not in rendered
 
 
-def test_home_function_quality_frame_explains_supported_scope_and_logic_source():
+def test_home_function_quality_frame_explains_supported_scope_and_provenance():
     frame = dashboard._plain_home_function_quality_frame(
         {
             "master_universe": 3538,
@@ -913,7 +913,7 @@ def test_home_function_quality_frame_explains_supported_scope_and_logic_source()
         "Current Status",
         "Supported Today",
         "Needs Trusted Data",
-        "Logic Source",
+        "Methodology / Provenance",
     ]
     assert "readiness gates" in rendered
     assert "strong today" in rendered
@@ -979,7 +979,7 @@ def test_stock_report_function_quality_cards_summarize_supported_analysis_and_pr
         "PRICE / RISK",
         "VALUATION",
         "OPTIONAL CONTEXT",
-        "LOGIC SOURCE",
+        "METHODOLOGY",
     ]
     assert "ready, blocked, or excluded first" in rendered
     assert "missing inputs stay visible instead of being guessed" in rendered
@@ -7385,7 +7385,7 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     cards = dashboard.monthly_picks_function_quality_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO", "LOGIC SOURCE", "BEST USE"]
+    assert [card["kicker"] for card in cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO", "METHODOLOGY", "BEST USE"]
     assert "rank a local research-candidate queue" in rendered
     assert "transparent local score components" in rendered
     assert "triage aids for deeper single-stock review" in rendered
@@ -7931,7 +7931,7 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
         for value in card.values()
     ).lower()
 
-    assert [card["kicker"] for card in ready_cards] == ["FUNDAMENTALS QUALITY", "NEXT TRUSTED INPUT", "QUALITY CONTEXT", "LOGIC SOURCE"]
+    assert [card["kicker"] for card in ready_cards] == ["FUNDAMENTALS QUALITY", "NEXT TRUSTED INPUT", "QUALITY CONTEXT", "METHODOLOGY"]
     assert "dcf inputs ready" in rendered
     assert "review dcf proof" in rendered
     assert "review assumptions and source readiness" in rendered
@@ -8256,7 +8256,7 @@ def test_stock_report_function_quality_frame_explains_current_function_scope_and
     assert "ready for standalone dcf assumptions and sensitivity review" in rendered
     assert "peer comparison" in rendered
     assert "blocked until source-backed peer mappings" in rendered
-    assert "logic source" in rendered
+    assert "methodology / provenance" in rendered
     assert "project rules" in rendered
     assert "shipped analysis comes from project code and local data" in rendered
     assert "source rows provide inputs" in rendered
@@ -8632,7 +8632,7 @@ def test_valuation_function_quality_frame_explains_scope_counts_and_provenance()
         "Current Coverage",
         "Supported Today",
         "Not Supported Yet",
-        "Logic Source",
+        "Methodology / Provenance",
     ]
     assert "dcf-ready companies" in rendered
     assert "good for dcf-ready companies only" in rendered
@@ -9716,7 +9716,7 @@ def test_stock_report_source_detail_summary_frame_replaces_raw_json_dump():
     assert "source rows" in rendered
     assert "missing-data warnings" in rendered
     assert "report data download" in rendered
-    assert "optional structured local data file" in rendered
+    assert "optional saved data file" in rendered
     assert "most readers can use this page or the markdown report" in rendered
     assert "machine-readable local report file" not in rendered
     assert "price_ready" not in rendered
@@ -14689,7 +14689,7 @@ def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance()
         "Current Coverage",
         "Supported Today",
         "Not Supported Yet",
-        "Logic Source",
+        "Methodology / Provenance",
         "Next Step",
     ]
     assert "trusted fundamentals" in rendered
@@ -14946,7 +14946,7 @@ def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance(
         "Current Coverage",
         "Supported Today",
         "Not Supported Yet",
-        "Logic Source",
+        "Methodology / Provenance",
         "Next Step",
     ]
     assert "source-backed mappings" in rendered
@@ -15201,7 +15201,7 @@ def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommen
     cards = dashboard.final_decision_quality_cards(decisions)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["RESEARCH NOW", "MONITOR", "BLOCKED BY DATA", "LOGIC SOURCE"]
+    assert [card["kicker"] for card in cards] == ["RESEARCH NOW", "MONITOR", "BLOCKED BY DATA", "METHODOLOGY"]
     assert "1 row(s)" in str(cards[0]["title"])
     assert "ready for deeper research workflow only" in rendered
     assert "review-queue label" in rendered
