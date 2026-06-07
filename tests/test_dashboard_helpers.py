@@ -586,11 +586,15 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     action_paths_index = source.index('render_section_header("Copy-Only Next Steps"')
     planning_expander_index = source.index('st.expander("Unlock planning cards"')
     market_expander_index = source.index('st.expander("Detailed market-wide workspace"')
+    advanced_map_index = source.index('render_section_header(\n            "Advanced Unlock Map"', market_expander_index)
+    market_command_index = source.index("render_market_command_center(", market_expander_index)
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
 
     assert beginner_note_index < quick_read_index < fix_first_index < action_paths_index < planning_expander_index
     assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
+    assert market_expander_index < advanced_map_index < market_command_index
+    assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Read these next three sections first." in source
     assert "without opening the detailed market-wide workspace" in source
     assert 'render_section_header("Action Paths"' not in source
@@ -10253,6 +10257,49 @@ def test_data_health_action_path_cards_handle_missing_inputs_gracefully():
     assert "no action paths yet" in rendered
     assert cards[0]["command"] == "make onboarding"
     assert "make onboarding" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_advanced_unlock_map_cards_group_detailed_lanes_before_tables():
+    fundamentals = pd.DataFrame(
+        [
+            {"priority": 1, "dcf_ready": False, "peer_ready": False},
+            {"priority": 2, "dcf_ready": True, "peer_ready": False},
+            {"priority": 2, "dcf_ready": True, "peer_ready": True},
+        ]
+    )
+    peers = pd.DataFrame(
+        [
+            {"ticker": "META", "priority": 1},
+            {"ticker": "A", "priority": 2},
+        ]
+    )
+    optional = pd.DataFrame(
+        [
+            {"priority": 5, "has_earnings": False, "has_analyst_estimates": False},
+            {"priority": 6, "has_earnings": True, "has_analyst_estimates": False},
+        ]
+    )
+
+    cards = dashboard.data_health_advanced_unlock_map_cards(fundamentals, peers, optional)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["FUNDAMENTALS / DCF", "PEER MAPPING", "OPTIONAL CONTEXT"]
+    assert "1 fundamentals-first target(s)" in rendered
+    assert "2 dcf-ready and 1 peer-ready row(s)" in rendered
+    assert "2 peer unlock row(s)" in rendered
+    assert "1 priority-1 peer row(s)" in rendered
+    assert "first row to inspect: meta" in rendered
+    assert "peer trend and peer valuation stay separate" in rendered
+    assert "2 optional-context row(s) locked" in rendered
+    assert "1 earnings-ready and 0 estimate-ready row(s)" in rendered
+    assert "intentionally unavailable until trusted local rows validate" in rendered
+    assert cards[0]["command"] == "make sec-stage-queue TOP_N=25"
+    assert cards[1]["command"] == "make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make optional-context-worklist TOP_N=25"
+    assert "broker" not in rendered
+    assert "order" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
