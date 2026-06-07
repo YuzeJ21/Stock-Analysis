@@ -335,7 +335,7 @@ def _peer_readiness_next_action(ticker: str, peer: pd.Series) -> str:
     if blocker_type in {"peer_price_missing", "peer_momentum_missing"}:
         return (
             f"{action} Run make focus-peers TICKER={ticker} to review mapped peers, "
-            "then use capped price refresh or verified OHLCV import draft rows."
+            "then use capped price refresh or verified OHLCV import file rows."
         )
     if blocker_type in {"peer_fundamentals_missing", "peer_valuation_blocked"}:
         return (
@@ -770,13 +770,13 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
             workflow_group = "peer_trend_unlock"
             next_action_summary = "Add verified peer OHLCV history before treating peer trend comparison as ready."
             next_input_file = "data/imports/prices.csv or data/staged/prices/"
-            validation_sequence = "make focus-price TICKER=<peer> -> make price-refresh TICKERS=<peer> or prepare trusted OHLCV import draft rows -> make imports-validate"
+            validation_sequence = "make focus-price TICKER=<peer> -> make price-refresh TICKERS=<peer> or prepare trusted OHLCV import file rows -> make imports-validate"
         elif blocker_type in {"peer_fundamentals_missing", "peer_valuation_blocked"}:
             unlock_stage = "add_peer_fundamentals"
             workflow_group = "peer_valuation_unlock"
             next_action_summary = "Add trusted peer fundamentals before showing peer valuation conclusions."
             next_input_file = "data/imports/fundamentals.csv or data/staged/fundamentals/"
-            validation_sequence = "make focus-fundamentals TICKER=<peer> -> make sec-stage TICKERS=<peer> or prepare trusted fundamentals import draft rows -> make imports-validate"
+            validation_sequence = "make focus-fundamentals TICKER=<peer> -> make sec-stage TICKERS=<peer> or prepare trusted fundamentals import file rows -> make imports-validate"
         else:
             unlock_stage = "review_peer_context"
             workflow_group = "peer_context_review"
@@ -807,7 +807,7 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
                 "validation_sequence": validation_sequence,
                 "focus_command": f"make focus-peers TICKER={ticker}",
                 "example_command": "make peer-mapping-queue TOP_N=25",
-                "copy_only_note": "Copy commands only; review import draft rows before applying local CSV changes.",
+                "copy_only_note": "Copy commands only; review import file rows before applying local CSV changes.",
                 "updated_at": _now(),
             }
         )

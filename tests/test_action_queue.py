@@ -343,8 +343,8 @@ def test_action_queue_uses_staged_import_titles_for_global_gap_rows():
                     "ticker": "",
                     "status": "partial",
                     "reason": (
-                        "SEC import draft workflow only provides candidate fundamentals; it does not provide prices, peers, earnings, "
-                        "or analyst estimates. Local import draft rows are present in data/imports/fundamentals.csv; "
+                        "SEC staging workflow only provides candidate fundamentals; it does not provide prices, peers, earnings, "
+                        "or analyst estimates. Local import file rows are present in data/imports/fundamentals.csv; "
                         "validate, preview, apply, then refresh status before relying on canonical local data."
                     ),
                     "recommended_action": (
@@ -355,7 +355,7 @@ def test_action_queue_uses_staged_import_titles_for_global_gap_rows():
                     "example_command": "make imports-preview",
                     "target_file": "data/imports/fundamentals.csv",
                     "local_file": "data/fundamentals.csv",
-                    "source_name": "Local fundamentals CSV / SEC Companyfacts import draft workflow",
+                    "source_name": "Local fundamentals CSV / SEC Companyfacts staging workflow",
                 }
             ]
         ),
@@ -567,7 +567,7 @@ def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp
                 "focus_command": "make imports-validate",
                 "example_command": "make imports-preview",
                 "local_file": "data/fundamentals.csv",
-                "source_name": "Local fundamentals CSV / SEC Companyfacts import draft workflow",
+                "source_name": "Local fundamentals CSV / SEC Companyfacts staging workflow",
             }
         ]
     ).to_csv(outputs_dir / "data_gap_report.csv", index=False)
@@ -857,7 +857,7 @@ def test_action_queue_prefers_explicit_data_gap_commands_when_present():
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
                     "example_command": "make sec-stage TICKERS=NVDA",
                     "local_file": "data/fundamentals.csv",
-                    "source_name": "Local fundamentals CSV / SEC Companyfacts import draft workflow",
+                    "source_name": "Local fundamentals CSV / SEC Companyfacts staging workflow",
                 }
             ]
         ),

@@ -13715,7 +13715,7 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
                 "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
                 "focus_command": "make focus-peers TICKER=A",
                 "example_command": "make peer-mapping-queue TOP_N=25",
-                "copy_only_note": "Copy commands only; review import draft rows before applying local CSV changes.",
+                "copy_only_note": "Copy commands only; review import file rows before applying local CSV changes.",
             },
             {
                 "ticker": "META",
@@ -13730,7 +13730,7 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
                 "validation_sequence": "make focus-fundamentals TICKER=<peer> -> make imports-validate",
                 "focus_command": "make focus-peers TICKER=META",
                 "example_command": "make peer-mapping-queue TOP_N=25",
-                "copy_only_note": "Copy commands only; review import draft rows before applying local CSV changes.",
+                "copy_only_note": "Copy commands only; review import file rows before applying local CSV changes.",
             },
         ]
     )

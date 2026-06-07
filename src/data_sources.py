@@ -112,7 +112,7 @@ def _command_safety_fields(example_command: object) -> dict[str, object]:
         "credential_present": credential_present,
         "manual_fallback_command": "make templates",
         "command_safety_note": (
-            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "SEC staging workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
             "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
@@ -198,7 +198,7 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
     if dataset == "fundamentals" and ticker:
         return (
             f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
-            f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
+            f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import file rows in "
             "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
             "and make imports-apply."
         )
@@ -282,7 +282,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
     ),
     DataSourceRegistryEntry(
         dataset="fundamentals",
-        source_name="Local fundamentals CSV / SEC Companyfacts import draft workflow",
+        source_name="Local fundamentals CSV / SEC Companyfacts staging workflow",
         source_type="local_csv_or_sec_staging",
         required_for="valuation, quality context, value/re-rating review",
         is_required=False,
@@ -295,10 +295,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/fundamentals.csv",
         fallback_action=(
             "Start with make status, then follow the printed fundamentals focus or runbook path. "
-            "Keep the SEC import draft workflow reviewable and preview-first through make imports-validate, "
+            "Keep the SEC staging workflow reviewable and preview-first through make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
-        notes="SEC import draft workflow only provides candidate fundamentals; it does not provide prices, peers, earnings, or analyst estimates.",
+        notes="SEC staging workflow only provides candidate fundamentals; it does not provide prices, peers, earnings, or analyst estimates.",
     ),
     DataSourceRegistryEntry(
         dataset="peers",
@@ -351,7 +351,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_api_key=False,
         expected_local_file="data/analyst_estimates.csv",
         fallback_action="Run make templates, then fill data/imports/analyst_estimates.csv manually only if you want estimate coverage.",
-        notes="Analyst estimates are not created by SEC import draft workflow and are never inferred.",
+        notes="Analyst estimates are not created by SEC staging workflow and are never inferred.",
     ),
     DataSourceRegistryEntry(
         dataset="universe",
@@ -543,7 +543,7 @@ def build_data_source_status(
             staged_ready = staged and staged["row_count"] > 0 and staged["status"] in {"valid", "valid_with_warnings"}
             if entry.dataset == "fundamentals" and staged_ready:
                 notes = (
-                    f"{entry.notes} Local import draft rows are present in "
+                    f"{entry.notes} Local import file rows are present in "
                     f"{_display_path(staged['path'], root)}; validate, preview, apply, "
                     "then refresh status before relying on canonical local data."
                 )
@@ -558,7 +558,7 @@ def build_data_source_status(
                     columns = ", ".join(staged["available_columns"])
                     warnings = "; ".join(staged["warnings"])
                     notes = (
-                        f"{entry.notes} Local import draft rows are present; validate, preview, apply, "
+                        f"{entry.notes} Local import file rows are present; validate, preview, apply, "
                         "then refresh status before relying on canonical local data."
                     )
                     fallback_action = _staged_import_follow_up(entry.dataset)

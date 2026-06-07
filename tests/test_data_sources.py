@@ -163,7 +163,7 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     fundamentals_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "fundamentals" and gap["ticker"] == "MSFT")
     assert fundamentals_gap["recommended_action"] == (
         "Run make focus-fundamentals TICKER=MSFT. If SEC_USER_AGENT is configured, run "
-        "make sec-stage TICKERS=MSFT; otherwise prepare trusted manual fundamentals import draft rows in "
+        "make sec-stage TICKERS=MSFT; otherwise prepare trusted manual fundamentals import file rows in "
         "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
         "and make imports-apply."
     )
