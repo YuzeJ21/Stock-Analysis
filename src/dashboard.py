@@ -13610,7 +13610,7 @@ def output_tab_function_quality_cards(title: str) -> list[dict[str, object]]:
             {
                 "kicker": "WHAT IT CANNOT DO",
                 "title": "No automatic timing call",
-                "body": "Momentum leadership is research context only. It does not provide trade timing, account actions, or direct recommendations.",
+                "body": "Momentum leadership is research context only. It does not provide market-timing signals, account actions, or direct recommendations.",
                 "badges": ["research-only", "no execution"],
             },
         ]
@@ -13625,7 +13625,7 @@ def output_tab_function_quality_cards(title: str) -> list[dict[str, object]]:
             {
                 "kicker": "WHAT IT CANNOT DO",
                 "title": "No portfolio action instruction",
-                "body": "This page does not rebalance, resize, place account actions, or recommend portfolio moves. It keeps review context separate from decisions.",
+                "body": "This page does not provide allocation changes, account actions, or portfolio-move instructions. It keeps review context separate from decisions.",
                 "badges": ["review only", "no account actions"],
             },
         ]
@@ -14046,34 +14046,31 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     return [
         (
             "Start at Home",
-            "Use this first. It summarizes what is ready, what is blocked, and the safest next review path.",
+            "Use this first for the current coverage snapshot, ready sections, locked sections, and next safe step.",
             "Home page",
             "neutral",
         ),
         (
-            "See The Workflow",
-            "Use Overview after Home when you want grouped next actions across prices, fundamentals, peers, and reports.",
-            "Overview page",
-            "neutral",
-        ),
-        (
-            "Review Candidate Ideas",
-            "Open Monthly Picks when local data supports candidate review. This is a research queue, not a conclusion list.",
-            "Monthly Picks page",
-            "neutral",
-        ),
-        (
             "Analyze One Stock",
-            "Use Single-Stock Report to see what analysis is ready, blocked, excluded, or monitor-only for a ticker.",
+            "Use Single-Stock Report for one ticker's ready, blocked, excluded, or monitor-only analysis.",
             "Single-Stock Report page",
             "neutral",
         ),
         (
             "Unlock Missing Data",
-            "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis instead of being inferred.",
+            "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
             "Data Health page",
             "warning",
         ),
+    ]
+
+
+def sidebar_quick_help_lines() -> list[str]:
+    return [
+        "Start with Home for the coverage snapshot.",
+        "Open Single-Stock Report to review one ticker.",
+        "Open Data Health only when you want unlock commands.",
+        "Commands are copy-only; the dashboard never runs refreshes or imports.",
     ]
 
 
@@ -17687,7 +17684,7 @@ def render_momentum_readiness_tab(frame: pd.DataFrame, show_reason_details: bool
             render_chart_panel(section_title, description, chart_frame, chart_kind=chart_kind)
         render_table(ready_frame, "momentum-leaders", show_reason_details)
     if not blocked_frame.empty:
-        with st.expander("Momentum blocked by missing price data", expanded=True):
+        with st.expander("Momentum blocked by missing price data", expanded=False):
             columns = _readiness_columns(blocked_frame, ["Ticker", "Theme", "SectorETF", "SetupStatus", "Reason"])
             st.dataframe(style_frame(presentation_frame(blocked_frame[columns])), width="stretch", hide_index=True)
 
@@ -17880,7 +17877,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         value_ready = frame.loc[frame["Ticker"].astype(str).str.upper().isin(ready_tickers)].copy() if "Ticker" in frame.columns else pd.DataFrame()
         render_table(value_ready, "value-re-rating", show_reason_details=False)
     if not not_ready_companies.empty:
-        with st.expander("Companies waiting for valuation inputs", expanded=True):
+        with st.expander("Companies waiting for valuation inputs", expanded=False):
             st.write(
                 "Start here when company valuation is locked. These rows are missing trusted inputs; "
                 "they are not negative company conclusions."
@@ -17894,7 +17891,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
             columns = _readiness_columns(not_ready_companies, ["ticker", "asset_type", "missing_dcf_fields", "reason_not_ready", "has_price", "has_free_cash_flow", "has_shares_outstanding", "has_revenue", "has_fcf_margin"])
             st.dataframe(clean_display_frame(not_ready_companies[columns]), width="stretch", hide_index=True)
     if not excluded.empty:
-        with st.expander("ETF / index proxy exclusions", expanded=True):
+        with st.expander("ETF / index proxy exclusions", expanded=False):
             st.write(
                 "These rows can still be useful as market, sector, or theme monitors. "
                 "They are excluded from operating-company DCF because that method does not fit the asset type."
@@ -17932,11 +17929,13 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
         render_section_header("Decision Proof Queue", "Plain-English translation of what can be reviewed now, what stays locked, and what proves an unlock.")
         render_signal_cards(decision_proof_queue_cards(proof_queue))
         if not proof_queue.empty:
-            st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
+            with st.expander("Decision proof queue detail", expanded=False):
+                st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
         render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
         render_signal_cards(final_decision_table_guide_cards(decisions))
         decision_columns = final_decision_default_columns(decisions)
-        st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
+        with st.expander("Research decision table", expanded=False):
+            st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
             "Research decisions are not available yet",
@@ -18109,31 +18108,6 @@ def render_overview(
         )
     )
     render_signal_cards([overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary)])
-    render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
-    render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
-    render_section_header("Research Unlock Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
-    render_signal_cards(
-        overview_research_pressure_cards(
-            price_worklist_frame,
-            sec_stage_queue_frame,
-            peer_mapping_queue_frame,
-            unlock_priority_summary_frame,
-        )
-    )
-    render_section_header("Price History Targets", "The next exact local history rows needed for Monthly Picks, track record, or fuller 1Y research coverage.")
-    render_signal_cards(overview_price_target_cards(price_worklist_frame))
-    render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
-    render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
-    render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
-    render_signal_cards(
-        overview_deep_research_priority_bridge_cards(
-            holdings,
-            sec_stage_queue_frame,
-            peer_mapping_queue_frame,
-        )
-    )
-    render_section_header("Current Review Queue", "Which currently usable names are easiest to review next with the local data already available.")
-    render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
     render_section_header("Current Best Paths", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next page.")
     render_signal_cards(
         overview_current_top_surfaces_cards(
@@ -18145,6 +18119,34 @@ def render_overview(
             action_queue_frame,
         )
     )
+
+    with st.expander("More overview queues", expanded=False):
+        render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
+        render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
+        render_section_header("Research Unlock Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
+        render_signal_cards(
+            overview_research_pressure_cards(
+                price_worklist_frame,
+                sec_stage_queue_frame,
+                peer_mapping_queue_frame,
+                unlock_priority_summary_frame,
+            )
+        )
+        render_section_header("Price History Targets", "The next exact local history rows needed for Monthly Picks, track record, or fuller 1Y research coverage.")
+        render_signal_cards(overview_price_target_cards(price_worklist_frame))
+        render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
+        render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
+        render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
+        render_signal_cards(
+            overview_deep_research_priority_bridge_cards(
+                holdings,
+                sec_stage_queue_frame,
+                peer_mapping_queue_frame,
+            )
+        )
+        render_section_header("Current Review Queue", "Which currently usable names are easiest to review next with the local data already available.")
+        render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
+
     render_section_header("Today's Best Local Research Path", "One compact operator path: the strongest locally usable name, the next project command, and the next page to open after that.")
     render_signal_cards(
         overview_best_local_research_path_cards(
@@ -18371,6 +18373,77 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
             "body": f"{blocked:,} names are blocked by missing data. That is a data-quality state, not a product failure.",
             "badges": ["readiness gated"],
             "command": "make research-health TOP_N=10",
+        },
+    ]
+
+
+def _plain_home_current_data_coverage_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    master = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
+    active = int(summary.get("active_universe") or summary.get("active_count") or 0)
+    blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or 0)
+    partial = int(summary.get("partial") or 0)
+    updated_at = format_missing(summary.get("updated_at"), "Run make readiness for the latest timestamp")
+
+    def _coverage_line(label: str, key: str, *, blocked_key: str | None = None) -> str:
+        ready = int(summary.get(key) or 0)
+        denominator = master or 0
+        pct = (ready / denominator * 100) if denominator else 0.0
+        blocked_count = int(summary.get(blocked_key) or max(denominator - ready, 0)) if blocked_key else max(denominator - ready, 0)
+        return f"{label}: {ready:,}/{denominator:,} ready ({pct:.1f}%); {blocked_count:,} still locked."
+
+    return [
+        {
+            "kicker": "CURRENT SNAPSHOT",
+            "title": f"{master:,} tracked / {active:,} active",
+            "body": (
+                f"{partial:,} tickers have partial coverage and {blocked:,} are blocked by data. "
+                f"Snapshot timestamp: {updated_at}."
+            ),
+            "badges": ["public snapshot", "row-limited"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "BREADTH",
+            "title": "Price and setup coverage",
+            "body": (
+                f"{_coverage_line('Price', 'price_ready')} "
+                f"{_coverage_line('Momentum', 'momentum_ready')} "
+                "Use the capped dry run before changing local CSVs."
+            ),
+            "badges": ["biggest unlock", "dry-run first"],
+            "command": "make price-refresh-loop DRY_RUN=1",
+        },
+        {
+            "kicker": "DEPTH",
+            "title": "Fundamentals and DCF coverage",
+            "body": (
+                f"{_coverage_line('Fundamentals', 'fundamentals_ready')} "
+                f"{_coverage_line('DCF', 'dcf_ready')} "
+                "DCF-ready means scenario math can be reviewed; blocked does not mean negative."
+            ),
+            "badges": ["valuation gated", "trusted rows only"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "RELATIVE CONTEXT",
+            "title": "Peer coverage",
+            "body": (
+                f"{_coverage_line('Peers', 'peer_ready')} "
+                "Peer trend and peer valuation remain separate; missing mappings are not inferred from sector labels."
+            ),
+            "badges": ["source-backed peers", "no fallback as fact"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": "Earnings and analyst estimates",
+            "body": (
+                f"{_coverage_line('Earnings', 'earnings_ready')} "
+                f"{_coverage_line('Analyst estimates', 'analyst_estimates_ready')} "
+                "Zero ready rows means intentionally locked until trusted local inputs exist."
+            ),
+            "badges": ["schema first", "not inferred"],
+            "command": "make optional-context-worklist TOP_N=25",
         },
     ]
 
@@ -18886,20 +18959,18 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "A plain-language view of what is ready, what is blocked, and what to review next.",
     )
     render_context_note(
-        "Start here.",
-        "This page answers three questions: what can I review now, what is blocked, and which safe local command should I copy next?",
+        "How to use this page.",
+        (
+            "Start with the coverage snapshot, then open a single-stock report or Data Health only when you need the next unlock step. "
+            "Missing data is shown openly instead of guessed, and dashboard commands are copy-only."
+        ),
         tone="success",
-    )
-    render_context_note(
-        "Research boundary.",
-        "The app shows local research readiness only. Missing data is shown openly instead of being guessed.",
-    )
-    render_context_note(
-        "Copy-only dashboard.",
-        "Cards display commands for you to copy into a terminal; the dashboard itself does not run refreshes, imports, or external account actions.",
     )
     render_signal_cards(dashboard_page_reader_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
+
+    render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock lane comes first.")
+    render_signal_cards(_plain_home_current_data_coverage_cards(summary))
 
     render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
     render_signal_cards(_plain_home_evaluation_workflow_cards())
@@ -20148,33 +20219,39 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_section_header("Data Health Quick Read", "Which unlock lane should you inspect first, before opening detailed tables.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
-    render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local generated-data churn.")
-    render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
-    render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
-    render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
-    render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
-    render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
-    render_section_header(
-        "Valuation Unlock Snapshot",
-        "Plain-English valuation queues before the full command center details.",
-    )
-    render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
-    render_market_command_center(
-        ticker_readiness_frame,
-        coverage_frame,
-        decisions_frame,
-        action_queue_frame,
-        project_status_payload,
-        feature_summary_frame,
-        peer_readiness_frame,
-        peer_mapping_queue_frame,
-        peer_unlock_worklist_frame,
-        dcf_readiness_frame,
-        earnings_readiness_frame,
-        analyst_readiness_frame,
-        purpose_evaluation_summary_frame,
-        purpose_classification_frame,
-    )
+    render_section_header("Fix First", "The shortest safe local path before deeper Data Health details.")
+    render_action_cards(data_health_fix_first_cards(actions_frame))
+    render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers lanes.")
+    render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
+    with st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False):
+        render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local generated-data churn.")
+        render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
+        render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
+        render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
+        render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
+        render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
+        render_section_header(
+            "Valuation Unlock Snapshot",
+            "Plain-English valuation queues before the full command center details.",
+        )
+        render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
+    with st.expander("Full market-wide command center details", expanded=False):
+        render_market_command_center(
+            ticker_readiness_frame,
+            coverage_frame,
+            decisions_frame,
+            action_queue_frame,
+            project_status_payload,
+            feature_summary_frame,
+            peer_readiness_frame,
+            peer_mapping_queue_frame,
+            peer_unlock_worklist_frame,
+            dcf_readiness_frame,
+            earnings_readiness_frame,
+            analyst_readiness_frame,
+            purpose_evaluation_summary_frame,
+            purpose_classification_frame,
+        )
     if feature_summary_frame is None and feature_summary_message:
         render_notice_card(
             "Feature readiness summary has not been generated",
@@ -20214,23 +20291,19 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             wizard_notice_body,
             wizard_notice_command,
         )
-    render_section_header("Priority Fixes", "Highest-priority local data actions. Apply/merge steps remain copy-only and reviewable.")
-    render_action_cards(data_health_fix_first_cards(actions_frame))
-    render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers lanes.")
-    render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
-    render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
-    render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
-    render_section_header("Bundle Runbook", "Ordered command steps for each current bundle lane so the local follow-through stays explicit.")
-    render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
-    if command_bundles_frame is None:
-        bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
-        render_notice_card(
-            "Command bundles have not been generated yet",
-            bundle_notice_body,
-            bundle_notice_command,
-        )
-    if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
-        with st.expander("Ticker-level bundle steps", expanded=False):
+    with st.expander("Command bundle details", expanded=False):
+        render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
+        render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
+        render_section_header("Bundle Runbook", "Ordered command steps for each current bundle lane so the local follow-through stays explicit.")
+        render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
+        if command_bundles_frame is None:
+            bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
+            render_notice_card(
+                "Command bundles have not been generated yet",
+                bundle_notice_body,
+                bundle_notice_command,
+            )
+        if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
             detail_columns = [
                 column
                 for column in [
@@ -20253,16 +20326,16 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 if column in command_bundle_details_frame.columns
             ]
+            st.caption("Ticker-level bundle steps.")
             st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
-    elif command_bundle_details_frame is None:
-        detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
-        render_notice_card(
-            "Ticker-level bundle steps are not available yet",
-            detail_notice_body,
-            detail_notice_command,
-        )
-    if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
-        with st.expander("Command bundle runbook", expanded=False):
+        elif command_bundle_details_frame is None:
+            detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
+            render_notice_card(
+                "Ticker-level bundle steps are not available yet",
+                detail_notice_body,
+                detail_notice_command,
+            )
+        if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
             runbook_columns = [
                 column
                 for column in [
@@ -20281,14 +20354,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 if column in command_bundle_runbook_frame.columns
             ]
+            st.caption("Command bundle runbook.")
             st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
-    elif command_bundle_runbook_frame is None:
-        runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
-        render_notice_card(
-            "Command bundle runbook is not available yet",
-            runbook_notice_body,
-            runbook_notice_command,
-        )
+        elif command_bundle_runbook_frame is None:
+            runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
+            render_notice_card(
+                "Command bundle runbook is not available yet",
+                runbook_notice_body,
+                runbook_notice_command,
+            )
 
     if not validation_rows.empty:
         missing_optional = validation_rows.loc[
@@ -21215,7 +21289,11 @@ def main() -> None:
             index=USER_PAGE_TITLES.index(initial_page) if initial_page in USER_PAGE_TITLES else 0,
             help="Start with Home, then open a deeper page when you know what you want to review.",
         )
-        show_reason_details = st.checkbox("Show more explanation", value=False)
+        show_reason_details = st.checkbox(
+            "Show detailed tables",
+            value=False,
+            help="Adds extra table sections for deeper local review. Most visitors can leave this off.",
+        )
         show_source_details = False
         if selected_page == "Single-Stock Report":
             show_source_details = st.checkbox(
@@ -21228,34 +21306,17 @@ def main() -> None:
         render_context_note(note_title, note_body, tone="success")
         st.markdown("#### Where to go next")
         render_action_cards(dashboard_navigation_cards())
-        with st.expander("Quick help and safe commands", expanded=False):
+        with st.expander("Need help?", expanded=False):
             render_context_note(
-                "Start here when a page feels noisy.",
-                "Use the plain-language labels first, then copy a safe local command only when you are ready. The dashboard never runs imports, refreshes, or account actions.",
+                "Simple path.",
+                " ".join(sidebar_quick_help_lines()),
             )
             st.code(
-                "make help\nmake status-check TOP_N=5\nmake price-refresh-loop DRY_RUN=1\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report-md TICKER=NVDA\nmake dashboard-smoke",
+                "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard-smoke",
                 language="bash",
-            )
-            st.markdown("#### Status labels")
-            st.markdown(
-                sidebar_guide_cards_html(status_legend_rows(), "Label", "Meaning"),
-                unsafe_allow_html=True,
-            )
-            st.markdown("#### If analysis is blocked")
-            st.markdown(
-                sidebar_guide_cards_html(missing_data_guide_rows(), "Dashboard Label", "What to do"),
-                unsafe_allow_html=True,
-            )
-            st.markdown("#### Where local files live")
-            st.code(
-                "\n".join(sidebar_local_file_context_lines(BASE_DIR, DATA_DIR, OUTPUTS_DIR)),
-                language="text",
             )
 
     project_status_payload = None
-    if selected_page == "Overview":
-        project_status_payload = build_project_status_payload(BASE_DIR, data_dir=DATA_DIR, output_dir=OUTPUTS_DIR, top_n=5)
 
     universe_summary = None
     if selected_page in {"Overview", "Universe Manager"}:

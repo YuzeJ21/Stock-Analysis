@@ -359,24 +359,27 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds source and freshness troubleshooting under Sources & Gaps" in source
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
-    assert "Show more explanation" in source
+    assert "Show detailed tables" in source
+    assert "Adds extra table sections for deeper local review" in source
+    assert "Most visitors can leave this off" in source
+    assert "Show more explanation" not in source
     assert "#### Where to go next" in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Quick help and safe commands"' in source
-    assert "Start here when a page feels noisy" in source
-    assert "Use the plain-language labels first" in source
+    assert 'st.expander("Need help?"' in source
+    assert "Simple path." in source
+    assert "Start with Home for the coverage snapshot." in source
+    assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
+    assert "sidebar_quick_help_lines()" in source
     assert 'st.expander("Help for using the app"' not in source
     assert 'st.expander("Help, commands, and paths"' not in source
+    assert 'st.expander("Quick help and safe commands"' not in source
     assert 'st.expander("Advanced command help"' not in source
     assert 'st.expander("How to read status labels"' not in source
     assert 'st.expander("Missing-data guide"' not in source
     assert 'st.expander("Local file paths"' not in source
-    assert "#### Status labels" in source
-    assert "#### If analysis is blocked" in source
-    assert "#### Where local files live" in source
-    assert "App folder:" in source
-    assert "Trusted input CSVs:" in source
-    assert "Generated reports:" in source
+    assert "#### Status labels" not in source
+    assert "#### If analysis is blocked" not in source
+    assert "#### Where local files live" not in source
     assert "Project root:" not in source
     assert "Data dir:" not in source
     assert "Outputs dir:" not in source
@@ -405,6 +408,53 @@ def test_data_health_bundle_detail_copy_uses_operator_language():
     assert "generate ticker-level bundle steps" in source
     assert "Command bundle detail rows" not in source
     assert "generate ticker-level bundle detail rows" not in source
+
+
+def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_details():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
+    fix_first_index = source.index('render_section_header("Fix First"')
+    action_paths_index = source.index('render_section_header("Action Paths"')
+    planning_expander_index = source.index('st.expander("Planning details: price, valuation, and analysis unlocks"')
+    market_expander_index = source.index('st.expander("Full market-wide command center details"')
+    bundle_expander_index = source.index('st.expander("Command bundle details"')
+
+    assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
+    assert planning_expander_index < market_expander_index < bundle_expander_index
+    assert 'st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False)' in source
+    assert 'st.expander("Full market-wide command center details", expanded=False)' in source
+    assert 'st.expander("Command bundle details", expanded=False)' in source
+    assert 'render_section_header("Priority Fixes"' not in source
+
+
+def test_overview_default_view_keeps_best_path_before_detailed_queues():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    overview_index = source.index('render_section_header(\n        "Overview"')
+    changed_index = source.index('render_section_header(\n        "What Changed Recently"')
+    best_paths_index = source.index('render_section_header("Current Best Paths"')
+    overview_queue_index = source.index('st.expander("More overview queues"')
+    local_path_index = source.index('render_section_header("Today\'s Best Local Research Path"')
+
+    assert overview_index < changed_index < best_paths_index < overview_queue_index < local_path_index
+    assert 'st.expander("More overview queues", expanded=False)' in source
+    assert 'st.expander("More readiness and routing detail", expanded=False)' in source
+    assert 'st.expander("More deep-research context", expanded=False)' in source
+    assert 'st.expander("More market and workflow context", expanded=False)' in source
+    assert 'if selected_page == "Overview":\n        project_status_payload = build_project_status_payload' not in source
+
+
+def test_momentum_blocked_rows_are_collapsed_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    readiness_index = source.index('"MOMENTUM READINESS"')
+    table_index = source.index('render_table(ready_frame, "momentum-leaders", show_reason_details)')
+    blocked_index = source.index('st.expander("Momentum blocked by missing price data"')
+
+    assert readiness_index < table_index < blocked_index
+    assert 'st.expander("Momentum blocked by missing price data", expanded=False)' in source
+    assert 'st.expander("Momentum blocked by missing price data", expanded=True)' not in source
 
 
 def test_home_capability_cards_explain_quality_limits_and_provenance():
@@ -461,6 +511,63 @@ def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaimi
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths():
+    cards = dashboard._plain_home_current_data_coverage_cards(
+        {
+            "master_universe": 3538,
+            "active_universe": 12,
+            "price_ready": 240,
+            "momentum_ready": 237,
+            "fundamentals_ready": 23,
+            "dcf_ready": 23,
+            "peer_ready": 9,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+            "blocked_by_data": 3298,
+            "partial": 240,
+            "updated_at": "2026-06-06T00:00:00+00:00",
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "CURRENT SNAPSHOT",
+        "BREADTH",
+        "DEPTH",
+        "RELATIVE CONTEXT",
+        "OPTIONAL CONTEXT",
+    ]
+    assert "3,538 tracked / 12 active" in rendered
+    assert "240 tickers have partial coverage and 3,298 are blocked by data" in rendered
+    assert "price: 240/3,538 ready (6.8%)" in rendered
+    assert "momentum: 237/3,538 ready (6.7%)" in rendered
+    assert "fundamentals: 23/3,538 ready (0.7%)" in rendered
+    assert "dcf: 23/3,538 ready (0.7%)" in rendered
+    assert "peers: 9/3,538 ready (0.3%)" in rendered
+    assert "earnings: 0/3,538 ready (0.0%)" in rendered
+    assert "analyst estimates: 0/3,538 ready (0.0%)" in rendered
+    assert "zero ready rows means intentionally locked" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "make optional-context-worklist top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_home_page_renders_current_data_coverage_before_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    coverage_index = source.index('render_section_header("Current Data Coverage"')
+    workflow_index = source.index('render_section_header("Evaluation Workflow"')
+
+    assert coverage_index < workflow_index
+    assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary))" in source
 
 
 def test_home_next_step_cards_are_copyable_and_readiness_gated():
@@ -11644,9 +11751,12 @@ def test_output_tab_function_quality_cards_explain_broad_page_limits():
     assert "no automatic timing call" in rendered
     assert "review holding purpose and risk" in rendered
     assert "no portfolio action instruction" in rendered
-    assert "does not rebalance" in rendered
+    assert "does not provide allocation changes" in rendered
     assert "research context only" in rendered
-    assert "trade timing" in rendered
+    assert "market-timing signals" in rendered
+    assert "rebalance" not in rendered
+    assert "resize" not in rendered
+    assert "trade" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -15028,6 +15138,22 @@ def test_final_watchlist_expander_uses_product_language_not_legacy_label():
     assert "Legacy final watchlist output" not in source
 
 
+def test_final_watchlist_tables_are_collapsed_after_decision_cards():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    quality_index = source.index('render_section_header("Decision Quality"')
+    proof_cards_index = source.index('render_signal_cards(decision_proof_queue_cards(proof_queue))')
+    proof_detail_index = source.index('st.expander("Decision proof queue detail"')
+    table_guide_index = source.index('render_signal_cards(final_decision_table_guide_cards(decisions))')
+    decision_table_index = source.index('st.expander("Research decision table"')
+    full_state_index = source.index('st.expander("Full research-state table"')
+
+    assert quality_index < proof_cards_index < proof_detail_index < table_guide_index < decision_table_index < full_state_index
+    assert 'st.expander("Decision proof queue detail", expanded=False)' in source
+    assert 'st.expander("Research decision table", expanded=False)' in source
+    assert 'st.expander("Full research-state table", expanded=False)' in source
+
+
 def test_final_decision_table_surfaces_row_level_decision_boundary():
     decisions = pd.DataFrame(
         [
@@ -16180,6 +16306,23 @@ def test_valuation_excluded_context_frame_explains_excluded_not_failed():
     assert "sell" not in rendered
 
 
+def test_value_re_rating_detail_tables_are_collapsed_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    quick_read_index = source.index('render_section_header("Valuation Quick Read"')
+    at_glance_index = source.index('render_section_header("Value / Re-rating At A Glance"')
+    blocked_detail_index = source.index('st.expander("Companies waiting for valuation inputs"')
+    excluded_detail_index = source.index('st.expander("ETF / index proxy exclusions"')
+    full_table_index = source.index('st.expander("Full valuation output table"')
+
+    assert quick_read_index < at_glance_index < blocked_detail_index < full_table_index
+    assert blocked_detail_index < excluded_detail_index < full_table_index
+    assert 'st.expander("Companies waiting for valuation inputs", expanded=False)' in source
+    assert 'st.expander("ETF / index proxy exclusions", expanded=False)' in source
+    assert 'st.expander("Raw valuation input details", expanded=False)' in source
+    assert 'st.expander("Raw ETF / index exclusion details", expanded=False)' in source
+
+
 def test_dashboard_splits_risk_context_by_price_ready_status():
     liquidity = pd.DataFrame(
         {
@@ -16396,14 +16539,11 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "without first unlocking more data" in rendered
     assert "valuation-style analysis" in rendered
     assert "make runbook-prices-broader" in rendered
-    assert "overview page" in nav_rendered
-    assert "monthly picks page" in nav_rendered
-    assert "research queue, not a conclusion list" in nav_rendered
     assert "use this first" in nav_rendered
     assert "analyze one stock" in nav_rendered
     assert "ready, blocked, excluded, or monitor-only" in nav_rendered
     assert "unlock missing data" in nav_rendered
-    assert "blocking analysis instead of being inferred" in nav_rendered
+    assert "blocking analysis" in nav_rendered
     assert "make status-check top_n=5" in rendered
     fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing company fundamentals")
     peers_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing peer mapping")
@@ -16625,10 +16765,10 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
     assert "Home page" in navigation
-    assert "Overview page" in navigation
-    assert "Monthly Picks page" in navigation
     assert "Single-Stock Report page" in navigation
     assert "Data Health page" in navigation
+    assert "Overview page" not in navigation
+    assert "Monthly Picks page" not in navigation
 
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():

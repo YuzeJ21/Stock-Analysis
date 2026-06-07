@@ -1167,8 +1167,8 @@ def test_readiness_model_documents_peer_layers_and_snapshot_history():
 
 def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
-    dry_run_index = dashboard.index("make price-refresh-loop DRY_RUN=1")
-    refresh_index = dashboard.index("make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30")
+    dry_run_index = dashboard.index("make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo")
+    refresh_index = dashboard.index("make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30")
 
     assert dry_run_index < refresh_index
     assert "broad refresh churn should be inspected before it is committed or shared publicly" in dashboard
