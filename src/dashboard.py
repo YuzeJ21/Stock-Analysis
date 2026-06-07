@@ -4561,6 +4561,98 @@ def stock_report_at_a_glance_cards(
     ]
 
 
+def stock_report_best_review_path_cards(
+    report_payload: dict[str, object],
+    coverage: pd.DataFrame | None = None,
+    peer_summary: dict[str, object] | None = None,
+) -> list[dict[str, object]]:
+    readiness = _stock_report_payload_readiness(report_payload)
+    valuation = report_payload.get("valuation_snapshot", {}) or {}
+    ticker = format_missing(report_payload.get("ticker"), "NVDA")
+    asset_type = stock_report_inferred_asset_type(report_payload)
+    valuation_status = format_missing(valuation.get("status"), "").lower()
+    price_ready = bool(readiness.get("price_ready"))
+    dcf_ready = bool(readiness.get("dcf_ready"))
+    peer_ready = bool(readiness.get("peer_ready"))
+    is_monitor = asset_type in {"etf", "index_proxy", "fund"} or "excluded" in valuation_status
+    next_cards = stock_report_next_step_cards(report_payload, coverage, peer_summary)
+    next_command = format_missing(next_cards[0].get("command"), stock_report_md_command(ticker)) if next_cards else stock_report_md_command(ticker)
+    next_title = format_missing(next_cards[0].get("title"), "Review local report") if next_cards else "Review local report"
+
+    if not price_ready:
+        first_title = "Start with price coverage"
+        first_body = (
+            "Use Data Unlock Summary and the price coverage lane first. Setup, valuation, and peer context stay unavailable "
+            "until trusted local price history is ready."
+        )
+        first_command = ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker}")
+        first_badges = ["price first", "no shortcut"]
+    elif is_monitor:
+        first_title = "Read monitor context"
+        first_body = (
+            "Use market, theme, liquidity, and risk context. Operating-company DCF and peer-relative company valuation "
+            "are excluded, not failed."
+        )
+        first_command = stock_report_md_command(ticker)
+        first_badges = ["monitor context", "DCF excluded"]
+    elif dcf_ready and peer_ready:
+        first_title = "Review DCF, peers, then sources"
+        first_body = (
+            "Start with DCF Calculation Path, then Peer Workflow, then Source Readiness. This is the richest company-review "
+            "path, but it remains research context."
+        )
+        first_command = stock_report_md_command(ticker)
+        first_badges = ["DCF ready", "peer ready"]
+    elif dcf_ready:
+        first_title = "Review DCF before peers"
+        first_body = (
+            "Start with DCF Calculation Path and Valuation Boundary Checklist. Peer-relative valuation stays locked until "
+            "source-backed peer inputs pass readiness."
+        )
+        first_command = ticker_focus_command("peers", ticker, fallback="make templates")
+        first_badges = ["standalone DCF", "peer locked"]
+    else:
+        first_title = "Unlock fundamentals before valuation"
+        first_body = (
+            "Start with DCF Input Triage and Data Unlock Summary. Company valuation stays blocked until trusted fundamentals "
+            "and DCF inputs are ready."
+        )
+        first_command = ticker_focus_command("fundamentals", ticker, fallback=f"make sec-stage TICKERS={ticker}")
+        first_badges = ["fundamentals", "DCF locked"]
+
+    optional_ready = bool(readiness.get("earnings_available") or readiness.get("earnings_ready")) and bool(
+        readiness.get("analyst_estimates_available") or readiness.get("analyst_estimates_ready")
+    )
+    optional_body = (
+        "Optional earnings and analyst-estimate context is ready; treat it as timing or consensus context only."
+        if optional_ready
+        else "Optional earnings and analyst-estimate context remains locked unless trusted local rows exist."
+    )
+    return [
+        {
+            "kicker": "BEST REVIEW PATH",
+            "title": first_title,
+            "body": first_body,
+            "badges": first_badges,
+            "command": first_command,
+        },
+        {
+            "kicker": "CHECK NEXT",
+            "title": "Boundaries before details",
+            "body": "Then check What We Can Analyze Now, Valuation Boundary, and Source Readiness before reading detailed tables.",
+            "badges": ["ready vs locked", "source check"],
+            "command": stock_report_md_command(ticker),
+        },
+        {
+            "kicker": "PROOF STEP",
+            "title": next_title,
+            "body": f"{optional_body} Copy the next command only when you want to inspect or unlock that local lane.",
+            "badges": ["copy-only", "research-only"],
+            "command": next_command,
+        },
+    ]
+
+
 def stock_report_inferred_asset_type(report_payload: dict[str, object]) -> str:
     asset_type = format_missing(report_payload.get("asset_type"), "").lower()
     if asset_type and asset_type != "not available":
@@ -19767,6 +19859,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         "Start here: mode, valuation state, withheld context, method boundary, and next local command.",
     )
     render_signal_cards(stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
+    render_section_header(
+        "Best Review Path",
+        "The shortest safe reading path for this ticker before detailed review.",
+    )
+    render_signal_cards(stock_report_best_review_path_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     with st.expander("More quick-read cards", expanded=False):
         render_context_note(
             "Extra context.",

@@ -8360,6 +8360,70 @@ def test_stock_report_evaluation_summary_cards_route_next_review_command_by_mode
     assert "sell" not in rendered
 
 
+def test_stock_report_best_review_path_cards_route_by_readiness_mode():
+    ready_cards = dashboard.stock_report_best_review_path_cards(
+        {
+            "ticker": "NVDA",
+            "asset_type": "company",
+            "price_snapshot": {"price": 215.33},
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"dcf_ready": True, "peer_ready": True},
+        }
+    )
+    standalone_cards = dashboard.stock_report_best_review_path_cards(
+        {
+            "ticker": "A",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "calculated"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": True, "peer_ready": False},
+        }
+    )
+    monitor_cards = dashboard.stock_report_best_review_path_cards(
+        {
+            "ticker": "QQQ",
+            "asset_type": "etf",
+            "valuation_snapshot": {"status": "excluded"},
+            "valuation_readiness": {"price_ready": True, "dcf_ready": False, "peer_ready": False},
+        }
+    )
+    unlock_cards = dashboard.stock_report_best_review_path_cards(
+        {
+            "ticker": "APLD",
+            "asset_type": "company",
+            "valuation_snapshot": {"status": "insufficient_data"},
+            "valuation_readiness": {"price_ready": False, "dcf_ready": False, "peer_ready": False},
+        }
+    )
+
+    assert [card["kicker"] for card in ready_cards] == ["BEST REVIEW PATH", "CHECK NEXT", "PROOF STEP"]
+    assert ready_cards[0]["title"] == "Review DCF, peers, then sources"
+    assert ready_cards[0]["command"] == "make stock-report-md TICKER=NVDA"
+    assert standalone_cards[0]["title"] == "Review DCF before peers"
+    assert standalone_cards[0]["command"] == "make focus-peers TICKER=A"
+    assert monitor_cards[0]["title"] == "Read monitor context"
+    assert monitor_cards[0]["command"] == "make stock-report-md TICKER=QQQ"
+    assert unlock_cards[0]["title"] == "Start with price coverage"
+    assert unlock_cards[0]["command"] == "make focus-price TICKER=APLD"
+
+    rendered = " ".join(
+        str(value)
+        for cards in (ready_cards, standalone_cards, monitor_cards, unlock_cards)
+        for card in cards
+        for value in card.values()
+    ).lower()
+    assert "source readiness" in rendered
+    assert "peer-relative valuation stays locked" in rendered
+    assert "operating-company dcf and peer-relative company valuation are excluded" in rendered
+    assert "trusted local price history is ready" in rendered
+    assert "optional earnings and analyst-estimate context remains locked" in rendered
+    assert "copy-only" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_at_a_glance_cards_match_markdown_report_flow():
     payload = {
         "ticker": "META",
@@ -9942,6 +10006,8 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
 
     report_header_index = source.index('"At A Glance",\n        "Start here: mode, valuation state')
     at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
+    best_path_header_index = source.index('"Best Review Path",\n        "The shortest safe reading path for this ticker before detailed review."')
+    best_path_cards_index = source.index("stock_report_best_review_path_cards(report_payload")
     quick_read_expander_index = source.index('st.expander("More quick-read cards"')
     summary_cards_index = source.index("stock_report_summary_cards(report_payload)")
     quality_cards_index = source.index("stock_report_analysis_quality_cards(report_payload)")
@@ -9952,7 +10018,7 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
     brief_index = source.index("stock_report_brief_html(report_payload)")
     tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]')
 
-    assert report_header_index < at_glance_index < quick_read_expander_index < interpretation_expander_index < tabs_index
+    assert report_header_index < at_glance_index < best_path_header_index < best_path_cards_index < quick_read_expander_index < interpretation_expander_index < tabs_index
     assert quick_read_expander_index < summary_cards_index < quality_cards_index < next_step_cards_index
     assert interpretation_expander_index < evaluation_index < function_quality_index < brief_index < tabs_index
     assert 'st.expander("More quick-read cards", expanded=False)' in source
