@@ -3522,7 +3522,7 @@ def test_overview_landing_cards_surface_workflow_and_gap_context():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 4
-    assert "12 research rows" in rendered
+    assert "12 stocks checked" in rendered
     assert "4 current monthly candidates" in rendered
     assert "3/12" in rendered
     assert "0 dcf-ready" in rendered
