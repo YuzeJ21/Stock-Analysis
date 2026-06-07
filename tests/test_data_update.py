@@ -800,6 +800,20 @@ def test_price_import_validation_valid_fixture_and_duplicates(tmp_path: Path):
     assert summary["duplicate_rows"] == 1
     assert summary["affected_tickers"] == ["NVDA"]
     assert "extra" in summary["unknown_columns"]
+    assert "price import draft" not in " ".join(summary["warnings"]).lower()
+    assert "invalid price import file row" in " ".join(summary["warnings"]).lower()
+
+
+def test_price_import_validation_missing_file_uses_plain_import_file_language(tmp_path: Path):
+    (tmp_path / "data" / "imports").mkdir(parents=True)
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+
+    summary = validate_price_imports(tmp_path)
+
+    rendered = " ".join(summary["warnings"]).lower()
+    assert summary["status"] == "no_staged_file"
+    assert "price import file" in rendered
+    assert "import draft" not in rendered
 
 
 def test_price_import_validation_rejects_missing_required_columns(tmp_path: Path):

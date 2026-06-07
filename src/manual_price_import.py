@@ -237,7 +237,7 @@ def _remote_status() -> str:
         return "Stooq remote price refresh configured: STOOQ_API_KEY is set; Yahoo provider also available with PROVIDER=yahoo"
     return (
         "Stooq remote price refresh unavailable: missing STOOQ_API_KEY; "
-        "Yahoo provider available with make price-refresh PROVIDER=yahoo; manual price import draft workflow available"
+        "Yahoo provider available with make price-refresh PROVIDER=yahoo; manual price import file workflow available"
     )
 
 
@@ -317,7 +317,7 @@ def import_staged_prices(
     universe_tickers = set(_load_universe_tickers(data_path))
     warnings: list[str] = []
     if not universe_tickers:
-        warnings.append("No universe tickers were found; price import drafts cannot be trusted without data/universe.csv.")
+        warnings.append("No universe tickers were found; price import files cannot be trusted without data/universe.csv.")
 
     files = sorted(path for path in staged_path.glob("*.csv") if path.is_file())
     valid_frames: list[pd.DataFrame] = []
@@ -417,7 +417,7 @@ def _format_ticker_summary(tickers: list[str], *, label: str, limit: int) -> str
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Import verified local price import drafts and report price coverage.")
+    parser = argparse.ArgumentParser(description="Import verified local price files and report price coverage.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--staged-dir", default="data/staged/prices", help="Directory containing verified local price CSV files.")

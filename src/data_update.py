@@ -436,7 +436,7 @@ def _price_recommended_action(status: str, ticker: str, has_local_data: bool) ->
     if status == "source_unavailable":
         return normalize_action
     if has_local_data:
-        return "Leave unchanged because local data exists; use the manual price import draft workflow if you need fresher rows."
+        return "Leave unchanged because local data exists; use the manual price import file workflow if you need fresher rows."
     return normalize_action
 
 
@@ -877,7 +877,7 @@ def _normalize_price_import_frame(frame: pd.DataFrame) -> tuple[pd.DataFrame, di
     valid_mask &= normalized["high"].ge(normalized["low"])
     skipped_invalid = int((~valid_mask).sum())
     if skipped_invalid:
-        warnings.append(f"Skipped {skipped_invalid} invalid price import draft row(s).")
+        warnings.append(f"Skipped {skipped_invalid} invalid price import file row(s).")
 
     valid = normalized.loc[valid_mask].copy()
     if valid.empty:
@@ -949,7 +949,7 @@ def validate_price_imports(
             "affected_tickers": [],
             "missing_required_columns": PRICE_IMPORT_REQUIRED_COLUMNS,
             "unknown_columns": [],
-            "warnings": ["No price import draft file found."],
+            "warnings": ["No price import file found at data/imports/prices.csv."],
         }
     staged_frame, read_warnings = _read_price_import(staged_path)
     valid_frame, summary = _normalize_price_import_frame(staged_frame)
@@ -1154,8 +1154,8 @@ def main() -> None:
     parser.add_argument("--universe-file", help="Alternate universe file to derive tickers from.")
     parser.add_argument("--provider", choices=["stooq", "yahoo"], default="stooq", help="Remote price provider. Yahoo is unofficial/research-grade.")
     parser.add_argument("--validate-price-imports", action="store_true", help="Validate data/imports/prices.csv without mutating data/prices.csv.")
-    parser.add_argument("--preview-price-import-merge", action="store_true", help="Preview price import draft changes without mutating data/prices.csv.")
-    parser.add_argument("--apply-price-import-merge", action="store_true", help="Apply price import drafts into data/prices.csv with a backup.")
+    parser.add_argument("--preview-price-import-merge", action="store_true", help="Preview price import file changes without mutating data/prices.csv.")
+    parser.add_argument("--apply-price-import-merge", action="store_true", help="Apply price import file rows into data/prices.csv with a backup.")
     parser.add_argument("--price-status", action="store_true", help="Display outputs/price_update_status.csv if present.")
     parser.add_argument("--top-n", type=int, help="Optional cap for human-readable price status rows.")
     parser.add_argument("--json", action="store_true", help="Print JSON for import/status commands.")

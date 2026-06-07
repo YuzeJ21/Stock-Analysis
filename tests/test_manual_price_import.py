@@ -113,5 +113,7 @@ def test_price_coverage_report_lists_rows_per_ticker_and_missing_key_status(tmp_
     assert bool(by_ticker.loc["AMD", "has_price_coverage"]) is False
     assert "missing STOOQ_API_KEY" in by_ticker.loc["AMD", "remote_price_refresh_status"]
     assert "PROVIDER=yahoo" in by_ticker.loc["AMD", "remote_price_refresh_status"]
+    assert "manual price import file workflow" in by_ticker.loc["AMD", "remote_price_refresh_status"]
+    assert "import draft" not in by_ticker.loc["AMD", "remote_price_refresh_status"].lower()
     assert "data/staged/prices" in by_ticker.loc["AMD", "manual_staged_price_import"]
     assert (data_dir / "price_coverage_report.csv").exists()
