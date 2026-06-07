@@ -502,10 +502,13 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
     assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Need help?"' in source
+    assert 'st.expander("Quick reading guide"' in source
+    assert 'st.expander("Need help?"' not in source
     assert "Simple path." in source
     assert "Start with Home for the coverage snapshot." in source
     assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
+    assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard"' in source
+    assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
     assert "sidebar_quick_help_lines()" in source
     assert 'st.expander("Help for using the app"' not in source
     assert 'st.expander("Help, commands, and paths"' not in source
@@ -537,7 +540,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "dashboard and terminal agree" not in source
     assert "terminal output" not in source
     assert "copy manually when ready" in source
-    assert "make stock-report-md TICKER=NVDA\\nmake dashboard-smoke" in source
+    assert "make stock-report-md TICKER=NVDA\\nmake dashboard" in source
     assert "make stock-report TICKER=NVDA\\nmake dashboard-smoke" not in source
     assert "diagnostics" not in source.lower()
 

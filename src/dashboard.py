@@ -21556,13 +21556,13 @@ def main() -> None:
         )
         with st.expander("How to use the path", expanded=False):
             render_sidebar_route_steps(dashboard_navigation_cards())
-        with st.expander("Need help?", expanded=False):
+        with st.expander("Quick reading guide", expanded=False):
             render_context_note(
                 "Simple path.",
                 " ".join(sidebar_quick_help_lines()),
             )
             st.code(
-                "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard-smoke",
+                "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
                 language="bash",
             )
 
