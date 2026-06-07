@@ -463,6 +463,63 @@ def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaimi
     assert "sell" not in rendered
 
 
+def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths():
+    cards = dashboard._plain_home_current_data_coverage_cards(
+        {
+            "master_universe": 3538,
+            "active_universe": 12,
+            "price_ready": 240,
+            "momentum_ready": 237,
+            "fundamentals_ready": 23,
+            "dcf_ready": 23,
+            "peer_ready": 9,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+            "blocked_by_data": 3298,
+            "partial": 240,
+            "updated_at": "2026-06-06T00:00:00+00:00",
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "CURRENT SNAPSHOT",
+        "BREADTH",
+        "DEPTH",
+        "RELATIVE CONTEXT",
+        "OPTIONAL CONTEXT",
+    ]
+    assert "3,538 tracked / 12 active" in rendered
+    assert "240 tickers have partial coverage and 3,298 are blocked by data" in rendered
+    assert "price: 240/3,538 ready (6.8%)" in rendered
+    assert "momentum: 237/3,538 ready (6.7%)" in rendered
+    assert "fundamentals: 23/3,538 ready (0.7%)" in rendered
+    assert "dcf: 23/3,538 ready (0.7%)" in rendered
+    assert "peers: 9/3,538 ready (0.3%)" in rendered
+    assert "earnings: 0/3,538 ready (0.0%)" in rendered
+    assert "analyst estimates: 0/3,538 ready (0.0%)" in rendered
+    assert "zero ready rows means intentionally locked" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "make sec-stage-queue top_n=25" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "make optional-context-worklist top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_home_page_renders_current_data_coverage_before_workflow():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    coverage_index = source.index('render_section_header("Current Data Coverage"')
+    workflow_index = source.index('render_section_header("Evaluation Workflow"')
+
+    assert coverage_index < workflow_index
+    assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary))" in source
+
+
 def test_home_next_step_cards_are_copyable_and_readiness_gated():
     price_gap_cards = dashboard._plain_home_next_step_cards(
         {

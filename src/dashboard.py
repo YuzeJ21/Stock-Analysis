@@ -18375,6 +18375,77 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
     ]
 
 
+def _plain_home_current_data_coverage_cards(summary: dict[str, object]) -> list[dict[str, object]]:
+    master = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
+    active = int(summary.get("active_universe") or summary.get("active_count") or 0)
+    blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or 0)
+    partial = int(summary.get("partial") or 0)
+    updated_at = format_missing(summary.get("updated_at"), "Run make readiness for the latest timestamp")
+
+    def _coverage_line(label: str, key: str, *, blocked_key: str | None = None) -> str:
+        ready = int(summary.get(key) or 0)
+        denominator = master or 0
+        pct = (ready / denominator * 100) if denominator else 0.0
+        blocked_count = int(summary.get(blocked_key) or max(denominator - ready, 0)) if blocked_key else max(denominator - ready, 0)
+        return f"{label}: {ready:,}/{denominator:,} ready ({pct:.1f}%); {blocked_count:,} still locked."
+
+    return [
+        {
+            "kicker": "CURRENT SNAPSHOT",
+            "title": f"{master:,} tracked / {active:,} active",
+            "body": (
+                f"{partial:,} tickers have partial coverage and {blocked:,} are blocked by data. "
+                f"Snapshot timestamp: {updated_at}."
+            ),
+            "badges": ["public snapshot", "row-limited"],
+            "command": "make status-check TOP_N=5",
+        },
+        {
+            "kicker": "BREADTH",
+            "title": "Price and setup coverage",
+            "body": (
+                f"{_coverage_line('Price', 'price_ready')} "
+                f"{_coverage_line('Momentum', 'momentum_ready')} "
+                "Use the capped dry run before changing local CSVs."
+            ),
+            "badges": ["biggest unlock", "dry-run first"],
+            "command": "make price-refresh-loop DRY_RUN=1",
+        },
+        {
+            "kicker": "DEPTH",
+            "title": "Fundamentals and DCF coverage",
+            "body": (
+                f"{_coverage_line('Fundamentals', 'fundamentals_ready')} "
+                f"{_coverage_line('DCF', 'dcf_ready')} "
+                "DCF-ready means scenario math can be reviewed; blocked does not mean negative."
+            ),
+            "badges": ["valuation gated", "trusted rows only"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "RELATIVE CONTEXT",
+            "title": "Peer coverage",
+            "body": (
+                f"{_coverage_line('Peers', 'peer_ready')} "
+                "Peer trend and peer valuation remain separate; missing mappings are not inferred from sector labels."
+            ),
+            "badges": ["source-backed peers", "no fallback as fact"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": "Earnings and analyst estimates",
+            "body": (
+                f"{_coverage_line('Earnings', 'earnings_ready')} "
+                f"{_coverage_line('Analyst estimates', 'analyst_estimates_ready')} "
+                "Zero ready rows means intentionally locked until trusted local inputs exist."
+            ),
+            "badges": ["schema first", "not inferred"],
+            "command": "make optional-context-worklist TOP_N=25",
+        },
+    ]
+
+
 def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
     return [
         {
@@ -18900,6 +18971,9 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     )
     render_signal_cards(dashboard_page_reader_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
+
+    render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock lane comes first.")
+    render_signal_cards(_plain_home_current_data_coverage_cards(summary))
 
     render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
     render_signal_cards(_plain_home_evaluation_workflow_cards())
