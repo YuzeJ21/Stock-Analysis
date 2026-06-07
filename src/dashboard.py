@@ -17929,11 +17929,13 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
         render_section_header("Decision Proof Queue", "Plain-English translation of what can be reviewed now, what stays locked, and what proves an unlock.")
         render_signal_cards(decision_proof_queue_cards(proof_queue))
         if not proof_queue.empty:
-            st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
+            with st.expander("Decision proof queue detail", expanded=False):
+                st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
         render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
         render_signal_cards(final_decision_table_guide_cards(decisions))
         decision_columns = final_decision_default_columns(decisions)
-        st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
+        with st.expander("Research decision table", expanded=False):
+            st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
             "Research decisions are not available yet",
