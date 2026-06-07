@@ -135,7 +135,7 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
     assert [card["kicker"] for card in cards] == [
         "UNIVERSE",
         "READY TO REVIEW",
-        "DEEP ANALYSIS",
+        "VALUATION READY",
         "OPTIONAL CONTEXT",
         "DECISIONS",
     ]
@@ -143,6 +143,9 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
     assert "12 are in the active research list" in rendered
     assert "240 have price data" in rendered
     assert "23 dcf-ready / 3 peer-ready" in rendered
+    assert "source checked" in rendered
+    assert "deep analysis" not in rendered
+    assert "source-aware" not in rendered
     assert "0 earnings / 0 estimates" in rendered
     assert "2 research now / 1 monitor" in rendered
     assert "3,298 names are blocked by missing data" in rendered
