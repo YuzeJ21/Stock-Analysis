@@ -9971,14 +9971,15 @@ def test_stock_report_source_detail_summary_frame_replaces_raw_json_dump():
     assert "local" in rendered
     assert "2026-06-04" in rendered
     assert "report timestamp" in rendered
-    assert "ready feature flags" in rendered
-    assert "blocked feature flags" in rendered
-    assert "source rows" in rendered
-    assert "missing-data warnings" in rendered
-    assert "report data download" in rendered
+    assert "ready report checks" in rendered
+    assert "locked report checks" in rendered
+    assert "source records" in rendered
+    assert "missing-input warnings" in rendered
+    assert "optional report data download" in rendered
     assert "download local report data" in rendered
     assert "optional saved data file" in rendered
     assert "most readers can use this page or the markdown report" in rendered
+    assert "feature flags" not in rendered
     assert "download structured report" not in rendered
     assert "generated" not in rendered
     assert "machine-readable local report file" not in rendered

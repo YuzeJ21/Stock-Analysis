@@ -5500,12 +5500,12 @@ def stock_report_source_detail_summary_frame(report_payload: dict[str, object]) 
             {"Detail": "Ticker", "Value": format_missing(report_payload.get("ticker"))},
             {"Detail": "Provider", "Value": format_missing(report_payload.get("provider_name"), "Not available")},
             {"Detail": "Report timestamp", "Value": format_date_short(report_payload.get("generated_at"), "Not available")},
-            {"Detail": "Ready feature flags", "Value": report_display_value(ready_count, "integer")},
-            {"Detail": "Blocked feature flags", "Value": report_display_value(blocked_count, "integer")},
-            {"Detail": "Source rows", "Value": report_display_value(len(source_rows), "integer")},
-            {"Detail": "Missing-data warnings", "Value": report_display_value(len(missing_warnings), "integer")},
+            {"Detail": "Ready report checks", "Value": report_display_value(ready_count, "integer")},
+            {"Detail": "Locked report checks", "Value": report_display_value(blocked_count, "integer")},
+            {"Detail": "Source records", "Value": report_display_value(len(source_rows), "integer")},
+            {"Detail": "Missing-input warnings", "Value": report_display_value(len(missing_warnings), "integer")},
             {
-                "Detail": "Report data download",
+                "Detail": "Optional report data download",
                 "Value": "Use Download Local Report Data only if you need the optional saved data file; most readers can use this page or the Markdown report.",
             },
         ]
