@@ -8,7 +8,7 @@ The product is not a trading bot. It does not place orders, connect to brokers, 
 
 ## Target User
 
-The target user is an individual investor or research operator who wants a deterministic local workflow for:
+The target user is an individual investor or research reviewer who wants a deterministic local workflow for:
 
 - maintaining a broad market universe;
 - narrowing that universe into an active research list;
@@ -88,7 +88,7 @@ The per-feature subset of tickers with enough data for a specific module, such a
 
 ## Current Product Surfaces
 
-The product is now organized around a few operator-facing surfaces:
+The product is now organized around a few research-facing surfaces:
 
 - `Home`: plain-language readiness cards and next-action cards first, with methodology ladder and example report comparisons in collapsed sections.
 - `Single-Stock Report`: ticker-level At A Glance status, methodology cue, analysis quality, valuation state, source readiness check, and copyable local unlock commands.
