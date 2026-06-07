@@ -3636,26 +3636,15 @@ def import_health_summary(frame: pd.DataFrame | None) -> dict[str, int]:
 def import_validation_rejected_row_cards(import_frame: pd.DataFrame | None = None) -> list[dict[str, object]]:
     frame = import_health_frame() if import_frame is None else import_frame
     summary = import_health_summary(frame)
-    rejected_paths = ", ".join(frame.get("rejected_report", pd.Series(dtype=str)).dropna().astype(str).tolist())
-    missing_report_paths = ""
-    if frame is not None and not frame.empty and "rejected_status" in frame.columns and "rejected_report" in frame.columns:
-        missing_report_paths = ", ".join(
-            frame.loc[
-                frame["rejected_status"].fillna("").astype(str).eq("missing report"),
-                "rejected_report",
-            ]
-            .dropna()
-            .astype(str)
-            .tolist()
-        )
+    report_count = int(frame.get("rejected_report", pd.Series(dtype=str)).dropna().astype(str).ne("").sum()) if frame is not None and not frame.empty else 0
     rejected_title = (
         f"{summary['rejected_rows']} rejected row(s)"
         if summary["rejected_rows"]
         else f"{summary['clean_reports']} clean/header-only, {summary['missing_reports']} missing report(s)"
     )
     missing_report_sentence = (
-        f" Missing report path(s): {missing_report_paths}."
-        if missing_report_paths
+        f" {summary['missing_reports']} rejected-row report(s) are missing."
+        if summary["missing_reports"]
         else " No rejected-row reports are missing."
     )
     return [
@@ -3694,8 +3683,8 @@ def import_validation_rejected_row_cards(import_frame: pd.DataFrame | None = Non
             "kicker": "REJECTED ROWS",
             "title": rejected_title,
             "body": (
-                f"Rejected-row report paths: {rejected_paths}.{missing_report_sentence} "
-                "Fix source rows or regenerate missing reports, then rerun validate and preview."
+                f"{report_count} rejected-row report path(s) are tracked in the Import Checks table."
+                f"{missing_report_sentence} Fix source rows or regenerate missing reports, then rerun validate and preview."
             ),
             "badges": ["source check", "row-level"],
             "command": "make imports-validate",

@@ -13184,12 +13184,13 @@ def test_import_validation_rejected_row_cards_show_safe_manual_workflow():
     assert "make imports-apply" in rendered
     assert "data/staged/" in rendered
     assert "data/imports/" in rendered
-    assert "data/rejected/price_import_rejected.csv" in rendered
-    assert "data/rejected/fundamentals_import_rejected.csv" in rendered
-    assert "data/rejected/peers_import_rejected.csv" in rendered
-    assert "data/rejected/earnings_import_rejected.csv" in rendered
-    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
-    assert "data/rejected/universe_rejected.csv" in rendered
+    assert "rejected-row report path(s) are tracked in the import checks table" in rendered
+    assert "data/rejected/price_import_rejected.csv" not in rendered
+    assert "data/rejected/fundamentals_import_rejected.csv" not in rendered
+    assert "data/rejected/peers_import_rejected.csv" not in rendered
+    assert "data/rejected/earnings_import_rejected.csv" not in rendered
+    assert "data/rejected/analyst_estimates_import_rejected.csv" not in rendered
+    assert "data/rejected/universe_rejected.csv" not in rendered
     assert "clean/header-only" in rendered
     assert "missing report" in rendered
     assert "regenerate missing reports" in rendered
@@ -13233,7 +13234,7 @@ def test_import_health_frame_counts_header_only_and_rejected_rows(tmp_path: Path
     )
 
 
-def test_import_validation_rejected_row_cards_surface_missing_report_paths():
+def test_import_validation_rejected_row_cards_summarize_missing_reports_without_path_dump():
     frame = pd.DataFrame(
         [
             {
@@ -13258,8 +13259,10 @@ def test_import_validation_rejected_row_cards_surface_missing_report_paths():
     rejected_card = next(card for card in cards if card["kicker"] == "REJECTED ROWS")
 
     assert rejected_card["title"] == "1 clean/header-only, 1 missing report(s)"
-    assert "data/rejected/peers_import_rejected.csv" in rendered
-    assert "missing report path(s)" in rendered
+    assert "2 rejected-row report path(s) are tracked in the import checks table" in rendered
+    assert "1 rejected-row report(s) are missing" in rendered
+    assert "data/rejected/peers_import_rejected.csv" not in rendered
+    assert "missing report path(s)" not in rendered
     assert "regenerate missing reports" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
