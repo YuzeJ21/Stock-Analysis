@@ -232,6 +232,10 @@ def test_printable_warnings_summarizes_broad_universe_missing_prices():
     assert any("each stock's own readiness state is unchanged" in warning for warning in printable)
     assert any("make price-worklist TOP_N=25" in warning for warning in printable)
     assert any("make price-refresh-loop DRY_RUN=1" in warning for warning in printable)
+    price_guidance = "\n".join(printable)
+    assert price_guidance.index("make price-refresh-loop DRY_RUN=1") < price_guidance.index(
+        "make price-worklist TOP_N=25"
+    )
     assert not any("make price-refresh TOP_N=25" in warning for warning in printable)
     assert len(printable) <= 5
 
