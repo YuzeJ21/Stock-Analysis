@@ -736,7 +736,7 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     assert status_unlock_index < next_data_unlocks_index
     assert 'st.expander("More readiness and routing detail", expanded=False)' in source
     assert 'st.expander("More deep-research context", expanded=False)' in source
-    assert 'st.expander("More market and workflow context", expanded=False)' in source
+    assert 'st.expander("More market and review context", expanded=False)' in source
     assert 'if selected_page == "Overview":\n        project_status_payload = build_project_status_payload' not in source
 
 
@@ -7297,9 +7297,9 @@ def test_overview_interpretation_guardrail_card_flags_partial_workflow():
     )
     rendered = " ".join(str(value) for value in card.values()).lower()
 
-    assert "workflow" in card["title"].lower()
+    assert "review readiness" in card["title"].lower()
     assert card["command"] == "make status-check TOP_N=5"
-    assert "the workflow is usable, but some outputs should still be treated as partial" in rendered
+    assert "the review path is usable, but some outputs should still be treated as partial" in rendered
     assert "19 visible data gaps remain" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -7323,7 +7323,7 @@ def test_overview_interpretation_guardrail_card_flags_needs_data_workflow():
     )
     rendered = " ".join(str(value) for value in card.values()).lower()
 
-    assert "needs data workflow" in rendered
+    assert "needs data review readiness" in rendered
     assert card["command"] == "make onboarding"
     assert "coverage is still the main blocker" in rendered
     assert "3/12 tickers have usable prices" in rendered
@@ -7349,7 +7349,7 @@ def test_overview_interpretation_guardrail_card_supports_ready_workflow():
     )
     rendered = " ".join(str(value) for value in card.values()).lower()
 
-    assert "ready workflow" in rendered
+    assert "ready review readiness" in rendered
     assert card["command"] == "make dashboard-smoke"
     assert "10/10 tickers have prices" in rendered
     assert "buy" not in rendered
@@ -7423,7 +7423,7 @@ def test_overview_coverage_hotspot_cards_use_action_queue_check_for_unknown_acti
 
     assert cards[0]["title"] == "Source Registry"
     assert cards[0]["command"] == "make action-queue-check TOP_N=10"
-    assert "visible local workflow pressure" in rendered
+    assert "visible local review pressure" in rendered
 
 
 def test_monthly_pick_card_html_is_product_style_and_clean():

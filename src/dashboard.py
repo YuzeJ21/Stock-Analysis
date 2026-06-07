@@ -14612,7 +14612,7 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
     tone = "danger" if critical_actions else "warning" if data_gaps else "neutral"
     summary_copy = (
         f"{critical_actions} critical actions and {data_gaps} data gaps are currently visible. "
-        "The workflow stays usable because missing inputs are labeled instead of guessed."
+        "The review stays usable because missing inputs are labeled instead of guessed."
     )
     lanes = [
         ("Price Coverage", f"{price_ready}/{total_tickers}", "Momentum and track-record readiness", "danger" if price_ready < total_tickers else "neutral"),
@@ -14633,7 +14633,7 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
         "<div class='cockpit-panel'>"
         f"<div class='cockpit-summary {html.escape(tone)}'>"
         "<div class='cockpit-kicker'>Research Cockpit</div>"
-        f"<div class='cockpit-title'>{html.escape(health_label)} workflow, {health_score}/100</div>"
+        f"<div class='cockpit-title'>{html.escape(health_label)} review readiness, {health_score}/100</div>"
         f"<div class='cockpit-copy'>{html.escape(summary_copy)}</div>"
         "</div>"
         f"<div class='cockpit-lanes'>{lane_html}</div>"
@@ -14708,7 +14708,7 @@ def overview_interpretation_guardrail_card(
         command = "make dashboard-smoke"
     elif health_label == "Partial":
         body = (
-            f"The workflow is usable, but some outputs should still be treated as partial. "
+            f"The review path is usable, but some outputs should still be treated as partial. "
             f"{data_gaps} visible data gaps remain, so rankings and valuation context should stay tied to the missing-data notes."
         )
         badges = ["partial", "check gaps"]
@@ -14724,7 +14724,7 @@ def overview_interpretation_guardrail_card(
 
     return {
         "kicker": "INTERPRETATION GUARDRAIL",
-        "title": f"{health_label} workflow · {health_score}/100",
+        "title": f"{health_label} review readiness · {health_score}/100",
         "body": body,
         "badges": badges,
         "command": command,
@@ -14782,7 +14782,7 @@ def overview_coverage_hotspot_cards(action_queue: pd.DataFrame | None, limit: in
         action_type = str(row.get("action_type", "")).strip().lower()
         kicker, title, base_body = label_map.get(
             action_type,
-            ("COVERAGE HOTSPOT", display_column_label(action_type or "coverage"), "This dataset type still has visible local workflow pressure."),
+            ("COVERAGE HOTSPOT", display_column_label(action_type or "coverage"), "This dataset type still has visible local review pressure."),
         )
         sample_rows = queue.loc[queue["action_type"] == action_type].sort_values(["priority", "ticker"], na_position="last").head(3)
         tickers = [
@@ -16838,7 +16838,7 @@ def overview_best_local_research_path_cards(
             "title": tab_text,
             "body": (
                 f"Open {tab_text} after the command step so the next read matches the current local "
-                "coverage and workflow state."
+                "coverage and review state."
             ),
             "badges": [str(item) for item in next_tab.get("badges", [])][:2] or ["guided", "read-only"],
         },
@@ -18438,7 +18438,7 @@ def render_overview(
         render_signal_cards(readiness_panel_cards(overview_readiness_summary))
 
     with st.expander("More overview worklists", expanded=False):
-        render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
+        render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local review path.")
         render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
         render_section_header("Research Unlock Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
         render_signal_cards(
@@ -18515,7 +18515,7 @@ def render_overview(
         render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals staging workflow or manual peer research once price-led blockers are already understood.")
         render_signal_cards(theme_deep_research_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
 
-    with st.expander("More market and workflow context", expanded=False):
+    with st.expander("More market and review context", expanded=False):
         render_section_header("Market Context", "The strongest locally supported theme and ETF context from current benchmark-relative output rows.")
         render_signal_cards(overview_market_context_cards(market_direction_frame))
         render_section_header("Benchmark Pressure", "Whether weak coverage is mostly a local price-history issue or a broader benchmark-relative context issue.")
@@ -18533,7 +18533,7 @@ def render_overview(
         render_signal_cards([overview_workflow_reason_card(project_status_payload, action_queue_frame)])
         render_metric_cards(
             [
-                ("Workflow Health", f"{health_score}/100", health_label),
+                ("Review Readiness", f"{health_score}/100", health_label),
                 ("Universe", current_universe["row_count"], "Tickers in data/universe.csv"),
                 ("Holdings", 0 if holdings is None or holdings.empty else len(holdings), "Rows in holdings.csv"),
                 ("Final Watchlist", watchlist_count, "Current readiness-state rows"),
