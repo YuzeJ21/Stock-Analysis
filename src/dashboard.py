@@ -7201,7 +7201,7 @@ def readiness_recent_progress_cards(
             "body": (
                 f"Active universe: {active}. DCF-ready: {dcf_ready}. Peer-ready: {peer_ready}. "
                 f"Blocked: {int(state_counts.get('blocked', 0))}. Partial: {int(state_counts.get('partial', 0))}. "
-                f"Latest generated: {format_missing(latest)}."
+                f"Latest refresh timestamp: {format_missing(latest)}."
             ),
             "badges": ["current counts", "readiness first"],
             "command": "make readiness",
@@ -7231,7 +7231,7 @@ def readiness_recent_progress_cards(
                 "kicker": "WHAT CHANGED",
                 "title": changed_text or "No ready-count change",
                 "body": (
-                    f"Compared with prior snapshot {prior_label}; prior generated: {format_missing(prior_latest)}. "
+                    f"Compared with prior snapshot {prior_label}; prior refresh timestamp: {format_missing(prior_latest)}. "
                     f"Newly ready tickers: {newly_ready or 'none detected'}. "
                     "This is a count comparison only; review source readiness before interpreting analysis."
                 ),
@@ -18363,7 +18363,7 @@ def render_overview(
     )
     render_section_header(
         "What Changed Recently",
-        "Current readiness counts, latest generated timestamp, and prior/current deltas when a prior snapshot exists.",
+        "Current readiness counts, latest refresh timestamp, and prior/current deltas when a prior snapshot exists.",
     )
     render_signal_cards(
         readiness_recent_progress_cards(
