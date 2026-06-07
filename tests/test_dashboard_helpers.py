@@ -885,7 +885,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     where_to_go_index = source.index('render_section_header("Where To Go"')
     coverage_expander_index = source.index('st.expander("Coverage details", expanded=False)')
     workflow_index = source.index('render_section_header("Evaluation Workflow"')
-    price_refresh_expander_index = source.index('st.expander("Advanced price refresh workflow", expanded=False)')
+    price_refresh_expander_index = source.index('st.expander("Price update plan", expanded=False)')
     price_refresh_index = source.index('render_section_header("Scalable Price Refresh"')
     examples_expander_index = source.index('st.expander("Example reports", expanded=False)')
     examples_index = source.index('render_section_header("Example Reports"')
@@ -900,7 +900,8 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert learn_more_index < methodology_index
     assert 'st.expander("Coverage details", expanded=False)' in source
     assert 'st.expander("How evaluation works", expanded=False)' in source
-    assert 'st.expander("Advanced price refresh workflow", expanded=False)' in source
+    assert 'st.expander("Price update plan", expanded=False)' in source
+    assert 'st.expander("Advanced price refresh workflow", expanded=False)' not in source
     assert 'st.expander("Example reports", expanded=False)' in source
     assert 'st.expander("Learn more: methodology, roadmap, and transparency", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
