@@ -625,6 +625,25 @@ def test_data_health_market_tables_have_plain_language_reader_guidance():
     assert "full-table dumps" not in source
 
 
+def test_public_dashboard_quality_labels_avoid_internal_audit_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "QUALITY CHECK" in source
+    assert "NEXT QUALITY ITEM" in source
+    assert "product quality" in source
+    assert "Detailed analysis capability review" in source
+    assert "This public review explains which functions are strong today" in source
+    assert "source-to-method" in source
+    assert "Method lives in the project" in source
+    assert "LOGIC AUDIT" not in source
+    assert "NEXT AUDIT ITEM" not in source
+    assert "product logic" not in source
+    assert "Detailed analysis capability audit" not in source
+    assert "The public audit explains" not in source
+    assert "source vs logic" not in source
+    assert "Logic lives in the project" not in source
+
+
 def test_dashboard_first_read_copy_avoids_engineering_queue_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

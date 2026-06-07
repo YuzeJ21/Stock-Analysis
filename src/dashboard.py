@@ -11436,9 +11436,9 @@ def product_page_logic_audit_cards(audit_frame: pd.DataFrame | None) -> list[dic
     if audit_frame is None or audit_frame.empty:
         return [
             {
-                "kicker": "LOGIC AUDIT",
+                "kicker": "QUALITY CHECK",
                 "title": "Not available",
-                "body": "Run make pipeline and make readiness before auditing product-page logic.",
+                "body": "Run make pipeline and make readiness before reviewing product-page quality checks.",
                 "badges": ["readiness first", "copy only"],
                 "command": "make pipeline",
             }
@@ -11450,7 +11450,7 @@ def product_page_logic_audit_cards(audit_frame: pd.DataFrame | None) -> list[dic
     first_review = frame.loc[~statuses.eq("pass")].head(1)
     if first_review.empty:
         next_title = "No review items"
-        next_body = "All current product-page logic checks pass; rerun the audit after readiness, peer, or decision workflow changes."
+        next_body = "All current product-page quality checks pass; rerun the check after readiness, peer, or decision workflow changes."
         next_badges = ["pass", "copy only"]
         next_command = "make project-status"
     else:
@@ -11461,14 +11461,14 @@ def product_page_logic_audit_cards(audit_frame: pd.DataFrame | None) -> list[dic
         next_command = "make readiness"
     return [
         {
-            "kicker": "LOGIC AUDIT",
+            "kicker": "QUALITY CHECK",
             "title": f"{pass_count} pass / {review_count} review",
-            "body": "Audit checks readiness-first sequence, Research Now gating, ETF DCF exclusion, copy-only guided steps, withheld conclusions, peer-action alignment, exact copyable commands, research-only language, feature/decision/peer/fundamentals cards, purpose drilldown, next action console, import validation, blocker queues, next-best-action cards, readiness explorer, single-stock drilldown, and row limits.",
-            "badges": ["product logic", "data-honest"],
+            "body": "Checks readiness-first sequence, Research Now gating, ETF DCF exclusion, copy-only guided steps, withheld conclusions, peer-action alignment, exact copyable commands, research-only language, feature/decision/peer/fundamentals cards, purpose drilldown, next action console, import validation, blocker queues, next-best-action cards, readiness explorer, single-stock drilldown, and row limits.",
+            "badges": ["product quality", "data-honest"],
             "command": "make project-status",
         },
         {
-            "kicker": "NEXT AUDIT ITEM",
+            "kicker": "NEXT QUALITY ITEM",
             "title": next_title,
             "body": next_body,
             "badges": next_badges,
@@ -18769,7 +18769,7 @@ def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
             "body": (
                 "Single-stock reports explain what data came from source rows, what the product calculated, what stayed withheld, and the next copy-only local step."
             ),
-            "badges": ["source vs logic", "copy-only"],
+            "badges": ["source-to-method", "copy-only"],
             "command": "make stock-report-md TICKER=A",
         },
     ]
@@ -18939,7 +18939,7 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "PROVENANCE",
-            "title": "Logic lives in the project",
+            "title": "Method lives in the project",
             "body": "Readiness gates, indicators, DCF assumptions, peer checks, decisions, and report wording are implemented in the project code.",
             "badges": ["project rules"],
         },
@@ -19315,9 +19315,9 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         render_signal_cards(_plain_home_capability_cards())
         render_section_header("Methodology And Provenance", "Plain-language provenance for the analysis functions and development aids.")
         render_signal_cards(_plain_home_provenance_cards())
-        with st.expander("Detailed analysis capability audit", expanded=False):
+        with st.expander("Detailed analysis capability review", expanded=False):
             st.write(
-                "The public audit explains which functions are strong today, which data gaps still limit the product, "
+                "This public review explains which functions are strong today, which data gaps still limit the product, "
                 "and why the analysis shown to users comes from project code and local CSV inputs."
             )
             st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
