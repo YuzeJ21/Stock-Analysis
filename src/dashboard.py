@@ -9811,7 +9811,7 @@ def decision_workflow_summary_cards(
             {
                 "kicker": "DECISIONS",
                 "title": "Decision workflow not ready yet",
-                "body": "Run make pipeline or make readiness to refresh research decision outputs.",
+                "body": "Rebuild the local readiness snapshot before reading decision buckets.",
                 "badges": ["blocked"],
                 "command": "make pipeline",
             }
@@ -10717,7 +10717,7 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
             {
                 "kicker": "RESEARCH BRIEFS",
                 "title": "Not available",
-                "body": "Run make pipeline and make readiness before reviewing active-universe research briefs.",
+                "body": "Build the local readiness snapshot before reviewing active-universe research briefs.",
                 "badges": ["analysis gated"],
                 "command": "make pipeline",
             }
@@ -11055,7 +11055,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
             {
                 "kicker": "ACTIVE QUEUE",
                 "title": "Not available",
-                "body": "Run make pipeline and make readiness to rebuild active-universe decisions before evaluating tickers.",
+                "body": "Build the active-universe readiness view before evaluating tickers.",
                 "badges": ["readiness first", "copy only"],
                 "command": "make pipeline",
             }
@@ -11155,7 +11155,7 @@ def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> li
             {
                 "kicker": "QUEUE DETAILS",
                 "title": "No workflow detail",
-                "body": "Run make pipeline and make readiness to rebuild the active evaluation guided-step view.",
+                "body": "Build the active evaluation guide before reading grouped next steps.",
                 "badges": ["readiness first", "copy only"],
                 "command": "make pipeline",
             }
@@ -11477,7 +11477,7 @@ def product_page_logic_audit_cards(audit_frame: pd.DataFrame | None) -> list[dic
             {
                 "kicker": "QUALITY CHECK",
                 "title": "Not available",
-                "body": "Run make pipeline and make readiness before reviewing product-page quality checks.",
+                "body": "Build the local readiness snapshot before reviewing product-page quality checks.",
                 "badges": ["readiness first", "copy only"],
                 "command": "make pipeline",
             }
@@ -11522,7 +11522,7 @@ def purpose_evaluation_summary_cards(summary_frame: pd.DataFrame | None) -> list
             {
                 "kicker": "PURPOSE SUMMARY",
                 "title": "Purpose summary not ready yet",
-                "body": "Run make pipeline or make project-status to refresh purpose summary proof from current research decisions and readiness.",
+                "body": "Build the purpose summary from current local decisions and readiness before reading groups.",
                 "badges": ["current outputs only", "no fabricated data"],
                 "command": "make pipeline",
             }
@@ -11591,7 +11591,7 @@ def purpose_evaluation_drilldown_cards(drilldown_frame: pd.DataFrame | None) -> 
             {
                 "kicker": "PURPOSE DRILLDOWN",
                 "title": "No rows match",
-                "body": "Adjust the filters or run make pipeline and make readiness to rebuild local decision and readiness outputs.",
+                "body": "Adjust the filters or rebuild the local decision and readiness snapshot.",
                 "badges": ["row-limited", "copy-only"],
                 "command": "make pipeline",
             }
@@ -15934,7 +15934,7 @@ def overview_market_context_cards(
             {
                 "kicker": "MARKET CONTEXT",
                 "title": "No local market direction context yet",
-                "body": "Run make pipeline to surface theme and sector ETF context from local price history.",
+                "body": "Build the local market snapshot to surface theme and sector ETF context from price history.",
                 "badges": ["read-only"],
                 "command": "make pipeline",
             }
@@ -18257,7 +18257,7 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
     else:
         render_notice_card(
             "Research decisions not ready yet",
-            decisions_message or "Run make research-decisions or make pipeline to refresh readiness-aware decision buckets.",
+            decisions_message or "Build the readiness-aware decision buckets before reading the table.",
             "make research-decisions",
             tone="warning",
         )
@@ -20052,7 +20052,7 @@ def render_market_command_center(
     active_briefs = active_research_brief_frame(ticker_readiness_frame, decisions_frame, purpose_classification_frame)
     render_signal_cards(active_research_brief_cards(active_briefs))
     if active_briefs.empty:
-        st.info("Active-universe research briefs are unavailable. Run make pipeline and make readiness first.")
+        st.info("Active-universe research briefs are unavailable until the local readiness snapshot is built.")
     else:
         st.caption(
             "Briefs are interpretation aids only. They are row-limited, research-only, and show copy-only workflow commands rather than direct investment instructions."
@@ -20066,7 +20066,7 @@ def render_market_command_center(
     active_queue_detail = pd.DataFrame()
     render_signal_cards(active_evaluation_queue_cards(active_evaluation_queue))
     if active_evaluation_queue.empty:
-        st.info("Active evaluation queue is unavailable. Run make pipeline and make readiness first.")
+        st.info("Active evaluation queue is unavailable until the local readiness snapshot is built.")
     else:
         st.caption(
             "One row per active ticker, capped for readability. Commands are copy-only and sourced from current local readiness and decision outputs."
@@ -20085,7 +20085,7 @@ def render_market_command_center(
     )
     render_signal_cards(purpose_evaluation_summary_cards(purpose_evaluation_summary_frame))
     if purpose_evaluation_summary_frame is None or purpose_evaluation_summary_frame.empty:
-        st.info("Purpose evaluation summary is not ready yet. Run make pipeline or make project-status to refresh it.")
+        st.info("Purpose evaluation summary is not ready yet. Build the local project status snapshot first.")
     else:
         st.caption("Summary rows are capped for readability and reflect only current trusted local readiness.")
         st.dataframe(clean_display_frame(purpose_evaluation_summary_frame.head(25)), width="stretch", hide_index=True)
@@ -20159,7 +20159,7 @@ def render_market_command_center(
     )
     render_signal_cards(purpose_evaluation_drilldown_cards(purpose_drilldown))
     if purpose_drilldown.empty:
-        st.info("No purpose drilldown rows match the current filters. Try All filters or run make pipeline and make readiness.")
+        st.info("No purpose drilldown rows match the current filters. Try All filters or rebuild the local readiness snapshot.")
     else:
         st.caption(
             "Purpose drilldown rows are built from current local readiness. Commands are copy-only; this dashboard does not execute refreshes, imports, or external actions."

@@ -192,11 +192,12 @@ def test_purpose_evaluation_page_copy_uses_built_from_readiness_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "Purpose-family and decision-bucket counts built from current local decisions and readiness" in source
-    assert "Purpose evaluation summary is not ready yet. Run make pipeline or make project-status to refresh it." in source
+    assert "Purpose evaluation summary is not ready yet. Build the local project status snapshot first." in source
     assert "Purpose drilldown rows are built from current local readiness" in source
     assert "Check rows are built from current local readiness and dashboard queues" in source
     assert "generated from current local CSV outputs" not in source
     assert "Purpose evaluation summary is unavailable. Run make pipeline or make project-status to regenerate it." not in source
+    assert "Purpose evaluation summary is not ready yet. Run make pipeline or make project-status to refresh it." not in source
 
 
 def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_manual_repeats():
@@ -582,7 +583,8 @@ def test_dashboard_not_ready_notices_avoid_generated_file_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "Research decisions not ready yet" in source
-    assert "refresh readiness-aware decision buckets" in source
+    assert "Build the readiness-aware decision buckets before reading the table." in source
+    assert "refresh readiness-aware decision buckets" not in source
     assert "Ticker readiness report not ready yet" in source
     assert "refresh ticker readiness proof" in source
     assert "Guided coverage plans not ready yet" in source
@@ -15659,7 +15661,8 @@ def test_decision_workflow_summary_cards_use_plain_missing_output_language():
     assert cards[0]["title"] == "Decision workflow not ready yet"
     assert cards[0]["command"] == "make pipeline"
     assert "not generated" not in rendered
-    assert "run make pipeline" in rendered
+    assert "rebuild the local readiness snapshot" in rendered
+    assert "run make pipeline" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -19839,7 +19842,8 @@ def test_purpose_evaluation_summary_cards_empty_state_uses_proof_copy():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Purpose summary not ready yet"
-    assert "refresh purpose summary proof" in rendered
+    assert "build the purpose summary from current local decisions and readiness" in rendered
+    assert "refresh purpose summary proof" not in rendered
     assert "outputs/purpose_evaluation_summary.csv" not in rendered
     assert cards[0]["command"] == "make pipeline"
 
