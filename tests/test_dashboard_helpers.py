@@ -870,7 +870,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     coverage_expander_index = source.index('st.expander("Coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
     workflow_expander_index = source.index('st.expander("How evaluation works", expanded=False)')
-    workflow_index = source.index('render_section_header("Evaluation Workflow"')
+    workflow_index = source.index('render_section_header("How Evaluation Works"')
     next_step_index = source.index('render_section_header("What To Do Next"')
 
     assert next_step_index < coverage_expander_index < coverage_index
@@ -946,7 +946,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     next_step_index = source.index('render_section_header("What To Do Next"')
     where_to_go_index = source.index('render_section_header("Where To Go"')
     coverage_expander_index = source.index('st.expander("Coverage details", expanded=False)')
-    workflow_index = source.index('render_section_header("Evaluation Workflow"')
+    workflow_index = source.index('render_section_header("How Evaluation Works"')
     price_refresh_expander_index = source.index('st.expander("Price update plan", expanded=False)')
     price_refresh_index = source.index('render_section_header("Scalable Price Updates"')
     examples_expander_index = source.index('st.expander("Example reports", expanded=False)')

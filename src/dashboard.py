@@ -19317,7 +19317,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         render_signal_cards(_plain_home_current_data_coverage_cards(summary))
 
     with st.expander("How evaluation works", expanded=False):
-        render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
+        render_section_header("How Evaluation Works", "How the product moves from trusted data to supported analysis without overclaiming.")
         render_signal_cards(_plain_home_evaluation_workflow_cards())
 
     with st.expander("Price update plan", expanded=False):
