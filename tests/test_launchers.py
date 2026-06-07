@@ -705,7 +705,10 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "`Blocked by Data - Missing Peer Mapping`",
         "## 8. Next Public Roadmap Stage",
         "Scalable price refresh",
-        "`make price-refresh-loop DRY_RUN=1`",
+        "`make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo`",
+        "`make readiness-snapshot`",
+        "`make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30`",
+        "`make diff-hygiene`",
         "Trusted fundamentals",
         "`make sec-stage-queue TOP_N=25`",
         "Source-backed peers",
@@ -721,6 +724,7 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
 
     assert "### B. Single Stock Research Mode\n\nGoal: produce a data-honest single-ticker research report" not in roadmap
     assert "- Add ticker search in the dashboard." not in roadmap
+    assert "`make price-refresh-loop BATCHES=... TOP_N=... PROVIDER=yahoo`" not in roadmap
 
 
 def test_product_spec_keeps_execution_features_permanently_out_of_scope():
