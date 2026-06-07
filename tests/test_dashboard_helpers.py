@@ -15273,14 +15273,15 @@ def test_peer_analysis_boundary_cards_separate_trend_valuation_and_input_path():
     assert "1 active-universe row(s) can have standalone dcf reviewed" in rendered
     assert "peer-relative valuation stays withheld" in rendered
     assert "prove peers before relative valuation" in rendered
-    assert "copy next: `make focus-peers ticker=meta`" in rendered
+    assert "inspect the next peer-limited ticker first" in rendered
     assert "trend is not valuation" in rendered
     assert "mapping -> trend -> valuation proof" in rendered
     assert "source-backed peer mappings in data/imports/peers.csv" in rendered
     assert "mapped peer price history for trend context" in rendered
     assert "peer fundamentals and valuation inputs for peer valuation" in rendered
     assert "trend-ready does not mean valuation-ready" in rendered
-    assert "`make focus-peers ticker=meta` -> `make templates` -> `make imports-validate`" in rendered
+    assert "exact commands are copyable from this card and the peer queue" in rendered
+    assert "validate and preview trusted rows, apply only reviewed rows" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered

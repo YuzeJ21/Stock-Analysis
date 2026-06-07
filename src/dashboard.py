@@ -8069,7 +8069,7 @@ def peer_analysis_boundary_cards(
             "kicker": "COPY NEXT",
             "title": "Prove peers before relative valuation",
             "body": (
-                f"Copy next: `{peer_focus_command}`. "
+                "Inspect the next peer-limited ticker first. "
                 "Peer trend can be reviewed only from mapped peer price history; peer-relative valuation, premium/discount, "
                 "and peer DCF comparison stay locked until source-backed mappings plus peer valuation inputs pass readiness."
             ),
@@ -8082,9 +8082,8 @@ def peer_analysis_boundary_cards(
             "body": (
                 "Use this sequence before reading peer-relative output: source-backed peer mappings in data/imports/peers.csv, "
                 "then mapped peer price history for trend context, then peer fundamentals and valuation inputs for peer valuation. "
-                "Trend-ready does not mean valuation-ready. Copy sequence: "
-                f"`{peer_focus_command}` -> `make templates` -> `make imports-validate` -> `make imports-preview` -> "
-                "`make imports-apply` -> `make readiness` -> `make peer-mapping-queue TOP_N=25`."
+                "Trend-ready does not mean valuation-ready. Exact commands are copyable from this card and the peer queue; "
+                "validate and preview trusted rows, apply only reviewed rows, then rebuild readiness before reading peer valuation."
             ),
             "badges": ["method proof", "trend before valuation"],
             "command": peer_focus_command,
@@ -8498,7 +8497,7 @@ def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict
             "kicker": "TRUSTED PEER PATH",
             "title": format_missing(first.get("Trusted Input Path"), "Trusted peer input path"),
             "body": (
-                f"Schema guide: {peer_schema_guide}. Validation path: {format_missing(first.get('Validation Path'), '')}. "
+                f"Schema guide: {peer_schema_guide}. Validation proof: {validation_sequence_summary(first.get('Validation Path'))} "
                 "Sector or industry fallback can guide research context only; it is not trusted peer valuation data."
             ),
             "badges": ["validate", "fallback labeled"],
