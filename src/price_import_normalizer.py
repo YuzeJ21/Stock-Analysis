@@ -289,7 +289,7 @@ def main() -> None:
     parser.add_argument("--input-dir", help="Directory of input CSV files, such as data/raw/prices.")
     parser.add_argument("--output", default="data/imports/prices.csv", help="Staged output CSV path.")
     parser.add_argument("--ticker", help="Ticker to use when the input file has no ticker column.")
-    parser.add_argument("--source", default="generic_manual", help="Source label to write into the import draft CSV.")
+    parser.add_argument("--source", default="generic_manual", help="Source label to write into the import CSV.")
     parser.add_argument("--as-of-date", help="As-of date metadata. Defaults to today.")
     parser.add_argument("--date-col")
     parser.add_argument("--ticker-col")
