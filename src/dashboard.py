@@ -2607,7 +2607,6 @@ def section_header_html(title: str, caption: str = "") -> str:
     caption_html = f"<div class='section-caption'>{html.escape(caption)}</div>" if caption else ""
     return (
         "<div class='section-shell'>"
-        "<div class='section-kicker'>Workflow Page</div>"
         f"<div class='section-title'>{html.escape(title)}</div>"
         f"{caption_html}"
         "</div>"
@@ -19074,23 +19073,8 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
 
-    render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock path comes first.")
-    render_signal_cards(_plain_home_current_data_coverage_cards(summary))
-
-    render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
-    render_signal_cards(_plain_home_evaluation_workflow_cards())
-
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary))
-    render_section_header("Scalable Price Refresh", "How to expand price coverage without repeating tiny batches by hand.")
-    render_signal_cards(price_refresh_operator_plan_cards(summary))
-
-    render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
-    st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
-    render_context_note(
-        "Example boundary.",
-        "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
-    )
 
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
     render_action_cards(
@@ -19115,6 +19099,26 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             ),
         ]
     )
+
+    with st.expander("Coverage details", expanded=False):
+        render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock path comes first.")
+        render_signal_cards(_plain_home_current_data_coverage_cards(summary))
+
+    with st.expander("How evaluation works", expanded=False):
+        render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
+        render_signal_cards(_plain_home_evaluation_workflow_cards())
+
+    with st.expander("Advanced price refresh workflow", expanded=False):
+        render_section_header("Scalable Price Refresh", "How to expand price coverage without repeating tiny batches by hand.")
+        render_signal_cards(price_refresh_operator_plan_cards(summary))
+
+    with st.expander("Example reports", expanded=False):
+        render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
+        st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
+        render_context_note(
+            "Example boundary.",
+            "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
+        )
 
     if ticker_readiness_message or decisions_message:
         render_notice_card(
