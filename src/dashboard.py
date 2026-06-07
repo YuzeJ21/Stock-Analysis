@@ -5321,7 +5321,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "kicker": "WHAT YOU CAN ANALYZE NOW",
             "title": "Inputs are separated from calculations",
             "body": "Local/provider rows supply prices and fundamentals. This product decides readiness, runs DCF math when inputs are complete, and withholds conclusions when trusted inputs are missing.",
-            "badges": ["local inputs", "project logic"],
+            "badges": ["local inputs", "project rules"],
             "command": "make stock-report-md TICKER=A",
         },
         {
@@ -8072,7 +8072,7 @@ def peer_function_quality_frame(
                 "Current Coverage": "Support layer only.",
                 "Supported Today": "Data handling, table display, tests, and optional development review.",
                 "Not Supported Yet": "Replacing source-backed peer mappings or project peer-readiness rules.",
-                "Methodology / Provenance": "Standard libraries and optional provider adapters support data handling; peer logic runs from this repository.",
+                "Methodology / Provenance": "Standard libraries and optional provider adapters support data handling; peer rules run from this repository.",
                 "Next Step": "make project-status",
             },
         ]
@@ -9428,7 +9428,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{dcf_ready_count} company row(s)",
                 "Supported Today": "Assumption and sensitivity review after required company DCF fields pass readiness.",
                 "Not Supported Yet": "Unsupported recommendations or conclusions when optional context remains unavailable.",
-                "Methodology / Provenance": "Project DCF readiness and valuation logic in src/valuation.py.",
+                "Methodology / Provenance": "Project DCF readiness and valuation method in src/valuation.py.",
                 "Next Step": "make dcf-readiness",
             },
             {
@@ -12983,7 +12983,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
             "kicker": "ANALYZE NOW",
             "title": "What this page can support",
             "body": analyze_now,
-            "badges": ["plain English", "local logic"],
+            "badges": ["plain English", "local rules"],
             "command": stock_report_md_command(ticker) if price_ready else command,
         },
         {
@@ -13077,7 +13077,7 @@ def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[d
                 "Project code checks readiness, runs supported calculations locally, labels blocked or excluded methods, "
                 "and writes the report wording without inventing missing inputs."
             ),
-            "badges": ["local logic", "data-honest"],
+            "badges": ["local rules", "data-honest"],
             "command": "make readiness",
         },
         {
@@ -13628,7 +13628,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": f"{len(ready_companies)} row(s)",
                 "Supported Today": "Reviewing assumptions, scenarios, and sensitivity when trusted local company inputs are present.",
                 "Not Supported Yet": "Direct recommendations or unsupported price targets.",
-                "Methodology / Provenance": "Project DCF readiness and valuation logic in src/valuation.py plus dashboard/report guardrails.",
+                "Methodology / Provenance": "Project DCF readiness and valuation method in src/valuation.py plus dashboard/report guardrails.",
             },
             {
                 "Valuation Area": "Blocked companies",
@@ -13659,7 +13659,7 @@ def valuation_function_quality_frame(
             },
             {
                 "Valuation Area": "Dependencies",
-                "Quality Verdict": "Support layer, not valuation logic",
+                "Quality Verdict": "Support layer, not valuation rules",
                 "Best Use Today": "Use libraries/adapters for data handling and UI while project code owns valuation rules.",
                 "Current Coverage": "Support layer only.",
                 "Supported Today": "Data handling, UI display, tests, and optional research-grade data access.",
@@ -17249,7 +17249,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "METHODOLOGY",
-            "title": "Project scoring logic",
+            "title": "Project scoring method",
             "body": (
                 "Score components and report wording come from this repository's saved local research views and src/monthly_picks.py. "
                 "Public libraries support data/UI. Shipped scoring comes from project code and local data."
@@ -19211,7 +19211,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             },
             {
                 "Function Area": "Dependencies",
-                "Quality Verdict": "Support layer, not analysis logic",
+                "Quality Verdict": "Support layer, not analysis rules",
                 "Best Use Today": "Use packages and optional adapters to handle data and UI while project code keeps the rules.",
                 "Current Status": "Support layer only; analysis rules remain in project code.",
                 "Supported Today": "Data handling, UI, tests, and optional research-grade provider access.",
@@ -19380,7 +19380,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         )
     )
     render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n))
-    render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and logic provenance before reading any ranked names.")
+    render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and method provenance before reading any ranked names.")
     render_signal_cards(monthly_picks_function_quality_cards())
 
     render_metric_cards(

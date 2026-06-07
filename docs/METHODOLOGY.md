@@ -9,9 +9,9 @@ This project is a local stock research command center. It does not ask a model t
 
 The methodology is intentionally conservative. Missing prices, fundamentals, peers, earnings, or analyst estimates are treated as quality-control blockers, not as values to infer.
 
-## What Is Data Versus Product Logic
+## What Is Data Versus App Method
 
-The product separates source inputs from analysis logic so the report is not a black box.
+The product separates source inputs from analysis rules so the report is not a black box.
 
 | Layer | Where it comes from | What the product does |
 | --- | --- | --- |
@@ -41,7 +41,7 @@ Compared with a professional research terminal or analyst model, this project is
 
 The readiness gate runs before valuation or report conclusions.
 
-| Area | Minimum logic | Output behavior |
+| Area | Minimum rule | Output behavior |
 | --- | --- | --- |
 | Price | Enough valid local price rows with positive close values. | Unlocks setup and trend context. |
 | Momentum | More local price history than the basic price gate. | Unlocks momentum and market-direction context. |
@@ -63,7 +63,7 @@ Fundamental review is therefore a validation-and-interpretation layer, not a thi
 
 The fundamental-analysis contract is:
 
-| Question | Product logic | What remains withheld |
+| Question | Product rule | What remains withheld |
 | --- | --- | --- |
 | Is there a trusted company row? | Checks the local fundamentals row, source metadata, and required numeric fields. | Company-quality language when the row is missing or source status is unclear. |
 | Is the business scale visible? | Reads revenue and revenue growth when present. | Growth interpretation when revenue history is absent or malformed. |

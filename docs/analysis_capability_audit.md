@@ -8,7 +8,7 @@ The current functions are good enough for a transparent local research prototype
 
 They are not good enough for broad-universe valuation conclusions without more trusted data. Missing fundamentals, peer mappings, earnings, or analyst estimates are intentionally shown as locked or blocked states instead of being turned into weak analysis.
 
-The shipped analysis logic is implemented in this repository. Standard Python packages support data handling, UI, tests, and optional provider access, but they are not the stock-analysis rules.
+The shipped analysis method is implemented in this repository. Standard Python packages support data handling, UI, tests, and optional provider access, but they are not the stock-analysis rules.
 
 In plain terms: local or provider-assisted data supplies rows; this product checks those rows, calculates supported metrics, gates DCF and peer valuation, and writes the explanation. It does not import a third-party analyst opinion and relabel it as local analysis.
 
@@ -34,7 +34,7 @@ In plain terms: local or provider-assisted data supplies rows; this product chec
 | ETF/index monitor context | Good for monitor context only. | Review market, theme, liquidity, and risk context without operating-company DCF. | Price, liquidity, correlation, and theme context. | It does not run operating-company DCF for ETFs, index proxies, or funds. | `src/research_decisions.py`, `src/stock_report.py` |
 | Single-stock report | Strongest visitor-facing workflow. | See one ticker's At A Glance mode, ready, blocked, excluded, optional, methodology, copyable unlock commands, and source readiness states step by step. | Current local readiness, price, decision, DCF, peer, and optional-context outputs. | It does not execute imports, broker actions, trades, allocation instructions, or unsupported recommendations. | `src/stock_report.py`, `src/dashboard.py` |
 | Methodology and explanation | Strong for transparency. | Trace readiness gates, DCF formula path, peer boundaries, and report wording back to project code. | Trusted local inputs remain required before calculation output appears. | It does not hide missing inputs behind model prose or unsupported conclusions. | `docs/METHODOLOGY.md`, `src/stock_report.py`, `src/dashboard.py` |
-| Dependencies | Support layer, not analysis logic. | Handle data frames, UI, tests, YAML config, and optional research-grade provider access. | Local CSV inputs remain the source of truth by default. | They do not replace project analysis rules or trusted local data. | `pyproject.toml` |
+| Dependencies | Support layer, not analysis rules. | Handle data frames, UI, tests, YAML config, and optional research-grade provider access. | Local CSV inputs remain the source of truth by default. | They do not replace project analysis rules or trusted local data. | `pyproject.toml` |
 
 ## Input-To-Output Contract
 
@@ -70,7 +70,7 @@ The product now uses the same plain modes across the dashboard and single-stock 
 
 ## Methodology And Provenance
 
-The analysis logic is implemented in this repository under `src/`. The shipped product is not a wrapper around external investing services, ranking services, account-execution tools, or broker workflows:
+The analysis method is implemented in this repository under `src/`. The shipped product is not a wrapper around external investing services, ranking services, account-execution tools, or broker workflows:
 
 - `src/indicators.py`: moving averages, returns, relative strength, and ATR versus close-to-close volatility-proxy labeling.
 - `src/momentum_engine.py`: rule-based setup classification.
@@ -89,15 +89,15 @@ The project uses standard Python libraries for support work. Based on `pyproject
 | `numpy` | Numeric support for calculations and data preparation. | Not a stock-analysis rule source. |
 | `pandas` | CSV/data-frame loading, joins, validation, and report tables. | Not a stock-analysis rule source. |
 | `PyYAML` | Configuration loading. | Not a valuation or decision engine. |
-| `streamlit` | Local dashboard UI. | Not analysis logic. |
+| `streamlit` | Local dashboard UI. | Not analysis rules. |
 | `yfinance` | Optional unofficial research-grade data adapter. | Optional provider access only; local CSVs and source readiness checks still gate analysis. |
 | `pytest` | Development/test dependency. | Verifies behavior; not product logic. |
 
-These dependencies support the workflow; they are not the analysis rules, recommendation logic, valuation gates, or account-execution systems.
+These dependencies support the workflow; they are not the analysis rules, recommendation rules, valuation gates, or account-execution systems.
 
 ## Support Tooling Boundary
 
-Support tools and libraries are outside the stock-analysis rules. They are not embedded valuation logic, recommendation logic, broker integrations, or sources of trusted runtime data.
+Support tools and libraries are outside the stock-analysis rules. They are not embedded valuation rules, recommendation rules, broker integrations, or sources of trusted runtime data.
 
 Any external review or research input still has to be translated into deterministic project code, local CSV schemas, tests, and research-only wording before it belongs in the product. The public product should be judged by the files in this repository, the local data it is given, and the tests that verify readiness gates and guardrails.
 

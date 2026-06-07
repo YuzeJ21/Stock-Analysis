@@ -907,7 +907,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards())" in source
 
 
-def test_home_provenance_cards_separate_repo_logic_libraries_and_plugins():
+def test_home_provenance_cards_separate_repo_rules_libraries_and_plugins():
     cards = dashboard._plain_home_provenance_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
@@ -988,7 +988,7 @@ def test_home_function_quality_frame_explains_supported_scope_and_provenance():
     assert "strongest visitor-facing workflow" in rendered
     assert "supported, blocked, excluded, and monitor-only analysis" in rendered
     assert "libraries/adapters" in rendered
-    assert "support layer, not analysis logic" in rendered
+    assert "support layer, not analysis rules" in rendered
     assert "analysis rules remain under src/" in rendered
     assert "no open source was used" not in rendered
     assert "100% original" not in rendered
@@ -7440,7 +7440,7 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     assert "no automatic portfolio decision" in rendered
     assert "does not provide allocation, position sizing, account actions, or direct recommendations" in rendered
     assert "empty slots and missing fields stay visible" in rendered
-    assert "project scoring logic" in rendered
+    assert "project scoring method" in rendered
     assert "src/monthly_picks.py" in rendered
     assert "libraries support data/ui" in rendered
     assert "shipped scoring comes from project code and local data" in rendered
@@ -8705,7 +8705,7 @@ def test_valuation_function_quality_frame_explains_scope_counts_and_provenance()
     assert "source-backed peer mappings and peer metrics" in rendered
     assert "guessed peer relationships" in rendered
     assert "dependencies" in rendered
-    assert "support layer, not valuation logic" in rendered
+    assert "support layer, not valuation rules" in rendered
     assert "support layer only" in rendered
     assert "valuation rules live in this repository" in rendered
     assert "replacing project valuation rules or trusted local valuation inputs" in rendered
@@ -15075,7 +15075,7 @@ def test_peer_function_quality_frame_explains_trend_vs_valuation_and_provenance(
     assert "sector or industry fallback" in rendered
     assert "dependencies" in rendered
     assert "replacing source-backed peer mappings or project peer-readiness rules" in rendered
-    assert "peer logic runs from this repository" in rendered
+    assert "peer rules run from this repository" in rendered
     assert "copied peer-selection skills" not in rendered
     assert "no hidden peer-selection engine" not in rendered
     assert "broker" not in rendered
