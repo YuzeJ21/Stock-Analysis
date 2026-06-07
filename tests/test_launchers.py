@@ -1528,7 +1528,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "research-health-check:\n\tpython3 -m src.research_health --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "@echo \"4. Before sharing or committing:\"" in makefile
+    assert "@echo \"4. Optional: see the safe coverage-improvement path:\"" in makefile
+    assert "@echo \"   make trusted-data-pilot TOP_N=10\"" in makefile
+    assert "@echo \"5. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
     assert "@echo \"   make diff-hygiene\"" in makefile
     assert "@echo \"   make diff-hygiene-files  # optional for large dirty trees\"" in makefile
