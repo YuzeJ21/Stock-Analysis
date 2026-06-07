@@ -580,16 +580,20 @@ def test_dashboard_not_ready_notices_avoid_generated_file_language():
 def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    beginner_note_index = source.index('render_context_note(\n        "Beginner view."')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     fix_first_index = source.index('render_section_header("Fix First"')
-    action_paths_index = source.index('render_section_header("Action Paths"')
+    action_paths_index = source.index('render_section_header("Copy-Only Next Steps"')
     planning_expander_index = source.index('st.expander("Unlock planning cards"')
     market_expander_index = source.index('st.expander("Detailed market-wide workspace"')
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
 
-    assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
+    assert beginner_note_index < quick_read_index < fix_first_index < action_paths_index < planning_expander_index
     assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
+    assert "Read these next three sections first." in source
+    assert "without opening the detailed market-wide workspace" in source
+    assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Unlock planning cards", expanded=False)' in source
     assert 'st.expander("Detailed market-wide workspace", expanded=False)' in source
     assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
@@ -9072,6 +9076,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     assert refresh_note_index < quick_read_index
     assert 'st.expander("Refresh status note", expanded=False)' in source
+    assert "Beginner view." in source
     assert "Data Health Quick Read" in source
     assert "Which unlock path should you inspect first, before opening detailed tables." in source
     assert "Supported Analysis Ladder" in source

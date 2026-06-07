@@ -20468,11 +20468,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
     render_signal_cards(data_health_orientation_cards(readiness_summary))
+    render_context_note(
+        "Beginner view.",
+        "Read these next three sections first. They show the safest unlock path without opening the detailed market-wide workspace.",
+    )
     render_section_header("Data Health Quick Read", "Which unlock path should you inspect first, before opening detailed tables.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
     render_section_header("Fix First", "The shortest safe local path before deeper Data Health details.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
-    render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
+    render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     with st.expander("Unlock planning cards", expanded=False):
         render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local file changes.")
