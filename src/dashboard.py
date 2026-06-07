@@ -11111,7 +11111,7 @@ def build_active_evaluation_queue_frame(
     frame["source_freshness_note"] = frame.apply(
         lambda row: (
             f"Readiness state {format_missing(row.get('overall_readiness_state'), 'unknown')} "
-            f"from local CSV outputs updated {format_missing(row.get('updated_at'), 'not available')}."
+            f"from saved local readiness proof updated {format_missing(row.get('updated_at'), 'not available')}."
         ),
         axis=1,
     )
@@ -11629,8 +11629,8 @@ def purpose_evaluation_summary_cards(summary_frame: pd.DataFrame | None) -> list
         {
             "kicker": "PURPOSE SUMMARY",
             "title": f"{total} ticker(s) grouped",
-            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked by Data: {blocked}. Groups are generated from current local decision/readiness CSVs.",
-            "badges": ["analysis layer", "deterministic CSV"],
+            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked by Data: {blocked}. Groups use the current saved decision and readiness state.",
+            "badges": ["analysis layer", "local proof"],
             "command": "make project-status",
         },
         {
@@ -16220,7 +16220,7 @@ def overview_next_command_cards(
                 body = "Refresh local data coverage and next-step guidance before broader research work."
                 badges = ["data moat", "command"]
             elif "verify" in lowered:
-                body = "Run deterministic local verification before trusting the current dashboard and CSV outputs."
+                body = "Run deterministic local verification before trusting the current dashboard state."
                 badges = ["verification", "command"]
             elif "dashboard-smoke" in lowered:
                 body = "Smoke-check the product page after local coverage views are refreshed."
@@ -16652,7 +16652,7 @@ def overview_workflow_path_cards(
             lowered = command.lower()
             if "verify" in lowered:
                 badges = ["verify", "safe"]
-                body = reason if has_reason else "Run deterministic verification so the current CSV outputs and dashboard state are trustworthy."
+                body = reason if has_reason else "Run deterministic verification so the current dashboard state is trustworthy."
             elif "dashboard-smoke" in lowered:
                 badges = ["ui", "workflow"]
                 body = reason if has_reason else "Open or smoke-check the dashboard after the data and verification steps are complete."
@@ -16738,7 +16738,7 @@ def overview_workflow_path_cards(
         {
             "kicker": "STEP 2",
             "title": second_command,
-            "body": "Run deterministic verification so the current CSV outputs and dashboard state are trustworthy.",
+            "body": "Run deterministic verification so the current dashboard state is trustworthy.",
             "badges": ["verify", "safe"],
             "command": second_command,
         },
