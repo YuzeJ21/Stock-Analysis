@@ -18056,7 +18056,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
         render_signal_cards(valuation_method_path_cards())
         st.write(
-            "This audit separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "
+            "This view separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "
             "peer-relative valuation, and support dependencies so missing inputs do not look like conclusions. "
             "Operating-company valuation context is shown only for DCF-ready companies."
         )
@@ -19898,8 +19898,8 @@ def render_market_command_center(
     st.dataframe(clean_display_frame(universe_layer_frame(summary, decisions_frame)), width="stretch", hide_index=True)
     with st.expander("Methodology ladder: how analysis becomes report wording", expanded=False):
         st.write(
-            "Local or provider-assisted inputs supply rows. This product checks readiness first, runs only supported "
-            "project calculations, withholds blocked analysis, then writes research workflow context from those states."
+            "Saved or provider-assisted inputs are checked first. The product runs only supported calculations, "
+            "withholds blocked analysis, then writes research workflow context from those readiness states."
         )
         st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
         st.caption("Full methodology: docs/METHODOLOGY.md")
@@ -20108,8 +20108,8 @@ def render_market_command_center(
             "single stock detail table": single_stock_detail_frame(default_snapshot),
         }
     render_section_header(
-        "Product Page Logic Audit",
-        "A compact sanity check that the command center is still readiness-first, copy-only, row-limited, and data-honest.",
+        "Readiness Guardrail Check",
+        "A compact check that the command center is still readiness-first, copy-only, row-limited, and data-honest.",
     )
     peer_studio_audit = build_peer_mapping_studio_frame(
         peer_readiness_frame,
@@ -20141,7 +20141,7 @@ def render_market_command_center(
     )
     render_signal_cards(product_page_logic_audit_cards(product_logic_audit))
     st.caption(
-        "Audit rows are built from current local readiness and dashboard queues; they do not execute imports, refreshes, or account actions."
+        "Check rows are built from current local readiness and dashboard queues; they do not execute imports, refreshes, or account actions."
     )
     st.dataframe(clean_display_frame(product_logic_audit), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
@@ -20173,7 +20173,7 @@ def render_market_command_center(
         )
     with st.expander("What peer analysis can support today", expanded=False):
         st.write(
-            "This audit separates source-backed mappings, peer trend comparison, peer valuation comparison, "
+            "This view separates source-backed mappings, peer trend comparison, peer valuation comparison, "
             "peer DCF comparison, follow-through data gaps, and support dependencies."
         )
         st.dataframe(
@@ -20239,7 +20239,7 @@ def render_market_command_center(
     render_signal_cards(fundamentals_dcf_payload_cards)
     with st.expander("What fundamentals and DCF can support today", expanded=False):
         st.write(
-            "This audit separates trusted fundamentals, price-ready names still missing fundamentals, DCF-ready companies, "
+            "This view separates trusted fundamentals, price-ready names still missing fundamentals, DCF-ready companies, "
             "missing DCF fields, peer-blocked DCF-ready names, and ETF/index exclusions."
         )
         st.dataframe(
@@ -20474,7 +20474,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
-    with st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False):
+    with st.expander("Unlock planning cards", expanded=False):
         render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
         render_section_header("Analysis Unlock Map", "What each trusted data path makes available to review next.")
@@ -20483,10 +20483,10 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
         render_section_header(
             "Valuation Unlock Snapshot",
-            "Plain-English valuation worklists before the detailed market-wide workflow.",
+            "Plain-English valuation worklists before the detailed market-wide workspace.",
         )
         render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
-    with st.expander("Detailed market-wide workflow", expanded=False):
+    with st.expander("Detailed market-wide workspace", expanded=False):
         render_market_command_center(
             ticker_readiness_frame,
             coverage_frame,

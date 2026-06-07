@@ -180,7 +180,7 @@ def test_purpose_evaluation_page_copy_uses_built_from_readiness_language():
     assert "Purpose-family and decision-bucket counts built from current local decisions and readiness" in source
     assert "Purpose evaluation summary is not ready yet. Run make pipeline or make project-status to refresh it." in source
     assert "Purpose drilldown rows are built from current local readiness" in source
-    assert "Audit rows are built from current local readiness and dashboard queues" in source
+    assert "Check rows are built from current local readiness and dashboard queues" in source
     assert "generated from current local CSV outputs" not in source
     assert "Purpose evaluation summary is unavailable. Run make pipeline or make project-status to regenerate it." not in source
 
@@ -583,15 +583,15 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     fix_first_index = source.index('render_section_header("Fix First"')
     action_paths_index = source.index('render_section_header("Action Paths"')
-    planning_expander_index = source.index('st.expander("Planning details: price, valuation, and analysis unlocks"')
-    market_expander_index = source.index('st.expander("Detailed market-wide workflow"')
+    planning_expander_index = source.index('st.expander("Unlock planning cards"')
+    market_expander_index = source.index('st.expander("Detailed market-wide workspace"')
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
 
     assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
     assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
-    assert 'st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False)' in source
-    assert 'st.expander("Detailed market-wide workflow", expanded=False)' in source
+    assert 'st.expander("Unlock planning cards", expanded=False)' in source
+    assert 'st.expander("Detailed market-wide workspace", expanded=False)' in source
     assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
     assert 'st.expander("Guided coverage plan details", expanded=False)' in source
     assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
@@ -9076,7 +9076,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Which unlock path should you inspect first, before opening detailed tables." in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
-    assert "Plain-English valuation worklists before the detailed market-wide workflow." in source
+    assert "Plain-English valuation worklists before the detailed market-wide workspace." in source
     assert "Plain-English valuation queues before the full command center details." not in source
     assert "When Is A Stock Ready Enough?" not in source
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
