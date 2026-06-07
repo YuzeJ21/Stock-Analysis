@@ -226,7 +226,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Price source readiness: `make focus-price TICKER=SMH`.
 - Fundamentals / DCF: no operating-company DCF command is required for ETF/index/fund monitor context.
 - Peers: no peer-valuation command is required for ETF/index/fund monitor context.
-- Optional context queue: `make optional-context-worklist TICKERS=SMH TOP_N=10`.
+- Optional context checklist: `make optional-context-worklist TICKERS=SMH TOP_N=10`.
 - Optional templates: `make templates`.
 - Earnings import: `make import-earnings`.
 - Analyst-estimates import: `make import-analyst-estimates`.

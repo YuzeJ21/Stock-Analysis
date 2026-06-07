@@ -243,7 +243,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Price source readiness: `make focus-price TICKER=NVDA`.
 - DCF review: `make focus-fundamentals TICKER=NVDA`.
 - Peer review: `make focus-peers TICKER=NVDA`.
-- Optional context queue: `make optional-context-worklist TICKERS=NVDA TOP_N=10`.
+- Optional context checklist: `make optional-context-worklist TICKERS=NVDA TOP_N=10`.
 - Optional templates: `make templates`.
 - Earnings import: `make import-earnings`.
 - Analyst-estimates import: `make import-analyst-estimates`.

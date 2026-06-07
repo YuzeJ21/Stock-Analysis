@@ -246,14 +246,14 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Inspect this ticker: `make stock-report-md TICKER=META`.
 - Price source readiness: `make focus-price TICKER=META`.
 - Fundamentals / DCF: `make focus-fundamentals TICKER=META`.
-- SEC/manual import review: `make sec-stage-queue TICKERS=META TOP_N=10`.
+- SEC/manual import checklist: `make sec-stage-queue TICKERS=META TOP_N=10`.
 - Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.
 - DCF rebuild proof: `make dcf-readiness && make readiness` before reading standalone DCF output.
 - Peer mapping: `make focus-peers TICKER=META`.
-- Peer queue: `make peer-mapping-queue TICKERS=META TOP_N=10`.
+- Peer mapping checklist: `make peer-mapping-queue TICKERS=META TOP_N=10`.
 - Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.
 - Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=META TOP_N=10` before reading peer-relative valuation.
-- Optional context queue: `make optional-context-worklist TICKERS=META TOP_N=10`.
+- Optional context checklist: `make optional-context-worklist TICKERS=META TOP_N=10`.
 - Optional templates: `make templates`.
 - Earnings import: `make import-earnings`.
 - Analyst-estimates import: `make import-analyst-estimates`.

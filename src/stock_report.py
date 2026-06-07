@@ -1994,7 +1994,7 @@ def _stock_report_unlock_command_lines(
         lines.extend(
             [
                 f"- Price first: `make focus-price TICKER={ticker}`.",
-                f"- Price queue: `make price-worklist TICKERS={ticker} TOP_N=10`.",
+                f"- Price coverage checklist: `make price-worklist TICKERS={ticker} TOP_N=10`.",
                 "- Price import safety: `make price-validate && make price-preview && make price-apply`.",
                 "- Price rebuild proof: `make price-coverage TOP_N=25 && make readiness` before interpreting setup, trend, or valuation context.",
             ]
@@ -2008,7 +2008,7 @@ def _stock_report_unlock_command_lines(
         lines.extend(
             [
                 f"- Fundamentals / DCF: `make focus-fundamentals TICKER={ticker}`.",
-                f"- SEC/manual import review: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
+                f"- SEC/manual import checklist: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
                 "- Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.",
                 "- DCF rebuild proof: `make dcf-readiness && make readiness` before reading standalone DCF output.",
             ]
@@ -2022,7 +2022,7 @@ def _stock_report_unlock_command_lines(
         lines.extend(
             [
                 f"- Peer mapping: `make focus-peers TICKER={ticker}`.",
-                f"- Peer queue: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
+                f"- Peer mapping checklist: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
                 "- Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.",
                 f"- Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS={ticker} TOP_N=10` before reading peer-relative valuation.",
             ]
@@ -2033,7 +2033,7 @@ def _stock_report_unlock_command_lines(
     if not optional_ready:
         lines.extend(
             [
-                f"- Optional context queue: `make optional-context-worklist TICKERS={ticker} TOP_N=10`.",
+                f"- Optional context checklist: `make optional-context-worklist TICKERS={ticker} TOP_N=10`.",
                 "- Optional templates: `make templates`.",
                 "- Earnings import: `make import-earnings`.",
                 "- Analyst-estimates import: `make import-analyst-estimates`.",
