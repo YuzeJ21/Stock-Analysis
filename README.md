@@ -8,7 +8,7 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 
 ## What It Does
 
-This project turns a broad stock universe into a research workflow:
+This project turns a broad stock universe into a readiness-first research dashboard:
 
 - Checks market data readiness before showing analysis.
 - Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
@@ -50,7 +50,7 @@ The local sample currently tracks a broad universe of 3,538 tickers, with a smal
 
 This is a working local research prototype with deterministic outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
 
-Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker workflow, or auto-refreshing trading system.
+Useful with limits: price/momentum, fundamentals/DCF, peer review, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker/execution system, or auto-refreshing trading system.
 
 ## Preview
 
@@ -92,7 +92,7 @@ make dashboard
 ```bash
 make demo                       # prints the clean visitor path
 make stock-report-md TICKER=NVDA # company report with DCF assumptions
-make stock-report-md TICKER=A    # standalone DCF report with peer workflow still locked
+make stock-report-md TICKER=A    # standalone DCF report with peer review still locked
 make stock-report-md TICKER=META # price/setup report with valuation still gated
 make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded
 make stock-report-md TICKER=SMH  # sector ETF monitor report
@@ -114,7 +114,7 @@ In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticke
 
 Dashboard pages also support simple local deep links such as `http://localhost:8501/?page=single-stock-report`.
 
-For deeper local workflow details, see the [Local Workflow Guide](docs/OPERATOR_GUIDE.md).
+For deeper local data-unlock details, see the [Local Workflow Guide](docs/OPERATOR_GUIDE.md).
 
 Targeted data-unlock examples:
 ```bash
@@ -176,4 +176,4 @@ The app is organized around dashboard, readiness, decision, report, provider, lo
 
 ## Roadmap Snapshot
 
-The next product stage is not more unsupported indicators. It is a clearer research workflow: readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source readiness explanations.
+The next product stage is not more unsupported indicators. It is a clearer research review path: readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source readiness explanations.
