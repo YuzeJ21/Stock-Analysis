@@ -9649,16 +9649,23 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
 def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    report_header_index = source.index('render_section_header("At A Glance"')
+    report_header_index = source.index('"At A Glance",\n        "Start here: mode, valuation state')
     at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
+    quick_read_expander_index = source.index('st.expander("More quick-read cards"')
+    summary_cards_index = source.index("stock_report_summary_cards(report_payload)")
+    quality_cards_index = source.index("stock_report_analysis_quality_cards(report_payload)")
+    next_step_cards_index = source.index("stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None")
     interpretation_expander_index = source.index('st.expander("More report interpretation and methodology"')
     evaluation_index = source.index('st.markdown("#### Evaluation Summary"')
     function_quality_index = source.index('st.markdown("#### What This Report Can Evaluate"')
     brief_index = source.index("stock_report_brief_html(report_payload)")
     tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]')
 
-    assert report_header_index < at_glance_index < interpretation_expander_index < tabs_index
+    assert report_header_index < at_glance_index < quick_read_expander_index < interpretation_expander_index < tabs_index
+    assert quick_read_expander_index < summary_cards_index < quality_cards_index < next_step_cards_index
     assert interpretation_expander_index < evaluation_index < function_quality_index < brief_index < tabs_index
+    assert 'st.expander("More quick-read cards", expanded=False)' in source
+    assert "Open this only when you want price, performance, data-quality, and next-step cards" in source
     assert 'st.expander("More report interpretation and methodology", expanded=False)' in source
 
 

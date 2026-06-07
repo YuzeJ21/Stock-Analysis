@@ -19565,11 +19565,19 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         f"{format_missing(report_payload.get('ticker'), 'Selected ticker')} Report",
         "A readable view of local research inputs. This is context only, not execution guidance.",
     )
-    render_section_header("At A Glance", "The same first-read status used by the Markdown report: mode, valuation state, withheld context, and next local command.")
+    render_section_header(
+        "At A Glance",
+        "Start here: mode, valuation state, withheld context, method boundary, and next local command.",
+    )
     render_signal_cards(stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
-    render_signal_cards(stock_report_summary_cards(report_payload))
-    render_signal_cards(stock_report_analysis_quality_cards(report_payload))
-    render_signal_cards(stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
+    with st.expander("More quick-read cards", expanded=False):
+        render_context_note(
+            "Extra context.",
+            "Open this only when you want price, performance, data-quality, and next-step cards before using the detailed tabs.",
+        )
+        render_signal_cards(stock_report_summary_cards(report_payload))
+        render_signal_cards(stock_report_analysis_quality_cards(report_payload))
+        render_signal_cards(stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     st.markdown(
         "<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.5rem 0 1rem 0;'>"
         + "".join(status_badge(label) for label in stock_report_readiness_badges(readiness))
