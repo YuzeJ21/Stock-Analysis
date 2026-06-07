@@ -5434,13 +5434,13 @@ def stock_report_missing_data_text(warnings: list[object]) -> str:
 
 def stock_report_source_frame(source_rows: list[dict[str, object]]) -> pd.DataFrame:
     if not source_rows:
-        return pd.DataFrame(columns=["Provider", "Freshness", "Retrieved", "Official", "Notes"])
+        return pd.DataFrame(columns=["Provider", "Source Readiness", "Retrieved", "Official", "Notes"])
     rows = []
     for row in source_rows:
         rows.append(
             {
                 "Provider": format_missing(row.get("provider")),
-                "Freshness": format_missing(row.get("freshness")),
+                "Source Readiness": format_missing(row.get("freshness")),
                 "Retrieved": format_date_short(row.get("retrieved_at"), fallback="Not available"),
                 "Official": "Yes" if row.get("official") else "No",
                 "Notes": joined_notes(row.get("notes")),
@@ -5678,7 +5678,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_badges = ["optional context", "trusted rows only"]
     else:
         first_title = "Review single-stock reports"
-        first_body = "Core unlock paths look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and freshness."
+        first_body = "Core unlock paths look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and source readiness."
         first_command = "make stock-report-md TICKER=NVDA"
         first_badges = ["single-stock review", "source readiness"]
 
@@ -6725,7 +6725,7 @@ def data_health_tab_summary_cards(
             {
                 "kicker": "PARTIAL",
                 "title": str(partial),
-                "body": "Datasets where the project can proceed, but freshness or completeness is still limited.",
+                "body": "Datasets where the project can proceed, but source readiness or completeness is still limited.",
                 "badges": ["transparent gaps"],
                 "command": "make data-sources",
             },
@@ -10030,7 +10030,7 @@ def decision_interpretation_ladder_frame() -> pd.DataFrame:
             {
                 "Step": "4. Read data confidence",
                 "What It Means": "Data confidence is a data-quality state that drops when important context is missing.",
-                "What To Check Next": "Treat low or limited data confidence as a reason to inspect sources, freshness, and gaps first.",
+                "What To Check Next": "Treat low or limited data confidence as a reason to inspect sources, source readiness, and gaps first.",
                 "Safe Command": "make research-health TOP_N=10",
             },
             {
@@ -12714,7 +12714,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
         {
             "Area": "Prices",
             "Status": "ready" if price_ready else "blocked",
-            "Freshness": f"{format_missing(snapshot.get('price_first_date'), 'unknown')} to {format_missing(snapshot.get('price_last_date'), 'unknown')}; rows/days={format_missing(snapshot.get('price_rows'))}",
+            "Source Readiness": f"{format_missing(snapshot.get('price_first_date'), 'unknown')} to {format_missing(snapshot.get('price_last_date'), 'unknown')}; rows/days={format_missing(snapshot.get('price_rows'))}",
             "Local source": "data/prices.csv",
             "Manual path": "data/imports/prices.csv or data/staged/prices/",
             "Rejected rows": "data/rejected/price_import_rejected.csv",
@@ -12723,7 +12723,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
         {
             "Area": "Fundamentals / DCF",
             "Status": dcf_status,
-            "Freshness": compact_reason(snapshot.get("dcf_reason"), max_sentences=1, max_chars=140),
+            "Source Readiness": compact_reason(snapshot.get("dcf_reason"), max_sentences=1, max_chars=140),
             "Local source": "data/fundamentals.csv",
             "Manual path": "data/imports/fundamentals.csv or data/staged/fundamentals/",
             "Rejected rows": "data/rejected/fundamentals_import_rejected.csv",
@@ -12732,7 +12732,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
         {
             "Area": "Peers",
             "Status": peer_status,
-            "Freshness": peer_freshness,
+            "Source Readiness": peer_freshness,
             "Local source": "data/peers.csv",
             "Manual path": "data/imports/peers.csv",
             "Rejected rows": "data/rejected/peers_import_rejected.csv",
@@ -12741,7 +12741,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
         {
             "Area": "Earnings",
             "Status": "ready" if earnings_ready else "missing trusted local CSV input",
-            "Freshness": "Trusted local rows only; no conclusion is shown while empty.",
+            "Source Readiness": "Trusted local rows only; no conclusion is shown while empty.",
             "Local source": "data/earnings.csv",
             "Manual path": "data/staged/earnings/",
             "Rejected rows": "data/rejected/earnings_import_rejected.csv",
@@ -12750,7 +12750,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
         {
             "Area": "Analyst estimates",
             "Status": "ready" if estimates_ready else "missing trusted local CSV input",
-            "Freshness": "Trusted local rows only; no consensus context is shown while empty.",
+            "Source Readiness": "Trusted local rows only; no consensus context is shown while empty.",
             "Local source": "data/analyst_estimates.csv",
             "Manual path": "data/staged/analyst_estimates/",
             "Rejected rows": "data/rejected/analyst_estimates_import_rejected.csv",
@@ -12759,7 +12759,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
         {
             "Area": "Credentials",
             "Status": f"SEC_USER_AGENT={'present' if sec_present else 'missing'}; STOOQ_API_KEY={'present' if stooq_present else 'missing'}",
-            "Freshness": "Missing credentials should block only the remote workflow, not local CSV reports.",
+            "Source Readiness": "Missing credentials should block only the remote workflow, not local CSV reports.",
             "Local source": ".zshrc or shell environment",
             "Manual path": "local import-file folders remain available",
             "Rejected rows": "not applicable",
@@ -12781,7 +12781,7 @@ def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[st
             {
                 "kicker": str(item["Area"]).upper(),
                 "title": format_missing(item["Status"]),
-                "body": compact_reason(item["Freshness"], max_sentences=1, max_chars=150),
+                "body": compact_reason(item["Source Readiness"], max_sentences=1, max_chars=150),
                 "badges": ["source check", "local CSV"],
                 "command": format_missing(item["Next command"]),
             }
@@ -13253,10 +13253,10 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
             "command": peer_command,
         },
         {
-            "kicker": "SOURCE FRESHNESS",
+            "kicker": "SOURCE READINESS",
             "title": price_window,
             "body": f"Last readiness update: {format_missing(snapshot.get('updated_at'), 'not available')}. Optional context requires trusted local CSV input.",
-            "badges": ["local CSV", "freshness"],
+            "badges": ["local CSV", "source readiness"],
             "command": "make project-status",
         },
     ]

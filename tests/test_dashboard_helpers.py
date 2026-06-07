@@ -9810,7 +9810,8 @@ def test_stock_report_source_frame_hides_raw_missing_values():
         ]
     )
 
-    assert frame.iloc[0]["Freshness"] == "Not available"
+    assert frame.iloc[0]["Source Readiness"] == "Not available"
+    assert "Freshness" not in frame.columns
     assert frame.iloc[0]["Retrieved"] == "2026-05-21"
     assert frame.iloc[0]["Official"] == "No"
     assert "CSV fallback" in frame.iloc[0]["Notes"]
@@ -19159,7 +19160,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
             [
                 {
                     "Area": "Prices",
-                    "Freshness": "Local rows are available.",
+                    "Source Readiness": "Local rows are available.",
                     "Next command": "make stock-report TICKER=QQQ",
                 }
             ]
