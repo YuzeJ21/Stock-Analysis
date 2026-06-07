@@ -65,12 +65,41 @@ DATA_SOURCE_FILES = {
 
 
 def dashboard_page_slug(page_title: str) -> str:
-    return str(page_title or "").strip().lower().replace(" / ", "-").replace(" ", "-")
+    slug = str(page_title or "").strip().lower()
+    slug = slug.replace("&", "and")
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    return slug.strip("-")
 
 
 def dashboard_page_from_query(value: object) -> str:
     raw = value[0] if isinstance(value, list) and value else value
     slug = dashboard_page_slug(unquote(str(raw or "").strip()))
+    aliases = {
+        "data": "Data Health",
+        "data-health": "Data Health",
+        "datahealth": "Data Health",
+        "final": "Final Watchlist",
+        "final-watchlist": "Final Watchlist",
+        "market": "Market Direction",
+        "market-direction": "Market Direction",
+        "momentum": "Momentum Leaders",
+        "momentum-leaders": "Momentum Leaders",
+        "monthly": "Monthly Picks",
+        "monthly-picks": "Monthly Picks",
+        "portfolio": "Portfolio Review",
+        "portfolio-review": "Portfolio Review",
+        "single": "Single-Stock Report",
+        "single-stock": "Single-Stock Report",
+        "single-stock-report": "Single-Stock Report",
+        "stock-report": "Single-Stock Report",
+        "universe": "Universe Manager",
+        "universe-manager": "Universe Manager",
+        "valuation": "Value / Re-rating",
+        "value": "Value / Re-rating",
+        "value-re-rating": "Value / Re-rating",
+    }
+    if slug in aliases:
+        return aliases[slug]
     for title in USER_PAGE_TITLES:
         if dashboard_page_slug(title) == slug:
             return title
