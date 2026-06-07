@@ -15508,6 +15508,17 @@ def test_sec_fundamentals_setup_label_uses_plain_dashboard_copy():
     assert dashboard.sec_fundamentals_setup_label(False) == "SEC fundamentals setup: not configured"
 
 
+def test_optional_context_readiness_caption_frames_proof_not_internal_files():
+    caption = dashboard.optional_context_readiness_caption("earnings")
+
+    assert caption == (
+        "After trusted earnings rows are imported, run make optional-context-readiness "
+        "to refresh this proof."
+    )
+    assert "generate data/" not in caption
+    assert "readiness.csv" not in caption
+
+
 def test_data_health_import_captions_use_exact_copyable_commands():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -15516,6 +15527,10 @@ def test_data_health_import_captions_use_exact_copyable_commands():
     assert 'import_workflow_caption("data/staged/analyst_estimates/", "make import-analyst-estimates")' in source
     assert "sec_fundamentals_setup_label(sec_configured)" in source
     assert "SEC_USER_AGENT configured:" not in source
+    assert 'optional_context_readiness_caption("earnings")' in source
+    assert 'optional_context_readiness_caption("analyst-estimate")' in source
+    assert "generate data/earnings_readiness.csv" not in source
+    assert "generate data/analyst_estimates_readiness.csv" not in source
     assert "make imports-validate/preview/apply" not in source
 
 
