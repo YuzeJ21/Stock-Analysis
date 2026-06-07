@@ -5037,9 +5037,9 @@ def stock_report_local_context_cards(
         },
         {
             "kicker": "PEER MAPPING",
-            "title": "Staged" if staged_peer_import else "Present" if peer_summary.get("peer_dataset_present") else "Missing",
+            "title": "Import file" if staged_peer_import else "Present" if peer_summary.get("peer_dataset_present") else "Missing",
             "body": (
-                f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} staged locally and waiting on make imports-validate, make imports-preview, and make imports-apply before live peer-relative context."
+                f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} in the peer import file; run make imports-validate, make imports-preview, and make imports-apply before trusting peer-relative context."
                 if staged_peer_import
                 else f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for local peer-relative context."
             ),

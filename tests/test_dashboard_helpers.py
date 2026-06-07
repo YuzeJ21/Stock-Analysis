@@ -9257,11 +9257,14 @@ def test_stock_report_local_context_cards_show_staged_peer_import_state():
     cards = dashboard.stock_report_local_context_cards(coverage, peer_summary)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "staged" in rendered
+    assert "import file" in rendered
+    assert "staged locally" not in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    assert "before trusting peer-relative context" in rendered
     peer_mapping_card = next(card for card in cards if card["kicker"] == "PEER MAPPING")
+    assert peer_mapping_card["title"] == "Import file"
     assert peer_mapping_card["command"] == "make imports-validate"
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -9319,8 +9322,9 @@ def test_stock_report_local_context_cards_use_staged_peer_front_door_when_comman
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
     peer_mapping_card = next(card for card in cards if card["kicker"] == "PEER MAPPING")
 
-    assert peer_mapping_card["title"] == "Staged"
+    assert peer_mapping_card["title"] == "Import file"
     assert peer_mapping_card["command"] == "make imports-validate"
+    assert "staged locally" not in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
 
