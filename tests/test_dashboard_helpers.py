@@ -15519,6 +15519,14 @@ def test_optional_context_readiness_caption_frames_proof_not_internal_files():
     assert "readiness.csv" not in caption
 
 
+def test_dcf_readiness_proof_caption_frames_proof_not_internal_files():
+    caption = dashboard.dcf_readiness_proof_caption()
+
+    assert caption == "Run make dcf-readiness to refresh DCF readiness proof before reviewing valuation output."
+    assert "generate data/" not in caption
+    assert "dcf_readiness.csv" not in caption
+
+
 def test_data_health_import_captions_use_exact_copyable_commands():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -15531,6 +15539,9 @@ def test_data_health_import_captions_use_exact_copyable_commands():
     assert 'optional_context_readiness_caption("analyst-estimate")' in source
     assert "generate data/earnings_readiness.csv" not in source
     assert "generate data/analyst_estimates_readiness.csv" not in source
+    assert "dcf_readiness_proof_caption()" in source
+    assert "DCF readiness has not been generated" not in source
+    assert "generate data/dcf_readiness.csv" not in source
     assert "make imports-validate/preview/apply" not in source
 
 

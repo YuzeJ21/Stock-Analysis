@@ -2995,6 +2995,10 @@ def optional_context_readiness_caption(dataset_label: str) -> str:
     )
 
 
+def dcf_readiness_proof_caption() -> str:
+    return "Run make dcf-readiness to refresh DCF readiness proof before reviewing valuation output."
+
+
 def stock_report_optional_context_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
@@ -17987,8 +17991,8 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         )
     if dcf_readiness_frame is None:
         render_notice_card(
-            "DCF readiness has not been generated",
-            dcf_readiness_message or "Run make dcf-readiness before reviewing valuation output.",
+            "DCF readiness not ready yet",
+            dcf_readiness_message or dcf_readiness_proof_caption(),
             "make dcf-readiness",
             tone="warning",
         )
@@ -20682,8 +20686,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 st.dataframe(clean_display_frame(dcf_readiness_frame[dcf_columns]), width="stretch", hide_index=True)
             else:
                 render_notice_card(
-                    "DCF readiness has not been generated",
-                    dcf_readiness_message or "Run make dcf-readiness or make onboarding to generate data/dcf_readiness.csv.",
+                    "DCF readiness not ready yet",
+                    dcf_readiness_message or dcf_readiness_proof_caption(),
                     "make dcf-readiness",
                     tone="warning",
                 )
