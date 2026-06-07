@@ -5355,9 +5355,9 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "ONE-TICKER REVIEW",
-            "title": "Build one readable report",
+            "title": "Build one local preview",
             "body": (
-                "Select a ticker, build the local preview, then read At A Glance first. "
+                "Select a ticker, build the local read-only preview, then read At A Glance first. "
                 "The report separates ready analysis, locked inputs, excluded ETF/index DCF, and the next copy-only local step."
             ),
             "badges": ["plain English", "readiness first", "copy-only"],
@@ -19531,7 +19531,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     with st.expander("How single-stock reports work", expanded=False):
         render_signal_cards(single_stock_report_intro_cards())
 
-    if st.button("Show Report Preview", key="single-stock-report-button"):
+    render_context_note(
+        "Preview action.",
+        "Build Local Report Preview reads the selected source and stores the result in this page. It does not refresh prices, import files, or run external actions.",
+    )
+    if st.button("Build Local Report Preview", key="single-stock-report-button"):
         if not ticker:
             st.warning("Enter a ticker to build a report preview.")
         else:

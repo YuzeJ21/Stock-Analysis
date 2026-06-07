@@ -9610,8 +9610,8 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "read the at a glance and reader guide before opening detailed tables" in rendered
     assert len(summary_cards) == 1
     assert summary_cards[0]["kicker"] == "ONE-TICKER REVIEW"
-    assert "build one readable report" in summary_rendered
-    assert "select a ticker, build the local preview, then read at a glance first" in summary_rendered
+    assert "build one local preview" in summary_rendered
+    assert "select a ticker, build the local read-only preview, then read at a glance first" in summary_rendered
     assert "locked inputs" in summary_rendered
     assert "excluded etf/index dcf" in summary_rendered
     assert "make stock-report-md ticker=nvda" in rendered
@@ -9635,10 +9635,12 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
     expander_index = source.index('st.expander("How single-stock reports work"')
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
-    build_button_index = source.index('st.button("Show Report Preview"')
+    preview_note_index = source.index('render_context_note(\n        "Preview action."')
+    build_button_index = source.index('st.button("Build Local Report Preview"')
 
-    assert summary_index < expander_index < full_intro_index < build_button_index
+    assert summary_index < expander_index < full_intro_index < preview_note_index < build_button_index
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
+    assert "It does not refresh prices, import files, or run external actions." in source
 
 
 def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance():
