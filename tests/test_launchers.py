@@ -1249,15 +1249,18 @@ def test_product_facing_status_labels_avoid_action_language():
 
 
 def test_generated_product_outputs_use_current_import_draft_language():
-    generated_paths = [
+    committed_generated_paths = [
         Path("outputs/research_decisions.csv"),
-        Path("outputs/command_bundle_runbook.csv"),
-        Path("outputs/project_status_next_steps.csv"),
-        Path("outputs/project_status_top_actions.csv"),
         Path("outputs/peer_unlock_worklist.csv"),
         Path("data/outputs/research_decisions.csv"),
         *Path("outputs/stock_reports").glob("*.md"),
     ]
+    local_generated_paths = [
+        Path("outputs/command_bundle_runbook.csv"),
+        Path("outputs/project_status_next_steps.csv"),
+        Path("outputs/project_status_top_actions.csv"),
+    ]
+    generated_paths = committed_generated_paths + [path for path in local_generated_paths if path.exists()]
     stale_phrases = (
         "Import staged price rows",
         "staged price rows",
@@ -1271,8 +1274,10 @@ def test_generated_product_outputs_use_current_import_draft_language():
         "technical context",
     )
 
-    for path in generated_paths:
+    for path in committed_generated_paths:
         assert path.exists(), f"{path} is missing"
+
+    for path in generated_paths:
         text = path.read_text(encoding="utf-8")
         for phrase in stale_phrases:
             assert phrase not in text, f"{path} still contains stale generated wording {phrase!r}"
