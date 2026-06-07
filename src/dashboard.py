@@ -20251,7 +20251,10 @@ def render_market_command_center(
         "Plain-English bridge from trusted source rows to product-calculated readiness, DCF, peer gates, and optional context.",
     )
     render_signal_cards(single_stock_methodology_bridge_cards(snapshot))
-    render_section_header("Single-Stock Source/Freshness Audit", "Local source paths, import draft paths, credential state, and rejected-row reports for the selected ticker.")
+    render_section_header(
+        "Single-Stock Source Readiness Check",
+        "Trusted local files, import status, credential state, and rejected-row reports for the selected ticker.",
+    )
     render_signal_cards(single_stock_source_audit_cards(snapshot))
     st.dataframe(clean_display_frame(single_stock_source_audit_frame(snapshot)), width="stretch", hide_index=True)
     detail_frame = single_stock_detail_frame(snapshot)
