@@ -438,7 +438,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert 'st.expander("Technical paths"' not in source
     assert 'st.expander("Copyable commands"' in source
     assert 'st.expander("Advanced commands"' not in source
-    assert 'st.expander("Full valuation output table"' in source
+    assert 'st.expander("Complete valuation context table"' in source
     assert 'st.expander("Advanced valuation output table"' not in source
     assert "### Copyable Commands" in source
     assert "### Copyable Terminal Workflow" not in source
@@ -1194,7 +1194,7 @@ def test_table_page_label_keeps_expanders_visitor_friendly():
     assert dashboard.table_page_label("final-watchlist") == "Final Watchlist"
     assert dashboard.table_page_label("value-re-rating") == "Value / Re-rating"
     assert 'st.expander(f"{page_label}: {title}", expanded=False)' in source
-    assert 'st.expander(f"{page_label}: Full table", expanded=False)' in source
+    assert 'st.expander(f"{page_label}: Complete table", expanded=False)' in source
     assert 'st.expander(f"{key} {title.lower()}", expanded=False)' not in source
     assert 'st.expander(f"{key} full table", expanded=False)' not in source
 
@@ -15289,7 +15289,7 @@ def test_decision_next_action_title_names_the_work_not_only_the_ticker():
 def test_final_watchlist_expander_uses_product_language_not_legacy_label():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert 'st.expander("Full research-state table"' in source
+    assert 'st.expander("Complete research-state table"' in source
     assert "Legacy final watchlist output" not in source
 
 
@@ -15303,13 +15303,13 @@ def test_final_watchlist_tables_are_collapsed_after_decision_cards():
     proof_detail_index = source.index('st.expander("Decision proof queue detail"')
     table_guide_index = source.index('render_signal_cards(final_decision_table_guide_cards(decisions))')
     decision_table_index = source.index('st.expander("Research decision table"')
-    full_state_index = source.index('st.expander("Full research-state table"')
+    full_state_index = source.index('st.expander("Complete research-state table"')
 
     assert quality_index < more_detail_index < research_decisions_index < proof_cards_index < proof_detail_index < table_guide_index < decision_table_index < full_state_index
     assert 'st.expander("More decision detail: workflow, proof queue, and table guide", expanded=False)' in source
     assert 'st.expander("Decision proof queue detail", expanded=False)' in source
     assert 'st.expander("Research decision table", expanded=False)' in source
-    assert 'st.expander("Full research-state table", expanded=False)' in source
+    assert 'st.expander("Complete research-state table", expanded=False)' in source
 
 
 def test_final_decision_table_surfaces_row_level_decision_boundary():
@@ -16474,7 +16474,7 @@ def test_value_re_rating_detail_tables_are_collapsed_by_default():
     decision_guide_index = source.index('render_section_header("Valuation Decision Guide"')
     blocked_detail_index = source.index('st.expander("Companies waiting for valuation inputs"')
     excluded_detail_index = source.index('st.expander("ETF / index proxy exclusions"')
-    full_table_index = source.index('st.expander("Full valuation output table"')
+    full_table_index = source.index('st.expander("Complete valuation context table"')
 
     assert quick_read_index < context_expander_index < blocked_detail_index < full_table_index
     assert context_expander_index < at_glance_index < boundaries_index < decision_guide_index < blocked_detail_index
@@ -16486,8 +16486,8 @@ def test_value_re_rating_detail_tables_are_collapsed_by_default():
     assert 'st.expander("Detailed valuation decision guide"' not in source
     assert 'st.expander("Companies waiting for valuation inputs", expanded=False)' in source
     assert 'st.expander("ETF / index proxy exclusions", expanded=False)' in source
-    assert 'st.expander("Raw valuation input details", expanded=False)' in source
-    assert 'st.expander("Raw ETF / index exclusion details", expanded=False)' in source
+    assert 'st.expander("Valuation input checklist", expanded=False)' in source
+    assert 'st.expander("ETF / index exclusion checklist", expanded=False)' in source
 
 
 def test_dashboard_splits_risk_context_by_price_ready_status():
