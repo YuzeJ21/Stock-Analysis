@@ -243,7 +243,7 @@ def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_m
     assert "make project-status" in rendered
     assert "make diff-hygiene" in rendered
     assert "repeating" not in rendered
-    assert "render_signal_cards(price_refresh_operator_plan_cards(summary))" in source
+    assert "render_signal_cards(price_refresh_operator_plan_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))" in source
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -540,7 +540,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
     assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Copy commands"' in source
+    assert 'st.expander("Optional local commands"' in source
     assert 'st.expander("Quick reading guide"' not in source
     assert 'st.expander("Need help?"' not in source
     assert 'st.header("Explore")' in source
@@ -568,7 +568,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Outputs dir:" not in source
     assert "#### Local file paths" not in source
     assert 'st.expander("Technical paths"' not in source
-    assert 'st.expander("Copyable commands"' in source
+    assert 'st.expander("Optional: local commands"' in source
     assert 'st.expander("Advanced commands"' not in source
     assert 'st.expander("Complete valuation context table"' in source
     assert 'st.expander("Advanced valuation output table"' not in source
@@ -873,15 +873,16 @@ def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths(
 def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    coverage_expander_index = source.index('st.expander("Coverage details", expanded=False)')
+    details_gate_index = source.index("if show_details:")
+    coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
-    workflow_expander_index = source.index('st.expander("How evaluation works", expanded=False)')
+    workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
     next_step_index = source.index('render_section_header("What To Do Next"')
 
-    assert next_step_index < coverage_expander_index < coverage_index
+    assert next_step_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
-    assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary))" in source
+    assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
 
@@ -953,32 +954,34 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
 
     next_step_index = source.index('render_section_header("What To Do Next"')
     where_to_go_index = source.index('render_section_header("Where To Go"')
-    coverage_expander_index = source.index('st.expander("Coverage details", expanded=False)')
+    details_gate_index = source.index("if show_details:")
+    coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
-    price_refresh_expander_index = source.index('st.expander("Price update plan", expanded=False)')
+    price_refresh_expander_index = source.index('st.expander("Optional: price update plan", expanded=False)')
     price_refresh_index = source.index('render_section_header("Scalable Price Updates"')
-    examples_expander_index = source.index('st.expander("Example reports", expanded=False)')
+    examples_expander_index = source.index('st.expander("Optional: example reports", expanded=False)')
     examples_index = source.index('render_section_header("Example Reports"')
-    learn_more_index = source.index('st.expander("Learn more: methodology, roadmap, and transparency"')
+    learn_more_index = source.index('st.expander("Optional: methodology, roadmap, and transparency"')
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
-    commands_index = source.index('st.expander("Copyable commands"')
+    commands_index = source.index('st.expander("Optional: local commands"')
 
-    assert next_step_index < where_to_go_index < coverage_expander_index < workflow_index
+    assert next_step_index < where_to_go_index < details_gate_index < coverage_expander_index < workflow_index
     assert workflow_index < price_refresh_expander_index < price_refresh_index
     assert price_refresh_index < examples_expander_index < examples_index
     assert examples_index < learn_more_index < commands_index
     assert learn_more_index < methodology_index
-    assert 'st.expander("Coverage details", expanded=False)' in source
-    assert 'st.expander("How evaluation works", expanded=False)' in source
-    assert 'st.expander("Price update plan", expanded=False)' in source
+    assert 'st.expander("Optional: coverage details", expanded=False)' in source
+    assert 'st.expander("Optional: how evaluation works", expanded=False)' in source
+    assert 'st.expander("Optional: price update plan", expanded=False)' in source
     assert 'st.expander("Advanced price refresh workflow", expanded=False)' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])' in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])' not in source
-    assert 'st.expander("Example reports", expanded=False)' in source
-    assert 'st.expander("Learn more: methodology, roadmap, and transparency", expanded=False)' in source
+    assert 'st.expander("Optional: example reports", expanded=False)' in source
+    assert 'st.expander("Optional: methodology, roadmap, and transparency", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
-    assert "render_signal_cards(_plain_home_evaluation_workflow_cards())" in source
+    assert "render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)" in source
+    assert "render_home_page(catalog, output_frames, show_details=show_reason_details)" in source
 
 
 def test_home_provenance_cards_separate_repo_rules_libraries_and_plugins():

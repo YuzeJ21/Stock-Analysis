@@ -19272,7 +19272,12 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
     )
 
 
-def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]]) -> None:
+def render_home_page(
+    catalog: LocalDataCatalog,
+    output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
+    *,
+    show_details: bool = False,
+) -> None:
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     dcf_readiness_frame, _ = load_dcf_readiness()
     optional_tables = load_optional_context_readiness()
@@ -19323,25 +19328,32 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         ]
     )
 
-    with st.expander("Coverage details", expanded=False):
-        render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock path comes first.")
-        render_signal_cards(_plain_home_current_data_coverage_cards(summary))
-
-    with st.expander("How evaluation works", expanded=False):
-        render_section_header("How Evaluation Works", "How the product moves from trusted data to supported analysis without overclaiming.")
-        render_signal_cards(_plain_home_evaluation_workflow_cards())
-
-    with st.expander("Price update plan", expanded=False):
-        render_section_header("Scalable Price Updates", "How to expand price coverage without repeating tiny batches by hand.")
-        render_signal_cards(price_refresh_operator_plan_cards(summary))
-
-    with st.expander("Example reports", expanded=False):
-        render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
-        st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
+    if show_details:
         render_context_note(
-            "Example boundary.",
-            "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
+            "Extra review detail is on.",
+            "These sections explain methodology, local commands, and unlock workflows. Turn page tips off for the clean visitor view.",
         )
+
+    if show_details:
+        with st.expander("Optional: coverage details", expanded=False):
+            render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock path comes first.")
+            render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)
+
+        with st.expander("Optional: how evaluation works", expanded=False):
+            render_section_header("How Evaluation Works", "How the product moves from trusted data to supported analysis without overclaiming.")
+            render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)
+
+        with st.expander("Optional: price update plan", expanded=False):
+            render_section_header("Scalable Price Updates", "How to expand price coverage without repeating tiny batches by hand.")
+            render_signal_cards(price_refresh_operator_plan_cards(summary), show_commands=False)
+
+        with st.expander("Optional: example reports", expanded=False):
+            render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
+            st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
+            render_context_note(
+                "Example boundary.",
+                "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
+            )
 
     if ticker_readiness_message or decisions_message:
         render_notice_card(
@@ -19351,48 +19363,49 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             tone="warning",
         )
 
-    with st.expander("Learn more: methodology, roadmap, and transparency", expanded=False):
-        render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
-        st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
-        st.caption("Full methodology: docs/METHODOLOGY.md")
+    if show_details:
+        with st.expander("Optional: methodology, roadmap, and transparency", expanded=False):
+            render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
+            st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
+            st.caption("Full methodology: docs/METHODOLOGY.md")
 
-        render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
-        render_signal_cards(roadmap_milestone_status_cards(summary))
-        with st.expander("Roadmap status table", expanded=False):
-            st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
+            render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
+            render_signal_cards(roadmap_milestone_status_cards(summary), show_commands=False)
+            with st.expander("Roadmap status table", expanded=False):
+                st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
 
-        render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and how the methodology is kept transparent.")
-        render_signal_cards(_plain_home_capability_cards())
-        render_section_header("Methodology And Provenance", "Plain-language provenance for the analysis functions and development aids.")
-        render_signal_cards(_plain_home_provenance_cards())
-        with st.expander("Detailed analysis capability review", expanded=False):
-            st.write(
-                "This public review explains which functions are strong today, which data gaps still limit the product, "
-                "and why the analysis shown to users comes from project code and local CSV inputs."
+            render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and how the methodology is kept transparent.")
+            render_signal_cards(_plain_home_capability_cards())
+            render_section_header("Methodology And Provenance", "Plain-language provenance for the analysis functions and development aids.")
+            render_signal_cards(_plain_home_provenance_cards())
+            with st.expander("Detailed analysis capability review", expanded=False):
+                st.write(
+                    "This public review explains which functions are strong today, which data gaps still limit the product, "
+                    "and why the analysis shown to users comes from project code and local CSV inputs."
+                )
+                st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
+                st.code("docs/analysis_capability_audit.md", language="text")
+
+        with st.expander("Optional: local commands", expanded=False):
+            st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
+            st.code(
+                "\n".join(
+                    [
+                        "make status-check TOP_N=5",
+                        "make price-refresh-loop DRY_RUN=1",
+                        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                        "make readiness-snapshot",
+                        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+                        "make diff-hygiene",
+                        "make readiness",
+                        "make project-status",
+                        "make stock-report-md TICKER=NVDA",
+                        "make dashboard-smoke",
+                    ]
+                ),
+                language="bash",
             )
-            st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
-            st.code("docs/analysis_capability_audit.md", language="text")
-
-    with st.expander("Copyable commands", expanded=False):
-        st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
-        st.code(
-            "\n".join(
-                [
-                    "make status-check TOP_N=5",
-                    "make price-refresh-loop DRY_RUN=1",
-                    "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
-                    "make readiness-snapshot",
-                    "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
-                    "make diff-hygiene",
-                    "make readiness",
-                    "make project-status",
-                    "make stock-report-md TICKER=NVDA",
-                    "make dashboard-smoke",
-                ]
-            ),
-            language="bash",
-        )
-        st.caption("Broad refresh changes should be inspected before they are committed or shared publicly.")
+            st.caption("Broad refresh changes should be inspected before they are committed or shared publicly.")
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
@@ -21696,7 +21709,7 @@ def main() -> None:
         )
         with st.expander("Recommended route", expanded=False):
             render_sidebar_route_steps(dashboard_navigation_cards())
-        with st.expander("Copy commands", expanded=False):
+        with st.expander("Optional local commands", expanded=False):
             render_context_note(
                 "Simple path.",
                 " ".join(sidebar_quick_help_lines()),
@@ -21713,7 +21726,7 @@ def main() -> None:
         universe_summary = summarize_universe_manager(BASE_DIR)
 
     if selected_page == "Home":
-        render_home_page(catalog, output_frames)
+        render_home_page(catalog, output_frames, show_details=show_reason_details)
     elif selected_page == "Overview":
         render_overview(output_frames, catalog, universe_summary or summarize_universe_manager(BASE_DIR), project_status_payload)
     elif selected_page == "Monthly Picks":
