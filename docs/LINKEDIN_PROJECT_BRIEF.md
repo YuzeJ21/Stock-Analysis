@@ -30,7 +30,8 @@ Current features:
 - Copyable Unlock Commands that keep next steps local, capped, and research-only.
 - Source-readiness sections.
 - A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of a fabricated full-universe unlock.
-- A read-only `make trusted-data-pilot TOP_N=10` command that prints the 5-10 company coverage-improvement path without importing rows or fabricating data.
+- A read-only `make trusted-data-pilot TOP_N=10` command that prints a company-focused coverage-improvement path without importing rows or fabricating data.
+- A suggested starter company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`, with `QQQ` and `SMH` kept as ETF/index monitor demos rather than operating-company DCF targets.
 - CSV-first, preview-first local import workflows.
 - Original local analysis rules for readiness gates, DCF boundaries, peer readiness, decision buckets, and report wording; Python libraries and optional provider adapters support data handling and UI.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
@@ -58,7 +59,8 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` to show how the product handles blocked data without inventing valuation conclusions, including the exact copyable local commands for the next unlock.
-- Run `make trusted-data-pilot TOP_N=10` to show the safe 5-10 company path for improving trusted fundamentals, DCF, and peer inputs.
+- Run `make trusted-data-pilot TOP_N=10` to show the safe company-focused path for improving trusted fundamentals, DCF, and peer inputs.
+- Mention that `QQQ` and `SMH` demonstrate monitor context; the company pilot should use operating-company tickers.
 - Run `make dashboard` locally to show readiness cards, next-action cards, and single-stock drilldowns.
 - Point to `docs/METHODOLOGY.md` when someone asks how the analysis is calculated, to `docs/analysis_capability_audit.md` when someone asks what is strong or intentionally limited today, and to `docs/DATA_STRATEGY.md` when someone asks how coverage can improve without fabricating fundamentals, peers, earnings, or estimates.
 - Mention that the project is intentionally research-only and does not connect to a broker or place trades.

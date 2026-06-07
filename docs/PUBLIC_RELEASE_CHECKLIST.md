@@ -10,6 +10,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
 - Keep `make trusted-data-pilot TOP_N=10` visible as the read-only next step for improving 5-10 trusted companies without broad generated data churn.
+- Keep the trusted-data pilot company-focused. Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. Treat `QQQ` and `SMH` as ETF/index monitor demos, not operating-company DCF targets.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Keep `docs/METHODOLOGY.md` linked from the README so visitors can see the readiness gates, DCF formula path, peer boundaries, and report-explanation rules.
