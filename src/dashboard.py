@@ -19692,7 +19692,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 )
 
     with sources_tab:
-        render_context_note("Source and gaps.", "Use this tab to verify freshness, missing inputs, and how much of the report is based on local coverage versus unavailable optional files.")
+        render_context_note("Source readiness and gaps.", "Use this tab to verify source readiness, missing inputs, and how much of the report is based on local coverage versus unavailable optional files.")
         st.markdown("#### Missing Data")
         warning_text = stock_report_missing_data_text(report_payload.get("missing_data_warnings", []))
         if report_payload.get("missing_data_warnings"):
@@ -19712,7 +19712,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 st.dataframe(stock_report_detail_frame(report_payload["screener_context"]), width="stretch", hide_index=True)
 
         if show_source_details:
-            with st.expander("Source and freshness details", expanded=False):
+            with st.expander("Source readiness details", expanded=False):
                 st.dataframe(
                     clean_display_frame(stock_report_source_detail_summary_frame(report_payload)),
                     width="stretch",
