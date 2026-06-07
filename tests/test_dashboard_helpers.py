@@ -14258,6 +14258,13 @@ def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     assert "sell" not in rendered
 
 
+def test_dashboard_copy_uses_peer_review_priority_not_queue_priority():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Peer review priority" in source
+    assert "Peer queue priority" not in source
+
+
 def test_peer_unlock_operator_cards_keep_etf_rows_in_monitor_context():
     worklist = pd.DataFrame(
         [

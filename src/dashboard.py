@@ -15226,7 +15226,7 @@ def holdings_deep_research_cards(
                         "title": "Review peer import file" if staged_import else "Unlock Peer Relative",
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
-                            f"Peer queue priority P{format_missing(row.get('priority'), '-')}. "
+                            f"Peer review priority P{format_missing(row.get('priority'), '-')}. "
                             f"{next_action_summary}"
                         ),
                         "badges": ["peers", format_missing(row.get("theme"), "theme")],
