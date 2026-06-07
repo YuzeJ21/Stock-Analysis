@@ -11815,6 +11815,16 @@ def test_staged_universe_detail_frame_uses_readable_table_not_raw_json():
 def test_dashboard_uses_readable_universe_import_review_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    workflow_index = source.index('render_section_header("Universe Workflow"')
+    action_index = source.index('render_section_header("Universe Action Paths"')
+    coverage_expander_index = source.index('st.expander("Universe coverage and source details"')
+    table_expander_index = source.index('st.expander("Current universe table"')
+    import_expander_index = source.index('st.expander("Universe import review and copyable commands"')
+
+    assert workflow_index < action_index < coverage_expander_index < table_expander_index < import_expander_index
+    assert 'st.expander("Universe coverage and source details", expanded=False)' in source
+    assert 'st.expander("Current universe table", expanded=False)' in source
+    assert 'st.expander("Universe import review and copyable commands", expanded=False)' in source
     assert "Universe import review details" in source
     assert "staged_universe_detail_frame" in source
     assert "st.json(staged_universe" not in source

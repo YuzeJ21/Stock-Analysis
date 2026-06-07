@@ -21312,61 +21312,64 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, import draft state, and safer apply flow.")
     render_signal_cards(universe_action_path_cards(universe_summary))
 
-    render_signal_cards(universe_manager_summary_cards(current, staged))
+    with st.expander("Universe coverage and source details", expanded=False):
+        render_signal_cards(universe_manager_summary_cards(current, staged))
 
-    metric_cols = st.columns(4)
-    metric_cols[0].metric("Current Universe Size", current["row_count"])
-    metric_cols[1].metric("Duplicate Tickers", current["duplicate_ticker_count"])
-    metric_cols[2].metric("Missing Theme", current["missing_theme_count"] + current["unclassified_theme_count"])
-    metric_cols[3].metric("Missing Sector ETF", current["missing_sector_etf_count"])
+        metric_cols = st.columns(4)
+        metric_cols[0].metric("Current Universe Size", current["row_count"])
+        metric_cols[1].metric("Duplicate Tickers", current["duplicate_ticker_count"])
+        metric_cols[2].metric("Missing Theme", current["missing_theme_count"] + current["unclassified_theme_count"])
+        metric_cols[3].metric("Missing Sector ETF", current["missing_sector_etf_count"])
 
-    st.markdown("### Source Membership Counts")
-    membership_rows = [
-        {"MembershipFlag": key, "Count": value}
-        for key, value in current["membership_counts"].items()
-    ]
-    if membership_rows:
-        st.dataframe(pd.DataFrame(membership_rows), width="stretch", hide_index=True)
-    else:
-        st.info("No source membership flags are currently present in the main universe file.")
+        st.markdown("### Source Membership Counts")
+        membership_rows = [
+            {"MembershipFlag": key, "Count": value}
+            for key, value in current["membership_counts"].items()
+        ]
+        if membership_rows:
+            st.dataframe(pd.DataFrame(membership_rows), width="stretch", hide_index=True)
+        else:
+            st.info("No source membership flags are currently present in the main universe file.")
 
-    st.markdown("### Available Presets")
-    render_signal_cards(universe_preset_cards())
-    preset_rows = [{"Preset": name, "Sources": ", ".join(sources)} for name, sources in SOURCE_PRESETS.items()]
-    with st.expander("Preset source table", expanded=False):
-        st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
+        st.markdown("### Available Presets")
+        render_signal_cards(universe_preset_cards())
+        preset_rows = [{"Preset": name, "Sources": ", ".join(sources)} for name, sources in SOURCE_PRESETS.items()]
+        with st.expander("Preset source table", expanded=False):
+            st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
 
-    current_frame = pd.DataFrame(current["rows"])
-    if not current_frame.empty:
-        search = st.text_input("Search current universe", key="universe-manager-search")
-        if search:
-            current_frame = current_frame.loc[
-                current_frame.astype(str).apply(lambda row: row.str.contains(search, case=False, na=False).any(), axis=1)
-            ].copy()
-        st.dataframe(current_frame, width="stretch", hide_index=True)
-    else:
-        render_notice_card(
-            "Current universe is empty",
-            "Add or stage a local universe before running broader screening, monthly picks, or larger price refresh workflows.",
-            "make universe-preview",
-            tone="warning",
-        )
-
-    st.markdown("### Universe Import Review")
-    st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
-    with st.expander("Universe import review details", expanded=False):
-        st.dataframe(staged_universe_detail_frame(staged), width="stretch", hide_index=True)
-
-    st.markdown("### Copyable Commands")
-    st.code(
-        "\n".join(
-            [
+    with st.expander("Current universe table", expanded=False):
+        current_frame = pd.DataFrame(current["rows"])
+        if not current_frame.empty:
+            search = st.text_input("Search current universe", key="universe-manager-search")
+            if search:
+                current_frame = current_frame.loc[
+                    current_frame.astype(str).apply(lambda row: row.str.contains(search, case=False, na=False).any(), axis=1)
+                ].copy()
+            st.dataframe(current_frame, width="stretch", hide_index=True)
+        else:
+            render_notice_card(
+                "Current universe is empty",
+                "Add or stage a local universe before running broader screening, monthly picks, or larger price refresh workflows.",
                 "make universe-preview",
-                "make universe-apply",
-            ]
-        ),
-        language="bash",
-    )
+                tone="warning",
+            )
+
+    with st.expander("Universe import review and copyable commands", expanded=False):
+        st.markdown("### Universe Import Review")
+        st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
+        with st.expander("Universe import review details", expanded=False):
+            st.dataframe(staged_universe_detail_frame(staged), width="stretch", hide_index=True)
+
+        st.markdown("### Copyable Commands")
+        st.code(
+            "\n".join(
+                [
+                    "make universe-preview",
+                    "make universe-apply",
+                ]
+            ),
+            language="bash",
+        )
 
 
 def main() -> None:
