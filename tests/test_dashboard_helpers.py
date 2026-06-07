@@ -428,6 +428,23 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'render_section_header("Priority Fixes"' not in source
 
 
+def test_overview_default_view_keeps_best_path_before_detailed_queues():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    overview_index = source.index('render_section_header(\n        "Overview"')
+    changed_index = source.index('render_section_header(\n        "What Changed Recently"')
+    best_paths_index = source.index('render_section_header("Current Best Paths"')
+    overview_queue_index = source.index('st.expander("More overview queues"')
+    local_path_index = source.index('render_section_header("Today\'s Best Local Research Path"')
+
+    assert overview_index < changed_index < best_paths_index < overview_queue_index < local_path_index
+    assert 'st.expander("More overview queues", expanded=False)' in source
+    assert 'st.expander("More readiness and routing detail", expanded=False)' in source
+    assert 'st.expander("More deep-research context", expanded=False)' in source
+    assert 'st.expander("More market and workflow context", expanded=False)' in source
+    assert 'if selected_page == "Overview":\n        project_status_payload = build_project_status_payload' not in source
+
+
 def test_home_capability_cards_explain_quality_limits_and_provenance():
     cards = dashboard._plain_home_capability_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

@@ -18106,31 +18106,6 @@ def render_overview(
         )
     )
     render_signal_cards([overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary)])
-    render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
-    render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
-    render_section_header("Research Unlock Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
-    render_signal_cards(
-        overview_research_pressure_cards(
-            price_worklist_frame,
-            sec_stage_queue_frame,
-            peer_mapping_queue_frame,
-            unlock_priority_summary_frame,
-        )
-    )
-    render_section_header("Price History Targets", "The next exact local history rows needed for Monthly Picks, track record, or fuller 1Y research coverage.")
-    render_signal_cards(overview_price_target_cards(price_worklist_frame))
-    render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
-    render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
-    render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
-    render_signal_cards(
-        overview_deep_research_priority_bridge_cards(
-            holdings,
-            sec_stage_queue_frame,
-            peer_mapping_queue_frame,
-        )
-    )
-    render_section_header("Current Review Queue", "Which currently usable names are easiest to review next with the local data already available.")
-    render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
     render_section_header("Current Best Paths", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next page.")
     render_signal_cards(
         overview_current_top_surfaces_cards(
@@ -18142,6 +18117,34 @@ def render_overview(
             action_queue_frame,
         )
     )
+
+    with st.expander("More overview queues", expanded=False):
+        render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
+        render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
+        render_section_header("Research Unlock Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
+        render_signal_cards(
+            overview_research_pressure_cards(
+                price_worklist_frame,
+                sec_stage_queue_frame,
+                peer_mapping_queue_frame,
+                unlock_priority_summary_frame,
+            )
+        )
+        render_section_header("Price History Targets", "The next exact local history rows needed for Monthly Picks, track record, or fuller 1Y research coverage.")
+        render_signal_cards(overview_price_target_cards(price_worklist_frame))
+        render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
+        render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
+        render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
+        render_signal_cards(
+            overview_deep_research_priority_bridge_cards(
+                holdings,
+                sec_stage_queue_frame,
+                peer_mapping_queue_frame,
+            )
+        )
+        render_section_header("Current Review Queue", "Which currently usable names are easiest to review next with the local data already available.")
+        render_signal_cards(overview_best_current_name_cards(coverage_frame, holdings))
+
     render_section_header("Today's Best Local Research Path", "One compact operator path: the strongest locally usable name, the next project command, and the next page to open after that.")
     render_signal_cards(
         overview_best_local_research_path_cards(
@@ -21312,8 +21315,6 @@ def main() -> None:
             )
 
     project_status_payload = None
-    if selected_page == "Overview":
-        project_status_payload = build_project_status_payload(BASE_DIR, data_dir=DATA_DIR, output_dir=OUTPUTS_DIR, top_n=5)
 
     universe_summary = None
     if selected_page in {"Overview", "Universe Manager"}:
