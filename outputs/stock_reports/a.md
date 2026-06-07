@@ -18,6 +18,12 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Data Health lane: Peer Mapping Unlock. Suggested local check: `make focus-peers TICKER=A`. Confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
 - Next research step: Add trusted price history for mapped peers: DHR, TMO, WAT.
 
+## Best Review Path
+- First read: Start with DCF Calculation Path and Valuation Boundary Checklist. Peer-relative valuation stays locked until source-backed peer inputs pass readiness.
+- Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.
+- Optional context: Optional earnings and analyst-estimate context remains locked unless trusted local rows exist.
+- Copy-only proof step: `make focus-peers TICKER=A`
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Standalone DCF review: company DCF assumptions can be reviewed, while peer-relative valuation stays locked until source-backed peer inputs are ready.

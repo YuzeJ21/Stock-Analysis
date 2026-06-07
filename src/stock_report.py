@@ -1547,6 +1547,60 @@ def _stock_report_executive_summary_lines(
     ]
 
 
+def _stock_report_best_review_path_lines(
+    *,
+    ticker: str,
+    dcf_status_text: str,
+    monitor_context: bool,
+    price_ready: bool,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+) -> list[str]:
+    if not price_ready:
+        primary = (
+            "Start with Data Unlock Summary and Price Coverage. Do not interpret setup, valuation, or peer context "
+            "until trusted local price history is ready."
+        )
+        proof = f"`make focus-price TICKER={ticker}`"
+    elif monitor_context:
+        primary = (
+            "Start with monitor context. Operating-company DCF and peer-relative company valuation are excluded, "
+            "so review market, theme, liquidity, and risk context only."
+        )
+        proof = f"`make stock-report-md TICKER={ticker}`"
+    elif dcf_status_text == "ready" and bool(peer_ready):
+        primary = (
+            "Start with DCF Calculation Path, then Peer Workflow, then Source Readiness. This is the richest "
+            "company-review path, but it remains research context."
+        )
+        proof = f"`make stock-report-md TICKER={ticker}`"
+    elif dcf_status_text == "ready":
+        primary = (
+            "Start with DCF Calculation Path and Valuation Boundary Checklist. Peer-relative valuation stays locked "
+            "until source-backed peer inputs pass readiness."
+        )
+        proof = f"`make focus-peers TICKER={ticker}`"
+    else:
+        primary = (
+            "Start with DCF Input Triage and Data Unlock Summary. Company valuation stays blocked until trusted "
+            "fundamentals and DCF inputs are ready."
+        )
+        proof = f"`make focus-fundamentals TICKER={ticker}`"
+
+    optional_note = (
+        "Optional earnings and analyst-estimate context is ready to review."
+        if bool(earnings_ready) and bool(estimates_ready)
+        else "Optional earnings and analyst-estimate context remains locked unless trusted local rows exist."
+    )
+    return [
+        f"- First read: {primary}",
+        "- Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.",
+        f"- Optional context: {optional_note}",
+        f"- Copy-only proof step: {proof}",
+    ]
+
+
 def _stock_report_at_a_glance_lines(
     *,
     mode: str,
@@ -2260,6 +2314,15 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    best_review_path_lines = _stock_report_best_review_path_lines(
+        ticker=report.ticker,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     data_unlock_lines = _stock_report_data_unlock_lines(
         ticker=report.ticker,
         readiness=readiness,
@@ -2296,6 +2359,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Reader Guide",
         *reader_question_lines,
+        "",
+        "## Best Review Path",
+        *best_review_path_lines,
         "",
         "## How To Read This Report",
         *reader_guide_lines,

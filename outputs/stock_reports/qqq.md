@@ -18,6 +18,12 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=QQQ`. Confirm with `make readiness` before treating the lane as unlocked.
 - Next research step: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
+## Best Review Path
+- First read: Start with monitor context. Operating-company DCF and peer-relative company valuation are excluded, so review market, theme, liquidity, and risk context only.
+- Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.
+- Optional context: Optional earnings and analyst-estimate context remains locked unless trusted local rows exist.
+- Copy-only proof step: `make stock-report-md TICKER=QQQ`
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Monitor-only context when local price, liquidity, correlation, or theme inputs are ready.

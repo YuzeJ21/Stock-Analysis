@@ -156,4 +156,7 @@ def test_dashboard_optional_context_empty_state_is_safe():
     from src.dashboard import optional_context_available, optional_context_empty_state_message
 
     assert optional_context_available({"ticker": "NVDA", "eps_actual": None}, ["eps_actual"]) is False
-    assert "Not available: missing trusted local CSV input" in optional_context_empty_state_message("earnings")
+    assert "Not available: missing trusted local earnings input" in optional_context_empty_state_message("earnings")
+    assert "Not available: missing trusted local analyst-estimate input" in optional_context_empty_state_message(
+        "analyst_estimates"
+    )

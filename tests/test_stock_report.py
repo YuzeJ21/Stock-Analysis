@@ -21,6 +21,7 @@ from src.stock_report import (
     _display_setup_text,
     _format_inline_make_commands,
     _stock_report_dcf_input_triage_lines,
+    _stock_report_best_review_path_lines,
     _stock_report_optional_context_ladder_lines,
     _stock_report_peer_evidence_ladder_lines,
     _stock_report_peer_unlock_lines,
@@ -250,6 +251,55 @@ def test_stock_report_reader_questions_route_optional_locked_core_ready_names():
     assert "sell" not in rendered
 
 
+def test_stock_report_best_review_path_routes_ready_blocked_and_monitor_modes():
+    ready_lines = _stock_report_best_review_path_lines(
+        ticker="NVDA",
+        dcf_status_text="ready",
+        monitor_context=False,
+        price_ready=True,
+        peer_ready=True,
+        earnings_ready=False,
+        estimates_ready=False,
+    )
+    ready_rendered = " ".join(ready_lines).lower()
+    assert "dcf calculation path, then peer workflow, then source readiness" in ready_rendered
+    assert "richest company-review path" in ready_rendered
+    assert "`make stock-report-md ticker=nvda`" in ready_rendered
+    assert "optional earnings and analyst-estimate context remains locked" in ready_rendered
+
+    blocked_lines = _stock_report_best_review_path_lines(
+        ticker="META",
+        dcf_status_text="blocked",
+        monitor_context=False,
+        price_ready=True,
+        peer_ready=False,
+        earnings_ready=False,
+        estimates_ready=False,
+    )
+    blocked_rendered = " ".join(blocked_lines).lower()
+    assert "dcf input triage and data unlock summary" in blocked_rendered
+    assert "company valuation stays blocked" in blocked_rendered
+    assert "`make focus-fundamentals ticker=meta`" in blocked_rendered
+
+    monitor_lines = _stock_report_best_review_path_lines(
+        ticker="QQQ",
+        dcf_status_text="excluded",
+        monitor_context=True,
+        price_ready=True,
+        peer_ready=False,
+        earnings_ready=False,
+        estimates_ready=False,
+    )
+    monitor_rendered = " ".join(monitor_lines).lower()
+    assert "operating-company dcf and peer-relative company valuation are excluded" in monitor_rendered
+    assert "`make stock-report-md ticker=qqq`" in monitor_rendered
+    assert "broker" not in ready_rendered + blocked_rendered + monitor_rendered
+    assert "order" not in ready_rendered + blocked_rendered + monitor_rendered
+    assert "trading" not in ready_rendered + blocked_rendered + monitor_rendered
+    assert "buy" not in ready_rendered + blocked_rendered + monitor_rendered
+    assert "sell" not in ready_rendered + blocked_rendered + monitor_rendered
+
+
 def _copy_rich_fixture(tmp_path: Path) -> Path:
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -365,8 +415,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "account actions" in markdown
     assert "## At A Glance" in markdown
     assert "## Reader Guide" in markdown
+    assert "## Best Review Path" in markdown
     assert markdown.index("## At A Glance") < markdown.index("## How To Read This Report")
-    assert markdown.index("## At A Glance") < markdown.index("## Reader Guide") < markdown.index("## How To Read This Report")
+    assert markdown.index("## At A Glance") < markdown.index("## Reader Guide") < markdown.index("## Best Review Path") < markdown.index("## How To Read This Report")
     assert "- Mode: `Standalone DCF review`." in markdown
     assert "- Decision view:" in markdown
     assert "- DCF: Ready for scenario review." in markdown
@@ -381,6 +432,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Trusted input: Source-backed peer mappings and peer valuation inputs." in markdown
     assert "- Data Health lane: Peer Mapping Unlock. Suggested local check: `make focus-peers TICKER=MSFT`" in markdown
     assert "Confirm with `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10` before treating the lane as unlocked" in markdown
+    assert "- First read: Start with DCF Calculation Path and Valuation Boundary Checklist" in markdown
+    assert "- Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check." in markdown
+    assert "- Copy-only proof step: `make focus-peers TICKER=MSFT`" in markdown
     assert "- Copy next:" not in markdown
     assert "## Executive Summary" in markdown
     assert "Bottom line: MSFT is in `Standalone DCF review` mode" in markdown

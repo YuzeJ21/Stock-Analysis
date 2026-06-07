@@ -18,6 +18,12 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Data Health lane: Optional Context Unlock. Suggested local check: `make optional-context-worklist TICKERS=NVDA TOP_N=10`. Confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
 - Next research step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
+## Best Review Path
+- First read: Start with DCF Calculation Path, then Peer Workflow, then Source Readiness. This is the richest company-review path, but it remains research context.
+- Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.
+- Optional context: Optional earnings and analyst-estimate context remains locked unless trusted local rows exist.
+- Copy-only proof step: `make stock-report-md TICKER=NVDA`
+
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: DCF-ready review for company-level assumptions and sensitivity when trusted local fundamentals are ready.

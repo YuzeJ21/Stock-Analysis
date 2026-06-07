@@ -19392,13 +19392,13 @@ def render_home_page(
                 "neutral",
             ),
             (
-                "Review current ideas",
+                "Explore ready names",
                 "Open candidate lists only after the data behind them has enough trusted local coverage.",
                 "Monthly Picks",
                 "neutral",
             ),
             (
-                "Improve missing data",
+                "Improve data coverage",
                 "Open the data page when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
                 "Data Health",
                 "warning",

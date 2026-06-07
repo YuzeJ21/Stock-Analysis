@@ -984,6 +984,11 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert price_refresh_index < examples_expander_index < examples_index
     assert examples_index < learn_more_index < commands_index
     assert learn_more_index < methodology_index
+    assert '"Review one stock"' in source
+    assert '"Explore ready names"' in source
+    assert '"Improve data coverage"' in source
+    assert '"Review current ideas"' not in source
+    assert '"Improve missing data"' not in source
     assert 'st.expander("Optional: coverage details", expanded=False)' in source
     assert 'st.expander("Optional: how evaluation works", expanded=False)' in source
     assert 'st.expander("Optional: price update plan", expanded=False)' in source
