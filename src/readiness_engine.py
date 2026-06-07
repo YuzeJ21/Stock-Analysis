@@ -339,8 +339,8 @@ def _peer_readiness_next_action(ticker: str, peer: pd.Series) -> str:
         )
     if blocker_type in {"peer_fundamentals_missing", "peer_valuation_blocked"}:
         return (
-            f"{action} Run make focus-peers TICKER={ticker}, then use SEC import draft workflow "
-            "or the manual fundamentals import workflow for the mapped peers."
+            f"{action} Run make focus-peers TICKER={ticker}, then use the SEC staging workflow "
+            "or the manual fundamentals import file workflow for the mapped peers."
         )
     return action
 
@@ -913,12 +913,12 @@ def build_ticker_readiness_report(
             if bool(fund.get("has_fundamentals", False)) and missing_fundamentals:
                 next_action = (
                     f"Complete trusted fundamentals for {ticker}; missing fields: {missing_fundamentals}. "
-                    f"Run make focus-fundamentals TICKER={ticker}, then use SEC import draft workflow or the manual fundamentals import workflow."
+                    f"Run make focus-fundamentals TICKER={ticker}, then use the SEC staging workflow or the manual fundamentals import file workflow."
                 )
             else:
                 next_action = (
-                    f"Import trusted fundamentals for {ticker}. If SEC_USER_AGENT is configured, use SEC import draft workflow; "
-                    "otherwise use the manual fundamentals import workflow."
+                    f"Import trusted fundamentals for {ticker}. If SEC_USER_AGENT is configured, use the SEC staging workflow; "
+                    "otherwise use the manual fundamentals import file workflow."
                 )
         elif "peer" in blocked or "peer" in partial:
             next_action = _peer_readiness_next_action(ticker, peer)

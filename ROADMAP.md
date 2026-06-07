@@ -67,7 +67,7 @@ Goal: turn the Streamlit page into a research command center instead of a collec
   - Single-Stock Review
 - Keep dashboard commands copyable only; do not execute actions from the product page.
 - Keep broad-universe tables row-limited by default.
-- Add source readiness notes wherever an action depends on local CSVs, import drafts, Yahoo price refresh, SEC staging, or manual trusted inputs.
+- Add source readiness notes wherever an action depends on local CSVs, staged import files, Yahoo price refresh, SEC staging, or manual trusted inputs.
 - [x] Add source readiness context to `project_status_next_steps.csv`, `make project-status`, and dashboard next-action cards.
 - Make active-universe vs master-universe language visible wherever counts differ.
 

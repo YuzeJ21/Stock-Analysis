@@ -9,7 +9,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Peer context: Locked until source-backed peer inputs are ready.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
-- Next local step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC import draft workflow; otherwise use the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=APLD`; use `make sec-stage TICKERS=APLD` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+- Next local step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## Reader Guide
 - Analyze now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
@@ -17,19 +17,19 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Trusted input: Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding.
 - Data Health lane: Fundamentals / DCF Unlock. Copy `make focus-fundamentals TICKER=APLD`, then confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
 - Copy next: `make focus-fundamentals TICKER=APLD`.
-- Next research step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC import draft workflow; otherwise use the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=APLD`; use `make sec-stage TICKERS=APLD` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+- Next research step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready.
-- Logic source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
+- Method source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
 - Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.
 
 ## Executive Summary
 - Bottom line: APLD is in `Price/setup review only` mode. Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist.
 - Use now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Do not infer: Blocked features: fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
-- Next step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC import draft workflow; otherwise use the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=APLD`; use `make sec-stage TICKERS=APLD` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+- Next step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## Analysis Mode Guide
 - `DCF-ready review` (other): Fullest company review: price, fundamentals, DCF, and source-backed peer context are ready.
@@ -39,19 +39,19 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - `Data-unlock only` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
 
 ## One-Minute Status
-APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC import draft workflow; otherwise use the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=APLD`; use `make sec-stage TICKERS=APLD` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## What We Can Analyze Now
 - Ready inputs: price, momentum, market direction, liquidity, correlation.
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked or excluded: Blocked features: fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
-## Data Vs Product Logic
+## Data And App Method
 - Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
 - Product checks: project readiness gates decide whether each input is usable before report sections appear.
-- Product DCF logic: blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing; the report does not ask a third party or model to create a valuation opinion.
-- Product peer logic: blocked locally until source-backed peer mappings and peer metrics exist; sector or industry fallback is not treated as trusted peer valuation.
-- Optional context logic: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
+- DCF method: blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing; the report does not ask a third party or model to create a valuation opinion.
+- Peer method: blocked locally until source-backed peer mappings and peer metrics exist; sector or industry fallback is not treated as trusted peer valuation.
+- Optional context method: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
 - Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
 
 ## Analysis Quality
@@ -81,7 +81,7 @@ APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 - Fundamentals / DCF: blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready.
 - Peer comparison: blocked until source-backed peer mappings and peer valuation inputs are ready.
 - Optional context: locked until trusted local earnings and analyst-estimate rows exist.
-- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
+- Method source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
 
 ## What This Stock Is
 - Ticker: APLD
@@ -91,10 +91,10 @@ APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 ## Decision
 - Bucket: Blocked by Data
 - Subtype: Blocked by Data - Missing Fundamentals
-- Boundary: Data-unlock state: fundamentals blocks evaluation, so valuation conclusions and thesis-level interpretation stay withheld.
+- Boundary: Data-unlock state: fundamentals blocks evaluation, so conclusions stay withheld.
 - Primary blocker: fundamentals
 - Main reason: Company research is blocked by missing DCF, fundamentals data.
-- Next action: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC import draft workflow; otherwise use the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=APLD`; use `make sec-stage TICKERS=APLD` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+- Next action: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## Purpose Evaluation
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
@@ -259,10 +259,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
 ## Source Readiness Check
-- Prices: ready; local source `data/prices.csv`; coverage 2023-12-20 to 2026-06-05; rows=616; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
-- Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing free cash flow, shares outstanding, revenue, FCF margin; SEC_USER_AGENT present; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
-- Earnings: not ready; trusted local CSV only; import draft path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
-- Analyst estimates: not ready; trusted local CSV only; import draft path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
+- Prices: ready; local source `data/prices.csv`; coverage 2023-12-20 to 2026-06-05; rows=616; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
+- Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing free cash flow, shares outstanding, revenue, FCF margin; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
+- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+- Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
+- Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.
 - Report command: `make stock-report-md TICKER=APLD`. Research-only Markdown output; copyable command only.

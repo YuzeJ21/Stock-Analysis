@@ -107,7 +107,7 @@ The MVP is successful when:
 - readiness is reported per ticker and per feature;
 - blocked and excluded states are visible;
 - final research decisions are readiness-aware;
-- preview-first manual import drafts are available;
+- preview-first manual import files are available;
 - invalid import rows are rejected into CSV files;
 - dashboard smoke passes with missing credentials and empty import-draft folders.
 

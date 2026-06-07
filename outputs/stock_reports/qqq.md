@@ -22,7 +22,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Monitor-only context when local price, liquidity, correlation, or theme inputs are ready.
-- Logic source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
+- Method source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
 - Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.
 
 ## Executive Summary
@@ -46,12 +46,12 @@ QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - Supported now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Still locked or excluded: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
-## Data Vs Product Logic
+## Data And App Method
 - Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
 - Product checks: project readiness gates decide whether each input is usable before report sections appear.
-- Product DCF logic: excluded by asset-type gate; the report does not ask a third party or model to create a valuation opinion.
-- Product peer logic: excluded for monitor context; sector or industry fallback is not treated as trusted peer valuation.
-- Optional context logic: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
+- DCF method: excluded by asset-type gate; the report does not ask a third party or model to create a valuation opinion.
+- Peer method: excluded for monitor context; sector or industry fallback is not treated as trusted peer valuation.
+- Optional context method: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
 - Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
 
 ## Analysis Quality
@@ -81,7 +81,7 @@ QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - Fundamentals / DCF: excluded for ETF/index/fund monitor context, not failed.
 - Peer comparison: excluded for monitor context.
 - Optional context: locked until trusted local earnings and analyst-estimate rows exist.
-- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
+- Method source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
 
 ## What This Stock Is
 - Ticker: QQQ
@@ -91,7 +91,7 @@ QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 ## Decision
 - Bucket: Monitor
 - Subtype: Monitor - ETF Market Proxy
-- Boundary: Monitor context only: useful for market, theme, liquidity, or risk review; operating-company DCF and peer-relative company valuation are excluded.
+- Boundary: Monitor context only: use market, theme, liquidity, or risk context; operating-company DCF and peer-relative company valuation stay excluded.
 - Primary blocker: monitor context
 - Main reason: etf is usable for market/risk monitoring and excluded from company DCF.
 - Next action: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
@@ -122,7 +122,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Invalidation condition: Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.
 
 ## Next Research Step
-- Next research question: What market, sector, or hedge signal is this proxy intended to monitor, and is that signal still supported by local price/risk data?
+- Next research question: What market, theme, liquidity, or risk context should QQQ monitor, and what would invalidate that proxy role?
 - Review priority: Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.
 - Data-confidence explanation: Data confidence is low: monitoring is supported by price, momentum, market direction, while fundamentals, peer, earnings, analyst estimates remains unavailable.
 
@@ -230,10 +230,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
 ## Source Readiness Check
-- Prices: ready; local source `data/prices.csv`; coverage 2026-02-10 to 2026-03-14; rows=25; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
-- Fundamentals / DCF: excluded; local source `data/fundamentals.csv`; reason dcf excluded for etf, use etf/rotation analysis instead of operating-company dcf; SEC_USER_AGENT present; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: monitor context; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context.
-- Earnings: not ready; trusted local CSV only; import draft path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
-- Analyst estimates: not ready; trusted local CSV only; import draft path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
+- Prices: ready; local source `data/prices.csv`; coverage 2026-02-10 to 2026-03-14; rows=25; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
+- Fundamentals / DCF: excluded; local source `data/fundamentals.csv`; reason dcf excluded for etf, use etf/rotation analysis instead of operating-company dcf; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
+- Peers: monitor context; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context.
+- Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
+- Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.
 - Report command: `make stock-report-md TICKER=QQQ`. Research-only Markdown output; copyable command only.

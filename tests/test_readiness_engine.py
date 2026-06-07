@@ -276,7 +276,7 @@ def test_readiness_requires_source_and_minimum_ready_peer_metrics(tmp_path: Path
     assert "free_cash_flow" in fundamentals.loc["BBB", "missing_fundamentals_fields"]
     assert bool(fundamentals.loc["CCC", "has_fundamentals"]) is False
     assert bool(readiness.loc["AAA", "fundamentals_ready"]) is False
-    assert "manual fundamentals import workflow" in readiness.loc["AAA", "next_action"]
+    assert "manual fundamentals import file workflow" in readiness.loc["AAA", "next_action"]
     assert "missing fields: free_cash_flow" in readiness.loc["AAA", "next_action"]
     assert "make focus-fundamentals TICKER=AAA" in readiness.loc["AAA", "next_action"]
     assert int(peers.loc["AAA", "peer_count"]) == 2

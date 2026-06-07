@@ -9,7 +9,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Peer context: Locked until source-backed peer inputs are ready.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
-- Next local step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=META`; use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+- Next local step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## Reader Guide
 - Analyze now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
@@ -17,19 +17,19 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Trusted input: Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding.
 - Data Health lane: Fundamentals / DCF Unlock. Copy `make focus-fundamentals TICKER=META`, then confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
 - Copy next: `make focus-fundamentals TICKER=META`.
-- Next research step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=META`; use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+- Next research step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## How To Read This Report
 - Read top-down: readiness state first, supported analysis second, blocked or excluded analysis third.
 - Current use: Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready.
-- Logic source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
+- Method source: project code implements readiness gates and report wording; libraries and adapters support data handling/UI, but shipped analysis comes from project code and local data.
 - Boundary: this is research context only. It does not provide allocation instructions, account actions, or direct recommendations.
 
 ## Executive Summary
 - Bottom line: META is in `Price/setup review only` mode. Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist.
 - Use now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Do not infer: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
-- Next step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=META`; use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+- Next step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## Analysis Mode Guide
 - `DCF-ready review` (other): Fullest company review: price, fundamentals, DCF, and source-backed peer context are ready.
@@ -39,19 +39,19 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - `Data-unlock only` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
 
 ## One-Minute Status
-META state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=META`; use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+META state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## What We Can Analyze Now
 - Ready inputs: price, momentum, market direction, liquidity, correlation, portfolio.
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked or excluded: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
-## Data Vs Product Logic
+## Data And App Method
 - Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
 - Product checks: project readiness gates decide whether each input is usable before report sections appear.
-- Product DCF logic: blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing; the report does not ask a third party or model to create a valuation opinion.
-- Product peer logic: blocked locally until source-backed peer mappings and peer metrics exist; sector or industry fallback is not treated as trusted peer valuation.
-- Optional context logic: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
+- DCF method: blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing; the report does not ask a third party or model to create a valuation opinion.
+- Peer method: blocked locally until source-backed peer mappings and peer metrics exist; sector or industry fallback is not treated as trusted peer valuation.
+- Optional context method: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
 - Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
 
 ## Analysis Quality
@@ -81,7 +81,7 @@ META state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 - Fundamentals / DCF: blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready.
 - Peer comparison: blocked until source-backed peer mappings and peer valuation inputs are ready.
 - Optional context: locked until trusted local earnings and analyst-estimate rows exist.
-- Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
+- Method source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
 
 ## What This Stock Is
 - Ticker: META
@@ -91,24 +91,24 @@ META state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 ## Decision
 - Bucket: Blocked by Data
 - Subtype: Blocked by Data - Missing Fundamentals
-- Boundary: Data-unlock state: fundamentals blocks evaluation, so valuation conclusions and thesis-level interpretation stay withheld.
+- Boundary: Data-unlock state: fundamentals blocks evaluation, so conclusions stay withheld.
 - Primary blocker: fundamentals
 - Main reason: Company research is blocked by missing DCF data.
-- Next action: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC import draft workflow or the manual fundamentals import workflow. Inspect `make focus-fundamentals TICKER=META`; use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make dcf-readiness`, and `make readiness` before reading DCF output.
+- Next action: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## Purpose Evaluation
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state needs thesis review.
-- Alignment: Purpose alignment needs review: Core Compounder depends on durable thesis support, but saved research views flag trend/thesis conflict. Used holding primary purpose. Trend support failed below both 50SMA and 200SMA. Marked as Core Compounder but trend is below the 50SMA. Close is below the 50SMA. Position percent 0.00% is within allowed max 15.00%, portfolio concentration threshold 20.00%. Holding trend support failed. valuation is not ready: required DCF inputs are incomplete. Available fundamentals are too incomplete to support a reliable value classification. DCF readiness missing: shares outstanding. Trap flags: below 50SMA with no recovery. Not enough valuation multiples are available for a peer comparison. Missing data: EPS growth, gross margin, debt to equity, P/E, forward P/E, EV/sales, EV/EBITDA, price to free cash flow, FCF yield.
-- Research workflow summary: Purpose alignment needs review: Core Compounder depends on durable thesis support, but saved research views flag trend/thesis conflict. Used holding primary purpose. Trend support failed below both 50SMA and 200SMA. Marked as Core Compounder but trend is below the 50SMA. Close is below the 50SMA. Position percent 0.00% is within allowed max 15.00%, portfolio concentration threshold 20.00%. Holding trend support failed. valuation is not ready: required DCF inputs are incomplete. Available fundamentals are too incomplete to support a reliable value classification. DCF readiness missing: shares outstanding. Trap flags: below 50SMA with no recovery. Not enough valuation multiples are available for a peer comparison. Missing data: EPS growth, gross margin, debt to equity, P/E, forward P/E, EV/sales, EV/EBITDA, price to free cash flow, FCF yield; Blocked by Data - Missing Fundamentals. Next blocker: fundamentals. Withheld: DCF interpretation, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Invalidation: Already flagged for trend/purpose review in the saved setup state.
+- Alignment: Purpose alignment needs review: Core Compounder depends on durable thesis support, but current local outputs flag trend/thesis conflict. Used holding primary purpose. Trend support failed below both 50SMA and 200SMA. Marked as Core Compounder but trend is below the 50SMA. Close is below the 50SMA. Position percent 0.00% is within allowed max 15.00%, portfolio concentration threshold 20.00%. Holding trend support failed. valuation is not ready: required DCF inputs are incomplete. Available fundamentals are too incomplete to support a reliable value classification. DCF readiness missing: shares outstanding. Trap flags: below 50SMA with no recovery. Not enough valuation multiples are available for a peer comparison. Missing data: EPS growth, gross margin, debt to equity, P/E, forward P/E, EV/sales, EV/EBITDA, price to free cash flow, FCF yield.
+- Research workflow summary: Purpose alignment needs review: Core Compounder depends on durable thesis support, but current local outputs flag trend/thesis conflict. Used holding primary purpose. Trend support failed below both 50SMA and 200SMA. Marked as Core Compounder but trend is below the 50SMA. Close is below the 50SMA. Position percent 0.00% is within allowed max 15.00%, portfolio concentration threshold 20.00%. Holding trend support failed. valuation is not ready: required DCF inputs are incomplete. Available fundamentals are too incomplete to support a reliable value classification. DCF readiness missing: shares outstanding. Trap flags: below 50SMA with no recovery. Not enough valuation multiples are available for a peer comparison. Missing data: EPS growth, gross margin, debt to equity, P/E, forward P/E, EV/sales, EV/EBITDA, price to free cash flow, FCF yield; Blocked by Data - Missing Fundamentals. Next blocker: fundamentals. Withheld: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Invalidation: Already flagged for trend/purpose review in the current local setup state.
 - Setup: Compounder setup: Thesis Review Needed; final state: Thesis Review Needed. Trend conflict matters because it can challenge the stated long-duration purpose. Base score 10 from final state `Thesis Review Needed`. Added 3 points because the ticker is already a holding. Adjusted +0 points for value category `Insufficient Data`. Capped score at 50 because valuation readiness is not ready; treat as data-limited review until missing data is resolved.
 - Valuation boundary: Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete.
 
 ## Supported Analysis
-- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context. Partial inputs present: fundamentals, peer.
+- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context. Partial inputs present: fundamentals.
 
 ## Blocked Analysis
-- Unsupported analysis: DCF interpretation, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
+- Unsupported analysis: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
 
 ## Setup / Momentum
 - Compounder setup: Thesis Review Needed; final state: Thesis Review Needed. Trend conflict matters because it can challenge the stated long-duration purpose. Base score 10 from final state `Thesis Review Needed`. Added 3 points because the ticker is already a holding. Adjusted +0 points for value category `Insufficient Data`. Capped score at 50 because valuation readiness is not ready; treat as data-limited review until missing data is resolved.
@@ -119,12 +119,12 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Risk Notes
 - Risk watchpoint: compounder purpose is under thesis review because final state is `Thesis Review Needed`. Used holding primary purpose. Trend support failed below both 50SMA and 200SMA. Marked as Core Compounder but trend is below the 50SMA. Close is below the 50SMA. Position percent 0.00% is within allowed max 15.00%, portfolio concentration threshold 20.00%. Holding trend support failed. valuation is not ready: required DCF inputs are incomplete. Available fundamentals are too incomplete to support a reliable value classification. DCF readiness missing: shares outstanding. Trap flags: below 50SMA with no recovery. Not enough valuation multiples are available for a peer comparison. Missing data: EPS growth, gross margin, debt to equity, P/E, forward P/E, EV/sales, EV/EBITDA, price to free cash flow, FCF yield.
-- Invalidation condition: Already flagged for trend/purpose review in the saved setup state.
+- Invalidation condition: Already flagged for trend/purpose review in the current local setup state.
 
 ## Next Research Step
 - Next research question: Which trusted fundamentals or DCF fields are needed to confirm whether the compounder thesis remains supported?
 - Review priority: High review priority: compounder purpose conflicts with current trend/thesis state and needs manual thesis review.
-- Data-confidence explanation: Data confidence is low: primary blocker is fundamentals; blocked features are DCF, earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is low: primary blocker is fundamentals; blocked features are DCF, peer, earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: partial
@@ -255,10 +255,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.
 
 ## Source Readiness Check
-- Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=616; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
-- Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing shares outstanding; SEC_USER_AGENT present; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
-- Earnings: not ready; trusted local CSV only; import draft path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
-- Analyst estimates: not ready; trusted local CSV only; import draft path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
+- Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=616; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
+- Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing shares outstanding; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
+- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+- Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
+- Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.
 - Report command: `make stock-report-md TICKER=META`. Research-only Markdown output; copyable command only.

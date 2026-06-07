@@ -2948,17 +2948,17 @@ def main() -> None:
     parser.add_argument("--validate-local-data", action="store_true", help="Validate local CSV datasets and report schema coverage.")
     parser.add_argument("--write-local-data-templates", action="store_true", help="Write header-only local enrichment CSV templates under data/templates.")
     parser.add_argument("--write-import-staging", action="store_true", help="Write header-only staging CSV files under data/imports.")
-    parser.add_argument("--validate-imports", action="store_true", help="Validate import draft CSV imports under data/imports.")
-    parser.add_argument("--preview-import-merge", action="store_true", help="Preview draft CSV merge effects without changing canonical data files.")
-    parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge import draft CSV imports into canonical local data files.")
+    parser.add_argument("--validate-imports", action="store_true", help="Validate staged local import CSV files under data/imports.")
+    parser.add_argument("--preview-import-merge", action="store_true", help="Preview local import CSV merge effects without changing canonical data files.")
+    parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge local import CSV files into canonical local data files.")
     parser.add_argument("--sec-stage-fundamentals", action="store_true", help="Fetch official SEC Companyfacts data and stage candidate fundamentals under data/imports/fundamentals.csv.")
-    parser.add_argument("--tickers", help="Comma-separated tickers for SEC import draft workflow.")
-    parser.add_argument("--from-local-tickers", action="store_true", help="Use locally discoverable tickers for SEC import draft workflow.")
-    parser.add_argument("--from-universe", action="store_true", help="Use tickers from data/universe.csv for SEC import draft workflow.")
-    parser.add_argument("--from-holdings", action="store_true", help="Use tickers from data/holdings.csv for SEC import draft workflow.")
+    parser.add_argument("--tickers", help="Comma-separated tickers for the SEC staging workflow.")
+    parser.add_argument("--from-local-tickers", action="store_true", help="Use locally discoverable tickers for the SEC staging workflow.")
+    parser.add_argument("--from-universe", action="store_true", help="Use tickers from data/universe.csv for the SEC staging workflow.")
+    parser.add_argument("--from-holdings", action="store_true", help="Use tickers from data/holdings.csv for the SEC staging workflow.")
     parser.add_argument("--sec-user-agent", help="Identifying User-Agent required by the SEC, for example 'Name email@example.com'.")
     parser.add_argument("--sec-refresh", action="store_true", help="Refresh SEC ticker-map and Companyfacts cache entries instead of reusing local cache.")
-    parser.add_argument("--overwrite", action="store_true", help="Overwrite SEC fundamentals import draft.csv instead of upserting by ticker.")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite the SEC fundamentals import file instead of upserting by ticker.")
     parser.add_argument("--template-dir", help="Optional destination directory for local CSV templates.")
     parser.add_argument("--json", action="store_true", help="Print CLI output as JSON for the supported validation/import/template commands.")
     args = parser.parse_args()
@@ -3086,7 +3086,7 @@ def main() -> None:
         requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
         if not requested_tickers:
             raise SystemExit(
-                "SEC import draft workflow requires at least one ticker source. Use --tickers, --from-local-tickers, "
+                "SEC staging workflow requires at least one ticker source. Use --tickers, --from-local-tickers, "
                 "--from-universe, or --from-holdings."
             )
         try:
@@ -3102,7 +3102,7 @@ def main() -> None:
                 overwrite=args.overwrite,
             )
         except (RuntimeError, ValueError) as exc:
-            raise SystemExit(f"SEC import draft workflow failed: {exc}") from exc
+            raise SystemExit(f"SEC staging workflow failed: {exc}") from exc
         payload = {
             **result,
             **write_result,
