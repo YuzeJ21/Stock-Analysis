@@ -541,7 +541,7 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
     assert "source:" in output
     assert "freshness:" in output
-    assert "open price coverage bundle runbook: make runbook-prices" in output
+    assert "open price coverage guided data batch: make runbook-prices" in output
 
 
 def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -616,6 +616,29 @@ def test_project_status_fast_check_normalizes_stale_generated_price_actions(tmp_
     assert "make price-refresh-loop DRY_RUN=1" in action["recommended_action"]
     assert "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD" in action["recommended_action"]
     assert "or run make price-refresh" not in action["recommended_action"]
+
+
+def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {
+                "Step": "Open Price Coverage Bundle (Broader Queue) runbook",
+                "Command": "make runbook-prices-broader",
+                "Reason": "Unlock Monthly Picks for 5 tickers across this bundle.",
+                "SourceContext": "data/imports/prices.csv",
+                "FreshnessContext": "bundle generated from current onboarding outputs",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "project_status_next_steps.csv", index=False)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    command_row = payload["recommended_next_command_rows"][0]
+    assert command_row["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
+    assert command_row["Reason"] == "Unlock Monthly Picks for 5 tickers across this guided data batch."
+    assert command_row["FreshnessContext"] == "guided batch generated from current onboarding outputs"
 
 
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
@@ -756,8 +779,9 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
     assert payload["top_onboarding_actions"][0]["ticker"] == "AMD"
     assert payload["recommended_next_command_rows"][0]["Step"] == "Refresh next capped missing-price batch"
     assert payload["recommended_next_command_rows"][0]["Command"] == "make price-refresh-loop DRY_RUN=1"
-    assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Bundle (Broader Queue) runbook"
+    assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
     assert payload["recommended_next_command_rows"][2]["Command"] == "make runbook-prices-broader"
+    assert payload["recommended_next_command_rows"][2]["FreshnessContext"] == "guided batch generated from current onboarding outputs"
 
 
 def test_project_status_prefers_holdings_first_price_blockers_when_priority_matches(tmp_path: Path):
@@ -791,5 +815,5 @@ def test_project_status_prefers_holdings_first_price_blockers_when_priority_matc
     assert payload["top_onboarding_actions"][0]["ticker"] == "META"
     assert payload["top_onboarding_actions"][0]["focus_command"] == "make focus-price TICKER=META"
     assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=META"
-    assert payload["recommended_next_command_rows"][1]["Step"] == "Open Price Coverage Bundle runbook"
+    assert payload["recommended_next_command_rows"][1]["Step"] == "Open Price Coverage Guided Data Batch"
     assert payload["recommended_next_command_rows"][1]["Command"] == "make runbook-prices"
