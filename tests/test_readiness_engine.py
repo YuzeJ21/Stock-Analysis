@@ -121,7 +121,9 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     assert "AMD" in feature_summary.loc["price", "sample_blocked_tickers"]
     assert "NVDA" in feature_summary.loc["dcf", "sample_ready_tickers"]
     assert feature_summary.loc["dcf", "unlock_command"] == "make dcf-readiness"
-    assert feature_summary.loc["price", "next_action"] == "make price-worklist TOP_N=25"
+    assert feature_summary.loc["price", "next_action"] == "make price-refresh-loop DRY_RUN=1"
+    assert feature_summary.loc["momentum", "next_action"] == "make price-refresh-loop DRY_RUN=1"
+    assert feature_summary.loc["market_direction", "next_action"] == "make price-refresh-loop DRY_RUN=1"
     assert peer_unlock.loc["NVDA", "unlock_stage"] == "add_source_backed_peer_mappings"
     assert peer_unlock.loc["NVDA", "workflow_group"] == "dcf_ready_peer_mapping"
     assert peer_unlock.loc["NVDA", "workflow_scope"] == "active_universe"
