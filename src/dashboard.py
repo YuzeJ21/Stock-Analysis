@@ -10535,7 +10535,7 @@ def _active_brief_evaluation_summary(row: pd.Series) -> str:
         token in family for token in ["etf", "hedge", "fund", "index"]
     ):
         return (
-            f"Research workflow summary: {status}; {subtype}. "
+            f"Research review summary: {status}; {subtype}. "
             "Monitor role: market, theme, liquidity, or risk proxy. "
             "Withheld: operating-company DCF and peer valuation are excluded. "
             "Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring."
@@ -10552,7 +10552,7 @@ def _active_brief_evaluation_summary(row: pd.Series) -> str:
         max_chars=150,
     )
     return (
-        f"Research workflow summary: {status}; {subtype}. "
+        f"Research review summary: {status}; {subtype}. "
         f"Next blocker: {blocker}. {unsupported} Invalidation: {invalidation}"
     )
 
@@ -11139,7 +11139,7 @@ def build_active_evaluation_lane_detail_frame(queue_frame: pd.DataFrame | None, 
                     max_sentences=3,
                     max_chars=360,
                 ),
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes, imports, or external actions.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes, imports, or external actions.",
             }
         )
     detail = pd.DataFrame(rows, columns=ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS)
@@ -12601,7 +12601,7 @@ def single_stock_operator_summary(
     )
     if "monitor" in bucket or "market proxy" in subtype.lower() or dcf_status == "excluded" or "dcf" in excluded_features or asset_type in {"etf", "index_proxy", "fund"}:
         return (
-            f"Research workflow summary: Monitor context; {subtype}. "
+            f"Research review summary: Monitor context; {subtype}. "
             "Monitor role: market, theme, liquidity, or risk proxy. "
             "Withheld: operating-company DCF and peer valuation are excluded. "
             "Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring."
@@ -12625,7 +12625,7 @@ def single_stock_operator_summary(
         max_sentences=1,
         max_chars=150,
     )
-    return f"Research workflow summary: {purpose_status}; {subtype}. Next blocker: {blocker}. Withheld: {unsupported} Invalidation: {invalidation}"
+    return f"Research review summary: {purpose_status}; {subtype}. Next blocker: {blocker}. Withheld: {unsupported} Invalidation: {invalidation}"
 
 
 def single_stock_one_minute_summary(snapshot: dict[str, object]) -> str:
@@ -13142,7 +13142,7 @@ def single_stock_detail_frame(snapshot: dict[str, object]) -> pd.DataFrame:
             {"Field": "Asset type", "Value": snapshot.get("asset_type")},
             {"Field": "Price rows / days", "Value": snapshot.get("price_rows")},
             {"Field": "Decision subtype", "Value": snapshot.get("decision_subtype")},
-            {"Field": "Research workflow summary", "Value": snapshot.get("operator_summary")},
+            {"Field": "Research review summary", "Value": snapshot.get("operator_summary")},
             {"Field": "Primary blocker", "Value": snapshot.get("primary_blocker")},
             {"Field": "DCF reason", "Value": snapshot.get("dcf_reason")},
             {"Field": "Peer blocker type", "Value": snapshot.get("peer_blocker_type")},
@@ -16912,12 +16912,12 @@ def overview_ready_name_handoff_cards(
             "body": (
                 (
                     f"Open {next_tab.get('title', 'Data Health')} after the command step so the next read "
-                    "matches the current local workflow state."
+                    "matches the current local review state."
                 )
                 if ticker == "No current ready names yet"
                 else (
                     f"Open {next_tab.get('title', 'Data Health')} after the command step so the next read for {ticker} "
-                    "matches the current local workflow state."
+                    "matches the current local review state."
                 )
             ),
             "badges": [str(item) for item in next_tab.get("badges", [])][:2] or ["guided", "read-only"],
@@ -16969,7 +16969,7 @@ def overview_current_top_surfaces_cards(
         command_reason = (
             compact_reason(command_cards[0].get("body"), max_sentences=2, max_chars=220)
             if command_cards
-            else "Highest-value project command from the current local workflow state."
+            else "Highest-value project command from the current local review state."
         )
     queue_signal = top_priority_signals(action_queue, limit=1) if action_queue is not None else []
     queue_reason = compact_reason(queue_signal[0].get("body"), max_sentences=2, max_chars=220) if queue_signal else ""
@@ -16990,7 +16990,7 @@ def overview_current_top_surfaces_cards(
         if deep_reason and deep_reason != "Not available":
             command_reason = deep_reason
     if not command_reason or command_reason == "Not available":
-        command_reason = "Highest-value project command from the current local workflow state."
+        command_reason = "Highest-value project command from the current local review state."
     if blocked_name == "No deep-research shortlist yet" and blocked_surface_command in {"", "Not available", "make onboarding"}:
         blocked_surface_command = command_text if str(command_text).startswith("make runbook-") else "make onboarding"
 
@@ -17480,7 +17480,7 @@ def priority_now_fallback_actions(
     if not actions:
         actions.append(
             (
-                "Workflow looks ready",
+                "Review path looks ready",
                 "Core research views are present. Run make status-check TOP_N=5 to review the saved coverage snapshot, then make dashboard-smoke before deeper dashboard review.",
                 "make status-check TOP_N=5",
                 "neutral",
@@ -18238,7 +18238,7 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
         with st.expander("Decision interpretation ladder", expanded=False):
             st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
         render_signal_cards(final_decision_quality_cards(decisions))
-        with st.expander("More decision detail: workflow, proof queue, and table guide", expanded=False):
+        with st.expander("More decision detail: review states, proof queue, and table guide", expanded=False):
             render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock states.")
             render_signal_cards(decision_workflow_summary_cards(decisions))
             bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
@@ -18528,7 +18528,7 @@ def render_overview(
         render_signal_cards(overview_bundle_runbook_cards(command_bundle_runbook_frame))
         render_section_header("Guided Batch Handoff", "For the current top guided batch, show the primary command, the follow-up step, the refresh step, and the first ticker to verify next.")
         render_signal_cards(overview_bundle_handoff_cards(command_bundles_frame, command_bundle_details_frame, command_bundle_runbook_frame))
-        render_section_header("Today's Workflow Path", "A compact local sequence from blocker triage to verification to dashboard review.")
+        render_section_header("Today's Review Path", "A compact local sequence from blocker triage to verification to dashboard review.")
         render_signal_cards(overview_workflow_path_cards(project_status_payload, action_queue_frame))
         render_signal_cards([overview_workflow_reason_card(project_status_payload, action_queue_frame)])
         render_metric_cards(
@@ -20055,7 +20055,7 @@ def render_market_command_center(
         st.info("Active-universe research briefs are unavailable until the local readiness snapshot is built.")
     else:
         st.caption(
-            "Briefs are interpretation aids only. They are row-limited, research-only, and show copy-only workflow commands rather than direct investment instructions."
+            "Briefs are interpretation aids only. They are row-limited, research-only, and show copy-only review commands rather than direct investment instructions."
         )
         st.dataframe(clean_display_frame(active_briefs), width="stretch", hide_index=True)
     render_section_header(
@@ -20308,10 +20308,10 @@ def render_market_command_center(
         row_limit=peer_limit,
     )
     if peer_studio.empty:
-        st.info("No peer workflow rows match the current filter. Try All peer-blocked or run make readiness.")
+        st.info("No peer review rows match the current filter. Try All peer-blocked or run make readiness.")
     else:
         st.caption(
-            f"Showing {len(peer_studio)} peer workflow row(s). Use make peer-mapping-queue TOP_N=25 or focus commands before editing peer import files."
+            f"Showing {len(peer_studio)} peer review row(s). Use make peer-mapping-queue TOP_N=25 or focus commands before editing peer import files."
         )
         peer_columns = peer_mapping_studio_table_columns(peer_studio)
         st.dataframe(clean_display_frame(peer_studio[peer_columns]), width="stretch", hide_index=True)
@@ -20503,7 +20503,7 @@ def render_market_command_center(
 def render_data_health(provider, project_status_payload: dict[str, Any] | None = None) -> None:
     render_section_header(
         "Data Health",
-        "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next.",
+        "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock path to copy next.",
     )
     render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))
     if provider is None:
@@ -21580,7 +21580,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     current = universe_summary["current_universe"]
     staged = universe_summary["staged_universe"]
 
-    render_section_header("Universe Workflow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
+    render_section_header("Universe Review Flow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
     render_action_cards(universe_workflow_cards(universe_summary))
     render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, preview-file state, and safer apply flow.")
     render_signal_cards(universe_action_path_cards(universe_summary))

@@ -5886,7 +5886,7 @@ def test_overview_ready_name_handoff_cards_handle_missing_inputs_gracefully():
     assert cards[2]["title"] == "Data Health"
     assert "no locally ready name yet" in cards[0]["body"].lower()
     assert "clear blockers before treating any name as ready" in cards[0]["body"].lower()
-    assert "next read matches the current local workflow state" in cards[2]["body"].lower()
+    assert "next read matches the current local review state" in cards[2]["body"].lower()
     assert "for no current ready names yet" not in cards[2]["body"].lower()
     assert "build local coverage and onboarding outputs" in rendered
     assert "refresh local coverage and onboarding outputs" not in rendered
@@ -6019,7 +6019,7 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
     assert "no deep-research shortlist yet" in cards[1]["body"].lower()
     assert "refresh the sec stage and peer-mapping queues" in cards[1]["body"].lower()
     assert "highest-leverage blocker" in cards[0]["body"].lower()
-    assert "next read matches the current local workflow state" in cards[3]["body"].lower()
+    assert "next read matches the current local review state" in cards[3]["body"].lower()
     assert "for no current ready names yet" not in cards[3]["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -9212,7 +9212,7 @@ def test_data_health_valuation_unlock_snapshot_handles_missing_readiness_without
 def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next." in source
+    assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock path to copy next." in source
     refresh_note_index = source.index('st.expander("Refresh status note"')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     assert refresh_note_index < quick_read_index
@@ -12264,7 +12264,7 @@ def test_staged_universe_detail_frame_uses_readable_table_not_raw_json():
 def test_dashboard_uses_readable_universe_import_review_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    workflow_index = source.index('render_section_header("Universe Workflow"')
+    workflow_index = source.index('render_section_header("Universe Review Flow"')
     action_index = source.index('render_section_header("Universe Action Paths"')
     coverage_expander_index = source.index('st.expander("Universe coverage and source details"')
     table_expander_index = source.index('st.expander("Current universe list"')
@@ -15814,7 +15814,7 @@ def test_final_watchlist_tables_are_collapsed_after_decision_cards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     quality_index = source.index('render_section_header("Decision Quality"')
-    more_detail_index = source.index('st.expander("More decision detail: workflow, proof queue, and table guide"')
+    more_detail_index = source.index('st.expander("More decision detail: review states, proof queue, and table guide"')
     research_decisions_index = source.index('render_section_header("Research Decisions"', more_detail_index)
     proof_cards_index = source.index('render_signal_cards(decision_proof_queue_cards(proof_queue))')
     proof_detail_index = source.index('st.expander("Decision proof queue detail"')
@@ -15823,7 +15823,7 @@ def test_final_watchlist_tables_are_collapsed_after_decision_cards():
     full_state_index = source.index('st.expander("Complete research-state table"')
 
     assert quality_index < more_detail_index < research_decisions_index < proof_cards_index < proof_detail_index < table_guide_index < decision_table_index < full_state_index
-    assert 'st.expander("More decision detail: workflow, proof queue, and table guide", expanded=False)' in source
+    assert 'st.expander("More decision detail: review states, proof queue, and table guide", expanded=False)' in source
     assert 'st.expander("Decision proof queue detail", expanded=False)' in source
     assert 'st.expander("Research decision table", expanded=False)' in source
     assert 'st.expander("Complete research-state table", expanded=False)' in source
@@ -16315,7 +16315,7 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert company["primary_blocker"] == "peers"
     assert company["data_confidence"] == "medium-high"
     assert etf["data_confidence"] == "limited"
-    assert "Research workflow summary:" in company["operator_summary"]
+    assert "Research review summary:" in company["operator_summary"]
     assert "Next blocker: peers" in company["operator_summary"]
     assert "peer-relative valuation remains withheld" in company["operator_summary"]
     assert company["peer_count"] == 2
@@ -16327,7 +16327,7 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert etf["peer_mapping_status"] == "monitor_context"
     assert "no peer import is required" in etf["next_peer_action"].lower()
     assert etf["next_action"] == "Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded."
-    assert "Research workflow summary: Monitor context" in etf["operator_summary"]
+    assert "Research review summary: Monitor context" in etf["operator_summary"]
     assert "operating-company DCF and peer valuation are excluded" in etf["operator_summary"]
     assert "excluded" in str(etf["dcf_reason"]).lower()
     assert "DCF is excluded" in etf["one_minute_summary"]
@@ -16368,7 +16368,7 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "nvda: partial" in rendered
-    assert "Research workflow summary" in detail["Field"].tolist()
+    assert "Research review summary" in detail["Field"].tolist()
     assert "one-minute read" in rendered
     assert "decision: research candidate - dcf ready but peer blocked" in rendered
     assert "data confidence: medium-high" in rendered
@@ -17393,7 +17393,7 @@ def test_priority_now_falls_back_to_status_first_ready_path():
     actions = dashboard.priority_now_fallback_actions(payload, missing_warning_count=0, catalog=ReadyCatalog())
 
     rendered = " ".join(str(item) for row in actions for item in row).lower()
-    assert "workflow looks ready" in rendered
+    assert "review path looks ready" in rendered
     assert "make status-check top_n=5" in rendered
     assert "dashboard-smoke" in rendered
     assert "place_order" not in rendered
@@ -18774,7 +18774,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert brief.loc[brief["ticker"].eq("META"), "exact_command"].iloc[0] == "make stock-report-md TICKER=META"
     assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
     assert brief.loc[brief["ticker"].eq("META"), "purpose_status"].iloc[0] == "Purpose review needed"
-    assert "Research workflow summary: Purpose review needed" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
+    assert "Research review summary: Purpose review needed" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
     assert "Next blocker: peers" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
     assert "Invalidation:" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0]
     assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
@@ -18784,7 +18784,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "operating-company dcf and peer valuation are excluded" in qqq_summary
     assert "next blocker: peers" not in qqq_summary
     assert "research brief" in rendered
-    assert "research workflow summary" in rendered
+    assert "research review summary" in rendered
     assert "purpose alignment needs review" in rendered
     assert "supported analysis" in rendered
     assert "unsupported analysis" in rendered
@@ -18893,7 +18893,7 @@ def test_active_research_brief_frame_builds_schema_light_fallbacks_without_overc
     assert "BROAD" not in set(brief["ticker"])
     assert not brief[rich_columns].apply(lambda column: column.astype(str).str.lower().eq("not available")).any().any()
     assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
-    assert "research workflow summary" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
+    assert "research review summary" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
     assert "next blocker: peers" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
     assert "invalidation:" in brief.loc[brief["ticker"].eq("META"), "evaluation_summary"].iloc[0].lower()
     assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
@@ -19072,14 +19072,14 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
                 "evaluation_lane": "Review supported thesis; optional context locked",
                 "ticker_count": 1,
                 "validation_sequence": "make templates -> make imports-validate -> make imports-preview -> make imports-apply",
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Earnings and analyst-estimate context is withheld; core supported analysis may still be reviewed.",
             },
             {
                 "evaluation_lane": "Monitor ETF / market proxy",
                 "ticker_count": 1,
                 "validation_sequence": "make stock-report TICKER=QQQ -> compare source readiness notes",
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
             },
         ]
@@ -19304,7 +19304,7 @@ def test_product_page_logic_audit_flags_placeholder_copyable_commands():
             {
                 "evaluation_lane": "Monitor ETF / market proxy",
                 "validation_sequence": "make stock-report TICKER=<ticker> -> compare source readiness notes",
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
             }
         ]
@@ -19488,7 +19488,7 @@ def test_product_page_logic_audit_flags_execution_or_direct_recommendation_langu
             {
                 "evaluation_lane": "Review supported thesis; optional context locked",
                 "validation_sequence": "make stock-report TICKER=BAD -> compare source readiness notes",
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Earnings and analyst-estimate context is withheld.",
             }
         ]
@@ -19598,7 +19598,7 @@ def test_product_page_logic_audit_allows_company_names_with_restricted_words():
             {
                 "evaluation_lane": "Unlock fundamentals / DCF",
                 "validation_sequence": "make focus-fundamentals TICKER=BBY -> make imports-validate",
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Valuation is withheld until trusted fundamentals are ready.",
             }
         ]
@@ -19681,7 +19681,7 @@ def test_product_page_logic_audit_flags_stale_peer_action_text():
             {
                 "evaluation_lane": "Review standalone thesis, then unlock peers",
                 "validation_sequence": "make focus-peers TICKER=COHR -> make imports-validate -> make imports-preview -> make imports-apply",
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Peer valuation context is withheld until source-backed peer rows exist.",
             }
         ]
@@ -19732,7 +19732,7 @@ def test_product_page_logic_audit_requires_visible_peer_action_text():
             {
                 "evaluation_lane": "Review standalone thesis, then unlock peers",
                 "validation_sequence": "make focus-peers TICKER=COHR -> make imports-validate -> make imports-preview -> make imports-apply",
-                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes or imports.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes or imports.",
                 "withheld_conclusion": "Peer valuation context is withheld until source-backed peer rows exist.",
             }
         ]
