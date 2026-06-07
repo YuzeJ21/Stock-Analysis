@@ -16649,7 +16649,7 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     assert "how to prove the next unlocked state" in rendered
     assert "read this single-stock page in sequence" in rendered
     assert "proof command: after peer rows pass make imports-validate, make imports-preview, and make imports-apply, run make readiness and make peer-mapping-queue top_n=25" in rendered
-    assert "copy next: `make focus-peers ticker=a`" in rendered
+    assert "exact next command is copyable from this card" in rendered
     assert "do not treat the lane as unlocked until the proof command passes and the report is reopened" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

@@ -12993,7 +12993,8 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
                 "body": (
                     "Read this single-stock page in sequence: what can be analyzed now, what stays locked or excluded, "
                     f"which trusted input is needed, then proof command: {proof_command}. "
-                    f"Copy next: `{copy_command}`. Do not treat the lane as unlocked until the proof command passes and the report is reopened."
+                    "Exact next command is copyable from this card. "
+                    "Do not treat the lane as unlocked until the proof command passes and the report is reopened."
                 ),
                 "badges": ["readiness proof", "copy only"],
                 "command": copy_command,
