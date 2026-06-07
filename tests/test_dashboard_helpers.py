@@ -499,7 +499,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Advanced source audit (JSON)" not in source
     assert "Developer detail: raw report JSON" not in source
     assert "st.json(report_payload" not in source
-    assert "One-ticker research workflow" in source
+    assert "One-ticker research review" in source
+    assert "One-ticker research workflow" not in source
     assert "Structured research workflow for one ticker" not in source
     assert "A readable view of local research inputs" in source
     assert "A structured view of local research inputs" not in source
@@ -7147,7 +7148,7 @@ def test_overview_handoff_cards_link_to_deeper_tabs_without_trade_language():
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[2]["title"] == "Monthly Picks"
     assert cards[2]["command"] == "make monthly"
-    assert "blocking the local research workflow" in rendered
+    assert "blocking the local research review" in rendered
     assert "single-name deep dive" in rendered
     assert "track-record readiness" in rendered
     assert "buy" not in rendered

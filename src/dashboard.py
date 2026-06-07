@@ -6784,7 +6784,7 @@ def data_health_tab_summary_cards(
         {
             "kicker": "OPTIONAL MISSING",
             "title": str(missing_count),
-            "body": "Optional files can stay missing without breaking the research workflow.",
+            "body": "Optional files can stay missing without breaking the research review.",
             "badges": ["partial safe"],
             "command": "make validate-data",
         },
@@ -16740,7 +16740,7 @@ def overview_handoff_cards() -> list[dict[str, object]]:
         {
             "kicker": "NEXT DEEPER TAB",
             "title": "Data Health",
-            "body": "Use this when prices, fundamentals, peers, or local import files are still blocking the local research workflow. It is the best place to inspect blockers before interpreting deeper outputs.",
+            "body": "Use this when prices, fundamentals, peers, or local import files are still blocking the local research review. It is the best place to inspect blockers before interpreting deeper outputs.",
             "badges": ["coverage", "read-only"],
             "command": "make onboarding",
         },
@@ -18389,7 +18389,7 @@ def render_overview(
 
     render_section_header(
         "Overview",
-        "A quick read on whether the local research workflow is ready, partial, or waiting on data.",
+        "A quick read on whether the local research review is ready, partial, or waiting on data.",
     )
     if project_status_payload:
         st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
@@ -18584,7 +18584,7 @@ def render_overview(
 
         priority_signals = top_priority_signals(action_queue_frame, limit=3)
         if priority_signals:
-            render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
+            render_section_header("Priority Now", "The fastest way to improve the local research review today.")
             render_signal_cards(priority_signals)
         else:
             actions = priority_now_fallback_actions(
@@ -19090,7 +19090,7 @@ def methodology_ladder_frame() -> pd.DataFrame:
             },
             {
                 "Step": "4. Decision wording",
-                "What The Product Does": "Assigns readiness-aware research workflow buckets after blockers, data-confidence limits, and exclusions are known.",
+                "What The Product Does": "Assigns readiness-aware research review buckets after blockers, data-confidence limits, and exclusions are known.",
                 "What Users See": "Research Now, Monitor, or Blocked by Data with primary blocker and next_best_action.",
                 "Main Code": "src/research_decisions.py",
             },
@@ -19576,7 +19576,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
 def render_single_stock_report(provider, show_source_details: bool) -> None:
     render_section_header(
         "Single-Stock Report",
-        "One-ticker research workflow. Saved local data is the default. "
+        "One-ticker research review. Saved local data is the default. "
         "Optional online research mode stays off by default and is labeled unofficial / research-grade.",
     )
     render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))
@@ -19992,7 +19992,7 @@ def render_market_command_center(
     with st.expander("Methodology ladder: how analysis becomes report wording", expanded=False):
         st.write(
             "Saved or provider-assisted inputs are checked first. The product runs only supported calculations, "
-            "withholds blocked analysis, then writes research workflow context from those readiness states."
+            "withholds blocked analysis, then writes research review context from those readiness states."
         )
         st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
         st.caption("Full methodology: docs/METHODOLOGY.md")
