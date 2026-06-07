@@ -445,6 +445,18 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     assert 'if selected_page == "Overview":\n        project_status_payload = build_project_status_payload' not in source
 
 
+def test_momentum_blocked_rows_are_collapsed_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    readiness_index = source.index('"MOMENTUM READINESS"')
+    table_index = source.index('render_table(ready_frame, "momentum-leaders", show_reason_details)')
+    blocked_index = source.index('st.expander("Momentum blocked by missing price data"')
+
+    assert readiness_index < table_index < blocked_index
+    assert 'st.expander("Momentum blocked by missing price data", expanded=False)' in source
+    assert 'st.expander("Momentum blocked by missing price data", expanded=True)' not in source
+
+
 def test_home_capability_cards_explain_quality_limits_and_provenance():
     cards = dashboard._plain_home_capability_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -11741,7 +11753,8 @@ def test_output_tab_function_quality_cards_explain_broad_page_limits():
     assert "no portfolio action instruction" in rendered
     assert "does not rebalance" in rendered
     assert "research context only" in rendered
-    assert "trade timing" in rendered
+    assert "market-timing signals" in rendered
+    assert "trade" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

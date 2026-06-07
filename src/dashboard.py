@@ -13610,7 +13610,7 @@ def output_tab_function_quality_cards(title: str) -> list[dict[str, object]]:
             {
                 "kicker": "WHAT IT CANNOT DO",
                 "title": "No automatic timing call",
-                "body": "Momentum leadership is research context only. It does not provide trade timing, account actions, or direct recommendations.",
+                "body": "Momentum leadership is research context only. It does not provide market-timing signals, account actions, or direct recommendations.",
                 "badges": ["research-only", "no execution"],
             },
         ]
@@ -17684,7 +17684,7 @@ def render_momentum_readiness_tab(frame: pd.DataFrame, show_reason_details: bool
             render_chart_panel(section_title, description, chart_frame, chart_kind=chart_kind)
         render_table(ready_frame, "momentum-leaders", show_reason_details)
     if not blocked_frame.empty:
-        with st.expander("Momentum blocked by missing price data", expanded=True):
+        with st.expander("Momentum blocked by missing price data", expanded=False):
             columns = _readiness_columns(blocked_frame, ["Ticker", "Theme", "SectorETF", "SetupStatus", "Reason"])
             st.dataframe(style_frame(presentation_frame(blocked_frame[columns])), width="stretch", hide_index=True)
 
