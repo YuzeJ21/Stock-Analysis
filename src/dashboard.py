@@ -1491,7 +1491,7 @@ def style_frame(frame: pd.DataFrame):
 
 
 def apply_dashboard_theme() -> None:
-    st.markdown(
+    st.html(
         """
         <style>
         :root {
@@ -2251,7 +2251,6 @@ def apply_dashboard_theme() -> None:
         }
         </style>
         """,
-        unsafe_allow_html=True,
     )
 
 
