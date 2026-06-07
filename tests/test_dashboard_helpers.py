@@ -848,7 +848,8 @@ def test_section_header_html_uses_shell_and_escapes_content():
 
     assert "section-shell" in html
     assert "section-kicker" in html
-    assert "Research View" in html
+    assert "Workflow Page" in html
+    assert "Research View" not in html
     assert "&lt;Monthly Picks&gt;" in html
     assert "&lt;local&gt;" in html
 
@@ -8849,8 +8850,11 @@ def test_data_health_page_does_not_block_initial_render_on_project_status_build(
 
     assert 'if selected_page == "Overview":' in source
     assert 'if selected_page in {"Overview", "Data Health"}:' not in source
-    assert "Data Health is using saved local results first so the page stays responsive" in source
+    assert "Showing saved local results" in source
+    assert "Data Health opens with the latest saved outputs so the page stays fast" in source
     assert "Copy `make project-status` when you want to refresh the next-step summary" in source
+    assert "Project status snapshot is not preloaded" not in source
+    assert "Data Health is using saved local results first so the page stays responsive" not in source
     assert "rendering from existing local CSV outputs" not in source
     assert "separate project-status summary files" not in source
 

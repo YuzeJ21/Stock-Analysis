@@ -2586,7 +2586,7 @@ def section_header_html(title: str, caption: str = "") -> str:
     caption_html = f"<div class='section-caption'>{html.escape(caption)}</div>" if caption else ""
     return (
         "<div class='section-shell'>"
-        "<div class='section-kicker'>Research View</div>"
+        "<div class='section-kicker'>Workflow Page</div>"
         f"<div class='section-title'>{html.escape(title)}</div>"
         f"{caption_html}"
         "</div>"
@@ -20230,8 +20230,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         return
     if project_status_payload is None:
         render_notice_card(
-            "Project status snapshot is not preloaded",
-            "Data Health is using saved local results first so the page stays responsive. Copy `make project-status` when you want to refresh the next-step summary.",
+            "Showing saved local results",
+            "Data Health opens with the latest saved outputs so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
             "make project-status",
         )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
