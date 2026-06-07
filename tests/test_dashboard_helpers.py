@@ -347,15 +347,15 @@ def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
 
     assert len(cards) == 1
     assert cards[0]["kicker"] == "PAGE GUIDE"
-    assert cards[0]["title"] == "How to use this page."
+    assert cards[0]["title"] == "Quick read."
     assert "analyze now:" not in rendered
     assert "still locked:" not in rendered
     assert "copy next:" not in rendered
     assert "read path:" not in rendered
     assert "guided path:" not in rendered
-    assert "locked sections stay visible when trusted inputs are missing" in rendered
+    assert "open data health for the next proof step" in rendered
     assert "make status-check top_n=5" not in rendered
-    assert "dashboard never runs refreshes, imports, or external actions" in rendered
+    assert "commands stay in collapsed help and never run from the dashboard" in rendered
     assert len(str(cards[0]["body"])) < 360
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -364,12 +364,12 @@ def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
     assert "sell" not in rendered
 
 
-def test_major_dashboard_pages_render_plain_english_reader_guides():
+def test_major_dashboard_pages_avoid_duplicate_reader_guides():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert 'render_signal_cards(dashboard_page_reader_summary_cards("Home"))' in source
-    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))' in source
-    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))' not in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))' not in source
     assert 'if title == "Value / Re-rating":' in source
     assert "render_signal_cards(dashboard_page_reader_summary_cards(title))" in source
     assert 'render_signal_cards(dashboard_page_reader_cards("Home"))' not in source
@@ -547,6 +547,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Turn on page tips only when you want extra review context" in source
     assert "Turn on guided help only when you want extra review routes" not in source
     assert 'st.expander("Recommended route", expanded=False)' in source
+    assert 'render_context_note(\n                "Start simple."' in source
+    assert 'render_context_note(\n            "Recommended route."' not in source
     assert 'st.expander("How to use the path", expanded=False)' not in source
     assert 'st.expander("Best path details", expanded=False)' not in source
     assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source

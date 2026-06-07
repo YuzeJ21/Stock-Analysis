@@ -270,12 +270,12 @@ def dashboard_page_reader_summary_cards(page_title: str) -> list[dict[str, objec
     return [
         {
             "kicker": "PAGE GUIDE",
-            "title": "How to use this page.",
+            "title": "Quick read.",
             "body": (
-                f"{guide_body} Locked sections stay visible when trusted inputs are missing. "
-                "Commands are copy-only; the dashboard never runs refreshes, imports, or external actions."
+                f"{guide_body} If a section is locked, open Data Health for the next proof step. "
+                "Commands stay in collapsed help and never run from the dashboard."
             ),
-            "badges": ["plain English", "copy-only", "research-only"],
+            "badges": ["plain English", "data honest"],
             "command": "",
         }
     ]
@@ -19776,7 +19776,6 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         "One-ticker research review. Saved local data is the default. "
         "Optional online research mode stays off by default and is labeled unofficial / research-grade.",
     )
-    render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
     selected = selection_cols[0].selectbox(
@@ -20710,7 +20709,6 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "Data Health",
         "See what trusted local inputs are ready, what analysis is still locked, and which unlock path needs proof next.",
     )
-    render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
@@ -21876,11 +21874,11 @@ def main() -> None:
         st.divider()
         note_title, note_body = sidebar_navigation_note(selected_page)
         render_context_note(note_title, note_body, tone="success")
-        render_context_note(
-            "Recommended route.",
-            "Home -> Single-Stock Report -> Data Health. Turn on page tips only when you want extra review context.",
-        )
         with st.expander("Recommended route", expanded=False):
+            render_context_note(
+                "Start simple.",
+                "Home -> Single-Stock Report -> Data Health. Turn on page tips only when you want extra review context.",
+            )
             render_sidebar_route_steps(dashboard_navigation_cards())
         with st.expander("Copy-only local commands", expanded=False):
             render_context_note(
