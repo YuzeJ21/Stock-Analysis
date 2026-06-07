@@ -8597,7 +8597,7 @@ def fundamentals_dcf_diagnostic_cards(
     sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip()) or sec_configured_from_report
     sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
     fundamentals_validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness"
-    fundamentals_input_path = "data/imports/fundamentals.csv or reviewed SEC stage draft"
+    fundamentals_input_path = "data/imports/fundamentals.csv or reviewed SEC staging rows"
     fundamentals_schema_guide = "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at"
     fundamentals_rejected_path = "data/rejected/fundamentals_import_rejected.csv"
     if next_ticker != "Not available":
@@ -8869,7 +8869,7 @@ def data_health_fundamentals_unlock_frame(
                 "What You Can Analyze Now": "Use ready price/setup/risk context only; do not read company valuation yet.",
                 "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
                 "Missing Trusted Inputs": missing_inputs,
-                "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
+                "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC staging rows",
                 "What This Unlocks": "Trusted fundamentals can unlock DCF readiness checks, scenario assumptions, and fair value/share review when all required fields pass.",
                 "No-Conclusion Boundary": "Do not label the ticker undervalued, overvalued, or DCF-ready until trusted fundamentals and DCF readiness pass.",
                 "Next Safe Sequence": (
@@ -9153,7 +9153,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
     has_ticker = bool(ticker and ticker not in {"NOT AVAILABLE", "NONE", "NAN"})
     sec_command = f"make sec-stage TICKERS={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
     focus_command = f"make focus-fundamentals TICKER={ticker}" if has_ticker else "make sec-stage-queue TOP_N=25"
-    preferred_path = "data/staged/fundamentals/ SEC drafts" if sec_configured else "data/imports/fundamentals.csv manual rows"
+    preferred_path = "data/staged/fundamentals/ SEC staging rows" if sec_configured else "data/imports/fundamentals.csv manual rows"
     required_fields = "minimum DCF fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source"
     rejected_rows = "rejected rows: data/rejected/fundamentals_import_rejected.csv"
     first_command = focus_command if has_ticker else "make sec-stage-queue TOP_N=25"
@@ -9176,7 +9176,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
             ),
             "Copy Command": sec_command if sec_configured else "make templates",
             "Trusted Input": (
-                f"SEC company facts draft rows in data/staged/fundamentals/; canonical reviewed import file is data/imports/fundamentals.csv; {required_fields}"
+                f"SEC company facts staging rows in data/staged/fundamentals/; canonical reviewed import file is data/imports/fundamentals.csv; {required_fields}"
                 if sec_configured
                 else f"data/imports/fundamentals.csv; {required_fields}"
             ),
@@ -9312,7 +9312,7 @@ def dcf_missing_field_guide_frame(
             )
             validation_path = "make price-validate -> make price-preview -> make price-apply -> make dcf-readiness"
         else:
-            trusted_path = "data/imports/fundamentals.csv or reviewed SEC draft rows in data/staged/fundamentals/"
+            trusted_path = "data/imports/fundamentals.csv or reviewed SEC staging rows in data/staged/fundamentals/"
             schema_fields = "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source, updated_at"
             command = f"make focus-fundamentals TICKER={example}"
             second_step = (

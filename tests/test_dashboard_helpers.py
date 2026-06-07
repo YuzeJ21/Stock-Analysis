@@ -14255,7 +14255,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "field-level blockers from the dcf readiness report, not company conclusions" in rendered
     assert "inspect meta with `make focus-fundamentals ticker=meta`" in rendered
     assert "before rerunning `make dcf-readiness`" in rendered
-    assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
+    assert "data/imports/fundamentals.csv or reviewed sec staging rows" in rendered
     assert "schema guide: ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, source, updated_at" in rendered
     assert "validation sequence: make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
     assert "rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
@@ -14453,7 +14453,7 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert "do not read company valuation yet" in rendered
     assert "fair value/share, and peer-relative valuation stay locked" in rendered
     assert "free cash flow, shares outstanding" in rendered
-    assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
+    assert "data/imports/fundamentals.csv or reviewed sec staging rows" in rendered
     assert "dcf readiness checks" in rendered
     assert "do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
     assert "make sec-stage tickers=meta" in rendered
@@ -14480,7 +14480,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
                 "Price Readiness Gate": "Price ready: fundamentals can unlock DCF after trusted rows pass validation.",
                 "What Is Still Locked": "Fundamental quality, DCF assumptions, fair value/share, and peer-relative valuation stay locked until trusted fundamentals pass readiness.",
                 "Missing Trusted Inputs": "free cash flow, shares outstanding",
-                "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC stage draft",
+                "Trusted Input Path": "data/imports/fundamentals.csv or reviewed SEC staging rows",
                 "No-Conclusion Boundary": "Do not label the ticker undervalued, overvalued, or DCF-ready until trusted fundamentals and DCF readiness pass.",
                 "Next Safe Sequence": "1. Inspect `make focus-fundamentals TICKER=META`. 2. Use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured, or fill `data/imports/fundamentals.csv` with trusted manual rows. 3. Run `make imports-validate`, `make imports-preview`, `make imports-apply`, then `make dcf-readiness`.",
                 "Readiness Proof": "Run `make dcf-readiness` and `make readiness`, then reopen Data Health or the single-stock report before reading DCF output.",
@@ -14510,7 +14510,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "before treating fundamentals or dcf as unlocked" in rendered
     assert "readiness proof: run `make dcf-readiness` and `make readiness`" in rendered
     assert "before reading dcf output" in rendered
-    assert "data/imports/fundamentals.csv or reviewed sec stage draft" in rendered
+    assert "data/imports/fundamentals.csv or reviewed sec staging rows" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "broker" not in rendered
@@ -14752,7 +14752,7 @@ def test_first_fundamentals_unlock_cards_use_sec_path_when_configured():
     assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
     assert cards[1]["command"] == "make sec-stage TICKERS=NVDA"
     assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply"
-    assert "sec company facts draft rows in data/staged/fundamentals/" in rendered
+    assert "sec company facts staging rows in data/staged/fundamentals/" in rendered
     assert "canonical reviewed import file is data/imports/fundamentals.csv" in rendered
     assert "minimum dcf fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source" in rendered
     assert "check rejected rows: data/rejected/fundamentals_import_rejected.csv after validation" in rendered
@@ -14822,7 +14822,7 @@ def test_dcf_missing_field_guide_frame_explains_field_level_unlock_paths_without
     assert "data/imports/prices.csv or data/staged/prices/" in rendered
     assert "ticker, date, open, high, low, close, volume, source" in rendered
     assert "revenue" in rendered
-    assert "data/imports/fundamentals.csv or reviewed sec draft rows in data/staged/fundamentals/" in rendered
+    assert "data/imports/fundamentals.csv or reviewed sec staging rows in data/staged/fundamentals/" in rendered
     assert "ticker, period/report_date, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source, updated_at" in rendered
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make sec-stage tickers=meta" in rendered
