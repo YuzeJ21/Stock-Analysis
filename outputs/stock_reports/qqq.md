@@ -15,8 +15,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Analyze now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Still locked: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: No company DCF input is required for monitor context.
-- Data Health lane: Single-Stock Review. Copy `make stock-report-md TICKER=QQQ`, then confirm with `make readiness` before treating the lane as unlocked.
-- Copy next: `make stock-report-md TICKER=QQQ`.
+- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=QQQ`. Confirm with `make readiness` before treating the lane as unlocked.
 - Next research step: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
 ## How To Read This Report
@@ -64,7 +63,7 @@ QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
 - Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
-- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command.
+- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step.
 - Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
@@ -209,7 +208,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
 ## Data Unlock Summary
-- Data Health lane: Single-Stock Review. Copy `make stock-report-md TICKER=QQQ`, then confirm with `make readiness` before treating the lane as unlocked.
+- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=QQQ`. Confirm with `make readiness` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (25 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Operating-company DCF is excluded for this ETF/index/fund monitor context; no fundamentals import is required for company valuation.
 - Peer unlock: Peer valuation is excluded for monitor context; peer rows are optional context, not a required unlock.

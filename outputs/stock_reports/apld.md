@@ -15,8 +15,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Analyze now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked: Blocked features: fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding.
-- Data Health lane: Fundamentals / DCF Unlock. Copy `make focus-fundamentals TICKER=APLD`, then confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
-- Copy next: `make focus-fundamentals TICKER=APLD`.
+- Data Health lane: Fundamentals / DCF Unlock. Suggested local check: `make focus-fundamentals TICKER=APLD`. Confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
 - Next research step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## How To Read This Report
@@ -64,7 +63,7 @@ APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
 - Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
-- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command.
+- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step.
 - Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
@@ -232,7 +231,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
 ## Data Unlock Summary
-- Data Health lane: Fundamentals / DCF Unlock. Copy `make focus-fundamentals TICKER=APLD`, then confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
+- Data Health lane: Fundamentals / DCF Unlock. Suggested local check: `make focus-fundamentals TICKER=APLD`. Confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Fundamentals / DCF are blocked: missing free cash flow, shares outstanding, revenue, FCF margin. Inspect `make focus-fundamentals TICKER=APLD`, then use `make sec-stage TICKERS=APLD` when SEC_USER_AGENT is configured or prepare trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`.
 - Peer unlock: Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready.

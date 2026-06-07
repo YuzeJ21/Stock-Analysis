@@ -379,9 +379,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Analyze now:" in markdown
     assert "- Still locked:" in markdown
     assert "- Trusted input: Source-backed peer mappings and peer valuation inputs." in markdown
-    assert "- Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=MSFT`" in markdown
-    assert "then confirm with `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10` before treating the lane as unlocked" in markdown
-    assert "- Copy next: `make focus-peers TICKER=MSFT`." in markdown
+    assert "- Data Health lane: Peer Mapping Unlock. Suggested local check: `make focus-peers TICKER=MSFT`" in markdown
+    assert "Confirm with `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10` before treating the lane as unlocked" in markdown
+    assert "- Copy next:" not in markdown
     assert "## Executive Summary" in markdown
     assert "Bottom line: MSFT is in `Standalone DCF review` mode" in markdown
     assert "## Data And App Method" in markdown
@@ -429,7 +429,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in markdown
     assert "Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality" in markdown
     assert "Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker" in markdown
-    assert "Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command" in markdown
+    assert "Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step" in markdown
     assert "Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow" in markdown
     assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
     assert "DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing" in markdown
@@ -772,7 +772,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "- Analyze now: Monitor context is supported where local price, liquidity, correlation, and theme data are available." in markdown
     assert "- Still locked: Blocked features: none. Excluded features: DCF." in markdown
     assert "- Trusted input: No company DCF input is required for monitor context." in markdown
-    assert "- Copy next: `make stock-report-md TICKER=QQQ`." in markdown
+    assert "- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=QQQ`" in markdown
     assert "Bottom line: QQQ is in `Monitor-only context` mode" in markdown
     assert "`Monitor-only context` (current)" in markdown
     assert "Decision: Monitor - ETF Market Proxy" in markdown
@@ -1006,9 +1006,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Analyze now: Use available price or setup context only." in markdown
     assert "- Still locked: Blocked features: price, momentum, DCF." in markdown
     assert "- Trusted input: Trusted local price history." in markdown
-    assert "- Data Health lane: Price Coverage Batch. Copy `make focus-price TICKER=APLD`" in markdown
-    assert "then confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as unlocked" in markdown
-    assert "- Copy next: `make focus-price TICKER=APLD`." in markdown
+    assert "- Data Health lane: Price Coverage Batch. Suggested local check: `make focus-price TICKER=APLD`" in markdown
+    assert "Confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as unlocked" in markdown
     assert "Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready" in markdown
     assert "Read top-down: readiness state first" in markdown
     assert "## Executive Summary" in markdown

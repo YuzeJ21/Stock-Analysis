@@ -15,8 +15,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Source-backed peer mappings and peer valuation inputs.
-- Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=A`, then confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
-- Copy next: `make focus-peers TICKER=A`.
+- Data Health lane: Peer Mapping Unlock. Suggested local check: `make focus-peers TICKER=A`. Confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
 - Next research step: Add trusted price history for mapped peers: DHR, TMO, WAT.
 
 ## How To Read This Report
@@ -64,7 +63,7 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
 - Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
-- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command.
+- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step.
 - Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
 - Fundamental analysis: local revenue, cash-flow, margin, share-count, cash/debt, and source fields are reviewed only when present; missing fields are not inferred.
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
@@ -227,7 +226,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
 ## Data Unlock Summary
-- Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=A`, then confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
+- Data Health lane: Peer Mapping Unlock. Suggested local check: `make focus-peers TICKER=A`. Confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
 - Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context.
 - Peer unlock: Peer context is the next unlock after DCF: Add trusted price history for mapped peers: DHR, TMO, WAT. Add source-backed mappings in `data/imports/peers.csv`.
