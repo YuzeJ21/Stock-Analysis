@@ -370,12 +370,12 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## How Analysis Works" in readme
     assert "## What Works Today" in readme
     assert "## Try This Demo Path" in readme
-    assert "## Generated Data Hygiene" in readme
+    assert "## Local Data Hygiene" in readme
     assert "## License" in readme
     assert "## Analysis Methodology" in readme
     assert "docs/METHODOLOGY.md" in readme
     assert "docs/analysis_capability_audit.md" in readme
-    assert "[Operator Guide](docs/OPERATOR_GUIDE.md)" in readme
+    assert "[Local Workflow Guide](docs/OPERATOR_GUIDE.md)" in readme
     assert "pip install -e '.[dev]'" in readme
     assert "pip install -e .[dev]" not in readme
     for phrase in (
@@ -872,7 +872,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "docs/LICENSE_DECISION_GUIDE.md" in checklist
     assert "docs/DIFF_HYGIENE_AUDIT.md" in checklist
     assert "portfolio/demo project" in checklist
-    assert "deeper runbook" in checklist
+    assert "deeper local workflow guide" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist

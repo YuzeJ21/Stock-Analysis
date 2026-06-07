@@ -13,7 +13,7 @@ This project turns a broad stock universe into a research workflow:
 - Checks market data readiness before showing analysis.
 - Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
 - Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
-- Generates transparent CSV outputs for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
+- Builds transparent local research views for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
 - Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source readiness notes, and copyable local unlock commands, plus a plain-English Reader Guide.
 
 ## Why It Matters
@@ -48,7 +48,7 @@ The local sample currently tracks a broad universe of 3,538 tickers, with a smal
 
 ## What Works Today
 
-This is a working local research prototype with deterministic CSV outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
+This is a working local research prototype with deterministic outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
 
 Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer valuation, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker workflow, or auto-refreshing trading system.
 
@@ -114,7 +114,7 @@ In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticke
 
 Dashboard pages also support simple local deep links such as `http://localhost:8501/?page=single-stock-report`.
 
-For deeper local workflow details, see [Operator Guide](docs/OPERATOR_GUIDE.md).
+For deeper local workflow details, see the [Local Workflow Guide](docs/OPERATOR_GUIDE.md).
 
 Targeted data-unlock examples:
 ```bash
@@ -144,9 +144,9 @@ make imports-preview
 make imports-apply
 ```
 
-## Generated Data Hygiene
+## Local Data Hygiene
 
-Small example outputs are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.
+Small example reports are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.
 
 Before sharing or committing, run `make public-check`, then `make diff-hygiene`. For a large dirty tree, run `make diff-hygiene-files` and review the ignored local pathspec files under `outputs/staging/` before staging. After staging, run `make staged-hygiene-check` before committing. The public check includes `make public-wording-check`, which scans visitor-facing docs, dashboard/report copy, and sample reports for unsupported advice, execution language, internal development notes, and stale repo links. Use the safe staging suggestion for product files and reviewed Markdown reports, and leave large generated CSV/JSON changes out unless they are the specific artifact you intend to publish.
 
@@ -162,7 +162,7 @@ The stock-analysis logic is implemented in this repository: readiness gates, mom
 
 ## Core Outputs
 
-The main pipeline writes deterministic CSVs under `outputs/`, including purpose classification, market direction, momentum leaders, portfolio review, valuation-readiness context, final watchlist, and research decisions. `undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context, not automatic undervalued calls. Readiness and source-health reports live under `data/reports/`.
+The main build creates deterministic research files under `outputs/`, including purpose classification, market direction, momentum leaders, portfolio review, valuation-readiness context, final watchlist, and research decisions. `undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context, not automatic undervalued calls. Readiness and source-health reports live under `data/reports/`.
 
 ## Research-Only Guardrails
 
@@ -172,7 +172,7 @@ That constraint is intentional. The product is useful because it says when data 
 
 ## Architecture
 
-The app is organized around `src/dashboard.py`, `src/readiness_engine.py`, `src/research_decisions.py`, `src/stock_report.py`, `src/providers/`, local `data/` CSVs, generated `outputs/`, and regression tests. It is CSV-first and deterministic by default. Optional network-backed data stays behind provider interfaces and is labeled as research-grade when used.
+The app is organized around dashboard, readiness, decision, report, provider, local-data, and test modules. It is CSV-first and deterministic by default. Optional network-backed data stays behind provider interfaces and is labeled as research-grade when used.
 
 ## Roadmap Snapshot
 

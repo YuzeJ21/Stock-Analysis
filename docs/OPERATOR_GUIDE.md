@@ -1,4 +1,4 @@
-# Operator Guide
+# Local Workflow Guide
 
 Use this guide when you want to run the command center locally after reading the short README.
 
