@@ -11,10 +11,10 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 This project turns a broad stock universe into a readiness-first research dashboard:
 
 - Checks market data readiness before showing analysis.
-- Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
+- Separates `Research Now`, `Monitor`, and `Blocked by Data` review states.
 - Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
 - Builds transparent local research views for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
-- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, Best Review Path, source readiness notes, and copyable local unlock commands, plus a plain-English Reader Guide.
+- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, Best Review Path, confidence cues, source readiness notes, and copyable local unlock commands, plus a plain-English Reader Guide.
 
 ## Why It Matters
 
@@ -29,7 +29,7 @@ When trusted local data is available, the command center can produce:
 - DCF readiness and conservative scenario valuation.
 - Peer-context readiness without pretending missing peer valuation exists.
 - ETF/index monitor reports where operating-company DCF is excluded.
-- Single-stock reports with At A Glance status, Best Review Path, methodology, risks, blockers, copyable local unlock commands, source readiness notes, and a Reader Guide.
+- Single-stock reports with At A Glance status, Best Review Path, confidence cues, methodology, risks, blockers, copyable local unlock commands, source readiness notes, and a Reader Guide.
 
 Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
