@@ -5832,6 +5832,18 @@ def data_health_action_path_cards(
     actions_frame: pd.DataFrame | None,
     action_queue_frame: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
+    def _action_path_display_text(value: object) -> str:
+        text = format_missing(value, "")
+        replacements = {
+            "free_cash_flow": "free cash flow",
+            "fcf_margin": "FCF margin",
+            "shares_outstanding": "shares outstanding",
+            "report_date": "report date",
+        }
+        for raw, label in replacements.items():
+            text = re.sub(rf"(?<![A-Za-z0-9_]){re.escape(raw)}(?![A-Za-z0-9_])", label, text)
+        return text
+
     def _action_path_body(row: pd.Series) -> str:
         command = preferred_row_command(
             row,
@@ -5876,7 +5888,7 @@ def data_health_action_path_cards(
                         if reason and reason != "Not available"
                         else staged_follow_through
                     )
-        return compact_reason(body_source, max_sentences=2, max_chars=220)
+        return compact_reason(_action_path_display_text(body_source), max_sentences=2, max_chars=220)
 
     def _fallback_card() -> list[dict[str, object]]:
         return [
