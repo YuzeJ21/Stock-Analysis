@@ -2886,7 +2886,7 @@ def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool =
 
 def monthly_ideas_hero_label(monthly_count: int) -> str:
     if monthly_count <= 0:
-        return "Monthly ideas locked"
+        return "Monthly ideas need data"
     if monthly_count == 1:
         return "1 monthly idea ready"
     return f"{monthly_count} monthly ideas ready"

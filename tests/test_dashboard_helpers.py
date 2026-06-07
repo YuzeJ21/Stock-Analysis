@@ -184,8 +184,8 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
 
 
 def test_monthly_ideas_hero_label_explains_locked_zero_state():
-    assert dashboard.monthly_ideas_hero_label(0) == "Monthly ideas locked"
-    assert dashboard.monthly_ideas_hero_label(-1) == "Monthly ideas locked"
+    assert dashboard.monthly_ideas_hero_label(0) == "Monthly ideas need data"
+    assert dashboard.monthly_ideas_hero_label(-1) == "Monthly ideas need data"
     assert dashboard.monthly_ideas_hero_label(1) == "1 monthly idea ready"
     assert dashboard.monthly_ideas_hero_label(3) == "3 monthly ideas ready"
 
