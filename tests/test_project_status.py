@@ -534,9 +534,10 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
         sys.argv = argv_before
 
     assert "top onboarding actions" in output
-    assert "command: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
+    assert "import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
     assert "focus: make focus-fundamentals ticker=nvda" in output
-    assert "command: make sec-stage tickers=nvda" in output
+    assert "import/fallback: make sec-stage tickers=nvda" in output
+    assert "command: make price-normalize" not in output
     assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
     assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
     assert "source:" in output

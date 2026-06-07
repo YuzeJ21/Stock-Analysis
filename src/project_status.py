@@ -839,7 +839,7 @@ def _print_human(payload: dict[str, Any]) -> None:
         if row.get("focus_command"):
             print(f"  focus: {row['focus_command']}")
         if row.get("example_command"):
-            print(f"  command: {row['example_command']}")
+            print(f"  import/fallback: {row['example_command']}")
         if row.get("credential_required"):
             present = "present" if bool(row.get("credential_present")) else "missing"
             print(f"  credential: {row['credential_required']} ({present})")
