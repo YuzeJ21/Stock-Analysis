@@ -357,16 +357,16 @@ def _purpose_alignment(asset_type: str, watch_row: pd.Series, ready: list[str], 
     if asset_type in {"etf", "index_proxy", "fund"}:
         return f"Purpose alignment: {purpose} is evaluated as market/risk context when price, liquidity, and correlation data are ready; operating-company valuation is not applicable."
     if family == "momentum" and ("weak rs" in reason_lower or "relative strength is weak" in reason_lower):
-        return f"Purpose alignment needs review: {purpose} requires relative strength support, but current local outputs flag weak relative strength."
+        return f"Purpose alignment needs review: {purpose} requires relative strength support, but saved research views flag weak relative strength."
     if family == "compounder" and ("broken" in final_state.lower() or "trend is broken" in reason_lower or "below the 50sma" in reason_lower):
-        return f"Purpose alignment needs review: {purpose} depends on durable thesis support, but current local outputs flag trend/thesis conflict. {reason}"
+        return f"Purpose alignment needs review: {purpose} depends on durable thesis support, but saved research views flag trend/thesis conflict. {reason}"
     if family == "rerating" and ("dcf" in blocked or "fundamentals" in blocked or "peer" in blocked):
         return f"Purpose alignment is blocked: {purpose} requires valuation inputs, but missing fundamentals, DCF, or peer context prevents a supported re-rating read."
     if family == "speculative" and "price" not in ready:
         return f"Purpose alignment for {purpose} is not testable until price, liquidity, and volatility context are available."
     if final_state in {"Broken", "Review Thesis", "Risk Reduce"} or review_state in {"Broken", "Review Thesis", "Risk Reduce"}:
         context = reason if reason != "Not available" else f"final state is {final_state or review_state}"
-        return f"Purpose alignment needs review: current local outputs show `{final_state or review_state}` for {purpose}. {context}"
+        return f"Purpose alignment needs review: saved research views show `{final_state or review_state}` for {purpose}. {context}"
     if "marked as" in reason_lower or "conflict" in reason_lower or "but trend" in reason_lower:
         return f"Purpose alignment needs review: {reason}"
     if setup and setup != "Not available":
@@ -410,7 +410,7 @@ def _valuation_evaluation(asset_type: str, watch_row: pd.Series, ready: list[str
         return f"Valuation status: {valuation_status}; value category: {value_category}; peer context: {peer_status}."
     if "dcf" in blocked or "fundamentals" in blocked:
         return "Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete."
-    return "Valuation interpretation is not supported by the current local outputs."
+    return "Valuation interpretation is not supported by the saved research views."
 
 
 def _supported_analysis(bucket: str, asset_type: str, ready: list[str], partial: list[str], excluded: list[str]) -> str:
@@ -530,7 +530,7 @@ def _invalidation_condition(asset_type: str, watch_row: pd.Series, ready: list[s
     if "price" in blocked:
         return "Invalidation cannot be defined from local price data until price history is available."
     if final_state == "Broken":
-        return "Already invalidated for trend/purpose review in the current local setup state."
+        return "Already invalidated for trend/purpose review in the saved setup state."
     if asset_type in {"etf", "index_proxy", "fund"}:
         return "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role."
     if family == "momentum":

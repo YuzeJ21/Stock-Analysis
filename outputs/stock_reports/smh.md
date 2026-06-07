@@ -91,7 +91,7 @@ SMH state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 ## Decision
 - Bucket: Monitor
 - Subtype: Monitor - ETF Market Proxy
-- Boundary: Monitor context only: use market, theme, liquidity, or risk context; operating-company DCF and peer-relative company valuation stay excluded.
+- Boundary: Monitor context only: useful for market, theme, liquidity, or risk review; operating-company DCF and peer-relative company valuation are excluded.
 - Primary blocker: monitor context
 - Main reason: etf is usable for market/risk monitoring and excluded from company DCF.
 - Next action: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
@@ -100,7 +100,7 @@ SMH state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: ETF / Defensive / Hedge. Evaluate as market, theme, liquidity, or risk context; operating-company valuation remains excluded.
 - Alignment: ETF / Defensive / Hedge is evaluated as market/risk context when price, liquidity, and correlation data are ready; operating-company valuation is not applicable.
-- Operator summary: Monitor context; Monitor - ETF Market Proxy. Monitor role: market, theme, liquidity, or risk proxy. Withheld: operating-company DCF and peer valuation are excluded. Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring.
+- Research workflow summary: Monitor context; Monitor - ETF Market Proxy. Monitor role: market, theme, liquidity, or risk proxy. Withheld: operating-company DCF and peer valuation are excluded. Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring.
 - Setup: Setup Forming; final state: Setup Forming. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`. Capped score at 50 because valuation readiness is not ready; treat as data-limited review until missing data is resolved.
 - Valuation boundary: Operating-company DCF is excluded for this asset type; use market/risk context instead of valuation conclusions.
 
@@ -122,7 +122,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Invalidation condition: Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.
 
 ## Next Research Step
-- Next research question: What market, theme, liquidity, or risk context should SMH monitor, and what would invalidate that proxy role?
+- Next research question: What market, sector, or hedge signal is this proxy intended to monitor, and is that signal still supported by local price/risk data?
 - Review priority: Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.
 - Data-confidence explanation: Data confidence is low: monitoring is supported by price, momentum, market direction, liquidity, correlation, while fundamentals, peer, earnings, analyst estimates remains unavailable.
 
@@ -194,8 +194,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Missing Data
 - Operating-company DCF and peer valuation are excluded for this monitor context, so company valuation fields are not treated as repair items.
-- No local analyst-estimate dataset is configured in the CSV-first pipeline.
-- No local earnings dataset is configured in the CSV-first pipeline.
+- No trusted analyst-estimate CSV has been added yet.
+- No trusted earnings CSV has been added yet.
 - Normalized growth target was reduced to keep it conservatively below WACC.
 - analyst estimates has no local row for this ticker.
 - earnings has no local row for this ticker.
@@ -203,8 +203,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source Readiness
 - local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-22; Saved local research data.
 - local:fundamentals.csv: research-grade / local; source readiness: not available in local CSVs; No local fundamentals row was found for this ticker.
-- local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields stay locked until trusted rows are imported.
+- local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
 ## Data Unlock Summary
 - Data Health lane: Single-Stock Review. Copy `make stock-report-md TICKER=SMH`, then confirm with `make readiness` before treating the lane as unlocked.

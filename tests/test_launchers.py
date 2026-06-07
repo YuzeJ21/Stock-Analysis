@@ -264,8 +264,8 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
     assert "for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again" in script
     assert "do not babysit hundreds of tiny commands" in script
-    assert "Operator summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in script
-    assert "Operator summary: MAX_CANDIDATES is the approximate missing-price target; TOP_N is the per-batch safety cap." in script
+    assert "Review summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in script
+    assert "Review summary: MAX_CANDIDATES is the approximate missing-price target; TOP_N is the per-batch safety cap." in script
     assert "Dry run only. No local CSV files were changed." in script
     assert "Requested target: up to $REQUESTED_TARGET missing-price candidate(s)." in script
     assert "Rounded batch capacity: up to $TOTAL_CANDIDATES ticker slot(s) across $BATCHES capped batch(es)." in script
@@ -325,8 +325,8 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
     assert "rounded batch capacity: up to 3600 ticker slot(s) across 36 capped batch(es)." in output
     assert "unused capacity is expected when the last batch has fewer missing tickers than top_n." in output
     assert "manual 25-ticker commands avoided: about 144." in output
-    assert "operator summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in output
-    assert "operator summary: max_candidates is the approximate missing-price target; top_n is the per-batch safety cap." in output
+    assert "review summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in output
+    assert "review summary: max_candidates is the approximate missing-price target; top_n is the per-batch safety cap." in output
     assert "no provider call, import, validation apply, broker action, or trade action runs during this dry run." in output
     assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=yahoo sleep_seconds=30" in output
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in output

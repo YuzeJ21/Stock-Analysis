@@ -13988,7 +13988,7 @@ def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str
             sections.append(
                 (
                     "Setup distribution",
-                    "Counts the current local setup states so you can see whether the universe is mostly watch-only, no-setup, or developing new setups.",
+                    "Counts the saved setup states so you can see whether the universe is mostly watch-only, no-setup, or developing new setups.",
                     distribution_frame,
                     "bar",
                 )

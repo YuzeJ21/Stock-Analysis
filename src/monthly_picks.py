@@ -424,7 +424,7 @@ def _records(frame: pd.DataFrame) -> list[dict[str, object]]:
 
 def _result_warnings(rows: pd.DataFrame, top_n: int) -> list[str]:
     if rows.empty:
-        return ["No monthly research candidates could be generated from the current local outputs."]
+        return ["No monthly research candidates passed the saved readiness and inclusion checks."]
     if len(rows) < top_n:
         return [f"Only {len(rows)} research candidate(s) met the conservative inclusion filters for top_n={top_n}."]
     return []

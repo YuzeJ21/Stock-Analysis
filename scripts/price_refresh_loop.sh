@@ -63,8 +63,8 @@ echo "What stays manual: staging, validation, commit selection, and any generate
 echo "Plain planning knob: set MAX_CANDIDATES=3500 to let the loop calculate capped batches from TOP_N."
 echo "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override."
 echo "Scaling note: for a 3000+ ticker universe, set MAX_CANDIDATES and dry-run again; do not babysit hundreds of tiny commands."
-echo "Operator summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands."
-echo "Operator summary: MAX_CANDIDATES is the approximate missing-price target; TOP_N is the per-batch safety cap."
+echo "Review summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands."
+echo "Review summary: MAX_CANDIDATES is the approximate missing-price target; TOP_N is the per-batch safety cap."
 if [ -n "$MAX_CANDIDATES" ]; then
   echo "Requested coverage target: up to $MAX_CANDIDATES missing-price candidates; calculated $BATCHES capped batch(es)."
 fi

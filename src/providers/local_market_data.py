@@ -351,7 +351,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             if metadata.validation_status != "missing_file"
             else self._unavailable_source(
                 "local:fundamentals.csv",
-                ["Fundamentals file is unavailable in the local CSV-first pipeline."],
+                ["No trusted fundamentals CSV has been added yet."],
             )
         )
         return FinancialSnapshot(
@@ -388,10 +388,10 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         if metadata.validation_status == "missing_file":
             return EarningsSummary(
                 ticker=ticker,
-                notes=["No local earnings dataset is configured in the CSV-first pipeline."],
+                notes=["No trusted earnings CSV has been added yet."],
                 source=self._unavailable_source(
                     "local:earnings.csv",
-                    ["Earnings fields are unavailable from the bundled local sample files."],
+                    ["Earnings fields stay locked until trusted rows are imported."],
                 ),
             )
         return EarningsSummary(
@@ -416,10 +416,10 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         if metadata.validation_status == "missing_file":
             return AnalystEstimateSummary(
                 ticker=ticker,
-                notes=["No local analyst-estimate dataset is configured in the CSV-first pipeline."],
+                notes=["No trusted analyst-estimate CSV has been added yet."],
                 source=self._unavailable_source(
                     "local:analyst_estimates.csv",
-                    ["Analyst estimate fields are unavailable from the bundled local sample files."],
+                    ["Analyst-estimate fields stay locked until trusted rows are imported."],
                 ),
             )
         return AnalystEstimateSummary(
@@ -447,9 +447,9 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             expiry=expiry,
             calls_count=0,
             puts_count=0,
-            notes=["Options-chain data is not configured in the local CSV-first pipeline."],
+            notes=["Options-chain data is not part of this research-only workflow."],
             source=self._unavailable_source(
                 "local:options_chain.csv",
-                ["Options chain remains optional and unimplemented for local CSV data."],
+                ["Options-chain analysis is intentionally unavailable in the local research workflow."],
             ),
         )
