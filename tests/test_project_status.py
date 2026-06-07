@@ -626,7 +626,7 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     pd.DataFrame(
         [
             {
-                "Step": "Refresh next capped missing-price batch",
+                "Step": "Preview next capped missing-price batch",
                 "Command": "make price-refresh-loop DRY_RUN=1",
                 "Reason": "Preview the broad-universe price frontier first; manual import draft fallback remains available.",
                 "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
@@ -653,7 +653,7 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
 
     assert payload is not None
     command_row = payload["recommended_next_command_rows"][0]
-    assert command_row["Step"] == "Refresh next capped missing-price batch"
+    assert command_row["Step"] == "Preview next capped missing-price batch"
     assert (
         command_row["FreshnessContext"]
         == "dry-run first; verify source readiness notes and local CSV changes after any refresh"
@@ -809,7 +809,7 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
     payload = build_project_status_payload(tmp_path, top_n=5)
 
     assert payload["top_onboarding_actions"][0]["ticker"] == "AMD"
-    assert payload["recommended_next_command_rows"][0]["Step"] == "Refresh next capped missing-price batch"
+    assert payload["recommended_next_command_rows"][0]["Step"] == "Preview next capped missing-price batch"
     assert payload["recommended_next_command_rows"][0]["Command"] == "make price-refresh-loop DRY_RUN=1"
     assert (
         payload["recommended_next_command_rows"][0]["FreshnessContext"]

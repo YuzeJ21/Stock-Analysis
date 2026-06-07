@@ -120,6 +120,7 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
             .replace("Review fundamentals import draft", "Review fundamentals import file")
             .replace("Review peer import draft", "Review peer import file")
             .replace("Review price import draft", "Review price import file")
+            .replace("Refresh next capped missing-price batch", "Preview next capped missing-price batch")
         )
         step = str(row.get("Step") or "")
     if reason:
@@ -602,7 +603,7 @@ def _recommended_next_command_rows(
         if dataset_key == "prices" and not bool(top_action.get("is_holding")):
             rows.append(
                 _command_row(
-                    "Refresh next capped missing-price batch",
+                    "Preview next capped missing-price batch",
                     "make price-refresh-loop DRY_RUN=1",
                     (
                         "Preview the broad-universe price frontier first, then run several capped batches "

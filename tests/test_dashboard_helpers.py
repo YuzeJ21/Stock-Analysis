@@ -12840,7 +12840,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     payload = {
         "recommended_next_command_rows": [
             {
-                "Step": "Refresh next capped missing-price batch",
+                "Step": "Preview next capped missing-price batch",
                 "Command": "make price-refresh-loop DRY_RUN=1",
                 "Reason": "Advance the broad-universe price frontier safely.",
                 "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
