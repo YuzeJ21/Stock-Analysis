@@ -161,7 +161,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "analyze": "DCF-ready company rows can support assumption, scenario, sensitivity, and source-readiness review.",
             "locked": "Blocked company rows need trusted fundamentals or DCF fields; ETF/index/fund rows are monitor context, not failed DCF.",
             "read": "Read the DCF-ready, DCF-blocked, and DCF-excluded split before looking at rankings. DCF-ready means assumption review, not a price target.",
-            "proof": "After fundamentals change, run make dcf-readiness and make readiness before reading valuation output.",
+            "proof": "After fundamentals change, refresh valuation readiness before reading valuation output.",
             "review_route": "Use Value / Re-rating to classify DCF-ready, locked, or excluded valuation states, then open Single-Stock Report for proof and Data Health for unlock steps.",
             "review_area": "Fundamentals / DCF Unlock",
             "command": "make dcf-readiness",
@@ -13568,11 +13568,11 @@ def valuation_quick_read_cards(
         },
         {
             "kicker": "COPY NEXT",
-            "title": "Run the next local proof step",
+            "title": "Review the next local proof step",
             "body": (
-                f"Copy next: `{first_command}`. Use this command to prove the current valuation path before reading "
-                "DCF assumptions, locked-input worklists, or monitor-context rows. The dashboard displays the command only; "
-                "it does not run refreshes, imports, or external actions."
+                "Use the command area when you want the exact local proof step for this valuation path. "
+                "Prove the path before reading DCF assumptions, locked-input worklists, or monitor-context rows. "
+                "The dashboard displays copyable commands only; it does not run refreshes, imports, or external actions."
             ),
             "badges": ["copy-only", "research-only"],
             "command": first_command,
@@ -18125,7 +18125,7 @@ def valuation_plain_language_cards(
             "kicker": "PROOF PATH",
             "title": "Prove valuation readiness before interpretation",
             "body": (
-                "After fundamentals change, run make dcf-readiness and make readiness before reading Value / Re-rating again. "
+                "After fundamentals change, refresh valuation readiness before reading Value / Re-rating again. "
                 "Ready means DCF assumptions can be reviewed; it does not create a price target or peer-relative conclusion."
             ),
             "badges": ["proof first", "no overclaim"],
@@ -18138,7 +18138,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
     render_section_header("Valuation Quick Read", "Which valuation path to inspect first before reading detailed valuation outputs.")
-    render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
+    render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded), show_commands=False)
     with st.expander("More valuation context, boundaries, and method", expanded=False):
         render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before rankings or deeper valuation tables.")
         render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))

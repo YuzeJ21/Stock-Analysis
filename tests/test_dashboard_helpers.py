@@ -317,7 +317,8 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "proof after unlock:" in rendered
     assert "run make readiness and reopen home before interpreting changed counts" in rendered
     assert "regenerate the markdown report before reading newly available sections" in rendered
-    assert "run make dcf-readiness and make readiness before reading valuation output" in rendered
+    assert "refresh valuation readiness before reading valuation output" in rendered
+    assert "run make dcf-readiness" not in rendered
     assert "run the matching readiness command and reopen data health before treating a path as unlocked" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make dcf-readiness" in rendered
@@ -934,6 +935,7 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "rerun readiness before interpreting changed cards" in rendered
     assert "review the local status snapshot and reopen home" in rendered
     assert "use make readiness" not in rendered
+    assert "run make readiness" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -8545,7 +8547,8 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make stock-report-md ticker=qqq" in rendered
     assert "prove valuation readiness before interpretation" in rendered
-    assert "run make dcf-readiness and make readiness before reading value / re-rating again" in rendered
+    assert "refresh valuation readiness before reading value / re-rating again" in rendered
+    assert "run make dcf-readiness" not in rendered
     assert "ready means dcf assumptions can be reviewed" in rendered
     assert "does not create a price target or peer-relative conclusion" in rendered
     assert "broker" not in rendered
@@ -8668,7 +8671,9 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert cards[3]["command"] == "make focus-fundamentals TICKER=META"
     assert cards[4]["command"] == "make stock-report-md TICKER=QQQ"
     assert "start with nvda" in rendered
-    assert "copy next: `make stock-report-md ticker=nvda`" in rendered
+    assert "review the next local proof step" in rendered
+    assert "use the command area when you want the exact local proof step" in rendered
+    assert "copy next: `make stock-report-md ticker=nvda`" not in rendered
     assert "does not run refreshes, imports, or external actions" in rendered
     assert "assumption, scenario, sensitivity, and source readiness review" in rendered
     assert "not price targets" in rendered
@@ -17047,7 +17052,10 @@ def test_value_re_rating_detail_tables_are_collapsed_by_default():
     assert quick_read_index < context_expander_index < blocked_detail_index < full_table_index
     assert context_expander_index < at_glance_index < boundaries_index < decision_guide_index < blocked_detail_index
     assert blocked_detail_index < excluded_detail_index < full_table_index
+    assert "render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded), show_commands=False)" in source
     assert "Plain-English valuation states before rankings or deeper valuation tables." in source
+    assert "After fundamentals change, refresh valuation readiness before reading Value / Re-rating again." in source
+    assert "After fundamentals change, run make dcf-readiness" not in source
     assert "detailed output columns" not in source
     assert 'st.expander("More valuation context, boundaries, and method", expanded=False)' in source
     assert 'st.expander("Valuation method, boundaries, and decision guide"' not in source
