@@ -9791,7 +9791,7 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "excluded etf/index dcf" in summary_rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=apld" in rendered
-    assert "make stock-report-md ticker=nvda" in summary_rendered
+    assert "make stock-report-md ticker=nvda" not in summary_rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

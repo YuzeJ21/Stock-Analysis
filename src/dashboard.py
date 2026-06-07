@@ -5400,7 +5400,7 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
                 "The report separates ready analysis, locked inputs, excluded ETF/index DCF, and the next copy-only local step."
             ),
             "badges": ["plain English", "readiness first", "copy-only"],
-            "command": "make stock-report-md TICKER=NVDA",
+            "command": "",
         }
     ]
 
