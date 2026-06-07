@@ -575,6 +575,12 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "make stock-report-md TICKER=NVDA\\nmake dashboard" in source
     assert "make stock-report TICKER=NVDA\\nmake dashboard-smoke" not in source
     assert "diagnostics" not in source.lower()
+    assert 'st.expander("Active queue detail: grouped review steps", expanded=False)' in source
+    assert 'st.expander("Active queue detail: grouped guided steps", expanded=False)' not in source
+    assert "Grouped review guide. Review commands and unlock commands are copy-only" in source
+    assert "Grouped workflow guide." not in source
+    assert "No review route detail" in source
+    assert "No workflow detail" not in source
 
 
 def test_data_health_bundle_detail_copy_uses_public_product_language():

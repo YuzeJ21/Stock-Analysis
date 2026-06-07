@@ -11154,8 +11154,8 @@ def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> li
         return [
             {
                 "kicker": "QUEUE DETAILS",
-                "title": "No workflow detail",
-                "body": "Build the active evaluation guide before reading grouped next steps.",
+                "title": "No review route detail",
+                "body": "Build the active evaluation guide before reading grouped review steps.",
                 "badges": ["readiness first", "copy only"],
                 "command": "make pipeline",
             }
@@ -20073,10 +20073,10 @@ def render_market_command_center(
         )
         st.dataframe(clean_display_frame(active_evaluation_queue), width="stretch", hide_index=True)
         active_queue_detail = build_active_evaluation_lane_detail_frame(active_evaluation_queue)
-        with st.expander("Active queue detail: grouped guided steps", expanded=False):
+        with st.expander("Active queue detail: grouped review steps", expanded=False):
             render_signal_cards(active_evaluation_lane_detail_cards(active_queue_detail))
             st.caption(
-                "Grouped workflow guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual review workflows."
+                "Grouped review guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual review steps."
             )
             st.dataframe(clean_display_frame(active_queue_detail), width="stretch", hide_index=True)
     render_section_header(
