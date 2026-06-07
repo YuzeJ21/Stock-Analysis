@@ -647,10 +647,14 @@ def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths(
 def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    coverage_expander_index = source.index('st.expander("Coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
+    workflow_expander_index = source.index('st.expander("How evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("Evaluation Workflow"')
+    next_step_index = source.index('render_section_header("What To Do Next"')
 
-    assert coverage_index < workflow_index
+    assert next_step_index < coverage_expander_index < coverage_index
+    assert coverage_index < workflow_expander_index < workflow_index
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary))" in source
 
 
@@ -717,17 +721,27 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
 def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    workflow_index = source.index('render_section_header("Evaluation Workflow"')
     next_step_index = source.index('render_section_header("What To Do Next"')
-    examples_index = source.index('render_section_header("Example Reports"')
     where_to_go_index = source.index('render_section_header("Where To Go"')
+    coverage_expander_index = source.index('st.expander("Coverage details", expanded=False)')
+    workflow_index = source.index('render_section_header("Evaluation Workflow"')
+    price_refresh_expander_index = source.index('st.expander("Advanced price refresh workflow", expanded=False)')
+    price_refresh_index = source.index('render_section_header("Scalable Price Refresh"')
+    examples_expander_index = source.index('st.expander("Example reports", expanded=False)')
+    examples_index = source.index('render_section_header("Example Reports"')
     learn_more_index = source.index('st.expander("Learn more: methodology, roadmap, and logic source"')
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
     commands_index = source.index('st.expander("Copyable commands"')
 
-    assert workflow_index < next_step_index
-    assert next_step_index < examples_index < where_to_go_index < learn_more_index < commands_index
+    assert next_step_index < where_to_go_index < coverage_expander_index < workflow_index
+    assert workflow_index < price_refresh_expander_index < price_refresh_index
+    assert price_refresh_index < examples_expander_index < examples_index
+    assert examples_index < learn_more_index < commands_index
     assert learn_more_index < methodology_index
+    assert 'st.expander("Coverage details", expanded=False)' in source
+    assert 'st.expander("How evaluation works", expanded=False)' in source
+    assert 'st.expander("Advanced price refresh workflow", expanded=False)' in source
+    assert 'st.expander("Example reports", expanded=False)' in source
     assert 'st.expander("Learn more: methodology, roadmap, and logic source", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards())" in source
@@ -901,8 +915,8 @@ def test_section_header_html_uses_shell_and_escapes_content():
     html = dashboard.section_header_html("<Monthly Picks>", "Use <local> research coverage.")
 
     assert "section-shell" in html
-    assert "section-kicker" in html
-    assert "Workflow Page" in html
+    assert "section-kicker" not in html
+    assert "Workflow Page" not in html
     assert "Research View" not in html
     assert "&lt;Monthly Picks&gt;" in html
     assert "&lt;local&gt;" in html
