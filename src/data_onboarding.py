@@ -2873,19 +2873,55 @@ def _print_wizard(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print(f"Wizard rows: {len(payload['data_coverage_wizard'])}")
 
 
+def _plain_action_text(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "-"
+    text = re.sub(r"\bRun make\b", "Use make", text)
+    text = re.sub(r"\brun make\b", "use make", text)
+    return text
+
+
+def _ready_label(value: object, *, ready: str = "ready", missing: str = "not ready") -> str:
+    return ready if bool(value) else missing
+
+
+def _display_path(path: Path, *, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _format_read_only_path_context(root: Path, data_path: Path, output_path: Path) -> str:
+    return "\n".join(
+        [
+            "Local folders:",
+            "- project: current repository root",
+            f"- data: {_display_path(data_path, root=root)}",
+            f"- outputs: {_display_path(output_path, root=root)}",
+        ]
+    )
+
+
 def _print_price_worklist(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Price import worklist:")
+    print(
+        "Use this when a ticker is blocked by missing local price history. "
+        "Commands are suggestions to copy into your terminal; this view does not refresh data."
+    )
     for row in _limited_rows(payload["price_import_worklist"], top_n=top_n, default=30):
         print(
-            f"- P{row['priority']} {row['ticker']}: {row['price_history_days']} rows, "
-            f"momentum_ready={row['momentum_ready']} track_record_ready={row['track_record_ready']} "
-            f"preferred_history_ready={row['preferred_history_ready']} "
-            f"goal={row['next_price_goal']} target_rows={row['next_target_history_rows']} "
-            f"rows_needed={row['rows_needed_for_next_goal']} start={row.get('suggested_start_date') or '-'}"
+            f"- P{row['priority']} {row['ticker']}: {row['price_history_days']} local price row(s); "
+            f"momentum {_ready_label(row['momentum_ready'])}; "
+            f"track record {_ready_label(row['track_record_ready'])}; "
+            f"preferred history {_ready_label(row['preferred_history_ready'])}; "
+            f"goal={row['next_price_goal']}; target rows={row['next_target_history_rows']}; "
+            f"rows needed={row['rows_needed_for_next_goal']}; start={row.get('suggested_start_date') or '-'}"
         )
-        print(f"  next: {row['recommended_action']}")
-        print(f"  focus: {row.get('focus_command') or '-'}")
-        print(f"  command: {row['example_command']}")
+        print(f"  guidance: {_plain_action_text(row['recommended_action'])}")
+        print(f"  suggested check: {row.get('focus_command') or '-'}")
+        print(f"  next local command: {row['example_command']}")
         _print_command_safety(row)
     print(f"Price worklist rows: {len(payload['price_import_worklist'])}")
 
@@ -2922,19 +2958,21 @@ def _print_optional_context_worklist(payload: dict[str, Any], *, top_n: int | No
         "missing rows should stay locked rather than inferred from price, DCF, peer, or sector data."
     )
     print(
-        "Copy path: make templates -> make import-earnings or make import-analyst-estimates -> "
+        "Unlock path: make templates -> make import-earnings or make import-analyst-estimates -> "
         "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness."
     )
     print(
-        "Staged folders: data/staged/earnings/ and data/staged/analyst_estimates/. "
+        "Local folders to use: data/staged/earnings/ and data/staged/analyst_estimates/. "
         "Rejected rows: data/earnings_import_rejected.csv and data/analyst_estimates_import_rejected.csv."
     )
     for row in _limited_rows(rows, top_n=top_n, default=30):
         print(
-            f"- P{row['priority']} {row['ticker']}: earnings={row['has_earnings']} "
-            f"estimates={row['has_analyst_estimates']} missing={row['missing_optional_context'] or '-'}"
+            f"- P{row['priority']} {row['ticker']}: "
+            f"earnings {_ready_label(row['has_earnings'], missing='locked')}; "
+            f"analyst estimates {_ready_label(row['has_analyst_estimates'], missing='locked')}; "
+            f"missing={row['missing_optional_context'] or '-'}"
         )
-        print(f"  next: {row['recommended_action']}")
+        print(f"  guidance: {_plain_action_text(row['recommended_action'])}")
     print(f"Optional context worklist rows: {len(rows)}")
 
 
@@ -3288,7 +3326,10 @@ def main() -> None:
             print(json.dumps(payload, indent=2))
         return
 
-    print(format_path_context(root, data_path, output_path))
+    if args.write_output:
+        print(format_path_context(root, data_path, output_path))
+    else:
+        print(_format_read_only_path_context(root, data_path, output_path))
     if args.command_bundle_runbook and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles and not args.command_bundle_details:
         _print_command_bundle_runbook(payload, top_n=args.top_n)
     elif args.command_bundle_details and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles:

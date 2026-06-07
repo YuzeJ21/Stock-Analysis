@@ -711,12 +711,22 @@ def test_data_onboarding_cli_price_worklist_text_surfaces_goal_and_command(tmp_p
         sys.argv = previous_argv
 
     assert "price import worklist" in output
+    assert "commands are suggestions to copy into your terminal" in output
+    assert "local folders:" in output
+    assert "project: current repository root" in output
+    assert "data: data" in output
+    assert "outputs: outputs" in output
     assert "goal=unlock monthly picks" in output
-    assert "target_rows=21" in output
-    assert "rows_needed=" in output
-    assert "focus: make focus-price ticker=amd" in output
-    assert "command:" in output
+    assert "target rows=21" in output
+    assert "rows needed=" in output
+    assert "momentum not ready" in output
+    assert "guidance: use make focus-price ticker=amd" in output
+    assert "suggested check: make focus-price ticker=amd" in output
+    assert "next local command:" in output
     assert "make price-normalize" in output
+    assert "\n  focus:" not in output
+    assert "\n  command:" not in output
+    assert str(tmp_path).lower() not in output
 
 
 def test_data_onboarding_cli_price_worklist_text_respects_top_n(tmp_path: Path, capsys):
@@ -730,7 +740,7 @@ def test_data_onboarding_cli_price_worklist_text_respects_top_n(tmp_path: Path, 
         sys.argv = previous_argv
 
     assert "price import worklist" in output
-    assert output.count("- p") == 1
+    assert output.count("\n- p1 ") == 1
     assert "amd" in output
     assert "nvda" not in output
 
@@ -819,12 +829,21 @@ def test_data_onboarding_cli_optional_context_worklist_text_surfaces_unlock_summ
     assert "missing both optional context lanes" in output
     assert "optional context adds timing, consensus, and revision context only" in output
     assert "missing rows should stay locked rather than inferred from price, dcf, peer, or sector data" in output
-    assert "make templates -> make import-earnings or make import-analyst-estimates" in output
+    assert "local folders:" in output
+    assert "project: current repository root" in output
+    assert "data: data" in output
+    assert "outputs: outputs" in output
+    assert "unlock path: make templates -> make import-earnings or make import-analyst-estimates" in output
     assert "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness" in output
     assert "data/staged/earnings/" in output
     assert "data/staged/analyst_estimates/" in output
     assert "data/earnings_import_rejected.csv" in output
     assert "data/analyst_estimates_import_rejected.csv" in output
+    assert "earnings locked" in output
+    assert "analyst estimates locked" in output
+    assert "guidance: use make templates" in output
+    assert "next:" not in output
+    assert str(tmp_path).lower() not in output
 
 
 def test_data_onboarding_cli_sec_stage_queue_json(tmp_path: Path, capsys):
