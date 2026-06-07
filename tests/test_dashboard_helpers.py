@@ -11574,7 +11574,7 @@ def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
         "Data Coverage Unlock Guide",
         "Data Quality Unlock Guide",
         "Data Quality Unlock Guide rows",
-        "Coverage unlock guide has not been generated",
+        "Coverage unlock guide not ready yet",
         "Coverage Guide Rows",
         "Top Data Actions",
         "Peer Review Queue",
@@ -11583,6 +11583,12 @@ def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
 
     for old_label in (
         '"data_coverage_wizard.csv": "Data Coverage Wizard"',
+        "Feature readiness summary has not been generated",
+        "Peer unlock worklist has not been generated",
+        "Peer readiness report has not been generated",
+        "Research decisions have not been generated",
+        "Coverage unlock guide has not been generated",
+        "Data source status is not generated yet",
         '"data_quality_wizard.csv": "Data Quality Wizard"',
         "Data Coverage Wizard Rows",
         "Data Coverage Unlock Guide Rows",
