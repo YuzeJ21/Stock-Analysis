@@ -3127,9 +3127,9 @@ def test_top_priority_signals_use_command_family_fallbacks_when_row_copy_is_miss
     assert "make imports-preview" in signals[0]["body"].lower()
     assert "make imports-apply" in signals[0]["body"].lower()
     assert signals[1]["title"] == "make bundle-peers"
-    assert "highest-leverage local bundle first" in signals[1]["body"].lower()
+    assert "highest-leverage guided data batch first" in signals[1]["body"].lower()
     assert signals[2]["title"] == "make runbook-peers"
-    assert "ordered lane runbook" in signals[2]["body"].lower()
+    assert "guided data batch" in signals[2]["body"].lower()
     assert "not available" not in " ".join(signal["body"] for signal in signals).lower()
 
 
@@ -3405,9 +3405,9 @@ def test_project_status_action_cards_use_command_family_fallbacks_when_row_copy_
     assert "make imports-preview" in actions[0][1].lower()
     assert "make imports-apply" in actions[0][1].lower()
     assert actions[1][2] == "make bundle-peers"
-    assert "highest-leverage local bundle first" in actions[1][1].lower()
+    assert "highest-leverage guided data batch first" in actions[1][1].lower()
     assert actions[2][2] == "make runbook-peers"
-    assert "ordered lane runbook" in actions[2][1].lower()
+    assert "guided data batch" in actions[2][1].lower()
     assert "not available" not in " ".join(action[1] for action in actions).lower()
 
 
@@ -3646,7 +3646,7 @@ def test_holdings_unlock_cards_use_runbook_fallback_when_action_is_missing():
 
     assert cards[0]["kicker"] == "AMD"
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -3884,7 +3884,7 @@ def test_holdings_deep_research_cards_use_runbook_fallback_when_action_is_missin
 
     assert cards[0]["kicker"] == "AMD"
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -3926,7 +3926,7 @@ def test_holdings_deep_research_cards_use_peer_runbook_fallback_when_action_is_m
 
     assert cards[0]["kicker"] == "TSLA"
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -4396,7 +4396,7 @@ def test_theme_deep_research_cards_use_runbook_fallback_when_action_is_missing()
 
     assert cards[0]["kicker"] == "Semis"
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -4438,7 +4438,7 @@ def test_theme_deep_research_cards_use_peer_runbook_fallback_when_action_is_miss
 
     assert cards[0]["kicker"] == "Semiconductor ETF"
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -4793,7 +4793,7 @@ def test_overview_deep_research_leverage_cards_use_peer_runbook_fallback_when_ac
     peer_card = next(card for card in cards if card["kicker"] == "PEER LEVERAGE")
 
     assert peer_card["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in peer_card["body"].lower()
+    assert "guided data batch" in peer_card["body"].lower()
     assert "not available" not in peer_card["body"].lower()
 
 
@@ -4996,8 +4996,8 @@ def test_overview_deep_research_priority_bridge_cards_use_runbook_fallback_when_
 
     assert cards[0]["kicker"] == "AMD"
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
-    assert "ordered lane runbook" in cards[0]["command_reason"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["command_reason"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -5040,8 +5040,8 @@ def test_overview_deep_research_priority_bridge_cards_use_peer_runbook_fallback_
 
     assert cards[0]["kicker"] == "TSLA"
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
-    assert "ordered lane runbook" in cards[0]["command_reason"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["command_reason"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -5943,7 +5943,7 @@ def test_overview_current_top_surfaces_cards_use_runbook_fallback_when_no_ready_
     assert cards[1]["command"] == "make runbook-peers"
     assert cards[2]["title"] == "make runbook-peers"
     assert cards[3]["title"] == "Data Health"
-    assert "ordered lane runbook" in rendered
+    assert "guided data batch" in rendered
     assert "local import draft workflow" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -6227,8 +6227,8 @@ def test_overview_next_command_cards_use_bundle_and_import_fallbacks_when_reason
     assert "make imports-preview" in cards[0]["body"].lower()
     assert "make imports-apply" in cards[0]["body"].lower()
     assert cards[1]["title"] == "make bundle-prices"
-    assert "bundle first" in [badge.lower() for badge in cards[1]["badges"]]
-    assert "highest-leverage local bundle first" in cards[1]["body"].lower()
+    assert "guided batch" in [badge.lower() for badge in cards[1]["badges"]]
+    assert "highest-leverage guided data batch first" in cards[1]["body"].lower()
     assert "not available" not in cards[1]["body"].lower()
 
 
@@ -6273,8 +6273,8 @@ def test_overview_next_command_cards_use_runbook_fallback_when_reason_is_missing
     cards = dashboard.overview_next_command_cards(payload, None, limit=1)
 
     assert cards[0]["title"] == "make runbook-peers-broader"
-    assert "runbook" in [badge.lower() for badge in cards[0]["badges"]]
-    assert "use the ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided batch" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "use the guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -6361,8 +6361,8 @@ def test_overview_workflow_path_cards_use_runbook_fallback_when_action_queue_dri
     cards = dashboard.overview_workflow_path_cards(None, queue)
 
     assert cards[0]["title"] == "make runbook-peers"
-    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided batch" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -6406,8 +6406,8 @@ def test_overview_workflow_path_cards_use_imports_and_bundle_fallbacks_when_acti
     assert "make imports-preview" in imports_cards[0]["body"].lower()
     assert "make imports-apply" in imports_cards[0]["body"].lower()
     assert bundle_cards[0]["title"] == "make bundle-peers"
-    assert "bundle first" in [badge.lower() for badge in bundle_cards[0]["badges"]]
-    assert "highest-leverage local bundle first" in bundle_cards[0]["body"].lower()
+    assert "guided batch" in [badge.lower() for badge in bundle_cards[0]["badges"]]
+    assert "highest-leverage guided data batch first" in bundle_cards[0]["body"].lower()
     assert "not available" not in " ".join(str(value) for card in imports_cards + bundle_cards for value in card.values()).lower()
 
 
@@ -6585,8 +6585,8 @@ def test_overview_workflow_path_cards_use_bundle_fallback_when_reason_is_missing
     cards = dashboard.overview_workflow_path_cards(payload, None)
 
     assert cards[0]["title"] == "make bundle-prices"
-    assert "bundle first" in [badge.lower() for badge in cards[0]["badges"]]
-    assert "highest-leverage local bundle first" in cards[0]["body"].lower()
+    assert "guided batch" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "highest-leverage guided data batch first" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -6604,8 +6604,8 @@ def test_overview_workflow_path_cards_use_runbook_fallback_when_reason_is_missin
     cards = dashboard.overview_workflow_path_cards(payload, None)
 
     assert cards[0]["title"] == "make runbook-peers"
-    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided batch" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -6731,7 +6731,7 @@ def test_overview_workflow_reason_card_uses_imports_and_bundle_fallbacks_when_qu
     assert "make imports-preview" in " ".join(str(value) for value in imports_card.values()).lower()
     assert "make imports-apply" in " ".join(str(value) for value in imports_card.values()).lower()
     assert bundle_card["title"] == "make bundle-peers"
-    assert "highest-leverage local bundle first" in " ".join(str(value) for value in bundle_card.values()).lower()
+    assert "highest-leverage guided data batch first" in " ".join(str(value) for value in bundle_card.values()).lower()
     assert "not available" not in " ".join(str(value) for value in imports_card.values()).lower()
     assert "not available" not in " ".join(str(value) for value in bundle_card.values()).lower()
 
@@ -6758,7 +6758,7 @@ def test_overview_workflow_reason_card_uses_runbook_fallback_when_queue_copy_is_
 
     assert card["title"] == "make runbook-peers"
     assert "tsla" in rendered
-    assert "ordered lane runbook" in rendered
+    assert "guided data batch" in rendered
     assert "not available" not in rendered
 
 
@@ -6802,8 +6802,8 @@ def test_overview_workflow_reason_card_uses_bundle_fallback_when_structured_summ
     rendered = " ".join(str(value) for value in card.values()).lower()
 
     assert card["title"] == "make bundle-prices"
-    assert "bundle first" in [badge.lower() for badge in card["badges"]]
-    assert "highest-leverage local bundle first" in rendered
+    assert "guided batch" in [badge.lower() for badge in card["badges"]]
+    assert "highest-leverage guided data batch first" in rendered
     assert "not available" not in rendered
 
 
@@ -6973,7 +6973,7 @@ def test_overview_best_local_research_path_cards_use_runbook_fallback_when_no_re
     assert cards[0]["command"] == "make runbook-peers"
     assert cards[1]["title"] == "make runbook-peers"
     assert cards[2]["title"] == "Data Health"
-    assert "ordered lane runbook" in rendered
+    assert "guided data batch" in rendered
     assert "local import draft workflow" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -9911,9 +9911,9 @@ def test_data_health_fix_first_cards_use_staged_flow_fallback_when_row_copy_is_m
     assert "make imports-preview" in cards[0][1].lower()
     assert "make imports-apply" in cards[0][1].lower()
     assert cards[1][2] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[1][1].lower()
+    assert "guided data batch" in cards[1][1].lower()
     assert cards[2][2] == "make bundle-peers"
-    assert "highest-leverage local bundle first" in cards[2][1].lower()
+    assert "highest-leverage guided data batch first" in cards[2][1].lower()
     assert "not available" not in cards[0][1].lower()
     assert "not available" not in " ".join(card[1] for card in cards).lower()
 
@@ -10162,7 +10162,7 @@ def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_cop
     assert cards[0]["title"] == "make imports-validate"
     assert "make imports-preview" in cards[0]["body"].lower()
     assert "make imports-apply" in cards[0]["body"].lower()
-    assert any("ordered lane runbook" in str(card.get("body", "")).lower() for card in cards[1:])
+    assert any("guided data batch" in str(card.get("body", "")).lower() for card in cards[1:])
     assert any(card.get("command") == "make runbook-peers" for card in cards[1:])
     assert "not available" not in " ".join(str(value) for card in cards for value in card.values()).lower()
 
@@ -10306,7 +10306,7 @@ def test_data_health_command_bundle_cards_use_review_fallback_when_summaries_are
     cards = dashboard.data_health_command_bundle_cards(bundles)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
@@ -10414,7 +10414,7 @@ def test_data_health_onboarding_fallback_cards_use_status_refresh():
     assert bundle_cards[0]["command"] == "make onboarding"
     assert bundle_cards[0]["title"] == "No guided data batches yet"
     assert runbook_cards[0]["command"] == "make onboarding"
-    assert runbook_cards[0]["title"] == "No bundle runbook yet"
+    assert runbook_cards[0]["title"] == "No guided data batch plan yet"
     assert target_cards[0]["command"] == "make onboarding"
     assert target_cards[0]["title"] == "No price-history targets yet"
     assert "run make onboarding to refresh the onboarding outputs" in rendered
@@ -10704,7 +10704,7 @@ def test_data_health_command_bundle_runbook_cards_use_staged_command_when_steps_
     assert cards[0]["command"] == "make imports-validate"
     assert "review import draft: make imports-validate" in cards[0]["body"].lower()
     assert "make imports-preview" in cards[0]["body"].lower()
-    assert "no runbook steps available" not in cards[0]["body"].lower()
+    assert "no guided steps available" not in cards[0]["body"].lower()
 
 
 def test_data_health_command_bundle_runbook_cards_use_price_staged_command_when_steps_are_blank():
@@ -10731,7 +10731,7 @@ def test_data_health_command_bundle_runbook_cards_use_price_staged_command_when_
     assert "review import draft: make price-validate" in cards[0]["body"].lower()
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
-    assert "no runbook steps available" not in cards[0]["body"].lower()
+    assert "no guided steps available" not in cards[0]["body"].lower()
 
 
 def test_data_health_command_bundle_runbook_cards_use_why_it_matters_when_goal_summary_is_missing():
@@ -10777,7 +10777,7 @@ def test_data_health_command_bundle_runbook_cards_use_runbook_fallback_when_summ
     cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -11024,7 +11024,7 @@ def test_data_health_deep_research_target_cards_use_runbook_fallback_when_action
     cards = dashboard.data_health_deep_research_target_cards(sec_queue, pd.DataFrame())
 
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -11070,7 +11070,7 @@ def test_data_health_deep_research_target_cards_use_peer_runbook_fallback_when_a
     cards = dashboard.data_health_deep_research_target_cards(pd.DataFrame(), peer_queue)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -11323,7 +11323,7 @@ def test_overview_deep_research_target_cards_use_runbook_fallback_when_action_is
     cards = dashboard.overview_deep_research_target_cards(sec_queue, pd.DataFrame())
 
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -11369,7 +11369,7 @@ def test_overview_deep_research_target_cards_use_peer_runbook_fallback_when_acti
     cards = dashboard.overview_deep_research_target_cards(pd.DataFrame(), peer_queue)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -11445,7 +11445,7 @@ def test_overview_bundle_empty_states_use_operator_facing_titles():
 
     assert bundle_cards[0]["title"] == "No guided data batches yet"
     assert handoff_cards[0]["title"] == "No bundle guidance yet"
-    assert runbook_cards[0]["title"] == "No bundle runbook yet"
+    assert runbook_cards[0]["title"] == "No guided data batch plan yet"
     assert bundle_cards[0]["command"] == "make onboarding"
     assert handoff_cards[0]["command"] == "make onboarding"
     assert runbook_cards[0]["command"] == "make onboarding"
@@ -11628,7 +11628,7 @@ def test_data_coverage_wizard_cards_use_runbook_fallback_when_row_copy_is_missin
 
     assert peer_card["title"] == "1 blocker"
     assert peer_card["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in peer_card["body"].lower()
+    assert "guided data batch" in peer_card["body"].lower()
     assert "not available" not in peer_card["body"].lower()
 
 
@@ -17132,7 +17132,7 @@ def test_overview_command_bundle_cards_use_review_fallback_when_summaries_are_mi
     cards = dashboard.overview_command_bundle_cards(bundles)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in cards[0]["body"].lower()
+    assert "guided data batch" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -17335,9 +17335,9 @@ def test_bundle_runbook_cards_use_first_usable_step_command_for_fallback_copy():
     overview_cards = dashboard.overview_bundle_runbook_cards(runbook)
 
     assert data_health_cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in data_health_cards[0]["body"].lower()
+    assert "guided data batch" in data_health_cards[0]["body"].lower()
     assert overview_cards[0]["command"] == "make runbook-peers"
-    assert "ordered lane runbook" in overview_cards[0]["body"].lower()
+    assert "guided data batch" in overview_cards[0]["body"].lower()
     assert "not available" not in " ".join(str(value) for card in data_health_cards + overview_cards for value in card.values()).lower()
 
 
