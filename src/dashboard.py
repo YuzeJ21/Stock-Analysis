@@ -2988,6 +2988,13 @@ def sec_fundamentals_setup_label(sec_configured: bool) -> str:
     return "SEC fundamentals setup: ready" if sec_configured else "SEC fundamentals setup: not configured"
 
 
+def optional_context_readiness_caption(dataset_label: str) -> str:
+    return (
+        f"After trusted {dataset_label} rows are imported, run make optional-context-readiness "
+        "to refresh this proof."
+    )
+
+
 def stock_report_optional_context_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
@@ -20739,7 +20746,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     st.dataframe(clean_display_frame(earnings_readiness_frame[columns]), width="stretch", hide_index=True)
                 else:
                     st.info("Not available: missing trusted local CSV input")
-                    st.caption(earnings_readiness_message or "Run make optional-context-readiness to generate data/earnings_readiness.csv.")
+                    st.caption(earnings_readiness_message or optional_context_readiness_caption("earnings"))
             with optional_cols[1]:
                 st.markdown("#### Analyst Estimate Readiness")
                 if analyst_readiness_frame is not None and not analyst_readiness_frame.empty:
@@ -20756,7 +20763,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     st.dataframe(clean_display_frame(analyst_readiness_frame[columns]), width="stretch", hide_index=True)
                 else:
                     st.info("Not available: missing trusted local CSV input")
-                    st.caption(analyst_readiness_message or "Run make optional-context-readiness to generate data/analyst_estimates_readiness.csv.")
+                    st.caption(analyst_readiness_message or optional_context_readiness_caption("analyst-estimate"))
             if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
                 sec_summary = summarize_sec_stage_queue(sec_stage_queue_frame)
                 metric_cols = st.columns(4)
