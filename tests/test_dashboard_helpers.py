@@ -15282,13 +15282,16 @@ def test_final_watchlist_tables_are_collapsed_after_decision_cards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     quality_index = source.index('render_section_header("Decision Quality"')
+    more_detail_index = source.index('st.expander("More decision detail: workflow, proof queue, and table guide"')
+    research_decisions_index = source.index('render_section_header("Research Decisions"', more_detail_index)
     proof_cards_index = source.index('render_signal_cards(decision_proof_queue_cards(proof_queue))')
     proof_detail_index = source.index('st.expander("Decision proof queue detail"')
     table_guide_index = source.index('render_signal_cards(final_decision_table_guide_cards(decisions))')
     decision_table_index = source.index('st.expander("Research decision table"')
     full_state_index = source.index('st.expander("Full research-state table"')
 
-    assert quality_index < proof_cards_index < proof_detail_index < table_guide_index < decision_table_index < full_state_index
+    assert quality_index < more_detail_index < research_decisions_index < proof_cards_index < proof_detail_index < table_guide_index < decision_table_index < full_state_index
+    assert 'st.expander("More decision detail: workflow, proof queue, and table guide", expanded=False)' in source
     assert 'st.expander("Decision proof queue detail", expanded=False)' in source
     assert 'st.expander("Research decision table", expanded=False)' in source
     assert 'st.expander("Full research-state table", expanded=False)' in source

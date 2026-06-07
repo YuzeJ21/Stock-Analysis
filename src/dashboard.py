@@ -18014,21 +18014,22 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
         with st.expander("Decision interpretation ladder", expanded=False):
             st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
         render_signal_cards(final_decision_quality_cards(decisions))
-        render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock lanes.")
-        render_signal_cards(decision_workflow_summary_cards(decisions))
-        bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
-        render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
-        proof_queue = decision_proof_queue_frame(decisions, limit=12)
-        render_section_header("Decision Proof Queue", "Plain-English translation of what can be reviewed now, what stays locked, and what proves an unlock.")
-        render_signal_cards(decision_proof_queue_cards(proof_queue))
-        if not proof_queue.empty:
-            with st.expander("Decision proof queue detail", expanded=False):
-                st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
-        render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
-        render_signal_cards(final_decision_table_guide_cards(decisions))
-        decision_columns = final_decision_default_columns(decisions)
-        with st.expander("Research decision table", expanded=False):
-            st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
+        with st.expander("More decision detail: workflow, proof queue, and table guide", expanded=False):
+            render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock lanes.")
+            render_signal_cards(decision_workflow_summary_cards(decisions))
+            bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
+            render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
+            proof_queue = decision_proof_queue_frame(decisions, limit=12)
+            render_section_header("Decision Proof Queue", "Plain-English translation of what can be reviewed now, what stays locked, and what proves an unlock.")
+            render_signal_cards(decision_proof_queue_cards(proof_queue))
+            if not proof_queue.empty:
+                with st.expander("Decision proof queue detail", expanded=False):
+                    st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
+            render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
+            render_signal_cards(final_decision_table_guide_cards(decisions))
+            decision_columns = final_decision_default_columns(decisions)
+            with st.expander("Research decision table", expanded=False):
+                st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
             "Research decisions are not available yet",
