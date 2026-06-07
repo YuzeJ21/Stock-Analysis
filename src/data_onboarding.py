@@ -2847,15 +2847,17 @@ def _print_coverage(payload: dict[str, Any], *, top_n: int | None = None) -> Non
     print("Ticker coverage:")
     for row in _limited_rows(payload["ticker_coverage"], top_n=top_n):
         print(
-            f"- {row['ticker']}: prices={row['has_prices']} days={row['price_history_days']} "
-            f"dcf_ready={row['dcf_ready']} peer_ready={row['peer_ready']} next={row['next_best_action']}"
+            f"- {row['ticker']}: prices {_ready_label(row['has_prices'], missing='missing')}; "
+            f"{row['price_history_days']} local price row(s); "
+            f"DCF {_ready_label(row['dcf_ready'])}; peer analysis {_ready_label(row['peer_ready'])}; "
+            f"guidance={_plain_action_text(row['next_best_action'])}"
         )
     print(f"Onboarding actions: {len(payload['onboarding_actions'])}")
     for row in _limited_rows(payload["onboarding_actions"], top_n=top_n, default=20):
         ticker = f" {row['ticker']}" if row["ticker"] else ""
-        print(f"- P{row['priority']} {row['dataset']}{ticker}: {row['recommended_action']}")
-        print(f"  focus: {row.get('focus_command') or '-'}")
-        print(f"  command: {row['example_command']}")
+        print(f"- P{row['priority']} {row['dataset']}{ticker}: {_plain_action_text(row['recommended_action'])}")
+        print(f"  suggested check: {row.get('focus_command') or '-'}")
+        print(f"  next local command: {row['example_command']}")
         _print_command_safety(row)
 
 
@@ -2865,10 +2867,10 @@ def _print_wizard(payload: dict[str, Any], *, top_n: int | None = None) -> None:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(
             f"- P{row['priority']} {row['unlock_goal']}{ticker}: "
-            f"{row['blocking_dataset']} - {row['recommended_action']}"
+            f"{row['blocking_dataset']} - {_plain_action_text(row['recommended_action'])}"
         )
-        print(f"  focus: {row.get('focus_command') or '-'}")
-        print(f"  command: {row['example_command']}")
+        print(f"  suggested check: {row.get('focus_command') or '-'}")
+        print(f"  next local command: {row['example_command']}")
         _print_command_safety(row)
     print(f"Wizard rows: {len(payload['data_coverage_wizard'])}")
 
@@ -2928,15 +2930,20 @@ def _print_price_worklist(payload: dict[str, Any], *, top_n: int | None = None) 
 
 def _print_fundamentals_peer_worklist(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Fundamentals and peer worklist:")
+    print(
+        "Use this when price-ready companies still need trusted fundamentals, DCF inputs, "
+        "or source-backed peer evidence."
+    )
     for row in _limited_rows(payload["fundamentals_peer_worklist"], top_n=top_n, default=30):
         print(
-            f"- P{row['priority']} {row['ticker']}: dcf_ready={row['dcf_ready']} "
-            f"peer_ready={row['peer_ready']} missing_dcf={row['missing_required_for_dcf'] or '-'} "
-            f"missing_peer={row['missing_required_for_peer_relative'] or '-'}"
+            f"- P{row['priority']} {row['ticker']}: "
+            f"DCF {_ready_label(row['dcf_ready'])}; peer analysis {_ready_label(row['peer_ready'])}; "
+            f"DCF missing={row['missing_required_for_dcf'] or '-'}; "
+            f"peer missing={row['missing_required_for_peer_relative'] or '-'}"
         )
-        print(f"  next: {row['recommended_action']}")
-        print(f"  focus: {row.get('focus_command') or '-'}")
-        print(f"  command: {row['example_command']}")
+        print(f"  guidance: {_plain_action_text(row['recommended_action'])}")
+        print(f"  suggested check: {row.get('focus_command') or '-'}")
+        print(f"  next local command: {row['example_command']}")
     print(f"Fundamentals/peer worklist rows: {len(payload['fundamentals_peer_worklist'])}")
 
 
@@ -2978,17 +2985,23 @@ def _print_optional_context_worklist(payload: dict[str, Any], *, top_n: int | No
 
 def _print_sec_stage_queue(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("SEC stage queue:")
+    print(
+        "Use this to find companies where price history exists but trusted fundamentals are still missing. "
+        "This view does not download or stage SEC data."
+    )
     for row in _limited_rows(payload["sec_stage_queue"], top_n=top_n, default=30):
         print(
-            f"- P{row['priority']} {row['ticker']}: holding={row['is_holding']} "
-            f"days={row['price_history_days']} has_fundamentals={row['has_fundamentals']} "
-            f"missing_dcf={row['missing_required_for_dcf'] or '-'}"
+            f"- P{row['priority']} {row['ticker']}: "
+            f"{'holding' if row['is_holding'] else 'not a holding'}; "
+            f"{row['price_history_days']} local price row(s); "
+            f"fundamentals {_ready_label(row['has_fundamentals'], missing='missing')}; "
+            f"DCF missing={row['missing_required_for_dcf'] or '-'}"
         )
-        print(f"  next: {row['recommended_action']}")
-        print(f"  focus: {row.get('focus_command') or '-'}")
-        print(f"  command: {row['example_command']}")
+        print(f"  guidance: {_plain_action_text(row['recommended_action'])}")
+        print(f"  suggested check: {row.get('focus_command') or '-'}")
+        print(f"  next local command: {row['example_command']}")
         _print_command_safety(row)
-        print(f"  target_file: {row['target_file']}")
+        print(f"  trusted input file: {row['target_file']}")
     print(f"SEC stage queue rows: {len(payload['sec_stage_queue'])}")
 
 
@@ -3012,7 +3025,7 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         f"P3={priority_counts.get(3, 0)}, P4={priority_counts.get(4, 0)}."
     )
     print(
-        "Work focus: "
+        "Queue focus: "
         f"{active_count} active-universe row(s), {dcf_ready_count} DCF-ready row(s), "
         f"{missing_mapping_count} missing source-backed mapping row(s), "
         f"{valuation_follow_through_count} mapped row(s) still waiting on peer valuation inputs."
@@ -3021,23 +3034,28 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         "Boundary: peer trend can be reviewed from mapped peer price history when ready; "
         "peer valuation needs source-backed mappings plus trusted peer fundamentals or market metrics."
     )
-    print("Copy path: use make focus-peers TICKER=... or fill data/imports/peers.csv, then validate, preview, apply, and rerun readiness.")
+    print(
+        "Unlock path: use make focus-peers TICKER=... or fill data/imports/peers.csv, "
+        "then validate, preview, apply, and rerun readiness."
+    )
     for row in _limited_rows(rows, top_n=top_n, default=30):
         print(
-            f"- P{row['priority']} {row['ticker']}: holding={row['is_holding']} "
-            f"dcf_ready={row['dcf_ready']} has_peer_mapping={row['has_peer_mapping']} "
-            f"group={row.get('workflow_group') or '-'} scope={row.get('workflow_scope') or '-'} "
-            f"missing_peer={row['missing_required_for_peer_relative'] or '-'}"
+            f"- P{row['priority']} {row['ticker']}: "
+            f"{'holding' if row['is_holding'] else 'not a holding'}; "
+            f"DCF {_ready_label(row['dcf_ready'])}; "
+            f"peer mapping {_ready_label(row['has_peer_mapping'], missing='missing')}; "
+            f"group={row.get('workflow_group') or '-'}; scope={row.get('workflow_scope') or '-'}; "
+            f"peer missing={row['missing_required_for_peer_relative'] or '-'}"
         )
         if row.get("next_action_summary"):
-            print(f"  action_summary: {row['next_action_summary']}")
+            print(f"  action summary: {row['next_action_summary']}")
         if row.get("validation_sequence"):
             print(f"  validation: {row['validation_sequence']}")
-        print(f"  next: {row['recommended_action']}")
-        print(f"  focus: {row.get('focus_command') or '-'}")
-        print(f"  command: {row['example_command']}")
+        print(f"  guidance: {_plain_action_text(row['recommended_action'])}")
+        print(f"  suggested check: {row.get('focus_command') or '-'}")
+        print(f"  next local command: {row['example_command']}")
         _print_command_safety(row)
-        print(f"  target_file: {row['target_file']}")
+        print(f"  trusted input file: {row['target_file']}")
     print(f"Peer mapping queue rows: {len(rows)}")
 
 
@@ -3049,9 +3067,9 @@ def _print_ticker_unlock_ladder(payload: dict[str, Any], *, top_n: int | None = 
             f"goal={row['next_unlock_goal']} price={row['price_stage_status']} "
             f"dcf={row['dcf_stage_status']} peer={row['peer_stage_status']} optional={row['optional_context_status']}"
         )
-        print(f"  next: {row['recommended_action']}")
-        print(f"  focus: {row.get('focus_command') or '-'}")
-        print(f"  command: {row.get('example_command') or '-'}")
+        print(f"  guidance: {_plain_action_text(row['recommended_action'])}")
+        print(f"  suggested check: {row.get('focus_command') or '-'}")
+        print(f"  next local command: {row.get('example_command') or '-'}")
         _print_command_safety(row)
     print(f"Ticker unlock ladder rows: {len(payload['ticker_unlock_ladder'])}")
 
@@ -3063,9 +3081,9 @@ def _print_unlock_priority_summary(payload: dict[str, Any], *, top_n: int | None
             f"- {row['group_type']} {row['group_name']}: top_stage={row['top_priority_stage']} "
             f"goal={row['next_unlock_goal']} tickers={row['ticker_count']} holdings={row['holdings_count']}"
         )
-        print(f"  next: {row['recommended_action']}")
-        print(f"  focus: {row.get('focus_command') or '-'}")
-        print(f"  command: {row.get('example_command') or '-'}")
+        print(f"  guidance: {_plain_action_text(row['recommended_action'])}")
+        print(f"  suggested check: {row.get('focus_command') or '-'}")
+        print(f"  next local command: {row.get('example_command') or '-'}")
         _print_command_safety(row)
     print(f"Unlock priority summary rows: {len(payload['unlock_priority_summary'])}")
 
@@ -3089,7 +3107,7 @@ def _print_command_bundles(payload: dict[str, Any], *, top_n: int | None = None)
             print(f"  detail: {row['detail_shortcut_command']}")
         if row.get("runbook_shortcut_command"):
             print(f"  runbook: {row['runbook_shortcut_command']}")
-        print(f"  command: {row['primary_command']}")
+        print(f"  first local command: {row['primary_command']}")
         print(f"  follow-up: {row['follow_up_command']}")
     print(f"Command bundle rows: {len(payload['command_bundles'])}")
 
@@ -3102,7 +3120,7 @@ def _print_command_bundle_details(payload: dict[str, Any], *, top_n: int | None 
             f"goal={row.get('target_goal') or '-'} rows_needed={row.get('rows_needed', 0)} "
             f"target_rows={row.get('target_history_rows', 0)} start={row.get('suggested_start_date') or '-'}"
         )
-        print(f"  next: {row['recommended_action']}")
+        print(f"  guidance: {_plain_action_text(row['recommended_action'])}")
         if row.get("exact_next_command"):
             print(f"  exact: {row['exact_next_command']}")
         if row.get("fallback_manual_command"):

@@ -893,10 +893,13 @@ def test_data_onboarding_cli_sec_stage_queue_text_surfaces_command_and_target_fi
         sys.argv = previous_argv
 
     assert "sec stage queue" in output
-    assert "focus: make focus-fundamentals ticker=amd" in output
-    assert "command:" in output
+    assert "this view does not download or stage sec data" in output
+    assert "suggested check: make focus-fundamentals ticker=amd" in output
+    assert "next local command:" in output
     assert "make sec-stage tickers=amd" in output
-    assert "target_file: data/imports/fundamentals.csv" in output
+    assert "trusted input file: data/imports/fundamentals.csv" in output
+    assert "\n  focus:" not in output
+    assert "\n  command:" not in output
 
 
 def test_sec_stage_queue_prioritizes_holdings_and_price_ready_names(tmp_path: Path):
@@ -980,20 +983,22 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
 
     assert "peer mapping queue" in output
     assert "summary:" in output
-    assert "work focus:" in output
+    assert "queue focus:" in output
     assert "active-universe row(s)" in output
     assert "dcf-ready row(s)" in output
     assert "mapped row(s) still waiting on peer valuation inputs" in output
     assert "peer trend can be reviewed from mapped peer price history when ready" in output
     assert "peer valuation needs source-backed mappings plus trusted peer fundamentals or market metrics" in output
-    assert "copy path: use make focus-peers ticker=..." in output
+    assert "unlock path: use make focus-peers ticker=..." in output
     assert "group=" in output
     assert "scope=" in output
     assert "validation:" in output
-    assert "focus: make focus-peers ticker=amd" in output
-    assert "command:" in output
+    assert "suggested check: make focus-peers ticker=amd" in output
+    assert "next local command:" in output
     assert "make sec-stage tickers=amd" in output
-    assert "target_file: data/imports/peers.csv" in output
+    assert "trusted input file: data/imports/peers.csv" in output
+    assert "\n  focus:" not in output
+    assert "\n  command:" not in output
 
 
 def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
@@ -1122,8 +1127,10 @@ def test_data_onboarding_cli_unlock_summary_text_surfaces_commands(tmp_path: Pat
         sys.argv = previous_argv
 
     assert "unlock priority summary" in output
-    assert "focus: make status" in output
-    assert "command: make runbook" in output
+    assert "suggested check: make status" in output
+    assert "next local command: make runbook" in output
+    assert "\n  focus:" not in output
+    assert "\n  command:" not in output
 
 
 def test_unlock_priority_summary_uses_status_first_ready_defaults(tmp_path: Path):
