@@ -22,7 +22,7 @@ Do not claim that the project uses no open-source software. A Python project nor
 
 Safe public wording:
 
-- "Original local research workflow and application code."
+- "Project-specific research review logic and application code."
 - "Built with the Python data ecosystem."
 - "CSV-first implementation with optional provider interfaces."
 - "Research-only; no broker integration or order execution."
