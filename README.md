@@ -54,7 +54,7 @@ Useful with limits: price/momentum, fundamentals/DCF, peer workflow, and final d
 
 ## Preview
 
-The dashboard is designed as a guided research workspace: `Home` shows readiness, blockers, methodology, examples, and next commands; focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+The dashboard is designed as a guided research workspace: `Home` shows readiness, blockers, and next commands first, with methodology and example reports kept in collapsed sections; focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 
 ## Quick Start
 
