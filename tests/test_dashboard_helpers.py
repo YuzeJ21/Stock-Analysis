@@ -10022,7 +10022,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "priority": 2,
                 "dataset": "fundamentals",
                 "ticker": "AMD",
-                "reason": "DCF inputs are still incomplete.",
+                "reason": "DCF inputs are still incomplete: free_cash_flow, fcf_margin, shares_outstanding.",
                 "recommended_action": "Run SEC import draft workflow for fundamentals, then validate and preview before applying.",
                 "focus_command": "make focus-fundamentals TICKER=AMD",
                 "example_command": "make sec-stage TICKERS=AMD",
@@ -10067,6 +10067,12 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
     assert "no verified local price history is present yet" in rendered
     assert "normalize verified downloaded ohlcv rows" in rendered
     assert "dcf inputs are still incomplete" in rendered
+    assert "free cash flow" in rendered
+    assert "fcf margin" in rendered
+    assert "shares outstanding" in rendered
+    assert "free_cash_flow" not in rendered
+    assert "fcf_margin" not in rendered
+    assert "shares_outstanding" not in rendered
     assert "make focus-fundamentals ticker=amd" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
