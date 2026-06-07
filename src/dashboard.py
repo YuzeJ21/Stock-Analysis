@@ -19586,7 +19586,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         render_signal_cards(single_stock_report_intro_cards())
 
     render_context_note(
-        "Preview action.",
+        "What this button does.",
         "Build Local Report Preview reads the selected source and stores the result in this page. It does not refresh prices, import files, or run external actions.",
     )
     if st.button("Build Local Report Preview", key="single-stock-report-button"):
