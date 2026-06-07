@@ -583,7 +583,7 @@ def _next_research_question(
             return "Which trusted fundamentals or DCF fields are needed to confirm whether the compounder thesis remains supported?"
         if family == "rerating":
             return "Which trusted fundamentals, DCF fields, or peer inputs are missing before a re-rating read is supportable?"
-        return "Which trusted fundamentals or DCF fields are missing, and can SEC import draft workflow or manual import fill them?"
+        return "Which trusted fundamentals or DCF fields are missing, and can SEC staging or manual import fill them?"
     if primary_blocker == "peers":
         return "Which source-backed peer mappings or peer metrics are needed before peer-relative analysis is shown?"
     if primary_blocker in {"earnings", "analyst_estimates", "optional_context"}:

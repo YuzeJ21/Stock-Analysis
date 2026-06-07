@@ -1239,7 +1239,7 @@ def command_safety_fields(example_command: object) -> dict[str, object]:
         "credential_present": credential_present,
         "manual_fallback_command": "make templates",
         "command_safety_note": (
-            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "SEC staging workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
             "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
@@ -2599,6 +2599,9 @@ def friendly_dashboard_card_copy(text: object) -> str:
         (r"\bLocal import draft rows\b", "Local import file rows"),
         (r"\blocal import draft rows\b", "local import file rows"),
         (r"\blocal import draft workflows\b", "local import files"),
+        (r"\bSEC import draft workflow\b", "SEC staging workflow"),
+        (r"\bSEC fundamentals import draft workflow\b", "SEC fundamentals staging workflow"),
+        (r"\bSEC Companyfacts import draft workflow\b", "SEC Companyfacts staging workflow"),
         (r"\bstaged local workflow\b", "local import file workflow"),
         (r"\bstaged flow\b", "import file flow"),
         (r"\blive fundamentals import drafts\b", "live local fundamentals"),
@@ -2626,7 +2629,7 @@ def review_path_fallback(dataset: object) -> str:
 
 
 GUIDED_BATCH_WORKFLOW_COPY = (
-    "Use the guided data batch as the local import draft workflow next so validation and preview safeguards stay in place."
+    "Use the guided data batch as the local import file workflow next so validation and preview safeguards stay in place."
 )
 GUIDED_BATCH_FIRST_COPY = (
     "Use the highest-leverage guided data batch first so price, fundamentals, or peer follow-through stays coordinated."
@@ -6119,7 +6122,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
             {
                 "kicker": "DATA BATCHES",
                 "title": "No guided data batches yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first guided data batches for prices, SEC import draft workflow, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first guided data batches for prices, SEC staging workflow, and peer mapping.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -6191,7 +6194,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             {
                 "kicker": "GUIDED STEPS",
                 "title": "No guided data batch plan yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC import draft workflow, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC staging workflow, and peer mapping.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -6287,7 +6290,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         {
             "kicker": "GUIDED STEPS",
             "title": "No guided data batch plan yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC import draft workflow, and peer mapping.",
+            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC staging workflow, and peer mapping.",
             "badges": ["read-only"],
             "command": "make onboarding",
         }
@@ -8660,9 +8663,9 @@ def fundamentals_dcf_diagnostic_cards(
         },
         {
             "kicker": "INPUT PATH",
-            "title": "SEC import draft workflow" if sec_configured else "Manual CSV fallback",
+            "title": "SEC staging workflow" if sec_configured else "Manual CSV fallback",
             "body": (
-                f"Use {sec_stage_command} for SEC fundamentals import draft when a trusted SEC_USER_AGENT is configured, "
+                f"Use {sec_stage_command} for SEC fundamentals staging when a trusted SEC_USER_AGENT is configured, "
                 f"or fill {fundamentals_input_path} with trusted rows. "
                 f"Schema guide: {fundamentals_schema_guide}. "
                 f"Always run {fundamentals_validation_sequence} before claiming readiness improved. "
@@ -9153,7 +9156,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
         {
             "Step": "2. Choose the trusted input path",
             "Why It Matters": (
-                f"SEC_USER_AGENT is configured, so SEC import draft workflow can prepare rows for review. Check {rejected_rows} after validation."
+                f"SEC_USER_AGENT is configured, so SEC staging workflow can prepare rows for review. Check {rejected_rows} after validation."
                 if sec_configured
                 else f"SEC_USER_AGENT is missing, so use trusted manual CSV rows instead of remote staging. Check {rejected_rows} after validation."
             ),
@@ -9740,7 +9743,7 @@ def decision_next_action_summary(row: pd.Series) -> str:
     if blocker in {"peer", "peers"} and (dcf_ready or not peer_ready or stale_peer_action):
         return peer_mapping_unlock_action(ticker)
     if blocker == "fundamentals":
-        return f"Import trusted fundamentals for {ticker}; use SEC import draft workflow when configured or data/imports/fundamentals.csv, then validate and preview."
+        return f"Import trusted fundamentals for {ticker}; use SEC staging workflow when configured or data/imports/fundamentals.csv, then validate and preview."
     if blocker == "price":
         return f"Refresh a capped price worklist before deeper analysis; start with make price-refresh-loop DRY_RUN=1, then review the planned batches."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
@@ -11941,7 +11944,7 @@ def next_action_console_output_to_check(category: str) -> str:
 def next_action_console_source_note(category: str) -> str:
     notes = {
         "Price Coverage Batch": "Uses local prices first, then dry-run-first capped Yahoo refresh loops or staged manual OHLCV CSVs with preview/apply safeguards.",
-        "Fundamentals / DCF Unlock": "Uses SEC Companyfacts import draft workflow when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
+        "Fundamentals / DCF Unlock": "Uses SEC Companyfacts staging workflow when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
         "Peer Mapping Unlock": "Uses source-backed manual peer mappings or clearly labeled fallback context; no peer relationship is inferred as trusted.",
         "Earnings Import Setup": "Manual trusted local CSV only; feature stays unavailable until rows validate.",
         "Analyst Estimates Import Setup": "Manual trusted local CSV only; consensus context stays unavailable until rows validate.",
@@ -12319,7 +12322,7 @@ def market_next_action_cards(
                 {
                     "kicker": "FUNDAMENTALS",
                     "title": f"{len(fundamentals_missing)} price-ready company ticker(s) need fundamentals",
-                    "body": "Use the SEC import draft workflow when SEC_USER_AGENT is configured, otherwise prepare trusted manual CSV rows for validation and preview.",
+                    "body": "Use the SEC staging workflow when SEC_USER_AGENT is configured, otherwise prepare trusted manual CSV rows for validation and preview.",
                     "badges": ["DCF unlock", "source-backed only"],
                     "command": "make sec-stage-queue TOP_N=25",
                 }
@@ -14288,7 +14291,7 @@ def workflow_command_rows() -> list[dict[str, str]]:
         {"Step": "Data coverage", "Command": "make data-wizard TOP_N=5"},
         {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},
         {"Step": "Price import safety", "Command": "make price-validate && make price-preview && make price-apply"},
-        {"Step": "SEC fundamentals import draft workflow", "Command": "make focus-fundamentals TICKER=NVDA"},
+        {"Step": "SEC fundamentals staging workflow", "Command": "make focus-fundamentals TICKER=NVDA"},
         {"Step": "Universe preview", "Command": "make universe-preview"},
     ]
 
@@ -14941,7 +14944,7 @@ def holdings_deep_research_cards(
             {
                 "kicker": "HOLDINGS DCF / PEERS",
                 "title": "No holdings deep-research board yet",
-                "body": "Add holdings rows, then run make onboarding to refresh onboarding outputs and see which portfolio names next benefit from SEC import draft workflow or manual peer research.",
+                "body": "Add holdings rows, then run make onboarding to refresh onboarding outputs and see which portfolio names next benefit from SEC staging workflow or manual peer research.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -16188,7 +16191,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
             {
                 "kicker": "DATA BUNDLE",
                 "title": "No guided data batches yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first guided data batches for prices, SEC import draft workflow, and peer mapping.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first guided data batches for prices, SEC staging workflow, and peer mapping.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -18493,9 +18496,9 @@ def render_overview(
                 action_queue_frame,
             )
         )
-        render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals import draft workflow or manual peer research once price blockers are understood.")
+        render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging workflow or manual peer research once price blockers are understood.")
         render_signal_cards(holdings_deep_research_cards(holdings, sec_stage_queue_frame, peer_mapping_queue_frame))
-        render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals import draft workflow or manual peer research once price-led blockers are already understood.")
+        render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals staging workflow or manual peer research once price-led blockers are already understood.")
         render_signal_cards(theme_deep_research_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
 
     with st.expander("More market and workflow context", expanded=False):
@@ -19109,7 +19112,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
             {
                 "Roadmap Area": "Fundamentals / DCF data unlock",
                 "Current Status": "Waiting on trusted data",
-                "Evidence": f"{_count_text(fundamentals_ready, 'fundamentals-ready')} and {_count_text(dcf_ready, 'DCF-ready')}; counts should improve only after SEC import draft workflow or trusted manual CSV imports.",
+                "Evidence": f"{_count_text(fundamentals_ready, 'fundamentals-ready')} and {_count_text(dcf_ready, 'DCF-ready')}; counts should improve only after SEC staging workflow or trusted manual CSV imports.",
                 "Next Safe Step": "Inspect the top fundamentals blocker, then stage SEC or trusted manual fundamentals rows.",
                 "Copy Command": "make sec-stage-queue TOP_N=25",
             },

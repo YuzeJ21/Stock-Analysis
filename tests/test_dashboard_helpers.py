@@ -4372,7 +4372,7 @@ def test_theme_unlock_cards_use_review_fallback_when_action_is_missing():
 
     assert cards[1]["kicker"] == "AI Semiconductors"
     assert cards[1]["command"] == "make runbook-peers-broader"
-    assert "local import draft workflow next" in cards[1]["body"].lower()
+    assert "local import file workflow next" in cards[1]["body"].lower()
     assert "not available" not in cards[1]["body"].lower()
 
 
@@ -4397,7 +4397,7 @@ def test_theme_unlock_cards_use_runbook_fallback_when_action_is_missing():
 
     assert cards[1]["kicker"] == "AI Semiconductors"
     assert cards[1]["command"] == "make runbook-peers"
-    assert "local import draft workflow next" in cards[1]["body"].lower()
+    assert "local import file workflow next" in cards[1]["body"].lower()
 
 
 def test_theme_unlock_cards_keep_staged_import_front_doors_when_target_files_are_present():
@@ -4989,7 +4989,7 @@ def test_overview_deep_research_leverage_cards_use_runbook_fallback_when_action_
     dcf_card = next(card for card in cards if card["kicker"] == "DCF LEVERAGE")
 
     assert dcf_card["command"] == "make runbook-fundamentals"
-    assert "local import draft workflow next" in dcf_card["body"].lower()
+    assert "local import file workflow next" in dcf_card["body"].lower()
     assert "not available" not in dcf_card["body"].lower()
 
 
@@ -5528,7 +5528,7 @@ def test_overview_deep_research_handoff_cards_keep_runbook_fundamentals_reason_a
     assert cards[0]["title"] == "NVDA"
     assert cards[0]["command"] == "make runbook-fundamentals"
     assert cards[1]["title"] == "make runbook-fundamentals"
-    assert "local import draft workflow next" in cards[1]["body"].lower()
+    assert "local import file workflow next" in cards[1]["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5555,7 +5555,7 @@ def test_overview_deep_research_handoff_cards_keep_runbook_peer_reason_and_comma
     assert cards[0]["title"] == "TSLA"
     assert cards[0]["command"] == "make runbook-peers"
     assert cards[1]["title"] == "make runbook-peers"
-    assert "local import draft workflow next" in cards[1]["body"].lower()
+    assert "local import file workflow next" in cards[1]["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -6192,7 +6192,7 @@ def test_overview_current_top_surfaces_cards_use_runbook_fallback_when_no_ready_
     assert cards[2]["title"] == "make runbook-peers"
     assert cards[3]["title"] == "Data Health"
     assert "guided data batch" in rendered
-    assert "local import draft workflow" in rendered
+    assert "local import file workflow" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -7074,7 +7074,7 @@ def test_overview_workflow_reason_card_uses_runbook_fallback_when_structured_sum
     rendered = " ".join(str(value) for value in card.values()).lower()
 
     assert card["title"] == "make runbook-peers"
-    assert "local import draft workflow" in rendered
+    assert "local import file workflow" in rendered
     assert "not available" not in rendered
 
 
@@ -7225,7 +7225,7 @@ def test_overview_best_local_research_path_cards_use_runbook_fallback_when_no_re
     assert cards[1]["title"] == "make runbook-peers"
     assert cards[2]["title"] == "Data Health"
     assert "guided data batch" in rendered
-    assert "local import draft workflow" in rendered
+    assert "local import file workflow" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -12530,7 +12530,7 @@ def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
     assert "23/3,538 fundamentals-ready" in rendered
     assert "23/3,538 DCF-ready" in rendered
     assert "3/3,538 peer-ready" in rendered
-    assert "counts should improve only after SEC import draft workflow or trusted manual CSV imports" in rendered
+    assert "counts should improve only after SEC staging workflow or trusted manual CSV imports" in rendered
     assert "make sec-stage-queue TOP_N=25" in rendered
     assert "make peer-mapping-queue TOP_N=25" in rendered
     assert "buy" not in rendered.lower()
@@ -14245,7 +14245,7 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     assert "no black box" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
     assert "1 dcf-ready companies" in rendered
-    assert input_card["title"] == "SEC import draft workflow"
+    assert input_card["title"] == "SEC staging workflow"
     assert input_card["command"] == "make sec-stage TICKERS=META"
     assert "make sec-stage tickers=meta" in rendered
     assert "tickers=<ticker>" not in rendered
@@ -18087,7 +18087,7 @@ def test_overview_bundle_runbook_cards_use_runbook_fallback_when_summaries_are_m
     cards = dashboard.overview_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "local import draft workflow next" in cards[0]["body"].lower()
+    assert "local import file workflow next" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -18323,7 +18323,7 @@ def test_overview_bundle_handoff_cards_use_runbook_fallback_when_summaries_are_m
     cards = dashboard.overview_bundle_handoff_cards(bundles, None, None)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "local import draft workflow next" in cards[0]["body"].lower()
+    assert "local import file workflow next" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
