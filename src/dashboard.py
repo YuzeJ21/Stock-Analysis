@@ -14272,17 +14272,7 @@ def output_tab_chart_sections(title: str, frame: pd.DataFrame) -> list[tuple[str
             )
         return sections
     if title == "Portfolio Review":
-        risk_frame = portfolio_review_risk_chart_frame(frame)
-        if risk_frame.empty:
-            return []
-        return [
-            (
-                "Portfolio risk snapshot",
-                "Summarizes current holding review states and explicit concentration-risk flags from the local portfolio review output.",
-                risk_frame,
-                "bar",
-            )
-        ]
+        return []
     if title == "Final Watchlist":
         sections: list[tuple[str, str, pd.DataFrame, str]] = []
         final_state_counts = categorical_count_frame(frame, "FinalState", "FinalState")

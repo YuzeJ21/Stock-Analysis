@@ -17415,7 +17415,7 @@ def test_final_watchlist_score_chart_frame_orders_ranked_names():
     assert chart.loc["AMD", "WatchlistScore"] == 41.0
 
 
-def test_output_tab_chart_sections_include_portfolio_and_watchlist_views():
+def test_output_tab_chart_sections_keep_portfolio_review_table_first_and_watchlist_charts():
     portfolio_sections = dashboard.output_tab_chart_sections(
         "Portfolio Review",
         pd.DataFrame({"ReviewState": ["Review Thesis"], "ConcentrationRisk": [False]}),
@@ -17428,9 +17428,9 @@ def test_output_tab_chart_sections_include_portfolio_and_watchlist_views():
         " ".join(str(value) for value in section[:2]) for section in portfolio_sections + watchlist_sections
     ).lower()
 
-    assert len(portfolio_sections) == 1
+    assert portfolio_sections == []
     assert len(watchlist_sections) == 2
-    assert "concentration-risk" in rendered or "concentration" in rendered
+    assert "concentration-risk" not in rendered
     assert "watchlist" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
