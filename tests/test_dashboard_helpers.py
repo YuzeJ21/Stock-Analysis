@@ -464,6 +464,11 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "CLI-only" not in source
     assert "CLI only" not in source
     assert "terminal-only" not in source
+    assert "from a terminal" not in source
+    assert "into a terminal" not in source
+    assert "dashboard and terminal agree" not in source
+    assert "terminal output" not in source
+    assert "copy manually when ready" in source
     assert "make stock-report-md TICKER=NVDA\\nmake dashboard-smoke" in source
     assert "make stock-report TICKER=NVDA\\nmake dashboard-smoke" not in source
     assert "diagnostics" not in source.lower()
@@ -18631,7 +18636,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
                 "action_category": "Single-Stock Review",
                 "command": "make stock-report TICKER=QQQ",
                 "why_it_matters": "Use one ticker drilldown to verify readiness and source readiness notes.",
-                "safety_note": "Ticker-targeted command; copy into a terminal when ready. The dashboard does not execute it.",
+                "safety_note": "Ticker-targeted command; copy manually when ready. The dashboard does not execute it.",
             }
         ]
     )
