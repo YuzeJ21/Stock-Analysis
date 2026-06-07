@@ -1202,7 +1202,8 @@ def test_output_tab_summary_cards_explain_missing_theme_context_without_zero_row
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no populated theme or sector context is available" in rendered
-    assert "saved local output" in rendered
+    assert "local research state" in rendered
+    assert "saved local output" not in rendered
     assert "dcf input state" in rendered
     assert "valuation readiness" in rendered
     assert "1 ready-output / 1 locked" in rendered
@@ -12053,6 +12054,12 @@ def test_output_tab_summary_cards_explain_rows_status_and_gaps():
     assert "Watch" in rendered
     assert "1 row" in rendered
     assert "AI" in rendered
+    assert "Readiness-state view" in rendered
+    assert "review queues" in rendered
+    assert "data blockers" in rendered
+    assert "Local research state" in rendered
+    assert "transparent pipeline outputs" not in rendered
+    assert "Saved local output" not in rendered
 
 
 def test_table_focus_cards_use_context_limits_for_valuation_views():

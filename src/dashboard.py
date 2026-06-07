@@ -407,7 +407,7 @@ OUTPUT_TAB_GUIDANCE = {
     "Momentum Leaders": "Setup quality and leadership context, with missing price history called out explicitly.",
     "Portfolio Review": "Holding-level thesis review and concentration/risk context.",
     "Value / Re-rating": "Local quality and valuation context where fundamentals exist.",
-    "Final Watchlist": "Combined research-state view assembled from transparent pipeline outputs.",
+    "Final Watchlist": "Readiness-state view that separates review queues, monitor context, and data blockers.",
 }
 STATE_COLORS = {
     "Research Ready": ("#dcfce7", "#14532d"),
@@ -13761,8 +13761,8 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
         {
             "kicker": title.upper(),
             "title": f"{row_count} row{'s' if row_count != 1 else ''}",
-            "body": OUTPUT_TAB_GUIDANCE.get(title, "Saved local output with transparent reasons and visible gaps."),
-            "badges": ["Saved local output"],
+            "body": OUTPUT_TAB_GUIDANCE.get(title, "Local research state with transparent reasons and visible gaps."),
+            "badges": ["Local research state"],
         },
         {
             "kicker": "DCF INPUT STATE" if title == "Value / Re-rating" else "STATE",
