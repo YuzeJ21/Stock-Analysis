@@ -145,7 +145,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "read": "Read readiness cards first, then What Changed Recently, then the next-step cards. Treat big universe counts as coverage, not proof that every ticker is analysis-ready.",
             "proof": "After any refresh or import, run make readiness and reopen Home before interpreting changed counts.",
             "review_route": "Start on Home for readiness, open Value / Re-rating for valuation boundaries, use Single-Stock Report for ticker proof, then use Data Health for unlock steps.",
-            "workflow_path": "Home next-step cards",
+            "review_area": "Home next-step cards",
             "command": "make status-check TOP_N=5",
         },
         "Single-Stock Report": {
@@ -154,7 +154,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "read": "Read At A Glance, then Quick Read, then the source readiness check. Locked sections are boundaries, not hidden conclusions.",
             "proof": "After an unlock, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
             "review_route": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact unlock path if anything is still locked.",
-            "workflow_path": "Single-Stock Review",
+            "review_area": "Single-Stock Review",
             "command": "make stock-report-md TICKER=NVDA",
         },
         "Value / Re-rating": {
@@ -163,7 +163,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "read": "Read the DCF-ready, DCF-blocked, and DCF-excluded split before looking at rankings. DCF-ready means assumption review, not a price target.",
             "proof": "After fundamentals change, run make dcf-readiness and make readiness before reading valuation output.",
             "review_route": "Use Value / Re-rating to classify DCF-ready, locked, or excluded valuation states, then open Single-Stock Report for proof and Data Health for unlock steps.",
-            "workflow_path": "Fundamentals / DCF Unlock",
+            "review_area": "Fundamentals / DCF Unlock",
             "command": "make dcf-readiness",
         },
         "Data Health": {
@@ -172,7 +172,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "read": "Start with the unlock path cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
             "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a path as unlocked.",
             "review_route": "Use Data Health when Home, Value / Re-rating, or Single-Stock Report shows a lock; return to those pages only after readiness proof passes.",
-            "workflow_path": "Data Health unlock paths",
+            "review_area": "Data Health unlock paths",
             "command": "make data-wizard TOP_N=10",
         },
     }
@@ -184,7 +184,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "read": "Read summary cards first, then the table. Use the command card only when you intentionally want to rebuild saved research views.",
             "proof": "After local data changes, rerun readiness before interpreting changed research views.",
             "review_route": "Use Home for the current state, Single-Stock Report for ticker proof, and Data Health for locked-input unlock steps.",
-            "workflow_path": "Current page summary",
+            "review_area": "Current page summary",
             "command": "make status-check TOP_N=5",
         },
     )
@@ -209,7 +209,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "body": (
                 "Copy next: use the command only when you are ready to run it yourself. "
                 "The dashboard does not run refreshes, imports, or external actions. "
-                f"Workflow path: {guide['workflow_path']}. "
+                f"Review area: {guide['review_area']}. "
                 f"Proof after unlock: {guide['proof']}"
             ),
             "badges": ["copy-only", "research-only"],

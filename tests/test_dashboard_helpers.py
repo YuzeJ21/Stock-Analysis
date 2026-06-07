@@ -284,11 +284,12 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert rendered.count("read path:") == 4
     assert rendered.count("review route:") == 4
     assert "guided path:" not in rendered
-    assert rendered.count("workflow path:") == 4
-    assert "workflow path: home next-step cards" in rendered
-    assert "workflow path: single-stock review" in rendered
-    assert "workflow path: fundamentals / dcf unlock" in rendered
-    assert "workflow path: data health unlock paths" in rendered
+    assert rendered.count("review area:") == 4
+    assert "workflow path:" not in rendered
+    assert "review area: home next-step cards" in rendered
+    assert "review area: single-stock review" in rendered
+    assert "review area: fundamentals / dcf unlock" in rendered
+    assert "review area: data health unlock paths" in rendered
     assert "how should i read this page?" in rendered
     assert "read readiness cards first" in rendered
     assert "locked sections are boundaries, not hidden conclusions" in rendered
