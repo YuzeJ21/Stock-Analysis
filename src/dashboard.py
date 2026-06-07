@@ -1514,9 +1514,14 @@ def apply_dashboard_theme() -> None:
           color: var(--research-text) !important;
           font-family: "Avenir Next", "SF Pro Display", "Segoe UI", sans-serif;
         }
-        html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        html, body, [data-testid="stAppViewContainer"] {
           background: var(--research-bg) !important;
           color: var(--research-text) !important;
+        }
+        [data-testid="stHeader"] {
+          display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
         }
         #MainMenu,
         footer,
@@ -1526,6 +1531,8 @@ def apply_dashboard_theme() -> None:
         [data-testid="stDeployButton"],
         [data-testid="stAppDeployButton"],
         [data-testid="stBaseButton-header"],
+        [data-testid="stBaseButton-headerNoPadding"],
+        [data-testid="stSidebarCollapseButton"],
         .stDeployButton,
         .stAppDeployButton {
           display: none !important;

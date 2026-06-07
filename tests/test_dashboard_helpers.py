@@ -357,6 +357,8 @@ def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
     assert '[data-testid="stDeployButton"]' in css
     assert '[data-testid="stAppDeployButton"]' in css
     assert '[data-testid="stBaseButton-header"]' in css
+    assert '[data-testid="stBaseButton-headerNoPadding"]' in css
+    assert '[data-testid="stSidebarCollapseButton"]' in css
     assert '[data-testid="stIconMaterial"]' in css
     assert ".stDeployButton" in css
     assert ".stAppDeployButton" in css
