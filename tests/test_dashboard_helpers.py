@@ -927,16 +927,18 @@ def test_home_provenance_cards_separate_repo_rules_libraries_and_plugins():
     assert len(cards) == 4
     assert "rules are implemented in project code" in rendered
     assert "readiness, momentum, dcf, peer checks, decision buckets, and report wording" in rendered
-    assert "standard python packages support the app" in rendered
-    assert "stock-analysis rules stay in this repository" in rendered
+    assert "support packages run the interface" in rendered
+    assert "standard packages help load tables, render pages, and run checks" in rendered
+    assert "they do not provide stock conclusions" in rendered
     assert "support layer" in rendered
-    assert "pandas" in rendered
-    assert "streamlit" in rendered
+    assert "pandas" not in rendered
+    assert "streamlit" not in rendered
     assert "open-source packages support the app" not in rendered
-    assert "yfinance is optional and research-grade" in rendered
+    assert "provider data is optional and research-grade" in rendered
     assert "csv-first local path is default" in rendered
     assert "not analysis rules" in rendered
-    assert "support tools and libraries are separate from the stock-analysis rules" in rendered
+    assert "support tools are separate from the stock-analysis rules" in rendered
+    assert "yfinance" not in rendered
     assert "development tools" not in rendered
     assert "development tooling is separate from the shipped research logic" not in rendered
     assert "development tooling is not shipped analysis" not in rendered
@@ -1000,7 +1002,7 @@ def test_home_function_quality_frame_explains_supported_scope_and_provenance():
     assert "single-stock report" in rendered
     assert "strongest visitor-facing workflow" in rendered
     assert "supported, blocked, excluded, and monitor-only analysis" in rendered
-    assert "libraries/adapters" in rendered
+    assert "support packages and optional provider adapters" in rendered
     assert "support layer, not analysis rules" in rendered
     assert "analysis rules remain under src/" in rendered
     assert "no open source was used" not in rendered
