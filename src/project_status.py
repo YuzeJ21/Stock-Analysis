@@ -110,6 +110,31 @@ def _normalize_price_action_row(row: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
+def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
+    step = str(row.get("Step") or "")
+    freshness = str(row.get("FreshnessContext") or "")
+    if "Bundle" in step or "bundle" in freshness or "runbook" in step.lower():
+        step = step.replace("Price Coverage Bundle", "Price Coverage Guided Data Batch")
+        step = step.replace("SEC Fundamentals Bundle", "SEC Fundamentals Guided Data Batch")
+        step = step.replace("Peer Mapping Bundle", "Peer Mapping Guided Data Batch")
+        step = step.replace("Open Top bundle runbook", "Open Top guided data batch")
+        step = step.replace(" bundle runbook", " guided data batch")
+        step = step.replace(" Bundle runbook", " Guided Data Batch")
+        step = step.replace(" runbook", "")
+        row["Step"] = step
+        if freshness:
+            row["FreshnessContext"] = freshness.replace(
+                "bundle generated from current onboarding outputs",
+                "guided batch generated from current onboarding outputs",
+            )
+        reason = str(row.get("Reason") or "")
+        if reason:
+            row["Reason"] = reason.replace("across this bundle", "across this guided data batch").replace(
+                "current bundle", "current guided data batch"
+            )
+    return row
+
+
 def _load_price_status_lookup(output_path: Path) -> dict[str, dict[str, Any]]:
     path = output_path / "price_update_status.csv"
     if not path.exists():
@@ -260,7 +285,7 @@ def _fast_status_payload_from_outputs(
             1 for row in purpose_evaluation_rows if int(row.get("active_universe_count") or 0) > 0
         ),
     }
-    command_rows = _read_csv_records(output_path / PROJECT_STATUS_NEXT_STEPS_CSV)
+    command_rows = [_normalize_command_row(dict(row)) for row in _read_csv_records(output_path / PROJECT_STATUS_NEXT_STEPS_CSV)]
     if allowed:
         command_rows = _recommended_next_command_rows(sorted_actions, bundles, [])
     if not command_rows:
@@ -377,6 +402,16 @@ def _bundle_rank(bundle: dict[str, Any]) -> tuple[int, int, str]:
     ticker_count = int(bundle.get("ticker_count") or 0)
     scope_rank = 0 if scope == "broader_queue" else 1 if scope == "holdings_first" else 2
     return (scope_rank, -ticker_count, str(bundle.get("bundle_name") or ""))
+
+
+def _guided_batch_name(raw_name: object, scope: str) -> str:
+    name = _first_non_empty(raw_name, "Top guided data batch")
+    name = name.replace(" Bundle", " Guided Data Batch").replace(" bundle", " guided data batch")
+    if "Guided Data Batch" not in name:
+        name = f"{name} Guided Data Batch"
+    if scope == "broader_queue" and "(Broader Queue)" not in name:
+        name = f"{name} (Broader Queue)"
+    return name
 
 
 def _source_context(*rows: dict[str, Any] | None, fallback: str = "") -> str:
@@ -587,13 +622,11 @@ def _recommended_next_command_rows(
             top_bundle.get("primary_command"),
         )
         if command:
-            bundle_name = _first_non_empty(top_bundle.get("bundle_name"), "Top bundle")
             scope = str(top_bundle.get("scope") or "").strip().lower()
-            if scope == "broader_queue" and "(Broader Queue)" not in bundle_name:
-                bundle_name = f"{bundle_name} (Broader Queue)"
+            bundle_name = _guided_batch_name(top_bundle.get("bundle_name"), scope)
             reason = _first_non_empty(top_bundle.get("goal_summary"), top_bundle.get("why_it_matters"))
             if command.startswith("make runbook-"):
-                step = f"Open {bundle_name} runbook"
+                step = f"Open {bundle_name}"
             elif command.startswith("make detail-"):
                 step = f"Open {bundle_name} details"
             elif command.startswith("make bundle-"):
@@ -606,7 +639,7 @@ def _recommended_next_command_rows(
                     command,
                     reason,
                     source_context=_source_context(top_bundle),
-                    freshness_context=_freshness_context(top_bundle, fallback="bundle generated from current onboarding outputs"),
+                    freshness_context=_freshness_context(top_bundle, fallback="guided batch generated from current onboarding outputs"),
                 )
             )
 
