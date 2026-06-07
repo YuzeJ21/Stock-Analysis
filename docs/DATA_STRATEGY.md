@@ -1,6 +1,6 @@
 # Data Strategy
 
-The command center is CSV-first. Local rows are the source of truth; provider-assisted rows are optional inputs that still have to pass readiness checks before analysis appears.
+The product is CSV-first. Local rows are the source of truth; provider-assisted rows are optional inputs that still have to pass readiness checks before analysis appears.
 
 ## Data Lanes
 

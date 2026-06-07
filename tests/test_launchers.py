@@ -722,7 +722,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "When any part of that stack is missing, only the supported sections appear",
         "local command path for inspecting or unlocking that input",
         "Data Unlock Ladder",
-        "The product uses the same unlock ladder in the dashboard, single-stock reports, and data-health queues",
+        "The product uses the same unlock ladder in the dashboard, single-stock reports, and Data Health review lists",
         "Price-ready does not mean fundamentals-ready",
         "Fundamentals-ready does not mean DCF-ready unless all required DCF fields pass",
         "DCF-ready does not mean peer-ready",

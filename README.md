@@ -18,11 +18,11 @@ This project turns a broad stock universe into a readiness-first research dashbo
 
 ## Why It Matters
 
-Many stock tools jump straight to rankings. This command center treats missing data as a first-class signal: if a ticker is not ready for a specific analysis, it says why and shows the next local data-unlock step. That makes the output more trustworthy, not weaker.
+Many stock tools jump straight to rankings. This product treats missing data as a first-class signal: if a ticker is not ready for a specific analysis, it says why and shows the next local data-unlock step. That makes the output more trustworthy, not weaker.
 
 ## What You Can Analyze
 
-When trusted local data is available, the command center can produce:
+When trusted local data is available, the product can produce:
 
 - Price, momentum, liquidity, and market-direction context.
 - Portfolio purpose checks and thesis-review flags.
@@ -52,9 +52,17 @@ This is a working local research prototype with deterministic outputs, dashboard
 
 Useful with limits: price/momentum, fundamentals/DCF, peer review, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer comparison, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker/execution system, or auto-refreshing trading system.
 
-## Preview
+## Product Tour
 
-The dashboard is designed as a guided research workspace: `Home` shows readiness, blockers, and next commands first, with methodology and example reports kept in collapsed sections; focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+Start with three paths:
+
+| Path | Use it when | First place to open |
+| --- | --- | --- |
+| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and confidence states. | `Single-Stock Report` |
+| Improve data coverage | You want to understand what trusted input is missing and how to add it safely. | `Data Health` |
+| Explore ready names | You want to browse what the current local data can already support. | `Home`, then focused review pages |
+
+The dashboard keeps methodology, file paths, and update commands in collapsed sections so visitors can read the product first. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 
 ## Quick Start
 

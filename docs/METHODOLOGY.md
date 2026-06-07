@@ -253,7 +253,7 @@ When any part of that stack is missing, only the supported sections appear. The 
 
 ## 11. Data Unlock Ladder
 
-The product uses the same unlock ladder in the dashboard, single-stock reports, and data-health queues:
+The product uses the same unlock ladder in the dashboard, single-stock reports, and Data Health review lists:
 
 | Step | What unlocks | What can be analyzed | What stays unavailable |
 | --- | --- | --- | --- |
@@ -268,7 +268,7 @@ The no-conclusion boundary is explicit: blocked rows must not be labeled underva
 
 The safe local sequence is:
 
-1. Inspect the focused queue or report, such as `make focus-fundamentals TICKER=NVDA` or `make focus-peers TICKER=A`.
+1. Inspect the focused review list or report, such as `make focus-fundamentals TICKER=NVDA` or `make focus-peers TICKER=A`.
 2. Stage trusted rows only in the matching local CSV path, such as `data/imports/fundamentals.csv`, `data/imports/peers.csv`, `data/staged/earnings/`, or `data/staged/analyst_estimates/`.
 3. Run validation and preview before apply: `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
 4. Regenerate readiness, then read the report again before interpreting the newly unlocked section.
