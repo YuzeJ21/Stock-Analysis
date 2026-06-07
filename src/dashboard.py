@@ -182,6 +182,31 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
     ]
 
 
+def dashboard_page_reader_summary_cards(page_title: str) -> list[dict[str, object]]:
+    cards = dashboard_page_reader_cards(page_title)
+    by_kicker = {str(card.get("kicker", "")): card for card in cards}
+    page_guide = by_kicker.get("PAGE GUIDE", {})
+    locked = by_kicker.get("LOCKED / EXCLUDED", {})
+    copy_next = by_kicker.get("COPY NEXT", {})
+    return [
+        {
+            "kicker": "PAGE GUIDE",
+            "title": "How to use this page.",
+            "body": " ".join(
+                part
+                for part in [
+                    str(page_guide.get("body", "")).strip(),
+                    str(locked.get("body", "")).strip(),
+                    str(copy_next.get("body", "")).strip(),
+                ]
+                if part
+            ),
+            "badges": ["plain English", "copy-only", "research-only"],
+            "command": str(copy_next.get("command") or page_guide.get("command") or "make status-check TOP_N=5"),
+        }
+    ]
+
+
 IMPORT_HEALTH_DATASETS = [
     {
         "dataset": "prices",
@@ -1995,6 +2020,40 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.42rem;
           overflow-wrap: anywhere;
         }
+        .sidebar-route-list {
+          display: grid;
+          gap: 0.45rem;
+          margin: 0.35rem 0 0.8rem 0;
+        }
+        .sidebar-route-item {
+          border-radius: 13px;
+          border: 1px solid #dce5dc;
+          background: rgba(255, 254, 250, 0.76);
+          padding: 0.6rem 0.66rem;
+        }
+        .sidebar-route-title {
+          color: #111827 !important;
+          font-size: 0.83rem;
+          font-weight: 900;
+          line-height: 1.18;
+        }
+        .sidebar-route-body {
+          color: #526071 !important;
+          font-size: 0.78rem;
+          line-height: 1.32;
+          margin-top: 0.22rem;
+        }
+        .sidebar-route-chip {
+          display: inline-block;
+          margin-top: 0.34rem;
+          border-radius: 999px;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          background: #eef9f5;
+          color: #0b3b36 !important;
+          font-size: 0.7rem;
+          font-weight: 900;
+          padding: 0.16rem 0.44rem;
+        }
         .cockpit-panel {
           display: grid;
           grid-template-columns: minmax(260px, 1.1fr) minmax(260px, 1.6fr);
@@ -2577,6 +2636,25 @@ def render_action_cards(cards: list[tuple[str, str, str, str]]) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
+
+
+def sidebar_route_steps_html(cards: list[tuple[str, str, str, str]]) -> str:
+    items: list[str] = []
+    for title, body, destination, _tone in cards:
+        if not title and not body and not destination:
+            continue
+        items.append(
+            "<div class='sidebar-route-item'>"
+            f"<div class='sidebar-route-title'>{html.escape(title)}</div>"
+            f"<div class='sidebar-route-body'>{html.escape(body)}</div>"
+            f"<span class='sidebar-route-chip'>{html.escape(destination)}</span>"
+            "</div>"
+        )
+    return "<div class='sidebar-route-list'>" + "".join(items) + "</div>"
+
+
+def render_sidebar_route_steps(cards: list[tuple[str, str, str, str]]) -> None:
+    st.markdown(sidebar_route_steps_html(cards), unsafe_allow_html=True)
 
 
 def notice_card_html(title: str, body: str, command: str = "", tone: str = "info") -> str:
@@ -18958,15 +19036,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "Home",
         "A plain-language view of what is ready, what is blocked, and what to review next.",
     )
-    render_context_note(
-        "How to use this page.",
-        (
-            "Start with the coverage snapshot, then open a single-stock report or Data Health only when you need the next unlock step. "
-            "Missing data is shown openly instead of guessed, and dashboard commands are copy-only."
-        ),
-        tone="success",
-    )
-    render_signal_cards(dashboard_page_reader_cards("Home"))
+    render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
 
     render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock lane comes first.")
@@ -19223,7 +19293,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     frame, message = output_frames[filename]
     render_section_header(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
     if title == "Value / Re-rating":
-        render_signal_cards(dashboard_page_reader_cards(title))
+        render_signal_cards(dashboard_page_reader_summary_cards(title))
     if message and frame is None:
         render_notice_card(
             f"{title} output is not available yet",
@@ -19257,7 +19327,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         "One-ticker research workflow. Saved local data is the default. "
         "Optional online research mode stays off by default and is labeled unofficial / research-grade.",
     )
-    render_signal_cards(dashboard_page_reader_cards("Single-Stock Report"))
+    render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
     selected = selection_cols[0].selectbox(
@@ -20154,7 +20224,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "Data Health",
         "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next.",
     )
-    render_signal_cards(dashboard_page_reader_cards("Data Health"))
+    render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
@@ -21304,8 +21374,8 @@ def main() -> None:
         st.divider()
         note_title, note_body = sidebar_navigation_note(selected_page)
         render_context_note(note_title, note_body, tone="success")
-        st.markdown("#### Where to go next")
-        render_action_cards(dashboard_navigation_cards())
+        st.markdown("#### Best path")
+        render_sidebar_route_steps(dashboard_navigation_cards())
         with st.expander("Need help?", expanded=False):
             render_context_note(
                 "Simple path.",

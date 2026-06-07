@@ -272,14 +272,36 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "sell" not in rendered
 
 
+def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
+    cards = dashboard.dashboard_page_reader_summary_cards("Home")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert cards[0]["kicker"] == "PAGE GUIDE"
+    assert cards[0]["title"] == "How to use this page."
+    assert "analyze now:" in rendered
+    assert "still locked:" in rendered
+    assert "copy next:" in rendered
+    assert "read path:" not in rendered
+    assert "guided path:" not in rendered
+    assert "make status-check top_n=5" in rendered
+    assert "dashboard does not run refreshes, imports, or external account actions" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_major_dashboard_pages_render_plain_english_reader_guides():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert 'render_signal_cards(dashboard_page_reader_cards("Home"))' in source
-    assert 'render_signal_cards(dashboard_page_reader_cards("Single-Stock Report"))' in source
-    assert 'render_signal_cards(dashboard_page_reader_cards("Data Health"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Home"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))' in source
     assert 'if title == "Value / Re-rating":' in source
-    assert "render_signal_cards(dashboard_page_reader_cards(title))" in source
+    assert "render_signal_cards(dashboard_page_reader_summary_cards(title))" in source
+    assert 'render_signal_cards(dashboard_page_reader_cards("Home"))' not in source
 
 
 def test_sidebar_navigation_note_matches_selected_page():
@@ -320,6 +342,16 @@ def test_dashboard_card_helpers_render_modern_markup():
     metric = dashboard.metric_card_html("Universe", 12, "local tickers")
     action = dashboard.action_card_html("Price fallback", "Normalize downloaded CSVs", "make price-normalize", "warning")
     notice = dashboard.notice_card_html("Missing output", "Run the pipeline to regenerate local CSV outputs.", "make pipeline")
+    sidebar = dashboard.sidebar_route_steps_html(
+        [
+            (
+                "Analyze One Stock",
+                "Use Single-Stock Report for one ticker.",
+                "Single-Stock Report page",
+                "neutral",
+            )
+        ]
+    )
 
     assert "metric-card" in metric
     assert "Universe" in metric
@@ -327,6 +359,10 @@ def test_dashboard_card_helpers_render_modern_markup():
     assert "make price-normalize" in action
     assert "notice-card" in notice
     assert "make pipeline" in notice
+    assert "sidebar-route-list" in sidebar
+    assert "sidebar-route-item" in sidebar
+    assert "Single-Stock Report page" in sidebar
+    assert "action-card" not in sidebar
 
 
 def test_single_stock_default_prefers_demo_ticker_when_available():
@@ -363,7 +399,9 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds extra table sections for deeper local review" in source
     assert "Most visitors can leave this off" in source
     assert "Show more explanation" not in source
-    assert "#### Where to go next" in source
+    assert "#### Best path" in source
+    assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
+    assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
     assert 'st.expander("Need help?"' in source
     assert "Simple path." in source
