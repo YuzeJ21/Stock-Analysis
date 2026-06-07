@@ -19022,20 +19022,20 @@ def _plain_home_provenance_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "LIBRARIES",
-            "title": "Standard Python packages support the app",
-            "body": "pandas, numpy, Streamlit, PyYAML, pytest, and similar packages provide data handling, UI, and tests. Stock-analysis rules stay in this repository.",
-            "badges": ["normal dependencies"],
+            "title": "Support packages run the interface",
+            "body": "Standard packages help load tables, render pages, and run checks. They do not provide stock conclusions; project rules and local inputs do.",
+            "badges": ["support layer"],
         },
         {
             "kicker": "DATA ADAPTER",
-            "title": "yfinance is optional and research-grade",
-            "body": "The CSV-first local path is default. Online provider data stays optional and should be checked through source readiness notes.",
+            "title": "Provider data is optional and research-grade",
+            "body": "The CSV-first local path is default. Online provider rows stay optional and should be checked through source readiness notes.",
             "badges": ["off by default"],
         },
         {
             "kicker": "SUPPORT LAYER",
             "title": "Not analysis rules",
-            "body": "Support tools and libraries are separate from the stock-analysis rules. Analysis and decisions come from project code and local data.",
+            "body": "Support tools are separate from the stock-analysis rules. Analysis and decisions come from project code and local data.",
             "badges": ["support only"],
         },
     ]
@@ -19225,11 +19225,11 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             {
                 "Function Area": "Dependencies",
                 "Quality Verdict": "Support layer, not analysis rules",
-                "Best Use Today": "Use packages and optional adapters to handle data and UI while project code keeps the rules.",
+                "Best Use Today": "Use support packages and optional adapters to handle data and UI while project code keeps the rules.",
                 "Current Status": "Support layer only; analysis rules remain in project code.",
                 "Supported Today": "Data handling, UI, tests, and optional research-grade provider access.",
                 "Needs Trusted Data": "Local CSV inputs remain the source of truth by default.",
-                "Methodology / Provenance": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance support the app; analysis rules remain under src/.",
+                "Methodology / Provenance": "Support packages and optional provider adapters help run the product; analysis rules remain under src/.",
             },
         ]
     )
