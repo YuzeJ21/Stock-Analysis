@@ -80,6 +80,36 @@ def _first_non_empty(*values: object) -> str:
     return ""
 
 
+def _price_recommended_action(ticker: str) -> str:
+    ticker = str(ticker or "").strip().upper()
+    if not ticker:
+        return (
+            "Run make status-check TOP_N=5 first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
+            "if you choose to refresh specific tickers, run make price-refresh TICKERS=<ticker>; if the free refresh "
+            "path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
+        )
+    return (
+        f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; if the free refresh path fails, "
+        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
+    )
+
+
+def _normalize_price_action_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Keep read-only status views current even when generated CSV text is stale."""
+    if str(row.get("dataset") or "").strip().lower() != "prices":
+        return row
+    ticker = str(row.get("ticker") or "").strip().upper()
+    text = str(row.get("recommended_action") or "").strip().lower()
+    if (
+        "make price-refresh-loop dry_run=1" not in text
+        or "python3 -m src.data_update" in text
+        or "or run make price-refresh" in text
+    ):
+        row["recommended_action"] = _price_recommended_action(ticker)
+    return row
+
+
 def _load_price_status_lookup(output_path: Path) -> dict[str, dict[str, Any]]:
     path = output_path / "price_update_status.csv"
     if not path.exists():
@@ -203,7 +233,8 @@ def _fast_status_payload_from_outputs(
             if str(row.get("ticker", "")).upper().strip() in allowed
         ]
 
-    sorted_actions = sorted(actions, key=_action_rank)
+    normalized_actions = [_normalize_price_action_row(dict(row)) for row in actions]
+    sorted_actions = sorted(normalized_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     purpose_evaluation_rows = [] if allowed else _load_purpose_evaluation_summary(output_path, top_n)
 
@@ -327,6 +358,7 @@ def _enrich_top_actions(onboarding_payload: dict[str, Any], price_status_lookup:
                         row[field] = value
                 if not (source_row and status in {"fetched", "skipped_fresh"}):
                     row["reason"] = _first_non_empty(price_status_row.get("error_message"), row.get("reason"))
+            row = _normalize_price_action_row(row)
         enriched.append(row)
     return enriched
 

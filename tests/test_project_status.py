@@ -592,6 +592,32 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "Wrote:" not in output
 
 
+def test_project_status_fast_check_normalizes_stale_generated_price_actions(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "dataset": "prices",
+                "status": "missing_or_incomplete",
+                "reason": "Only 2 verified local price rows are present.",
+                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "focus_command": "make focus-price TICKER=AMD",
+                "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "data_onboarding_actions.csv", index=False)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    action = payload["top_onboarding_actions"][0]
+    assert "make price-refresh-loop DRY_RUN=1" in action["recommended_action"]
+    assert "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD" in action["recommended_action"]
+    assert "or run make price-refresh" not in action["recommended_action"]
+
+
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
     _write_fast_status_artifacts(tmp_path)
 
