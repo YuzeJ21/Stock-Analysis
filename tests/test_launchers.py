@@ -410,7 +410,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Example map",
         "Operating-company DCF is excluded, not failed",
         "No valuation conclusion appears",
-        "At A Glance status, source/freshness notes, and copyable local unlock commands",
+        "At A Glance status, source readiness notes, and copyable local unlock commands",
         "At A Glance status, methodology, risks, blockers, copyable local unlock commands",
         "The report is not a black box",
         "project rules decide what can be analyzed",
@@ -565,7 +565,7 @@ def test_sample_stock_reports_explain_methodology_and_use_current_research_bound
         assert "## Copyable Unlock Commands" in report
         assert "Copy-only: these are local research commands to copy when you choose" in report
         assert "the report does not execute imports, refreshes, broker actions, or trades" in report
-        assert "## Copyable Unlock Commands" in report.split("## Source/Freshness Audit")[0]
+        assert "## Copyable Unlock Commands" in report.split("## Source Readiness Check")[0]
         assert "readiness gate first, supported analysis second, valuation math third, explanation last" in report
         assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in report
         assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in report
@@ -713,7 +713,7 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
     roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
 
     for phrase in (
-        "Single-stock report mode with readiness, methodology, source/freshness audit",
+        "Single-stock report mode with readiness, methodology, source readiness check",
         "Public-facing methodology documentation",
         "Public README/dashboard polish",
         "### B. Single-Stock Research Mode V2",
@@ -734,7 +734,7 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "`make peer-mapping-queue TOP_N=25`",
         "Optional context",
         "`make optional-context-worklist TOP_N=25`",
-        "Freshness guidance",
+        "Source readiness guidance",
         "`make public-check`, `make diff-hygiene`",
         "Do not publish broad generated CSV churn unless it is the reviewed artifact for that release",
         "Do not add execution workflows, direct recommendations, fabricated data, or unsupported valuation labels",
@@ -752,7 +752,7 @@ def test_product_spec_keeps_execution_features_permanently_out_of_scope():
     for phrase in (
         "## Current Product Surfaces",
         "`Home`: plain-language readiness cards, next-action cards, methodology ladder, and example report comparisons",
-        "`Single-Stock Report`: ticker-level At A Glance status, methodology cue, analysis quality, valuation state, source/freshness audit, and copyable local unlock commands",
+        "`Single-Stock Report`: ticker-level At A Glance status, methodology cue, analysis quality, valuation state, source readiness check, and copyable local unlock commands",
         "`Data Health`: trusted local data paths, import validation, rejected-row reports, and unlock queues",
         "`Value / Re-rating`: DCF-ready, peer-limited, blocked, and ETF/index/fund excluded valuation states",
         "Markdown reports under `outputs/stock_reports/`",
@@ -760,7 +760,7 @@ def test_product_spec_keeps_execution_features_permanently_out_of_scope():
         "Broad-universe tables should stay filtered and row-limited by default",
         "## Public Share Definition",
         "the README has a short demo path and dashboard preview",
-        "sample reports show `At A Glance`, methodology, evaluation function checks, source/freshness, and copyable local unlock commands",
+        "sample reports show `At A Glance`, methodology, evaluation function checks, source readiness, and copyable local unlock commands",
         "project code provides readiness gates, DCF math, peer boundaries, and report wording",
         "`make public-check` passes",
         "generated CSV/JSON churn is reviewed before staging and is not committed by default",

@@ -4,7 +4,7 @@
 
 I built a local, CSV-first stock research command center that focuses on data readiness before analysis. Instead of producing unsupported stock picks, it checks whether each ticker has enough trusted local data for price, momentum, liquidity, correlation, fundamentals, DCF, peer comparison, earnings, and analyst-estimate context.
 
-The system generates readiness-aware research decisions, single-stock reports, source/freshness audits, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports now open with `At A Glance`, then show `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands` sections so readers can see whether a ticker is in `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, or `Data-unlock only` mode, which local method is being used, and what command would unlock the next trusted input.
+The system generates readiness-aware research decisions, single-stock reports, source readiness checks, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports now open with `At A Glance`, then show `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands` sections so readers can see whether a ticker is in `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, or `Data-unlock only` mode, which local method is being used, and what command would unlock the next trusted input.
 
 ## Suggested LinkedIn Post
 
@@ -42,7 +42,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Designed a CSV-first data pipeline covering price, momentum, liquidity, correlation, fundamentals, DCF, peer mapping, earnings, and analyst-estimate readiness.
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
 - Added single-stock At A Glance, Analysis Quality, Methodology, Evaluation Function Check, and Copyable Unlock Commands sections to explain whether each report supports DCF-ready review, standalone DCF review, monitor-only context, price/setup review, or data-unlock work, with the DCF method path visible before detailed report tables.
-- Added source/freshness auditability, preview-first local import validation, rejected-row reporting, and research-only guardrails to prevent unsupported conclusions.
+- Added source readiness checks, preview-first local import validation, rejected-row reporting, and research-only guardrails to prevent unsupported conclusions.
 - Documented which parts are original analysis rules, which parts are support libraries, and which actions remain permanently out of scope.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
 

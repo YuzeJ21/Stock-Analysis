@@ -14,7 +14,7 @@ This project turns a broad stock universe into a research workflow:
 - Separates `Research Now`, `Monitor`, and `Blocked by Data` review queues.
 - Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
 - Generates transparent CSV outputs for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
-- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source/freshness notes, and copyable local unlock commands, plus a plain-English Reader Guide.
+- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, source readiness notes, and copyable local unlock commands, plus a plain-English Reader Guide.
 
 ## Why It Matters
 
@@ -29,7 +29,7 @@ When trusted local data is available, the command center can produce:
 - DCF readiness and conservative scenario valuation.
 - Peer-context readiness without pretending missing peer valuation exists.
 - ETF/index monitor reports where operating-company DCF is excluded.
-- Single-stock reports with At A Glance status, methodology, risks, blockers, copyable local unlock commands, source/freshness notes, and a Reader Guide.
+- Single-stock reports with At A Glance status, methodology, risks, blockers, copyable local unlock commands, source readiness notes, and a Reader Guide.
 
 Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
@@ -104,7 +104,7 @@ Example map:
 
 | Example | What it demonstrates | What to check |
 | --- | --- | --- |
-| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | Reader Guide, assumptions, sensitivity, peer caveats, source/freshness notes. |
+| [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | Reader Guide, assumptions, sensitivity, peer caveats, source readiness notes. |
 | [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | Reader Guide, DCF assumptions, and the next peer data-unlock step. |
 | [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Reader Guide, supported setup analysis, valuation blockers, and caveats. |
 | [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |

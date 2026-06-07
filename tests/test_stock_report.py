@@ -382,11 +382,11 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality" in markdown
     assert "Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker" in markdown
     assert "Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> copyable next command" in markdown
-    assert "Reader audit path: check Source/Freshness first, then Data Readiness, then DCF Calculation Path or Peer Workflow" in markdown
+    assert "Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow" in markdown
     assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
     assert "DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing" in markdown
     assert "standalone DCF projects free cash flow under bear/base/bull assumptions" in markdown
-    assert "Report method: text is generated from local readiness, DCF, peer, decision, and source/freshness outputs" in markdown
+    assert "Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs" in markdown
     assert "## Evaluation Function Check" in markdown
     assert "Readiness gate: strongest function" in markdown
     assert "Price and setup: ready for local trend/setup review" in markdown
@@ -424,14 +424,14 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "missing valuation inputs are not inferred" in markdown
     assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown
     assert "## Data Unlock Summary" in markdown
-    assert "## Data Unlock Summary" in markdown.split("## Source/Freshness Audit")[0]
+    assert "## Data Unlock Summary" in markdown.split("## Source Readiness Check")[0]
     assert "Data Health lane: Peer Mapping Unlock" in markdown
     assert "Price unlock:" in markdown
     assert "Fundamentals / DCF unlock:" in markdown
     assert "Peer unlock:" in markdown
     assert "Optional context unlock:" in markdown
     assert "## Copyable Unlock Commands" in markdown
-    assert "## Copyable Unlock Commands" in markdown.split("## Source/Freshness Audit")[0]
+    assert "## Copyable Unlock Commands" in markdown.split("## Source Readiness Check")[0]
     assert "Copy-only: these are local research commands to copy when you choose" in markdown
     assert "the report does not execute imports, refreshes, broker actions, or trades" in markdown
     assert "`make stock-report-md TICKER=MSFT`" in markdown
@@ -443,7 +443,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "`make imports-validate && make imports-preview && make imports-apply`" in markdown
     assert "Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10`" in markdown
     assert "Optional-context rebuild proof: `make optional-context-readiness && make readiness`" in markdown
-    assert "Import paths, rejected-row files, and credential state are listed in the Source/Freshness Audit below." in markdown
+    assert "Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below." in markdown
     assert "import draft path `data/staged/prices/` or `data/imports/prices.csv`" in markdown
     assert "import draft path `data/imports/peers.csv`" in markdown
     assert "preview-first local import workflows" in markdown
@@ -714,7 +714,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
         "## DCF Calculation Path",
         "## Peer Workflow",
         "## Risk Notes",
-        "## Source / Freshness",
+        "## Source Readiness",
         "## Next Research Step",
     ):
         assert heading in markdown
@@ -771,7 +771,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "What market, theme, liquidity, or risk context should QQQ monitor" in markdown
     assert "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy" not in markdown
     assert "Monitor priority" in markdown
-    assert "## Source/Freshness Audit" in markdown
+    assert "## Source Readiness Check" in markdown
     assert "data/staged/earnings/" in markdown
     assert "make import-analyst-estimates" in markdown
     assert "STOOQ_API_KEY" in markdown
@@ -1047,7 +1047,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Wait on fundamentals / DCF interpretation until price coverage starts" in markdown
     assert "After `make focus-price TICKER=APLD` is resolved, run `make focus-fundamentals TICKER=APLD`" in markdown
     assert "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown
-    assert "## Source/Freshness Audit" in markdown
+    assert "## Source Readiness Check" in markdown
     assert "Report command: `make stock-report-md TICKER=APLD`. Research-only Markdown output; copyable command only." in markdown
     assert "Report command: `make stock-report TICKER=APLD`" not in markdown
     assert "data/staged/prices/" in markdown
