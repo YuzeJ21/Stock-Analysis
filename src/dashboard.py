@@ -13567,14 +13567,14 @@ def valuation_quick_read_cards(
             "command": first_command,
         },
         {
-            "kicker": "COPY NEXT",
-            "title": "Review the next local proof step",
+            "kicker": "PROOF PATH",
+            "title": "Prove readiness before interpretation",
             "body": (
-                "Use the command area when you want the exact local proof step for this valuation path. "
-                "Prove the path before reading DCF assumptions, locked-input worklists, or monitor-context rows. "
-                "The dashboard displays copyable commands only; it does not run refreshes, imports, or external actions."
+                "Read valuation only after the relevant readiness path passes. "
+                "DCF assumptions, locked-input worklists, and monitor-context rows stay separated so missing data "
+                "does not become a hidden conclusion."
             ),
-            "badges": ["copy-only", "research-only"],
+            "badges": ["proof first", "research-only"],
             "command": first_command,
         },
         {

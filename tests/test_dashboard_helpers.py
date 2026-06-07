@@ -8678,7 +8678,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     cards = dashboard.valuation_quick_read_cards(ready, blocked, excluded)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["FIRST READ", "COPY NEXT", "ANALYZE NOW", "STILL LOCKED", "EXCLUDED"]
+    assert [card["kicker"] for card in cards] == ["FIRST READ", "PROOF PATH", "ANALYZE NOW", "STILL LOCKED", "EXCLUDED"]
     assert cards[0]["title"] == "Review DCF-ready companies first"
     assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
@@ -8686,10 +8686,10 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert cards[3]["command"] == "make focus-fundamentals TICKER=META"
     assert cards[4]["command"] == "make stock-report-md TICKER=QQQ"
     assert "start with nvda" in rendered
-    assert "review the next local proof step" in rendered
-    assert "use the command area when you want the exact local proof step" in rendered
+    assert "prove readiness before interpretation" in rendered
+    assert "read valuation only after the relevant readiness path passes" in rendered
     assert "copy next: `make stock-report-md ticker=nvda`" not in rendered
-    assert "does not run refreshes, imports, or external actions" in rendered
+    assert "missing data does not become a hidden conclusion" in rendered
     assert "assumption, scenario, sensitivity, and source readiness review" in rendered
     assert "not price targets" in rendered
     assert "1 dcf-ready company row(s)" in rendered
