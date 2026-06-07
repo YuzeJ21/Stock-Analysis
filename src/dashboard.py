@@ -18225,7 +18225,7 @@ def render_overview(
         render_section_header("Data Quality / Readiness", "Use these readiness details before interpreting rankings or research conclusions.")
         render_signal_cards(readiness_panel_cards(overview_readiness_summary))
 
-    with st.expander("More overview queues", expanded=False):
+    with st.expander("More overview worklists", expanded=False):
         render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
         render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
         render_section_header("Research Unlock Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
@@ -18241,7 +18241,7 @@ def render_overview(
         render_signal_cards(overview_price_target_cards(price_worklist_frame))
         render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
         render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
-        render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
+        render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research path before you open the fuller worklists.")
         render_signal_cards(
             overview_deep_research_priority_bridge_cards(
                 holdings,
@@ -18280,7 +18280,7 @@ def render_overview(
         render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
 
     with st.expander("More deep-research context", expanded=False):
-        render_section_header("Deep Research Leverage", "Which deeper research lane currently unlocks the most value next when you weigh holdings impact, theme breadth, and queued ticker count.")
+        render_section_header("Deep Research Leverage", "Which deeper research path currently unlocks the most value next when you weigh holdings impact, theme breadth, and queued ticker count.")
         render_signal_cards(
             overview_deep_research_leverage_cards(
                 holdings,
@@ -18336,11 +18336,11 @@ def render_overview(
     render_section_header("Next Deeper Tabs", "Where to go next after the high-level workflow read, depending on whether you need blocker triage, single-name depth, or broader candidate comparison.")
     render_signal_cards(overview_handoff_cards())
 
-    with st.expander("More status, unlock queues, and generated outputs", expanded=False):
+    with st.expander("More status, unlock worklists, and local files", expanded=False):
         st.markdown(
             (
                 "<div class='subtle-panel'>"
-                f"<strong>Coverage snapshot.</strong> {output_file_count} generated outputs are present. "
+                f"<strong>Coverage snapshot.</strong> {output_file_count} local output files are present. "
                 f"{missing_warning_count} names still carry explicit missing-data warnings, "
                 f"{health_summary['thin_liquidity']} tickers look thin on local liquidity context, and "
                 f"{health_summary['high_correlation']} tickers show high local co-movement."
@@ -20239,7 +20239,7 @@ def render_market_command_center(
     metric_cols[3].metric("DCF", public_status_label(snapshot.get("dcf_status")))
     metric_cols[4].metric("Confidence", format_missing(snapshot.get("confidence")))
     render_signal_cards(single_stock_status_cards(snapshot))
-    render_section_header("Single-Stock Quick Read", "The first interpretation lane before tables: what this page can support, what stays locked, and the next copy-only command.")
+    render_section_header("Single-Stock Quick Read", "The first interpretation path before tables: what this page can support, what stays locked, and the next copy-only command.")
     render_signal_cards(single_stock_quick_read_cards(snapshot))
     render_section_header("Single-Stock Reader Guide", "Plain-English answer for what is ready, what is locked, and the next copy-only step.")
     render_signal_cards(single_stock_reader_guide_cards(snapshot))
@@ -20341,7 +20341,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
         render_section_header(
             "Valuation Unlock Snapshot",
-            "Plain-English valuation queues before the full command center details.",
+            "Plain-English valuation worklists before the detailed market-wide workflow.",
         )
         render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
     with st.expander("Detailed market-wide workflow", expanded=False):
@@ -20436,12 +20436,12 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 if column in command_bundle_details_frame.columns
             ]
-            st.caption("Ticker-level bundle steps.")
+            st.caption("Ticker-level guided steps.")
             st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
         elif command_bundle_details_frame is None:
             detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
             render_notice_card(
-                "Ticker-level bundle steps are not available yet",
+                "Ticker-level guided steps are not available yet",
                 detail_notice_body,
                 detail_notice_command,
             )
@@ -20464,12 +20464,12 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 if column in command_bundle_runbook_frame.columns
             ]
-            st.caption("Command bundle runbook.")
+            st.caption("Guided command steps.")
             st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
         elif command_bundle_runbook_frame is None:
             runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
             render_notice_card(
-                "Command bundle runbook is not available yet",
+                "Guided command steps are not available yet",
                 runbook_notice_body,
                 runbook_notice_command,
             )
