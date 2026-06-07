@@ -12156,19 +12156,22 @@ def test_dashboard_uses_readable_universe_import_review_details():
     workflow_index = source.index('render_section_header("Universe Workflow"')
     action_index = source.index('render_section_header("Universe Action Paths"')
     coverage_expander_index = source.index('st.expander("Universe coverage and source details"')
-    table_expander_index = source.index('st.expander("Current universe table"')
-    import_expander_index = source.index('st.expander("Universe import review and copyable commands"')
+    table_expander_index = source.index('st.expander("Current universe list"')
+    import_expander_index = source.index('st.expander("Universe import checks and copyable commands"')
 
     assert workflow_index < action_index < coverage_expander_index < table_expander_index < import_expander_index
     assert 'st.expander("Universe coverage and source details", expanded=False)' in source
-    assert 'st.expander("Current universe table", expanded=False)' in source
-    assert 'st.expander("Universe import review and copyable commands", expanded=False)' in source
-    assert "Universe import review details" in source
+    assert 'st.expander("Current universe list", expanded=False)' in source
+    assert 'st.expander("Universe import checks and copyable commands", expanded=False)' in source
+    assert "Universe import details" in source
     assert "staged_universe_detail_frame" in source
     assert "st.json(staged_universe" not in source
     assert "st.json(staged" not in source
     assert "Advanced universe import details" not in source
-    assert "Universe Import Review" in source
+    assert "Universe Import Checks" in source
+    assert "Universe Import Review" not in source
+    assert "Current universe table" not in source
+    assert "Universe import review details" not in source
     assert "Files that stay local" in source
     assert "These working files are intentionally ignored so local refreshes and previews do not clutter the public project." in source
     assert "Staged universe review details (JSON)" not in source

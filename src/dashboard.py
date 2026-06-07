@@ -21532,9 +21532,9 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 render_context_note("Preview only.", "Apply remains copy-only for safer import file review.")
                 st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
-        st.markdown("#### Universe Import Review")
+        st.markdown("#### Universe Import Checks")
         st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
-        with st.expander("Universe import review details", expanded=False):
+        with st.expander("Universe import details", expanded=False):
             st.dataframe(staged_universe_detail_frame(staged_universe), width="stretch", hide_index=True)
 
         with st.expander("Files that stay local", expanded=False):
@@ -21581,10 +21581,10 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         st.markdown("### Available Presets")
         render_signal_cards(universe_preset_cards())
         preset_rows = [{"Preset": name, "Sources": ", ".join(sources)} for name, sources in SOURCE_PRESETS.items()]
-        with st.expander("Preset source table", expanded=False):
+        with st.expander("Preset source list", expanded=False):
             st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
 
-    with st.expander("Current universe table", expanded=False):
+    with st.expander("Current universe list", expanded=False):
         current_frame = pd.DataFrame(current["rows"])
         if not current_frame.empty:
             search = st.text_input("Search current universe", key="universe-manager-search")
@@ -21601,10 +21601,10 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
                 tone="warning",
             )
 
-    with st.expander("Universe import review and copyable commands", expanded=False):
-        st.markdown("### Universe Import Review")
+    with st.expander("Universe import checks and copyable commands", expanded=False):
+        st.markdown("### Universe Import Checks")
         st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
-        with st.expander("Universe import review details", expanded=False):
+        with st.expander("Universe import details", expanded=False):
             st.dataframe(staged_universe_detail_frame(staged), width="stretch", hide_index=True)
 
         st.markdown("### Copyable Commands")
