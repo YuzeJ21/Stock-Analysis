@@ -7422,10 +7422,10 @@ def dashboard_readiness_summary(
         "configured_credentials": configured_credentials,
         "updated_at": updated_at,
         "manual_import_paths": [
-            "Price import draft folder: data/staged/prices/ -> make import-prices",
-            "Fundamentals import draft folder: data/staged/fundamentals/ -> make import-fundamentals",
-            "Earnings import draft folder: data/staged/earnings/ -> make import-earnings",
-            "Analyst estimates import draft folder: data/staged/analyst_estimates/ -> make import-analyst-estimates",
+            "Price import file folder: data/staged/prices/ -> make import-prices",
+            "Fundamentals import file folder: data/staged/fundamentals/ -> make import-fundamentals",
+            "Earnings import file folder: data/staged/earnings/ -> make import-earnings",
+            "Analyst estimates import file folder: data/staged/analyst_estimates/ -> make import-analyst-estimates",
         ],
     }
 
@@ -7487,9 +7487,9 @@ def readiness_panel_cards(summary: dict[str, object]) -> list[dict[str, object]]
         },
         {
             "kicker": "MANUAL IMPORTS",
-            "title": "Import draft folders available",
+            "title": "Import file folders available",
             "body": "; ".join(str(path) for path in summary.get("manual_import_paths", [])),
-            "badges": ["import drafts", "review before apply"],
+            "badges": ["import files", "review before apply"],
             "command": "make imports-validate",
         },
     ]
