@@ -7116,7 +7116,7 @@ def readiness_recent_progress_cards(
                 "Use make readiness-snapshot, then one targeted refresh/import workflow, then make readiness. "
                 "The dashboard compares only saved local CSV snapshots and never invents progress."
             ),
-            "badges": ["operator workflow", "copy only"],
+            "badges": ["review workflow", "copy only"],
             "command": "make readiness-snapshot",
         }
     )
@@ -10890,7 +10890,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
             "kicker": "ACTIVE QUEUE",
             "title": f"{len(frame)} active ticker(s) ranked",
             "body": "Queue is ranked by current local readiness, decision bucket, purpose family, and primary blocker. It is an evaluation workflow, not an action list.",
-            "badges": ["operator workflow", "row-limited"],
+            "badges": ["review workflow", "row-limited"],
             "command": "make project-status",
         },
         {
@@ -18728,18 +18728,18 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
             "body": (
                 "Use the same MAX_CANDIDATES and TOP_N from the dry run. "
                 f"The loop handles the {planned_batches} capped batch(es) for you, updates local CSVs only, "
-                "then you review the generated churn."
+                "then you review the local file changes."
             ),
-            "badges": ["capped batches", "review churn"],
+            "badges": ["capped batches", "review changes"],
             "command": f"make price-refresh-loop MAX_CANDIDATES={broad_target} TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
         },
         {
             "kicker": "VERIFY & HYGIENE",
             "title": "Prove what changed before staging",
             "body": (
-                "Rebuild price coverage, readiness, and project status, then inspect generated CSV churn before staging anything."
+                "Rebuild price coverage, readiness, and project status, then inspect local CSV changes before staging anything."
             ),
-            "badges": ["prove readiness", "review churn"],
+            "badges": ["prove readiness", "review changes"],
             "command": "make price-coverage TOP_N=25 && make readiness && make project-status && make diff-hygiene",
         },
     ]
@@ -19165,7 +19165,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             ),
             language="bash",
         )
-        st.caption("Broad refresh churn should be inspected before it is committed or shared publicly.")
+        st.caption("Broad refresh changes should be inspected before they are committed or shared publicly.")
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:

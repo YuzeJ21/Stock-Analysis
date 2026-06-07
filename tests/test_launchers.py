@@ -400,7 +400,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "estimated wait time, resume behavior",
         "Before a real broad run, use `make readiness-snapshot`",
         "after the run, use `make diff-hygiene`",
-        "refreshed generated CSV churn stays local unless intentionally reviewed",
+        "refreshed CSV changes stay local unless intentionally reviewed",
         "make focus-fundamentals TICKER=NVDA",
         "make peer-mapping-queue TOP_N=10",
         "make optional-context-worklist TOP_N=10",
@@ -435,6 +435,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "outputs/staging/",
         "internal development notes, and stale repo links",
         "safe staging suggestion for product files and reviewed Markdown reports",
+        "large generated CSV/JSON changes",
         "Reuse terms are not specified yet",
         "reuse rights are not granted until a license is added",
         "[License Decision Guide](docs/LICENSE_DECISION_GUIDE.md)",
@@ -463,6 +464,18 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "not automatic undervalued calls",
     ):
         assert phrase in readme
+    for old_phrase in (
+        "operator console",
+        "deeper local runbook",
+        "refreshed generated CSV churn",
+        "generated data churn",
+        "generated CSV/JSON churn",
+        "broad refresh churn",
+        "generated report CSVs",
+        "operator workflow",
+        "source/freshness auditability",
+    ):
+        assert old_phrase not in readme
 
 
 def test_public_markdown_links_resolve_to_tracked_local_files():
