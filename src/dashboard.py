@@ -13385,7 +13385,7 @@ def valuation_quick_read_cards(
             "kicker": "COPY NEXT",
             "title": "Run the next local proof step",
             "body": (
-                f"Copy next: `{first_command}`. Use this command to prove the current valuation lane before reading "
+                f"Copy next: `{first_command}`. Use this command to prove the current valuation path before reading "
                 "DCF assumptions, locked-input worklists, or monitor-context rows. The dashboard displays the command only; "
                 "it does not run refreshes, imports, or external account actions."
             ),
@@ -17767,7 +17767,7 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
         with st.expander(f"{page_label}: {title}", expanded=False):
             st.dataframe(style_frame(presentation_frame(section_frame)), width="stretch", hide_index=True)
 
-    with st.expander(f"{page_label}: Full table", expanded=False):
+    with st.expander(f"{page_label}: Complete table", expanded=False):
         st.dataframe(style_frame(presentation_frame(filtered)), width="stretch", hide_index=True)
 
 
@@ -17925,10 +17925,10 @@ def valuation_plain_language_cards(
 def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     dcf_readiness_frame, dcf_readiness_message = load_dcf_readiness()
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
-    render_section_header("Valuation Quick Read", "Which valuation lane to inspect first before reading tables or legacy value columns.")
+    render_section_header("Valuation Quick Read", "Which valuation path to inspect first before reading tables or older value columns.")
     render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
     with st.expander("More valuation context, boundaries, and method", expanded=False):
-        render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or legacy output filenames.")
+        render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or older output columns.")
         render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
         render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")
         render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
@@ -17992,7 +17992,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
                 width="stretch",
                 hide_index=True,
             )
-        with st.expander("Raw valuation input details", expanded=False):
+        with st.expander("Valuation input checklist", expanded=False):
             columns = _readiness_columns(not_ready_companies, ["ticker", "asset_type", "missing_dcf_fields", "reason_not_ready", "has_price", "has_free_cash_flow", "has_shares_outstanding", "has_revenue", "has_fcf_margin"])
             st.dataframe(clean_display_frame(not_ready_companies[columns]), width="stretch", hide_index=True)
     if not excluded.empty:
@@ -18006,10 +18006,10 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
                 width="stretch",
                 hide_index=True,
             )
-        with st.expander("Raw ETF / index exclusion details", expanded=False):
+        with st.expander("ETF / index exclusion checklist", expanded=False):
             columns = _readiness_columns(excluded, ["ticker", "asset_type", "reason_not_ready"])
             st.dataframe(clean_display_frame(excluded[columns]), width="stretch", hide_index=True)
-    with st.expander("Full valuation output table", expanded=False):
+    with st.expander("Complete valuation context table", expanded=False):
         st.caption(valuation_legacy_output_note())
         st.write(
             "Reader boundary is added by the dashboard so legacy value categories are interpreted as readiness context, "
@@ -18049,7 +18049,7 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
             "make research-decisions",
             tone="warning",
         )
-    with st.expander("Full research-state table", expanded=False):
+    with st.expander("Complete research-state table", expanded=False):
         render_table(frame, "final-watchlist", show_reason_details)
 
 
@@ -18417,7 +18417,7 @@ def render_overview(
                     "Message": message or "",
                 }
             )
-        with st.expander("Generated output files", expanded=False):
+        with st.expander("Local generated file checklist", expanded=False):
             render_context_note(
                 "Local generated files.",
                 "These CSVs are useful for review, but broad refresh churn should be inspected before it is committed or shared publicly.",
@@ -18428,7 +18428,7 @@ def render_overview(
             render_section_header("Final Watchlist Snapshot", "Top-level state and reason context without opening the full table.")
             snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
             st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns].head(8)), width="stretch", hide_index=True)
-            with st.expander("Full final watchlist snapshot", expanded=False):
+            with st.expander("Complete final watchlist snapshot", expanded=False):
                 st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
 
 
@@ -19392,7 +19392,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             )
             render_signal_cards(stock_report_local_context_cards(coverage, peer_summary))
             st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
-            with st.expander("Full local coverage details", expanded=False):
+            with st.expander("Complete local coverage details", expanded=False):
                 st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
             readiness_cols = st.columns(4)
             readiness_cols[0].metric("Peer Dataset", "Present" if peer_summary["peer_dataset_present"] else "Missing")
