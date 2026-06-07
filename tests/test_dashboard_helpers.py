@@ -19,6 +19,10 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert dashboard.public_status_label("not_ready") == "Not ready"
     assert dashboard.public_status_label("Broken") == "Thesis Review Needed"
     assert dashboard.public_status_label("Avoid") == "No Setup"
+    assert dashboard.public_dataset_name("analyst_estimates") == "analyst estimates"
+    assert dashboard.public_dataset_name("custom_universe") == "custom universe"
+    assert dashboard.public_dataset_name("smh_holdings") == "SMH holdings"
+    assert dashboard.public_dataset_name("prices") == "prices"
 
     action_rows = dashboard.clean_display_frame(
         pd.DataFrame(
@@ -9131,6 +9135,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "The shortest safe local path before deeper unlock queues." in source
     assert "before opening detailed tables" not in source
     assert "deeper Data Health details" not in source
+    assert "missing_optional_labels = [public_dataset_name(name) for name in missing_optional]" in source
+    assert 'validation_rows["name"] = validation_rows["name"].map(public_dataset_name)' in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
     assert "Plain-English valuation worklists before the detailed market-wide review." in source
