@@ -9,6 +9,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep `make stock-report TICKER=NVDA` available for optional machine-readable local inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
+- Keep `make trusted-data-pilot TOP_N=10` visible as the read-only next step for improving 5-10 trusted companies without broad generated data churn.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Keep `docs/METHODOLOGY.md` linked from the README so visitors can see the readiness gates, DCF formula path, peer boundaries, and report-explanation rules.
@@ -87,6 +88,7 @@ make pipeline
 make readiness
 make project-status
 make demo
+make trusted-data-pilot TOP_N=10
 make stock-report-md TICKER=NVDA
 make stock-report-md TICKER=A
 make stock-report-md TICKER=META

@@ -4,7 +4,7 @@
 
 I built a local, CSV-first stock research command center that focuses on data readiness before analysis. Instead of producing unsupported stock picks, it checks whether each ticker has enough trusted local data for price, momentum, liquidity, correlation, fundamentals, DCF, peer comparison, earnings, and analyst-estimate context.
 
-The system generates readiness-aware research decisions, single-stock reports, source readiness checks, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports now open with `At A Glance`, then `Best Review Path`, then `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands` sections so readers can see whether a ticker is in `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, or `Data-unlock only` mode, which local method is being used, what to read first, and what command would unlock the next trusted input.
+The system generates readiness-aware research decisions, single-stock reports, source readiness checks, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports now open with `At A Glance`, then `Best Review Path`, then `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands` sections so readers can see whether a ticker is in `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, or `Data-unlock only` mode, which confidence cue applies, which local method is being used, what to read first, and what command would unlock the next trusted input.
 
 ## Suggested LinkedIn Post
 
@@ -24,12 +24,13 @@ Current features:
 - Single-stock Markdown reports.
 - At A Glance summaries that put mode, decision view, DCF state, peer context, optional context, method cue, and next local step at the top.
 - Best Review Path cards that tell readers whether to review DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
-- Analysis Quality labels that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and data-unlock mode.
+- Analysis Quality labels and confidence cues that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and data-unlock mode.
 - Methodology sections that show the DCF formula path, readiness gates, peer boundaries, and why missing fields are not inferred.
 - Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Copyable Unlock Commands that keep next steps local, capped, and research-only.
 - Source-readiness sections.
 - A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of a fabricated full-universe unlock.
+- A read-only `make trusted-data-pilot TOP_N=10` command that prints the 5-10 company coverage-improvement path without importing rows or fabricating data.
 - CSV-first, preview-first local import workflows.
 - Original local analysis rules for readiness gates, DCF boundaries, peer readiness, decision buckets, and report wording; Python libraries and optional provider adapters support data handling and UI.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
@@ -57,6 +58,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` to show how the product handles blocked data without inventing valuation conclusions, including the exact copyable local commands for the next unlock.
+- Run `make trusted-data-pilot TOP_N=10` to show the safe 5-10 company path for improving trusted fundamentals, DCF, and peer inputs.
 - Run `make dashboard` locally to show readiness cards, next-action cards, and single-stock drilldowns.
 - Point to `docs/METHODOLOGY.md` when someone asks how the analysis is calculated, to `docs/analysis_capability_audit.md` when someone asks what is strong or intentionally limited today, and to `docs/DATA_STRATEGY.md` when someone asks how coverage can improve without fabricating fundamentals, peers, earnings, or estimates.
 - Mention that the project is intentionally research-only and does not connect to a broker or place trades.

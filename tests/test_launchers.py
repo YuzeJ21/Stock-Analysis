@@ -915,6 +915,8 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "portfolio/demo project" in checklist
     assert "deeper local workflow guide" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
+    assert "make trusted-data-pilot TOP_N=10" in checklist
+    assert "read-only next step for improving 5-10 trusted companies" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
     assert "small pilot" in checklist
@@ -1023,6 +1025,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "Evaluation Function Check",
         "Copyable Unlock Commands",
         "mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
+        "which confidence cue applies",
         "which local method is being used",
         "what to read first",
         "with the DCF method path visible before detailed report tables",
@@ -1041,6 +1044,8 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "CSV-first, preview-first local import workflows",
         "public Data Strategy guide",
         "5-10 company pilot",
+        "make trusted-data-pilot TOP_N=10",
+        "without importing rows or fabricating data",
         "docs/DATA_STRATEGY.md",
         "preview-first local import validation",
         "Original local analysis rules for readiness gates",
