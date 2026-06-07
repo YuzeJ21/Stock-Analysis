@@ -3602,7 +3602,7 @@ def import_validation_rejected_row_cards(import_frame: pd.DataFrame | None = Non
                 f"Rejected-row report paths: {rejected_paths}.{missing_report_sentence} "
                 "Fix source rows or regenerate missing reports, then rerun validate and preview."
             ),
-            "badges": ["source audit", "row-level"],
+            "badges": ["source check", "row-level"],
             "command": "make imports-validate",
         },
     ]
@@ -5420,7 +5420,7 @@ def stock_report_source_detail_summary_frame(report_payload: dict[str, object]) 
         [
             {"Detail": "Ticker", "Value": format_missing(report_payload.get("ticker"))},
             {"Detail": "Provider", "Value": format_missing(report_payload.get("provider_name"), "Not available")},
-            {"Detail": "Generated", "Value": format_date_short(report_payload.get("generated_at"), "Not available")},
+            {"Detail": "Report timestamp", "Value": format_date_short(report_payload.get("generated_at"), "Not available")},
             {"Detail": "Ready feature flags", "Value": report_display_value(ready_count, "integer")},
             {"Detail": "Blocked feature flags", "Value": report_display_value(blocked_count, "integer")},
             {"Detail": "Source rows", "Value": report_display_value(len(source_rows), "integer")},
@@ -12743,7 +12743,7 @@ def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[st
                 "kicker": str(item["Area"]).upper(),
                 "title": format_missing(item["Status"]),
                 "body": compact_reason(item["Freshness"], max_sentences=1, max_chars=150),
-                "badges": ["source audit", "local CSV"],
+                "badges": ["source check", "local CSV"],
                 "command": format_missing(item["Next command"]),
             }
         )
@@ -17290,7 +17290,7 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
         ("Analyst Estimates", estimates_label, "Optional trusted local estimates file"),
         ("Missing Data", str(missing_count), "Warnings shown in Sources & Gaps"),
         ("Provider", format_missing(payload.get("provider_name"), "Not available"), "Review freshness notes"),
-        ("Generated", format_date_short(payload.get("generated_at"), "Not available"), "Local report timestamp"),
+        ("Report timestamp", format_date_short(payload.get("generated_at"), "Not available"), "Local report timestamp"),
     ]
     card_html = "".join(
         (
