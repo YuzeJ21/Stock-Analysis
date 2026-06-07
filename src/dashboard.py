@@ -529,7 +529,7 @@ COLUMN_LABELS = {
 
 def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
     if not path.exists():
-        return None, f"`{path.name}` has not been generated yet. Run `make verify` to regenerate local CSV outputs and validation artifacts first."
+        return None, f"`{path.name}` is not ready yet. Run `make verify` to refresh local outputs and validation proof first."
     try:
         frame = pd.read_csv(path)
     except Exception as exc:  # pragma: no cover - defensive UI path
@@ -1000,7 +1000,7 @@ def load_action_queue(
         if allow_refresh:
             write_action_queue_output(BASE_DIR, output_dir=outputs_dir)
             return load_output(path)
-        return None, f"`{ACTION_QUEUE_FILE}` has not been generated yet. Run `make action-queue` first."
+        return None, f"`{ACTION_QUEUE_FILE}` is not ready yet. Run `make action-queue` first to refresh the local action queue."
     frame, message = load_output(path)
     if frame is None:
         return frame, message
@@ -1067,7 +1067,7 @@ def load_price_update_status(
     path = outputs_dir / PRICE_STATUS_FILE
     if not path.exists():
         return None, (
-            "`price_update_status.csv` has not been generated yet. Run "
+            "`price_update_status.csv` is not ready yet. Run "
             "`make runbook-prices-broader` or `make focus-price TICKER=...` first. "
             "For downloaded files, use `make price-normalize`, then run `make price-validate`, "
             "`make price-preview`, and `make price-apply`."
@@ -2442,11 +2442,11 @@ def price_refresh_fallback_message(include_remote_failure_prefix: bool = False) 
 
 
 def price_refresh_cli_note_message() -> str:
-    return "Terminal-only: " + price_refresh_fallback_message()
+    return "Copy-only: " + price_refresh_fallback_message()
 
 
 def data_gap_report_notice(message: str | None) -> tuple[str, str]:
-    body = message or "Either the local gap report has not been generated yet or there are currently no explicit source-gap rows to show."
+    body = message or "The local source-gap report is not ready yet, or there are currently no explicit source-gap rows to show."
     return body, "make data-sources"
 
 
