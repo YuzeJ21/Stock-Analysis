@@ -406,8 +406,10 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Optional yfinance mode stays off by default" not in source
     assert "Optional online provider mode" in source
     assert "saved local-data path" in source
-    assert "Show report source details" in source
-    assert "Adds source and freshness troubleshooting under Sources & Gaps" in source
+    assert "Show source readiness details" in source
+    assert "Adds extra source-readiness and missing-input checks under Sources & Gaps" in source
+    assert "Show report source details" not in source
+    assert "Adds source and freshness troubleshooting under Sources & Gaps" not in source
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
     assert "Show detailed tables" in source
