@@ -288,7 +288,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     rendered_original = " ".join(str(value) for card in cards for value in card.values())
 
     assert len(cards) == 20
-    assert all(card["kicker"] in {"PAGE GUIDE", "LOCKED / EXCLUDED", "COPY NEXT", "READ PATH", "REVIEW ROUTE"} for card in cards)
+    assert all(card["kicker"] in {"PAGE GUIDE", "LOCKED / EXCLUDED", "NEXT SAFE STEP", "READ PATH", "REVIEW ROUTE"} for card in cards)
     assert "Review route:" in rendered_original
     assert "Guided path:" not in rendered_original
     assert "home: what can i analyze now?" in rendered
@@ -299,7 +299,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "prices, fundamentals, dcf, peers" not in rendered
     assert rendered.count("analyze now:") == 4
     assert rendered.count("still locked:") == 4
-    assert rendered.count("copy next:") == 4
+    assert rendered.count("next step:") == 4
     assert rendered.count("read path:") == 4
     assert rendered.count("review route:") == 4
     assert "guided path:" not in rendered

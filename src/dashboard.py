@@ -233,10 +233,10 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "command": guide["command"],
         },
         {
-            "kicker": "COPY NEXT",
-            "title": "What command should I copy next?",
+            "kicker": "NEXT SAFE STEP",
+            "title": "What should I do next?",
             "body": (
-                "Copy next: use the command only when you are ready to run it yourself. "
+                "Next step: use the command only when you are ready to run it yourself. "
                 "The dashboard does not run refreshes, imports, or external actions. "
                 f"Review area: {guide['review_area']}. "
                 f"Proof after unlock: {guide['proof']}"
