@@ -327,9 +327,9 @@ DATA_ONBOARDING_FILES = {
     "peer_mapping_queue.csv": "Peer Mapping Queue",
     "ticker_unlock_ladder.csv": "Ticker Unlock Ladder",
     "unlock_priority_summary.csv": "Unlock Priority Summary",
-    "command_bundles.csv": "Command Bundles",
-    "command_bundle_details.csv": "Command Bundle Details",
-    "command_bundle_runbook.csv": "Command Bundle Runbook",
+    "command_bundles.csv": "Guided Data Batches",
+    "command_bundle_details.csv": "Guided Data Batch Details",
+    "command_bundle_runbook.csv": "Guided Data Batch Runbook",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -5941,9 +5941,9 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
     if bundle_frame is None or bundle_frame.empty:
         return [
             {
-                "kicker": "COMMAND BUNDLES",
-                "title": "No command bundles yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local command bundles for prices, SEC import draft workflow, and peer mapping.",
+                "kicker": "DATA BATCHES",
+                "title": "No guided data batches yet",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first guided data batches for prices, SEC import draft workflow, and peer mapping.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15786,9 +15786,9 @@ def overview_market_context_cards(
 
 ONBOARDING_NOTICE_DEFAULTS: dict[str, str] = {
     "coverage_wizard": "Run make onboarding to refresh the local data coverage wizard and see the next best coverage unlocks.",
-    "command_bundles": "Run make onboarding to refresh the onboarding outputs and generate holdings-first local command bundles.",
-    "command_bundle_details": "Run make onboarding to refresh the onboarding outputs and generate ticker-level bundle steps.",
-    "command_bundle_runbook": "Run make onboarding to refresh the onboarding outputs and generate ordered bundle runbook rows.",
+    "command_bundles": "Run make onboarding to refresh the onboarding outputs and generate holdings-first guided data batches.",
+    "command_bundle_details": "Run make onboarding to refresh the onboarding outputs and generate ticker-level guided-batch steps.",
+    "command_bundle_runbook": "Run make onboarding to refresh the onboarding outputs and generate ordered guided-batch runbook rows.",
     "price_worklist": "Run make onboarding to refresh the onboarding outputs and see exact local price-history gaps plus the safe manual-import path.",
     "fundamentals_peer_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still need SEC fundamentals or manual peer mappings.",
     "optional_context_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still have optional earnings or analyst-estimate gaps.",
@@ -15997,8 +15997,8 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         return [
             {
                 "kicker": "DATA BUNDLE",
-                "title": "No command bundles yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first local bundles for prices, SEC import draft workflow, and peer mapping.",
+                "title": "No guided data batches yet",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface holdings-first guided data batches for prices, SEC import draft workflow, and peer mapping.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -18302,7 +18302,7 @@ def render_overview(
         render_signal_cards(overview_benchmark_pressure_cards(market_direction_frame, price_status_frame, project_status_payload))
         render_section_header("Best Next Commands", "A few project commands that best match the current local blockers and verification state.")
         render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
-        render_section_header("Best Data Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, or peer-mapping pass.")
+        render_section_header("Best Data Batches", "Holdings-first guided data batches for the next price, SEC fundamentals, or peer-mapping pass.")
         render_signal_cards(overview_command_bundle_cards(command_bundles_frame))
         render_section_header("Bundle Lanes", "A lane-by-lane view of the current prices, fundamentals, and peers runbook so the next local pass is easier to follow.")
         render_signal_cards(overview_bundle_runbook_cards(command_bundle_runbook_frame))
@@ -20393,15 +20393,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 wizard_notice_body,
                 wizard_notice_command,
             )
-    with st.expander("Command bundle details", expanded=False):
-        render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
+    with st.expander("Guided data batch details", expanded=False):
+        render_section_header("Guided Data Batches", "Holdings-first guided data batches for the next price, SEC fundamentals, and peer-mapping pass.")
         render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
         render_section_header("Bundle Runbook", "Ordered command steps for each current bundle lane so the local follow-through stays explicit.")
         render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
         if command_bundles_frame is None:
             bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
             render_notice_card(
-                "Command bundles have not been generated yet",
+                "Guided data batches have not been generated yet",
                 bundle_notice_body,
                 bundle_notice_command,
             )
