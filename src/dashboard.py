@@ -95,7 +95,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "read": "Read readiness cards first, then What Changed Recently, then the next-step cards. Treat big universe counts as coverage, not proof that every ticker is analysis-ready.",
             "proof": "After any refresh or import, run make readiness and reopen Home before interpreting changed counts.",
             "guided_path": "Start on Home for readiness, open Value / Re-rating for valuation boundaries, use Single-Stock Report for ticker proof, then use Data Health for unlock steps.",
-            "lane": "Home next-step cards",
+            "workflow_path": "Home next-step cards",
             "command": "make status-check TOP_N=5",
         },
         "Single-Stock Report": {
@@ -103,8 +103,8 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "locked": "Unsupported DCF, peer valuation, earnings, and estimate sections stay withheld instead of being filled.",
             "read": "Read At A Glance, then Quick Read, then the source/freshness audit. Locked sections are boundaries, not hidden conclusions.",
             "proof": "After an unlock, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
-            "guided_path": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact unlock lane if anything is still locked.",
-            "lane": "Single-Stock Review",
+            "guided_path": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact unlock path if anything is still locked.",
+            "workflow_path": "Single-Stock Review",
             "command": "make stock-report-md TICKER=NVDA",
         },
         "Value / Re-rating": {
@@ -113,16 +113,16 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "read": "Read the DCF-ready, DCF-blocked, and DCF-excluded split before looking at rankings. DCF-ready means assumption review, not a price target.",
             "proof": "After fundamentals change, run make dcf-readiness and make readiness before reading valuation output.",
             "guided_path": "Use Value / Re-rating to classify DCF-ready, locked, or excluded valuation states, then open Single-Stock Report for proof and Data Health for unlock steps.",
-            "lane": "Fundamentals / DCF Unlock",
+            "workflow_path": "Fundamentals / DCF Unlock",
             "command": "make dcf-readiness",
         },
         "Data Health": {
             "analyze": "Which trusted inputs are ready across prices, fundamentals, DCF, peers, earnings, and analyst estimates.",
             "locked": "Missing inputs are an unlock queue, not weak conclusions; imports should validate, preview, and apply before trust.",
-            "read": "Start with the unlock lane cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
-            "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a lane as unlocked.",
+            "read": "Start with the unlock path cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
+            "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a path as unlocked.",
             "guided_path": "Use Data Health when Home, Value / Re-rating, or Single-Stock Report shows a lock; return to those pages only after readiness proof passes.",
-            "lane": "Data Health unlock lanes",
+            "workflow_path": "Data Health unlock paths",
             "command": "make data-wizard TOP_N=10",
         },
     }
@@ -134,7 +134,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "read": "Read summary cards first, then the table. Use the command card only when you want to refresh local outputs from a terminal.",
             "proof": "After local data changes, rerun readiness before interpreting changed outputs.",
             "guided_path": "Use Home for the current state, Single-Stock Report for ticker proof, and Data Health for locked-input unlock steps.",
-            "lane": "Current page summary",
+            "workflow_path": "Current page summary",
             "command": "make status-check TOP_N=5",
         },
     )
@@ -159,7 +159,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "body": (
                 "Copy next: copy the command into a terminal only when you are ready. "
                 "The dashboard does not run refreshes, imports, or external account actions. "
-                f"Dashboard lane: {guide['lane']}. "
+                f"Workflow path: {guide['workflow_path']}. "
                 f"Proof after unlock: {guide['proof']}"
             ),
             "badges": ["copy-only", "research-only"],
@@ -5559,7 +5559,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_badges = ["optional context", "trusted rows only"]
     else:
         first_title = "Review single-stock reports"
-        first_body = "Core unlock lanes look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and freshness."
+        first_body = "Core unlock paths look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and freshness."
         first_command = "make stock-report-md TICKER=NVDA"
         first_badges = ["single-stock review", "source freshness"]
 
@@ -6021,7 +6021,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
     if runbook_frame is None or runbook_frame.empty:
         return [
             {
-                "kicker": "RUNBOOK",
+                "kicker": "GUIDED STEPS",
                 "title": "No guided data batch plan yet",
                 "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC import draft workflow, and peer mapping.",
                 "badges": ["read-only"],
@@ -6101,7 +6101,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         )
         cards.append(
             {
-                "kicker": f"{lane.upper()} RUNBOOK",
+                "kicker": f"{lane.upper()} STEPS",
                 "title": bundle_name,
                 "body": (
                     f"{body_summary}{hint_text}. " if body_summary not in {"", "Not available"} else ""
@@ -6117,7 +6117,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             break
     return cards or [
         {
-            "kicker": "RUNBOOK",
+            "kicker": "GUIDED STEPS",
             "title": "No guided data batch plan yet",
             "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC import draft workflow, and peer mapping.",
             "badges": ["read-only"],
@@ -11056,7 +11056,7 @@ def product_page_logic_audit_frame(
             "check": "Research Now gating",
             "status": "pass" if research_now_conflicts == 0 else "review",
             "evidence": f"{research_now_conflicts} Research Now row(s) still show critical price/fundamentals/DCF blockers.",
-            "operator_action": "Keep Research Now limited to rows with supported core evidence; otherwise show a data-unlock lane.",
+            "operator_action": "Keep Research Now limited to rows with supported core evidence; otherwise show a data-unlock state.",
             "source": "outputs/research_decisions.csv",
         }
     )
@@ -18027,7 +18027,7 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
             st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
         render_signal_cards(final_decision_quality_cards(decisions))
         with st.expander("More decision detail: workflow, proof queue, and table guide", expanded=False):
-            render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock lanes.")
+            render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock states.")
             render_signal_cards(decision_workflow_summary_cards(decisions))
             bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
             render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
@@ -19073,7 +19073,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
     render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
 
-    render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock lane comes first.")
+    render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock path comes first.")
     render_signal_cards(_plain_home_current_data_coverage_cards(summary))
 
     render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
@@ -20326,16 +20326,16 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
     render_signal_cards(data_health_orientation_cards(readiness_summary))
-    render_section_header("Data Health Quick Read", "Which unlock lane should you inspect first, before opening detailed tables.")
+    render_section_header("Data Health Quick Read", "Which unlock path should you inspect first, before opening detailed tables.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
     render_section_header("Fix First", "The shortest safe local path before deeper Data Health details.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
-    render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers lanes.")
+    render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     with st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False):
         render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local generated-data churn.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
-        render_section_header("Analysis Unlock Map", "What each trusted data lane makes available to review next.")
+        render_section_header("Analysis Unlock Map", "What each trusted data path makes available to review next.")
         render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
         render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
         render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
