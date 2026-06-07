@@ -182,6 +182,26 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
     ]
 
 
+def dashboard_page_reader_summary_cards(page_title: str) -> list[dict[str, object]]:
+    cards = dashboard_page_reader_cards(page_title)
+    by_kicker = {str(card.get("kicker", "")): card for card in cards}
+    page_guide = by_kicker.get("PAGE GUIDE", {})
+    copy_next = by_kicker.get("COPY NEXT", {})
+    guide_body = re.sub(r"^Analyze now:\s*", "", str(page_guide.get("body", "")).strip())
+    return [
+        {
+            "kicker": "PAGE GUIDE",
+            "title": "How to use this page.",
+            "body": (
+                f"{guide_body} Locked sections stay visible when trusted inputs are missing. "
+                "Commands are copy-only; the dashboard never runs refreshes, imports, or external account actions."
+            ),
+            "badges": ["plain English", "copy-only", "research-only"],
+            "command": str(copy_next.get("command") or page_guide.get("command") or "make status-check TOP_N=5"),
+        }
+    ]
+
+
 IMPORT_HEALTH_DATASETS = [
     {
         "dataset": "prices",
@@ -1497,6 +1517,23 @@ def apply_dashboard_theme() -> None:
           background: var(--research-bg) !important;
           color: var(--research-text) !important;
         }
+        #MainMenu,
+        footer,
+        [data-testid="stToolbar"],
+        [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"],
+        [data-testid="stDeployButton"],
+        [data-testid="stAppDeployButton"],
+        [data-testid="stBaseButton-header"],
+        .stDeployButton,
+        .stAppDeployButton {
+          display: none !important;
+          visibility: hidden !important;
+        }
+        [data-testid="stIconMaterial"] {
+          display: none !important;
+          visibility: hidden !important;
+        }
         [data-testid="stSidebar"] {
           background: #f8faf5 !important;
           border-right: 1px solid var(--research-border);
@@ -1994,6 +2031,40 @@ def apply_dashboard_theme() -> None:
           line-height: 1.36;
           margin-top: 0.42rem;
           overflow-wrap: anywhere;
+        }
+        .sidebar-route-list {
+          display: grid;
+          gap: 0.45rem;
+          margin: 0.35rem 0 0.8rem 0;
+        }
+        .sidebar-route-item {
+          border-radius: 13px;
+          border: 1px solid #dce5dc;
+          background: rgba(255, 254, 250, 0.76);
+          padding: 0.6rem 0.66rem;
+        }
+        .sidebar-route-title {
+          color: #111827 !important;
+          font-size: 0.83rem;
+          font-weight: 900;
+          line-height: 1.18;
+        }
+        .sidebar-route-body {
+          color: #526071 !important;
+          font-size: 0.78rem;
+          line-height: 1.32;
+          margin-top: 0.22rem;
+        }
+        .sidebar-route-chip {
+          display: inline-block;
+          margin-top: 0.34rem;
+          border-radius: 999px;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          background: #eef9f5;
+          color: #0b3b36 !important;
+          font-size: 0.7rem;
+          font-weight: 900;
+          padding: 0.16rem 0.44rem;
         }
         .cockpit-panel {
           display: grid;
@@ -2527,7 +2598,7 @@ def section_header_html(title: str, caption: str = "") -> str:
     caption_html = f"<div class='section-caption'>{html.escape(caption)}</div>" if caption else ""
     return (
         "<div class='section-shell'>"
-        "<div class='section-kicker'>Research View</div>"
+        "<div class='section-kicker'>Workflow Page</div>"
         f"<div class='section-title'>{html.escape(title)}</div>"
         f"{caption_html}"
         "</div>"
@@ -2577,6 +2648,25 @@ def render_action_cards(cards: list[tuple[str, str, str, str]]) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
+
+
+def sidebar_route_steps_html(cards: list[tuple[str, str, str, str]]) -> str:
+    items: list[str] = []
+    for title, body, destination, _tone in cards:
+        if not title and not body and not destination:
+            continue
+        items.append(
+            "<div class='sidebar-route-item'>"
+            f"<div class='sidebar-route-title'>{html.escape(title)}</div>"
+            f"<div class='sidebar-route-body'>{html.escape(body)}</div>"
+            f"<span class='sidebar-route-chip'>{html.escape(destination)}</span>"
+            "</div>"
+        )
+    return "<div class='sidebar-route-list'>" + "".join(items) + "</div>"
+
+
+def render_sidebar_route_steps(cards: list[tuple[str, str, str, str]]) -> None:
+    st.markdown(sidebar_route_steps_html(cards), unsafe_allow_html=True)
 
 
 def notice_card_html(title: str, body: str, command: str = "", tone: str = "info") -> str:
@@ -5170,6 +5260,21 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "badges": ["visitor path", "one ticker"],
             "command": "make stock-report-md TICKER=NVDA",
         },
+    ]
+
+
+def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "ONE-TICKER REVIEW",
+            "title": "Build one readable report",
+            "body": (
+                "Select a ticker, build the local preview, then read At A Glance first. "
+                "The report separates ready analysis, locked inputs, excluded ETF/index DCF, and the next copy-only local step."
+            ),
+            "badges": ["plain English", "readiness first", "copy-only"],
+            "command": "make stock-report-md TICKER=NVDA",
+        }
     ]
 
 
@@ -9753,21 +9858,21 @@ def decision_interpretation_ladder_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "DECISION READING ORDER",
-            "title": format_missing(bucket.get("Step"), "Read the bucket"),
+            "title": "Read the bucket",
             "body": format_missing(bucket.get("What It Means"), ""),
             "badges": ["workflow state", "not advice"],
             "command": format_missing(bucket.get("Safe Command"), ""),
         },
         {
             "kicker": "BLOCKER BEFORE CONCLUSION",
-            "title": format_missing(blocker.get("Step"), "Read the blocker"),
+            "title": "Read the blocker",
             "body": format_missing(blocker.get("What To Check Next"), ""),
             "badges": ["missing data first", "no inference"],
             "command": format_missing(blocker.get("Safe Command"), ""),
         },
         {
             "kicker": "NEXT ACTION IS COPY-ONLY",
-            "title": format_missing(next_action.get("Step"), "Copy the next action"),
+            "title": "Copy the next action",
             "body": format_missing(next_action.get("What It Means"), ""),
             "badges": ["manual terminal workflow", "research-only"],
             "command": format_missing(next_action.get("Safe Command"), ""),
@@ -17508,6 +17613,18 @@ def detail_sections(frame: pd.DataFrame, show_reason_details: bool) -> list[tupl
     return sections
 
 
+def table_page_label(key: str) -> str:
+    key_labels = {
+        "value-re-rating": "Value / Re-rating",
+        "monthly-research-picks": "Monthly Picks",
+        "final-watchlist": "Final Watchlist",
+        "momentum-leaders": "Momentum Leaders",
+        "market-direction": "Market Direction",
+        "portfolio-review": "Portfolio Review",
+    }
+    return key_labels.get(key, display_column_label(key.replace("-", " ")) if "-" in key else key.title())
+
+
 def pick_filter_column(frame: pd.DataFrame, candidates: list[str]) -> str | None:
     for column in candidates:
         if column in frame.columns:
@@ -17530,14 +17647,6 @@ def filter_summary_text(
     filtered_count: int,
     total_count: int,
 ) -> str:
-    key_labels = {
-        "value-re-rating": "Value / Re-rating",
-        "monthly-research-picks": "Monthly Picks",
-        "final-watchlist": "Final Watchlist",
-        "momentum-leaders": "Momentum Leaders",
-        "market-direction": "Market Direction",
-        "portfolio-review": "Portfolio Review",
-    }
     labels: list[str] = []
     if search_value.strip():
         labels.append(f"search `{search_value.strip()}`")
@@ -17556,8 +17665,7 @@ def filter_summary_text(
 
     scope = f"{filtered_count} of {total_count} rows visible" if total_count else "No rows available"
     if not labels:
-        label = key_labels.get(key, display_column_label(key.replace("-", " ")) if "-" in key else key.title())
-        return f"{label}: {scope}. Use search or filters to narrow the table."
+        return f"{table_page_label(key)}: {scope}. Use search or filters to narrow the table."
     return f"{scope}. Active filters: " + " | ".join(labels) + "."
 
 
@@ -17646,11 +17754,12 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
     )
     st.dataframe(style_frame(presentation_frame(display_frame[compact_columns])), width="stretch", hide_index=True)
 
+    page_label = table_page_label(key)
     for title, section_frame in detail_sections(filtered, show_reason_details):
-        with st.expander(f"{key} {title.lower()}", expanded=False):
+        with st.expander(f"{page_label}: {title}", expanded=False):
             st.dataframe(style_frame(presentation_frame(section_frame)), width="stretch", hide_index=True)
 
-    with st.expander(f"{key} full table", expanded=False):
+    with st.expander(f"{page_label}: Full table", expanded=False):
         st.dataframe(style_frame(presentation_frame(filtered)), width="stretch", hide_index=True)
 
 
@@ -17810,25 +17919,25 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
     render_section_header("Valuation Quick Read", "Which valuation lane to inspect first before reading tables or legacy value columns.")
     render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
-    render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or legacy output filenames.")
-    render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
-    render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")
-    render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
-    render_section_header("Intrinsic vs Relative Value", "Where standalone DCF ends, where peer valuation begins, and why blocked data stays locked.")
-    render_signal_cards(valuation_boundary_explainer_cards())
-    render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
-    render_signal_cards(valuation_method_path_cards())
-    with st.expander("What valuation can support today", expanded=False):
+    with st.expander("More valuation context, boundaries, and method", expanded=False):
+        render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or legacy output filenames.")
+        render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
+        render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")
+        render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
+        render_section_header("Intrinsic vs Relative Value", "Where standalone DCF ends, where peer valuation begins, and why blocked data stays locked.")
+        render_signal_cards(valuation_boundary_explainer_cards())
+        render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
+        render_signal_cards(valuation_method_path_cards())
         st.write(
             "This audit separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "
-            "peer-relative valuation, and support dependencies so missing inputs do not look like conclusions."
+            "peer-relative valuation, and support dependencies so missing inputs do not look like conclusions. "
+            "Operating-company valuation context is shown only for DCF-ready companies."
         )
         st.dataframe(
             clean_display_frame(valuation_function_quality_frame(ready_companies, not_ready_companies, excluded)),
             width="stretch",
             hide_index=True,
         )
-    with st.expander("DCF method contract", expanded=False):
         st.write(
             "This is the compact input-to-output contract behind the DCF view. It keeps the formula path visible "
             "and shows why missing fields block valuation instead of being filled."
@@ -17838,25 +17947,13 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
             width="stretch",
             hide_index=True,
         )
-    render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
-    render_signal_cards(valuation_decision_guide_cards(ready_companies, not_ready_companies, excluded))
-    with st.expander("Detailed valuation decision guide", expanded=False):
+        render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
+        render_signal_cards(valuation_decision_guide_cards(ready_companies, not_ready_companies, excluded))
         st.dataframe(
             clean_display_frame(valuation_readiness_operator_frame(ready_companies, not_ready_companies, excluded)),
             width="stretch",
             hide_index=True,
         )
-    render_signal_cards(
-        [
-            {
-                "kicker": "DCF READINESS",
-                "title": f"{len(ready_companies)} ready / {len(not_ready_companies)} blocked / {len(excluded)} excluded",
-                "body": "Operating-company valuation context is shown only for DCF-ready companies. ETFs/index proxies are excluded from DCF.",
-                "badges": ["ready", "blocked", "excluded"],
-                "command": "make dcf-readiness",
-            }
-        ]
-    )
     if dcf_readiness_frame is None:
         render_notice_card(
             "DCF readiness has not been generated",
@@ -17921,21 +18018,22 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
         with st.expander("Decision interpretation ladder", expanded=False):
             st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
         render_signal_cards(final_decision_quality_cards(decisions))
-        render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock lanes.")
-        render_signal_cards(decision_workflow_summary_cards(decisions))
-        bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
-        render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
-        proof_queue = decision_proof_queue_frame(decisions, limit=12)
-        render_section_header("Decision Proof Queue", "Plain-English translation of what can be reviewed now, what stays locked, and what proves an unlock.")
-        render_signal_cards(decision_proof_queue_cards(proof_queue))
-        if not proof_queue.empty:
-            with st.expander("Decision proof queue detail", expanded=False):
-                st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
-        render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
-        render_signal_cards(final_decision_table_guide_cards(decisions))
-        decision_columns = final_decision_default_columns(decisions)
-        with st.expander("Research decision table", expanded=False):
-            st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
+        with st.expander("More decision detail: workflow, proof queue, and table guide", expanded=False):
+            render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock lanes.")
+            render_signal_cards(decision_workflow_summary_cards(decisions))
+            bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
+            render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
+            proof_queue = decision_proof_queue_frame(decisions, limit=12)
+            render_section_header("Decision Proof Queue", "Plain-English translation of what can be reviewed now, what stays locked, and what proves an unlock.")
+            render_signal_cards(decision_proof_queue_cards(proof_queue))
+            if not proof_queue.empty:
+                with st.expander("Decision proof queue detail", expanded=False):
+                    st.dataframe(clean_display_frame(proof_queue), width="stretch", hide_index=True)
+            render_section_header("How To Read The Table", "Interpret buckets, confidence, blockers, and next actions before reading individual rows.")
+            render_signal_cards(final_decision_table_guide_cards(decisions))
+            decision_columns = final_decision_default_columns(decisions)
+            with st.expander("Research decision table", expanded=False):
+                st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
             "Research decisions are not available yet",
@@ -18073,18 +18171,14 @@ def render_overview(
         "Overview",
         "A quick read on whether the local research workflow is ready, partial, or waiting on data.",
     )
-    st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
-    render_section_header("Data Quality / Readiness", "Read this before interpreting rankings or research conclusions.")
-    render_signal_cards(
-        readiness_panel_cards(
-            dashboard_readiness_summary(
-                coverage_frame,
-                dcf_readiness_frame,
-                earnings_readiness_frame,
-                analyst_readiness_frame,
-                ticker_readiness_frame,
-            )
-        )
+    if project_status_payload:
+        st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
+    overview_readiness_summary = dashboard_readiness_summary(
+        coverage_frame,
+        dcf_readiness_frame,
+        earnings_readiness_frame,
+        analyst_readiness_frame,
+        ticker_readiness_frame,
     )
     render_section_header(
         "What Changed Recently",
@@ -18119,6 +18213,9 @@ def render_overview(
             action_queue_frame,
         )
     )
+    with st.expander("Readiness and data-quality details", expanded=False):
+        render_section_header("Data Quality / Readiness", "Use these readiness details before interpreting rankings or research conclusions.")
+        render_signal_cards(readiness_panel_cards(overview_readiness_summary))
 
     with st.expander("More overview queues", expanded=False):
         render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
@@ -18231,93 +18328,100 @@ def render_overview(
     render_section_header("Next Deeper Tabs", "Where to go next after the high-level workflow read, depending on whether you need blocker triage, single-name depth, or broader candidate comparison.")
     render_signal_cards(overview_handoff_cards())
 
-    st.markdown(
-        (
-            "<div class='subtle-panel'>"
-            f"<strong>Coverage snapshot.</strong> {output_file_count} generated outputs are present. "
-            f"{missing_warning_count} names still carry explicit missing-data warnings, "
-            f"{health_summary['thin_liquidity']} tickers look thin on local liquidity context, and "
-            f"{health_summary['high_correlation']} tickers show high local co-movement."
-            "</div>"
-        ),
-        unsafe_allow_html=True,
-    )
+    with st.expander("More status, unlock queues, and generated outputs", expanded=False):
+        st.markdown(
+            (
+                "<div class='subtle-panel'>"
+                f"<strong>Coverage snapshot.</strong> {output_file_count} generated outputs are present. "
+                f"{missing_warning_count} names still carry explicit missing-data warnings, "
+                f"{health_summary['thin_liquidity']} tickers look thin on local liquidity context, and "
+                f"{health_summary['high_correlation']} tickers show high local co-movement."
+                "</div>"
+            ),
+            unsafe_allow_html=True,
+        )
 
-    status_cards = project_status_metric_cards(project_status_payload)
-    if status_cards:
-        render_section_header(
-            "Project Status",
-            "The same read-only snapshot shown by `make status-check TOP_N=5`, surfaced here so the dashboard and terminal agree.",
-        )
-        render_metric_cards(status_cards)
-        command_rows = project_status_command_rows(project_status_payload)
-        if command_rows:
-            with st.expander("Recommended next commands", expanded=False):
-                st.dataframe(pd.DataFrame(command_rows), width="stretch", hide_index=True)
+        status_cards = project_status_metric_cards(project_status_payload)
+        if status_cards:
+            render_section_header(
+                "Project Status",
+                "The same read-only snapshot shown by `make status-check TOP_N=5`, surfaced here so the dashboard and terminal agree.",
+            )
+            render_metric_cards(status_cards)
+            command_rows = project_status_command_rows(project_status_payload)
+            if command_rows:
+                with st.expander("Recommended next commands", expanded=False):
+                    st.dataframe(pd.DataFrame(command_rows), width="stretch", hide_index=True)
+        else:
+            render_section_header(
+                "Project Status",
+                "Optional read-only status snapshot for matching the dashboard to terminal output.",
+            )
+            st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
 
-    render_section_header("Next Data Unlocks", "The next local data unlocks for richer research output.")
-    render_signal_cards(data_coverage_wizard_cards(wizard_frame))
+        render_section_header("Next Data Unlocks", "The next local data unlocks for richer research output.")
+        render_signal_cards(data_coverage_wizard_cards(wizard_frame))
 
-    priority_signals = top_priority_signals(action_queue_frame, limit=3)
-    if priority_signals:
-        render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
-        render_signal_cards(priority_signals)
-    else:
-        actions = priority_now_fallback_actions(
-            project_status_payload,
-            missing_warning_count=missing_warning_count,
-            catalog=catalog,
-        )
-        render_action_cards(actions)
+        priority_signals = top_priority_signals(action_queue_frame, limit=3)
+        if priority_signals:
+            render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
+            render_signal_cards(priority_signals)
+        else:
+            actions = priority_now_fallback_actions(
+                project_status_payload,
+                missing_warning_count=missing_warning_count,
+                catalog=catalog,
+            )
+            render_action_cards(actions)
 
-    output_rows = []
-    for filename, label in PIPELINE_FILES.items():
-        frame, message = output_frames[filename]
-        output_rows.append(
-            {
-                "Output": label,
-                "File": filename,
-                "Present": frame is not None,
-                "Rows": 0 if frame is None else len(frame),
-                "Message": message or "",
-            }
-        )
-    monthly_tables = load_monthly_outputs()
-    for filename, label in MONTHLY_FILES.items():
-        frame, message = monthly_tables[filename]
-        output_rows.append(
-            {
-                "Output": label,
-                "File": filename,
-                "Present": frame is not None,
-                "Rows": 0 if frame is None else len(frame),
-                "Message": message or "",
-            }
-        )
-    for filename, label in RESEARCH_HEALTH_FILES.items():
-        frame, message = health_tables[filename]
-        output_rows.append(
-            {
-                "Output": label,
-                "File": filename,
-                "Present": frame is not None,
-                "Rows": 0 if frame is None else len(frame),
-                "Message": message or "",
-            }
-        )
-    with st.expander("Generated output files", expanded=False):
-        render_context_note(
-            "Local generated files.",
-            "These CSVs are useful for review, but broad refresh churn should be inspected before it is committed or shared publicly.",
-        )
-        st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
+        output_rows = []
+        for filename, label in PIPELINE_FILES.items():
+            frame, message = output_frames[filename]
+            output_rows.append(
+                {
+                    "Output": label,
+                    "File": filename,
+                    "Present": frame is not None,
+                    "Rows": 0 if frame is None else len(frame),
+                    "Message": message or "",
+                }
+            )
+        monthly_tables = load_monthly_outputs()
+        for filename, label in MONTHLY_FILES.items():
+            frame, message = monthly_tables[filename]
+            output_rows.append(
+                {
+                    "Output": label,
+                    "File": filename,
+                    "Present": frame is not None,
+                    "Rows": 0 if frame is None else len(frame),
+                    "Message": message or "",
+                }
+            )
+        for filename, label in RESEARCH_HEALTH_FILES.items():
+            frame, message = health_tables[filename]
+            output_rows.append(
+                {
+                    "Output": label,
+                    "File": filename,
+                    "Present": frame is not None,
+                    "Rows": 0 if frame is None else len(frame),
+                    "Message": message or "",
+                }
+            )
+        with st.expander("Generated output files", expanded=False):
+            render_context_note(
+                "Local generated files.",
+                "These CSVs are useful for review, but broad refresh churn should be inspected before it is committed or shared publicly.",
+            )
+            st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
 
-    if final_watchlist_frame is not None and not final_watchlist_frame.empty:
-        render_section_header("Final Watchlist Snapshot", "Top-level state and reason context without opening the full table.")
-        snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
-        st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns].head(8)), width="stretch", hide_index=True)
-        with st.expander("Full final watchlist snapshot", expanded=False):
-            st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
+        if final_watchlist_frame is not None and not final_watchlist_frame.empty:
+            render_section_header("Final Watchlist Snapshot", "Top-level state and reason context without opening the full table.")
+            snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
+            st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns].head(8)), width="stretch", hide_index=True)
+            with st.expander("Full final watchlist snapshot", expanded=False):
+                st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
 
 
 def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFrame | None) -> list[dict[str, object]]:
@@ -18958,15 +19062,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "Home",
         "A plain-language view of what is ready, what is blocked, and what to review next.",
     )
-    render_context_note(
-        "How to use this page.",
-        (
-            "Start with the coverage snapshot, then open a single-stock report or Data Health only when you need the next unlock step. "
-            "Missing data is shown openly instead of guessed, and dashboard commands are copy-only."
-        ),
-        tone="success",
-    )
-    render_signal_cards(dashboard_page_reader_cards("Home"))
+    render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
 
     render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock lane comes first.")
@@ -18986,27 +19082,6 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "Example boundary.",
         "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
     )
-
-    render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
-    st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
-    st.caption("Full methodology: docs/METHODOLOGY.md")
-
-    render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
-    render_signal_cards(roadmap_milestone_status_cards(summary))
-    with st.expander("Roadmap status table", expanded=False):
-        st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
-
-    render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and where the logic comes from.")
-    render_signal_cards(_plain_home_capability_cards())
-    render_section_header("Where The Logic Comes From", "Plain-language provenance for the analysis functions and development aids.")
-    render_signal_cards(_plain_home_provenance_cards())
-    with st.expander("Detailed analysis capability audit", expanded=False):
-        st.write(
-            "The public audit explains which functions are strong today, which data gaps still limit the product, "
-            "and why the analysis shown to users comes from project code and local CSV inputs."
-        )
-        st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
-        st.code("docs/analysis_capability_audit.md", language="text")
 
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
     render_action_cards(
@@ -19039,6 +19114,28 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             "",
             tone="warning",
         )
+
+    with st.expander("Learn more: methodology, roadmap, and logic source", expanded=False):
+        render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
+        st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
+        st.caption("Full methodology: docs/METHODOLOGY.md")
+
+        render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
+        render_signal_cards(roadmap_milestone_status_cards(summary))
+        with st.expander("Roadmap status table", expanded=False):
+            st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
+
+        render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and where the logic comes from.")
+        render_signal_cards(_plain_home_capability_cards())
+        render_section_header("Where The Logic Comes From", "Plain-language provenance for the analysis functions and development aids.")
+        render_signal_cards(_plain_home_provenance_cards())
+        with st.expander("Detailed analysis capability audit", expanded=False):
+            st.write(
+                "The public audit explains which functions are strong today, which data gaps still limit the product, "
+                "and why the analysis shown to users comes from project code and local CSV inputs."
+            )
+            st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
+            st.code("docs/analysis_capability_audit.md", language="text")
 
     with st.expander("Copyable commands", expanded=False):
         st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
@@ -19223,7 +19320,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     frame, message = output_frames[filename]
     render_section_header(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
     if title == "Value / Re-rating":
-        render_signal_cards(dashboard_page_reader_cards(title))
+        render_signal_cards(dashboard_page_reader_summary_cards(title))
     if message and frame is None:
         render_notice_card(
             f"{title} output is not available yet",
@@ -19257,7 +19354,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         "One-ticker research workflow. Saved local data is the default. "
         "Optional online research mode stays off by default and is labeled unofficial / research-grade.",
     )
-    render_signal_cards(dashboard_page_reader_cards("Single-Stock Report"))
+    render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
     selected = selection_cols[0].selectbox(
@@ -19295,7 +19392,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
-    render_signal_cards(single_stock_report_intro_cards())
+    render_signal_cards(single_stock_report_intro_summary_cards())
+    with st.expander("How single-stock reports work", expanded=False):
+        render_signal_cards(single_stock_report_intro_cards())
 
     if st.button("Build Local Report Preview", key="single-stock-report-button"):
         if not ticker:
@@ -19338,27 +19437,28 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
-    st.markdown("#### Evaluation Summary")
-    render_context_note(
-        "Analysis mode guide.",
-        "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like unsupported conclusions.",
-    )
-    render_signal_cards(stock_report_mode_guide_cards(report_payload))
-    render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
-    st.dataframe(
-        clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
-        width="stretch",
-        hide_index=True,
-    )
-    st.markdown("#### What This Report Can Evaluate")
-    render_signal_cards(stock_report_function_quality_cards(report_payload))
-    with st.expander("Detailed function status", expanded=False):
+    with st.expander("More report interpretation and methodology", expanded=False):
+        st.markdown("#### Evaluation Summary")
+        render_context_note(
+            "Analysis mode guide.",
+            "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like unsupported conclusions.",
+        )
+        render_signal_cards(stock_report_mode_guide_cards(report_payload))
+        render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
         st.dataframe(
-            clean_display_frame(stock_report_function_quality_frame(report_payload)),
+            clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
             width="stretch",
             hide_index=True,
         )
-    st.markdown(stock_report_brief_html(report_payload), unsafe_allow_html=True)
+        st.markdown("#### What This Report Can Evaluate")
+        render_signal_cards(stock_report_function_quality_cards(report_payload))
+        with st.expander("Detailed function status", expanded=False):
+            st.dataframe(
+                clean_display_frame(stock_report_function_quality_frame(report_payload)),
+                width="stretch",
+                hide_index=True,
+            )
+        st.markdown(stock_report_brief_html(report_payload), unsafe_allow_html=True)
 
     price = report_payload["price_snapshot"]
     performance = report_payload["performance"]
@@ -20154,16 +20254,17 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "Data Health",
         "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next.",
     )
-    render_signal_cards(dashboard_page_reader_cards("Data Health"))
+    render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
     if project_status_payload is None:
-        render_notice_card(
-            "Project status snapshot is not preloaded",
-            "Data Health is using saved local results first so the page stays responsive. Copy `make project-status` when you want to refresh the next-step summary.",
-            "make project-status",
-        )
+        with st.expander("Refresh status note", expanded=False):
+            render_notice_card(
+                "Showing saved local results",
+                "Data Health opens with the latest saved outputs so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
+                "make project-status",
+            )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
     action_queue_frame, action_queue_message = load_action_queue()
     health_tables = load_research_health_tables()
@@ -20280,17 +20381,18 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "make pipeline",
             tone="warning",
         )
-    render_signal_cards(readiness_panel_cards(readiness_summary))
-    render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
-    render_section_header("Next Data Unlocks", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
-    render_signal_cards(data_coverage_wizard_cards(wizard_frame))
-    if wizard_frame is None:
-        wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
-        render_notice_card(
-            "Coverage unlock guide has not been generated",
-            wizard_notice_body,
-            wizard_notice_command,
-        )
+    with st.expander("More readiness summaries and unlock queues", expanded=False):
+        render_signal_cards(readiness_panel_cards(readiness_summary))
+        render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
+        render_section_header("Next Data Unlocks", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
+        render_signal_cards(data_coverage_wizard_cards(wizard_frame))
+        if wizard_frame is None:
+            wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
+            render_notice_card(
+                "Coverage unlock guide has not been generated",
+                wizard_notice_body,
+                wizard_notice_command,
+            )
     with st.expander("Command bundle details", expanded=False):
         render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
         render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
@@ -21215,61 +21317,64 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, import draft state, and safer apply flow.")
     render_signal_cards(universe_action_path_cards(universe_summary))
 
-    render_signal_cards(universe_manager_summary_cards(current, staged))
+    with st.expander("Universe coverage and source details", expanded=False):
+        render_signal_cards(universe_manager_summary_cards(current, staged))
 
-    metric_cols = st.columns(4)
-    metric_cols[0].metric("Current Universe Size", current["row_count"])
-    metric_cols[1].metric("Duplicate Tickers", current["duplicate_ticker_count"])
-    metric_cols[2].metric("Missing Theme", current["missing_theme_count"] + current["unclassified_theme_count"])
-    metric_cols[3].metric("Missing Sector ETF", current["missing_sector_etf_count"])
+        metric_cols = st.columns(4)
+        metric_cols[0].metric("Current Universe Size", current["row_count"])
+        metric_cols[1].metric("Duplicate Tickers", current["duplicate_ticker_count"])
+        metric_cols[2].metric("Missing Theme", current["missing_theme_count"] + current["unclassified_theme_count"])
+        metric_cols[3].metric("Missing Sector ETF", current["missing_sector_etf_count"])
 
-    st.markdown("### Source Membership Counts")
-    membership_rows = [
-        {"MembershipFlag": key, "Count": value}
-        for key, value in current["membership_counts"].items()
-    ]
-    if membership_rows:
-        st.dataframe(pd.DataFrame(membership_rows), width="stretch", hide_index=True)
-    else:
-        st.info("No source membership flags are currently present in the main universe file.")
+        st.markdown("### Source Membership Counts")
+        membership_rows = [
+            {"MembershipFlag": key, "Count": value}
+            for key, value in current["membership_counts"].items()
+        ]
+        if membership_rows:
+            st.dataframe(pd.DataFrame(membership_rows), width="stretch", hide_index=True)
+        else:
+            st.info("No source membership flags are currently present in the main universe file.")
 
-    st.markdown("### Available Presets")
-    render_signal_cards(universe_preset_cards())
-    preset_rows = [{"Preset": name, "Sources": ", ".join(sources)} for name, sources in SOURCE_PRESETS.items()]
-    with st.expander("Preset source table", expanded=False):
-        st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
+        st.markdown("### Available Presets")
+        render_signal_cards(universe_preset_cards())
+        preset_rows = [{"Preset": name, "Sources": ", ".join(sources)} for name, sources in SOURCE_PRESETS.items()]
+        with st.expander("Preset source table", expanded=False):
+            st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
 
-    current_frame = pd.DataFrame(current["rows"])
-    if not current_frame.empty:
-        search = st.text_input("Search current universe", key="universe-manager-search")
-        if search:
-            current_frame = current_frame.loc[
-                current_frame.astype(str).apply(lambda row: row.str.contains(search, case=False, na=False).any(), axis=1)
-            ].copy()
-        st.dataframe(current_frame, width="stretch", hide_index=True)
-    else:
-        render_notice_card(
-            "Current universe is empty",
-            "Add or stage a local universe before running broader screening, monthly picks, or larger price refresh workflows.",
-            "make universe-preview",
-            tone="warning",
-        )
-
-    st.markdown("### Universe Import Review")
-    st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
-    with st.expander("Universe import review details", expanded=False):
-        st.dataframe(staged_universe_detail_frame(staged), width="stretch", hide_index=True)
-
-    st.markdown("### Copyable Commands")
-    st.code(
-        "\n".join(
-            [
+    with st.expander("Current universe table", expanded=False):
+        current_frame = pd.DataFrame(current["rows"])
+        if not current_frame.empty:
+            search = st.text_input("Search current universe", key="universe-manager-search")
+            if search:
+                current_frame = current_frame.loc[
+                    current_frame.astype(str).apply(lambda row: row.str.contains(search, case=False, na=False).any(), axis=1)
+                ].copy()
+            st.dataframe(current_frame, width="stretch", hide_index=True)
+        else:
+            render_notice_card(
+                "Current universe is empty",
+                "Add or stage a local universe before running broader screening, monthly picks, or larger price refresh workflows.",
                 "make universe-preview",
-                "make universe-apply",
-            ]
-        ),
-        language="bash",
-    )
+                tone="warning",
+            )
+
+    with st.expander("Universe import review and copyable commands", expanded=False):
+        st.markdown("### Universe Import Review")
+        st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
+        with st.expander("Universe import review details", expanded=False):
+            st.dataframe(staged_universe_detail_frame(staged), width="stretch", hide_index=True)
+
+        st.markdown("### Copyable Commands")
+        st.code(
+            "\n".join(
+                [
+                    "make universe-preview",
+                    "make universe-apply",
+                ]
+            ),
+            language="bash",
+        )
 
 
 def main() -> None:
@@ -21304,8 +21409,12 @@ def main() -> None:
         st.divider()
         note_title, note_body = sidebar_navigation_note(selected_page)
         render_context_note(note_title, note_body, tone="success")
-        st.markdown("#### Where to go next")
-        render_action_cards(dashboard_navigation_cards())
+        render_context_note(
+            "Best path.",
+            "Home -> Single-Stock Report -> Data Health. Open details only if you want the guided route cards.",
+        )
+        with st.expander("Best path details", expanded=False):
+            render_sidebar_route_steps(dashboard_navigation_cards())
         with st.expander("Need help?", expanded=False):
             render_context_note(
                 "Simple path.",

@@ -272,14 +272,38 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "sell" not in rendered
 
 
+def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
+    cards = dashboard.dashboard_page_reader_summary_cards("Home")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert cards[0]["kicker"] == "PAGE GUIDE"
+    assert cards[0]["title"] == "How to use this page."
+    assert "analyze now:" not in rendered
+    assert "still locked:" not in rendered
+    assert "copy next:" not in rendered
+    assert "read path:" not in rendered
+    assert "guided path:" not in rendered
+    assert "locked sections stay visible when trusted inputs are missing" in rendered
+    assert "make status-check top_n=5" in rendered
+    assert "dashboard never runs refreshes, imports, or external account actions" in rendered
+    assert len(str(cards[0]["body"])) < 360
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_major_dashboard_pages_render_plain_english_reader_guides():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert 'render_signal_cards(dashboard_page_reader_cards("Home"))' in source
-    assert 'render_signal_cards(dashboard_page_reader_cards("Single-Stock Report"))' in source
-    assert 'render_signal_cards(dashboard_page_reader_cards("Data Health"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Home"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))' in source
+    assert 'render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))' in source
     assert 'if title == "Value / Re-rating":' in source
-    assert "render_signal_cards(dashboard_page_reader_cards(title))" in source
+    assert "render_signal_cards(dashboard_page_reader_summary_cards(title))" in source
+    assert 'render_signal_cards(dashboard_page_reader_cards("Home"))' not in source
 
 
 def test_sidebar_navigation_note_matches_selected_page():
@@ -312,6 +336,15 @@ def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
     assert '[data-testid="stDataFrame"]' in css
     assert '[data-testid="stExpander"]' in css
     assert '[data-baseweb="popover"]' in css
+    assert "#MainMenu" in css
+    assert '[data-testid="stToolbar"]' in css
+    assert '[data-testid="stDeployButton"]' in css
+    assert '[data-testid="stAppDeployButton"]' in css
+    assert '[data-testid="stBaseButton-header"]' in css
+    assert '[data-testid="stIconMaterial"]' in css
+    assert ".stDeployButton" in css
+    assert ".stAppDeployButton" in css
+    assert "visibility: hidden !important" in css
     assert "color: #111827 !important" in css
     assert "background: #fffefa !important" in css
 
@@ -320,6 +353,16 @@ def test_dashboard_card_helpers_render_modern_markup():
     metric = dashboard.metric_card_html("Universe", 12, "local tickers")
     action = dashboard.action_card_html("Price fallback", "Normalize downloaded CSVs", "make price-normalize", "warning")
     notice = dashboard.notice_card_html("Missing output", "Run the pipeline to regenerate local CSV outputs.", "make pipeline")
+    sidebar = dashboard.sidebar_route_steps_html(
+        [
+            (
+                "Analyze One Stock",
+                "Use Single-Stock Report for one ticker.",
+                "Single-Stock Report page",
+                "neutral",
+            )
+        ]
+    )
 
     assert "metric-card" in metric
     assert "Universe" in metric
@@ -327,6 +370,10 @@ def test_dashboard_card_helpers_render_modern_markup():
     assert "make price-normalize" in action
     assert "notice-card" in notice
     assert "make pipeline" in notice
+    assert "sidebar-route-list" in sidebar
+    assert "sidebar-route-item" in sidebar
+    assert "Single-Stock Report page" in sidebar
+    assert "action-card" not in sidebar
 
 
 def test_single_stock_default_prefers_demo_ticker_when_available():
@@ -363,7 +410,11 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds extra table sections for deeper local review" in source
     assert "Most visitors can leave this off" in source
     assert "Show more explanation" not in source
-    assert "#### Where to go next" in source
+    assert "#### Best path" not in source
+    assert "Home -> Single-Stock Report -> Data Health" in source
+    assert 'st.expander("Best path details", expanded=False)' in source
+    assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
+    assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
     assert 'st.expander("Need help?"' in source
     assert "Simple path." in source
@@ -418,13 +469,16 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     action_paths_index = source.index('render_section_header("Action Paths"')
     planning_expander_index = source.index('st.expander("Planning details: price, valuation, and analysis unlocks"')
     market_expander_index = source.index('st.expander("Full market-wide command center details"')
+    summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
     bundle_expander_index = source.index('st.expander("Command bundle details"')
 
     assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
-    assert planning_expander_index < market_expander_index < bundle_expander_index
+    assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
     assert 'st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False)' in source
     assert 'st.expander("Full market-wide command center details", expanded=False)' in source
+    assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
     assert 'st.expander("Command bundle details", expanded=False)' in source
+    assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
     assert 'render_section_header("Priority Fixes"' not in source
 
 
@@ -434,11 +488,24 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     overview_index = source.index('render_section_header(\n        "Overview"')
     changed_index = source.index('render_section_header(\n        "What Changed Recently"')
     best_paths_index = source.index('render_section_header("Current Best Paths"')
+    readiness_expander_index = source.index('st.expander("Readiness and data-quality details"')
+    readiness_index = source.index('render_section_header("Data Quality / Readiness"', readiness_expander_index)
     overview_queue_index = source.index('st.expander("More overview queues"')
     local_path_index = source.index('render_section_header("Today\'s Best Local Research Path"')
+    next_tabs_index = source.index('render_section_header("Next Deeper Tabs"')
+    status_unlock_index = source.index('st.expander("More status, unlock queues, and generated outputs"')
+    project_status_index = source.index('render_section_header(\n                "Project Status"', status_unlock_index)
+    next_data_unlocks_index = source.index('render_section_header("Next Data Unlocks"', status_unlock_index)
 
-    assert overview_index < changed_index < best_paths_index < overview_queue_index < local_path_index
+    assert overview_index < changed_index < best_paths_index < readiness_expander_index < overview_queue_index < local_path_index
+    assert local_path_index < next_tabs_index < status_unlock_index
+    assert readiness_expander_index < readiness_index < overview_queue_index
+    assert status_unlock_index < project_status_index < next_data_unlocks_index
+    assert 'st.expander("Readiness and data-quality details", expanded=False)' in source
     assert 'st.expander("More overview queues", expanded=False)' in source
+    assert 'st.expander("More status, unlock queues, and generated outputs", expanded=False)' in source
+    assert "if project_status_payload:\n        st.markdown(project_status_cockpit_html" in source
+    assert status_unlock_index < next_data_unlocks_index
     assert 'st.expander("More readiness and routing detail", expanded=False)' in source
     assert 'st.expander("More deep-research context", expanded=False)' in source
     assert 'st.expander("More market and workflow context", expanded=False)' in source
@@ -635,8 +702,16 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
 
     workflow_index = source.index('render_section_header("Evaluation Workflow"')
     next_step_index = source.index('render_section_header("What To Do Next"')
+    examples_index = source.index('render_section_header("Example Reports"')
+    where_to_go_index = source.index('render_section_header("Where To Go"')
+    learn_more_index = source.index('st.expander("Learn more: methodology, roadmap, and logic source"')
+    methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
+    commands_index = source.index('st.expander("Copyable commands"')
 
     assert workflow_index < next_step_index
+    assert next_step_index < examples_index < where_to_go_index < learn_more_index < commands_index
+    assert learn_more_index < methodology_index
+    assert 'st.expander("Learn more: methodology, roadmap, and logic source", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards())" in source
 
@@ -810,7 +885,8 @@ def test_section_header_html_uses_shell_and_escapes_content():
 
     assert "section-shell" in html
     assert "section-kicker" in html
-    assert "Research View" in html
+    assert "Workflow Page" in html
+    assert "Research View" not in html
     assert "&lt;Monthly Picks&gt;" in html
     assert "&lt;local&gt;" in html
 
@@ -1109,6 +1185,18 @@ def test_filter_summary_text_handles_no_active_filters():
     assert "Market Direction" in text
     assert "9 of 9 rows visible" in text
     assert "Use search or filters" in text
+
+
+def test_table_page_label_keeps_expanders_visitor_friendly():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert dashboard.table_page_label("market-direction") == "Market Direction"
+    assert dashboard.table_page_label("final-watchlist") == "Final Watchlist"
+    assert dashboard.table_page_label("value-re-rating") == "Value / Re-rating"
+    assert 'st.expander(f"{page_label}: {title}", expanded=False)' in source
+    assert 'st.expander(f"{page_label}: Full table", expanded=False)' in source
+    assert 'st.expander(f"{key} {title.lower()}", expanded=False)' not in source
+    assert 'st.expander(f"{key} full table", expanded=False)' not in source
 
 
 def test_filter_summary_text_uses_user_facing_value_page_name():
@@ -8136,6 +8224,7 @@ def test_value_re_rating_page_uses_context_not_ready_conclusion_language():
     assert "value / re-rating at a glance" in source
     assert "what you can analyze now" in source
     assert "what is still locked" in source
+    assert "more valuation context, boundaries, and method" in source
     assert "valuation method path" in source
     assert "intrinsic vs relative value" in source
     assert "where standalone dcf ends, where peer valuation begins" in source
@@ -8797,6 +8886,10 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next." in source
+    refresh_note_index = source.index('st.expander("Refresh status note"')
+    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
+    assert refresh_note_index < quick_read_index
+    assert 'st.expander("Refresh status note", expanded=False)' in source
     assert "Data Health Quick Read" in source
     assert "Which unlock lane should you inspect first, before opening detailed tables." in source
     assert "Supported Analysis Ladder" in source
@@ -8811,8 +8904,11 @@ def test_data_health_page_does_not_block_initial_render_on_project_status_build(
 
     assert 'if selected_page == "Overview":' in source
     assert 'if selected_page in {"Overview", "Data Health"}:' not in source
-    assert "Data Health is using saved local results first so the page stays responsive" in source
+    assert "Showing saved local results" in source
+    assert "Data Health opens with the latest saved outputs so the page stays fast" in source
     assert "Copy `make project-status` when you want to refresh the next-step summary" in source
+    assert "Project status snapshot is not preloaded" not in source
+    assert "Data Health is using saved local results first so the page stays responsive" not in source
     assert "rendering from existing local CSV outputs" not in source
     assert "separate project-status summary files" not in source
 
@@ -9309,7 +9405,9 @@ def test_stock_report_technical_context_frame_formats_missing_values_cleanly():
 
 def test_single_stock_report_intro_cards_explain_output_before_generation():
     cards = dashboard.single_stock_report_intro_cards()
+    summary_cards = dashboard.single_stock_report_intro_summary_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    summary_rendered = " ".join(str(value) for card in summary_cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
         "WHAT THIS MEANS",
@@ -9330,13 +9428,53 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "start with a demo or one selected ticker" in rendered
     assert "for a visitor demo, copy the markdown report command" in rendered
     assert "read the at a glance and reader guide before opening detailed tables" in rendered
+    assert len(summary_cards) == 1
+    assert summary_cards[0]["kicker"] == "ONE-TICKER REVIEW"
+    assert "build one readable report" in summary_rendered
+    assert "select a ticker, build the local preview, then read at a glance first" in summary_rendered
+    assert "locked inputs" in summary_rendered
+    assert "excluded etf/index dcf" in summary_rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=apld" in rendered
+    assert "make stock-report-md ticker=nvda" in summary_rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+    assert "broker" not in summary_rendered
+    assert "order" not in summary_rendered
+    assert "trading" not in summary_rendered
+    assert "buy" not in summary_rendered
+    assert "sell" not in summary_rendered
+
+
+def test_single_stock_page_keeps_full_intro_collapsed_before_build():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
+    expander_index = source.index('st.expander("How single-stock reports work"')
+    full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
+    build_button_index = source.index('st.button("Build Local Report Preview"')
+
+    assert summary_index < expander_index < full_intro_index < build_button_index
+    assert 'st.expander("How single-stock reports work", expanded=False)' in source
+
+
+def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    report_header_index = source.index('render_section_header("At A Glance"')
+    at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
+    interpretation_expander_index = source.index('st.expander("More report interpretation and methodology"')
+    evaluation_index = source.index('st.markdown("#### Evaluation Summary"')
+    function_quality_index = source.index('st.markdown("#### What This Report Can Evaluate"')
+    brief_index = source.index("stock_report_brief_html(report_payload)")
+    tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]')
+
+    assert report_header_index < at_glance_index < interpretation_expander_index < tabs_index
+    assert interpretation_expander_index < evaluation_index < function_quality_index < brief_index < tabs_index
+    assert 'st.expander("More report interpretation and methodology", expanded=False)' in source
 
 
 def test_stock_report_source_frame_hides_raw_missing_values():
@@ -11682,6 +11820,16 @@ def test_staged_universe_detail_frame_uses_readable_table_not_raw_json():
 def test_dashboard_uses_readable_universe_import_review_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    workflow_index = source.index('render_section_header("Universe Workflow"')
+    action_index = source.index('render_section_header("Universe Action Paths"')
+    coverage_expander_index = source.index('st.expander("Universe coverage and source details"')
+    table_expander_index = source.index('st.expander("Current universe table"')
+    import_expander_index = source.index('st.expander("Universe import review and copyable commands"')
+
+    assert workflow_index < action_index < coverage_expander_index < table_expander_index < import_expander_index
+    assert 'st.expander("Universe coverage and source details", expanded=False)' in source
+    assert 'st.expander("Current universe table", expanded=False)' in source
+    assert 'st.expander("Universe import review and copyable commands", expanded=False)' in source
     assert "Universe import review details" in source
     assert "staged_universe_detail_frame" in source
     assert "st.json(staged_universe" not in source
@@ -14775,6 +14923,13 @@ def test_decision_interpretation_ladder_cards_keep_next_action_copy_only():
     assert cards[0]["command"] == "make project-status"
     assert cards[1]["command"] == "make onboarding TOP_N=10"
     assert cards[2]["command"] == "make status-check TOP_N=5"
+    assert [card["title"] for card in cards] == [
+        "Read the bucket",
+        "Read the blocker",
+        "Copy the next action",
+    ]
+    assert "3. read the blocker" not in rendered
+    assert "5. copy the next action" not in rendered
     assert "decision reading order" in rendered
     assert "blocker before conclusion" in rendered
     assert "next action is copy-only" in rendered
@@ -15142,13 +15297,16 @@ def test_final_watchlist_tables_are_collapsed_after_decision_cards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     quality_index = source.index('render_section_header("Decision Quality"')
+    more_detail_index = source.index('st.expander("More decision detail: workflow, proof queue, and table guide"')
+    research_decisions_index = source.index('render_section_header("Research Decisions"', more_detail_index)
     proof_cards_index = source.index('render_signal_cards(decision_proof_queue_cards(proof_queue))')
     proof_detail_index = source.index('st.expander("Decision proof queue detail"')
     table_guide_index = source.index('render_signal_cards(final_decision_table_guide_cards(decisions))')
     decision_table_index = source.index('st.expander("Research decision table"')
     full_state_index = source.index('st.expander("Full research-state table"')
 
-    assert quality_index < proof_cards_index < proof_detail_index < table_guide_index < decision_table_index < full_state_index
+    assert quality_index < more_detail_index < research_decisions_index < proof_cards_index < proof_detail_index < table_guide_index < decision_table_index < full_state_index
+    assert 'st.expander("More decision detail: workflow, proof queue, and table guide", expanded=False)' in source
     assert 'st.expander("Decision proof queue detail", expanded=False)' in source
     assert 'st.expander("Research decision table", expanded=False)' in source
     assert 'st.expander("Full research-state table", expanded=False)' in source
@@ -16310,13 +16468,22 @@ def test_value_re_rating_detail_tables_are_collapsed_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     quick_read_index = source.index('render_section_header("Valuation Quick Read"')
+    context_expander_index = source.index('st.expander("More valuation context, boundaries, and method"')
     at_glance_index = source.index('render_section_header("Value / Re-rating At A Glance"')
+    boundaries_index = source.index('render_section_header("Valuation Boundaries"')
+    decision_guide_index = source.index('render_section_header("Valuation Decision Guide"')
     blocked_detail_index = source.index('st.expander("Companies waiting for valuation inputs"')
     excluded_detail_index = source.index('st.expander("ETF / index proxy exclusions"')
     full_table_index = source.index('st.expander("Full valuation output table"')
 
-    assert quick_read_index < at_glance_index < blocked_detail_index < full_table_index
+    assert quick_read_index < context_expander_index < blocked_detail_index < full_table_index
+    assert context_expander_index < at_glance_index < boundaries_index < decision_guide_index < blocked_detail_index
     assert blocked_detail_index < excluded_detail_index < full_table_index
+    assert 'st.expander("More valuation context, boundaries, and method", expanded=False)' in source
+    assert 'st.expander("Valuation method, boundaries, and decision guide"' not in source
+    assert 'st.expander("What valuation can support today"' not in source
+    assert 'st.expander("DCF method contract"' not in source
+    assert 'st.expander("Detailed valuation decision guide"' not in source
     assert 'st.expander("Companies waiting for valuation inputs", expanded=False)' in source
     assert 'st.expander("ETF / index proxy exclusions", expanded=False)' in source
     assert 'st.expander("Raw valuation input details", expanded=False)' in source
