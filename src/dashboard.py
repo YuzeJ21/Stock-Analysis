@@ -11994,7 +11994,7 @@ def build_next_action_console_frame(
             part
             for part in [
                 f"Source: {source_context}" if source_context and source_context != "Not available" else "",
-                f"Freshness: {freshness_context}" if freshness_context and freshness_context != "Not available" else "",
+                f"Source readiness: {freshness_context}" if freshness_context and freshness_context != "Not available" else "",
             ]
             if part
         ]
@@ -14392,7 +14392,7 @@ def _project_status_context_lines(row: dict[str, object]) -> list[str]:
     if source_context and source_context != "Not available":
         lines.append(f"Source: {source_context}")
     if freshness_context and freshness_context != "Not available":
-        lines.append(f"Freshness: {freshness_context}")
+        lines.append(f"Source readiness: {freshness_context}")
     return lines
 
 

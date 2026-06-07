@@ -6535,7 +6535,7 @@ def test_overview_workflow_path_cards_use_structured_project_status_steps():
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "source: data/imports/prices.csv" in rendered
-    assert "freshness: 2026-05-21" in rendered
+    assert "source readiness: 2026-05-21" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

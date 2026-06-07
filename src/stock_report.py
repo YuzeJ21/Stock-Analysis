@@ -566,6 +566,8 @@ def _sentence_value(value: Any, fallback: str = "Not available") -> str:
 
 def _brief_value(value: Any, *prefixes: str, fallback: str = "Not available") -> str:
     text = _display_value(value, fallback)
+    text = text.replace("source/freshness", "source readiness")
+    text = text.replace("source freshness", "source readiness")
     for prefix in prefixes:
         if text.lower().startswith(prefix.lower()):
             return text[len(prefix) :].strip()
@@ -599,10 +601,10 @@ def _stock_report_volatility_lines(payload: dict[str, Any]) -> list[str]:
 def _source_freshness_summary(item: dict[str, Any]) -> str:
     freshness = _display_value(item.get("freshness"))
     if freshness != "Not available":
-        return f"freshness: {freshness}"
+        return f"source readiness: {freshness}"
     provider = _display_value(item.get("provider"))
     if provider.startswith("local:"):
-        return "freshness: local file metadata"
+        return "source readiness: local file metadata"
     retrieved = _display_value(item.get("retrieved_at"))
     return f"retrieved: {retrieved}"
 
@@ -910,7 +912,7 @@ def _stock_report_dcf_input_triage_lines(
     if dcf_status_text.lower() == "ready":
         return [
             "- DCF input triage: required inputs passed readiness for standalone DCF review.",
-            "- Next check: review assumptions, sensitivity, and source freshness; do not convert fair value math into a recommendation.",
+            "- Next check: review assumptions, sensitivity, and source readiness; do not convert fair value math into a recommendation.",
         ]
     missing_parts: list[str] = []
     if isinstance(raw_missing, str):
@@ -1365,7 +1367,7 @@ def _stock_report_methodology_lines(
         f"- DCF method: {valuation_method}.",
         f"- Peer method: {peer_method}.",
         "- Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.",
-        "- Report method: text is built from local readiness, DCF, peer, decision, and source/readiness outputs; blocked or excluded sections are explained instead of filled.",
+        "- Report method: text is built from local readiness, DCF, peer, decision, and source readiness outputs; blocked or excluded sections are explained instead of filled.",
     ]
 
 
@@ -1697,7 +1699,7 @@ def _stock_report_data_unlock_lines(
     if monitor_context:
         dcf_line = "Operating-company DCF is excluded for this ETF/index/fund monitor context; no fundamentals import is required for company valuation."
     elif dcf_status_text == "ready":
-        dcf_line = "Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source freshness before interpreting valuation context."
+        dcf_line = "Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context."
     elif not price_ready:
         dcf_line = (
             f"Wait on fundamentals / DCF interpretation until price coverage starts. "
@@ -1929,7 +1931,7 @@ def _stock_report_unlock_command_lines(
             ]
         )
     else:
-        lines.append(f"- Price freshness: `make focus-price TICKER={ticker}`.")
+        lines.append(f"- Price source readiness: `make focus-price TICKER={ticker}`.")
 
     if monitor_context:
         lines.append("- Fundamentals / DCF: no operating-company DCF command is required for ETF/index/fund monitor context.")

@@ -176,4 +176,4 @@ The app is organized around `src/dashboard.py`, `src/readiness_engine.py`, `src/
 
 ## Roadmap Snapshot
 
-The next product stage is not more unsupported indicators. It is a clearer research workflow: readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source/readiness explanations.
+The next product stage is not more unsupported indicators. It is a clearer research workflow: readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source readiness explanations.
