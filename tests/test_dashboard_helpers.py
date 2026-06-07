@@ -456,13 +456,16 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     action_paths_index = source.index('render_section_header("Action Paths"')
     planning_expander_index = source.index('st.expander("Planning details: price, valuation, and analysis unlocks"')
     market_expander_index = source.index('st.expander("Full market-wide command center details"')
+    summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
     bundle_expander_index = source.index('st.expander("Command bundle details"')
 
     assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
-    assert planning_expander_index < market_expander_index < bundle_expander_index
+    assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
     assert 'st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False)' in source
     assert 'st.expander("Full market-wide command center details", expanded=False)' in source
+    assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
     assert 'st.expander("Command bundle details", expanded=False)' in source
+    assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
     assert 'render_section_header("Priority Fixes"' not in source
 
 

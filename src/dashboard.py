@@ -20338,17 +20338,18 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "make pipeline",
             tone="warning",
         )
-    render_signal_cards(readiness_panel_cards(readiness_summary))
-    render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
-    render_section_header("Next Data Unlocks", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
-    render_signal_cards(data_coverage_wizard_cards(wizard_frame))
-    if wizard_frame is None:
-        wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
-        render_notice_card(
-            "Coverage unlock guide has not been generated",
-            wizard_notice_body,
-            wizard_notice_command,
-        )
+    with st.expander("More readiness summaries and unlock queues", expanded=False):
+        render_signal_cards(readiness_panel_cards(readiness_summary))
+        render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
+        render_section_header("Next Data Unlocks", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
+        render_signal_cards(data_coverage_wizard_cards(wizard_frame))
+        if wizard_frame is None:
+            wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
+            render_notice_card(
+                "Coverage unlock guide has not been generated",
+                wizard_notice_body,
+                wizard_notice_command,
+            )
     with st.expander("Command bundle details", expanded=False):
         render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
         render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
