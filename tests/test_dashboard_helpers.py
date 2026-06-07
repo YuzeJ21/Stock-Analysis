@@ -14265,6 +14265,22 @@ def test_dashboard_copy_uses_peer_review_priority_not_queue_priority():
     assert "Peer queue priority" not in source
 
 
+def test_dashboard_data_health_labels_use_checklists_for_visitors():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Top Data-Unlock Checklists" in source
+    assert "Small, safe review entry points" in source
+    assert "Next-step checklist not ready yet" in source
+    assert "Price history checklist." in source
+    assert "Fundamentals and peer checklist." in source
+    assert "Optional context checklist." in source
+    assert "Top Blocker Queues" not in source
+    assert "Action queue not ready yet" not in source
+    assert "Price history worklist." not in source
+    assert "Fundamentals and peer worklist." not in source
+    assert "Optional context worklist." not in source
+
+
 def test_peer_unlock_operator_cards_keep_etf_rows_in_monitor_context():
     worklist = pd.DataFrame(
         [

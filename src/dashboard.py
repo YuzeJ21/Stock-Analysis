@@ -20555,7 +20555,10 @@ def render_market_command_center(
     )
     render_signal_cards(import_validation_cards)
     st.dataframe(clean_display_frame(import_health), width="stretch", hide_index=True)
-    render_section_header("Top Blocker Queues", "Small, safe worklist entry points for turning known tickers into analysis-ready tickers.")
+    render_section_header(
+        "Top Data-Unlock Checklists",
+        "Small, safe review entry points for turning known tickers into analysis-ready tickers.",
+    )
     render_signal_cards(blocker_summary_cards)
     render_section_header("Next Best Actions", "Practical command cards for the next local data unlock. These are copyable commands only; the dashboard does not execute them.")
     render_signal_cards(next_best_action_cards)
@@ -20987,7 +20990,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         if action_queue_frame is None:
             action_queue_notice_body, action_queue_notice_command = artifact_notice_copy("action_queue", action_queue_message)
             render_notice_card(
-                "Action queue not ready yet",
+                "Next-step checklist not ready yet",
                 action_queue_notice_body,
                 action_queue_notice_command,
                 tone="warning",
@@ -21591,8 +21594,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             )
         if price_worklist_frame is not None and not price_worklist_frame.empty:
             render_context_note(
-                "Price history worklist.",
-                "This local worklist shows which tickers still need more verified history for momentum, track record, or preferred long-history research context.",
+                "Price history checklist.",
+                "This local review list shows which tickers still need more verified history for momentum, track record, or preferred long-history research context.",
             )
             worklist_columns = [
                 column
@@ -21613,15 +21616,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         else:
             price_worklist_notice_body, price_worklist_notice_command = onboarding_notice_copy("price_worklist", price_worklist_message)
             render_notice_card(
-                "Price history worklist not ready yet",
+                "Price history checklist not ready yet",
                 price_worklist_notice_body,
                 price_worklist_notice_command,
                 tone="warning",
             )
         if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
             render_context_note(
-                "Fundamentals and peer worklist.",
-                "This local worklist shows which tickers are blocked on SEC-stageable fundamentals versus manual peer mappings and peer context.",
+                "Fundamentals and peer checklist.",
+                "This local review list shows which tickers are blocked on SEC-stageable fundamentals versus manual peer mappings and peer context.",
             )
             fp_columns = operator_workflow_table_columns(
                 fundamentals_peer_worklist_frame,
@@ -21643,15 +21646,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "fundamentals_peer_worklist", fundamentals_peer_worklist_message
             )
             render_notice_card(
-                "Fundamentals and peer worklist not ready yet",
+                "Fundamentals and peer checklist not ready yet",
                 fundamentals_peer_notice_body,
                 fundamentals_peer_notice_command,
                 tone="warning",
             )
         if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
             render_context_note(
-                "Optional context worklist.",
-                "This queue keeps optional earnings and analyst-estimate enrichment explicit and lower priority than prices, fundamentals, and peers.",
+                "Optional context checklist.",
+                "This review list keeps optional earnings and analyst-estimate enrichment explicit and lower priority than prices, fundamentals, and peers.",
             )
             oc_columns = [
                 column
@@ -21672,7 +21675,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "optional_context_worklist", optional_context_worklist_message
             )
             render_notice_card(
-                "Optional context worklist not ready yet",
+                "Optional context checklist not ready yet",
                 optional_context_notice_body,
                 optional_context_notice_command,
                 tone="warning",
