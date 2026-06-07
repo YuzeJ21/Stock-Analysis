@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,20 @@ PROJECT_STATUS_JSON = "project_status.json"
 PROJECT_STATUS_SUMMARY_CSV = "project_status_summary.csv"
 PROJECT_STATUS_TOP_ACTIONS_CSV = "project_status_top_actions.csv"
 PROJECT_STATUS_NEXT_STEPS_CSV = "project_status_next_steps.csv"
+
+
+def _friendly_cli_guidance(text: object) -> str:
+    """Make generated action text easier to scan in terminal output."""
+    value = str(text or "").strip()
+    if not value:
+        return ""
+    value = re.sub(r"\bRun make\b", "Use make", value)
+    value = re.sub(r"\brun make\b", "use make", value)
+    value = value.replace(
+        "normalize verified downloaded OHLCV files into",
+        "normalize verified OHLCV files into",
+    )
+    return value
 
 
 def _load_purpose_evaluation_summary(output_path: Path, top_n: int) -> list[dict[str, Any]]:
@@ -833,20 +848,22 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- Purpose evaluation groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
     for warning in payload.get("warnings", []):
         print(f"Warning: {warning}")
-    print("Top onboarding actions:")
+    print("Top data gaps to review:")
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
-        print(f"- P{row['priority']} {row['dataset']}{ticker}: {row['recommended_action']}")
+        print(f"- P{row['priority']} {row['dataset']}{ticker}")
         if row.get("focus_command"):
-            print(f"  focus: {row['focus_command']}")
+            print(f"  suggested check: {row['focus_command']}")
+        if row.get("recommended_action"):
+            print(f"  guidance: {_friendly_cli_guidance(row['recommended_action'])}")
         if row.get("example_command"):
-            print(f"  import/fallback: {row['example_command']}")
+            print(f"  trusted import/fallback: {row['example_command']}")
         if row.get("credential_required"):
             present = "present" if bool(row.get("credential_present")) else "missing"
             print(f"  credential: {row['credential_required']} ({present})")
         if row.get("manual_fallback_command"):
             print(f"  fallback: {row['manual_fallback_command']}")
-    print("Recommended next commands:")
+    print("Recommended next local steps:")
     command_rows = payload.get("recommended_next_command_rows") or [
         {"Step": f"Next {index}", "Command": command}
         for index, command in enumerate(payload.get("recommended_next_commands", []), start=1)
@@ -854,7 +871,7 @@ def _print_human(payload: dict[str, Any]) -> None:
     for row in command_rows:
         print(f"- {row.get('Step', 'Next')}: {row.get('Command', '')}")
         if row.get("Reason"):
-            print(f"  why: {row['Reason']}")
+            print(f"  why it matters: {_friendly_cli_guidance(row['Reason'])}")
         if row.get("SourceContext"):
             print(f"  source: {row['SourceContext']}")
         if row.get("FreshnessContext"):

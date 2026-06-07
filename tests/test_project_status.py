@@ -533,10 +533,11 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     finally:
         sys.argv = argv_before
 
-    assert "top onboarding actions" in output
-    assert "import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
-    assert "focus: make focus-fundamentals ticker=nvda" in output
-    assert "import/fallback: make sec-stage tickers=nvda" in output
+    assert "top data gaps to review" in output
+    assert "trusted import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
+    assert "suggested check: make focus-fundamentals ticker=nvda" in output
+    assert "trusted import/fallback: make sec-stage tickers=nvda" in output
+    assert "guidance: use make" in output
     assert "command: make price-normalize" not in output
     assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
     assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
@@ -584,6 +585,7 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "Read-only project snapshot." in output
     assert "Read-only operator snapshot." not in output
     assert "Commands below are copy-only local research helpers" in output
+    assert "Recommended next local steps:" in output
     assert "Local folders:" in output
     assert "data: data" in output
     assert "outputs: outputs" in output
