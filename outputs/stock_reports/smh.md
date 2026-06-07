@@ -61,6 +61,7 @@ SMH state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor
 
 ## Analysis Quality
 - Analysis mode: Monitor-only context.
+- Confidence: medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded.
 - Why: Use market, theme, liquidity, or risk context. Operating-company DCF and peer valuation are excluded, not failed.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 

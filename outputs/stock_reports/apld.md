@@ -61,6 +61,7 @@ APLD state: partial. Decision: Blocked by Data - Missing Fundamentals. DCF: bloc
 
 ## Analysis Quality
 - Analysis mode: Price/setup review only.
+- Confidence: low: price/setup context is available, but company valuation inputs are blocked.
 - Why: Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 

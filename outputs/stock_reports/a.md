@@ -61,6 +61,7 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 
 ## Analysis Quality
 - Analysis mode: Standalone DCF review.
+- Confidence: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked.
 - Why: DCF assumptions can be reviewed, but peer-relative valuation remains limited until trusted peer inputs are ready.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 

@@ -438,6 +438,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Copy next:" not in markdown
     assert "## Executive Summary" in markdown
     assert "Bottom line: MSFT is in `Standalone DCF review` mode" in markdown
+    assert "- Confidence: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked." in markdown
     assert "## Data And App Method" in markdown
     assert "## Data Vs Product Logic" not in markdown
     assert "Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates" in markdown

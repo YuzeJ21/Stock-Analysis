@@ -1255,6 +1255,20 @@ def _stock_report_analysis_quality_lines(
             "Start with verified local price history before relying on momentum, liquidity, valuation, or peer context."
         )
 
+    if not price_ready:
+        confidence_line = "low: price history is still the first required unlock."
+    elif monitor_context:
+        confidence_line = "medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded."
+    elif dcf_ready and peer_is_ready:
+        if bool(earnings_ready) and bool(estimates_ready):
+            confidence_line = "high: core price, fundamentals, DCF, peer, earnings, and estimate inputs are ready."
+        else:
+            confidence_line = "medium: core price, fundamentals, DCF, and peer inputs are ready, but optional context is still locked."
+    elif dcf_ready:
+        confidence_line = "medium: standalone DCF inputs are ready, but peer-relative valuation remains locked."
+    else:
+        confidence_line = "low: price/setup context is available, but company valuation inputs are blocked."
+
     optional_context = (
         "Optional earnings and analyst-estimate context is available for review."
         if bool(earnings_ready) and bool(estimates_ready)
@@ -1262,6 +1276,7 @@ def _stock_report_analysis_quality_lines(
     )
     return [
         f"- Analysis mode: {quality_title}.",
+        f"- Confidence: {confidence_line}",
         f"- Why: {quality_reason}",
         f"- Optional context: {optional_context}",
     ]
