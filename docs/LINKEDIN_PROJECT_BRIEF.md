@@ -27,7 +27,7 @@ Current features:
 - Methodology sections that show the DCF formula path, readiness gates, peer boundaries, and why missing fields are not inferred.
 - Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Copyable Unlock Commands that keep next steps local, capped, and research-only.
-- Source and freshness audit sections.
+- Source-readiness sections.
 - CSV-first, preview-first local import workflows.
 - Original local analysis rules for readiness gates, DCF boundaries, peer readiness, decision buckets, and report wording; Python libraries and optional provider adapters support data handling and UI.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.

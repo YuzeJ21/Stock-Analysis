@@ -23,6 +23,7 @@ from src.stock_report import (
     _stock_report_dcf_input_triage_lines,
     _stock_report_optional_context_ladder_lines,
     _stock_report_peer_evidence_ladder_lines,
+    _stock_report_peer_unlock_lines,
     _stock_report_reader_guide_lines,
     _stock_report_reader_question_lines,
     _stock_report_valuation_lines,
@@ -154,6 +155,38 @@ def test_stock_report_peer_evidence_ladder_splits_trend_and_valuation():
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_peer_ready_copy_uses_source_readiness_language():
+    peer = {
+        "peer_count": 2,
+        "mapping_status": "mapped",
+        "peer_trend_comparison_ready": True,
+        "peer_valuation_comparison_ready": True,
+        "peer_dcf_comparison_ready": True,
+    }
+    unlock_lines = _stock_report_peer_unlock_lines(
+        ticker="COHR",
+        peer=peer,
+        dcf_status_text="ready",
+        monitor_context=False,
+        peer_ready=True,
+        next_peer_action="Peer context ready.",
+    )
+    evidence_lines = _stock_report_peer_evidence_ladder_lines(
+        ticker="COHR",
+        peer=peer,
+        dcf_status_text="ready",
+        monitor_context=False,
+        peer_ready=True,
+    )
+    rendered = " ".join(unlock_lines + evidence_lines).lower()
+
+    assert "source readiness" in rendered
+    assert "mapped peers and freshness" not in rendered
+    assert "review freshness" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

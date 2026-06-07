@@ -18,7 +18,7 @@ The product separates source inputs from analysis rules so the report is not a b
 | Price rows | Local CSVs, optionally refreshed through a labeled research-grade provider adapter. | Validates enough usable rows exist, then calculates trend, momentum, liquidity, volatility context, and setup labels. |
 | Fundamentals rows | Trusted local imports such as SEC/manual CSV workflows. | Checks required fields, derives ratios where supported, and decides whether DCF and quality review can run. |
 | Peer mappings and peer metrics | Trusted local peer mapping and peer input CSVs. | Separates peer trend context from peer valuation, and blocks valuation when peer inputs are incomplete. |
-| Earnings and analyst estimates | Trusted optional local imports. | Displays optional context only when rows pass schema and freshness checks. |
+| Earnings and analyst estimates | Trusted optional local imports. | Displays optional context only when rows pass schema and source-readiness checks. |
 | Report wording | Project code under `src/`. | Converts readiness, calculations, source state, and blockers into plain-language sections without inventing conclusions. |
 
 Third-party or optional provider data can supply rows, but it does not decide the research conclusion. The project code decides whether each local row is usable, which calculation is allowed, and which section must stay blocked or excluded.
@@ -244,8 +244,8 @@ When a company ticker has the full trusted local input stack, the single-stock r
 - Standalone DCF assumptions, bear/base/bull scenario values, and sensitivity context.
 - Peer trend or peer valuation context only when source-backed peer inputs are ready.
 - Earnings or analyst-estimate context only when trusted optional rows are ready.
-- Copyable local commands for optional context, peer review, or freshness checks when more trusted data is needed.
-- Source/freshness notes and the next research question.
+- Copyable local commands for optional context, peer review, or source-readiness checks when more trusted data is needed.
+- Source-readiness notes and the next research question.
 
 When any part of that stack is missing, only the supported sections appear. The report keeps the blocked section visible and explains the exact local input needed next, plus the local command path for inspecting or unlocking that input.
 

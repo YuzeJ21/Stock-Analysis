@@ -689,7 +689,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "Price, momentum, liquidity, and market-context review",
         "Standalone DCF assumptions, bear/base/bull scenario values, and sensitivity context",
         "Peer trend or peer valuation context only when source-backed peer inputs are ready",
-        "Copyable local commands for optional context, peer review, or freshness checks",
+        "Copyable local commands for optional context, peer review, or source-readiness checks",
         "When any part of that stack is missing, only the supported sections appear",
         "local command path for inspecting or unlocking that input",
         "Data Unlock Ladder",

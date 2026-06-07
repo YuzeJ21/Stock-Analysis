@@ -1717,7 +1717,7 @@ def _stock_report_data_unlock_lines(
     if monitor_context:
         peer_line = "Peer valuation is excluded for monitor context; peer rows are optional context, not a required unlock."
     elif peer_ready:
-        peer_line = "Peer context is usable now; review mapped peers and freshness before interpreting peer-relative context."
+        peer_line = "Peer context is usable now; review mapped peers and source readiness before interpreting peer-relative context."
     elif dcf_status_text != "ready":
         peer_line = "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready."
     else:
@@ -1775,7 +1775,7 @@ def _stock_report_peer_unlock_lines(
         ]
     if valuation_ready:
         return [
-            "- What this means: peer context is ready from source-backed peer inputs; review mapped peers and freshness before interpreting relative valuation.",
+            "- What this means: peer context is ready from source-backed peer inputs; review mapped peers and source readiness before interpreting relative valuation.",
             f"- What can be reviewed now: peer trend status={_display_report_status(trend_ready)}; peer valuation status={_display_report_status(valuation_ready)}; peer count={peer_count}.",
             "- What is still locked: any missing peer metric listed below stays unavailable and should not be inferred from sector or industry fallback.",
             f"- Trusted input path: review `data/peers.csv` and rerun `make focus-peers TICKER={ticker}` before relying on peer-relative context.",
@@ -1833,7 +1833,7 @@ def _stock_report_peer_evidence_ladder_lines(
             "- Peer ladder: ready for source-backed peer context.",
             f"- Mapping evidence: mapping status={mapping_status}; peer count={peer_count}.",
             f"- Trend evidence: {_display_report_status(trend_ready)} from mapped peer price history.",
-            "- Valuation evidence: available only from trusted peer mappings and peer valuation inputs; review freshness before interpretation.",
+            "- Valuation evidence: available only from trusted peer mappings and peer valuation inputs; review source readiness before interpretation.",
             f"- Next safe command: `make focus-peers TICKER={ticker}` to inspect mapped peer evidence before reading relative context.",
         ]
     trend_line = (
