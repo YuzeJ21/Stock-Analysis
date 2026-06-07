@@ -477,7 +477,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Optional online research mode stays off by default" in source
     assert "Local CSV-backed data is the default" not in source
     assert "Optional yfinance mode stays off by default" not in source
-    assert "Optional online research source" in source
+    assert "Online data check (optional)" in source
     assert "Use research-grade online data" not in source
     assert "saved local-data path" in source
     assert "Show source readiness details" in source
@@ -9643,6 +9643,12 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
 
     assert summary_index < expander_index < full_intro_index < preview_note_index < build_button_index
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
+    assert 'st.expander("Coverage and peer readiness", expanded=False)' in source
+    assert 'st.expander("More coverage details", expanded=False)' in source
+    assert 'st.expander("Ticker coverage and peer context"' not in source
+    assert 'st.expander("Complete local coverage details"' not in source
+    assert 'metric("Peer File"' in source
+    assert 'metric("Peer Dataset"' not in source
     assert "It does not refresh prices, import files, or run external actions." in source
 
 
