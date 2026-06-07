@@ -425,7 +425,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Optional online research mode stays off by default" in source
     assert "Local CSV-backed data is the default" not in source
     assert "Optional yfinance mode stays off by default" not in source
-    assert "Optional online provider mode" in source
+    assert "Optional online research source" in source
+    assert "Use research-grade online data" not in source
     assert "saved local-data path" in source
     assert "Show source readiness details" in source
     assert "Adds extra source-readiness and missing-input checks under Sources & Gaps" in source
@@ -9563,7 +9564,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
     expander_index = source.index('st.expander("How single-stock reports work"')
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
-    build_button_index = source.index('st.button("Build Local Report Preview"')
+    build_button_index = source.index('st.button("Show Report Preview"')
 
     assert summary_index < expander_index < full_intro_index < build_button_index
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
