@@ -14561,6 +14561,16 @@ def test_fundamentals_dcf_unlock_copy_uses_guide_language_not_diagnostics():
     assert "fundamentals and DCF unlock diagnostics" not in source
 
 
+def test_peer_unlock_operator_cards_empty_state_uses_readiness_proof_copy():
+    cards = dashboard.peer_unlock_operator_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Peer unlock queue not ready yet"
+    assert "refresh the peer unlock queue" in rendered
+    assert "outputs/peer_unlock_worklist.csv" not in rendered
+    assert cards[0]["command"] == "make readiness"
+
+
 def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
     peer_readiness = pd.DataFrame(
         [
@@ -19410,6 +19420,26 @@ def test_active_evaluation_queue_ranks_active_next_steps_without_execution_langu
     assert "trading" not in rendered_cards
     assert "buy" not in rendered_cards
     assert "sell" not in rendered_cards
+
+
+def test_peer_mapping_studio_summary_cards_empty_state_uses_readiness_proof_copy():
+    cards = dashboard.peer_mapping_studio_summary_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Peer readiness not ready yet"
+    assert "refresh peer readiness proof" in rendered
+    assert "generate peer readiness" not in rendered
+    assert cards[0]["command"] == "make readiness"
+
+
+def test_purpose_evaluation_summary_cards_empty_state_uses_proof_copy():
+    cards = dashboard.purpose_evaluation_summary_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Purpose summary not ready yet"
+    assert "refresh purpose summary proof" in rendered
+    assert "outputs/purpose_evaluation_summary.csv" not in rendered
+    assert cards[0]["command"] == "make pipeline"
 
 
 def test_purpose_evaluation_summary_cards_are_copy_only_and_data_honest():

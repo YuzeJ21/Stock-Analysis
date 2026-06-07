@@ -7676,8 +7676,8 @@ def peer_mapping_studio_summary_cards(
         return [
             {
                 "kicker": "PEER STUDIO",
-                "title": "No peer report",
-                "body": "Run make readiness to generate peer readiness before using the mapping studio.",
+                "title": "Peer readiness not ready yet",
+                "body": "Run make readiness to refresh peer readiness proof before using the mapping studio.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
@@ -7968,8 +7968,8 @@ def peer_unlock_operator_cards(
         return [
             {
                 "kicker": "PEER UNLOCK QUEUE",
-                "title": "No unlock worklist",
-                "body": "Run make readiness to generate outputs/peer_unlock_worklist.csv before editing trusted peer rows.",
+                "title": "Peer unlock queue not ready yet",
+                "body": "Run make readiness to refresh the peer unlock queue before editing trusted peer rows.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
@@ -11363,8 +11363,8 @@ def purpose_evaluation_summary_cards(summary_frame: pd.DataFrame | None) -> list
         return [
             {
                 "kicker": "PURPOSE SUMMARY",
-                "title": "Not generated yet",
-                "body": "Run make pipeline or make project-status to generate outputs/purpose_evaluation_summary.csv from current research decisions and readiness.",
+                "title": "Purpose summary not ready yet",
+                "body": "Run make pipeline or make project-status to refresh purpose summary proof from current research decisions and readiness.",
                 "badges": ["current outputs only", "no fabricated data"],
                 "command": "make pipeline",
             }
