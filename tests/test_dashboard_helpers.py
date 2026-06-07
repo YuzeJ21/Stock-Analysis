@@ -8885,6 +8885,10 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock workflow to copy next." in source
+    refresh_note_index = source.index('st.expander("Refresh status note"')
+    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
+    assert refresh_note_index < quick_read_index
+    assert 'st.expander("Refresh status note", expanded=False)' in source
     assert "Data Health Quick Read" in source
     assert "Which unlock lane should you inspect first, before opening detailed tables." in source
     assert "Supported Analysis Ladder" in source

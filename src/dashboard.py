@@ -20255,11 +20255,12 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         st.warning("Local provider could not be initialized.")
         return
     if project_status_payload is None:
-        render_notice_card(
-            "Showing saved local results",
-            "Data Health opens with the latest saved outputs so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
-            "make project-status",
-        )
+        with st.expander("Refresh status note", expanded=False):
+            render_notice_card(
+                "Showing saved local results",
+                "Data Health opens with the latest saved outputs so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
+                "make project-status",
+            )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
     action_queue_frame, action_queue_message = load_action_queue()
     health_tables = load_research_health_tables()
