@@ -5543,7 +5543,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "title": "Start with a demo or one selected ticker",
             "body": (
                 "For a visitor demo, copy the Markdown report command. For your own ticker, select a local ticker above, "
-                "build the preview, then read At A Glance and the reader guide before opening detailed sections."
+                "show the local report, then read At A Glance and the reader guide before opening detailed sections."
             ),
             "badges": ["visitor path", "one ticker"],
             "command": "make stock-report-md TICKER=NVDA",
@@ -5555,9 +5555,9 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "ONE-TICKER REVIEW",
-            "title": "Build one local preview",
+            "title": "Show one local report",
             "body": (
-                "Select a ticker, build the local read-only preview, then read At A Glance first. "
+                "Select a ticker, show the local read-only report, then read At A Glance first. "
                 "The report separates ready analysis, locked inputs, excluded company valuation, and the next local proof step."
             ),
             "badges": ["plain English", "readiness first", "copy-only"],
@@ -19822,11 +19822,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
 
     render_context_note(
         "What this button does.",
-        "Build Local Report Preview reads the selected source and stores the result in this page. It does not refresh prices, import files, or run external actions.",
+        "Show Local Report reads the selected source and displays the result on this page. It does not refresh prices, import files, or run external actions.",
     )
-    if st.button("Build Local Report Preview", key="single-stock-report-button"):
+    if st.button("Show Local Report", key="single-stock-report-button"):
         if not ticker:
-            st.warning("Enter a ticker to build a report preview.")
+            st.warning("Enter a ticker to show a local report.")
         else:
             try:
                 chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)

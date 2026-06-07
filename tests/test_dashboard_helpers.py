@@ -9967,8 +9967,8 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "read at a glance and the reader guide before opening detailed sections" in rendered
     assert len(summary_cards) == 1
     assert summary_cards[0]["kicker"] == "ONE-TICKER REVIEW"
-    assert "build one local preview" in summary_rendered
-    assert "select a ticker, build the local read-only preview, then read at a glance first" in summary_rendered
+    assert "show one local report" in summary_rendered
+    assert "select a ticker, show the local read-only report, then read at a glance first" in summary_rendered
     assert "locked inputs" in summary_rendered
     assert "excluded company valuation" in summary_rendered
     assert "next local proof step" in summary_rendered
@@ -9995,7 +9995,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     expander_index = source.index('st.expander("How single-stock reports work"')
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
     preview_note_index = source.index('render_context_note(\n        "What this button does."')
-    build_button_index = source.index('st.button("Build Local Report Preview"')
+    build_button_index = source.index('st.button("Show Local Report"')
 
     assert summary_index < expander_index < full_intro_index < preview_note_index < build_button_index
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
