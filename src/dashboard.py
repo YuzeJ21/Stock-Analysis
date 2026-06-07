@@ -3155,7 +3155,7 @@ def optional_context_unlock_cards() -> list[dict[str, object]]:
             "kicker": "SCHEMA-ONLY EXAMPLES",
             "title": "Templates are not data",
             "body": (
-                "Generated templates and example schemas are blank operator aids, not synthetic earnings or estimate coverage. "
+                "Generated templates and example schemas are blank workflow aids, not synthetic earnings or estimate coverage. "
                 "Keep optional context unavailable until trusted rows are staged, validated, previewed, and applied."
             ),
             "badges": ["schema only", "trusted rows required"],
@@ -3424,7 +3424,7 @@ def optional_context_ladder_cards(ladder_frame: pd.DataFrame | None) -> list[dic
             "body": (
                 f"Copy next: `{format_missing(first.get('Copy-Only Command'), 'make imports-validate && make imports-preview && make imports-apply')}`. "
                 "Run the import, validation, preview, apply, optional-context readiness, and onboarding sequence before treating earnings or estimates as available. "
-                "Schema-only examples and templates remain operator aids, not data."
+                "Schema-only examples and templates remain workflow aids, not data."
             ),
             "badges": ["copy-only", "proof before context"],
             "command": format_missing(first.get("Copy-Only Command"), "make imports-validate && make imports-preview && make imports-apply"),
@@ -5505,7 +5505,7 @@ def data_health_overview_cards(
 
     queue_summary = action_queue_summary(action_queue_frame)
     action_title = f"{queue_summary['critical']} critical actions"
-    action_body = f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority remediation rows are queued."
+    action_body = f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority data fixes are queued."
     action_badges = ["make action-queue-check TOP_N=10", "read-only dashboard"]
     action_command = "make action-queue-check TOP_N=10"
     signal_ready = (
@@ -5520,7 +5520,7 @@ def data_health_overview_cards(
         signal_command = format_missing(signal.get("command"), "")
         if signal_body and signal_body != "Not available":
             action_body = (
-                f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority remediation rows are queued. "
+                f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority data fixes are queued. "
                 f"Top next step: {signal_body}"
             )
         if signal_command and signal_command != "Not available":
@@ -5559,7 +5559,7 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
                 "Data Health is not an error page. It shows what you can analyze now, what is still locked, "
                 "which trusted local inputs are ready, and which safe command to copy next."
             ),
-            "badges": ["operator guide", "copy only"],
+            "badges": ["workflow guide", "copy only"],
             "command": "make status-check TOP_N=5",
         },
         {
@@ -7447,7 +7447,7 @@ def universe_layer_cards(summary: dict[str, object], decisions: pd.DataFrame | N
         {
             "kicker": "ACTIVE RESEARCH LIST",
             "title": f"{active:,} focused ticker(s)",
-            "body": "These names are prioritized in workflow cards, drilldowns, and operator queues so the page stays usable.",
+            "body": "These names are prioritized in workflow cards, drilldowns, and research queues so the page stays usable.",
             "badges": ["focused scope", "shown first"],
         },
         {
@@ -10433,7 +10433,7 @@ def _active_brief_evaluation_summary(row: pd.Series) -> str:
         token in family for token in ["etf", "hedge", "fund", "index"]
     ):
         return (
-            f"Operator summary: {status}; {subtype}. "
+            f"Research workflow summary: {status}; {subtype}. "
             "Monitor role: market, theme, liquidity, or risk proxy. "
             "Withheld: operating-company DCF and peer valuation are excluded. "
             "Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring."
@@ -10450,7 +10450,7 @@ def _active_brief_evaluation_summary(row: pd.Series) -> str:
         max_chars=150,
     )
     return (
-        f"Operator summary: {status}; {subtype}. "
+        f"Research workflow summary: {status}; {subtype}. "
         f"Next blocker: {blocker}. {unsupported} Invalidation: {invalidation}"
     )
 
@@ -10674,7 +10674,7 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
         {
             "kicker": "ACTIVE BRIEFS",
             "title": f"{len(frame)} active ticker(s)",
-            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs include an operator summary plus purpose, setup, valuation, supported and unsupported analysis, risk, invalidation, and next question.",
+            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs include a research workflow summary plus purpose, setup, valuation, supported and unsupported analysis, risk, invalidation, and next question.",
             "badges": ["analysis layer", "row-limited"],
             "command": top_command,
         },
@@ -11065,7 +11065,7 @@ def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> li
         {
             "kicker": "QUEUE DETAILS",
             "title": f"{len(frame)} workflow path(s), {total_tickers} ticker(s)",
-            "body": "Guided steps group the active queue into review, monitor, and data-unlock workflows so the operator can act without reading every ticker row.",
+            "body": "Guided steps group the active queue into review, monitor, and data-unlock workflows so the next action is clear without reading every ticker row.",
             "badges": ["grouped workflow", "row-limited"],
             "command": "make project-status",
         },
@@ -12499,7 +12499,7 @@ def single_stock_operator_summary(
     )
     if "monitor" in bucket or "market proxy" in subtype.lower() or dcf_status == "excluded" or "dcf" in excluded_features or asset_type in {"etf", "index_proxy", "fund"}:
         return (
-            f"Operator summary: Monitor context; {subtype}. "
+            f"Research workflow summary: Monitor context; {subtype}. "
             "Monitor role: market, theme, liquidity, or risk proxy. "
             "Withheld: operating-company DCF and peer valuation are excluded. "
             "Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring."
@@ -12523,7 +12523,7 @@ def single_stock_operator_summary(
         max_sentences=1,
         max_chars=150,
     )
-    return f"Operator summary: {purpose_status}; {subtype}. Next blocker: {blocker}. Withheld: {unsupported} Invalidation: {invalidation}"
+    return f"Research workflow summary: {purpose_status}; {subtype}. Next blocker: {blocker}. Withheld: {unsupported} Invalidation: {invalidation}"
 
 
 def single_stock_one_minute_summary(snapshot: dict[str, object]) -> str:
@@ -13040,7 +13040,7 @@ def single_stock_detail_frame(snapshot: dict[str, object]) -> pd.DataFrame:
             {"Field": "Asset type", "Value": snapshot.get("asset_type")},
             {"Field": "Price rows / days", "Value": snapshot.get("price_rows")},
             {"Field": "Decision subtype", "Value": snapshot.get("decision_subtype")},
-            {"Field": "Operator summary", "Value": snapshot.get("operator_summary")},
+            {"Field": "Research workflow summary", "Value": snapshot.get("operator_summary")},
             {"Field": "Primary blocker", "Value": snapshot.get("primary_blocker")},
             {"Field": "DCF reason", "Value": snapshot.get("dcf_reason")},
             {"Field": "Peer blocker type", "Value": snapshot.get("peer_blocker_type")},
