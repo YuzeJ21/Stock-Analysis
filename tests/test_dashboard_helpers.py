@@ -1091,8 +1091,8 @@ def test_load_output_missing_message_uses_verify(tmp_path):
     frame, message = dashboard.load_output(tmp_path / "final_watchlist.csv")
 
     assert frame is None
-    assert "make verify" in message
     assert "is not ready yet" in message
+    assert "Build saved research views" in message
     assert "validation proof" in message
     assert "has not been generated yet" not in message
     assert "report_generator" not in message
@@ -7538,7 +7538,8 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     cards = dashboard.monthly_picks_next_step_cards(None, None, None, 5, queue)
     assert cards[0]["title"] == "Refresh monthly context"
     assert cards[0]["command"] == "make monthly"
-    assert "make monthly" in cards[0]["body"]
+    assert "Build local monthly proof" in cards[0]["body"]
+    assert "make monthly" not in cards[0]["body"]
 
     picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": "Return3M"}] * 4)
     cards = dashboard.monthly_picks_next_step_cards(picks, None, None, 5, queue)
@@ -7562,7 +7563,8 @@ def test_monthly_picks_page_copy_uses_context_and_proof_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "Monthly candidate context is not ready yet" in source
-    assert "refresh local monthly proof" in source
+    assert "Build local monthly proof before interpreting this tab" in source
+    assert "refresh local monthly proof" not in source
     assert "Built from local monthly context" in source
     assert "Track-record proof is still unavailable" in source
     assert "Track-record proof is calculated only from local historical price data" in source
@@ -14964,7 +14966,8 @@ def test_peer_unlock_operator_cards_empty_state_uses_readiness_proof_copy():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Peer unlock queue not ready yet"
-    assert "refresh the peer unlock queue" in rendered
+    assert "build the peer unlock queue" in rendered
+    assert "refresh the peer unlock queue" not in rendered
     assert "outputs/peer_unlock_worklist.csv" not in rendered
     assert cards[0]["command"] == "make readiness"
 
@@ -15925,8 +15928,8 @@ def test_optional_context_readiness_caption_frames_proof_not_internal_files():
     caption = dashboard.optional_context_readiness_caption("earnings")
 
     assert caption == (
-        "After trusted earnings rows are imported, run make optional-context-readiness "
-        "to refresh this proof."
+        "After trusted earnings rows are imported, use make optional-context-readiness "
+        "to rebuild this proof."
     )
     assert "generate data/" not in caption
     assert "readiness.csv" not in caption
@@ -15935,7 +15938,7 @@ def test_optional_context_readiness_caption_frames_proof_not_internal_files():
 def test_dcf_readiness_proof_caption_frames_proof_not_internal_files():
     caption = dashboard.dcf_readiness_proof_caption()
 
-    assert caption == "Run make dcf-readiness to refresh DCF readiness proof before reviewing valuation output."
+    assert caption == "Use make dcf-readiness to rebuild DCF readiness proof before reviewing valuation output."
     assert "generate data/" not in caption
     assert "dcf_readiness.csv" not in caption
 
@@ -19846,7 +19849,8 @@ def test_peer_mapping_studio_summary_cards_empty_state_uses_readiness_proof_copy
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Peer readiness not ready yet"
-    assert "refresh peer readiness proof" in rendered
+    assert "build peer readiness proof" in rendered
+    assert "refresh peer readiness proof" not in rendered
     assert "generate peer readiness" not in rendered
     assert cards[0]["command"] == "make readiness"
 

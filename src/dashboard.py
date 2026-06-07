@@ -181,7 +181,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         {
             "analyze": "The saved local rows and summaries already available for this workflow page.",
             "locked": "Rows missing trusted inputs remain visible as blocked or partial rather than inferred.",
-            "read": "Read summary cards first, then the table. Use the command card only when you intentionally want to refresh saved research views.",
+            "read": "Read summary cards first, then the table. Use the command card only when you intentionally want to rebuild saved research views.",
             "proof": "After local data changes, rerun readiness before interpreting changed research views.",
             "guided_path": "Use Home for the current state, Single-Stock Report for ticker proof, and Data Health for locked-input unlock steps.",
             "workflow_path": "Current page summary",
@@ -584,7 +584,7 @@ COLUMN_LABELS = {
 
 def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
     if not path.exists():
-        return None, f"`{path.name}` is not ready yet. Run `make verify` to refresh saved research views and validation proof first."
+        return None, f"`{path.name}` is not ready yet. Build saved research views and validation proof first."
     try:
         frame = pd.read_csv(path)
     except Exception as exc:  # pragma: no cover - defensive UI path
@@ -3094,13 +3094,13 @@ def sec_fundamentals_setup_label(sec_configured: bool) -> str:
 
 def optional_context_readiness_caption(dataset_label: str) -> str:
     return (
-        f"After trusted {dataset_label} rows are imported, run make optional-context-readiness "
-        "to refresh this proof."
+        f"After trusted {dataset_label} rows are imported, use make optional-context-readiness "
+        "to rebuild this proof."
     )
 
 
 def dcf_readiness_proof_caption() -> str:
-    return "Run make dcf-readiness to refresh DCF readiness proof before reviewing valuation output."
+    return "Use make dcf-readiness to rebuild DCF readiness proof before reviewing valuation output."
 
 
 def stock_report_optional_context_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
@@ -7766,7 +7766,7 @@ def peer_readiness_product_cards(
     top_blocker = next(iter(blocker_counts), "peer_blocked")
     queue_rows = 0 if peer_mapping_queue_frame is None else int(len(peer_mapping_queue_frame))
     next_ticker = "Not available"
-    next_reason = "Run make peer-mapping-queue TOP_N=25 to refresh prioritized peer work."
+    next_reason = "Build the prioritized peer worklist before choosing the next peer target."
     if peer_unlock_worklist_frame is not None and not peer_unlock_worklist_frame.empty and "ticker" in peer_unlock_worklist_frame.columns:
         worklist = peer_unlock_worklist_frame.copy()
         worklist["ticker"] = worklist["ticker"].astype(str).str.upper().str.strip()
@@ -7835,7 +7835,7 @@ def peer_mapping_studio_summary_cards(
             {
                 "kicker": "PEER STUDIO",
                 "title": "Peer readiness not ready yet",
-                "body": "Run make readiness to refresh peer readiness proof before using the mapping studio.",
+                "body": "Build peer readiness proof before using the mapping studio.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
@@ -8127,7 +8127,7 @@ def peer_unlock_operator_cards(
             {
                 "kicker": "PEER UNLOCK QUEUE",
                 "title": "Peer unlock queue not ready yet",
-                "body": "Run make readiness to refresh the peer unlock queue before editing trusted peer rows.",
+                "body": "Build the peer unlock queue before editing trusted peer rows.",
                 "badges": ["blocked"],
                 "command": "make readiness",
             }
@@ -8559,7 +8559,7 @@ def fundamentals_dcf_diagnostic_cards(
     active_missing = int((company & active & price_ready & ~fundamentals_ready).sum())
 
     next_ticker = "Not available"
-    next_action = "Run make sec-stage-queue TOP_N=25 to refresh the fundamentals unlock queue."
+    next_action = "Build the fundamentals unlock queue before choosing the next SEC staging target."
     active_target_text = "No active-universe fundamentals targets detected."
     if not price_ready_missing_fundamentals.empty:
         ordered = price_ready_missing_fundamentals.assign(_active_rank=(~bool_series(price_ready_missing_fundamentals, "in_active_universe")).astype(int))
@@ -17155,8 +17155,8 @@ def monthly_picks_next_step_cards(
         primary = {
             "kicker": "NEXT STEP",
             "title": "Refresh monthly context",
-            "body": "Monthly candidate context is not ready yet. Run make monthly to refresh the local monthly proof before interpreting this tab.",
-            "badges": ["monthly refresh", "read-only"],
+            "body": "Monthly candidate context is not ready yet. Build local monthly proof before interpreting this tab.",
+            "badges": ["monthly proof", "read-only"],
             "command": "make monthly",
         }
     elif picks_frame.empty:
@@ -19442,7 +19442,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     if picks_frame is None:
         render_notice_card(
             "Monthly context not ready yet",
-            picks_message or "Run make monthly to refresh local monthly proof before interpreting this tab. This stays research-only and may still return fewer than five names.",
+            picks_message or "Build local monthly proof before interpreting this tab. This stays research-only and may still return fewer than five names.",
             "make monthly",
         )
     elif picks_frame.empty:
@@ -20770,7 +20770,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     else:
         render_notice_card(
             "Local validation not ready yet",
-            "Run make verify to refresh local validation rows and confirm which CSV datasets are present, partial, or missing before relying on broader outputs.",
+            "Build local validation rows and confirm which CSV datasets are present, partial, or missing before relying on broader outputs.",
             "make verify",
             tone="warning",
         )
