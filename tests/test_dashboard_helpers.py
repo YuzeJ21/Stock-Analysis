@@ -295,7 +295,8 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "use data health when home, value / re-rating, or single-stock report shows a lock" in rendered
     assert "where does this fit in the stock workflow?" in rendered
     assert "unsupported dcf, peer valuation, earnings, and estimate sections stay withheld" in rendered
-    assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-freshness review" in rendered
+    assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-readiness review" in rendered
+    assert "source-freshness review" not in rendered
     assert "missing inputs are an unlock queue, not weak conclusions" in rendered
     assert "dashboard does not run refreshes, imports, or external actions" in rendered
     assert "proof after unlock:" in rendered
@@ -7675,6 +7676,8 @@ def test_stock_report_brief_html_summarizes_readiness_without_advice():
     assert "peer fundamentals or peer price/market-cap context" in html
     assert "Earnings Missing" in html
     assert "Report timestamp" in html
+    assert "Review source readiness notes" in html
+    assert "Review freshness notes" not in html
     assert "Generated" not in html
     assert "2" in html
     assert "buy" not in html.lower()

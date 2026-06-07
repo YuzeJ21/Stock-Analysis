@@ -158,7 +158,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "command": "make stock-report-md TICKER=NVDA",
         },
         "Value / Re-rating": {
-            "analyze": "DCF-ready company rows can support assumption, scenario, sensitivity, and source-freshness review.",
+            "analyze": "DCF-ready company rows can support assumption, scenario, sensitivity, and source-readiness review.",
             "locked": "Blocked company rows need trusted fundamentals or DCF fields; ETF/index/fund rows are monitor context, not failed DCF.",
             "read": "Read the DCF-ready, DCF-blocked, and DCF-excluded split before looking at rankings. DCF-ready means assumption review, not a price target.",
             "proof": "After fundamentals change, run make dcf-readiness and make readiness before reading valuation output.",
@@ -17328,7 +17328,7 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
         ("Earnings", earnings_label, "Optional local earnings file"),
         ("Analyst Estimates", estimates_label, "Optional trusted local estimates file"),
         ("Missing Data", str(missing_count), "Warnings shown in Sources & Gaps"),
-        ("Provider", format_missing(payload.get("provider_name"), "Not available"), "Review freshness notes"),
+        ("Provider", format_missing(payload.get("provider_name"), "Not available"), "Review source readiness notes"),
         ("Report timestamp", format_date_short(payload.get("generated_at"), "Not available"), "Local report timestamp"),
     ]
     card_html = "".join(
