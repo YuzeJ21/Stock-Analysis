@@ -323,7 +323,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "unsupported dcf" not in rendered
     assert "company rows with complete valuation inputs can support assumption, scenario, sensitivity, and source-readiness review" in rendered
     assert "source-freshness review" not in rendered
-    assert "missing inputs are an unlock queue, not weak conclusions" in rendered
+    assert "missing inputs are an unlock list, not weak conclusions" in rendered
     assert "dashboard does not run refreshes, imports, or external actions" in rendered
     assert "proof after unlock:" in rendered
     assert "run make readiness and reopen home before interpreting changed counts" in rendered
@@ -403,7 +403,7 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert "trusted inputs are missing" in health_body
     assert "unlock path needs proof" in health_body
     assert monthly_title == "Viewing Monthly Picks."
-    assert "data-gated candidate queue" in monthly_body
+    assert "data-gated candidate list" in monthly_body
     assert "refused to force weak or unsupported names" in monthly_body
     assert watchlist_title == "Viewing Final Watchlist."
     assert "research-state buckets" in watchlist_body
@@ -412,7 +412,7 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert "preview-first changes" in universe_body
     assert "manual apply step" in universe_body
     assert overview_title == "Viewing Overview."
-    assert "broad command-center view" in overview_body
+    assert "broad status view" in overview_body
     assert "copy-only next steps" in overview_body
     assert market_title == "Viewing Market Direction."
     assert "local market and theme context" in market_body
@@ -469,7 +469,7 @@ def test_dashboard_card_helpers_render_modern_markup():
     sidebar = dashboard.sidebar_route_steps_html(
         [
             (
-                "Analyze One Stock",
+                "Review One Stock",
                 "Use Single-Stock Report for one ticker.",
                 "Single-Stock Report page",
                 "neutral",
@@ -552,7 +552,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
     assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Optional local commands"' in source
+    assert 'st.expander("Copy-only local commands"' in source
     assert 'st.expander("Quick reading guide"' not in source
     assert 'st.expander("Need help?"' not in source
     assert 'st.header("Explore")' in source
@@ -949,7 +949,7 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[5]["title"] == "Improve 5-10 companies first"
     assert "scalable dry run" in rendered
     assert "instead of repeating 25-ticker refreshes manually" in rendered
-    assert "blocked rows are useful, but they are a data-unlock queue, not a conclusion list" in rendered
+    assert "blocked rows are useful, but they are a data-unlock list, not a conclusion list" in rendered
     assert "no data, no conclusion" in rendered
     assert "earnings and analyst estimates are not broken" in rendered
     assert "optional context is available" in rendered
@@ -7606,7 +7606,7 @@ def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenanc
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["WHAT IT CAN DO", "WHAT IT CANNOT DO", "METHODOLOGY", "BEST USE"]
-    assert "rank a local research-candidate queue" in rendered
+    assert "review local research candidates" in rendered
     assert "transparent local score components" in rendered
     assert "triage aids for deeper single-stock review" in rendered
     assert "price, setup, liquidity, and optional fundamentals" in rendered
@@ -17519,7 +17519,7 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "valuation-style analysis" in rendered
     assert "make runbook-prices-broader" in rendered
     assert "use this first" in nav_rendered
-    assert "analyze one stock" in nav_rendered
+    assert "review one stock" in nav_rendered
     assert "ready, blocked, excluded, or monitor-only" in nav_rendered
     assert "unlock missing data" in nav_rendered
     assert "blocking analysis" in nav_rendered

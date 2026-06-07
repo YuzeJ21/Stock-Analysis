@@ -127,7 +127,7 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
     if selected_page == "Monthly Picks":
         return (
             "Viewing Monthly Picks.",
-            "Use this page as a data-gated candidate queue; empty slots mean the filters refused to force weak or unsupported names.",
+            "Use this page as a data-gated candidate list; empty slots mean the filters refused to force weak or unsupported names.",
         )
     if selected_page == "Final Watchlist":
         return (
@@ -142,7 +142,7 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
     if selected_page == "Overview":
         return (
             "Viewing Overview.",
-            "Use this page for the broad command-center view: readiness, blockers, source notes, and copy-only next steps.",
+            "Use this page for the broad status view: readiness, blockers, source notes, and copy-only next steps.",
         )
     if selected_page == "Market Direction":
         return (
@@ -197,7 +197,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         },
         "Data Health": {
             "analyze": "Which trusted inputs are ready across prices, fundamentals, company valuation, peers, earnings, and analyst estimates.",
-            "locked": "Missing inputs are an unlock queue, not weak conclusions; imports should validate, preview, and apply before trust.",
+            "locked": "Missing inputs are an unlock list, not weak conclusions; imports should validate, preview, and apply before trust.",
             "read": "Start with the unlock path cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
             "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a path as unlocked.",
             "review_route": "Use Data Health when Home, Value / Re-rating, or Single-Stock Report shows a lock; return to those pages only after readiness proof passes.",
@@ -14528,7 +14528,7 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
             "neutral",
         ),
         (
-            "Analyze One Stock",
+            "Review One Stock",
             "Use Single-Stock Report for one ticker's ready, blocked, excluded, or monitor-only analysis.",
             "Single-Stock Report page",
             "neutral",
@@ -17269,7 +17269,7 @@ def monthly_picks_landing_cards(
                 f"{candidate_count} of {top_n} conservative research-candidate slots are filled from the current local run. "
                 "Read this as a data-gated review queue, not as advice or a conclusion list."
             ),
-            "badges": ["candidate queue", "not advice"],
+            "badges": ["candidate list", "not advice"],
         },
         {
             "kicker": "TRACK RECORD",
@@ -17445,7 +17445,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "WHAT IT CAN DO",
-            "title": "Rank a local research-candidate queue",
+            "title": "Review local research candidates",
             "body": (
                 "Monthly Picks can compare transparent local score components when enough price, setup, liquidity, "
                 "and optional fundamentals context exists. Scores are triage aids for deeper single-stock review."
@@ -19042,7 +19042,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
         {
             "kicker": "START HERE",
             "title": "Read the ready sections first",
-            "body": "Start with names that have enough local data for the view you opened. Blocked rows are useful, but they are a data-unlock queue, not a conclusion list.",
+            "body": "Start with names that have enough local data for the view you opened. Blocked rows are useful, but they are a data-unlock list, not a conclusion list.",
             "badges": ["visitor friendly"],
             "command": "make stock-report-md TICKER=NVDA",
         },
@@ -19415,7 +19415,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             {
                 "Function Area": "Peer comparison",
                 "Quality Verdict": "Ready when peer data exists",
-                "Best Use Today": "Use as a peer data-unlock queue until source-backed peer mappings and metrics are ready.",
+                "Best Use Today": "Use as a peer data-unlock list until source-backed peer mappings and metrics are ready.",
                 "Current Status": peer_status,
                 "Supported Today": "Peer context after source-backed peer rows and peer metrics exist.",
                 "Needs Trusted Data": "Manual peer mappings plus peer fundamentals or peer market context.",
@@ -19591,7 +19591,7 @@ def render_home_page(
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     render_section_header(
         "Monthly Picks",
-        "A compact, data-gated research-candidate queue. Scores help decide what to review next; they are not advice, allocation guidance, or a conclusion list.",
+        "A compact, data-gated research-candidate list. Scores help decide what to review next; they are not advice, allocation guidance, or a conclusion list.",
     )
     top_n = _monthly_top_n()
     monthly_tables = load_monthly_outputs()
@@ -21881,7 +21881,7 @@ def main() -> None:
         )
         with st.expander("Recommended route", expanded=False):
             render_sidebar_route_steps(dashboard_navigation_cards())
-        with st.expander("Optional local commands", expanded=False):
+        with st.expander("Copy-only local commands", expanded=False):
             render_context_note(
                 "Simple path.",
                 " ".join(sidebar_quick_help_lines()),
