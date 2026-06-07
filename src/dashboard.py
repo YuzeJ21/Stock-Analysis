@@ -6691,15 +6691,15 @@ def data_health_tab_summary_cards(
                 "command": "make data-sources",
             },
         ]
-    if tab_name == "Price Refresh":
+    if tab_name in {"Price Refresh", "Price Updates"}:
         counts = summarize_price_update_status(price_status_frame)
         problem_total = sum(counts.get(status, 0) for status in ["parse_error", "source_unavailable", "network_error", "no_rows", "failed"])
         return [
             {
                 "kicker": "FETCHED",
                 "title": str(counts.get("fetched", 0)),
-                "body": "Rows fetched in the latest price refresh attempt.",
-                "badges": ["refresh attempt"],
+                "body": "Rows fetched in the latest price update attempt.",
+                "badges": ["update attempt"],
                 "command": "make price-status TOP_N=10",
             },
             {
@@ -19282,7 +19282,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         render_signal_cards(_plain_home_evaluation_workflow_cards())
 
     with st.expander("Price update plan", expanded=False):
-        render_section_header("Scalable Price Refresh", "How to expand price coverage without repeating tiny batches by hand.")
+        render_section_header("Scalable Price Updates", "How to expand price coverage without repeating tiny batches by hand.")
         render_signal_cards(price_refresh_operator_plan_cards(summary))
 
     with st.expander("Example reports", expanded=False):
@@ -20541,7 +20541,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     with st.expander("Unlock planning cards", expanded=False):
-        render_section_header("Scalable Price Refresh", "Preview capped broad coverage first, then review local file changes.")
+        render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
         render_section_header("Analysis Unlock Map", "What each trusted data path makes available to review next.")
         render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
@@ -20733,7 +20733,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             tone="warning",
         )
 
-    health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])
+    health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])
 
     with health_tabs[0]:
         render_signal_cards(
@@ -21322,7 +21322,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     with health_tabs[3]:
         render_signal_cards(
             data_health_tab_summary_cards(
-                "Price Refresh",
+                "Price Updates",
                 validation_rows,
                 coverage_frame,
                 status_frame,

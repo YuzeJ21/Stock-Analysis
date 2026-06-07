@@ -887,7 +887,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     coverage_expander_index = source.index('st.expander("Coverage details", expanded=False)')
     workflow_index = source.index('render_section_header("Evaluation Workflow"')
     price_refresh_expander_index = source.index('st.expander("Price update plan", expanded=False)')
-    price_refresh_index = source.index('render_section_header("Scalable Price Refresh"')
+    price_refresh_index = source.index('render_section_header("Scalable Price Updates"')
     examples_expander_index = source.index('st.expander("Example reports", expanded=False)')
     examples_index = source.index('render_section_header("Example Reports"')
     learn_more_index = source.index('st.expander("Learn more: methodology, roadmap, and transparency"')
@@ -903,6 +903,8 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert 'st.expander("How evaluation works", expanded=False)' in source
     assert 'st.expander("Price update plan", expanded=False)' in source
     assert 'st.expander("Advanced price refresh workflow", expanded=False)' not in source
+    assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])' in source
+    assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])' not in source
     assert 'st.expander("Example reports", expanded=False)' in source
     assert 'st.expander("Learn more: methodology, roadmap, and transparency", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
@@ -9987,7 +9989,7 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     staged_imports = {"files": [{"file_name": "fundamentals.csv"}]}
 
     coverage_cards = dashboard.data_health_tab_summary_cards("Coverage", validation, coverage, status, price_status, staged_imports)
-    price_cards = dashboard.data_health_tab_summary_cards("Price Refresh", validation, coverage, status, price_status, staged_imports)
+    price_cards = dashboard.data_health_tab_summary_cards("Price Updates", validation, coverage, status, price_status, staged_imports)
     staged_cards = dashboard.data_health_tab_summary_cards("Import Review", validation, coverage, status, price_status, staged_imports)
     rendered = " ".join(
         str(value)
@@ -10001,6 +10003,8 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     assert coverage_cards[2]["command"] == "make runbook-peers-broader"
     assert coverage_cards[3]["command"] == "make onboarding"
     assert price_cards[0]["command"] == "make price-status TOP_N=10"
+    assert "latest price update attempt" in rendered
+    assert "latest price refresh attempt" not in rendered
     assert staged_cards[0]["kicker"] == "IMPORT DRAFTS"
     assert "local import drafts waiting for review" in rendered
     assert price_cards[1]["command"] == "make price-status TOP_N=10"
