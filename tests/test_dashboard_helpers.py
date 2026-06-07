@@ -13601,6 +13601,8 @@ def test_peer_readiness_product_cards_surface_specific_peer_blockers():
     assert "missing peer mapping" in rendered
     assert "make focus-peers ticker=meta" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "import-file validation" in rendered
+    assert "import draft csv validation" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -14948,6 +14950,9 @@ def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
     assert "valuation blocked" in rendered_cards
     assert "make peer-mapping-queue top_n=25" in rendered_cards
     assert "make templates" in rendered_cards
+    source = Path("src/dashboard.py").read_text(encoding="utf-8").lower()
+    assert "before editing peer import files" in source
+    assert "before editing peer import draft csvs" not in source
     assert "broker" not in rendered_cards
     assert "order" not in rendered_cards
     assert "buy" not in rendered_cards
@@ -16621,6 +16626,8 @@ def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_com
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "sec_user_agent=present" in rendered.replace(" ", "")
     assert "stooq_api_key=missing" in rendered.replace(" ", "")
+    assert "local import-file folders remain available" in rendered
+    assert "import draft csv import folders remain available" not in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make import-earnings" in rendered
     assert "make import-analyst-estimates" in rendered
