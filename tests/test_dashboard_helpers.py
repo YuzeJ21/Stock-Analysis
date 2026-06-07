@@ -907,7 +907,8 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert 'st.expander("How evaluation works", expanded=False)' in source
     assert 'st.expander("Price update plan", expanded=False)' in source
     assert 'st.expander("Advanced price refresh workflow", expanded=False)' not in source
-    assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])' in source
+    assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])' in source
+    assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])' not in source
     assert 'st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Import Review"])' not in source
     assert 'st.expander("Example reports", expanded=False)' in source
     assert 'st.expander("Learn more: methodology, roadmap, and transparency", expanded=False)' in source
@@ -9998,7 +9999,7 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
 
     coverage_cards = dashboard.data_health_tab_summary_cards("Coverage", validation, coverage, status, price_status, staged_imports)
     price_cards = dashboard.data_health_tab_summary_cards("Price Updates", validation, coverage, status, price_status, staged_imports)
-    staged_cards = dashboard.data_health_tab_summary_cards("Import Review", validation, coverage, status, price_status, staged_imports)
+    staged_cards = dashboard.data_health_tab_summary_cards("Import Checks", validation, coverage, status, price_status, staged_imports)
     rendered = " ".join(
         str(value)
         for group in [coverage_cards, price_cards, staged_cards]
@@ -10013,8 +10014,9 @@ def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     assert price_cards[0]["command"] == "make price-status TOP_N=10"
     assert "latest price update attempt" in rendered
     assert "latest price refresh attempt" not in rendered
-    assert staged_cards[0]["kicker"] == "IMPORT DRAFTS"
-    assert "local import drafts waiting for review" in rendered
+    assert staged_cards[0]["kicker"] == "IMPORT FILES"
+    assert "local import files waiting for review" in rendered
+    assert "local import drafts waiting for review" not in rendered
     assert price_cards[1]["command"] == "make price-status TOP_N=10"
     assert price_cards[2]["command"] == "make price-status TOP_N=10"
     assert staged_cards[0]["command"] == "make imports-preview"
@@ -12182,7 +12184,8 @@ def test_dashboard_import_copy_uses_plain_language_for_standard_files():
     assert "Standard Import File" in source
     assert "standard import file" in source
     assert "standard import files" in source
-    assert "Local import drafts waiting for review before any standard local file update." in source
+    assert "Local import files waiting for review before any standard local file update." in source
+    assert "Local import drafts waiting for review before any standard local file update." not in source
     assert "main universe file" in source
     assert "canonical import" not in visible_source.lower()
     assert "canonical rows" not in visible_source.lower()

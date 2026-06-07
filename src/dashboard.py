@@ -6734,13 +6734,13 @@ def data_health_tab_summary_cards(
                 "command": "make price-status TOP_N=10",
             },
         ]
-    if tab_name == "Import Review":
+    if tab_name in {"Import Review", "Import Checks"}:
         file_count = len(staged_imports.get("files", [])) if isinstance(staged_imports, dict) else 0
         return [
             {
-                "kicker": "IMPORT DRAFTS",
+                "kicker": "IMPORT FILES",
                 "title": str(file_count),
-                "body": "Local import drafts waiting for review before any standard local file update.",
+                "body": "Local import files waiting for review before any standard local file update.",
                 "badges": ["preview first"],
                 "command": "make imports-preview",
             }
@@ -20749,7 +20749,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             tone="warning",
         )
 
-    health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Review"])
+    health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])
 
     with health_tabs[0]:
         render_signal_cards(
@@ -21493,7 +21493,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     with health_tabs[4]:
         render_signal_cards(
             data_health_tab_summary_cards(
-                "Import Review",
+                "Import Checks",
                 validation_rows,
                 coverage_frame,
                 status_frame,
