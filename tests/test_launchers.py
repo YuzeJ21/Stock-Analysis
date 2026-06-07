@@ -1512,6 +1512,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
+    assert "Check whether price coverage can be improved safely" in makefile
+    assert "make price-worklist $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)" in makefile
+    assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$(or $(TOP_N),10) TOP_N=$(or $(TOP_N),10) PROVIDER=yahoo" in makefile
+    assert "Use a real capped price loop only after reviewing the dry run and saving a readiness snapshot." in makefile
+    assert "Use trusted fundamentals, peer, earnings, or estimate rows only, then validate before apply" in makefile
     assert "make trusted-data-pilot [TICKERS=NVDA,META] [TOP_N=10] Print a read-only 5-10 company trusted-data pilot plan" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
