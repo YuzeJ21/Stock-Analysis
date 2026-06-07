@@ -549,4 +549,5 @@ def test_research_health_warnings_recommend_worklist_or_dry_run_before_refresh()
     assert "2 tickers are missing OHLCV coverage" in rendered
     assert "make price-worklist TOP_N=25" in rendered
     assert "make price-refresh-loop DRY_RUN=1" in rendered
+    assert rendered.index("make price-refresh-loop DRY_RUN=1") < rendered.index("make price-worklist TOP_N=25")
     assert "make price-refresh TOP_N=25" not in rendered

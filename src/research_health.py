@@ -36,6 +36,10 @@ DATA_QUALITY_COLUMNS = [
 ]
 
 MISSING_OHLCV_PREFIX = "Missing OHLCV data for "
+PRICE_REFRESH_GUIDANCE = (
+    "; start with make price-refresh-loop DRY_RUN=1, then inspect "
+    "make price-worklist TOP_N=25 if you need the row-level missing-price queue before any capped refresh."
+)
 
 
 def _printable_warnings(warnings: list[str], *, max_warnings: int) -> list[str]:
@@ -51,7 +55,7 @@ def _printable_warnings(warnings: list[str], *, max_warnings: int) -> list[str]:
         printable.append(
             f"{len(missing_ohlcv_tickers)} tickers are missing OHLCV coverage"
             + (f" (sample: {sample})" if sample else "")
-            + "; start with make price-worklist TOP_N=25 or make price-refresh-loop DRY_RUN=1 before any capped refresh."
+            + PRICE_REFRESH_GUIDANCE
         )
     suppressed = max(len(warnings) - len(printable), 0)
     if suppressed:

@@ -25,6 +25,10 @@ NO_DAILY_PRICE_SUFFIX = ": no daily price history was available."
 MISSING_OHLCV_PREFIX = "Missing OHLCV data for "
 OPTIONAL_PROXY_OHLCV_PREFIX = "Optional benchmark/proxy OHLCV context unavailable for "
 MAX_PRINTED_WARNINGS = 50
+PRICE_REFRESH_GUIDANCE = (
+    "; start with make price-refresh-loop DRY_RUN=1, then inspect "
+    "make price-worklist TOP_N=25 if you need the row-level missing-price queue before any capped refresh."
+)
 
 
 def printable_warnings(warnings: list[str], *, max_warnings: int = MAX_PRINTED_WARNINGS) -> list[str]:
@@ -58,14 +62,14 @@ def printable_warnings(warnings: list[str], *, max_warnings: int = MAX_PRINTED_W
         printable.append(
             f"{len(missing_ohlcv_tickers)} tickers are missing OHLCV coverage"
             + (f" (sample: {sample})" if sample else "")
-            + "; start with make price-worklist TOP_N=25 or make price-refresh-loop DRY_RUN=1 before any capped refresh."
+            + PRICE_REFRESH_GUIDANCE
         )
     if no_price_tickers:
         sample = ", ".join(no_price_tickers[:10])
         printable.append(
             f"{len(no_price_tickers)} tickers have no daily price history available"
             + (f" (sample: {sample})" if sample else "")
-            + "; start with make price-worklist TOP_N=25 or make price-refresh-loop DRY_RUN=1 before any capped refresh."
+            + PRICE_REFRESH_GUIDANCE
         )
     if optional_proxy_tickers:
         sample = ", ".join(optional_proxy_tickers[:10])
