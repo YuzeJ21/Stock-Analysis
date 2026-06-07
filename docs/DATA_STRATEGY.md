@@ -20,6 +20,8 @@ Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 
 
 If you want the copyable read-only checklist first, run `make trusted-data-pilot TOP_N=10`. It prints the pilot sequence and does not refresh, import, or edit local CSV files.
 
+Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
+
 1. Save the baseline with `make readiness-snapshot`.
 2. Confirm blockers with `make status-check TOP_N=10`.
 3. For prices, inspect ticker-level gaps with `make price-worklist TOP_N=10`, then preview any broader update with `make price-refresh-loop DRY_RUN=1`.

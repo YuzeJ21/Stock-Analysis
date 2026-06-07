@@ -1327,6 +1327,8 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "docs/DATA_STRATEGY.md" in operator_guide
     assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
     assert "make trusted-data-pilot TOP_N=10" in data_strategy
+    assert "Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in data_strategy
+    assert "ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos" in data_strategy
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
     assert "Provider-assisted does not mean provider-decided" in data_strategy
@@ -1517,6 +1519,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile
+    assert "Suggested company pilot: $(if $(TICKERS),$(TICKERS),NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META)" in makefile
+    assert "ETF/index examples such as QQQ and SMH are monitor-context demos, not operating-company DCF targets." in makefile
+    assert "Ticker-scoped example: make trusted-data-pilot TICKERS=NVDA,AVGO,AMD,MU,CRDO TOP_N=10" in makefile
     assert "make price-worklist $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)" in makefile
     assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$(or $(TOP_N),10) TOP_N=$(or $(TOP_N),10) PROVIDER=yahoo" in makefile
     assert "Use a real capped price loop only after reviewing the dry run and saving a readiness snapshot." in makefile
