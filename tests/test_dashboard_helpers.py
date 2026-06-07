@@ -921,6 +921,9 @@ def test_load_output_missing_message_uses_verify(tmp_path):
 
     assert frame is None
     assert "make verify" in message
+    assert "is not ready yet" in message
+    assert "validation proof" in message
+    assert "has not been generated yet" not in message
     assert "report_generator" not in message
 
 
@@ -1476,6 +1479,8 @@ def test_dashboard_loaders_are_read_only_by_default(tmp_path, monkeypatch):
     assert all(frame is None for frame, _message in health_tables.values())
     assert queue_frame is None
     assert "make action-queue" in queue_message
+    assert "is not ready yet" in queue_message
+    assert "has not been generated yet" not in queue_message
 
 
 def test_price_update_status_loader_does_not_rewrite_by_default(tmp_path):
@@ -1788,6 +1793,8 @@ def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
 
     assert frame is None
     assert "price_update_status.csv" in message
+    assert "is not ready yet" in message
+    assert "has not been generated yet" not in message
     assert "make runbook-prices-broader" in message
     assert "make focus-price" in message
     assert "make price-normalize" in message
@@ -17151,16 +17158,18 @@ def test_price_refresh_fallback_message_uses_runbook_and_normalize_flow():
 def test_price_refresh_cli_note_message_uses_runbook_and_normalize_flow():
     note = dashboard.price_refresh_cli_note_message()
 
-    assert note.startswith("Terminal-only:")
+    assert note.startswith("Copy-only:")
     assert "make runbook-prices-broader" in note
     assert "make focus-price" in note
     assert "make price-normalize" in note
+    assert "Terminal-only" not in note
 
 
 def test_data_gap_report_notice_uses_data_sources_front_door():
     body, command = dashboard.data_gap_report_notice(None)
 
-    assert "local gap report has not been generated yet" in body.lower()
+    assert "local source-gap report is not ready yet" in body.lower()
+    assert "has not been generated yet" not in body.lower()
     assert command == "make data-sources"
 
 
