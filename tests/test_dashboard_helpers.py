@@ -370,9 +370,9 @@ def test_major_dashboard_pages_avoid_duplicate_reader_guides():
     assert 'render_signal_cards(dashboard_page_reader_summary_cards("Home"))' in source
     assert 'render_signal_cards(dashboard_page_reader_summary_cards("Single-Stock Report"))' not in source
     assert 'render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))' not in source
-    assert 'if title == "Value / Re-rating":' in source
-    assert "render_signal_cards(dashboard_page_reader_summary_cards(title))" in source
+    assert source.count("render_signal_cards(dashboard_page_reader_summary_cards(title))") == 0
     assert 'render_signal_cards(dashboard_page_reader_cards("Home"))' not in source
+    assert 'render_section_header("Valuation Quick Read"' in source
 
 
 def test_sidebar_navigation_note_matches_selected_page():

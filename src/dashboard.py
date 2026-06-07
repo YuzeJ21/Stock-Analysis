@@ -19741,8 +19741,6 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     filename = TAB_TO_FILE[title]
     frame, message = output_frames[filename]
     render_section_header(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
-    if title == "Value / Re-rating":
-        render_signal_cards(dashboard_page_reader_summary_cards(title))
     if message and frame is None:
         render_notice_card(
             f"{title} output not ready yet",
