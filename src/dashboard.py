@@ -21391,8 +21391,12 @@ def main() -> None:
         st.divider()
         note_title, note_body = sidebar_navigation_note(selected_page)
         render_context_note(note_title, note_body, tone="success")
-        st.markdown("#### Best path")
-        render_sidebar_route_steps(dashboard_navigation_cards())
+        render_context_note(
+            "Best path.",
+            "Home -> Single-Stock Report -> Data Health. Open details only if you want the guided route cards.",
+        )
+        with st.expander("Best path details", expanded=False):
+            render_sidebar_route_steps(dashboard_navigation_cards())
         with st.expander("Need help?", expanded=False):
             render_context_note(
                 "Simple path.",

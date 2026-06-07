@@ -399,7 +399,9 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds extra table sections for deeper local review" in source
     assert "Most visitors can leave this off" in source
     assert "Show more explanation" not in source
-    assert "#### Best path" in source
+    assert "#### Best path" not in source
+    assert "Home -> Single-Stock Report -> Data Health" in source
+    assert 'st.expander("Best path details", expanded=False)' in source
     assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
     assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
