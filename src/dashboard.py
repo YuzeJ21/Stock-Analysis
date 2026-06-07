@@ -3080,6 +3080,18 @@ def optional_context_available(data: dict[str, object], fields: list[str]) -> bo
 def optional_context_empty_state_message(dataset_label: str) -> str:
     normalized = str(dataset_label or "").strip().lower().replace("_", "-")
     if "analyst" in normalized or "estimate" in normalized:
+        label = "analyst-estimate"
+    else:
+        label = "earnings"
+    return (
+        f"Not available: missing trusted local {label} input. "
+        "This is intentionally locked until verified rows pass validation; the report will not infer optional context from empty files."
+    )
+
+
+def optional_context_unlock_help(dataset_label: str) -> str:
+    normalized = str(dataset_label or "").strip().lower().replace("_", "-")
+    if "analyst" in normalized or "estimate" in normalized:
         staged_path = "data/staged/analyst_estimates/"
         import_file = "data/imports/analyst_estimates.csv"
         import_command = "make import-analyst-estimates"
@@ -3092,7 +3104,6 @@ def optional_context_empty_state_message(dataset_label: str) -> str:
         rejected_path = "data/rejected/earnings_import_rejected.csv"
         label = "earnings"
     return (
-        "Not available: missing trusted local CSV input. "
         f"Run `make templates` for schema-only files; templates are not data. "
         f"Add verified {label} rows through `{staged_path}` or `{import_file}`, run `{import_command}`, then run "
         "`make imports-validate`, `make imports-preview`, `make imports-apply`, "
@@ -19938,7 +19949,8 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                     st.dataframe(stock_report_detail_frame(earnings), width="stretch", hide_index=True)
             else:
                 st.info(optional_context_empty_state_message("earnings"))
-                st.caption("Use data/staged/earnings/ -> make import-earnings -> make imports-validate -> make imports-preview -> make imports-apply.")
+                with st.expander("How to unlock trusted earnings rows", expanded=False):
+                    st.caption(optional_context_unlock_help("earnings"))
         with estimates_col:
             st.markdown("#### Analyst Estimates")
             estimate_fields = [
@@ -19974,9 +19986,8 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                     st.dataframe(stock_report_detail_frame(estimates), width="stretch", hide_index=True)
             else:
                 st.info(optional_context_empty_state_message("analyst-estimate"))
-                st.caption(
-                    "Use data/staged/analyst_estimates/ -> make import-analyst-estimates -> make imports-validate -> make imports-preview -> make imports-apply."
-                )
+                with st.expander("How to unlock trusted analyst-estimate rows", expanded=False):
+                    st.caption(optional_context_unlock_help("analyst-estimate"))
 
     with sources_tab:
         render_context_note("Source readiness and gaps.", "Use this tab to verify source readiness, missing inputs, and how much of the report is based on local coverage versus unavailable optional files.")

@@ -16026,21 +16026,30 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "data/rejected/earnings_import_rejected.csv" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "missing trusted local csv input" in rendered
-    assert "make imports-validate" in empty_message
-    assert "make imports-preview" in empty_message
-    assert "make imports-apply" in empty_message
-    assert "Run `make templates` for schema-only files; templates are not data." in empty_message
-    assert "make optional-context-readiness" in empty_message
-    assert "make onboarding TOP_N=10" in empty_message
-    assert "data/staged/earnings/" in empty_message
-    assert "data/imports/earnings.csv" in empty_message
-    assert "make import-earnings" in empty_message
-    assert "data/rejected/earnings_import_rejected.csv" in empty_message
-    assert "data/staged/analyst_estimates/" in estimate_empty_message
-    assert "data/imports/analyst_estimates.csv" in estimate_empty_message
-    assert "make import-analyst-estimates" in estimate_empty_message
-    assert "make optional-context-readiness" in estimate_empty_message
-    assert "data/rejected/analyst_estimates_import_rejected.csv" in estimate_empty_message
+    assert "intentionally locked until verified rows pass validation" in empty_message
+    assert "infer optional context from empty files" in empty_message
+    assert "data/staged/earnings/" not in empty_message
+    assert "make import-earnings" not in empty_message
+    assert "data/staged/analyst_estimates/" not in estimate_empty_message
+    assert "make import-analyst-estimates" not in estimate_empty_message
+
+    earnings_help = dashboard.optional_context_unlock_help("earnings")
+    estimates_help = dashboard.optional_context_unlock_help("analyst-estimate")
+    assert "Run `make templates` for schema-only files; templates are not data." in earnings_help
+    assert "make imports-validate" in earnings_help
+    assert "make imports-preview" in earnings_help
+    assert "make imports-apply" in earnings_help
+    assert "make optional-context-readiness" in earnings_help
+    assert "make onboarding TOP_N=10" in earnings_help
+    assert "data/staged/earnings/" in earnings_help
+    assert "data/imports/earnings.csv" in earnings_help
+    assert "make import-earnings" in earnings_help
+    assert "data/rejected/earnings_import_rejected.csv" in earnings_help
+    assert "data/staged/analyst_estimates/" in estimates_help
+    assert "data/imports/analyst_estimates.csv" in estimates_help
+    assert "make import-analyst-estimates" in estimates_help
+    assert "make optional-context-readiness" in estimates_help
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in estimates_help
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
