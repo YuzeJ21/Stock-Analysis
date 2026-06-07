@@ -359,24 +359,27 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds source and freshness troubleshooting under Sources & Gaps" in source
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
-    assert "Show more explanation" in source
+    assert "Show detailed tables" in source
+    assert "Adds extra table sections for deeper local review" in source
+    assert "Most visitors can leave this off" in source
+    assert "Show more explanation" not in source
     assert "#### Where to go next" in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Quick help and safe commands"' in source
-    assert "Start here when a page feels noisy" in source
-    assert "Use the plain-language labels first" in source
+    assert 'st.expander("Need help?"' in source
+    assert "Simple path." in source
+    assert "Start with Home for the coverage snapshot." in source
+    assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
+    assert "sidebar_quick_help_lines()" in source
     assert 'st.expander("Help for using the app"' not in source
     assert 'st.expander("Help, commands, and paths"' not in source
+    assert 'st.expander("Quick help and safe commands"' not in source
     assert 'st.expander("Advanced command help"' not in source
     assert 'st.expander("How to read status labels"' not in source
     assert 'st.expander("Missing-data guide"' not in source
     assert 'st.expander("Local file paths"' not in source
-    assert "#### Status labels" in source
-    assert "#### If analysis is blocked" in source
-    assert "#### Where local files live" in source
-    assert "App folder:" in source
-    assert "Trusted input CSVs:" in source
-    assert "Generated reports:" in source
+    assert "#### Status labels" not in source
+    assert "#### If analysis is blocked" not in source
+    assert "#### Where local files live" not in source
     assert "Project root:" not in source
     assert "Data dir:" not in source
     assert "Outputs dir:" not in source
@@ -16453,14 +16456,11 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "without first unlocking more data" in rendered
     assert "valuation-style analysis" in rendered
     assert "make runbook-prices-broader" in rendered
-    assert "overview page" in nav_rendered
-    assert "monthly picks page" in nav_rendered
-    assert "research queue, not a conclusion list" in nav_rendered
     assert "use this first" in nav_rendered
     assert "analyze one stock" in nav_rendered
     assert "ready, blocked, excluded, or monitor-only" in nav_rendered
     assert "unlock missing data" in nav_rendered
-    assert "blocking analysis instead of being inferred" in nav_rendered
+    assert "blocking analysis" in nav_rendered
     assert "make status-check top_n=5" in rendered
     fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing company fundamentals")
     peers_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing peer mapping")
@@ -16682,10 +16682,10 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
     assert "Home page" in navigation
-    assert "Overview page" in navigation
-    assert "Monthly Picks page" in navigation
     assert "Single-Stock Report page" in navigation
     assert "Data Health page" in navigation
+    assert "Overview page" not in navigation
+    assert "Monthly Picks page" not in navigation
 
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():

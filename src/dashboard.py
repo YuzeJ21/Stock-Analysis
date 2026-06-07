@@ -14046,34 +14046,31 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     return [
         (
             "Start at Home",
-            "Use this first. It summarizes what is ready, what is blocked, and the safest next review path.",
+            "Use this first for the current coverage snapshot, ready sections, locked sections, and next safe step.",
             "Home page",
             "neutral",
         ),
         (
-            "See The Workflow",
-            "Use Overview after Home when you want grouped next actions across prices, fundamentals, peers, and reports.",
-            "Overview page",
-            "neutral",
-        ),
-        (
-            "Review Candidate Ideas",
-            "Open Monthly Picks when local data supports candidate review. This is a research queue, not a conclusion list.",
-            "Monthly Picks page",
-            "neutral",
-        ),
-        (
             "Analyze One Stock",
-            "Use Single-Stock Report to see what analysis is ready, blocked, excluded, or monitor-only for a ticker.",
+            "Use Single-Stock Report for one ticker's ready, blocked, excluded, or monitor-only analysis.",
             "Single-Stock Report page",
             "neutral",
         ),
         (
             "Unlock Missing Data",
-            "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis instead of being inferred.",
+            "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
             "Data Health page",
             "warning",
         ),
+    ]
+
+
+def sidebar_quick_help_lines() -> list[str]:
+    return [
+        "Start with Home for the coverage snapshot.",
+        "Open Single-Stock Report to review one ticker.",
+        "Open Data Health only when you want unlock commands.",
+        "Commands are copy-only; the dashboard never runs refreshes or imports.",
     ]
 
 
@@ -18957,17 +18954,12 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "A plain-language view of what is ready, what is blocked, and what to review next.",
     )
     render_context_note(
-        "Start here.",
-        "This page answers three questions: what can I review now, what is blocked, and which safe local command should I copy next?",
+        "How to use this page.",
+        (
+            "Start with the coverage snapshot, then open a single-stock report or Data Health only when you need the next unlock step. "
+            "Missing data is shown openly instead of guessed, and dashboard commands are copy-only."
+        ),
         tone="success",
-    )
-    render_context_note(
-        "Research boundary.",
-        "The app shows local research readiness only. Missing data is shown openly instead of being guessed.",
-    )
-    render_context_note(
-        "Copy-only dashboard.",
-        "Cards display commands for you to copy into a terminal; the dashboard itself does not run refreshes, imports, or external account actions.",
     )
     render_signal_cards(dashboard_page_reader_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
@@ -21289,7 +21281,11 @@ def main() -> None:
             index=USER_PAGE_TITLES.index(initial_page) if initial_page in USER_PAGE_TITLES else 0,
             help="Start with Home, then open a deeper page when you know what you want to review.",
         )
-        show_reason_details = st.checkbox("Show more explanation", value=False)
+        show_reason_details = st.checkbox(
+            "Show detailed tables",
+            value=False,
+            help="Adds extra table sections for deeper local review. Most visitors can leave this off.",
+        )
         show_source_details = False
         if selected_page == "Single-Stock Report":
             show_source_details = st.checkbox(
@@ -21302,29 +21298,14 @@ def main() -> None:
         render_context_note(note_title, note_body, tone="success")
         st.markdown("#### Where to go next")
         render_action_cards(dashboard_navigation_cards())
-        with st.expander("Quick help and safe commands", expanded=False):
+        with st.expander("Need help?", expanded=False):
             render_context_note(
-                "Start here when a page feels noisy.",
-                "Use the plain-language labels first, then copy a safe local command only when you are ready. The dashboard never runs imports, refreshes, or account actions.",
+                "Simple path.",
+                " ".join(sidebar_quick_help_lines()),
             )
             st.code(
-                "make help\nmake status-check TOP_N=5\nmake price-refresh-loop DRY_RUN=1\nmake price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30\nmake readiness\nmake stock-report-md TICKER=NVDA\nmake dashboard-smoke",
+                "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard-smoke",
                 language="bash",
-            )
-            st.markdown("#### Status labels")
-            st.markdown(
-                sidebar_guide_cards_html(status_legend_rows(), "Label", "Meaning"),
-                unsafe_allow_html=True,
-            )
-            st.markdown("#### If analysis is blocked")
-            st.markdown(
-                sidebar_guide_cards_html(missing_data_guide_rows(), "Dashboard Label", "What to do"),
-                unsafe_allow_html=True,
-            )
-            st.markdown("#### Where local files live")
-            st.code(
-                "\n".join(sidebar_local_file_context_lines(BASE_DIR, DATA_DIR, OUTPUTS_DIR)),
-                language="text",
             )
 
     project_status_payload = None
