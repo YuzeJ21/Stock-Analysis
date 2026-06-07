@@ -606,6 +606,25 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'render_section_header("Priority Fixes"' not in source
 
 
+def test_data_health_market_tables_have_plain_language_reader_guidance():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    explorer_header_index = source.index('render_section_header("Readiness Explorer"')
+    table_guide_index = source.index('render_context_note(\n        "Table guide."', explorer_header_index)
+    filter_index = source.index("filter_cols = st.columns", explorer_header_index)
+    drilldown_header_index = source.index('render_section_header("Single-Stock Drilldown"')
+    ticker_note_index = source.index('render_context_note(\n        "One ticker at a time."', drilldown_header_index)
+    snapshot_index = source.index("snapshot = single_stock_readiness_snapshot", drilldown_header_index)
+
+    assert explorer_header_index < table_guide_index < filter_index
+    assert drilldown_header_index < ticker_note_index < snapshot_index
+    assert "missing rows are not analysis conclusions" in source
+    assert "next copy-only command" in source
+    assert "How The App Uses Trusted Data" in source
+    assert "Source Vs Product Logic" not in source
+    assert "full-table dumps" not in source
+
+
 def test_dashboard_first_read_copy_avoids_engineering_queue_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -19229,7 +19248,8 @@ def test_product_page_logic_audit_flags_uncapped_readiness_explorer_default():
 
     assert explorer_check["status"] == "review"
     assert "default cap" in str(explorer_check["evidence"]).lower()
-    assert "full-table dumps" in str(explorer_check["operator_action"]).lower()
+    assert "filters and search" in str(explorer_check["operator_action"]).lower()
+    assert "expanding the view" in str(explorer_check["operator_action"]).lower()
 
 
 def test_product_page_logic_audit_flags_execution_or_direct_recommendation_language():
