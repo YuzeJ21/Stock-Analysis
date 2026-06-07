@@ -4929,9 +4929,9 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
 
 def valuation_legacy_output_note() -> str:
     return (
-        "Compatibility note: outputs/undervalued_candidates.csv is a legacy filename for "
+        "Saved compatibility output behind this page uses an older file name, but this page treats it as "
         "valuation-readiness and re-rating context. It is not an automatic undervalued-stock list; "
-        "rows missing trusted inputs remain blocked instead of being inferred."
+        "rows missing trusted inputs stay blocked instead of being inferred."
     )
 
 
@@ -18126,7 +18126,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     render_section_header("Valuation Quick Read", "Which valuation path to inspect first before reading tables or older value columns.")
     render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
     with st.expander("More valuation context, boundaries, and method", expanded=False):
-        render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or older output columns.")
+        render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or detailed output columns.")
         render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
         render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")
         render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))

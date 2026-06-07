@@ -8512,11 +8512,11 @@ def test_value_re_rating_page_uses_context_not_ready_conclusion_language():
 def test_valuation_legacy_output_note_explains_compatibility_filename():
     note = dashboard.valuation_legacy_output_note().lower()
 
-    assert "outputs/undervalued_candidates.csv" in note
-    assert "legacy filename" in note
+    assert "saved compatibility output" in note
+    assert "older file name" in note
     assert "valuation-readiness and re-rating context" in note
     assert "not an automatic undervalued-stock list" in note
-    assert "missing trusted inputs remain blocked" in note
+    assert "missing trusted inputs stay blocked" in note
     assert "broker" not in note
     assert "order" not in note
     assert "trading" not in note
