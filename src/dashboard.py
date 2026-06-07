@@ -110,6 +110,26 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
             "Viewing Universe Manager.",
             "Use this page to review universe coverage and preview-first changes before any manual apply step.",
         )
+    if selected_page == "Overview":
+        return (
+            "Viewing Overview.",
+            "Use this page for the broad command-center view: readiness, blockers, source notes, and copy-only next steps.",
+        )
+    if selected_page == "Market Direction":
+        return (
+            "Viewing Market Direction.",
+            "Use this page for local market and theme context where price history is ready; it is not a timing signal.",
+        )
+    if selected_page == "Momentum Leaders":
+        return (
+            "Viewing Momentum Leaders.",
+            "Use this page to review local setup strength for price-ready names before opening a single-stock report.",
+        )
+    if selected_page == "Portfolio Review":
+        return (
+            "Viewing Portfolio Review.",
+            "Use this page to review local holding purpose, concentration, and risk context without creating portfolio actions.",
+        )
     return (
         f"Viewing {selected_page}.",
         "Use this page for the selected workflow. If you feel lost, return to Home for the plain-language readiness summary.",
