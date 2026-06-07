@@ -351,12 +351,13 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Copy next: `make focus-peers TICKER=MSFT`." in markdown
     assert "## Executive Summary" in markdown
     assert "Bottom line: MSFT is in `Standalone DCF review` mode" in markdown
-    assert "## Data Vs Product Logic" in markdown
+    assert "## Data And App Method" in markdown
+    assert "## Data Vs Product Logic" not in markdown
     assert "Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates" in markdown
     assert "Product checks: project readiness gates decide whether each input is usable before report sections appear" in markdown
-    assert "Product DCF logic: calculated locally from trusted price, fundamentals, cash-flow or margin, share count, and cash/debt inputs" in markdown
+    assert "DCF method: calculated locally from trusted price, fundamentals, cash-flow or margin, share count, and cash/debt inputs" in markdown
     assert "the report does not ask a third party or model to create a valuation opinion" in markdown
-    assert "Product peer logic: blocked locally until source-backed peer mappings and peer metrics exist" in markdown
+    assert "Peer method: blocked locally until source-backed peer mappings and peer metrics exist" in markdown
     assert "empty optional files are an intentional locked state" in markdown
     assert "ATR / volatility: 3.1% (Volatility proxy approximation)." in markdown
     assert "approximation from close-to-close volatility" in markdown
@@ -757,7 +758,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Operating-company DCF and peer valuation are excluded, not failed" in markdown
     assert "Fundamentals / DCF: excluded for ETF/index/fund monitor context, not failed" in markdown
     assert "Peer comparison: excluded for monitor context" in markdown
-    assert "Logic source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code" in markdown
+    assert "Method source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code" in markdown
     assert "DCF applicability: excluded" in markdown
     assert "not a failed valuation input" in markdown
     assert "State: excluded; operating-company DCF is not the right method for ETF/index/fund monitor context" in markdown
@@ -986,9 +987,10 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     )
     assert "## What This Stock Is" in markdown
     assert "## Analysis Quality" in markdown
-    assert "## Data Vs Product Logic" in markdown
-    assert "Product DCF logic: blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing" in markdown
-    assert "Product peer logic: blocked locally until source-backed peer mappings and peer metrics exist" in markdown
+    assert "## Data And App Method" in markdown
+    assert "## Data Vs Product Logic" not in markdown
+    assert "DCF method: blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing" in markdown
+    assert "Peer method: blocked locally until source-backed peer mappings and peer metrics exist" in markdown
     assert "empty optional files are an intentional locked state" in markdown
     assert "## Methodology" in markdown
     assert "## Evaluation Function Check" in markdown
