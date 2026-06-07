@@ -304,16 +304,16 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "how should i read this page?" in rendered
     assert "read readiness cards first" in rendered
     assert "locked sections are boundaries, not hidden conclusions" in rendered
-    assert "dcf-ready means assumption review, not a price target" in rendered
+    assert "complete valuation inputs mean assumption review, not a price target" in rendered
     assert "use validation and preview commands before trusting newly imported rows" in rendered
     assert "start on home for readiness, open value / re-rating for valuation boundaries, use single-stock report for ticker proof, then use data health for unlock steps" in rendered
-    assert "use value / re-rating to classify dcf-ready, locked, or excluded valuation states" in rendered
+    assert "use value / re-rating to classify ready, locked, or excluded valuation states" in rendered
     assert "use single-stock report after home or value / re-rating to prove one ticker" in rendered
     assert "use data health when home, value / re-rating, or single-stock report shows a lock" in rendered
     assert "where does this fit in the stock review path?" in rendered
     assert "company valuation, peer comparison, earnings, and estimate sections stay withheld" in rendered
     assert "unsupported dcf" not in rendered
-    assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-readiness review" in rendered
+    assert "company rows with complete valuation inputs can support assumption, scenario, sensitivity, and source-readiness review" in rendered
     assert "source-freshness review" not in rendered
     assert "missing inputs are an unlock queue, not weak conclusions" in rendered
     assert "dashboard does not run refreshes, imports, or external actions" in rendered
@@ -388,8 +388,9 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert "one ticker's ready analysis" in report_body
     assert "Home explains what is ready" not in report_body
     assert value_title == "Viewing Value / Re-rating."
-    assert "DCF-ready review" in value_body
-    assert "peer-context limits" in value_body
+    assert "valuation-ready companies" in value_body
+    assert "peer-comparison limits" in value_body
+    assert "DCF-ready review" not in value_body
     assert health_title == "Viewing Data Health."
     assert "trusted inputs are missing" in health_body
     assert "unlock path needs proof" in health_body
@@ -1355,11 +1356,12 @@ def test_output_tab_summary_cards_explain_missing_theme_context_without_zero_row
     assert "no populated theme or sector context is available" in rendered
     assert "local research state" in rendered
     assert "saved local output" not in rendered
-    assert "dcf input state" in rendered
+    assert "valuation input state" in rendered
     assert "valuation readiness" in rendered
-    assert "1 ready-output / 1 locked" in rendered
+    assert "1 inputs complete / 1 locked" in rendered
+    assert "ready-output" not in rendered
     assert "peer, quality, or multiple context limits" in rendered
-    assert "use the dcf readiness panel for exact dcf-ready counts" in rendered
+    assert "use the valuation readiness panel for exact company-ready counts" in rendered
     assert "csv output" not in rendered
     assert "across 0 rows" not in rendered
     assert "buy" not in rendered
@@ -8684,7 +8686,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["FIRST READ", "PROOF PATH", "ANALYZE NOW", "STILL LOCKED", "EXCLUDED"]
-    assert cards[0]["title"] == "Review DCF-ready companies first"
+    assert cards[0]["title"] == "Review valuation-ready companies first"
     assert cards[0]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[2]["command"] == "make stock-report-md TICKER=NVDA"
@@ -8697,10 +8699,11 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert "missing data does not become a hidden conclusion" in rendered
     assert "assumption, scenario, sensitivity, and source readiness review" in rendered
     assert "not price targets" in rendered
-    assert "1 dcf-ready company row(s)" in rendered
-    assert "open nvda for dcf assumptions" in rendered
+    assert "1 valuation-ready company row(s)" in rendered
+    assert "dcf-ready company row(s)" not in rendered
+    assert "open nvda for valuation assumptions" in rendered
     assert "peer trend can be reviewed only when mapped peer price history is ready" in rendered
-    assert "peer-relative valuation still needs trusted peer valuation inputs" in rendered
+    assert "peer comparison still needs trusted peer inputs" in rendered
     assert "valuation-readiness review" in rendered
     assert "not a recommendation, price target, or full investment conclusion" in rendered
     assert "1 company row(s) need inputs" in rendered
@@ -8708,7 +8711,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert "free cash flow pass readiness" in rendered
     assert "fair value/share, intrinsic-value interpretation, and re-rating context" in rendered
     assert "1 etf/index/fund row(s)" in rendered
-    assert "qqq use monitor context because operating-company dcf does not apply" in rendered
+    assert "qqq use monitor context because company valuation does not apply" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -8727,12 +8730,12 @@ def test_valuation_quick_read_cards_prioritize_missing_inputs_when_no_ready_rows
     assert cards[0]["title"] == "Fix missing valuation inputs first"
     assert cards[0]["command"] == "make focus-fundamentals TICKER=META"
     assert cards[1]["command"] == "make focus-fundamentals TICKER=META"
-    assert cards[2]["title"] == "0 DCF-ready company row(s)"
+    assert cards[2]["title"] == "0 valuation-ready company row(s)"
     assert cards[2]["command"] == "make dcf-readiness"
     assert cards[3]["command"] == "make focus-fundamentals TICKER=META"
     assert "start with meta" in rendered
-    assert "no operating-company dcf assumptions or sensitivity should be reviewed yet" in rendered
-    assert "use the locked-input and monitor-context cards until trusted dcf rows exist" in rendered
+    assert "no company valuation assumptions or sensitivity should be reviewed yet" in rendered
+    assert "use the locked-input and monitor-context cards until trusted valuation rows exist" in rendered
     assert "open the next dcf-ready ticker" not in rendered
     assert "free cash flow, shares outstanding" in rendered
     assert "until free cash flow, shares outstanding pass readiness" in rendered
@@ -8750,14 +8753,14 @@ def test_valuation_quick_read_cards_keep_etf_rows_monitor_only_when_no_company_r
     assert cards[0]["title"] == "Use monitor context only"
     assert cards[0]["command"] == "make stock-report-md TICKER=QQQ"
     assert cards[1]["command"] == "make stock-report-md TICKER=QQQ"
-    assert cards[2]["title"] == "0 DCF-ready company row(s)"
+    assert cards[2]["title"] == "0 valuation-ready company row(s)"
     assert cards[2]["command"] == "make dcf-readiness"
     assert cards[4]["command"] == "make stock-report-md TICKER=QQQ"
     assert "start with qqq" in rendered
-    assert "no operating-company dcf assumptions or sensitivity should be reviewed yet" in rendered
+    assert "no company valuation assumptions or sensitivity should be reviewed yet" in rendered
     assert "open the next dcf-ready ticker" not in rendered
-    assert "qqq use monitor context because operating-company dcf does not apply" in rendered
-    assert "operating-company dcf is excluded, not failed" in rendered
+    assert "qqq use monitor context because company valuation does not apply" in rendered
+    assert "company valuation is excluded, not failed" in rendered
     assert "monitor only" in rendered
 
 

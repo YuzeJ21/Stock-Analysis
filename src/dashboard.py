@@ -88,7 +88,7 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
     if selected_page == "Value / Re-rating":
         return (
             "Viewing Value / Re-rating.",
-            "Use this page to separate DCF-ready review, locked valuation inputs, peer-context limits, and ETF/index monitor context.",
+            "Use this page to separate valuation-ready companies, locked inputs, peer-comparison limits, and ETF/index monitor context.",
         )
     if selected_page == "Data Health":
         return (
@@ -158,11 +158,11 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "command": "make stock-report-md TICKER=NVDA",
         },
         "Value / Re-rating": {
-            "analyze": "DCF-ready company rows can support assumption, scenario, sensitivity, and source-readiness review.",
-            "locked": "Blocked company rows need trusted fundamentals or DCF fields; ETF/index/fund rows are monitor context, not failed DCF.",
-            "read": "Read the DCF-ready, DCF-blocked, and DCF-excluded split before looking at rankings. DCF-ready means assumption review, not a price target.",
+            "analyze": "Company rows with complete valuation inputs can support assumption, scenario, sensitivity, and source-readiness review.",
+            "locked": "Blocked company rows need trusted fundamentals or valuation fields; ETF/index/fund rows are monitor context, not failed valuation.",
+            "read": "Read the ready, locked, and excluded split before looking at rankings. Complete valuation inputs mean assumption review, not a price target.",
             "proof": "After fundamentals change, refresh valuation readiness before reading valuation output.",
-            "review_route": "Use Value / Re-rating to classify DCF-ready, locked, or excluded valuation states, then open Single-Stock Report for proof and Data Health for unlock steps.",
+            "review_route": "Use Value / Re-rating to classify ready, locked, or excluded valuation states, then open Single-Stock Report for proof and Data Health for unlock steps.",
             "review_area": "Fundamentals / DCF Unlock",
             "command": "make dcf-readiness",
         },
@@ -13516,13 +13516,13 @@ def valuation_quick_read_cards(
         first_command = "make dcf-readiness"
         first_badges = ["readiness first", "no guessing"]
     elif not ready.empty:
-        first_title = "Review DCF-ready companies first"
+        first_title = "Review valuation-ready companies first"
         first_body = (
-            f"Start with {ready_ticker}. DCF-ready rows can support assumption, scenario, sensitivity, and source readiness review; "
+            f"Start with {ready_ticker}. Rows with complete valuation inputs can support assumption, scenario, sensitivity, and source readiness review; "
             "they are still research context, not price targets."
         )
         first_command = stock_report_md_command(ready_ticker)
-        first_badges = ["DCF-ready", "scenario review"]
+        first_badges = ["valuation inputs ready", "scenario review"]
     elif not blocked.empty:
         first_title = "Fix missing valuation inputs first"
         first_body = (
@@ -13535,26 +13535,26 @@ def valuation_quick_read_cards(
         first_title = "Use monitor context only"
         first_body = (
             f"Start with {excluded_ticker}. ETF/index/fund rows can support market, theme, liquidity, or risk context; "
-            "operating-company DCF is excluded, not failed."
+            "company valuation is excluded, not failed."
         )
         first_command = stock_report_md_command(excluded_ticker)
-        first_badges = ["monitor context", "DCF excluded"]
+        first_badges = ["monitor context", "valuation excluded"]
 
     ready_command = stock_report_md_command(ready_ticker) if not ready.empty else "make dcf-readiness"
     blocked_command = f"make focus-fundamentals TICKER={blocked_ticker}" if not blocked.empty else "make sec-stage-queue TOP_N=25"
     excluded_command = stock_report_md_command(excluded_ticker) if not excluded.empty else "make stock-report-md TICKER=QQQ"
     if ready.empty:
-        analyze_title = "0 DCF-ready company row(s)"
+        analyze_title = "0 valuation-ready company row(s)"
         analyze_body = (
-            "What you can analyze now: no operating-company DCF assumptions or sensitivity should be reviewed yet. "
-            "Use the locked-input and monitor-context cards until trusted DCF rows exist."
+            "What you can analyze now: no company valuation assumptions or sensitivity should be reviewed yet. "
+            "Use the locked-input and monitor-context cards until trusted valuation rows exist."
         )
     else:
-        analyze_title = f"{len(ready)} DCF-ready company row(s)"
+        analyze_title = f"{len(ready)} valuation-ready company row(s)"
         analyze_body = (
-            f"What you can analyze now: open {ready_ticker} for DCF assumptions, scenarios, "
+            f"What you can analyze now: open {ready_ticker} for valuation assumptions, scenarios, "
             "sensitivity, and source readiness. Peer trend can be reviewed only when mapped peer price history is ready; "
-            "peer-relative valuation still needs trusted peer valuation inputs. This is a valuation-readiness review, "
+            "peer comparison still needs trusted peer inputs. This is a valuation-readiness review, "
             "not a recommendation, price target, or full investment conclusion."
         )
 
@@ -13598,7 +13598,7 @@ def valuation_quick_read_cards(
             "kicker": "EXCLUDED",
             "title": f"{len(excluded)} ETF/index/fund row(s)",
             "body": (
-                f"What is excluded: {excluded_ticker if not excluded.empty else 'ETF/index/fund rows'} use monitor context because operating-company DCF "
+                f"What is excluded: {excluded_ticker if not excluded.empty else 'ETF/index/fund rows'} use monitor context because company valuation "
                 "does not apply; use market or risk context instead."
             ),
             "badges": ["not failed", "monitor only"],
@@ -13867,7 +13867,7 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
             "badges": ["Local research state"],
         },
         {
-            "kicker": "DCF INPUT STATE" if title == "Value / Re-rating" else "STATE",
+            "kicker": "VALUATION INPUT STATE" if title == "Value / Re-rating" else "STATE",
             "title": status,
             "body": f"Most common visible state across {status_count} row{'s' if status_count != 1 else ''}.",
             "badges": ["status context"],
@@ -13875,16 +13875,16 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
         {
             "kicker": "VALUATION READINESS" if title == "Value / Re-rating" else "DATA GAPS",
             "title": (
-                f"{valuation_ready_count} ready-output / {valuation_locked_count} locked"
+                f"{valuation_ready_count} inputs complete / {valuation_locked_count} locked"
                 if title == "Value / Re-rating" and "ValuationStatus" in frame.columns
                 else f"{missing_count} row{'s' if missing_count != 1 else ''}"
             ),
             "body": (
-                "Ready output rows can support standalone valuation-readiness review; missing-data fields may still show peer, quality, or multiple context limits. Use the DCF readiness panel for exact DCF-ready counts."
+                "Rows with complete valuation inputs can support standalone valuation-readiness review; missing-data fields may still show peer, quality, or multiple context limits. Use the valuation readiness panel for exact company-ready counts."
                 if title == "Value / Re-rating" and "ValuationStatus" in frame.columns
                 else "Rows with explicit missing-data fields stay visible instead of being silently scored."
             ),
-            "badges": ["DCF readiness", "context limits"] if title == "Value / Re-rating" else ["missing data"],
+            "badges": ["valuation readiness", "context limits"] if title == "Value / Re-rating" else ["missing data"],
         },
         {
             "kicker": "THEME",
