@@ -93,7 +93,7 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
     if selected_page == "Data Health":
         return (
             "Viewing Data Health.",
-            "Use this page to see which trusted inputs are missing and which copy-only unlock path to follow next.",
+            "Use this page to see which trusted inputs are missing and which unlock path needs proof next.",
         )
     if selected_page == "Monthly Picks":
         return (
@@ -5605,7 +5605,7 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
             "title": "Use this page to unlock analysis",
             "body": (
                 "Data Health is not an error page. It shows what you can analyze now, what is still locked, "
-                "which trusted local inputs are ready, and which safe command to copy next."
+                "which trusted local inputs are ready, and which proof path should be checked next."
             ),
             "badges": ["review guide", "copy only"],
             "command": "make status-check TOP_N=5",
@@ -20529,7 +20529,7 @@ def render_market_command_center(
 def render_data_health(provider, project_status_payload: dict[str, Any] | None = None) -> None:
     render_section_header(
         "Data Health",
-        "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock path to copy next.",
+        "See what trusted local inputs are ready, what analysis is still locked, and which unlock path needs proof next.",
     )
     render_signal_cards(dashboard_page_reader_summary_cards("Data Health"))
     if provider is None:

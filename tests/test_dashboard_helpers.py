@@ -389,7 +389,7 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert "peer-context limits" in value_body
     assert health_title == "Viewing Data Health."
     assert "trusted inputs are missing" in health_body
-    assert "copy-only unlock path" in health_body
+    assert "unlock path needs proof" in health_body
     assert monthly_title == "Viewing Monthly Picks."
     assert "data-gated candidate queue" in monthly_body
     assert "refused to force weak or unsupported names" in monthly_body
@@ -8949,6 +8949,7 @@ def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_l
     assert "not an error page" in rendered
     assert "what you can analyze now" in rendered
     assert "what is still locked" in rendered
+    assert "which proof path should be checked next" in rendered
     assert "what this means" in rendered
     assert "586 price-ready / 23 fundamentals-ready / 23 dcf-ready" in rendered
     assert "price coverage unlocks setup review first" in rendered
@@ -9243,7 +9244,7 @@ def test_data_health_valuation_unlock_snapshot_handles_missing_readiness_without
 def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "See what trusted local inputs are ready, what analysis is still locked, and which safe unlock path to copy next." in source
+    assert "See what trusted local inputs are ready, what analysis is still locked, and which unlock path needs proof next." in source
     refresh_note_index = source.index('st.expander("Refresh status note"')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     assert refresh_note_index < quick_read_index
