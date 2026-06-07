@@ -6,7 +6,7 @@ This roadmap reflects the current direction of the local Python/Streamlit stock 
 2. Analysis second.
 3. Research decision last.
 
-The next phase is not to add more indicators or AI-generated summaries. The next phase should turn the product page into an operational broad-market command center while continuing to unlock decision-useful research through trusted fundamentals, peer metrics, earnings, and analyst estimates.
+The next phase is not to add more indicators or AI-generated summaries. The next phase should turn the product page into a shareable broad-market research workflow while continuing to unlock decision-useful research through trusted fundamentals, peer metrics, earnings, and analyst estimates.
 
 ## 1. Completed Milestones
 

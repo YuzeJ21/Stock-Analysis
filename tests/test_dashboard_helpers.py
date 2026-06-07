@@ -1438,7 +1438,7 @@ def test_detail_sections_build_mid_level_panels_without_buy_sell_language():
     titles = [title for title, _ in sections]
     rendered = " ".join(str(value) for title, detail in sections for value in [title, detail.to_dict()]).lower()
 
-    assert titles == ["Reasons", "Risk and data gaps", "Source and operational context"]
+    assert titles == ["Reasons", "Risk and data gaps", "Source and next-step context"]
     assert "buy" not in rendered
     assert "sell" not in rendered
 

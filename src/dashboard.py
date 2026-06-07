@@ -17991,7 +17991,7 @@ def detail_sections(frame: pd.DataFrame, show_reason_details: bool) -> list[tupl
 
     operations_cols = detail_columns(frame, "operations")
     if any(column not in TABLE_IDENTITY_COLUMNS for column in operations_cols):
-        sections.append(("Source and operational context", frame[operations_cols].copy()))
+        sections.append(("Source and next-step context", frame[operations_cols].copy()))
     return sections
 
 
@@ -18132,7 +18132,7 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
     render_signal_cards(table_focus_cards(filtered))
     render_context_note(
         "Default view.",
-        "Showing the most useful columns first. Open the detail panels below for reasons, data gaps, and operational context.",
+        "Showing the most useful columns first. Open the detail panels below for reasons, data gaps, and next-step context.",
     )
     st.dataframe(style_frame(presentation_frame(display_frame[compact_columns])), width="stretch", hide_index=True)
 
