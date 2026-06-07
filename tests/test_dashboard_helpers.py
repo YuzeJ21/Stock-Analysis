@@ -13051,7 +13051,8 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "check after" in rendered
     assert "can analyze now" in rendered
     assert "still locked" in rendered
-    assert "copy next" in rendered
+    assert "next step" in rendered
+    assert "copy next" not in rendered
     assert "safety" in rendered
     assert "dry-run only" in rendered
     assert "without changing local csv files" in rendered

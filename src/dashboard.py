@@ -12350,7 +12350,7 @@ def next_action_console_cards(console_frame: pd.DataFrame | None, limit: int = 8
             [
                 f"Can analyze now: {plain_state['can_analyze']}",
                 f"Still locked: {plain_state['locked']}",
-                f"Copy next: {plain_state['copy_next']}",
+                f"Next step: {plain_state['copy_next']}",
             ]
         )
         if when_to_use and when_to_use != "Not available":
