@@ -8421,7 +8421,7 @@ def peer_input_ladder_frame(
             | frame["peer_valuation_status"].fillna("").astype(str).str.contains("blocked", case=False, na=False),
             "unlocks": "Peer-relative valuation only when mappings, peer prices, and peer fundamentals are all ready.",
             "locked": "No peer premium/discount or peer DCF comparison before readiness passes.",
-            "path": "outputs/peer_unlock_worklist.csv and data/reports/peer_readiness_report.csv",
+            "path": "Saved peer readiness proof after rebuilding readiness",
             "validation": "make readiness -> make peer-mapping-queue TOP_N=25 -> make stock-report-md TICKER=<ticker>",
             "command": "make readiness && make peer-mapping-queue TOP_N=25",
         },

@@ -14310,6 +14310,9 @@ def test_peer_input_ladder_prioritizes_active_dcf_ready_rows_and_separates_trend
     assert "data/imports/peers.csv" in rendered
     assert "data/imports/prices.csv or data/staged/prices/" in rendered
     assert "data/imports/fundamentals.csv or data/staged/fundamentals/" in rendered
+    assert "saved peer readiness proof after rebuilding readiness" in rendered
+    assert "outputs/peer_unlock_worklist.csv" not in rendered
+    assert "data/reports/peer_readiness_report.csv" not in rendered
     assert "peer trend context from mapped peer price history" in rendered
     assert "peer valuation remains locked until peer fundamentals and valuation inputs pass readiness" in rendered
     assert "peer-relative premium/discount, peer valuation comparison, and peer dcf comparison stay locked" in rendered
