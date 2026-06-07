@@ -179,10 +179,10 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
     guide = guides.get(
         page,
         {
-            "analyze": "The local rows and summaries already generated for this workflow page.",
+            "analyze": "The saved local rows and summaries already available for this workflow page.",
             "locked": "Rows missing trusted inputs remain visible as blocked or partial rather than inferred.",
-            "read": "Read summary cards first, then the table. Use the command card only when you intentionally want to refresh local outputs.",
-            "proof": "After local data changes, rerun readiness before interpreting changed outputs.",
+            "read": "Read summary cards first, then the table. Use the command card only when you intentionally want to refresh saved research views.",
+            "proof": "After local data changes, rerun readiness before interpreting changed research views.",
             "guided_path": "Use Home for the current state, Single-Stock Report for ticker proof, and Data Health for locked-input unlock steps.",
             "workflow_path": "Current page summary",
             "command": "make status-check TOP_N=5",
@@ -579,7 +579,7 @@ COLUMN_LABELS = {
 
 def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
     if not path.exists():
-        return None, f"`{path.name}` is not ready yet. Run `make verify` to refresh local outputs and validation proof first."
+        return None, f"`{path.name}` is not ready yet. Run `make verify` to refresh saved research views and validation proof first."
     try:
         frame = pd.read_csv(path)
     except Exception as exc:  # pragma: no cover - defensive UI path
@@ -5294,7 +5294,7 @@ def stock_report_technical_context_cards(report_payload: dict[str, object]) -> l
             "kicker": "FLOW / VOLATILITY",
             "title": volume_title,
             "body": f"{volatility_source}: {report_display_value(volatility_proxy, 'percent')}. Proxy values are approximations; missing values stay visible instead of guessed.",
-            "badges": ["local pipeline", volatility_source],
+            "badges": ["local price data", volatility_source],
         },
     ]
 
@@ -6682,7 +6682,7 @@ def data_health_tab_summary_cards(
         {
             "kicker": "OPTIONAL MISSING",
             "title": str(missing_count),
-            "body": "Optional files can stay missing without breaking the research pipeline.",
+            "body": "Optional files can stay missing without breaking the research workflow.",
             "badges": ["partial safe"],
             "command": "make validate-data",
         },
@@ -8490,7 +8490,7 @@ def fundamentals_dcf_diagnostic_cards(
             if not missing_counts.empty:
                 missing_field_text = ", ".join(f"{field}: {count}" for field, count in missing_counts.value_counts().head(4).items())
             else:
-                missing_field_text = "No missing DCF fields reported for generated rows."
+                missing_field_text = "No missing DCF fields reported for saved rows."
 
     sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip()) or sec_configured_from_report
     sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
@@ -9340,7 +9340,7 @@ def fundamentals_dcf_function_quality_frame(
             if not missing_counts.empty:
                 missing_field_text = ", ".join(f"{field}: {count}" for field, count in missing_counts.value_counts().head(4).items())
             else:
-                missing_field_text = "No missing DCF fields reported for generated rows"
+                missing_field_text = "No missing DCF fields reported for saved rows"
 
     return pd.DataFrame(
         [
@@ -9863,7 +9863,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
             {
                 "kicker": "DECISION QUALITY",
                 "title": "Decision outputs not ready yet",
-                "body": "Run the local pipeline before interpreting Research Now, Monitor, or Blocked by Data buckets.",
+                "body": "Build the local research views before interpreting Research Now, Monitor, or Blocked by Data buckets.",
                 "badges": ["refresh first"],
                 "command": "make pipeline",
             }
@@ -11863,7 +11863,7 @@ def next_action_console_source_note(category: str) -> str:
         "Import Validation / Rejected Rows": "Uses staged local CSV validation, preview/apply, and rejected-row reports before any local dataset is trusted.",
         "Single-Stock Review": "Reads current readiness, decisions, coverage, DCF, peer, and optional-context outputs for one ticker.",
     }
-    return notes.get(category, "Uses generated local CSV reports; run make readiness and make project-status after data changes.")
+    return notes.get(category, "Uses saved local readiness reports; run make readiness and make project-status after data changes.")
 
 
 def next_action_console_plain_english_state(category: str) -> dict[str, str]:
@@ -11907,7 +11907,7 @@ def next_action_console_plain_english_state(category: str) -> dict[str, str]:
     return states.get(
         category,
         {
-            "can_analyze": "current local outputs can be reviewed for the stated workflow lane.",
+            "can_analyze": "saved local research views can be reviewed for the stated workflow lane.",
             "locked": "missing trusted inputs stay locked rather than inferred.",
             "copy_next": "copy the command only after reviewing the lane context.",
         },
@@ -12279,7 +12279,7 @@ def market_next_action_cards(
         {
             "kicker": "REFRESH REPORTS",
             "title": "Regenerate readiness after imports",
-            "body": "After any import draft or provider refresh, regenerate pipeline and readiness outputs before interpreting conclusions.",
+            "body": "After any import draft or provider refresh, rebuild readiness before interpreting conclusions.",
             "badges": ["deterministic", "CSV-first"],
             "command": "make readiness",
         }
@@ -14557,7 +14557,7 @@ def overview_landing_cards(
             "kicker": "RESEARCH FLOW",
             "title": f"{watchlist_count} names checked",
             "body": f"{monthly_count} current monthly candidates and latest local price date {latest_price}.",
-            "badges": ["local outputs"],
+            "badges": ["saved views"],
             "command": "make monthly",
         },
         {
@@ -17136,7 +17136,7 @@ def monthly_picks_quality_cards(
         support_badges = ["partial", "no forced fills"]
     else:
         support_title = "Candidate set is filled"
-        support_body = f"{candidate_count} conservative research candidates are available from current local outputs."
+        support_body = f"{candidate_count} conservative research candidates are available from saved local research views."
         support_badges = ["candidate review"]
 
     track_title = "Track record ready" if has_track_record else "Track record limited"
@@ -17188,7 +17188,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "kicker": "LOGIC SOURCE",
             "title": "Project scoring logic",
             "body": (
-                "Score components and report wording come from this repository's local pipeline outputs and src/monthly_picks.py. "
+                "Score components and report wording come from this repository's saved local research views and src/monthly_picks.py. "
                 "Public libraries support data/UI. Shipped scoring comes from project code and local data."
             ),
             "badges": ["project rules", "transparent"],
@@ -19045,7 +19045,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
             {
                 "Roadmap Area": "Verification",
                 "Current Status": "Run on demand",
-                "Evidence": "Pipeline/onboarding/test commands prove the current local outputs still build and the dashboard still starts.",
+                "Evidence": "Pipeline/onboarding/test commands prove the current saved research views still build and the dashboard still starts.",
                 "Next Safe Step": "Run scoped verification after product or trusted-data changes.",
                 "Copy Command": "make verify",
             },
