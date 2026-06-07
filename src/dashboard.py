@@ -20855,7 +20855,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 if not fundamentals_unlock.empty:
                     render_section_header(
                         "Price-Ready, Fundamentals-Locked Companies",
-                        "Plain-English fundamentals unlock queue before the detailed workflow fields.",
+                        "Start here to see which price-ready companies need trusted fundamentals before deeper review.",
                     )
                     render_signal_cards(data_health_fundamentals_unlock_cards(fundamentals_unlock))
                     st.dataframe(clean_display_frame(fundamentals_unlock), width="stretch", hide_index=True)

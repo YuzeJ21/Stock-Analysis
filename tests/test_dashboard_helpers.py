@@ -711,7 +711,7 @@ def test_dashboard_first_read_copy_avoids_engineering_queue_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "Ticker-level readiness, decision, missing-data, and next-action context without loading every detail first." in source
-    assert "Plain-English fundamentals unlock queue before the detailed workflow fields." in source
+    assert "Start here to see which price-ready companies need trusted fundamentals before deeper review." in source
     assert "Plain-English peer unlock queue before the detailed peer mapping fields." in source
     assert "Lazy ticker-level readiness" not in source
     assert "raw worklist fields" not in source
