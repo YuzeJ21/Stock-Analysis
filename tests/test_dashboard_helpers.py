@@ -7622,6 +7622,8 @@ def test_stock_report_brief_html_summarizes_readiness_without_advice():
     assert "Peers Need Data" in html
     assert "peer fundamentals or peer price/market-cap context" in html
     assert "Earnings Missing" in html
+    assert "Report timestamp" in html
+    assert "Generated" not in html
     assert "2" in html
     assert "buy" not in html.lower()
     assert "sell" not in html.lower()
@@ -9767,6 +9769,7 @@ def test_stock_report_source_detail_summary_frame_replaces_raw_json_dump():
     assert "nvda" in rendered
     assert "local" in rendered
     assert "2026-06-04" in rendered
+    assert "report timestamp" in rendered
     assert "ready feature flags" in rendered
     assert "blocked feature flags" in rendered
     assert "source rows" in rendered
@@ -9774,6 +9777,7 @@ def test_stock_report_source_detail_summary_frame_replaces_raw_json_dump():
     assert "report data download" in rendered
     assert "optional saved data file" in rendered
     assert "most readers can use this page or the markdown report" in rendered
+    assert "generated" not in rendered
     assert "machine-readable local report file" not in rendered
     assert "price_ready" not in rendered
     assert "data_freshness" not in rendered
@@ -16577,6 +16581,8 @@ def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_com
     assert "make import-earnings" in rendered
     assert "make import-analyst-estimates" in rendered
     assert "missing trusted local csv input" in rendered
+    assert "source check" in rendered
+    assert "source audit" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
