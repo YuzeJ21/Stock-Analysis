@@ -186,20 +186,15 @@ def dashboard_page_reader_summary_cards(page_title: str) -> list[dict[str, objec
     cards = dashboard_page_reader_cards(page_title)
     by_kicker = {str(card.get("kicker", "")): card for card in cards}
     page_guide = by_kicker.get("PAGE GUIDE", {})
-    locked = by_kicker.get("LOCKED / EXCLUDED", {})
     copy_next = by_kicker.get("COPY NEXT", {})
+    guide_body = re.sub(r"^Analyze now:\s*", "", str(page_guide.get("body", "")).strip())
     return [
         {
             "kicker": "PAGE GUIDE",
             "title": "How to use this page.",
-            "body": " ".join(
-                part
-                for part in [
-                    str(page_guide.get("body", "")).strip(),
-                    str(locked.get("body", "")).strip(),
-                    str(copy_next.get("body", "")).strip(),
-                ]
-                if part
+            "body": (
+                f"{guide_body} Locked sections stay visible when trusted inputs are missing. "
+                "Commands are copy-only; the dashboard never runs refreshes, imports, or external account actions."
             ),
             "badges": ["plain English", "copy-only", "research-only"],
             "command": str(copy_next.get("command") or page_guide.get("command") or "make status-check TOP_N=5"),

@@ -279,13 +279,15 @@ def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
     assert len(cards) == 1
     assert cards[0]["kicker"] == "PAGE GUIDE"
     assert cards[0]["title"] == "How to use this page."
-    assert "analyze now:" in rendered
-    assert "still locked:" in rendered
-    assert "copy next:" in rendered
+    assert "analyze now:" not in rendered
+    assert "still locked:" not in rendered
+    assert "copy next:" not in rendered
     assert "read path:" not in rendered
     assert "guided path:" not in rendered
+    assert "locked sections stay visible when trusted inputs are missing" in rendered
     assert "make status-check top_n=5" in rendered
-    assert "dashboard does not run refreshes, imports, or external account actions" in rendered
+    assert "dashboard never runs refreshes, imports, or external account actions" in rendered
+    assert len(str(cards[0]["body"])) < 360
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
