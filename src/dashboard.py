@@ -467,6 +467,11 @@ DATA_SOURCE_STATUS_LABELS = {
     "optional_unofficial": "Optional unofficial",
     "not_supported": "Not supported",
 }
+DATASET_NAME_LABELS = {
+    "analyst_estimates": "analyst estimates",
+    "custom_universe": "custom universe",
+    "smh_holdings": "SMH holdings",
+}
 COLUMN_LABELS = {
     "Ticker": "Ticker",
     "evaluation_lane": "Workflow Path",
@@ -2360,6 +2365,14 @@ def public_status_label(value: object, fallback: str = "Not available") -> str:
     for old, new in replacements.items():
         text = re.sub(rf"\b{re.escape(old)}\b", new, text, flags=re.IGNORECASE)
     return text
+
+
+def public_dataset_name(value: object, fallback: str = "Not available") -> str:
+    text = format_missing(value, fallback=fallback)
+    key = text.strip().lower().replace("-", "_").replace(" ", "_")
+    if key in DATASET_NAME_LABELS:
+        return DATASET_NAME_LABELS[key]
+    return text.replace("_", " ")
 
 
 def ticker_focus_command(lane: str, ticker: object, fallback: str = "") -> str:
@@ -20699,12 +20712,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "name",
         ].astype(str).tolist()
         if missing_optional:
+            missing_optional_labels = [public_dataset_name(name) for name in missing_optional]
             st.info(
                 "Optional local datasets not configured: "
-                + ", ".join(missing_optional)
+                + ", ".join(missing_optional_labels)
                 + ". This is expected until you add those CSVs; reports will show partial coverage instead of fabricating data."
             )
         validation_rows = validation_rows.copy()
+        if "name" in validation_rows.columns:
+            validation_rows["name"] = validation_rows["name"].map(public_dataset_name)
         if "validation_warnings" in validation_rows.columns:
             validation_rows["validation_warnings"] = validation_rows["validation_warnings"].map(
                 lambda value: "; ".join(value) if isinstance(value, list) else format_missing(value, "-")
