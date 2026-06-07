@@ -1329,6 +1329,10 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "make trusted-data-pilot TOP_N=10" in data_strategy
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
+    assert "Provider-assisted does not mean provider-decided" in data_strategy
+    assert "make price-worklist TOP_N=10" in data_strategy
+    assert "then preview any broader update with `make price-refresh-loop DRY_RUN=1`" in data_strategy
+    assert "Applying SEC/manual fundamentals rows without validation and preview" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
     for phrase in (
         "place orders",

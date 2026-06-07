@@ -2,6 +2,8 @@
 
 The product is CSV-first. Local rows are the source of truth; provider-assisted rows are optional inputs that still have to pass readiness checks before analysis appears.
 
+Provider-assisted does not mean provider-decided. A provider can help populate local price rows, but the product still validates local CSV coverage before momentum, liquidity, DCF, peer, or decision sections appear. Fundamentals, peer relationships, earnings, and analyst estimates need trusted source review before they become analysis inputs.
+
 ## Data Lanes
 
 | Lane | Current strategy | Can be automated now? | Product boundary |
@@ -20,7 +22,7 @@ If you want the copyable read-only checklist first, run `make trusted-data-pilot
 
 1. Save the baseline with `make readiness-snapshot`.
 2. Confirm blockers with `make status-check TOP_N=10`.
-3. For prices, preview first with `make price-refresh-loop DRY_RUN=1`.
+3. For prices, inspect ticker-level gaps with `make price-worklist TOP_N=10`, then preview any broader update with `make price-refresh-loop DRY_RUN=1`.
 4. For fundamentals, use `make sec-stage-queue TOP_N=25` and `make focus-fundamentals TICKER=...`.
 5. For peers, use `make peer-mapping-queue TOP_N=25` and add only source-backed rows.
 6. For manual imports, run `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
@@ -29,6 +31,7 @@ If you want the copyable read-only checklist first, run `make trusted-data-pilot
 ## What Not To Automate Yet
 
 - Broad fundamentals claims without trusted source rows.
+- Applying SEC/manual fundamentals rows without validation and preview.
 - Peer relationships inferred only from sector labels.
 - Earnings or estimate context from empty optional files.
 - Unsupported valuation labels for blocked rows.
