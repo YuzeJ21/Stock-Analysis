@@ -6985,7 +6985,7 @@ def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str,
             quality_tone,
         ),
         (
-            "Staged universe",
+            "Universe preview",
             (
                 f"{staged_rows} preview ticker rows are waiting for review before make universe-apply."
                 if staged_exists
@@ -7002,7 +7002,7 @@ def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str,
         ),
         (
             "Manual fallback",
-            "If SMH or remote sources degrade, run make templates, then fill data/custom_universe.csv with verified tickers only before any universe import apply step.",
+            "If SMH or remote sources degrade, run make templates, then fill data/custom_universe.csv with verified tickers only before any universe apply step.",
             "make templates",
             "neutral",
         ),
@@ -7018,7 +7018,7 @@ def staged_universe_status_frame(staged: dict[str, Any]) -> pd.DataFrame:
         warning_text = format_missing(warnings, "No validation warnings")
     return pd.DataFrame(
         [
-            {"Field": "Universe import file", "Value": format_missing(staged.get("path"), "No preview file")},
+            {"Field": "Universe preview file", "Value": format_missing(staged.get("path"), "No preview file")},
             {"Field": "Rows", "Value": format_value(staged.get("row_count"), fallback="0")},
             {"Field": "Validation", "Value": format_missing(validation.get("status"), "Not available")},
             {"Field": "Warnings", "Value": warning_text},
@@ -14220,7 +14220,7 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
             "badges": ["data/universe.csv"],
         },
         {
-            "kicker": "IMPORT DRAFT",
+            "kicker": "PREVIEW FILE",
             "title": "Universe preview ready" if staged.get("exists") else "No universe preview file",
             "body": (
                 "Run make universe-preview before make universe-apply. Dashboard stays read-only for safety."
@@ -21558,9 +21558,9 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 render_context_note("Preview only.", "Apply remains copy-only for safer import file review.")
                 st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
-        st.markdown("#### Universe Import Checks")
+        st.markdown("#### Universe Preview Checks")
         st.dataframe(staged_universe_status_frame(staged_universe), width="stretch", hide_index=True)
-        with st.expander("Universe import details", expanded=False):
+        with st.expander("Universe preview details", expanded=False):
             st.dataframe(staged_universe_detail_frame(staged_universe), width="stretch", hide_index=True)
 
         with st.expander("Files that stay local", expanded=False):
@@ -21622,15 +21622,15 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         else:
             render_notice_card(
                 "Current universe is empty",
-                "Add or stage a local universe before running broader screening, monthly picks, or larger price refresh workflows.",
+                "Create and review a local universe preview before running broader screening, monthly picks, or larger price refresh workflows.",
                 "make universe-preview",
                 tone="warning",
             )
 
-    with st.expander("Universe import checks and copyable commands", expanded=False):
-        st.markdown("### Universe Import Checks")
+    with st.expander("Universe preview checks and copyable commands", expanded=False):
+        st.markdown("### Universe Preview Checks")
         st.dataframe(staged_universe_status_frame(staged), width="stretch", hide_index=True)
-        with st.expander("Universe import details", expanded=False):
+        with st.expander("Universe preview details", expanded=False):
             st.dataframe(staged_universe_detail_frame(staged), width="stretch", hide_index=True)
 
         st.markdown("### Copyable Commands")

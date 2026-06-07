@@ -12098,11 +12098,14 @@ def test_universe_workflow_cards_explain_preview_first_and_manual_fallback():
 
     assert cards[0][0] == "Current universe"
     assert cards[0][3] == "warning"
+    assert cards[1][0] == "Universe preview"
     assert "4 preview ticker rows" in rendered
     assert "make universe-preview" in rendered
     assert "make universe-apply" in rendered
     assert "custom_universe.csv" in rendered
     assert "make templates" in rendered
+    assert "staged universe" not in rendered
+    assert "import apply step" not in rendered
 
 
 def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
@@ -12151,10 +12154,12 @@ def test_universe_manager_summary_cards_surface_make_preview_and_apply():
 
     assert len(cards) == 3
     assert cards[1]["command"] == "make universe-apply"
+    assert cards[1]["kicker"] == "PREVIEW FILE"
     assert cards[2]["command"] == "make universe-preview"
     assert "make universe-preview" in rendered
     assert "make universe-apply" in rendered
     assert "universe preview ready" in rendered
+    assert "import draft" not in rendered
     assert "import draft present" not in rendered
 
 
@@ -12168,7 +12173,8 @@ def test_staged_universe_status_frame_hides_raw_json_shape():
     )
 
     assert list(frame.columns) == ["Field", "Value"]
-    assert "Universe import file" in frame["Field"].tolist()
+    assert "Universe preview file" in frame["Field"].tolist()
+    assert "Universe import file" not in frame["Field"].tolist()
     assert "data/imports/universe.csv" in frame["Value"].tolist()
     assert "valid_with_warnings" in frame["Value"].tolist()
     assert "manual review recommended" in frame["Value"].tolist()
@@ -12208,18 +12214,21 @@ def test_dashboard_uses_readable_universe_import_review_details():
     action_index = source.index('render_section_header("Universe Action Paths"')
     coverage_expander_index = source.index('st.expander("Universe coverage and source details"')
     table_expander_index = source.index('st.expander("Current universe list"')
-    import_expander_index = source.index('st.expander("Universe import checks and copyable commands"')
+    import_expander_index = source.index('st.expander("Universe preview checks and copyable commands"')
 
     assert workflow_index < action_index < coverage_expander_index < table_expander_index < import_expander_index
     assert 'st.expander("Universe coverage and source details", expanded=False)' in source
     assert 'st.expander("Current universe list", expanded=False)' in source
-    assert 'st.expander("Universe import checks and copyable commands", expanded=False)' in source
-    assert "Universe import details" in source
+    assert 'st.expander("Universe preview checks and copyable commands", expanded=False)' in source
+    assert 'st.expander("Universe import checks and copyable commands", expanded=False)' not in source
+    assert "Universe preview details" in source
+    assert "Universe import details" not in source
     assert "staged_universe_detail_frame" in source
     assert "st.json(staged_universe" not in source
     assert "st.json(staged" not in source
     assert "Advanced universe import details" not in source
-    assert "Universe Import Checks" in source
+    assert "Universe Preview Checks" in source
+    assert "Universe Import Checks" not in source
     assert "Universe Import Review" not in source
     assert "Current universe table" not in source
     assert "Universe import review details" not in source
