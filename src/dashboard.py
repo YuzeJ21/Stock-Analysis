@@ -2984,6 +2984,10 @@ def import_workflow_caption(staged_path: str, import_command: str) -> str:
     )
 
 
+def sec_fundamentals_setup_label(sec_configured: bool) -> str:
+    return "SEC fundamentals setup: ready" if sec_configured else "SEC fundamentals setup: not configured"
+
+
 def stock_report_optional_context_boundary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     readiness = {
         **(report_payload.get("readiness", {}) or {}),
@@ -20626,8 +20630,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             metric_cols[1].metric("Company DCF blocked", dcf_metric_counts["blocked_company"])
             metric_cols[2].metric("ETF / index excluded", dcf_metric_counts["excluded"])
             st.caption(
-                "SEC_USER_AGENT configured: "
-                + ("yes" if sec_configured else "no")
+                sec_fundamentals_setup_label(sec_configured)
                 + " | "
                 + import_workflow_caption("data/staged/fundamentals/", "make import-fundamentals")
             )
