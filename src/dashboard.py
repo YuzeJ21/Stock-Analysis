@@ -19070,6 +19070,16 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "badges": ["proof first", "copy-only"],
             "command": "make readiness && make status-check TOP_N=5",
         },
+        {
+            "kicker": "PILOT PATH",
+            "title": "Improve 5-10 companies first",
+            "body": (
+                "Do not try to unlock the full universe at once. Pick a small trusted-data pilot, then improve prices, "
+                "fundamentals, DCF fields, and peers only where source proof exists."
+            ),
+            "badges": ["trusted data", "pilot"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
     ]
 
 

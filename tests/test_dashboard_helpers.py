@@ -945,6 +945,8 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[2]["command"] == "make data-wizard TOP_N=10"
     assert price_gap_cards[3]["command"] == "make optional-context-worklist TOP_N=25"
     assert price_gap_cards[4]["command"] == "make readiness && make status-check TOP_N=5"
+    assert price_gap_cards[5]["command"] == "make sec-stage-queue TOP_N=25"
+    assert price_gap_cards[5]["title"] == "Improve 5-10 companies first"
     assert "scalable dry run" in rendered
     assert "instead of repeating 25-ticker refreshes manually" in rendered
     assert "blocked rows are useful, but they are a data-unlock queue, not a conclusion list" in rendered
@@ -954,6 +956,8 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "prove the unlock before reading conclusions" in rendered
     assert "rerun readiness before interpreting changed cards" in rendered
     assert "review the local status snapshot and reopen home" in rendered
+    assert "do not try to unlock the full universe at once" in rendered
+    assert "small trusted-data pilot" in rendered
     assert "use make readiness" not in rendered
     assert "run make readiness" not in rendered
     assert "broker" not in rendered
