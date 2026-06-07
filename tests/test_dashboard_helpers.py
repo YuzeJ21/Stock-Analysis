@@ -188,6 +188,15 @@ def test_monthly_ideas_hero_label_explains_locked_zero_state():
     assert dashboard.monthly_ideas_hero_label(3) == "3 monthly ideas ready"
 
 
+def test_dashboard_hero_uses_public_product_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "A local, explainable research dashboard" in source
+    assert "Research-only review, no trading actions." in source
+    assert "A local, explainable workflow" not in source
+    assert "Research workflow only." not in source
+
+
 def test_purpose_evaluation_page_copy_uses_built_from_readiness_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

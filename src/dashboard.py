@@ -2879,8 +2879,8 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
           <div class="hero-kicker">Local stock research dashboard</div>
           <div class="hero-title">Stock Research Command Center</div>
           <div class="hero-subtitle">
-            A local, explainable workflow for market direction, momentum leadership, portfolio review,
-            valuation context, monthly research candidates, and data readiness. Research workflow only.
+            A local, explainable research dashboard for market direction, momentum leadership, portfolio review,
+            valuation context, monthly research candidates, and data readiness. Research-only review, no trading actions.
           </div>
           <div class="hero-pills">
             <span class="hero-pill">{tickers} tickers tracked</span>
