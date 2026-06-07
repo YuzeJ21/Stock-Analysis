@@ -325,6 +325,9 @@ def test_sidebar_navigation_note_matches_selected_page():
     report_title, report_body = dashboard.sidebar_navigation_note("Single-Stock Report")
     value_title, value_body = dashboard.sidebar_navigation_note("Value / Re-rating")
     health_title, health_body = dashboard.sidebar_navigation_note("Data Health")
+    monthly_title, monthly_body = dashboard.sidebar_navigation_note("Monthly Picks")
+    watchlist_title, watchlist_body = dashboard.sidebar_navigation_note("Final Watchlist")
+    universe_title, universe_body = dashboard.sidebar_navigation_note("Universe Manager")
     momentum_title, momentum_body = dashboard.sidebar_navigation_note("Momentum Leaders")
 
     assert home_title == "Start here."
@@ -339,6 +342,15 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert health_title == "Viewing Data Health."
     assert "trusted inputs are missing" in health_body
     assert "copy-only unlock path" in health_body
+    assert monthly_title == "Viewing Monthly Picks."
+    assert "data-gated candidate queue" in monthly_body
+    assert "refused to force weak or unsupported names" in monthly_body
+    assert watchlist_title == "Viewing Final Watchlist."
+    assert "research-state buckets" in watchlist_body
+    assert "not an action or recommendation list" in watchlist_body
+    assert universe_title == "Viewing Universe Manager."
+    assert "preview-first changes" in universe_body
+    assert "manual apply step" in universe_body
     assert momentum_title == "Viewing Momentum Leaders."
     assert "selected workflow" in momentum_body
     assert "return to Home" in momentum_body
@@ -631,7 +643,6 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
-
 
 def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaiming():
     cards = dashboard._plain_home_evaluation_workflow_cards()
@@ -7286,6 +7297,11 @@ def test_monthly_picks_landing_cards_show_history_and_gap_context():
     assert "not as advice or a conclusion list" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+    empty_cards = dashboard.monthly_picks_landing_cards(pd.DataFrame(), track, equity, 5, "2026-05-12", 12)
+    empty_rendered = " ".join(str(value) for card in empty_cards for value in card.values()).lower()
+    assert "not ready yet" in empty_rendered
+    assert "not generated" not in empty_rendered
 
 
 def test_monthly_picks_quality_cards_explain_candidate_boundary_without_recommendations():
