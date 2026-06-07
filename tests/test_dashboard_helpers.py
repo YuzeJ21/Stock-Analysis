@@ -161,6 +161,17 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
     assert "sell" not in rendered
 
 
+def test_purpose_evaluation_page_copy_uses_built_from_readiness_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Purpose-family and decision-bucket counts built from current local decisions and readiness" in source
+    assert "Purpose evaluation summary is not ready yet. Run make pipeline or make project-status to refresh it." in source
+    assert "Purpose drilldown rows are built from current local readiness" in source
+    assert "Audit rows are built from current local readiness and dashboard queues" in source
+    assert "generated from current local CSV outputs" not in source
+    assert "Purpose evaluation summary is unavailable. Run make pipeline or make project-status to regenerate it." not in source
+
+
 def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_manual_repeats():
     cards = dashboard.price_refresh_operator_plan_cards(
         {

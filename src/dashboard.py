@@ -19881,13 +19881,13 @@ def render_market_command_center(
             st.dataframe(clean_display_frame(active_queue_detail), width="stretch", hide_index=True)
     render_section_header(
         "Purpose Evaluation Summary",
-        "Purpose-family and decision-bucket counts generated from current local decisions and readiness. This summarizes analysis status, not transaction guidance.",
+        "Purpose-family and decision-bucket counts built from current local decisions and readiness. This summarizes analysis status, not transaction guidance.",
     )
     render_signal_cards(purpose_evaluation_summary_cards(purpose_evaluation_summary_frame))
     if purpose_evaluation_summary_frame is None or purpose_evaluation_summary_frame.empty:
-        st.info("Purpose evaluation summary is unavailable. Run make pipeline or make project-status to regenerate it.")
+        st.info("Purpose evaluation summary is not ready yet. Run make pipeline or make project-status to refresh it.")
     else:
-        st.caption("Summary rows are capped for readability and reflect only current trusted local CSV outputs.")
+        st.caption("Summary rows are capped for readability and reflect only current trusted local readiness.")
         st.dataframe(clean_display_frame(purpose_evaluation_summary_frame.head(25)), width="stretch", hide_index=True)
     render_section_header(
         "Purpose Evaluation Drilldown",
@@ -19962,7 +19962,7 @@ def render_market_command_center(
         st.info("No purpose drilldown rows match the current filters. Try All filters or run make pipeline and make readiness.")
     else:
         st.caption(
-            "Purpose drilldown rows are generated from current local CSV outputs. Commands are copy-only; this dashboard does not execute refreshes, imports, or external actions."
+            "Purpose drilldown rows are built from current local readiness. Commands are copy-only; this dashboard does not execute refreshes, imports, or external actions."
         )
         st.dataframe(clean_display_frame(purpose_drilldown), width="stretch", hide_index=True)
     action_console = build_next_action_console_frame(
@@ -20034,7 +20034,7 @@ def render_market_command_center(
     )
     render_signal_cards(product_page_logic_audit_cards(product_logic_audit))
     st.caption(
-        "Audit rows are generated from current local CSV outputs and dashboard queues; they do not execute imports, refreshes, or account actions."
+        "Audit rows are built from current local readiness and dashboard queues; they do not execute imports, refreshes, or account actions."
     )
     st.dataframe(clean_display_frame(product_logic_audit), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
