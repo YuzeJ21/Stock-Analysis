@@ -1,10 +1,11 @@
-.PHONY: help demo diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help demo trusted-data-pilot diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 help:
 	@echo "Stock Research Command Center convenience commands"
 	@echo ""
 	@echo "First-time path:"
 	@echo "  make demo             Print the clean visitor walkthrough"
+	@echo "  make trusted-data-pilot TOP_N=10 Print the 5-10 company trusted-data pilot path"
 	@echo "  make status-check TOP_N=5"
 	@echo "  make stock-report-md TICKER=NVDA"
 	@echo "  make dashboard-smoke"
@@ -13,6 +14,7 @@ help:
 	@echo ""
 	@echo "Core:"
 	@echo "  make demo             Print a short visitor demo path without refreshing broad local data"
+	@echo "  make trusted-data-pilot [TICKERS=NVDA,META] [TOP_N=10] Print a read-only 5-10 company trusted-data pilot plan"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
@@ -141,6 +143,41 @@ demo:
 	@echo "   make staged-hygiene-check # after staging, before commit"
 	@echo ""
 	@echo "This demo is read-only except for local report files under outputs/stock_reports/."
+
+trusted-data-pilot:
+	@echo "Trusted Data Pilot"
+	@echo "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs."
+	@echo ""
+	@echo "Goal: improve 5-10 reviewed companies first, then prove readiness changed."
+	@echo "Scope: $(if $(TICKERS),$(TICKERS),choose 5-10 tickers from the active research list or public demo path)"
+	@echo ""
+	@echo "1. Save the current baseline:"
+	@echo "   make readiness-snapshot"
+	@echo ""
+	@echo "2. Confirm current blockers:"
+	@echo "   make status-check $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)"
+	@echo ""
+	@echo "3. Review fundamentals / DCF blockers:"
+	@echo "   make sec-stage-queue $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=25"
+	@echo "   make focus-fundamentals TICKER=<ticker>"
+	@echo ""
+	@echo "4. Review source-backed peer blockers:"
+	@echo "   make peer-mapping-queue $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=25"
+	@echo "   make focus-peers TICKER=<ticker>"
+	@echo ""
+	@echo "5. Use trusted rows only, then validate before apply:"
+	@echo "   make templates"
+	@echo "   make imports-validate"
+	@echo "   make imports-preview"
+	@echo "   make imports-apply"
+	@echo ""
+	@echo "6. Prove the unlock before reading valuation:"
+	@echo "   make readiness"
+	@echo "   make dcf-readiness"
+	@echo "   make peer-mapping-queue $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=25"
+	@echo "   make stock-report-md TICKER=<ticker>"
+	@echo ""
+	@echo "Guardrail: do not fabricate fundamentals, peers, earnings, estimates, valuation inputs, or recommendations."
 
 diff-hygiene:
 	@python3 scripts/diff_hygiene.py

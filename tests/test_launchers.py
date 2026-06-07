@@ -400,6 +400,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make pipeline",
         "make readiness",
         "make demo",
+        "make trusted-data-pilot TOP_N=10",
         "make public-check",
         "make stock-report-md TICKER=NVDA",
         "make stock-report-md TICKER=A",
@@ -1319,6 +1320,8 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "not a trading system" in readme
     assert "docs/DATA_STRATEGY.md" in operator_guide
     assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
+    assert "make trusted-data-pilot TOP_N=10" in data_strategy
+    assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
     for phrase in (
@@ -1501,6 +1504,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "optional-context-worklist:\n\tpython3 -m src.data_onboarding --optional-context-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
+    assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
+    assert "make trusted-data-pilot [TICKERS=NVDA,META] [TOP_N=10] Print a read-only 5-10 company trusted-data pilot plan" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "stock-report-md:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)\nendif\n\t@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile

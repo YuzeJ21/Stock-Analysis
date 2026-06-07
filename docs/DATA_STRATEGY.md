@@ -16,6 +16,8 @@ The command center is CSV-first. Local rows are the source of truth; provider-as
 
 Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.
 
+If you want the copyable read-only checklist first, run `make trusted-data-pilot TOP_N=10`. It prints the pilot sequence and does not refresh, import, or edit local CSV files.
+
 1. Save the baseline with `make readiness-snapshot`.
 2. Confirm blockers with `make status-check TOP_N=10`.
 3. For prices, preview first with `make price-refresh-loop DRY_RUN=1`.

@@ -98,6 +98,8 @@ In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticke
 
 For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md). Those guides cover targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
 
+When you are ready to improve real coverage, start with `make trusted-data-pilot TOP_N=10`. It prints a read-only 5-10 company pilot path for fundamentals, DCF, and peer inputs without importing or fabricating data.
+
 ## Local Data Hygiene
 
 Small example reports are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.
