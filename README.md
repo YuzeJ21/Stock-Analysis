@@ -71,22 +71,6 @@ make dashboard-smoke
 make dashboard
 ```
 
-## Visitor-Friendly Commands
-
-Use these from the repository root:
-
-```bash
-make help
-make status-check TOP_N=5
-make pipeline
-make readiness
-make project-status
-make research-health-check TOP_N=10
-make stock-report-md TICKER=NVDA
-make public-check
-make dashboard
-```
-
 ## Try This Demo Path
 
 ```bash
@@ -112,37 +96,7 @@ Example map:
 
 In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then a `Reader Guide` that answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and which copy-only command to run. They only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
-Dashboard pages also support simple local deep links such as `http://localhost:8501/?page=single-stock-report`.
-
-For deeper local data-unlock details, see the [Local Workflow Guide](docs/OPERATOR_GUIDE.md).
-
-Targeted data-unlock examples:
-```bash
-make price-worklist TOP_N=10
-make focus-fundamentals TICKER=NVDA
-make peer-mapping-queue TOP_N=10
-make optional-context-worklist TOP_N=10
-```
-
-For a larger local price refresh, use capped batches instead of repeating small commands manually:
-```bash
-make price-refresh-loop DRY_RUN=1
-make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo
-make readiness-snapshot
-make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30
-make diff-hygiene
-```
-
-The dry run prints the requested target, rounded batch capacity, estimated wait time, resume behavior, and next sequence before changing local files. For broad coverage, set `MAX_CANDIDATES` and keep `TOP_N` capped so the loop calculates the needed batches for you; the final batch can have unused capacity if fewer missing tickers remain. Before a real broad run, use `make readiness-snapshot`; after the run, use `make diff-hygiene` before staging so refreshed CSV changes stay local unless intentionally reviewed. You can still tune `BATCHES` directly for unusual local runs. Run the capped loop only when you are ready to update local CSVs and review the changed files. You should not need to repeat a 25-ticker command 100+ times.
-
-Preview-first import flow:
-
-```bash
-make templates
-make imports-validate
-make imports-preview
-make imports-apply
-```
+For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). That guide covers targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
 
 ## Local Data Hygiene
 

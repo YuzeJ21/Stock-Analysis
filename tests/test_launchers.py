@@ -400,18 +400,6 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make dashboard",
         "make dashboard-smoke",
         "make status-check TOP_N=5",
-        "make research-health-check TOP_N=10",
-        "make price-worklist TOP_N=10",
-        "make price-refresh-loop DRY_RUN=1",
-        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
-        "estimated wait time, resume behavior",
-        "Before a real broad run, use `make readiness-snapshot`",
-        "after the run, use `make diff-hygiene`",
-        "refreshed CSV changes stay local unless intentionally reviewed",
-        "make focus-fundamentals TICKER=NVDA",
-        "make peer-mapping-queue TOP_N=10",
-        "make optional-context-worklist TOP_N=10",
-        "http://localhost:8501/?page=single-stock-report",
         "not investment advice",
         "review queues",
         "Example map",
@@ -471,6 +459,30 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "not automatic undervalued calls",
     ):
         assert phrase in readme
+    operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
+    for phrase in (
+        "make price-worklist TOP_N=10",
+        "make price-refresh-loop DRY_RUN=1",
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+        "make readiness-snapshot",
+        "make diff-hygiene",
+        "make focus-fundamentals TICKER=NVDA",
+        "make peer-mapping-queue TOP_N=10",
+        "make optional-context-worklist TOP_N=10",
+        "make templates",
+        "make imports-validate",
+        "make imports-preview",
+        "make imports-apply",
+        "Large refreshed CSVs are local working data",
+    ):
+        assert phrase in operator_guide
+    for visitor_clutter in (
+        "http://localhost:8501/?page=single-stock-report",
+        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        "Targeted data-unlock examples",
+        "Preview-first import flow",
+    ):
+        assert visitor_clutter not in readme
     for old_phrase in (
         "operator console",
         "deeper local runbook",
@@ -1259,6 +1271,7 @@ def test_stock_report_cli_help_uses_readable_report_language():
 
 def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     readme = Path("README.md").read_text(encoding="utf-8")
+    operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
 
     assert "Research-Only Guardrails" in readme
     assert "not a trading system" in readme
@@ -1269,12 +1282,15 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
         "recommend option trades",
         "provide direct buy/sell instructions",
         "fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations",
+    ):
+        assert phrase in readme
+    for phrase in (
         "make templates",
         "make imports-validate",
         "make imports-preview",
         "make imports-apply",
     ):
-        assert phrase in readme
+        assert phrase in operator_guide
 
 
 def test_product_facing_status_labels_avoid_action_language():
