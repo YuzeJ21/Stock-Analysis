@@ -114,6 +114,45 @@ def test_data_quality_wizard_uses_staged_peer_follow_through_when_mappings_alrea
     assert "make imports-apply" in frame.loc[0, "NextBestAction"]
 
 
+def test_data_quality_wizard_uses_import_file_language_for_fundamentals_and_peers():
+    coverage = [
+        {
+            "ticker": "META",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+        },
+        {
+            "ticker": "A",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": True,
+            "dcf_ready": True,
+            "has_peer_mapping": True,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+        },
+    ]
+
+    frame = build_data_quality_wizard(coverage).set_index("Ticker")
+    rendered = " ".join(frame["NextBestAction"].astype(str).tolist()).lower()
+
+    assert "manual fundamentals import file rows" in frame.loc["META", "NextBestAction"].lower()
+    assert "local import file workflows" in frame.loc["A", "NextBestAction"].lower()
+    assert "import draft" not in rendered
+    assert "workflow workflows" not in rendered
+
+
 def test_data_quality_wizard_normalizes_stale_peer_example_commands():
     coverage = [
         {

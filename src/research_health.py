@@ -91,7 +91,7 @@ def _price_next_best_action(ticker: str) -> str:
 def _fundamentals_next_best_action(ticker: str) -> str:
     return (
         f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
-        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
+        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import file rows in "
         "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
         "and make imports-apply."
     )
@@ -111,8 +111,8 @@ def _peer_next_best_action(ticker: str, *, missing_mapping: bool) -> str:
             "with transparent peer mappings."
         )
     return (
-        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the local import draft workflow "
-        "workflows so peer-relative valuation can calculate transparently."
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through local import file workflows "
+        "so peer-relative valuation can calculate transparently."
     )
 
 
