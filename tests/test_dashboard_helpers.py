@@ -454,11 +454,13 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
 def test_data_health_bundle_detail_copy_uses_operator_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "Ticker-level bundle steps" in source
-    assert "Ticker-level bundle steps are not available yet" in source
+    assert "Ticker-level guided steps" in source
+    assert "Ticker-level guided steps are not available yet" in source
     assert "generate ticker-level guided-batch steps" in source
+    assert "Ticker-level bundle steps" not in source
     assert "Command bundle detail rows" not in source
     assert "generate ticker-level bundle detail rows" not in source
+    assert "Command bundle runbook" not in source
 
 
 def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_details():
@@ -490,10 +492,10 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     best_paths_index = source.index('render_section_header("Current Best Paths"')
     readiness_expander_index = source.index('st.expander("Readiness and data-quality details"')
     readiness_index = source.index('render_section_header("Data Quality / Readiness"', readiness_expander_index)
-    overview_queue_index = source.index('st.expander("More overview queues"')
+    overview_queue_index = source.index('st.expander("More overview worklists"')
     local_path_index = source.index('render_section_header("Today\'s Best Local Research Path"')
     next_tabs_index = source.index('render_section_header("Next Deeper Tabs"')
-    status_unlock_index = source.index('st.expander("More status, unlock queues, and generated outputs"')
+    status_unlock_index = source.index('st.expander("More status, unlock worklists, and local files"')
     project_status_index = source.index('render_section_header(\n                "Project Status"', status_unlock_index)
     next_data_unlocks_index = source.index('render_section_header("Next Data Unlocks"', status_unlock_index)
 
@@ -502,8 +504,10 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     assert readiness_expander_index < readiness_index < overview_queue_index
     assert status_unlock_index < project_status_index < next_data_unlocks_index
     assert 'st.expander("Readiness and data-quality details", expanded=False)' in source
-    assert 'st.expander("More overview queues", expanded=False)' in source
-    assert 'st.expander("More status, unlock queues, and generated outputs", expanded=False)' in source
+    assert 'st.expander("More overview worklists", expanded=False)' in source
+    assert 'st.expander("More status, unlock worklists, and local files", expanded=False)' in source
+    assert 'st.expander("More overview queues"' not in source
+    assert 'st.expander("More status, unlock queues, and generated outputs"' not in source
     assert "if project_status_payload:\n        st.markdown(project_status_cockpit_html" in source
     assert status_unlock_index < next_data_unlocks_index
     assert 'st.expander("More readiness and routing detail", expanded=False)' in source
@@ -8894,7 +8898,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Which unlock path should you inspect first, before opening detailed tables." in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
-    assert "Plain-English valuation queues before the full command center details." in source
+    assert "Plain-English valuation worklists before the detailed market-wide workflow." in source
+    assert "Plain-English valuation queues before the full command center details." not in source
     assert "When Is A Stock Ready Enough?" not in source
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
 
