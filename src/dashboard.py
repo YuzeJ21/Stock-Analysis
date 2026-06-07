@@ -19281,7 +19281,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         render_section_header("Evaluation Workflow", "How the product moves from trusted data to supported analysis without overclaiming.")
         render_signal_cards(_plain_home_evaluation_workflow_cards())
 
-    with st.expander("Advanced price refresh workflow", expanded=False):
+    with st.expander("Price update plan", expanded=False):
         render_section_header("Scalable Price Refresh", "How to expand price coverage without repeating tiny batches by hand.")
         render_signal_cards(price_refresh_operator_plan_cards(summary))
 
