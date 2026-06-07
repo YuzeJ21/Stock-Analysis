@@ -16983,7 +16983,7 @@ def monthly_picks_next_step_cards(
         primary = {
             "kicker": "NEXT STEP",
             "title": "Refresh monthly context",
-            "body": "Monthly candidate outputs are unavailable right now. Run make monthly to refresh the monthly research files before interpreting this tab.",
+            "body": "Monthly candidate context is not ready yet. Run make monthly to refresh the local monthly proof before interpreting this tab.",
             "badges": ["monthly refresh", "read-only"],
             "command": "make monthly",
         }
@@ -19240,7 +19240,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     render_metric_cards(
         [
             ("Candidates", f"{candidate_count} of {top_n}", "Conservative filters may return fewer"),
-            ("Current Month", "Not generated" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"), "Generated from local outputs"),
+            ("Current Month", "Not ready yet" if picks_frame is None or picks_frame.empty else picks_frame.iloc[0].get("Month", "Not available"), "Built from local monthly context"),
             ("Benchmark", "SPY", "For local track-record comparison"),
             ("Universe", universe_count, "Current local universe size"),
             ("Latest Price", latest_price, "From data/prices.csv"),
@@ -19257,7 +19257,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     if picks_frame is None:
         render_notice_card(
             "Monthly context is not available yet",
-            picks_message or "Run make monthly to refresh the monthly research files before interpreting this tab. This stays research-only and may still return fewer than five names.",
+            picks_message or "Run make monthly to refresh local monthly proof before interpreting this tab. This stays research-only and may still return fewer than five names.",
             "make monthly",
         )
     elif picks_frame.empty:
@@ -19340,7 +19340,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         else:
             render_notice_card(
                 "Track-record table is not available yet",
-                "Track-record files are still unavailable. Run the current blocker path first; if local price history is still short afterward, the track-record output will stay explicit instead of fabricating performance.",
+                "Track-record proof is still unavailable. Run the current blocker path first; if local price history is still short afterward, the track-record state will stay explicit instead of fabricating performance.",
                 blocker_command,
             )
             render_notice_card(
@@ -19351,8 +19351,8 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
 
     with st.expander("Methodology", expanded=False):
         st.write("Monthly review ordering uses local research outputs, local price history, optional local fundamentals, and transparent score components.")
-        st.write("Missing inputs reduce data confidence and remain visible in the output.")
-        st.write("Track-record files are calculated only from local historical price data; insufficient history is shown explicitly.")
+        st.write("Missing inputs reduce data confidence and remain visible in the review.")
+        st.write("Track-record proof is calculated only from local historical price data; insufficient history is shown explicitly.")
 
 
 def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
