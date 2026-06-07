@@ -9,7 +9,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_schemas import validate_local_dataset
 from src.universe_model import infer_asset_type
@@ -770,9 +770,9 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
             f"rows={row['row_count']} source={row['source_name']}"
         )
         if row.get("focus_command"):
-            print(f"  focus: {row['focus_command']}")
+            print(f"  suggested check: {row['focus_command']}")
         if row.get("example_command"):
-            print(f"  command: {row['example_command']}")
+            print(f"  next local command: {row['example_command']}")
         if row.get("credential_required"):
             state = "present" if row.get("credential_present") else "missing"
             print(f"  credential: {row['credential_required']} ({state})")
@@ -781,16 +781,42 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
     print(f"Data gaps: {len(payload['data_gaps'])}")
     for row in payload["data_gaps"][:20]:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
-        print(f"- {row['dataset']}{ticker}: {row['status']} - {row['recommended_action']}")
+        print(f"- {row['dataset']}{ticker}: {row['status']} - {_friendly_action_text(row['recommended_action'])}")
         if row.get("focus_command"):
-            print(f"  focus: {row['focus_command']}")
+            print(f"  suggested check: {row['focus_command']}")
         if row.get("example_command"):
-            print(f"  command: {row['example_command']}")
+            print(f"  next local command: {row['example_command']}")
         if row.get("credential_required"):
             state = "present" if row.get("credential_present") else "missing"
             print(f"  credential: {row['credential_required']} ({state})")
         if row.get("manual_fallback_command"):
             print(f"  fallback: {row['manual_fallback_command']}")
+
+
+def _friendly_action_text(text: object) -> str:
+    value = str(text or "").strip()
+    if not value:
+        return ""
+    return (
+        value.replace("Run make ", "Use make ")
+        .replace("run make ", "use make ")
+        .replace("normalize verified downloaded OHLCV files", "normalize verified OHLCV files")
+    )
+
+
+def _read_only_path_context(root: Path, data_path: Path, output_path: Path) -> str:
+    def display(path: Path) -> str:
+        try:
+            return path.relative_to(root).as_posix()
+        except ValueError:
+            return str(path)
+
+    return (
+        "Local folders:\n"
+        "- project: current repository root\n"
+        f"- data: {display(data_path)}\n"
+        f"- outputs: {display(output_path)}"
+    )
 
 
 def _filter_data_source_payload(payload: dict[str, Any], tickers: list[str] | None) -> dict[str, Any]:
@@ -835,7 +861,12 @@ def main() -> None:
         print(json.dumps(payload, indent=2))
         return
 
-    print(format_path_context(root, data_path, output_path))
+    if args.write_output:
+        print(f"Project root: {root}")
+        print(f"Data dir: {data_path}")
+        print(f"Outputs dir: {output_path}")
+    else:
+        print(_read_only_path_context(root, data_path, output_path))
     print("Generated data source outputs:" if args.write_output else "Data source summary:")
     _print_human(payload, top_n=max(args.top_n, 0))
     if args.write_output:
