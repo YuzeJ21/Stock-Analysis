@@ -2555,12 +2555,20 @@ def review_path_fallback(dataset: object) -> str:
     return "Review local data coverage."
 
 
+GUIDED_BATCH_WORKFLOW_COPY = (
+    "Use the guided data batch as the local import draft workflow next so validation and preview safeguards stay in place."
+)
+GUIDED_BATCH_FIRST_COPY = (
+    "Use the highest-leverage guided data batch first so price, fundamentals, or peer follow-through stays coordinated."
+)
+
+
 def command_family_fallback(command: object, default: str) -> str:
     lowered = format_missing(command, fallback="").strip().lower()
     if "imports-" in lowered or "runbook-" in lowered:
-        return "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+        return GUIDED_BATCH_WORKFLOW_COPY
     if "bundle-" in lowered:
-        return "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
+        return GUIDED_BATCH_FIRST_COPY
     return default
 
 
@@ -5959,7 +5967,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
         if "runbook-" in command.lower():
-            lane_summary = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            lane_summary = GUIDED_BATCH_WORKFLOW_COPY
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -6014,8 +6022,8 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         return [
             {
                 "kicker": "RUNBOOK",
-                "title": "No bundle runbook yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC import draft workflow, and peer mapping.",
+                "title": "No guided data batch plan yet",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC import draft workflow, and peer mapping.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -6085,7 +6093,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         surfaced_command = first_command or fallback_first_command
         lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
         if "runbook-" in surfaced_command.lower():
-            lane_summary = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            lane_summary = GUIDED_BATCH_WORKFLOW_COPY
         body_summary = (
             goal_summary
             if goal_summary not in {"", "Not available"}
@@ -6097,7 +6105,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                 "title": bundle_name,
                 "body": (
                     f"{body_summary}{hint_text}. " if body_summary not in {"", "Not available"} else ""
-                ) + (" | ".join(steps) if steps else "No runbook steps available."),
+                ) + (" | ".join(steps) if steps else "No guided steps available."),
                 "badges": [
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     format_missing(lane_rows.iloc[0].get("tickers"), "No tickers"),
@@ -6110,8 +6118,8 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
     return cards or [
         {
             "kicker": "RUNBOOK",
-            "title": "No bundle runbook yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered bundle command steps for prices, SEC import draft workflow, and peer mapping.",
+            "title": "No guided data batch plan yet",
+            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered guided steps for prices, SEC import draft workflow, and peer mapping.",
             "badges": ["read-only"],
             "command": "make onboarding",
         }
@@ -6222,7 +6230,7 @@ def data_health_deep_research_target_cards(
                 else command_family_fallback(command, "Review fundamentals path.")
             )
             if not staged_fundamentals_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                fallback_action = GUIDED_BATCH_WORKFLOW_COPY
             cards.append(
                 {
                     "kicker": "DCF TARGET",
@@ -6266,7 +6274,7 @@ def data_health_deep_research_target_cards(
                 else command_family_fallback(command, "Review peer path.")
             )
             if not staged_peer_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                fallback_action = GUIDED_BATCH_WORKFLOW_COPY
             cards.append(
                 {
                     "kicker": "PEER TARGET",
@@ -6330,7 +6338,7 @@ def overview_deep_research_target_cards(
                 else command_family_fallback(command, "Review fundamentals path.")
             )
             if not staged_fundamentals_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                fallback_action = GUIDED_BATCH_WORKFLOW_COPY
             cards.append(
                 {
                     "kicker": "UNLOCK DCF",
@@ -6374,7 +6382,7 @@ def overview_deep_research_target_cards(
                 else command_family_fallback(command, "Review peer path.")
             )
             if not staged_peer_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                fallback_action = GUIDED_BATCH_WORKFLOW_COPY
             cards.append(
                 {
                     "kicker": "UNLOCK PEERS",
@@ -6603,7 +6611,7 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         return [
             (
                 "No fix-first actions yet",
-                "Start with make onboarding so the local action set refreshes before you follow the printed focus or runbook path for prices, fundamentals, peers, earnings, and estimate gaps.",
+                "Start with make onboarding so the local action set refreshes before you follow the printed focus or guided data batch path for prices, fundamentals, peers, earnings, and estimate gaps.",
                 "make onboarding",
                 "warning",
             )
@@ -6638,7 +6646,7 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         )
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            action = GUIDED_BATCH_WORKFLOW_COPY
         elif lowered_command == "make imports-validate":
             normalized_action = action.lower()
             if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
@@ -6744,7 +6752,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
                     recommended_action = staged_follow_through
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            recommended_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            recommended_action = GUIDED_BATCH_WORKFLOW_COPY
         elif lowered_command == "make imports-validate":
             normalized_action = recommended_action.lower()
             if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
@@ -14279,7 +14287,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         body = command_family_fallback(command, review_path_fallback(row.get("dataset")))
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            body = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            body = GUIDED_BATCH_WORKFLOW_COPY
         if reason and reason != "Not available":
             body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
         elif recommended_action and recommended_action != "Not available":
@@ -14717,7 +14725,7 @@ def holdings_unlock_cards(
         else:
             fallback_action = command_family_fallback(command, f"Review {stage} path.")
             if "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                fallback_action = GUIDED_BATCH_WORKFLOW_COPY
         next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
         if staged_price_import and (
             "make price-validate" not in next_action_summary
@@ -14799,7 +14807,7 @@ def holdings_deep_research_cards(
                     else command_family_fallback(command, "Review fundamentals path.")
                 )
                 if not staged_import and "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                    fallback_action = GUIDED_BATCH_WORKFLOW_COPY
                 next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
                 if staged_import and (
                     "make imports-validate" not in next_action_summary
@@ -14846,7 +14854,7 @@ def holdings_deep_research_cards(
                     else command_family_fallback(command, "Review peer path.")
                 )
                 if not staged_import and "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                    fallback_action = GUIDED_BATCH_WORKFLOW_COPY
                 next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
                 if staged_import and (
                     "make imports-validate" not in next_action_summary
@@ -15053,7 +15061,7 @@ def theme_deep_research_cards(
                     "Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path.",
                 )
             if not staged_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                fallback_action = GUIDED_BATCH_WORKFLOW_COPY
             next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
             if staged_import and (
                 "make imports-validate" not in next_action_summary
@@ -15269,7 +15277,7 @@ def overview_deep_research_leverage_cards(
                 "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path.",
             )
             if "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                fallback_action = GUIDED_BATCH_WORKFLOW_COPY
         next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=140)
         if (staged_fundamentals_import or staged_peer_import) and (
             "make imports-validate" not in next_action_summary
@@ -15377,7 +15385,7 @@ def overview_deep_research_priority_bridge_cards(
                     "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path.",
                 )
                 if "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                    fallback_action = GUIDED_BATCH_WORKFLOW_COPY
             next_action_summary = compact_reason(
                 row.get("recommended_action") or fallback_action,
                 max_sentences=1,
@@ -15927,11 +15935,11 @@ def overview_next_command_cards(
                     body = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
                 badges = ["staged flow", "command"]
             elif "bundle-" in lowered:
-                body = reason if has_reason else "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
-                badges = ["bundle first", "command"]
+                body = reason if has_reason else GUIDED_BATCH_FIRST_COPY
+                badges = ["guided batch", "command"]
             elif "runbook-" in lowered:
-                body = reason if has_reason else "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
-                badges = ["runbook", "command"]
+                body = reason if has_reason else GUIDED_BATCH_WORKFLOW_COPY
+                badges = ["guided batch", "command"]
             elif "onboarding" in lowered:
                 body = "Refresh local data coverage, onboarding outputs, and action guidance before broader research work."
                 badges = ["data moat", "command"]
@@ -16016,7 +16024,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
         if "runbook-" in command.lower():
-            lane_summary = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            lane_summary = GUIDED_BATCH_WORKFLOW_COPY
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -16073,7 +16081,7 @@ def overview_bundle_handoff_cards(
             {
                 "kicker": "BUNDLE HANDOFF",
                 "title": "No bundle guidance yet",
-                "body": "Run make onboarding first, then use Data Health to inspect the current local bundle workflow.",
+                "body": "Run make onboarding first, then use Data Health to inspect the current guided data batch workflow.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -16207,8 +16215,8 @@ def overview_bundle_handoff_cards(
             "title": bundle_name,
             "body": (
                 f"{bundle_summary}{hint_text}. " if bundle_summary not in {"", "Not available"} else ""
-            ) + f"Start with {primary_command} for {ticker_text}. This is the highest-leverage local bundle right now.",
-            "badges": ["bundle first", "research only"],
+            ) + f"Start with {primary_command} for {ticker_text}. This is the highest-leverage guided data batch right now.",
+            "badges": ["guided batch", "research only"],
             "command": primary_command,
         },
         {
@@ -16243,9 +16251,9 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
     if runbook_frame is None or runbook_frame.empty:
         return [
             {
-                "kicker": "BUNDLE RUNBOOK",
-                "title": "No bundle runbook yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
+                "kicker": "GUIDED BATCH",
+                "title": "No guided data batch plan yet",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface ordered price, SEC fundamentals, and peer-mapping steps.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
             }
@@ -16316,7 +16324,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         surfaced_command = first_command or fallback_first_command
         lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
         if "runbook-" in surfaced_command.lower():
-            lane_summary = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            lane_summary = GUIDED_BATCH_WORKFLOW_COPY
         body_summary = (
             goal_summary
             if goal_summary not in {"", "Not available"}
@@ -16339,9 +16347,9 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
 
     return cards or [
         {
-            "kicker": "BUNDLE RUNBOOK",
-            "title": "No bundle runbook yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
+            "kicker": "GUIDED BATCH",
+            "title": "No guided data batch plan yet",
+            "body": "Run make onboarding to refresh the onboarding outputs and surface ordered price, SEC fundamentals, and peer-mapping steps.",
             "badges": ["read-only", "data moat"],
             "command": "make onboarding",
         }
@@ -16376,8 +16384,8 @@ def overview_workflow_path_cards(
                 badges = ["today", "single name"] if index == 1 else ["single name", "workflow"]
                 body = reason if has_reason else "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
             elif "bundle-" in lowered:
-                badges = ["today", "bundle first"] if index == 1 else ["bundle first", "workflow"]
-                body = reason if has_reason else "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
+                badges = ["today", "guided batch"] if index == 1 else ["guided batch", "workflow"]
+                body = reason if has_reason else GUIDED_BATCH_FIRST_COPY
             elif "imports-" in lowered:
                 badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
                 if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
@@ -16391,8 +16399,8 @@ def overview_workflow_path_cards(
                 else:
                     body = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
             elif "runbook-" in lowered:
-                badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
-                body = reason if has_reason else "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+                badges = ["today", "guided batch"] if index == 1 else ["guided batch", "workflow"]
+                body = reason if has_reason else GUIDED_BATCH_WORKFLOW_COPY
             if context_lines:
                 body = "\n".join([body, *context_lines])
             cards.append(
@@ -16430,14 +16438,14 @@ def overview_workflow_path_cards(
         first_body = "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
         first_badges = ["today", "single name"]
     elif "bundle-" in lowered_first:
-        first_body = "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
-        first_badges = ["today", "bundle first"]
+        first_body = GUIDED_BATCH_FIRST_COPY
+        first_badges = ["today", "guided batch"]
     elif "imports-" in lowered_first:
         first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
         first_badges = ["today", "staged flow"]
     elif "runbook-" in lowered_first:
-        first_body = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
-        first_badges = ["today", "staged flow"]
+        first_body = GUIDED_BATCH_WORKFLOW_COPY
+        first_badges = ["today", "guided batch"]
     if top_signal:
         signal_body = compact_reason(top_signal[0].get("body"), max_sentences=2, max_chars=240)
         if signal_body and signal_body != "Not available":
@@ -17166,7 +17174,7 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
         target_file = format_missing(row.get("target_file"), "")
         body_source = command_family_fallback(command, review_path_fallback(row.get("action_type")))
         if "runbook-" in command.lower():
-            body_source = "Use the ordered lane runbook as the local import draft workflow next so validation and preview safeguards stay in place."
+            body_source = GUIDED_BATCH_WORKFLOW_COPY
         if recommended_action and recommended_action != reason:
             body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
         elif reason and reason != "Not available":
@@ -17247,7 +17255,7 @@ def priority_now_fallback_actions(
         actions.append(
             (
                 "Data gaps are visible",
-                f"{missing_warning_count} ticker/theme names have missing-data warnings. Start with make data-wizard TOP_N=10, then follow the first focus or runbook path before trusting broader rankings.",
+                f"{missing_warning_count} ticker/theme names have missing-data warnings. Start with make data-wizard TOP_N=10, then follow the first focus or guided data batch path before trusting broader rankings.",
                 "make data-wizard TOP_N=10",
                 "warning",
             )
