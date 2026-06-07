@@ -13686,14 +13686,20 @@ def split_risk_context_by_price_ready(frame: pd.DataFrame | None, unavailable_st
 
 
 def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, object]]:
-    status, status_count = dominant_value(
-        frame,
-        ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "Classification"],
-    )
+    status_columns = ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "Classification"]
+    if title == "Value / Re-rating":
+        status_columns = ["ValuationStatus", "FinalValueCategory"]
+    status, status_count = dominant_value(frame, status_columns)
     theme, theme_count = dominant_value(frame, ["Theme", "Sector", "SectorETF"])
     missing_count = non_empty_count(frame, [column for column in frame.columns if "missing" in column.lower()])
     reason_count = non_empty_count(frame, [column for column in frame.columns if "reason" in column.lower()])
     row_count = len(frame)
+    valuation_ready_count = 0
+    valuation_locked_count = 0
+    if title == "Value / Re-rating" and "ValuationStatus" in frame.columns:
+        valuation_status = frame["ValuationStatus"].fillna("").astype(str).str.strip().str.lower()
+        valuation_ready_count = int(valuation_status.eq("ready").sum())
+        valuation_locked_count = int(valuation_status.isin({"not_ready", "not ready", "blocked"}).sum())
     if theme_count:
         theme_body = (
             f"Most common theme/sector context across {theme_count} row{'s' if theme_count != 1 else ''}. "
@@ -13709,16 +13715,24 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
             "badges": ["Saved local output"],
         },
         {
-            "kicker": "STATE",
+            "kicker": "DCF INPUT STATE" if title == "Value / Re-rating" else "STATE",
             "title": status,
             "body": f"Most common visible state across {status_count} row{'s' if status_count != 1 else ''}.",
             "badges": ["status context"],
         },
         {
-            "kicker": "DATA GAPS",
-            "title": f"{missing_count} row{'s' if missing_count != 1 else ''}",
-            "body": "Rows with explicit missing-data fields stay visible instead of being silently scored.",
-            "badges": ["missing data"],
+            "kicker": "VALUATION READINESS" if title == "Value / Re-rating" else "DATA GAPS",
+            "title": (
+                f"{valuation_ready_count} ready-output / {valuation_locked_count} locked"
+                if title == "Value / Re-rating" and "ValuationStatus" in frame.columns
+                else f"{missing_count} row{'s' if missing_count != 1 else ''}"
+            ),
+            "body": (
+                "Ready output rows can support standalone valuation-readiness review; missing-data fields may still show peer, quality, or multiple context limits. Use the DCF readiness panel for exact DCF-ready counts."
+                if title == "Value / Re-rating" and "ValuationStatus" in frame.columns
+                else "Rows with explicit missing-data fields stay visible instead of being silently scored."
+            ),
+            "badges": ["DCF readiness", "context limits"] if title == "Value / Re-rating" else ["missing data"],
         },
         {
             "kicker": "THEME",
@@ -17523,9 +17537,14 @@ def compact_table_columns(frame: pd.DataFrame) -> list[str]:
 def table_focus_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
     row_count = len(frame)
     row_label = "row" if row_count == 1 else "rows"
+    is_valuation_view = "ValuationStatus" in frame.columns and "FinalValueCategory" in frame.columns
     lead_state, lead_state_count = dominant_value(
         frame,
-        ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "PeerRelativeStatus"],
+        (
+            ["ValuationStatus", "FinalValueCategory", "PeerRelativeStatus"]
+            if is_valuation_view
+            else ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "PeerRelativeStatus"]
+        ),
     )
     lead_context, lead_context_count = dominant_value(frame, ["PrimaryPurpose", "Theme", "Sector", "SectorETF", "ETF"])
     missing_count = non_empty_count(frame, [column for column in frame.columns if "missing" in column.lower()])
@@ -17558,10 +17577,18 @@ def table_focus_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
             "badges": ["research lens"],
         },
         {
-            "kicker": "DATA COVERAGE",
-            "title": f"{missing_count} {missing_label} with gaps",
-            "body": f"{score_count} row{'s' if score_count != 1 else ''} include score, return, or percentile context in the visible view.",
-            "badges": ["missing data stays visible"],
+            "kicker": "VALUATION CONTEXT" if is_valuation_view else "DATA COVERAGE",
+            "title": (
+                f"{missing_count} {missing_label} with context limits"
+                if is_valuation_view and missing_count
+                else ("No visible context limits" if is_valuation_view else f"{missing_count} {missing_label} with gaps")
+            ),
+            "body": (
+                f"{score_count} row{'s' if score_count != 1 else ''} include score, return, or relative context; DCF readiness is separate from peer or multiple completeness."
+                if is_valuation_view
+                else f"{score_count} row{'s' if score_count != 1 else ''} include score, return, or percentile context in the visible view."
+            ),
+            "badges": ["DCF separate", "context limits"] if is_valuation_view else ["missing data stays visible"],
         },
     ]
 
