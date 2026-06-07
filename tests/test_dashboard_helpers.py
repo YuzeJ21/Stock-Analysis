@@ -693,8 +693,16 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
 
     workflow_index = source.index('render_section_header("Evaluation Workflow"')
     next_step_index = source.index('render_section_header("What To Do Next"')
+    examples_index = source.index('render_section_header("Example Reports"')
+    where_to_go_index = source.index('render_section_header("Where To Go"')
+    learn_more_index = source.index('st.expander("Learn more: methodology, roadmap, and logic source"')
+    methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
+    commands_index = source.index('st.expander("Copyable commands"')
 
     assert workflow_index < next_step_index
+    assert next_step_index < examples_index < where_to_go_index < learn_more_index < commands_index
+    assert learn_more_index < methodology_index
+    assert 'st.expander("Learn more: methodology, roadmap, and logic source", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards())" in source
 

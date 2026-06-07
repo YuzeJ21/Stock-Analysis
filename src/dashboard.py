@@ -19065,27 +19065,6 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "These are report examples, not recommendations. They show ready, blocked, and excluded analysis states from local data.",
     )
 
-    render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
-    st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
-    st.caption("Full methodology: docs/METHODOLOGY.md")
-
-    render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
-    render_signal_cards(roadmap_milestone_status_cards(summary))
-    with st.expander("Roadmap status table", expanded=False):
-        st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
-
-    render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and where the logic comes from.")
-    render_signal_cards(_plain_home_capability_cards())
-    render_section_header("Where The Logic Comes From", "Plain-language provenance for the analysis functions and development aids.")
-    render_signal_cards(_plain_home_provenance_cards())
-    with st.expander("Detailed analysis capability audit", expanded=False):
-        st.write(
-            "The public audit explains which functions are strong today, which data gaps still limit the product, "
-            "and why the analysis shown to users comes from project code and local CSV inputs."
-        )
-        st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
-        st.code("docs/analysis_capability_audit.md", language="text")
-
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
     render_action_cards(
         [
@@ -19117,6 +19096,28 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             "",
             tone="warning",
         )
+
+    with st.expander("Learn more: methodology, roadmap, and logic source", expanded=False):
+        render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
+        st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
+        st.caption("Full methodology: docs/METHODOLOGY.md")
+
+        render_section_header("Roadmap Status", "What is already implemented, what is waiting on trusted data, and the safest next command.")
+        render_signal_cards(roadmap_milestone_status_cards(summary))
+        with st.expander("Roadmap status table", expanded=False):
+            st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
+
+        render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and where the logic comes from.")
+        render_signal_cards(_plain_home_capability_cards())
+        render_section_header("Where The Logic Comes From", "Plain-language provenance for the analysis functions and development aids.")
+        render_signal_cards(_plain_home_provenance_cards())
+        with st.expander("Detailed analysis capability audit", expanded=False):
+            st.write(
+                "The public audit explains which functions are strong today, which data gaps still limit the product, "
+                "and why the analysis shown to users comes from project code and local CSV inputs."
+            )
+            st.dataframe(clean_display_frame(_plain_home_function_quality_frame(summary)), width="stretch", hide_index=True)
+            st.code("docs/analysis_capability_audit.md", language="text")
 
     with st.expander("Copyable commands", expanded=False):
         st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
