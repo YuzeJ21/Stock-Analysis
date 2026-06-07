@@ -3128,6 +3128,22 @@ def import_workflow_caption(staged_path: str, import_command: str) -> str:
     )
 
 
+def local_dataset_check_columns(frame: pd.DataFrame | None) -> list[str]:
+    """Default Data Health dataset-check columns without raw local path noise."""
+    if frame is None or frame.empty:
+        return []
+    preferred = [
+        "name",
+        "validation_status",
+        "row_count",
+        "latest_data_timestamp",
+        "ticker_column",
+        "date_column",
+        "validation_warnings",
+    ]
+    return [column for column in preferred if column in frame.columns]
+
+
 def sec_fundamentals_setup_label(sec_configured: bool) -> str:
     return "SEC fundamentals setup: ready" if sec_configured else "SEC fundamentals setup: not configured"
 
@@ -20822,20 +20838,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             validation_rows["validation_warnings"] = validation_rows["validation_warnings"].map(
                 lambda value: "; ".join(value) if isinstance(value, list) else format_missing(value, "-")
             )
-        display_columns = [
-            column
-            for column in [
-                "name",
-                "validation_status",
-                "row_count",
-                "latest_data_timestamp",
-                "ticker_column",
-                "date_column",
-                "validation_warnings",
-                "file_path",
-            ]
-            if column in validation_rows.columns
-        ]
+        display_columns = local_dataset_check_columns(validation_rows)
         with st.expander("Local dataset checks", expanded=False):
             st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:

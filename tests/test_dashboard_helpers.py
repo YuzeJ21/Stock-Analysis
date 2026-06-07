@@ -9320,6 +9320,36 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
 
 
+def test_local_dataset_check_columns_hide_raw_file_paths_by_default():
+    frame = pd.DataFrame(
+        [
+            {
+                "name": "prices",
+                "validation_status": "valid",
+                "row_count": 100,
+                "latest_data_timestamp": "2026-06-05",
+                "ticker_column": "ticker",
+                "date_column": "date",
+                "validation_warnings": "-",
+                "file_path": "/Users/example/project/data/prices.csv",
+            }
+        ]
+    )
+
+    columns = dashboard.local_dataset_check_columns(frame)
+
+    assert columns == [
+        "name",
+        "validation_status",
+        "row_count",
+        "latest_data_timestamp",
+        "ticker_column",
+        "date_column",
+        "validation_warnings",
+    ]
+    assert "file_path" not in columns
+
+
 def test_data_health_page_does_not_block_initial_render_on_project_status_build():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
