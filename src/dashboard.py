@@ -3711,7 +3711,7 @@ def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: 
     if dataset == "fundamentals":
         if asset_text in {"etf", "fund", "index", "index_proxy"}:
             return "make readiness -> confirm ETF/index DCF exclusion; no operating-company fundamentals import is required"
-        return f"make focus-fundamentals TICKER={ticker_text} -> make sec-stage-queue TOP_N=25 or prepare trusted fundamentals import draft rows -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-fundamentals TICKER={ticker_text} -> make sec-stage-queue TOP_N=25 or prepare trusted fundamentals import file rows -> make imports-validate -> make imports-preview -> make imports-apply"
     if dataset == "peers":
         return f"make focus-peers TICKER={ticker_text} -> make templates -> fill data/imports/peers.csv with source-backed mappings -> make imports-validate -> make imports-preview -> make imports-apply"
     if dataset == "earnings":
@@ -3731,7 +3731,7 @@ def active_unlock_trusted_input_needed(dataset: str, ticker: object, asset_type:
     if dataset == "fundamentals":
         if asset_text in {"etf", "fund", "index", "index_proxy"}:
             return "No operating-company DCF input required; ETF/index proxy remains excluded from company DCF."
-        return f"Trusted fundamentals for {ticker_text}, preferably SEC import draft or manually sourced with required DCF fields."
+        return f"Trusted fundamentals for {ticker_text}, preferably from SEC staging or manually sourced with required DCF fields."
     if dataset == "peers":
         return f"Source-backed peer mappings and, when valuation is needed, peer fundamentals or market metrics for {ticker_text}."
     if dataset == "earnings":
@@ -5964,11 +5964,11 @@ def data_health_action_path_cards(
             body_source = recommended_action
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import file."
         elif target_file == "data/imports/peers.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import file."
         elif target_file == "data/imports/prices.csv":
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import file."
         if staged_follow_through:
             normalized_body = body_source.lower()
             if target_file == "data/imports/prices.csv":
@@ -6144,11 +6144,11 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=150)
             if target_file == "data/imports/fundamentals.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import file."
             elif target_file == "data/imports/peers.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import file."
             else:
-                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import file."
             if staged_summary == "Not available":
                 staged_summary = default_staged_summary
             elif target_file == "data/imports/prices.csv" and (
@@ -6218,11 +6218,11 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(lane_rows.iloc[0].get("safe_next_step"), max_sentences=1, max_chars=150)
             if target_file == "data/imports/fundamentals.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import file."
             elif target_file == "data/imports/peers.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import file."
             else:
-                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import file."
             if staged_summary == "Not available":
                 staged_summary = default_staged_summary
             elif target_file == "data/imports/prices.csv" and (
@@ -6329,7 +6329,7 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
         staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=140)
         follow_through = ""
         if target_file == "data/imports/prices.csv":
-            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import file."
             if staged_summary in {"", "Not available"} or (
                 "make price-validate" not in staged_summary
                 or "make price-preview" not in staged_summary
@@ -6395,7 +6395,7 @@ def data_health_deep_research_target_cards(
                 else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
             )
             fallback_action = (
-                f"Fundamentals import draft is waiting in {target_file}. "
+                f"Fundamentals import file is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_fundamentals_import
                 else command_family_fallback(command, "Review fundamentals path.")
@@ -6439,7 +6439,7 @@ def data_health_deep_research_target_cards(
                 )
             )
             fallback_action = (
-                f"Peer import draft is waiting in {target_file}. "
+                f"Peer import file is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_peer_import
                 else command_family_fallback(command, "Review peer path.")
@@ -6503,7 +6503,7 @@ def overview_deep_research_target_cards(
                 else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
             )
             fallback_action = (
-                f"Fundamentals import draft is waiting in {target_file}. "
+                f"Fundamentals import file is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_fundamentals_import
                 else command_family_fallback(command, "Review fundamentals path.")
@@ -6547,7 +6547,7 @@ def overview_deep_research_target_cards(
                 )
             )
             fallback_action = (
-                f"Peer import draft is waiting in {target_file}. "
+                f"Peer import file is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_peer_import
                 else command_family_fallback(command, "Review peer path.")
@@ -6615,7 +6615,7 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
         staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=140)
         follow_through = ""
         if target_file == "data/imports/prices.csv":
-            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import file."
             if staged_summary in {"", "Not available"} or (
                 "make price-validate" not in staged_summary
                 or "make price-preview" not in staged_summary
@@ -6803,13 +6803,13 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
             command = "make imports-validate"
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import file."
         elif target_file == "data/imports/peers.csv":
             command = "make imports-validate"
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import file."
         elif target_file == "data/imports/prices.csv":
             command = "make price-validate"
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import file."
         action = compact_reason(
             row.get("recommended_action") or command_family_fallback(command, "Review local data coverage."),
             max_sentences=1,
@@ -6898,13 +6898,13 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
             command = "make imports-validate"
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import file."
         elif target_file == "data/imports/peers.csv":
             command = "make imports-validate"
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import file."
         elif target_file == "data/imports/prices.csv":
             command = "make price-validate"
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import file."
         if staged_follow_through:
             normalized_action = recommended_action.lower()
             if target_file == "data/imports/prices.csv":
@@ -9437,7 +9437,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{fundamentals_ready_count} fundamentals-ready company row(s)",
                 "Supported Today": "Company snapshot and DCF input review when trusted local or SEC-backed rows exist.",
                 "Not Supported Yet": "Filling missing revenue, cash-flow, margin, or share-count fields by inference.",
-                "Methodology / Provenance": "Project import/readiness checks using trusted local CSV and SEC import draft rows.",
+                "Methodology / Provenance": "Project import/readiness checks using trusted local CSV and SEC-staged rows.",
                 "Next Step": "make sec-stage-queue TOP_N=25",
             },
             {
@@ -10872,7 +10872,7 @@ def active_evaluation_next_step(row: pd.Series) -> str:
     if "review now" in lane or "monitor etf" in lane or "single-stock" in lane:
         return f"Open {ticker}'s stock report and compare purpose, setup, valuation limits, risk watchpoint, and invalidation condition."
     if "fundamentals" in lane or "dcf" in lane:
-        return f"Import or prepare trusted fundamentals import draft rows for {ticker}; validate, preview, and apply only after rejected-row reports are clean."
+        return f"Import or prepare trusted fundamentals import file rows for {ticker}; validate, preview, and apply only after rejected-row reports are clean."
     if "price" in lane:
         return f"Repair local price coverage for {ticker} with a ticker-targeted refresh or staged manual OHLCV import."
     if "peer" in lane:
@@ -10915,7 +10915,7 @@ def active_evaluation_validation_sequence(row: pd.Series) -> str:
     if "peer" in lane and "monitor etf" not in lane:
         return f"make focus-peers TICKER={ticker} -> make templates -> fill data/imports/peers.csv with source-backed rows -> make imports-validate -> make imports-preview -> make imports-apply"
     if "fundamentals" in lane or "dcf" in lane:
-        return f"make focus-fundamentals TICKER={ticker} -> prepare trusted fundamentals import draft rows -> make imports-validate -> make imports-preview -> make imports-apply"
+        return f"make focus-fundamentals TICKER={ticker} -> prepare trusted fundamentals import file rows -> make imports-validate -> make imports-preview -> make imports-apply"
     if "price" in lane:
         return f"make focus-price TICKER={ticker} -> run capped refresh or stage OHLCV -> make imports-validate -> make imports-preview -> make imports-apply"
     if "optional" in lane:
@@ -14497,11 +14497,11 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
                 )
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import file."
         elif target_file == "data/imports/peers.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import file."
         elif target_file == "data/imports/prices.csv":
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import file."
         if staged_follow_through:
             normalized_body = body.lower()
             needs_staged_upgrade = False
@@ -15370,7 +15370,7 @@ def overview_research_pressure_cards(
                 f"{peer_summary.get('priority_1', 0)} holdings-first peer unlocks and "
                 f"{peer_summary.get('priority_2', 0)} theme-level follow-ons are visible in the local queue. "
                 + (
-                    f"{staged_peer_imports} peer import draft{'s' if staged_peer_imports != 1 else ''} already need make imports-validate, make imports-preview, and make imports-apply."
+                    f"{staged_peer_imports} peer import file{'s' if staged_peer_imports != 1 else ''} already need make imports-validate, make imports-preview, and make imports-apply."
                     if staged_peer_imports
                     else (
                         f"{peer_follow_through} mapped peer set{'s' if peer_follow_through != 1 else ''} still need peer-relative follow-through beyond the initial mapping step."
@@ -16215,11 +16215,11 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=150)
             if target_file == "data/imports/fundamentals.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import file."
             elif target_file == "data/imports/peers.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import file."
             else:
-                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import file."
             if staged_summary == "Not available":
                 staged_summary = default_staged_summary
             elif target_file == "data/imports/prices.csv" and (
@@ -16294,11 +16294,11 @@ def overview_bundle_handoff_cards(
     if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
         staged_summary = compact_reason(top_bundle.get("safe_next_step"), max_sentences=1, max_chars=150)
         if target_file == "data/imports/fundamentals.csv":
-            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
+            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import file."
         elif target_file == "data/imports/peers.csv":
-            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
+            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import file."
         else:
-            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import file."
         if staged_summary == "Not available":
             staged_summary = default_staged_summary
         elif target_file == "data/imports/prices.csv" and (
@@ -16464,11 +16464,11 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(lane_rows.iloc[0].get("safe_next_step"), max_sentences=1, max_chars=150)
             if target_file == "data/imports/fundamentals.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import draft."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the fundamentals import file."
             elif target_file == "data/imports/peers.csv":
-                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import draft."
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the peer import file."
             else:
-                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import draft."
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the price import file."
             if staged_summary == "Not available":
                 staged_summary = default_staged_summary
             elif target_file == "data/imports/prices.csv" and (
@@ -17382,11 +17382,11 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
                 )
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import file."
         elif target_file == "data/imports/peers.csv":
-            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import file."
         elif target_file == "data/imports/prices.csv":
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import draft."
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import file."
         if staged_follow_through:
             normalized_body = body_source.lower()
             needs_staged_upgrade = False

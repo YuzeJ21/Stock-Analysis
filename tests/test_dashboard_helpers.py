@@ -4816,7 +4816,7 @@ def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers()
     assert "1 holdings-first dcf unlocks" in rendered
     assert "2 missing peer mappings" in rendered
     assert "1 mapped follow-through" in rendered
-    assert "1 peer import draft already need make imports-validate, make imports-preview, and make imports-apply" in rendered
+    assert "1 peer import file already need make imports-validate, make imports-preview, and make imports-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
