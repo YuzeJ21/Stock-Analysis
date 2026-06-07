@@ -44,6 +44,19 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert "import draft flow" in card_html
     assert "staged peer" not in card_html.lower()
 
+    visitor_card_html = dashboard.signal_card_html(
+        "visitor",
+        "Read the summary first",
+        "Command details stay available in the copyable commands section.",
+        ["plain English"],
+        "make dashboard-smoke",
+        show_command=False,
+    )
+    assert "Read the summary first" in visitor_card_html
+    assert "plain English" in visitor_card_html
+    assert "make dashboard-smoke" not in visitor_card_html
+    assert "command-chip" not in visitor_card_html
+
     workflow_rows = dashboard.clean_display_frame(
         pd.DataFrame(
             {
@@ -751,6 +764,8 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     assert next_step_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary))" in source
+    assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
 
 
 def test_home_next_step_cards_are_copyable_and_readiness_gated():

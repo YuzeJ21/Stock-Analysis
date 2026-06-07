@@ -2780,13 +2780,21 @@ def tiny_badge_html(label: str) -> str:
     return f"<span class='tiny-badge'>{html.escape(label)}</span>"
 
 
-def signal_card_html(kicker: str, title: str, body: str, badges: list[str] | None = None, command: str = "") -> str:
+def signal_card_html(
+    kicker: str,
+    title: str,
+    body: str,
+    badges: list[str] | None = None,
+    command: str = "",
+    *,
+    show_command: bool = True,
+) -> str:
     display_kicker = friendly_dashboard_card_copy(kicker)
     display_title = friendly_dashboard_card_copy(title)
     display_body = friendly_dashboard_card_copy(body)
     display_badges = [friendly_dashboard_card_copy(badge) for badge in (badges or [])]
     footer_parts = "".join(tiny_badge_html(badge) for badge in display_badges)
-    if command:
+    if command and show_command:
         footer_parts += f"<span class='command-chip'>{html.escape(command)}</span>"
     return (
         "<div class='signal-card'>"
@@ -2798,7 +2806,7 @@ def signal_card_html(kicker: str, title: str, body: str, badges: list[str] | Non
     )
 
 
-def render_signal_cards(cards: list[dict[str, object]]) -> None:
+def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool = True) -> None:
     st.markdown(
         "<div class='signal-grid'>"
         + "".join(
@@ -2808,6 +2816,7 @@ def render_signal_cards(cards: list[dict[str, object]]) -> None:
                 str(card.get("body", "")),
                 [str(item) for item in card.get("badges", [])],
                 str(card.get("command", "")),
+                show_command=show_commands,
             )
             for card in cards
         )
@@ -19181,10 +19190,10 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         "A plain-language view of what is ready, what is blocked, and what to review next.",
     )
     render_signal_cards(dashboard_page_reader_summary_cards("Home"))
-    render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame))
+    render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
-    render_signal_cards(_plain_home_next_step_cards(summary))
+    render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)
 
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
     render_action_cards(
