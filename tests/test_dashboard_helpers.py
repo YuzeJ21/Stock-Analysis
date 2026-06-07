@@ -487,6 +487,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Structured research workflow for one ticker" not in source
     assert "A readable view of local research inputs" in source
     assert "A structured view of local research inputs" not in source
+    assert "Download Local Report Data" in source
+    assert "Download Structured Report" not in source
     assert "Saved local data is the default" in source
     assert "Optional online research mode stays off by default" in source
     assert "Local CSV-backed data is the default" not in source
@@ -9831,8 +9833,10 @@ def test_stock_report_source_detail_summary_frame_replaces_raw_json_dump():
     assert "source rows" in rendered
     assert "missing-data warnings" in rendered
     assert "report data download" in rendered
+    assert "download local report data" in rendered
     assert "optional saved data file" in rendered
     assert "most readers can use this page or the markdown report" in rendered
+    assert "download structured report" not in rendered
     assert "generated" not in rendered
     assert "machine-readable local report file" not in rendered
     assert "price_ready" not in rendered

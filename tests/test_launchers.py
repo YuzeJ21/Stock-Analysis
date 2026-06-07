@@ -1218,7 +1218,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "Use research-grade online data" not in dashboard
     assert "Show source readiness details" in dashboard
     assert "Show report source details" not in dashboard
-    assert "Download Structured Report" in dashboard
+    assert "Download Local Report Data" in dashboard
+    assert "Download Structured Report" not in dashboard
     assert "Download Report Data" not in dashboard
     assert "Download Report Data (JSON)" not in dashboard
     assert "technical context" not in dashboard.lower()

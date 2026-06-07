@@ -5466,7 +5466,7 @@ def stock_report_source_detail_summary_frame(report_payload: dict[str, object]) 
             {"Detail": "Missing-data warnings", "Value": report_display_value(len(missing_warnings), "integer")},
             {
                 "Detail": "Report data download",
-                "Value": "Use Download Structured Report only if you need the optional saved data file; most readers can use this page or the Markdown report.",
+                "Value": "Use Download Local Report Data only if you need the optional saved data file; most readers can use this page or the Markdown report.",
             },
         ]
     )
@@ -19947,7 +19947,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 )
 
     st.download_button(
-        "Download Structured Report",
+        "Download Local Report Data",
         data=st.session_state.get("single_stock_report_download", "{}"),
         file_name=f"{st.session_state.get('single_stock_report_ticker', 'stock').lower()}_stock_report.json",
         mime="application/json",
