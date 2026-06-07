@@ -18154,18 +18154,14 @@ def render_overview(
         "Overview",
         "A quick read on whether the local research workflow is ready, partial, or waiting on data.",
     )
-    st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
-    render_section_header("Data Quality / Readiness", "Read this before interpreting rankings or research conclusions.")
-    render_signal_cards(
-        readiness_panel_cards(
-            dashboard_readiness_summary(
-                coverage_frame,
-                dcf_readiness_frame,
-                earnings_readiness_frame,
-                analyst_readiness_frame,
-                ticker_readiness_frame,
-            )
-        )
+    if project_status_payload:
+        st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
+    overview_readiness_summary = dashboard_readiness_summary(
+        coverage_frame,
+        dcf_readiness_frame,
+        earnings_readiness_frame,
+        analyst_readiness_frame,
+        ticker_readiness_frame,
     )
     render_section_header(
         "What Changed Recently",
@@ -18200,6 +18196,9 @@ def render_overview(
             action_queue_frame,
         )
     )
+    with st.expander("Readiness and data-quality details", expanded=False):
+        render_section_header("Data Quality / Readiness", "Use these readiness details before interpreting rankings or research conclusions.")
+        render_signal_cards(readiness_panel_cards(overview_readiness_summary))
 
     with st.expander("More overview queues", expanded=False):
         render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
@@ -18312,93 +18311,100 @@ def render_overview(
     render_section_header("Next Deeper Tabs", "Where to go next after the high-level workflow read, depending on whether you need blocker triage, single-name depth, or broader candidate comparison.")
     render_signal_cards(overview_handoff_cards())
 
-    st.markdown(
-        (
-            "<div class='subtle-panel'>"
-            f"<strong>Coverage snapshot.</strong> {output_file_count} generated outputs are present. "
-            f"{missing_warning_count} names still carry explicit missing-data warnings, "
-            f"{health_summary['thin_liquidity']} tickers look thin on local liquidity context, and "
-            f"{health_summary['high_correlation']} tickers show high local co-movement."
-            "</div>"
-        ),
-        unsafe_allow_html=True,
-    )
+    with st.expander("More status, unlock queues, and generated outputs", expanded=False):
+        st.markdown(
+            (
+                "<div class='subtle-panel'>"
+                f"<strong>Coverage snapshot.</strong> {output_file_count} generated outputs are present. "
+                f"{missing_warning_count} names still carry explicit missing-data warnings, "
+                f"{health_summary['thin_liquidity']} tickers look thin on local liquidity context, and "
+                f"{health_summary['high_correlation']} tickers show high local co-movement."
+                "</div>"
+            ),
+            unsafe_allow_html=True,
+        )
 
-    status_cards = project_status_metric_cards(project_status_payload)
-    if status_cards:
-        render_section_header(
-            "Project Status",
-            "The same read-only snapshot shown by `make status-check TOP_N=5`, surfaced here so the dashboard and terminal agree.",
-        )
-        render_metric_cards(status_cards)
-        command_rows = project_status_command_rows(project_status_payload)
-        if command_rows:
-            with st.expander("Recommended next commands", expanded=False):
-                st.dataframe(pd.DataFrame(command_rows), width="stretch", hide_index=True)
+        status_cards = project_status_metric_cards(project_status_payload)
+        if status_cards:
+            render_section_header(
+                "Project Status",
+                "The same read-only snapshot shown by `make status-check TOP_N=5`, surfaced here so the dashboard and terminal agree.",
+            )
+            render_metric_cards(status_cards)
+            command_rows = project_status_command_rows(project_status_payload)
+            if command_rows:
+                with st.expander("Recommended next commands", expanded=False):
+                    st.dataframe(pd.DataFrame(command_rows), width="stretch", hide_index=True)
+        else:
+            render_section_header(
+                "Project Status",
+                "Optional read-only status snapshot for matching the dashboard to terminal output.",
+            )
+            st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
 
-    render_section_header("Next Data Unlocks", "The next local data unlocks for richer research output.")
-    render_signal_cards(data_coverage_wizard_cards(wizard_frame))
+        render_section_header("Next Data Unlocks", "The next local data unlocks for richer research output.")
+        render_signal_cards(data_coverage_wizard_cards(wizard_frame))
 
-    priority_signals = top_priority_signals(action_queue_frame, limit=3)
-    if priority_signals:
-        render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
-        render_signal_cards(priority_signals)
-    else:
-        actions = priority_now_fallback_actions(
-            project_status_payload,
-            missing_warning_count=missing_warning_count,
-            catalog=catalog,
-        )
-        render_action_cards(actions)
+        priority_signals = top_priority_signals(action_queue_frame, limit=3)
+        if priority_signals:
+            render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
+            render_signal_cards(priority_signals)
+        else:
+            actions = priority_now_fallback_actions(
+                project_status_payload,
+                missing_warning_count=missing_warning_count,
+                catalog=catalog,
+            )
+            render_action_cards(actions)
 
-    output_rows = []
-    for filename, label in PIPELINE_FILES.items():
-        frame, message = output_frames[filename]
-        output_rows.append(
-            {
-                "Output": label,
-                "File": filename,
-                "Present": frame is not None,
-                "Rows": 0 if frame is None else len(frame),
-                "Message": message or "",
-            }
-        )
-    monthly_tables = load_monthly_outputs()
-    for filename, label in MONTHLY_FILES.items():
-        frame, message = monthly_tables[filename]
-        output_rows.append(
-            {
-                "Output": label,
-                "File": filename,
-                "Present": frame is not None,
-                "Rows": 0 if frame is None else len(frame),
-                "Message": message or "",
-            }
-        )
-    for filename, label in RESEARCH_HEALTH_FILES.items():
-        frame, message = health_tables[filename]
-        output_rows.append(
-            {
-                "Output": label,
-                "File": filename,
-                "Present": frame is not None,
-                "Rows": 0 if frame is None else len(frame),
-                "Message": message or "",
-            }
-        )
-    with st.expander("Generated output files", expanded=False):
-        render_context_note(
-            "Local generated files.",
-            "These CSVs are useful for review, but broad refresh churn should be inspected before it is committed or shared publicly.",
-        )
-        st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
+        output_rows = []
+        for filename, label in PIPELINE_FILES.items():
+            frame, message = output_frames[filename]
+            output_rows.append(
+                {
+                    "Output": label,
+                    "File": filename,
+                    "Present": frame is not None,
+                    "Rows": 0 if frame is None else len(frame),
+                    "Message": message or "",
+                }
+            )
+        monthly_tables = load_monthly_outputs()
+        for filename, label in MONTHLY_FILES.items():
+            frame, message = monthly_tables[filename]
+            output_rows.append(
+                {
+                    "Output": label,
+                    "File": filename,
+                    "Present": frame is not None,
+                    "Rows": 0 if frame is None else len(frame),
+                    "Message": message or "",
+                }
+            )
+        for filename, label in RESEARCH_HEALTH_FILES.items():
+            frame, message = health_tables[filename]
+            output_rows.append(
+                {
+                    "Output": label,
+                    "File": filename,
+                    "Present": frame is not None,
+                    "Rows": 0 if frame is None else len(frame),
+                    "Message": message or "",
+                }
+            )
+        with st.expander("Generated output files", expanded=False):
+            render_context_note(
+                "Local generated files.",
+                "These CSVs are useful for review, but broad refresh churn should be inspected before it is committed or shared publicly.",
+            )
+            st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
 
-    if final_watchlist_frame is not None and not final_watchlist_frame.empty:
-        render_section_header("Final Watchlist Snapshot", "Top-level state and reason context without opening the full table.")
-        snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
-        st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns].head(8)), width="stretch", hide_index=True)
-        with st.expander("Full final watchlist snapshot", expanded=False):
-            st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
+        if final_watchlist_frame is not None and not final_watchlist_frame.empty:
+            render_section_header("Final Watchlist Snapshot", "Top-level state and reason context without opening the full table.")
+            snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
+            st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns].head(8)), width="stretch", hide_index=True)
+            with st.expander("Full final watchlist snapshot", expanded=False):
+                st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
 
 
 def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFrame | None) -> list[dict[str, object]]:

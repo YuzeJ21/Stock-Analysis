@@ -475,11 +475,24 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     overview_index = source.index('render_section_header(\n        "Overview"')
     changed_index = source.index('render_section_header(\n        "What Changed Recently"')
     best_paths_index = source.index('render_section_header("Current Best Paths"')
+    readiness_expander_index = source.index('st.expander("Readiness and data-quality details"')
+    readiness_index = source.index('render_section_header("Data Quality / Readiness"', readiness_expander_index)
     overview_queue_index = source.index('st.expander("More overview queues"')
     local_path_index = source.index('render_section_header("Today\'s Best Local Research Path"')
+    next_tabs_index = source.index('render_section_header("Next Deeper Tabs"')
+    status_unlock_index = source.index('st.expander("More status, unlock queues, and generated outputs"')
+    project_status_index = source.index('render_section_header(\n                "Project Status"', status_unlock_index)
+    next_data_unlocks_index = source.index('render_section_header("Next Data Unlocks"', status_unlock_index)
 
-    assert overview_index < changed_index < best_paths_index < overview_queue_index < local_path_index
+    assert overview_index < changed_index < best_paths_index < readiness_expander_index < overview_queue_index < local_path_index
+    assert local_path_index < next_tabs_index < status_unlock_index
+    assert readiness_expander_index < readiness_index < overview_queue_index
+    assert status_unlock_index < project_status_index < next_data_unlocks_index
+    assert 'st.expander("Readiness and data-quality details", expanded=False)' in source
     assert 'st.expander("More overview queues", expanded=False)' in source
+    assert 'st.expander("More status, unlock queues, and generated outputs", expanded=False)' in source
+    assert "if project_status_payload:\n        st.markdown(project_status_cockpit_html" in source
+    assert status_unlock_index < next_data_unlocks_index
     assert 'st.expander("More readiness and routing detail", expanded=False)' in source
     assert 'st.expander("More deep-research context", expanded=False)' in source
     assert 'st.expander("More market and workflow context", expanded=False)' in source
