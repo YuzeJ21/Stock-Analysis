@@ -323,14 +323,25 @@ def test_major_dashboard_pages_render_plain_english_reader_guides():
 def test_sidebar_navigation_note_matches_selected_page():
     home_title, home_body = dashboard.sidebar_navigation_note("Home")
     report_title, report_body = dashboard.sidebar_navigation_note("Single-Stock Report")
+    value_title, value_body = dashboard.sidebar_navigation_note("Value / Re-rating")
+    health_title, health_body = dashboard.sidebar_navigation_note("Data Health")
+    momentum_title, momentum_body = dashboard.sidebar_navigation_note("Momentum Leaders")
 
     assert home_title == "Start here."
     assert "what is ready" in home_body
     assert "safest next review path" in home_body
     assert report_title == "Viewing Single-Stock Report."
-    assert "selected workflow" in report_body
-    assert "return to Home" in report_body
+    assert "one ticker's ready analysis" in report_body
     assert "Home explains what is ready" not in report_body
+    assert value_title == "Viewing Value / Re-rating."
+    assert "DCF-ready review" in value_body
+    assert "peer-context limits" in value_body
+    assert health_title == "Viewing Data Health."
+    assert "trusted inputs are missing" in health_body
+    assert "copy-only unlock path" in health_body
+    assert momentum_title == "Viewing Momentum Leaders."
+    assert "selected workflow" in momentum_body
+    assert "return to Home" in momentum_body
 
 
 def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):

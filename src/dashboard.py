@@ -80,6 +80,21 @@ def dashboard_page_from_query(value: object) -> str:
 def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
     if selected_page == "Home":
         return "Start here.", "Home shows what is ready, what is blocked, recent progress, and the safest next review path."
+    if selected_page == "Single-Stock Report":
+        return (
+            "Viewing Single-Stock Report.",
+            "Use this page to review one ticker's ready analysis, locked inputs, source notes, and next local proof step.",
+        )
+    if selected_page == "Value / Re-rating":
+        return (
+            "Viewing Value / Re-rating.",
+            "Use this page to separate DCF-ready review, locked valuation inputs, peer-context limits, and ETF/index monitor context.",
+        )
+    if selected_page == "Data Health":
+        return (
+            "Viewing Data Health.",
+            "Use this page to see which trusted inputs are missing and which copy-only unlock path to follow next.",
+        )
     return (
         f"Viewing {selected_page}.",
         "Use this page for the selected workflow. If you feel lost, return to Home for the plain-language readiness summary.",
