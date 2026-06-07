@@ -12331,10 +12331,13 @@ def test_dashboard_readiness_summary_counts_ready_blocked_and_credentials(monkey
     assert "Configured: SEC_USER_AGENT" in rendered
     assert "Only workflows that require the missing credential are blocked" in rendered
     assert "make price-coverage TOP_N=25" in rendered
-    assert "Import draft folders available" in rendered
-    assert "Price import draft folder: data/staged/prices/" in rendered
+    assert "Import file folders available" in rendered
+    assert "Price import file folder: data/staged/prices/" in rendered
     assert "data/staged/earnings/" in rendered
+    assert "import files" in rendered
     assert "review before apply" in rendered
+    assert "Import draft folders available" not in rendered
+    assert "import drafts" not in rendered
     assert "staged review/apply" not in rendered.lower()
 
 
