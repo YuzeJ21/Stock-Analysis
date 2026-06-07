@@ -42,10 +42,13 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
         ["staged flow"],
         "make imports-preview",
     )
-    assert "Review peer import draft" in card_html
-    assert "Peer import draft ready" in card_html
+    assert "Review peer import file" in card_html
+    assert "Peer import file ready" in card_html
+    assert "Review peer import draft" not in card_html
+    assert "Peer import draft ready" not in card_html
     assert "make status-check TOP_N=5" in card_html
-    assert "import draft flow" in card_html
+    assert "import file flow" in card_html
+    assert "import draft flow" not in card_html
     assert "staged peer" not in card_html.lower()
 
     visitor_card_html = dashboard.signal_card_html(
