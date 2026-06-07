@@ -178,7 +178,7 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
                 "error_category": "parse_error",
                 "error_message": "NVDA: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=NVDA, or run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=NVDA first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make onboarding",
                 "target_file": "data/imports/prices.csv",
@@ -248,7 +248,7 @@ def test_project_status_normalizes_legacy_raw_price_example_command(tmp_path: Pa
                 "error_category": "parse_error",
                 "error_message": "NVDA: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=NVDA, or run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=NVDA first. For batch planning, preview make price-refresh-loop DRY_RUN=1; if you choose to refresh this ticker, run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "python3 -m src.data_update --tickers NVDA",
                 "target_file": "data/imports/prices.csv",
@@ -289,6 +289,7 @@ def test_project_status_normalizes_legacy_raw_price_action_text(tmp_path: Path):
     payload = build_project_status_payload(tmp_path, top_n=3)
 
     top_action = payload["top_onboarding_actions"][0]
+    assert "make price-refresh-loop DRY_RUN=1" in top_action["recommended_action"]
     assert "make price-refresh TICKERS=NVDA" in top_action["recommended_action"]
     assert "python3 -m src.data_update --tickers NVDA" not in top_action["recommended_action"]
 

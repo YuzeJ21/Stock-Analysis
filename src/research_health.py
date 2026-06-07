@@ -82,7 +82,8 @@ def _format_operator_path_context(root: Path, data_path: Path, output_path: Path
 
 def _price_next_best_action(ticker: str) -> str:
     return (
-        f"Run make focus-price TICKER={ticker}, or run make price-refresh TICKERS={ticker}; "
+        f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; "
         "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
 

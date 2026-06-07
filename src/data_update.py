@@ -419,7 +419,8 @@ def _normalized_error_message(status: str, ticker: str, error_message: object) -
 
 def _price_recommended_action(status: str, ticker: str, has_local_data: bool) -> str:
     normalize_action = (
-        f"Run make focus-price TICKER={ticker}, or run make price-refresh TICKERS={ticker}; "
+        f"Run make focus-price TICKER={ticker} first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
+        f"if you choose to refresh this ticker, run make price-refresh TICKERS={ticker}; "
         "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
     if status == "fetched":

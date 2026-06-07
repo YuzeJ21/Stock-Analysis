@@ -152,7 +152,8 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert gap_lookup["nasdaq_symbols"]["example_command"] == "make universe-preview"
     price_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "prices" and gap["ticker"] == "MSFT")
     assert price_gap["recommended_action"] == (
-        "Run make focus-price TICKER=MSFT, or run make price-refresh TICKERS=MSFT; "
+        "Run make focus-price TICKER=MSFT first. For batch planning, preview make price-refresh-loop DRY_RUN=1; "
+        "if you choose to refresh this ticker, run make price-refresh TICKERS=MSFT; "
         "if the free refresh path fails, normalize verified downloaded OHLCV files into "
         "data/imports/prices.csv."
     )
