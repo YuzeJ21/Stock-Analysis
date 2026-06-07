@@ -9411,6 +9411,22 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
 
 
+def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    report_header_index = source.index('render_section_header("At A Glance"')
+    at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
+    interpretation_expander_index = source.index('st.expander("More report interpretation and methodology"')
+    evaluation_index = source.index('st.markdown("#### Evaluation Summary"')
+    function_quality_index = source.index('st.markdown("#### What This Report Can Evaluate"')
+    brief_index = source.index("stock_report_brief_html(report_payload)")
+    tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]')
+
+    assert report_header_index < at_glance_index < interpretation_expander_index < tabs_index
+    assert interpretation_expander_index < evaluation_index < function_quality_index < brief_index < tabs_index
+    assert 'st.expander("More report interpretation and methodology", expanded=False)' in source
+
+
 def test_stock_report_source_frame_hides_raw_missing_values():
     frame = dashboard.stock_report_source_frame(
         [

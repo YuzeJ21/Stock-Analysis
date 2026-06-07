@@ -19413,27 +19413,28 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
-    st.markdown("#### Evaluation Summary")
-    render_context_note(
-        "Analysis mode guide.",
-        "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like unsupported conclusions.",
-    )
-    render_signal_cards(stock_report_mode_guide_cards(report_payload))
-    render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
-    st.dataframe(
-        clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
-        width="stretch",
-        hide_index=True,
-    )
-    st.markdown("#### What This Report Can Evaluate")
-    render_signal_cards(stock_report_function_quality_cards(report_payload))
-    with st.expander("Detailed function status", expanded=False):
+    with st.expander("More report interpretation and methodology", expanded=False):
+        st.markdown("#### Evaluation Summary")
+        render_context_note(
+            "Analysis mode guide.",
+            "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like unsupported conclusions.",
+        )
+        render_signal_cards(stock_report_mode_guide_cards(report_payload))
+        render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
         st.dataframe(
-            clean_display_frame(stock_report_function_quality_frame(report_payload)),
+            clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
             width="stretch",
             hide_index=True,
         )
-    st.markdown(stock_report_brief_html(report_payload), unsafe_allow_html=True)
+        st.markdown("#### What This Report Can Evaluate")
+        render_signal_cards(stock_report_function_quality_cards(report_payload))
+        with st.expander("Detailed function status", expanded=False):
+            st.dataframe(
+                clean_display_frame(stock_report_function_quality_frame(report_payload)),
+                width="stretch",
+                hide_index=True,
+            )
+        st.markdown(stock_report_brief_html(report_payload), unsafe_allow_html=True)
 
     price = report_payload["price_snapshot"]
     performance = report_payload["performance"]
