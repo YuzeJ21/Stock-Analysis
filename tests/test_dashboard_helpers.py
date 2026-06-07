@@ -9137,6 +9137,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "deeper Data Health details" not in source
     assert "missing_optional_labels = [public_dataset_name(name) for name in missing_optional]" in source
     assert 'validation_rows["name"] = validation_rows["name"].map(public_dataset_name)' in source
+    assert 'st.expander("Local dataset checks", expanded=False)' in source
+    assert 'st.expander("Local dataset validation details", expanded=False)' not in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
     assert "Plain-English valuation worklists before the detailed market-wide review." in source
