@@ -21407,9 +21407,9 @@ def main() -> None:
             help="Start with Home, then open a deeper page when you know what you want to review.",
         )
         show_reason_details = st.checkbox(
-            "Show detailed tables",
+            "Show guided help",
             value=False,
-            help="Adds extra table sections for deeper local review. Most visitors can leave this off.",
+            help="Adds guided review sections for deeper local checks. Most visitors can leave this off.",
         )
         show_source_details = False
         if selected_page == "Single-Stock Report":
@@ -21423,9 +21423,9 @@ def main() -> None:
         render_context_note(note_title, note_body, tone="success")
         render_context_note(
             "Best path.",
-            "Home -> Single-Stock Report -> Data Health. Open details only if you want the guided route cards.",
+            "Home -> Single-Stock Report -> Data Health. Turn on guided help only when you want extra review routes.",
         )
-        with st.expander("Best path details", expanded=False):
+        with st.expander("How to use the path", expanded=False):
             render_sidebar_route_steps(dashboard_navigation_cards())
         with st.expander("Need help?", expanded=False):
             render_context_note(
