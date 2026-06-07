@@ -17200,7 +17200,7 @@ def test_sidebar_local_file_context_lines_use_plain_relative_labels(tmp_path: Pa
     assert lines == [
         "App folder: .",
         "Trusted input CSVs: data",
-        "Generated reports: outputs",
+        "Saved report folder: outputs",
     ]
     assert "Project root:" not in rendered
     assert "Data dir:" not in rendered

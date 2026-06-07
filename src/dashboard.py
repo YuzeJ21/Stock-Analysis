@@ -14295,7 +14295,7 @@ def sidebar_local_file_context_lines(base_dir: Path, data_dir: Path, outputs_dir
     return [
         f"App folder: {context['project_root']}",
         f"Trusted input CSVs: {context['data_dir']}",
-        f"Generated reports: {context['outputs_dir']}",
+        f"Saved report folder: {context['outputs_dir']}",
     ]
 
 
@@ -19694,7 +19694,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         else:
             render_notice_card(
                 "Price chart not ready yet",
-                "The report generated, but there is not enough provider-backed daily close history to render a chart. Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize, then run make price-validate, make price-preview, and make price-apply.",
+                "The report is ready, but there is not enough provider-backed daily close history to render a chart. Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize, then run make price-validate, make price-preview, and make price-apply.",
                 "make runbook-prices-broader",
                 tone="warning",
             )
