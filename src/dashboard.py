@@ -21654,18 +21654,18 @@ def main() -> None:
     render_app_header(catalog, output_frames)
 
     with st.sidebar:
-        st.header("Navigation")
+        st.header("Explore")
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
         selected_page = st.radio(
-            "Choose a page",
+            "Page to review",
             USER_PAGE_TITLES,
             index=USER_PAGE_TITLES.index(initial_page) if initial_page in USER_PAGE_TITLES else 0,
-            help="Start with Home, then open a deeper page when you know what you want to review.",
+            help="Start with Home, then open one deeper page when you know what you want to review.",
         )
         show_reason_details = st.checkbox(
-            "Show guided help",
+            "Show page tips",
             value=False,
-            help="Adds guided review sections for deeper local checks. Most visitors can leave this off.",
+            help="Adds extra explanation and review sections. Most visitors can leave this off.",
         )
         show_source_details = False
         if selected_page == "Single-Stock Report":
@@ -21678,12 +21678,12 @@ def main() -> None:
         note_title, note_body = sidebar_navigation_note(selected_page)
         render_context_note(note_title, note_body, tone="success")
         render_context_note(
-            "Best path.",
-            "Home -> Single-Stock Report -> Data Health. Turn on guided help only when you want extra review routes.",
+            "Recommended route.",
+            "Home -> Single-Stock Report -> Data Health. Turn on page tips only when you want extra review context.",
         )
-        with st.expander("How to use the path", expanded=False):
+        with st.expander("Recommended route", expanded=False):
             render_sidebar_route_steps(dashboard_navigation_cards())
-        with st.expander("Quick reading guide", expanded=False):
+        with st.expander("Copy commands", expanded=False):
             render_context_note(
                 "Simple path.",
                 " ".join(sidebar_quick_help_lines()),

@@ -506,22 +506,31 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds source and freshness troubleshooting under Sources & Gaps" not in source
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
-    assert "Show guided help" in source
-    assert "Adds guided review sections for deeper local checks" in source
+    assert "Show page tips" in source
+    assert "Adds extra explanation and review sections" in source
     assert "Most visitors can leave this off" in source
+    assert "Show guided help" not in source
+    assert "Adds guided review sections for deeper local checks" not in source
     assert "Show detailed tables" not in source
     assert "Adds extra table sections for deeper local review" not in source
     assert "Show more explanation" not in source
     assert "#### Best path" not in source
     assert "Home -> Single-Stock Report -> Data Health" in source
-    assert "Turn on guided help only when you want extra review routes" in source
-    assert 'st.expander("How to use the path", expanded=False)' in source
+    assert "Turn on page tips only when you want extra review context" in source
+    assert "Turn on guided help only when you want extra review routes" not in source
+    assert 'st.expander("Recommended route", expanded=False)' in source
+    assert 'st.expander("How to use the path", expanded=False)' not in source
     assert 'st.expander("Best path details", expanded=False)' not in source
     assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
     assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Quick reading guide"' in source
+    assert 'st.expander("Copy commands"' in source
+    assert 'st.expander("Quick reading guide"' not in source
     assert 'st.expander("Need help?"' not in source
+    assert 'st.header("Explore")' in source
+    assert 'st.header("Navigation")' not in source
+    assert '"Page to review"' in source
+    assert '"Choose a page"' not in source
     assert "Simple path." in source
     assert "Start with Home for the coverage snapshot." in source
     assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
