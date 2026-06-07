@@ -36,6 +36,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
 
     for path in (
         ".gitignore",
+        ".streamlit/config.toml",
         "README.md",
         "Makefile",
         "docs/DIFF_HYGIENE_AUDIT.md",

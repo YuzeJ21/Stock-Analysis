@@ -18,6 +18,7 @@ SOURCE_PREFIXES = (
 
 ROOT_PRODUCT_FILES = {
     ".gitignore",
+    ".streamlit/config.toml",
     "README.md",
     "ROADMAP.md",
     "PRODUCT_SPEC.md",

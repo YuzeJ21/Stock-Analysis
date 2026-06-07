@@ -4256,7 +4256,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
             "badges": ["business context", "data-honest"],
         },
         {
-            "kicker": "LOGIC SOURCE",
+            "kicker": "METHODOLOGY",
             "title": "Local fundamentals only",
             "body": "This card reads the current report payload and local CSV-backed fundamentals. Fundamentals rules stay in project code; support tools are not analysis logic.",
             "badges": ["project rules", "local CSV"],
@@ -4556,7 +4556,7 @@ def stock_report_function_quality_frame(report_payload: dict[str, object]) -> pd
             {"Function": "Peer comparison", "Current Status": peer_status, "What To Trust": "Peer valuation waits for source-backed peer mappings and peer inputs."},
             {"Function": "Optional context", "Current Status": optional_status, "What To Trust": "Earnings and estimates remain unavailable until trusted local rows exist."},
             {
-                "Function": "Logic source",
+                "Function": "Methodology / provenance",
                 "Current Status": "Project rules",
                 "What To Trust": (
                     "Rules live in project code; libraries and adapters support data/UI. "
@@ -4864,7 +4864,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
     dcf = status_by_function.get("fundamentals / dcf", {})
     peer = status_by_function.get("peer comparison", {})
     optional = status_by_function.get("optional context", {})
-    logic = status_by_function.get("logic source", {})
+    logic = status_by_function.get("methodology / provenance", {})
     return [
         {
             "kicker": "DATA GATE",
@@ -4891,7 +4891,7 @@ def stock_report_function_quality_cards(report_payload: dict[str, object]) -> li
             "badges": ["earnings", "estimates"],
         },
         {
-            "kicker": "LOGIC SOURCE",
+            "kicker": "METHODOLOGY",
             "title": logic.get("status", "Project rules"),
             "body": logic.get(
                 "trust",
@@ -5427,7 +5427,7 @@ def stock_report_source_detail_summary_frame(report_payload: dict[str, object]) 
             {"Detail": "Missing-data warnings", "Value": report_display_value(len(missing_warnings), "integer")},
             {
                 "Detail": "Report data download",
-                "Value": "Use Download Report Data only if you need the optional structured local data file; most readers can use this page or the Markdown report.",
+                "Value": "Use Download Structured Report only if you need the optional saved data file; most readers can use this page or the Markdown report.",
             },
         ]
     )
@@ -7953,7 +7953,7 @@ def peer_function_quality_frame(
                     "Current Coverage": "Peer readiness not ready yet",
                     "Supported Today": "Nothing yet; run readiness before interpreting peer context.",
                     "Not Supported Yet": "Peer trend or valuation comparison.",
-                    "Logic Source": "Project peer readiness checks after make readiness.",
+                    "Methodology / Provenance": "Project peer readiness checks after make readiness.",
                     "Next Step": "make readiness",
                 }
             ]
@@ -7978,7 +7978,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{missing_mapping} ticker(s) missing mappings; {queued} unlock row(s) queued",
                 "Supported Today": "Prioritizing which manual peer rows to add to data/imports/peers.csv.",
                 "Not Supported Yet": "Trusted peer comparison until relationships are source-backed or clearly marked as fallback context.",
-                "Logic Source": "Project peer readiness and peer unlock worklist generation; peer-selection rules stay in this repository.",
+                "Methodology / Provenance": "Project peer readiness and peer unlock worklist generation; peer-selection rules stay in this repository.",
                 "Next Step": "make peer-mapping-queue TOP_N=25",
             },
             {
@@ -7986,7 +7986,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{int(trend_ready.sum())} ticker(s) trend-ready",
                 "Supported Today": "Relative price or momentum context when mapped peers have enough local price rows.",
                 "Not Supported Yet": "Peer-relative valuation or quality conclusions.",
-                "Logic Source": "Project price/momentum readiness checks for mapped peers.",
+                "Methodology / Provenance": "Project price/momentum readiness checks for mapped peers.",
                 "Next Step": "make readiness",
             },
             {
@@ -7994,7 +7994,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{int(valuation_ready.sum())} ticker(s) valuation-ready; {valuation_blocked} still blocked",
                 "Supported Today": "Peer-relative valuation only after peer mappings and peer valuation inputs are ready.",
                 "Not Supported Yet": "Valuation conclusions when peer fundamentals, peer metrics, or mapped peer inputs are missing.",
-                "Logic Source": "Project peer valuation readiness gates; missing peer inputs are withheld, not inferred.",
+                "Methodology / Provenance": "Project peer valuation readiness gates; missing peer inputs are withheld, not inferred.",
                 "Next Step": "make imports-validate",
             },
             {
@@ -8002,7 +8002,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{int(dcf_comparison_ready.sum())} ticker(s) DCF-peer-ready",
                 "Supported Today": "DCF peer context when both subject and mapped peer valuation inputs pass readiness.",
                 "Not Supported Yet": "Using DCF-ready subject companies as if peer-relative valuation is ready.",
-                "Logic Source": "Project DCF and peer readiness intersection checks.",
+                "Methodology / Provenance": "Project DCF and peer readiness intersection checks.",
                 "Next Step": "make dcf-readiness",
             },
             {
@@ -8010,7 +8010,7 @@ def peer_function_quality_frame(
                 "Current Coverage": f"{peer_price_missing} price-gap ticker(s); {peer_fundamentals_missing} fundamentals-gap ticker(s)",
                 "Supported Today": "Finding whether peer blockers are price rows, fundamentals rows, or peer metrics.",
                 "Not Supported Yet": "Treating sector or industry fallback as trusted manual peer valuation.",
-                "Logic Source": "Project blocker classification with explicit fallback labeling.",
+                "Methodology / Provenance": "Project blocker classification with explicit fallback labeling.",
                 "Next Step": "make price-worklist TOP_N=25",
             },
             {
@@ -8018,7 +8018,7 @@ def peer_function_quality_frame(
                 "Current Coverage": "Support layer only.",
                 "Supported Today": "Data handling, table display, tests, and optional development review.",
                 "Not Supported Yet": "Replacing source-backed peer mappings or project peer-readiness rules.",
-                "Logic Source": "Standard libraries and optional provider adapters support data handling; peer logic runs from this repository.",
+                "Methodology / Provenance": "Standard libraries and optional provider adapters support data handling; peer logic runs from this repository.",
                 "Next Step": "make project-status",
             },
         ]
@@ -9318,7 +9318,7 @@ def fundamentals_dcf_function_quality_frame(
                     "Current Coverage": "Readiness not ready yet",
                     "Supported Today": "Nothing yet; run readiness before interpreting fundamentals or DCF status.",
                     "Not Supported Yet": "Any company valuation conclusion.",
-                    "Logic Source": "Project readiness checks after make readiness.",
+                    "Methodology / Provenance": "Project readiness checks after make readiness.",
                     "Next Step": "make readiness",
                 }
             ]
@@ -9358,7 +9358,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{fundamentals_ready_count} fundamentals-ready company row(s)",
                 "Supported Today": "Company snapshot and DCF input review when trusted local or SEC-backed rows exist.",
                 "Not Supported Yet": "Filling missing revenue, cash-flow, margin, or share-count fields by inference.",
-                "Logic Source": "Project import/readiness checks using trusted local CSV and SEC import draft rows.",
+                "Methodology / Provenance": "Project import/readiness checks using trusted local CSV and SEC import draft rows.",
                 "Next Step": "make sec-stage-queue TOP_N=25",
             },
             {
@@ -9366,7 +9366,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{price_ready_missing_fundamentals} company row(s); {active_missing_fundamentals} active-universe row(s)",
                 "Supported Today": "Prioritizing which real fundamentals to stage, validate, preview, and apply next.",
                 "Not Supported Yet": "Company valuation, quality score, or DCF interpretation.",
-                "Logic Source": "Project readiness gates surface missing fundamentals instead of creating placeholder values.",
+                "Methodology / Provenance": "Project readiness gates surface missing fundamentals instead of creating placeholder values.",
                 "Next Step": "make sec-stage-queue TOP_N=25",
             },
             {
@@ -9374,7 +9374,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{dcf_ready_count} company row(s)",
                 "Supported Today": "Assumption and sensitivity review after required company DCF fields pass readiness.",
                 "Not Supported Yet": "Unsupported recommendations or conclusions when optional context remains unavailable.",
-                "Logic Source": "Project DCF readiness and valuation logic in src/valuation.py.",
+                "Methodology / Provenance": "Project DCF readiness and valuation logic in src/valuation.py.",
                 "Next Step": "make dcf-readiness",
             },
             {
@@ -9382,7 +9382,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": missing_field_text,
                 "Supported Today": "Seeing exactly which input fields block company valuation.",
                 "Not Supported Yet": "Treating missing inputs as a negative company signal.",
-                "Logic Source": "Project DCF readiness report; missing fields are displayed, not guessed.",
+                "Methodology / Provenance": "Project DCF readiness report; missing fields are displayed, not guessed.",
                 "Next Step": "make dcf-readiness",
             },
             {
@@ -9390,7 +9390,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{dcf_ready_peer_blocked_count} company row(s)",
                 "Supported Today": "Standalone DCF review while peer-relative valuation stays withheld.",
                 "Not Supported Yet": "Peer-relative valuation without source-backed peer mappings and peer inputs.",
-                "Logic Source": "Project peer readiness checks; fallback sector context is not trusted peer valuation.",
+                "Methodology / Provenance": "Project peer readiness checks; fallback sector context is not trusted peer valuation.",
                 "Next Step": "make peer-mapping-queue TOP_N=10",
             },
             {
@@ -9398,7 +9398,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Current Coverage": f"{excluded_count} row(s) excluded from operating-company DCF",
                 "Supported Today": "Market, theme, liquidity, or risk monitor context.",
                 "Not Supported Yet": "Operating-company fundamentals or DCF valuation.",
-                "Logic Source": "Project asset-type gating marks DCF excluded, not failed.",
+                "Methodology / Provenance": "Project asset-type gating marks DCF excluded, not failed.",
                 "Next Step": stock_report_md_command("QQQ"),
             },
         ]
@@ -9904,7 +9904,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
             "command": "make onboarding TOP_N=10",
         },
         {
-            "kicker": "LOGIC SOURCE",
+            "kicker": "METHODOLOGY",
             "title": "Project readiness gates",
             "body": "Decision buckets are assembled from local readiness, blocker, and source readiness outputs in project code; shipped decisions come from project code and local data.",
             "badges": ["project rules", "transparent"],
@@ -13574,7 +13574,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": f"{len(ready_companies)} row(s)",
                 "Supported Today": "Reviewing assumptions, scenarios, and sensitivity when trusted local company inputs are present.",
                 "Not Supported Yet": "Direct recommendations or unsupported price targets.",
-                "Logic Source": "Project DCF readiness and valuation logic in src/valuation.py plus dashboard/report guardrails.",
+                "Methodology / Provenance": "Project DCF readiness and valuation logic in src/valuation.py plus dashboard/report guardrails.",
             },
             {
                 "Valuation Area": "Blocked companies",
@@ -13583,7 +13583,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": f"{len(blocked_companies)} row(s)",
                 "Supported Today": "Finding the exact missing data needed before company valuation can be reviewed.",
                 "Not Supported Yet": "Calling a company undervalued, overvalued, or weak because inputs are missing.",
-                "Logic Source": "Project readiness checks; missing fields are surfaced instead of inferred.",
+                "Methodology / Provenance": "Project readiness checks; missing fields are surfaced instead of inferred.",
             },
             {
                 "Valuation Area": "ETF / index / fund rows",
@@ -13592,7 +13592,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": f"{len(excluded_rows)} row(s)",
                 "Supported Today": "Monitor context such as market, theme, liquidity, or risk review.",
                 "Not Supported Yet": "Operating-company DCF or peer valuation.",
-                "Logic Source": "Project asset-type gating marks DCF excluded, not failed.",
+                "Methodology / Provenance": "Project asset-type gating marks DCF excluded, not failed.",
             },
             {
                 "Valuation Area": "Peer-relative valuation",
@@ -13601,7 +13601,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": "Available only when source-backed peer mappings and peer inputs are ready.",
                 "Supported Today": "Peer comparison after trusted peer rows and peer metrics exist.",
                 "Not Supported Yet": "Guessed peer relationships or peer valuation when peer inputs are missing.",
-                "Logic Source": "Project peer readiness checks; no fabricated peer mappings.",
+                "Methodology / Provenance": "Project peer readiness checks; no fabricated peer mappings.",
             },
             {
                 "Valuation Area": "Dependencies",
@@ -13610,7 +13610,7 @@ def valuation_function_quality_frame(
                 "Current Coverage": "Support layer only.",
                 "Supported Today": "Data handling, UI display, tests, and optional research-grade data access.",
                 "Not Supported Yet": "Replacing project valuation rules or trusted local valuation inputs.",
-                "Logic Source": "Standard libraries and optional adapters support the workflow; valuation rules live in this repository.",
+                "Methodology / Provenance": "Standard libraries and optional adapters support the workflow; valuation rules live in this repository.",
             },
         ]
     )
@@ -17194,7 +17194,7 @@ def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
             "badges": ["research-only", "no forced fills"],
         },
         {
-            "kicker": "LOGIC SOURCE",
+            "kicker": "METHODOLOGY",
             "title": "Project scoring logic",
             "body": (
                 "Score components and report wording come from this repository's saved local research views and src/monthly_picks.py. "
@@ -19108,7 +19108,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": "Strong when the local readiness reports are current; this is the first layer every page should respect.",
                 "Supported Today": "Strongest layer; decides whether deeper analysis is allowed.",
                 "Needs Trusted Data": "Ticker universe, prices, fundamentals, peers, earnings, and estimate readiness rows.",
-                "Logic Source": "Project rules in src/readiness_engine.py.",
+                "Methodology / Provenance": "Project rules in src/readiness_engine.py.",
             },
             {
                 "Function Area": "Price / momentum",
@@ -19117,7 +19117,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": price_status,
                 "Supported Today": "Local setup, trend, liquidity, and market-context review when price history exists.",
                 "Needs Trusted Data": "Verified local OHLCV rows with enough history.",
-                "Logic Source": "Project calculations in src/indicators.py and src/momentum_engine.py.",
+                "Methodology / Provenance": "Project calculations in src/indicators.py and src/momentum_engine.py.",
             },
             {
                 "Function Area": "Fundamentals / DCF",
@@ -19126,7 +19126,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": dcf_status,
                 "Supported Today": "DCF-ready company analysis with visible input path, assumptions, and sensitivity.",
                 "Needs Trusted Data": "Revenue, free cash flow or margin, shares, price, cash, debt, and source readiness.",
-                "Logic Source": "Project assumptions in src/value_engine.py and src/valuation.py.",
+                "Methodology / Provenance": "Project assumptions in src/value_engine.py and src/valuation.py.",
             },
             {
                 "Function Area": "Peer comparison",
@@ -19135,7 +19135,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": peer_status,
                 "Supported Today": "Workflow-ready peer context after source-backed peer rows and peer metrics exist.",
                 "Needs Trusted Data": "Manual peer mappings plus peer fundamentals or peer market context.",
-                "Logic Source": "Project peer readiness and valuation checks; no guessed peer mappings.",
+                "Methodology / Provenance": "Project peer readiness and valuation checks; no guessed peer mappings.",
             },
             {
                 "Function Area": "Earnings / estimates",
@@ -19144,7 +19144,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": f"{earnings_status} {estimates_status}",
                 "Supported Today": "Optional context only after trusted local rows exist; empty coverage means intentionally unavailable.",
                 "Needs Trusted Data": "Trusted local earnings and analyst-estimate CSV rows with validation/preview/apply review.",
-                "Logic Source": "Project optional-context readiness and import workflow.",
+                "Methodology / Provenance": "Project optional-context readiness and import workflow.",
             },
             {
                 "Function Area": "Single-stock report",
@@ -19153,7 +19153,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": "Clear for one ticker's ready, blocked, excluded, and monitor-only analysis.",
                 "Supported Today": "One-ticker review of supported, blocked, excluded, and monitor-only analysis.",
                 "Needs Trusted Data": "Current local readiness, price, DCF, peer, optional-context, and source readiness outputs.",
-                "Logic Source": "Project report assembly in src/stock_report.py and src/dashboard.py separates source rows from product calculations and blocked-section wording.",
+                "Methodology / Provenance": "Project report assembly in src/stock_report.py and src/dashboard.py separates source rows from product calculations and blocked-section wording.",
             },
             {
                 "Function Area": "Dependencies",
@@ -19162,7 +19162,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
                 "Current Status": "Support layer only; analysis rules remain in project code.",
                 "Supported Today": "Data handling, UI, tests, and optional research-grade provider access.",
                 "Needs Trusted Data": "Local CSV inputs remain the source of truth by default.",
-                "Logic Source": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance support the app; analysis rules remain under src/.",
+                "Methodology / Provenance": "Libraries/adapters such as pandas, numpy, Streamlit, PyYAML, and optional yfinance support the app; analysis rules remain under src/.",
             },
         ]
     )
@@ -19247,7 +19247,7 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
             tone="warning",
         )
 
-    with st.expander("Learn more: methodology, roadmap, and logic source", expanded=False):
+    with st.expander("Learn more: methodology, roadmap, and transparency", expanded=False):
         render_section_header("Methodology Ladder", "How the product gets from local data to report wording without guessing missing inputs.")
         st.dataframe(clean_display_frame(methodology_ladder_frame()), width="stretch", hide_index=True)
         st.caption("Full methodology: docs/METHODOLOGY.md")
@@ -19257,9 +19257,9 @@ def render_home_page(catalog: LocalDataCatalog, output_frames: dict[str, tuple[p
         with st.expander("Roadmap status table", expanded=False):
             st.dataframe(clean_display_frame(roadmap_milestone_status_frame(summary)), width="stretch", hide_index=True)
 
-        render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and where the logic comes from.")
+        render_section_header("Analysis Capability", "What the current functions are good at, where they are limited, and how the methodology is kept transparent.")
         render_signal_cards(_plain_home_capability_cards())
-        render_section_header("Where The Logic Comes From", "Plain-language provenance for the analysis functions and development aids.")
+        render_section_header("Methodology And Provenance", "Plain-language provenance for the analysis functions and development aids.")
         render_signal_cards(_plain_home_provenance_cards())
         with st.expander("Detailed analysis capability audit", expanded=False):
             st.write(
@@ -19854,7 +19854,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
                 )
 
     st.download_button(
-        "Download Report Data",
+        "Download Structured Report",
         data=st.session_state.get("single_stock_report_download", "{}"),
         file_name=f"{st.session_state.get('single_stock_report_ticker', 'stock').lower()}_stock_report.json",
         mime="application/json",

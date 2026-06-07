@@ -27,6 +27,13 @@ def test_generated_staging_pathspec_files_are_ignored():
     assert "outputs/staging/" in gitignore
 
 
+def test_streamlit_toolbar_uses_viewer_mode_for_public_dashboard():
+    config = Path(".streamlit/config.toml").read_text(encoding="utf-8")
+
+    assert "[client]" in config
+    assert 'toolbarMode = "viewer"' in config
+
+
 def test_makefile_contains_convenience_targets():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
@@ -1033,7 +1040,7 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Plain Answer",
         "Function Quality Matrix",
         "What Is Intentionally Limited",
-        "Where The Logic Comes From",
+        "Methodology And Provenance",
         "Support Tooling Boundary",
         "Input-To-Output Contract",
         "At A Glance status",
@@ -1208,8 +1215,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "Use research-grade online data" not in dashboard
     assert "Show source readiness details" in dashboard
     assert "Show report source details" not in dashboard
-    assert "Download Report Data" in dashboard
-    assert "Download Structured Report" not in dashboard
+    assert "Download Structured Report" in dashboard
+    assert "Download Report Data" not in dashboard
     assert "Download Report Data (JSON)" not in dashboard
     assert "technical context" not in dashboard.lower()
     assert "trend and risk context" in dashboard

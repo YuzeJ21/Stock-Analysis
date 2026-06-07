@@ -68,7 +68,7 @@ The product now uses the same plain modes across the dashboard and single-stock 
 | `Monitor-only context` | ETF/index/fund market, theme, liquidity, and risk monitoring. | Operating-company DCF, which is excluded rather than failed. |
 | `Data-unlock only` | Identifying the next trusted local input to add. | Any analytical conclusion beyond the visible blocker. |
 
-## Where The Logic Comes From
+## Methodology And Provenance
 
 The analysis logic is implemented in this repository under `src/`. The shipped product is not a wrapper around external investing services, ranking services, account-execution tools, or broker workflows:
 
