@@ -91,8 +91,8 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert "missing_peer_mapping" not in rendered
     assert "peer_data_unavailable" not in rendered
     assert "not_ready" not in rendered
-    assert "Workflow Group" in workflow_rows.columns
-    assert "Workflow Scope" in workflow_rows.columns
+    assert "Unlock Path" in workflow_rows.columns
+    assert "Queue Scope" in workflow_rows.columns
     assert "Peer Blocker Type" in workflow_rows.columns
     assert "workflow_group" not in rendered_columns
     assert "workflow_scope" not in rendered_columns
@@ -17334,11 +17334,11 @@ def test_presentation_frame_uses_readable_labels_and_values():
 
     display = dashboard.presentation_frame(frame)
 
-    assert list(display.columns) == ["Ticker", "1M Return", "Watchlist Score", "Missing Data", "Reason"]
+    assert list(display.columns) == ["Ticker", "1M Return", "Watchlist Score", "Missing Inputs", "Reason"]
     assert display.iloc[0]["1M Return"] == "12.3%"
     assert display.iloc[0]["Watchlist Score"] == "81.2"
-    assert "Not enough price history" in display.iloc[0]["Missing Data"]
-    assert "Needs peers.csv" in display.iloc[0]["Missing Data"]
+    assert "Not enough price history" in display.iloc[0]["Missing Inputs"]
+    assert "Needs peers.csv" in display.iloc[0]["Missing Inputs"]
 
 
 def test_presentation_frame_handles_duplicate_source_columns_safely():
@@ -17354,6 +17354,11 @@ def test_presentation_frame_handles_duplicate_source_columns_safely():
 def test_display_column_label_humanizes_unknown_columns():
     assert dashboard.display_column_label("avg_volume_20d") == "Avg Volume 20D"
     assert dashboard.display_column_label("PeerRelativeStatus") == "Peer Relative"
+    assert dashboard.display_column_label("decision_subtype") == "Review Detail"
+    assert dashboard.display_column_label("primary_blocker") == "Main Blocker"
+    assert dashboard.display_column_label("workflow_group") == "Unlock Path"
+    assert dashboard.display_column_label("workflow_scope") == "Queue Scope"
+    assert dashboard.display_column_label("exact_command") == "Command To Copy"
 
 
 def test_sidebar_guide_rows_are_actionable_and_research_safe():
