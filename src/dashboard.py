@@ -11166,9 +11166,9 @@ def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> li
     return [
         {
             "kicker": "QUEUE DETAILS",
-            "title": f"{len(frame)} workflow path(s), {total_tickers} ticker(s)",
-            "body": "Guided steps group the active queue into review, monitor, and data-unlock workflows so the next action is clear without reading every ticker row.",
-            "badges": ["grouped workflow", "row-limited"],
+            "title": f"{len(frame)} review route(s), {total_tickers} ticker(s)",
+            "body": "Review steps group the active queue into supported review, monitor, and data-unlock routes so the next action is clear without reading every ticker row.",
+            "badges": ["grouped review", "row-limited"],
             "command": "make project-status",
         },
         {
@@ -11272,10 +11272,10 @@ def product_page_logic_audit_frame(
 
     rows.append(
         {
-            "check": "Active queue guided steps",
+            "check": "Active queue review steps",
             "status": "pass" if lane_count and has_validation and has_copy_only else "review",
-            "evidence": f"{lane_count} active workflow path(s) with validation sequences: {'yes' if has_validation else 'no'}; copy-only notes: {'yes' if has_copy_only else 'no'}.",
-            "operator_action": "Use grouped guided steps before opening broad ticker tables.",
+            "evidence": f"{lane_count} active review route(s) with validation sequences: {'yes' if has_validation else 'no'}; copy-only notes: {'yes' if has_copy_only else 'no'}.",
+            "operator_action": "Use grouped review steps before opening broad ticker tables.",
             "source": "dashboard active evaluation queue",
         }
     )
@@ -11283,7 +11283,7 @@ def product_page_logic_audit_frame(
         {
             "check": "Unsupported conclusions withheld",
             "status": "pass" if lane_count and has_withheld else "review",
-            "evidence": f"{lane_count} active workflow path(s) show withheld or excluded conclusion wording: {'yes' if has_withheld else 'no'}.",
+            "evidence": f"{lane_count} active review route(s) show withheld or excluded conclusion wording: {'yes' if has_withheld else 'no'}.",
             "operator_action": "Do not show peer valuation, DCF, earnings, or estimate conclusions when inputs are unavailable.",
             "source": "dashboard active evaluation queue",
         }
@@ -11502,7 +11502,7 @@ def product_page_logic_audit_cards(audit_frame: pd.DataFrame | None) -> list[dic
         {
             "kicker": "QUALITY CHECK",
             "title": f"{pass_count} pass / {review_count} review",
-            "body": "Checks readiness-first sequence, Research Now gating, ETF DCF exclusion, copy-only guided steps, withheld conclusions, peer-action alignment, exact copyable commands, research-only language, feature/decision/peer/fundamentals cards, purpose drilldown, next action console, import validation, blocker queues, next-best-action cards, readiness explorer, single-stock drilldown, and row limits.",
+            "body": "Checks readiness-first sequence, Research Now gating, ETF DCF exclusion, copy-only review steps, withheld conclusions, peer-action alignment, exact copyable commands, research-only language, feature/decision/peer/fundamentals cards, purpose drilldown, next action console, import validation, blocker queues, next-best-action cards, readiness explorer, single-stock drilldown, and row limits.",
             "badges": ["product quality", "data-honest"],
             "command": "make project-status",
         },

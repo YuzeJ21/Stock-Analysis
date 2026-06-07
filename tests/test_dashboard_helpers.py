@@ -18993,7 +18993,9 @@ def test_active_evaluation_lane_detail_groups_runbook_without_overclaiming():
     assert "make imports-validate" in rendered
     assert "peer-relative valuation is withheld" in rendered
     assert "operating-company dcf is excluded" in rendered
-    assert "3 workflow path(s), 4 ticker(s)" in rendered_cards
+    assert "3 review route(s), 4 ticker(s)" in rendered_cards
+    assert "workflow path(s)" not in rendered_cards
+    assert "review steps group the active queue" in rendered_cards
     assert "first path" in rendered_cards
     assert "lane details" not in rendered_cards
     assert "peer-relative valuation is withheld" in rendered_cards
@@ -19221,7 +19223,8 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
     assert "readiness before conclusions" in rendered
     assert "research now gating" in rendered
     assert "etf / index dcf exclusion" in rendered
-    assert "active queue guided steps" in rendered
+    assert "active queue review steps" in rendered
+    assert "active queue guided steps" not in rendered
     assert "unsupported conclusions withheld" in rendered
     assert "peer action alignment" in rendered
     assert "purpose drilldown actionability" in rendered
@@ -19229,6 +19232,8 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
     assert "research-only language" in rendered
     assert "row-limited active workflow" in rendered
     assert "readiness explorer default limit" in rendered
+    assert "active review route(s)" in rendered
+    assert "active workflow path(s)" not in rendered
     assert cards[0]["title"] == "11 pass / 0 review"
     assert "exact copyable commands" in cards[0]["body"]
     assert "research-only language" in cards[0]["body"]
