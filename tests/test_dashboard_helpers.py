@@ -238,11 +238,11 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert rendered.count("copy next:") == 4
     assert rendered.count("read path:") == 4
     assert rendered.count("guided path:") == 4
-    assert rendered.count("dashboard lane:") == 4
-    assert "dashboard lane: home next-step cards" in rendered
-    assert "dashboard lane: single-stock review" in rendered
-    assert "dashboard lane: fundamentals / dcf unlock" in rendered
-    assert "dashboard lane: data health unlock lanes" in rendered
+    assert rendered.count("workflow path:") == 4
+    assert "workflow path: home next-step cards" in rendered
+    assert "workflow path: single-stock review" in rendered
+    assert "workflow path: fundamentals / dcf unlock" in rendered
+    assert "workflow path: data health unlock paths" in rendered
     assert "how should i read this page?" in rendered
     assert "read readiness cards first" in rendered
     assert "locked sections are boundaries, not hidden conclusions" in rendered
@@ -261,7 +261,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "run make readiness and reopen home before interpreting changed counts" in rendered
     assert "regenerate the markdown report before reading newly available sections" in rendered
     assert "run make dcf-readiness and make readiness before reading valuation output" in rendered
-    assert "run the matching readiness command and reopen data health before treating a lane as unlocked" in rendered
+    assert "run the matching readiness command and reopen data health before treating a path as unlocked" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make dcf-readiness" in rendered
     assert "make data-wizard top_n=10" in rendered
@@ -8891,7 +8891,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert refresh_note_index < quick_read_index
     assert 'st.expander("Refresh status note", expanded=False)' in source
     assert "Data Health Quick Read" in source
-    assert "Which unlock lane should you inspect first, before opening detailed tables." in source
+    assert "Which unlock path should you inspect first, before opening detailed tables." in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
     assert "Plain-English valuation queues before the full command center details." in source
@@ -10543,7 +10543,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
     cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[0]["kicker"] == "PRICES RUNBOOK"
+    assert cards[0]["kicker"] == "PRICES STEPS"
     assert "run bundle command" in rendered
     assert "unlock monthly picks" in rendered
     assert "21 target rows" in rendered
