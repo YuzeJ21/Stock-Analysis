@@ -132,7 +132,7 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
         )
     return (
         f"Viewing {selected_page}.",
-        "Use this page for the selected workflow. If you feel lost, return to Home for the plain-language readiness summary.",
+        "Use this page for the selected review area. If you feel lost, return to Home for the plain-language readiness summary.",
     )
 
 
@@ -224,9 +224,9 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
         },
         {
             "kicker": "REVIEW ROUTE",
-            "title": "Where does this fit in the stock workflow?",
+            "title": "Where does this fit in the stock review path?",
             "body": f"Review route: {guide['review_route']}",
-            "badges": ["one workflow", "proof before interpretation"],
+            "badges": ["one review path", "proof before interpretation"],
             "command": guide["command"],
         },
     ]
@@ -474,7 +474,7 @@ DATASET_NAME_LABELS = {
 }
 COLUMN_LABELS = {
     "Ticker": "Ticker",
-    "evaluation_lane": "Workflow Path",
+    "evaluation_lane": "Review Path",
     "Theme": "Theme",
     "Sector": "Sector",
     "SectorETF": "Sector ETF",

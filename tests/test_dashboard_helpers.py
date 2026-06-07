@@ -299,7 +299,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "use value / re-rating to classify dcf-ready, locked, or excluded valuation states" in rendered
     assert "use single-stock report after home or value / re-rating to prove one ticker" in rendered
     assert "use data health when home, value / re-rating, or single-stock report shows a lock" in rendered
-    assert "where does this fit in the stock workflow?" in rendered
+    assert "where does this fit in the stock review path?" in rendered
     assert "unsupported dcf, peer valuation, earnings, and estimate sections stay withheld" in rendered
     assert "dcf-ready company rows can support assumption, scenario, sensitivity, and source-readiness review" in rendered
     assert "source-freshness review" not in rendered
@@ -402,7 +402,7 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert "holding purpose" in portfolio_body
     assert "without creating portfolio actions" in portfolio_body
     assert unknown_title == "Viewing Unknown Page."
-    assert "selected workflow" in unknown_body
+    assert "selected review area" in unknown_body
     assert "return to Home" in unknown_body
 
 
@@ -17501,7 +17501,7 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():
     assert dashboard.COLUMN_LABELS["GoalSummary"] == "Goal Summary"
-    assert dashboard.COLUMN_LABELS["evaluation_lane"] == "Workflow Path"
+    assert dashboard.COLUMN_LABELS["evaluation_lane"] == "Review Path"
     assert dashboard.COLUMN_LABELS["TargetGoal"] == "Target Goal"
     assert dashboard.COLUMN_LABELS["RowsNeeded"] == "Rows Needed"
     assert dashboard.COLUMN_LABELS["TargetHistoryRows"] == "Target History Rows"
