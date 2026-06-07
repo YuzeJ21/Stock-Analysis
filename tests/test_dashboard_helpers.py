@@ -8175,6 +8175,7 @@ def test_value_re_rating_page_uses_context_not_ready_conclusion_language():
     assert "value / re-rating at a glance" in source
     assert "what you can analyze now" in source
     assert "what is still locked" in source
+    assert "more valuation context, boundaries, and method" in source
     assert "valuation method path" in source
     assert "intrinsic vs relative value" in source
     assert "where standalone dcf ends, where peer valuation begins" in source
@@ -16352,13 +16353,22 @@ def test_value_re_rating_detail_tables_are_collapsed_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     quick_read_index = source.index('render_section_header("Valuation Quick Read"')
+    context_expander_index = source.index('st.expander("More valuation context, boundaries, and method"')
     at_glance_index = source.index('render_section_header("Value / Re-rating At A Glance"')
+    boundaries_index = source.index('render_section_header("Valuation Boundaries"')
+    decision_guide_index = source.index('render_section_header("Valuation Decision Guide"')
     blocked_detail_index = source.index('st.expander("Companies waiting for valuation inputs"')
     excluded_detail_index = source.index('st.expander("ETF / index proxy exclusions"')
     full_table_index = source.index('st.expander("Full valuation output table"')
 
-    assert quick_read_index < at_glance_index < blocked_detail_index < full_table_index
+    assert quick_read_index < context_expander_index < blocked_detail_index < full_table_index
+    assert context_expander_index < at_glance_index < boundaries_index < decision_guide_index < blocked_detail_index
     assert blocked_detail_index < excluded_detail_index < full_table_index
+    assert 'st.expander("More valuation context, boundaries, and method", expanded=False)' in source
+    assert 'st.expander("Valuation method, boundaries, and decision guide"' not in source
+    assert 'st.expander("What valuation can support today"' not in source
+    assert 'st.expander("DCF method contract"' not in source
+    assert 'st.expander("Detailed valuation decision guide"' not in source
     assert 'st.expander("Companies waiting for valuation inputs", expanded=False)' in source
     assert 'st.expander("ETF / index proxy exclusions", expanded=False)' in source
     assert 'st.expander("Raw valuation input details", expanded=False)' in source

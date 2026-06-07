@@ -17888,25 +17888,25 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     ready_companies, not_ready_companies, excluded = split_dcf_readiness(dcf_readiness_frame)
     render_section_header("Valuation Quick Read", "Which valuation lane to inspect first before reading tables or legacy value columns.")
     render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
-    render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or legacy output filenames.")
-    render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
-    render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")
-    render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
-    render_section_header("Intrinsic vs Relative Value", "Where standalone DCF ends, where peer valuation begins, and why blocked data stays locked.")
-    render_signal_cards(valuation_boundary_explainer_cards())
-    render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
-    render_signal_cards(valuation_method_path_cards())
-    with st.expander("What valuation can support today", expanded=False):
+    with st.expander("More valuation context, boundaries, and method", expanded=False):
+        render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or legacy output filenames.")
+        render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
+        render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")
+        render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))
+        render_section_header("Intrinsic vs Relative Value", "Where standalone DCF ends, where peer valuation begins, and why blocked data stays locked.")
+        render_signal_cards(valuation_boundary_explainer_cards())
+        render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
+        render_signal_cards(valuation_method_path_cards())
         st.write(
             "This audit separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "
-            "peer-relative valuation, and support dependencies so missing inputs do not look like conclusions."
+            "peer-relative valuation, and support dependencies so missing inputs do not look like conclusions. "
+            "Operating-company valuation context is shown only for DCF-ready companies."
         )
         st.dataframe(
             clean_display_frame(valuation_function_quality_frame(ready_companies, not_ready_companies, excluded)),
             width="stretch",
             hide_index=True,
         )
-    with st.expander("DCF method contract", expanded=False):
         st.write(
             "This is the compact input-to-output contract behind the DCF view. It keeps the formula path visible "
             "and shows why missing fields block valuation instead of being filled."
@@ -17916,25 +17916,13 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
             width="stretch",
             hide_index=True,
         )
-    render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
-    render_signal_cards(valuation_decision_guide_cards(ready_companies, not_ready_companies, excluded))
-    with st.expander("Detailed valuation decision guide", expanded=False):
+        render_section_header("Valuation Decision Guide", "A plain-language map of which valuation rows can be reviewed, which stay locked, and why.")
+        render_signal_cards(valuation_decision_guide_cards(ready_companies, not_ready_companies, excluded))
         st.dataframe(
             clean_display_frame(valuation_readiness_operator_frame(ready_companies, not_ready_companies, excluded)),
             width="stretch",
             hide_index=True,
         )
-    render_signal_cards(
-        [
-            {
-                "kicker": "DCF READINESS",
-                "title": f"{len(ready_companies)} ready / {len(not_ready_companies)} blocked / {len(excluded)} excluded",
-                "body": "Operating-company valuation context is shown only for DCF-ready companies. ETFs/index proxies are excluded from DCF.",
-                "badges": ["ready", "blocked", "excluded"],
-                "command": "make dcf-readiness",
-            }
-        ]
-    )
     if dcf_readiness_frame is None:
         render_notice_card(
             "DCF readiness has not been generated",
