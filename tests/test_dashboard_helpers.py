@@ -342,7 +342,7 @@ def test_dashboard_page_reader_summary_cards_keep_first_screen_compact():
     assert "read path:" not in rendered
     assert "guided path:" not in rendered
     assert "locked sections stay visible when trusted inputs are missing" in rendered
-    assert "make status-check top_n=5" in rendered
+    assert "make status-check top_n=5" not in rendered
     assert "dashboard never runs refreshes, imports, or external actions" in rendered
     assert len(str(cards[0]["body"])) < 360
     assert "broker" not in rendered
@@ -932,7 +932,8 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "optional context is available" in rendered
     assert "prove the unlock before reading conclusions" in rendered
     assert "rerun readiness before interpreting changed cards" in rendered
-    assert "make readiness, then make status-check top_n=5, then reopen home" in rendered
+    assert "review the local status snapshot and reopen home" in rendered
+    assert "use make readiness" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

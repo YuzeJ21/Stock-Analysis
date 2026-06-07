@@ -247,7 +247,7 @@ def dashboard_page_reader_summary_cards(page_title: str) -> list[dict[str, objec
                 "Commands are copy-only; the dashboard never runs refreshes, imports, or external actions."
             ),
             "badges": ["plain English", "copy-only", "research-only"],
-            "command": str(copy_next.get("command") or page_guide.get("command") or "make status-check TOP_N=5"),
+            "command": "",
         }
     ]
 
@@ -18884,7 +18884,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Prove the unlock before reading conclusions",
             "body": (
                 "After a refresh or import, rerun readiness before interpreting changed cards. "
-                "Use make readiness, then make status-check TOP_N=5, then reopen Home so ready and locked counts are current."
+                "Then review the local status snapshot and reopen Home so ready and locked counts are current."
             ),
             "badges": ["proof first", "copy-only"],
             "command": "make readiness && make status-check TOP_N=5",
