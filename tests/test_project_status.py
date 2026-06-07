@@ -558,6 +558,10 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
         sys.argv = argv_before
 
     assert "project status summary" in output
+    assert "data-unlock steps:" in output
+    assert "research-purpose groups:" in output
+    assert "onboarding actions:" not in output
+    assert "purpose evaluation groups:" not in output
     assert "wrote:" not in output
 
 

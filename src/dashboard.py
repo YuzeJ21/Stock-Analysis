@@ -14609,9 +14609,9 @@ def project_status_metric_cards(payload: dict[str, Any] | None) -> list[tuple[st
         ("DCF Ready", f"{dcf_ready}/{total_tickers}", "Tickers with enough local valuation fields"),
         ("Peer Ready", f"{peer_ready}/{total_tickers}", "Tickers with local peer context"),
         (
-            "Critical Actions",
+            "Urgent Unlock Steps",
             int(summary.get("critical_actions") or 0),
-            f"{int(summary.get('onboarding_actions') or 0)} onboarding actions total",
+            f"{int(summary.get('onboarding_actions') or 0)} data-unlock steps total",
         ),
     ]
 
@@ -14698,7 +14698,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
     if not actions:
         actions.append(
             (
-                "No urgent onboarding actions",
+                "No urgent unlock steps",
                 "The read-only project status did not find priority local data tasks.",
                 "make verify",
                 "neutral",
@@ -17609,7 +17609,7 @@ def priority_now_fallback_actions(
     actions: list[tuple[str, str, str, str]] = project_status_action_cards(project_status_payload)
     dcf_ready_count = _dcf_ready_count(catalog)
     peer_ready_count = _peer_ready_count(catalog)
-    only_no_urgent_action = len(actions) == 1 and actions[0][0] == "No urgent onboarding actions"
+    only_no_urgent_action = len(actions) == 1 and actions[0][0] == "No urgent unlock steps"
     if only_no_urgent_action and missing_warning_count == 0 and dcf_ready_count > 0 and peer_ready_count > 0:
         actions = []
     if missing_warning_count:
@@ -18712,7 +18712,7 @@ def render_overview(
                 ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
                 ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
                 ("Research Ready", health_summary["research_ready"], "Coverage guide rows"),
-                ("Critical Actions", queue_summary["critical"], "Highest-priority data fixes"),
+                ("Urgent Unlock Steps", queue_summary["critical"], "Highest-priority data fixes"),
             ]
         )
 

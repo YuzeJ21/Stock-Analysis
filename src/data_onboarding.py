@@ -2852,7 +2852,7 @@ def _print_coverage(payload: dict[str, Any], *, top_n: int | None = None) -> Non
             f"DCF {_ready_label(row['dcf_ready'])}; peer analysis {_ready_label(row['peer_ready'])}; "
             f"guidance={_plain_action_text(row['next_best_action'])}"
         )
-    print(f"Onboarding actions: {len(payload['onboarding_actions'])}")
+    print(f"Data-unlock steps: {len(payload['onboarding_actions'])}")
     for row in _limited_rows(payload["onboarding_actions"], top_n=top_n, default=20):
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(f"- P{row['priority']} {row['dataset']}{ticker}: {_plain_action_text(row['recommended_action'])}")
@@ -3203,7 +3203,7 @@ def _filter_command_bundle_payload(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
+    parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and data-unlock steps.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
     parser.add_argument("--wizard", action="store_true", help="Print prioritized data coverage wizard rows.")
     parser.add_argument("--price-worklist", action="store_true", help="Print prioritized local price-history worklist rows.")
