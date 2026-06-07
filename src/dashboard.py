@@ -20571,7 +20571,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_context_note(
         "Beginner view.",
-        "Read these next three sections first. They show the safest unlock path without opening the detailed market-wide review.",
+        "Read these next three sections first. They show the safest unlock path without opening the broader tables.",
     )
     render_section_header("Data Health Quick Read", "Which unlock path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
@@ -20588,7 +20588,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
         render_section_header(
             "Valuation Unlock Snapshot",
-            "Plain-English valuation worklists before the detailed market-wide review.",
+            "Plain-English valuation worklists before the broader market-wide tables.",
         )
         render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
     with st.expander("Detailed market-wide review", expanded=False):

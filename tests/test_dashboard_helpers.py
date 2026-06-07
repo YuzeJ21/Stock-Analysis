@@ -653,7 +653,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Read these next three sections first." in source
-    assert "without opening the detailed market-wide review" in source
+    assert "without opening the broader tables" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Unlock planning cards", expanded=False)' in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
@@ -9239,7 +9239,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert 'st.expander("Local dataset validation details", expanded=False)' not in source
     assert "Supported Analysis Ladder" in source
     assert "Valuation Unlock Snapshot" in source
-    assert "Plain-English valuation worklists before the detailed market-wide review." in source
+    assert "Plain-English valuation worklists before the broader market-wide tables." in source
     assert "Plain-English valuation queues before the full command center details." not in source
     assert "When Is A Stock Ready Enough?" not in source
     assert "Validation, source availability, price refresh diagnostics, and onboarding actions in one place." not in source
