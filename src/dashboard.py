@@ -19497,7 +19497,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     )
     manual_ticker = selection_cols[1].text_input("Enter ticker", value="" if selected != "Custom" else "AAPL")
     use_yfinance = selection_cols[2].checkbox(
-        "Optional online research source",
+        "Online data check (optional)",
         value=False,
         help=(
             "Leave this off for the saved local-data path. If enabled, online data is unofficial / "
@@ -19512,17 +19512,17 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
-        with st.expander("Ticker coverage and peer context", expanded=False):
+        with st.expander("Coverage and peer readiness", expanded=False):
             render_context_note(
                 "Local coverage.",
                 "Dataset readiness for the selected ticker based on local CSV availability and schema validation.",
             )
             render_signal_cards(stock_report_local_context_cards(coverage, peer_summary))
             st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
-            with st.expander("Complete local coverage details", expanded=False):
+            with st.expander("More coverage details", expanded=False):
                 st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
             readiness_cols = st.columns(4)
-            readiness_cols[0].metric("Peer Dataset", "Present" if peer_summary["peer_dataset_present"] else "Missing")
+            readiness_cols[0].metric("Peer File", "Present" if peer_summary["peer_dataset_present"] else "Missing")
             readiness_cols[1].metric("Peer Count", peer_summary["peer_count"])
             readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])

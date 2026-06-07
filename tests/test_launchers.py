@@ -1211,7 +1211,7 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "Build Local Report Preview" in dashboard
     assert "Show Report Preview" not in dashboard
     assert "Generate Local Stock Report" not in dashboard
-    assert "Optional online research source" in dashboard
+    assert "Online data check (optional)" in dashboard
     assert "Use research-grade online data" not in dashboard
     assert "Show source readiness details" in dashboard
     assert "Show report source details" not in dashboard
