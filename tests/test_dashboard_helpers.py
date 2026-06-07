@@ -13749,7 +13749,7 @@ def test_readiness_recent_progress_cards_show_current_only_baseline_without_prio
     assert "current-only baseline" in rendered
     assert "no prior snapshot" in rendered
     assert "make readiness-snapshot" in rendered
-    assert "ticker_readiness_report.previous.csv" in rendered
+    assert "ticker_readiness_report.previous.csv" not in rendered
     assert "snapshot -> targeted update -> compare" in rendered
     assert "targeted refresh or import" in rendered
     assert "peer: 2" in rendered
@@ -13807,7 +13807,8 @@ def test_readiness_recent_progress_cards_compare_prior_snapshot_and_newly_ready_
     assert "newly ready tickers: bbb" in rendered
     assert "prior refresh timestamp" in rendered
     assert "previous vs current" in rendered
-    assert "data/reports/ticker_readiness_report.previous.csv" in rendered
+    assert "compared with saved prior readiness snapshot" in rendered
+    assert "data/reports/ticker_readiness_report.previous.csv" not in rendered
     assert "snapshot -> targeted update -> compare" in rendered
     assert "prior generated" not in rendered
     assert "latest generated" not in rendered

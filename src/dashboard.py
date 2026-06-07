@@ -7298,7 +7298,7 @@ def readiness_recent_progress_cards(
     change_frame = build_readiness_change_frame(current, previous_frame)
     latest = _latest_frame_timestamp(current)
     prior_latest = _latest_frame_timestamp(previous_frame)
-    prior_label = format_missing(previous_snapshot_label, "data/reports/ticker_readiness_report.previous.csv")
+    prior_label = "saved prior readiness snapshot" if previous_snapshot_label else "prior readiness snapshot"
     price_ready = int(change_frame.loc[change_frame["feature"].eq("Price"), "current_ready"].max() or 0)
     dcf_ready = int(change_frame.loc[change_frame["feature"].eq("DCF"), "current_ready"].max() or 0)
     peer_ready = int(change_frame.loc[change_frame["feature"].eq("Peers"), "current_ready"].max() or 0)
@@ -7339,7 +7339,7 @@ def readiness_recent_progress_cards(
                 "kicker": "WHAT CHANGED",
                 "title": changed_text or "No ready-count change",
                 "body": (
-                    f"Compared with prior snapshot {prior_label}; prior refresh timestamp: {format_missing(prior_latest)}. "
+                    f"Compared with {prior_label}; prior refresh timestamp: {format_missing(prior_latest)}. "
                     f"Newly ready tickers: {newly_ready or 'none detected'}. "
                     "This is a count comparison only; review source readiness before interpreting analysis."
                 ),
@@ -7354,7 +7354,7 @@ def readiness_recent_progress_cards(
                 "title": "Current-only baseline",
                 "body": (
                     "No prior readiness snapshot was found, so the dashboard shows current counts without pretending a delta exists. "
-                    "Run make readiness-snapshot before the next targeted refresh or import, then run make readiness to compare real before/after counts from data/reports/ticker_readiness_report.previous.csv."
+                    "Run make readiness-snapshot before the next targeted refresh or import, then run make readiness to compare real before/after counts."
                 ),
                 "badges": ["no prior snapshot", "data-honest"],
                 "command": "make readiness-snapshot",
