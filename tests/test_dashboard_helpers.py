@@ -6207,7 +6207,7 @@ def test_overview_benchmark_pressure_cards_handle_missing_inputs_gracefully():
     cards = dashboard.overview_benchmark_pressure_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "local prices present" in rendered or "ticker coverage is not available yet" in rendered
+    assert "local prices present" in rendered or "ticker coverage is not ready yet" in rendered
     assert cards[0]["command"] == "make runbook-prices-broader"
     assert cards[1]["command"] == "make pipeline"
     assert "make runbook-prices-broader" in rendered
@@ -6237,7 +6237,7 @@ def test_artifact_notice_copy_uses_narrow_front_doors_for_specific_artifacts():
     assert action_command == "make action-queue"
     assert "research action queue" in action_body.lower()
     assert health_command == "make research-health"
-    assert "research health outputs are not available yet" in health_body.lower()
+    assert "research health outputs are not ready yet" in health_body.lower()
     assert sources_command == "make data-sources"
     assert "local source registry" in sources_body.lower()
 
