@@ -633,7 +633,7 @@ def _recommended_next_command_rows(
                         "Choose fundamentals input path",
                         "make templates",
                         (
-                            "SEC_USER_AGENT is not configured, so remote SEC import draft workflow is unavailable. "
+                            "SEC_USER_AGENT is not configured, so SEC staging workflow is unavailable. "
                             "Either export SEC_USER_AGENT before make sec-stage, or prepare trusted manual "
                             "fundamentals in data/imports/fundamentals.csv and run make imports-validate, "
                             "make imports-preview, and make imports-apply."

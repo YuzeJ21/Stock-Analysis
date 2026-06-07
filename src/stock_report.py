@@ -1651,11 +1651,11 @@ def _stock_report_source_audit_lines(
     dcf_reason = _display_field_list(dcf.get("reason_not_ready") or dcf.get("missing_dcf_fields"), "")
     dcf_reason_clause = f"; reason {dcf_reason}" if dcf_reason and dcf_reason != "Not available" else ""
     return [
-        f"- Prices: {_display_report_status(readiness.get('price_ready'))}; local source `data/prices.csv`; coverage {price_window}; import draft path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.",
-        f"- Fundamentals / DCF: {_display_report_status(dcf_status_text)}; local source `data/fundamentals.csv`{dcf_reason_clause}; SEC_USER_AGENT {sec_status}; import draft path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.",
-        f"- Peers: {peer_status}; local source `data/peers.csv`; import draft path `data/imports/peers.csv`; next peer action {peer_action}.",
-        f"- Earnings: {_display_report_status(earnings_ready)}; trusted local CSV only; import draft path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
-        f"- Analyst estimates: {_display_report_status(estimates_ready)}; trusted local CSV only; import draft path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
+        f"- Prices: {_display_report_status(readiness.get('price_ready'))}; local source `data/prices.csv`; coverage {price_window}; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.",
+        f"- Fundamentals / DCF: {_display_report_status(dcf_status_text)}; local source `data/fundamentals.csv`{dcf_reason_clause}; SEC_USER_AGENT {sec_status}; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.",
+        f"- Peers: {peer_status}; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action {peer_action}.",
+        f"- Earnings: {_display_report_status(earnings_ready)}; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
+        f"- Analyst estimates: {_display_report_status(estimates_ready)}; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
         f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; missing remote credentials should not break local CSV reports or preview-first local import workflows.",
         f"- Report command: `make stock-report-md TICKER={ticker}`. Research-only Markdown output; copyable command only.",
     ]

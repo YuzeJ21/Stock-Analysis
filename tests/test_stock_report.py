@@ -459,8 +459,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10`" in markdown
     assert "Optional-context rebuild proof: `make optional-context-readiness && make readiness`" in markdown
     assert "Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below." in markdown
-    assert "import draft path `data/staged/prices/` or `data/imports/prices.csv`" in markdown
-    assert "import draft path `data/imports/peers.csv`" in markdown
+    assert "import file path `data/staged/prices/` or `data/imports/prices.csv`" in markdown
+    assert "import file path `data/imports/peers.csv`" in markdown
+    assert "import draft path" not in markdown
     assert "preview-first local import workflows" in markdown
     assert "staged path" not in markdown
     assert "staged import workflows" not in markdown
