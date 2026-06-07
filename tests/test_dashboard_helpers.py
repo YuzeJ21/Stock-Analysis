@@ -387,6 +387,10 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "Source and freshness details" in source
+    assert "Single-Stock Source Readiness Check" in source
+    assert "Trusted local files, import status, credential state, and rejected-row reports" in source
+    assert "Single-Stock Source/Freshness Audit" not in source
+    assert "Local source paths, import draft paths" not in source
     assert "stock_report_source_detail_summary_frame(report_payload)" in source
     assert "Source and freshness details (JSON)" not in source
     assert "Advanced source audit (JSON)" not in source
