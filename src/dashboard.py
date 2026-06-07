@@ -2577,6 +2577,20 @@ def normalize_operator_copy(text: object) -> str:
     lowered = normalized.strip().lower()
     if lowered in display_labels:
         return display_labels[lowered]
+    shared_replacements = [
+        (r"\bfundamentals import drafts\b", "fundamentals import file rows"),
+        (r"\bfundamentals import draft\b", "fundamentals import file"),
+        (r"\bpeer mapping import drafts\b", "peer mapping import file rows"),
+        (r"\bpeer import drafts\b", "peer import file rows"),
+        (r"\bpeer import draft\b", "peer import file"),
+        (r"\blocal import draft rows\b", "local import file rows"),
+        (r"\blocal import draft workflows\b", "local import files"),
+        (r"\bSEC import draft workflow\b", "SEC staging workflow"),
+        (r"\bSEC fundamentals import draft workflow\b", "SEC fundamentals staging workflow"),
+        (r"\bSEC Companyfacts import draft workflow\b", "SEC Companyfacts staging workflow"),
+    ]
+    for pattern, replacement in shared_replacements:
+        normalized = re.sub(pattern, replacement, normalized, flags=re.IGNORECASE)
     return re.sub(r"\bmake status\b(?!-check)", "make status-check TOP_N=5", normalized)
 
 
@@ -6408,7 +6422,7 @@ def data_health_deep_research_target_cards(
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
                         f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)} "
-                        f"Missing: {format_missing(row.get('missing_required_for_dcf'), 'Not specified')}."
+                        f"Missing: {normalize_operator_copy(format_missing(row.get('missing_required_for_dcf'), 'Not specified'))}."
                     ),
                     "badges": [
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
@@ -6452,7 +6466,7 @@ def data_health_deep_research_target_cards(
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
                         f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)} "
-                        f"Missing: {format_missing(row.get('missing_required_for_peer_relative'), 'Not specified')}."
+                        f"Missing: {normalize_operator_copy(format_missing(row.get('missing_required_for_peer_relative'), 'Not specified'))}."
                     ),
                     "badges": [
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
@@ -6515,7 +6529,7 @@ def overview_deep_research_target_cards(
                     "kicker": "UNLOCK DCF",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
-                        f"{format_missing(row.get('missing_required_for_dcf'), 'Not specified')}. "
+                        f"{normalize_operator_copy(format_missing(row.get('missing_required_for_dcf'), 'Not specified'))}. "
                         f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=140)}"
                     ),
                     "badges": [
@@ -6559,7 +6573,7 @@ def overview_deep_research_target_cards(
                     "kicker": "UNLOCK PEERS",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
-                        f"{format_missing(row.get('missing_required_for_peer_relative'), 'Not specified')}. "
+                        f"{normalize_operator_copy(format_missing(row.get('missing_required_for_peer_relative'), 'Not specified'))}. "
                         f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=140)}"
                     ),
                     "badges": [
@@ -12367,7 +12381,7 @@ def market_next_action_cards(
         {
             "kicker": "REFRESH REPORTS",
             "title": "Regenerate readiness after imports",
-            "body": "After any import draft or provider refresh, rebuild readiness before interpreting conclusions.",
+            "body": "After any import file update or provider refresh, rebuild readiness before interpreting conclusions.",
             "badges": ["deterministic", "CSV-first"],
             "command": "make readiness",
         }
@@ -14897,11 +14911,11 @@ def holdings_unlock_cards(
         )
         if staged_fundamentals_import:
             fallback_action = (
-                f"Fundamentals import draft is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
+                f"Fundamentals import file rows are waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
             )
         elif staged_peer_import:
             fallback_action = (
-                f"Peer import draft is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
+                f"Peer import file rows are waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
             )
         elif staged_price_import:
             fallback_action = (
@@ -15156,11 +15170,11 @@ def theme_unlock_cards(
         )
         if staged_fundamentals_import:
             fallback_action = (
-                f"Fundamentals import draft is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped DCF coverage."
+                f"Fundamentals import file rows are waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped DCF coverage."
             )
         elif staged_peer_import:
             fallback_action = (
-                f"Peer import draft is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped peer-relative context."
+                f"Peer import file rows are waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped peer-relative context."
             )
         elif staged_price_import:
             fallback_action = (
@@ -17458,7 +17472,7 @@ def priority_now_fallback_actions(
         actions.append(
             (
                 "Peer context needs local research",
-                "No peer-ready tickers detected. Run make runbook-peers-broader or make focus-peers TICKER=... first. Add verified mappings only when they are missing, and otherwise follow the peer-data import draft blocker.",
+                "No peer-ready tickers detected. Run make runbook-peers-broader or make focus-peers TICKER=... first. Add verified mappings only when they are missing, and otherwise follow the peer-data import file blocker.",
                 "make runbook-peers-broader",
                 "neutral",
             )

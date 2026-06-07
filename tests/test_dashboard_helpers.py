@@ -43,7 +43,7 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
         "make imports-preview",
     )
     assert "Review peer import file" in card_html
-    assert "Peer import file ready" in card_html
+    assert "peer import file ready" in card_html.lower()
     assert "Review peer import draft" not in card_html
     assert "Peer import draft ready" not in card_html
     assert "make status-check TOP_N=5" in card_html
@@ -3938,9 +3938,11 @@ def test_holdings_unlock_cards_keep_staged_import_front_doors_when_target_files_
     assert "make price-preview" in price_card["body"].lower()
     assert "make price-apply" in price_card["body"].lower()
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "fundamentals import draft" in fundamentals_card["body"].lower()
+    assert "fundamentals import file rows" in fundamentals_card["body"].lower()
+    assert "import draft" not in fundamentals_card["body"].lower()
     assert peer_card["command"] == "make imports-validate"
-    assert "peer import draft" in peer_card["body"].lower()
+    assert "peer import file rows" in peer_card["body"].lower()
+    assert "import draft" not in peer_card["body"].lower()
 
 
 def test_holdings_unlock_cards_upgrade_generic_staged_price_note_to_explicit_follow_through():
@@ -4451,9 +4453,11 @@ def test_theme_unlock_cards_keep_staged_import_front_doors_when_target_files_are
     assert "make price-preview" in price_card["body"].lower()
     assert "make price-apply" in price_card["body"].lower()
     assert fundamentals_card["command"] == "make imports-validate"
-    assert "fundamentals import draft" in fundamentals_card["body"].lower()
+    assert "fundamentals import file rows" in fundamentals_card["body"].lower()
+    assert "import draft" not in fundamentals_card["body"].lower()
     assert peer_card["command"] == "make imports-validate"
-    assert "peer import draft" in peer_card["body"].lower()
+    assert "peer import file rows" in peer_card["body"].lower()
+    assert "import draft" not in peer_card["body"].lower()
 
 
 def test_theme_unlock_cards_upgrade_generic_staged_price_note_to_explicit_follow_through():
@@ -6733,14 +6737,14 @@ def test_overview_workflow_path_cards_use_structured_project_status_steps():
                 "FreshnessContext": "2026-05-21",
             },
             {
-                "Step": "Review fundamentals import draft",
+                "Step": "Review fundamentals import file",
                 "Command": "make imports-validate",
-                "Reason": "Fundamentals import drafts already exist in data/imports/fundamentals.csv and should be validated before preview/apply.",
+                "Reason": "Fundamentals import file rows already exist in data/imports/fundamentals.csv and should be validated before preview/apply.",
             },
             {
                 "Step": "Deterministic verification",
                 "Command": "make verify",
-                "Reason": "Confirm local outputs still pass after the fundamentals import drafts follow-through.",
+                "Reason": "Confirm local outputs still pass after the fundamentals import file follow-through.",
             },
         ]
     }
@@ -11467,9 +11471,11 @@ def test_data_health_deep_research_target_cards_keep_staged_import_paths_when_co
     cards = dashboard.data_health_deep_research_target_cards(sec_queue, peer_queue)
 
     assert cards[0]["command"] == "make imports-validate"
-    assert "fundamentals import draft" in cards[0]["body"].lower()
+    assert "fundamentals import file" in cards[0]["body"].lower()
+    assert "import draft" not in cards[0]["body"].lower()
     assert cards[1]["command"] == "make imports-validate"
-    assert "peer import draft" in cards[1]["body"].lower()
+    assert "peer import file" in cards[1]["body"].lower()
+    assert "import draft" not in cards[1]["body"].lower()
 
 
 def test_overview_price_target_cards_surface_exact_history_targets_safely():
@@ -11766,9 +11772,11 @@ def test_overview_deep_research_target_cards_keep_staged_import_paths_when_comma
     cards = dashboard.overview_deep_research_target_cards(sec_queue, peer_queue)
 
     assert cards[0]["command"] == "make imports-validate"
-    assert "fundamentals import draft" in cards[0]["body"].lower()
+    assert "fundamentals import file" in cards[0]["body"].lower()
+    assert "import draft" not in cards[0]["body"].lower()
     assert cards[1]["command"] == "make imports-validate"
-    assert "peer import draft" in cards[1]["body"].lower()
+    assert "peer import file" in cards[1]["body"].lower()
+    assert "import draft" not in cards[1]["body"].lower()
 
 
 def test_deep_research_target_fallback_cards_use_onboarding_refresh():
