@@ -14647,13 +14647,15 @@ def overview_landing_cards(
     latest_price: str,
     watchlist_count: int,
     monthly_count: int,
+    readiness_summary: dict[str, object] | None = None,
 ) -> list[dict[str, object]]:
     summary = {} if not project_status_payload else project_status_payload.get("summary", {})
-    total_tickers = int(summary.get("tickers_total") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or 0)
-    gap_count = int(summary.get("data_gaps") or 0)
+    readiness = readiness_summary or {}
+    total_tickers = int(summary.get("tickers_total") or readiness.get("master_universe") or readiness.get("universe_count") or 0)
+    price_ready = int(summary.get("tickers_with_prices") or readiness.get("price_ready") or 0)
+    dcf_ready = int(summary.get("tickers_dcf_ready") or readiness.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("tickers_peer_ready") or readiness.get("peer_ready") or 0)
+    gap_count = int(summary.get("data_gaps") or readiness.get("blocked") or readiness.get("blocked_by_data") or 0)
     return [
         {
             "kicker": "RESEARCH FLOW",
@@ -14690,13 +14692,15 @@ def overview_interpretation_guardrail_card(
     project_status_payload: dict[str, Any] | None,
     queue_summary: dict[str, int],
     health_summary: dict[str, int],
+    readiness_summary: dict[str, object] | None = None,
 ) -> dict[str, object]:
     summary = {} if not project_status_payload else project_status_payload.get("summary", {})
-    total_tickers = int(summary.get("tickers_total") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or 0)
-    data_gaps = int(summary.get("data_gaps") or 0)
+    readiness = readiness_summary or {}
+    total_tickers = int(summary.get("tickers_total") or readiness.get("master_universe") or readiness.get("universe_count") or 0)
+    price_ready = int(summary.get("tickers_with_prices") or readiness.get("price_ready") or 0)
+    dcf_ready = int(summary.get("tickers_dcf_ready") or readiness.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("tickers_peer_ready") or readiness.get("peer_ready") or 0)
+    data_gaps = int(summary.get("data_gaps") or readiness.get("blocked") or readiness.get("blocked_by_data") or 0)
     health_score, health_label = workflow_health_score(queue_summary, health_summary)
 
     if health_label == "Ready":
@@ -18424,11 +18428,12 @@ def render_overview(
             latest_price,
             watchlist_count,
             monthly_count,
+            overview_readiness_summary,
         ),
         show_commands=False,
     )
     render_signal_cards(
-        [overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary)],
+        [overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary, overview_readiness_summary)],
         show_commands=False,
     )
     render_section_header("Current Best Paths", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next page.")

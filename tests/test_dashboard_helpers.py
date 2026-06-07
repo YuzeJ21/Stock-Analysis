@@ -3834,6 +3834,43 @@ def test_overview_landing_cards_surface_workflow_and_gap_context():
     assert "sell" not in rendered
 
 
+def test_overview_landing_cards_fall_back_to_readiness_summary_without_project_status():
+    readiness = {
+        "master_universe": 3538,
+        "price_ready": 265,
+        "dcf_ready": 23,
+        "peer_ready": 9,
+        "blocked": 3273,
+    }
+
+    cards = dashboard.overview_landing_cards(None, {"critical": 4, "high": 7}, "2026-06-05", 3538, 0, readiness)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "265/3538" in rendered
+    assert "23 dcf-ready" in rendered
+    assert "9 tickers also have peer-relative context" in rendered
+    assert "3273 data gaps remain visible" in rendered
+    assert "0/0" not in rendered
+
+
+def test_overview_guardrail_card_falls_back_to_readiness_summary_without_project_status():
+    readiness = {
+        "master_universe": 3538,
+        "price_ready": 265,
+        "dcf_ready": 23,
+        "peer_ready": 9,
+        "blocked": 3273,
+    }
+
+    card = dashboard.overview_interpretation_guardrail_card(None, {"critical": 4}, {}, readiness)
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert "265/3538 tickers have prices" in rendered
+    assert "23 are dcf-ready" in rendered
+    assert "9 have peer-relative context" in rendered
+    assert "only 0/0" not in rendered
+
+
 def test_holdings_unlock_cards_surface_portfolio_blockers():
     holdings = pd.DataFrame(
         [
