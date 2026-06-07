@@ -15492,12 +15492,19 @@ def test_import_workflow_caption_spells_out_validation_preview_apply_commands():
     assert "sell" not in caption.lower()
 
 
+def test_sec_fundamentals_setup_label_uses_plain_dashboard_copy():
+    assert dashboard.sec_fundamentals_setup_label(True) == "SEC fundamentals setup: ready"
+    assert dashboard.sec_fundamentals_setup_label(False) == "SEC fundamentals setup: not configured"
+
+
 def test_data_health_import_captions_use_exact_copyable_commands():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert 'import_workflow_caption("data/staged/fundamentals/", "make import-fundamentals")' in source
     assert 'import_workflow_caption("data/staged/earnings/", "make import-earnings")' in source
     assert 'import_workflow_caption("data/staged/analyst_estimates/", "make import-analyst-estimates")' in source
+    assert "sec_fundamentals_setup_label(sec_configured)" in source
+    assert "SEC_USER_AGENT configured:" not in source
     assert "make imports-validate/preview/apply" not in source
 
 
