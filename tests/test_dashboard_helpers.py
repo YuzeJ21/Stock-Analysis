@@ -8177,7 +8177,7 @@ def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_n
     assert "operating-company dcf and peer valuation are excluded, not failed" in rendered
     assert "standalone dcf assumptions" in rendered
     assert "peer-relative valuation remains withheld" in rendered
-    assert "data-unlock workflow only" in rendered
+    assert "data-unlock review only" in rendered
     assert "conclusions stay unavailable until price coverage starts" in rendered
     assert "missing inputs reduce data confidence" in rendered
     assert "broker" not in rendered
@@ -15476,7 +15476,7 @@ def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommen
 
     assert [card["kicker"] for card in cards] == ["RESEARCH NOW", "MONITOR", "BLOCKED BY DATA", "METHODOLOGY"]
     assert "1 row(s)" in str(cards[0]["title"])
-    assert "ready for deeper research workflow only" in rendered
+    assert "ready for deeper research review only" in rendered
     assert "review-queue label" in rendered
     assert "not a direct action, allocation instruction, or recommendation" in rendered
     assert "market, theme, etf/index, liquidity, or risk context" in rendered
@@ -19166,7 +19166,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
             [
                 {
                     "kicker": "DECISION BUCKETS",
-                    "body": "Buckets are readiness-gated research workflow labels.",
+                    "body": "Buckets are readiness-gated research review labels.",
                     "command": "make project-status",
                 }
             ]

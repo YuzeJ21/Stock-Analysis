@@ -4339,7 +4339,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
         next_review = "Use Data Health or the next-step cards to unlock fundamentals before valuation review."
     else:
         mode = "Data-unlock only"
-        supported = "Data-unlock workflow only."
+        supported = "Data-unlock review only."
         withheld = "Momentum, liquidity, DCF, peer context, and conclusions stay unavailable until price coverage starts."
         next_review = "Start with verified local price history, then regenerate readiness before interpreting the ticker."
 
@@ -9978,8 +9978,8 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         {
             "kicker": "RESEARCH NOW",
             "title": f"{research_now} row(s)",
-            "body": "Ready for deeper research workflow only. Treat this as a review-queue label; it is not a direct action, allocation instruction, or recommendation.",
-            "badges": ["research workflow", "not advice"],
+            "body": "Ready for deeper research review only. Treat this as a review-queue label; it is not a direct action, allocation instruction, or recommendation.",
+            "badges": ["research review", "not advice"],
             "command": "make research-health TOP_N=10",
         },
         {
@@ -11442,8 +11442,8 @@ def product_page_logic_audit_frame(
             "check": "Research-only language",
             "status": "pass" if forbidden_language_rows == 0 else "review",
             "evidence": f"{forbidden_language_rows} row(s) expose prohibited execution/recommendation language; sources: {forbidden_source_text}.",
-            "operator_action": "Keep the product page framed as research workflow only; remove execution and direct recommendation wording from visible rows.",
-            "source": "dashboard product-page visible workflow",
+            "operator_action": "Keep the product page framed as research-only review; remove execution and direct recommendation wording from visible rows.",
+            "source": "dashboard product-page visible review",
         }
     )
 
