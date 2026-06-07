@@ -699,9 +699,9 @@ def _sample_feature_tickers(frame: pd.DataFrame, feature: str, state: str, *, li
 
 def build_feature_readiness_summary(ticker_readiness: pd.DataFrame) -> pd.DataFrame:
     features = [
-        ("price", "Price Coverage", "make price-worklist TOP_N=25"),
-        ("momentum", "Momentum", "make price-coverage TOP_N=25"),
-        ("market_direction", "Market Direction", "make price-coverage TOP_N=25"),
+        ("price", "Price Coverage", "make price-refresh-loop DRY_RUN=1"),
+        ("momentum", "Momentum", "make price-refresh-loop DRY_RUN=1"),
+        ("market_direction", "Market Direction", "make price-refresh-loop DRY_RUN=1"),
         ("liquidity", "Risk / Liquidity", "make research-health TOP_N=10"),
         ("correlation", "Risk / Correlation", "make research-health TOP_N=10"),
         ("fundamentals", "Fundamentals", "make sec-stage-queue TOP_N=25"),
