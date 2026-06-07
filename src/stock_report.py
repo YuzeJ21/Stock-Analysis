@@ -592,7 +592,7 @@ def _stock_report_volatility_lines(payload: dict[str, Any]) -> list[str]:
     if source_label == "Volatility proxy approximation":
         suffix = " This is an approximation from close-to-close volatility because high/low ATR inputs were unavailable."
     elif source_label == "Volatility source unavailable":
-        suffix = " Source provenance was not recorded in this generated output; rerun the local pipeline to classify ATR versus proxy."
+        suffix = " Source provenance was not recorded in this saved report; rerun the local workflow to classify ATR versus proxy."
     else:
         suffix = " This comes from the available local OHLC price fields."
     return [f"- ATR / volatility: {_format_pct(volatility_value)} ({source_label}).{suffix}"]

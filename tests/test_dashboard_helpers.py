@@ -15201,7 +15201,8 @@ def test_final_decision_quality_cards_handle_missing_outputs():
 
     assert cards[0]["title"] == "Decision outputs not ready yet"
     assert cards[0]["command"] == "make pipeline"
-    assert "run the local pipeline" in rendered
+    assert "build the local research views" in rendered
+    assert "run the local pipeline" not in rendered
     assert "not generated" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
