@@ -18419,7 +18419,7 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
                 "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
                 "primary_blocker": "peers",
                 "purpose_thesis": "Purpose: Core Compounder. Available data supports a research brief, not a recommendation.",
-                "purpose_alignment": "Purpose alignment needs review: current local outputs show `Review Thesis` for Core Compounder.",
+                "purpose_alignment": "Purpose alignment needs review: saved research views show `Review Thesis` for Core Compounder.",
                 "setup_evaluation": "Setup status: Watch; final state: Watch.",
                 "valuation_evaluation": "DCF inputs are ready, but interpretation is constrained by insufficient peer context.",
                 "supported_analysis": "Supported analysis: price history, setup and momentum context, standalone DCF scenario analysis.",

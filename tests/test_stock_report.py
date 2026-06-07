@@ -52,6 +52,20 @@ def test_stock_report_formats_bare_make_commands_as_copyable_inline_commands():
     assert "Run make focus-fundamentals" not in text
 
 
+def test_stock_report_humanized_terms_preserve_copyable_dcf_commands():
+    text = _stock_report_dcf_input_triage_lines(
+        ticker="META",
+        dcf={"missing_dcf_fields": ["shares_outstanding"]},
+        valuation_readiness={},
+        dcf_status_text="blocked",
+        monitor_context=False,
+    )
+    rendered = "\n".join(text)
+
+    assert "`make dcf-readiness`" in rendered
+    assert "make DCF-readiness" not in rendered
+
+
 def test_stock_report_setup_text_relabels_not_ready_company_rows_as_data_limited():
     text = _display_setup_text(
         "Capped score at 50 because valuation readiness is `not_ready`; "

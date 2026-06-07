@@ -91,7 +91,7 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 ## Decision
 - Bucket: Research Now
 - Subtype: Research Candidate - DCF Ready But Peer Blocked
-- Boundary: Workflow state only: standalone company and DCF review can continue, but peer-relative valuation stays locked until trusted peer inputs are ready.
+- Boundary: Workflow state only: core company and DCF review can continue, but peer-relative valuation stays locked until trusted peer mappings and peer valuation inputs are available.
 - Primary blocker: peers
 - Main reason: Core data is ready for a supported research pass.
 - Next action: Add trusted price history for mapped peers: DHR, TMO, WAT.
@@ -100,15 +100,15 @@ A state: partial. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is Setup Forming.
 - Alignment: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below.
-- Operator summary: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below; Research Candidate - DCF Ready But Peer Blocked. Next blocker: peers. Withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
+- Research workflow summary: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below; Research Candidate - DCF Ready But Peer Blocked. Next blocker: peers. Withheld: earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
 - Setup: Compounder setup: Setup Forming; final state: Setup Forming. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`.
 - Valuation boundary: DCF inputs are ready, but valuation interpretation is constrained by Insufficient Data and peer status `Insufficient Peer Data`.
 
 ## Supported Analysis
-- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, fundamental context, standalone DCF scenario analysis. Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source readiness.
+- Supported analysis: price history, setup and momentum context, market/theme context, liquidity context, correlation/risk context, fundamental context, standalone DCF scenario analysis. Partial inputs present: peer. Purpose-specific support: compounder review can use fundamentals and standalone DCF, but thesis quality still depends on trend and source readiness.
 
 ## Blocked Analysis
-- Unsupported analysis: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context.
+- Unsupported analysis: earnings timing or surprise context, analyst estimate trend context.
 
 ## Setup / Momentum
 - Compounder setup: Setup Forming; final state: Setup Forming. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`.
@@ -118,13 +118,13 @@ Research-only purpose brief. It separates what local data supports from what rem
 - ATR / volatility: Not available; missing values stay visible instead of guessed.
 
 ## Risk Notes
-- Risk watchpoint: peer-relative context is incomplete, so valuation comparison and opportunity cost remain uncertain.
+- Risk watchpoint: monitor setup deterioration, valuation-input quality, and missing optional context.
 - Invalidation condition: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
 
 ## Next Research Step
 - Next research question: Do trend, fundamentals, DCF assumptions, and thesis conflict notes still support the compounder purpose?
 - Review priority: High review priority: core company data is ready, but peer-relative context is still limiting valuation interpretation.
-- Data-confidence explanation: Data confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: peer, earnings, analyst estimates.
+- Data-confidence explanation: Data confidence is medium: core price, fundamentals, and DCF are ready; blockers still reduce breadth: earnings, analyst estimates.
 
 ## Data Readiness
 - Overall state: partial
@@ -209,8 +209,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Missing Data
 - 1Y performance is unavailable from the current local price history.
-- No local analyst-estimate dataset is configured in the CSV-first pipeline.
-- No local earnings dataset is configured in the CSV-first pipeline.
+- No trusted analyst-estimate CSV has been added yet.
+- No trusted earnings CSV has been added yet.
 - Normalized growth target was reduced to keep it conservatively below WACC.
 - Peer data is unavailable or insufficient, so only standalone multiples are shown.
 - Peer inputs for p_fcf were unavailable for: DHR, TMO, WAT.
@@ -223,8 +223,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source Readiness
 - local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-27; Saved local research data.
 - local:fundamentals.csv: research-grade / local; source readiness: dataset row as of 2017-10-31; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields stay locked until trusted rows are imported.
+- local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
 ## Data Unlock Summary
 - Data Health lane: Peer Mapping Unlock. Copy `make focus-peers TICKER=A`, then confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.

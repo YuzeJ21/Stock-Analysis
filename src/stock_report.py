@@ -185,6 +185,7 @@ def _humanize_schema_terms(value: Any) -> str:
         return text
     for raw, label in sorted(FIELD_LABELS.items(), key=lambda item: len(item[0]), reverse=True):
         text = re.sub(rf"(?<![A-Za-z0-9_]){re.escape(raw)}(?![A-Za-z0-9_])", label, text)
+    text = text.replace("make DCF-", "make dcf-")
     text = text.replace("missing DCF", "missing DCF")
     return _format_inline_make_commands(text)
 

@@ -220,8 +220,8 @@ def test_local_provider_handles_missing_optional_dataset_files(tmp_path: Path):
     estimates = provider.get_analyst_estimates("NVDA")
 
     assert financials.revenue is None
-    assert "No local earnings dataset" in earnings.notes[0]
-    assert "No local analyst-estimate dataset" in estimates.notes[0]
+    assert "No trusted earnings CSV has been added yet" in earnings.notes[0]
+    assert "No trusted analyst-estimate CSV has been added yet" in estimates.notes[0]
 
 
 def test_local_provider_surfaces_existing_screener_context(tmp_path: Path):
