@@ -1089,7 +1089,15 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "trusted-data pilot path for improving 5-10 companies first",
         "`At A Glance` followed by `Best Review Path`",
         "routes the DCF/peer-ready `NVDA` example to review DCF, peers, and source readiness",
+        "2026-06-07 Follow-Up Product Copy Pass",
+        "main navigation control reads `Choose a page`",
+        "checklist/review-path language before advanced command detail",
+        "broad valuation input count is labeled separately from exact company DCF-ready counts",
+        "`next-step context` instead of engineering-heavy operational wording",
+        "prints a company starter set and separates `QQQ` / `SMH` as ETF/index monitor examples",
+        "standalone DCF peer wording no longer repeats `DCF assumptions and sensitivity`",
         "Commands remain copy-only",
+        "No generated CSV/JSON churn was published with the UI copy pass",
     ):
         assert phrase in qa
 
