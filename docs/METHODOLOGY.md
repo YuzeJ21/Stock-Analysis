@@ -225,6 +225,7 @@ Single-stock reports are assembled from the same gates and calculations:
 
 - At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step.
 - Reader Guide: answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and the next copy-only command.
+- Best Review Path: tells the reader whether to review DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
 - What can be analyzed now.
 - Which mode applies: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data-unlock only.
 - Which calculations ran and which assumptions were used.
@@ -233,11 +234,12 @@ Single-stock reports are assembled from the same gates and calculations:
 - Copyable Unlock Commands for local, capped, research-only follow-up workflows.
 - Which sources were used and how fresh they are.
 
-The report should be read top-down: At A Glance first, Reader Guide second, supported analysis third, blocked or excluded analysis fourth, copyable local unlock commands next, then source readiness and valuation detail. The commands are displayed for the reader to copy manually; the report does not execute imports, refreshes, broker actions, or trades.
+The report should be read top-down: At A Glance first, Reader Guide second, Best Review Path third, supported analysis fourth, blocked or excluded analysis fifth, copyable local unlock commands next, then source readiness and valuation detail. The commands are displayed for the reader to copy manually; the report does not execute imports, refreshes, broker actions, or trades.
 
 When a company ticker has the full trusted local input stack, the single-stock report can show:
 
 - At A Glance mode, method cue, and next local step.
+- Best Review Path for the safest reading order and proof step.
 - Analysis Quality and Evaluation Function Check summaries.
 - Price, momentum, liquidity, and market-context review.
 - Fundamentals quality context from the imported local company row.

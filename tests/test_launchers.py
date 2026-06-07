@@ -362,7 +362,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     for preview_phrase in (
         "plain-language stock analysis modes",
         "At A Glance single-stock status",
-        "At A Glance before tables or conclusions",
+        "Best Review Path",
+        "At A Glance + Best Review Path before tables",
         "Mode + decision",
         "DCF + peers",
         "What not to infer",
@@ -415,8 +416,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Example map",
         "Operating-company DCF is excluded, not failed",
         "No valuation conclusion appears",
-        "At A Glance status, source readiness notes, and copyable local unlock commands",
-        "At A Glance status, methodology, risks, blockers, copyable local unlock commands",
+        "At A Glance status, Best Review Path, source readiness notes, and copyable local unlock commands",
+        "At A Glance status, Best Review Path, methodology, risks, blockers, copyable local unlock commands",
         "The report is not a black box",
         "project rules decide what can be analyzed",
         "Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears",
@@ -429,7 +430,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "what the product calculated",
         "what stayed withheld",
         "next local proof step",
-        "Markdown reports start with `At A Glance`",
+        "Markdown reports start with `At A Glance`, then a `Reader Guide`, then `Best Review Path`",
+        "what to read first",
         "Copyable Unlock Commands",
         "readiness-state output, not an action list",
         "Roadmap Snapshot",
@@ -579,7 +581,9 @@ def test_sample_stock_reports_explain_methodology_and_use_current_research_bound
         report = Path("outputs/stock_reports", report_name).read_text(encoding="utf-8")
         assert "Single-Stock Research Report" in report
         assert "## At A Glance" in report
+        assert "## Best Review Path" in report
         assert report.index("## At A Glance") < report.index("## How To Read This Report")
+        assert report.index("## At A Glance") < report.index("## Best Review Path") < report.index("## How To Read This Report")
         assert "- Mode:" in report
         assert "- Decision view:" in report
         assert "- DCF:" in report
@@ -704,10 +708,12 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "an ETF/index monitor row can have low or medium data confidence for monitoring while DCF stays excluded",
         "When a company ticker has the full trusted local input stack",
         "At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
-        "The report should be read top-down: At A Glance first",
+        "Best Review Path: tells the reader whether to review DCF and peers",
+        "The report should be read top-down: At A Glance first, Reader Guide second, Best Review Path third",
         "copyable local unlock commands next",
         "the report does not execute imports, refreshes, broker actions, or trades",
         "At A Glance mode, method cue, and next local step",
+        "Best Review Path for the safest reading order and proof step",
         "Price, momentum, liquidity, and market-context review",
         "Standalone DCF assumptions, bear/base/bull scenario values, and sensitivity context",
         "Peer trend or peer valuation context only when source-backed peer inputs are ready",
@@ -856,6 +862,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "make diff-hygiene",
         "snapshot readiness, then run one capped loop",
         "At A Glance",
+        "Best Review Path",
         "method cue",
         "Analysis Quality",
         "Methodology",
@@ -1092,8 +1099,9 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Support Tooling Boundary",
         "Input-To-Output Contract",
         "At A Glance status",
+        "Best Review Path",
         "copyable local unlock commands",
-        "At A Glance first",
+        "Best Review Path near the top",
         "copyable local data-unlock commands",
         "Supported-Today Assessment",
         "Methodology visibility",
