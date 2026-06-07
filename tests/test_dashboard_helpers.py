@@ -2301,8 +2301,11 @@ def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tm
     assert frame is not None
     staged_rows = frame.loc[frame["focus_command"].astype(str).str.strip().eq("make imports-validate")]
     assert not staged_rows.empty
-    assert staged_rows.iloc[0]["title"] == "Review fundamentals import draft"
+    assert staged_rows.iloc[0]["title"] == "Review fundamentals import file"
     assert "data/imports/fundamentals.csv" in str(staged_rows.iloc[0]["reason"])
+    assert "Local import file rows are present" in str(staged_rows.iloc[0]["reason"])
+    assert "Review fundamentals import draft" not in str(staged_rows.iloc[0]["title"])
+    assert "Local import draft rows are present" not in str(staged_rows.iloc[0]["reason"])
 
 
 def test_load_action_queue_refreshes_stale_staged_peer_queue_artifact(tmp_path):
@@ -2372,9 +2375,11 @@ def test_load_action_queue_refreshes_stale_staged_peer_queue_artifact(tmp_path):
         & frame["action_type"].astype(str).str.strip().eq("peers")
     ]
     assert not staged_rows.empty
-    assert staged_rows.iloc[0]["title"] == "Review peer import draft"
+    assert staged_rows.iloc[0]["title"] == "Review peer import file"
     assert staged_rows.iloc[0]["target_file"] == "data/imports/peers.csv"
-    assert "local import draft rows are present" in str(staged_rows.iloc[0]["reason"]).lower()
+    assert "local import file rows are present" in str(staged_rows.iloc[0]["reason"]).lower()
+    assert "review peer import draft" not in str(staged_rows.iloc[0]["title"]).lower()
+    assert "local import draft rows are present" not in str(staged_rows.iloc[0]["reason"]).lower()
 
 
 def test_load_action_queue_refreshes_stale_manual_peer_queue_artifact(tmp_path):

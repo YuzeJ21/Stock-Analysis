@@ -722,11 +722,11 @@ def _is_dataset_level_staged_import_row(row: pd.Series, dataset: str) -> bool:
 def _staged_import_guidance(dataset: str) -> tuple[str, str]:
     if dataset == "peers":
         return (
-            "Review peer import draft",
+            "Review peer import file",
             "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local peer mappings.",
         )
     return (
-        "Review fundamentals import draft",
+        "Review fundamentals import file",
         "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals and DCF inputs.",
     )
 
@@ -754,12 +754,12 @@ def _normalize_dataset_level_staged_import_rows(frame: pd.DataFrame | None, acti
             staged_file = f"data/imports/{dataset}.csv"
             if dataset == "peers":
                 normalized.at[idx, "reason"] = (
-                    f"Local import draft rows are present in {staged_file}; validate, preview, apply, "
+                    f"Local import file rows are present in {staged_file}; validate, preview, apply, "
                     "then refresh status before relying on peer-relative context."
                 )
             else:
                 normalized.at[idx, "reason"] = (
-                    f"Local import draft rows are present in {staged_file}; validate, preview, apply, "
+                    f"Local import file rows are present in {staged_file}; validate, preview, apply, "
                     "then refresh status before relying on DCF coverage."
                 )
     return normalized
@@ -3579,10 +3579,10 @@ def import_validation_rejected_row_cards(import_frame: pd.DataFrame | None = Non
     return [
         {
             "kicker": "IMPORT GUARDRAIL",
-            "title": "Validate import drafts first",
+            "title": "Validate import files first",
             "body": (
                 f"Use make templates, then place trusted source files under data/staged/ or standard rows under data/imports/. "
-                f"Current import draft file count: {summary['staged_files']}. "
+                f"Current import file count: {summary['staged_files']}. "
                 "Validation checks schemas and required fields before any local dataset is trusted."
             ),
             "badges": ["copy only", "csv-first"],
@@ -9637,7 +9637,7 @@ def build_peer_mapping_studio_frame(
         "next_input_file": "data/imports/peers.csv",
         "validation_sequence": "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply",
         "example_command": "make peer-mapping-queue TOP_N=25",
-        "copy_only_note": "Copy commands only; review import draft rows before applying local CSV changes.",
+        "copy_only_note": "Copy commands only; review import file rows before applying local CSV changes.",
     }
     fallback_mask = missing_mapping & ~peer_ready
     for column, fallback in fallback_fields.items():
