@@ -557,8 +557,9 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert 'st.expander("Need help?"' not in source
     assert 'st.header("Explore")' in source
     assert 'st.header("Navigation")' not in source
-    assert '"Page to review"' in source
-    assert '"Choose a page"' not in source
+    assert '"Choose a page"' in source
+    assert '"Page to review"' not in source
+    assert "Start with Home, then open one focused page" in source
     assert "Simple path." in source
     assert "Start with Home for the coverage snapshot." in source
     assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source

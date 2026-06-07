@@ -21856,10 +21856,10 @@ def main() -> None:
         st.header("Explore")
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
         selected_page = st.radio(
-            "Page to review",
+            "Choose a page",
             USER_PAGE_TITLES,
             index=USER_PAGE_TITLES.index(initial_page) if initial_page in USER_PAGE_TITLES else 0,
-            help="Start with Home, then open one deeper page when you know what you want to review.",
+            help="Start with Home, then open one focused page when you know what you want to review.",
         )
         show_reason_details = st.checkbox(
             "Show page tips",
