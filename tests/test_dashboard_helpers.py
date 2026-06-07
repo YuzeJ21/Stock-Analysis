@@ -1153,6 +1153,7 @@ def test_output_tab_summary_cards_explain_missing_theme_context_without_zero_row
     frame = pd.DataFrame(
         {
             "Ticker": ["A", "B"],
+            "ValuationStatus": ["ready", "not_ready"],
             "FinalValueCategory": ["Insufficient Data", "Insufficient Data"],
             "Reason": ["Missing peer inputs.", "Missing fundamentals."],
             "MissingDataFields": ["peers", "fundamentals"],
@@ -1164,6 +1165,11 @@ def test_output_tab_summary_cards_explain_missing_theme_context_without_zero_row
 
     assert "no populated theme or sector context is available" in rendered
     assert "saved local output" in rendered
+    assert "dcf input state" in rendered
+    assert "valuation readiness" in rendered
+    assert "1 ready-output / 1 locked" in rendered
+    assert "peer, quality, or multiple context limits" in rendered
+    assert "use the dcf readiness panel for exact dcf-ready counts" in rendered
     assert "csv output" not in rendered
     assert "across 0 rows" not in rendered
     assert "buy" not in rendered
@@ -12004,6 +12010,28 @@ def test_output_tab_summary_cards_explain_rows_status_and_gaps():
     assert "Watch" in rendered
     assert "1 row" in rendered
     assert "AI" in rendered
+
+
+def test_table_focus_cards_use_context_limits_for_valuation_views():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["A", "AAL"],
+            "ValuationStatus": ["ready", "ready"],
+            "FinalValueCategory": ["Insufficient Data", "Insufficient Data"],
+            "PeerRelativeStatus": ["Insufficient Peer Data", "Insufficient Peer Data"],
+            "PrimaryPurpose": ["Core Compounder", "Core Compounder"],
+            "QualityScore": [100.0, 40.0],
+            "MissingDataFields": ["PE, ForwardPE", "Peer valuation inputs"],
+        }
+    )
+
+    cards = dashboard.table_focus_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "valuation context" in rendered
+    assert "2 rows with context limits" in rendered
+    assert "dcf readiness is separate from peer or multiple completeness" in rendered
+    assert "2 rows with gaps" not in rendered
 
 
 def test_output_tab_function_quality_cards_explain_broad_page_limits():
