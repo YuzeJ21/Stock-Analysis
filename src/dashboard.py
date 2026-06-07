@@ -5017,7 +5017,7 @@ def stock_report_local_context_cards(
                 if staged_peer_import
                 else f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for local peer-relative context."
             ),
-            "badges": ["manual research", "import draft" if staged_peer_import else "csv-first"],
+            "badges": ["manual research", "import file" if staged_peer_import else "csv-first"],
             "command": peer_focus_command,
         },
         {
@@ -5107,7 +5107,7 @@ def stock_report_next_step_cards(
                 "title": "Fix price coverage",
                 "body": (
                     f"{ticker} still needs stronger verified local price history before broader trust. "
-                    "Use the manual price import draft workflow if the free refresh path stays unreliable."
+                    "Use the manual price import-file workflow if the free refresh path stays unreliable."
                 ),
                 "badges": ["prices", "data moat"],
                 "command": ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker}"),
@@ -5130,9 +5130,9 @@ def stock_report_next_step_cards(
         cards.append(
             {
                 "kicker": "NEXT STEP",
-                "title": "Review fundamentals import draft" if staged_fundamentals_import else "Stage fundamentals",
+                "title": "Review fundamentals import file" if staged_fundamentals_import else "Stage fundamentals",
                 "body": (
-                    f"{ticker} already has fundamentals import drafts in {fundamentals_target_file}. "
+                    f"{ticker} already has fundamentals import file rows in {fundamentals_target_file}. "
                     "Validate, preview, and apply them before trusting DCF coverage."
                     if staged_fundamentals_import
                     else (
@@ -5140,7 +5140,7 @@ def stock_report_next_step_cards(
                         "Stage SEC fundamentals before leaning on valuation."
                     )
                 ),
-                "badges": ["fundamentals", "import draft" if staged_fundamentals_import else "sec queue"],
+                "badges": ["fundamentals", "import file" if staged_fundamentals_import else "sec queue"],
                 "command": fundamentals_command,
             }
         )
@@ -5148,9 +5148,9 @@ def stock_report_next_step_cards(
         cards.append(
             {
                 "kicker": "NEXT STEP",
-                "title": "Review peer import draft" if staged_peer_import else "Add peer mappings",
+                "title": "Review peer import file" if staged_peer_import else "Add peer mappings",
                 "body": (
-                    f"{ticker} already has peer mapping import drafts in {peer_target_file}. "
+                    f"{ticker} already has peer mapping import file rows in {peer_target_file}. "
                     "Validate, preview, and apply them before trusting peer-relative context."
                     if staged_peer_import
                     else (
@@ -5158,7 +5158,7 @@ def stock_report_next_step_cards(
                         "Add manually researched peers if this name matters for deeper relative work."
                     )
                 ),
-                "badges": ["peers", "import draft" if staged_peer_import else "manual research"],
+                "badges": ["peers", "import file" if staged_peer_import else "manual research"],
                 "command": peer_command,
             }
         )
@@ -6813,7 +6813,7 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         elif lowered_command == "make price-validate":
             normalized_action = action.lower()
             if "make price-preview" not in normalized_action or "make price-apply" not in normalized_action:
-                action = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
+                action = "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
         if staged_follow_through:
             normalized_action = action.lower()
             if target_file == "data/imports/prices.csv":
@@ -6919,7 +6919,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         elif lowered_command == "make price-validate":
             normalized_action = recommended_action.lower()
             if "make price-preview" not in normalized_action or "make price-apply" not in normalized_action:
-                recommended_action = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
+                recommended_action = "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
         body_parts = [f"Start with {ticker}."]
         if current_status and current_status != "Not available":
             body_parts.append(f"Current blocker: {current_status}.")
@@ -14479,9 +14479,9 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
             normalized_body = body.lower()
             if "make price-preview" not in normalized_body or "make price-apply" not in normalized_body:
                 body = (
-                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
+                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
                     if reason and reason != "Not available"
-                    else "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
+                    else "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
                 )
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
@@ -14974,7 +14974,7 @@ def holdings_deep_research_cards(
                     ),
                 )
                 fallback_action = (
-                    "Fundamentals import draft ready. "
+                    "Fundamentals import file ready. "
                     "Run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
                     if staged_import
                     else command_family_fallback(command, "Review fundamentals path.")
@@ -14991,7 +14991,7 @@ def holdings_deep_research_cards(
                 cards.append(
                     {
                         "kicker": ticker,
-                        "title": "Review fundamentals import draft" if staged_import else "Unlock DCF",
+                        "title": "Review fundamentals import file" if staged_import else "Unlock DCF",
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"SEC/fundamentals queue priority P{format_missing(row.get('priority'), '-')}. "
@@ -15021,7 +15021,7 @@ def holdings_deep_research_cards(
                     ),
                 )
                 fallback_action = (
-                    "Peer import draft ready. "
+                    "Peer import file ready. "
                     "Run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
                     if staged_import
                     else command_family_fallback(command, "Review peer path.")
@@ -15038,7 +15038,7 @@ def holdings_deep_research_cards(
                 cards.append(
                     {
                         "kicker": ticker,
-                        "title": "Review peer import draft" if staged_import else "Unlock Peer Relative",
+                        "title": "Review peer import file" if staged_import else "Unlock Peer Relative",
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"Peer queue priority P{format_missing(row.get('priority'), '-')}. "
@@ -15220,9 +15220,9 @@ def theme_deep_research_cards(
             )
             if staged_import:
                 import_label = (
-                    "Fundamentals import draft"
+                    "Fundamentals import file"
                     if dataset_badge == "fundamentals"
-                    else "Peer import draft"
+                    else "Peer import file"
                 )
                 fallback_action = (
                     f"{import_label} in {target_file}; run make imports-validate, "
@@ -15246,9 +15246,9 @@ def theme_deep_research_cards(
                 {
                     "kicker": str(theme_name),
                     "title": (
-                        "Review fundamentals import draft"
+                        "Review fundamentals import file"
                         if staged_import and dataset_badge == "fundamentals"
-                        else "Review peer import draft"
+                        else "Review peer import file"
                         if staged_import and dataset_badge == "peers"
                         else goal
                     ),
@@ -15389,7 +15389,7 @@ def overview_deep_research_leverage_cards(
 
     def _peer_lane_title(row: pd.Series) -> str:
         if format_missing(row.get("target_file"), "") == "data/imports/peers.csv":
-            return "Peer import draft path"
+            return "Peer import file path"
         command = preferred_row_command(row, "")
         has_peer_mapping = format_missing(row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}
         if has_peer_mapping:
@@ -15428,21 +15428,21 @@ def overview_deep_research_leverage_cards(
             lane_fallback = "make imports-validate" if staged_peer_import else ticker_focus_command("peers", top_row.get("ticker"), "make onboarding")
         command = preferred_row_command(top_row, lane_fallback)
         if staged_fundamentals_import:
-            card_title = "Fundamentals import draft path"
-            card_badges = ["import draft", f"leverage {leverage_score}"]
+            card_title = "Fundamentals import file path"
+            card_badges = ["import file", f"leverage {leverage_score}"]
         elif lane_name == "PEER LEVERAGE":
             card_title = _peer_lane_title(top_row)
             if command == "make imports-validate":
-                card_badges = ["import draft", f"leverage {leverage_score}"]
+                card_badges = ["import file", f"leverage {leverage_score}"]
             elif format_missing(top_row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}:
                 card_badges = ["peer support data", f"leverage {leverage_score}"]
         if staged_fundamentals_import:
             fallback_action = (
-                f"Fundamentals import draft in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
+                f"Fundamentals import file in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
             )
         elif staged_peer_import:
             fallback_action = (
-                f"Peer import draft in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
+                f"Peer import file in {target_file}; run make imports-validate, make imports-preview, then make imports-apply."
             )
         else:
             fallback_action = command_family_fallback(
@@ -15546,11 +15546,11 @@ def overview_deep_research_priority_bridge_cards(
             command = preferred_row_command(row, fallback_command or "Not available")
             if staged_fundamentals_import:
                 fallback_action = (
-                    "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import draft."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply for the fundamentals import file."
                 )
             elif staged_peer_import:
                 fallback_action = (
-                    "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import draft."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import file."
                 )
             else:
                 fallback_action = command_family_fallback(
@@ -15574,9 +15574,9 @@ def overview_deep_research_priority_bridge_cards(
                 {
                     "ticker": ticker,
                     "lane": (
-                        "Review fundamentals import draft"
+                        "Review fundamentals import file"
                         if staged_fundamentals_import
-                        else "Review peer import draft"
+                        else "Review peer import file"
                         if staged_peer_import
                         else lane
                     ),
@@ -16105,7 +16105,7 @@ def overview_next_command_cards(
                 if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
                     body = reason
                 else:
-                    body = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
+                    body = "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
                 badges = ["staged flow", "command"]
             elif "bundle-" in lowered:
                 body = reason if has_reason else GUIDED_BATCH_FIRST_COPY
@@ -16570,7 +16570,7 @@ def overview_workflow_path_cards(
                 if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
                     body = reason
                 else:
-                    body = "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
+                    body = "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
             elif "runbook-" in lowered:
                 badges = ["today", "guided batch"] if index == 1 else ["guided batch", "workflow"]
                 body = reason if has_reason else GUIDED_BATCH_WORKFLOW_COPY
@@ -17364,9 +17364,9 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
             normalized_body = body_source.lower()
             if "make price-preview" not in normalized_body or "make price-apply" not in normalized_body:
                 body_source = (
-                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
+                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
                     if reason and reason != "Not available"
-                    else "Run make price-validate, then make price-preview, then make price-apply so price import drafts are reviewed before apply."
+                    else "Run make price-validate, then make price-preview, then make price-apply so price import files are reviewed before apply."
                 )
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
