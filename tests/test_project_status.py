@@ -580,7 +580,8 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
         sys.argv = argv_before
 
     assert "Project status summary:" in output
-    assert "Read-only operator snapshot." in output
+    assert "Read-only project snapshot." in output
+    assert "Read-only operator snapshot." not in output
     assert "Commands below are copy-only local research helpers" in output
     assert "Local folders:" in output
     assert "data: data" in output
@@ -589,6 +590,7 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "Tickers with prices: 1/2" in output
     assert "DCF-ready tickers: 1/2" in output
     assert "make focus-fundamentals TICKER=AMD" in output
+    assert "generated CSV churn" not in output
     assert "Wrote:" not in output
 
 
@@ -623,6 +625,13 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     pd.DataFrame(
         [
             {
+                "Step": "Refresh next capped missing-price batch",
+                "Command": "make price-refresh-loop DRY_RUN=1",
+                "Reason": "Preview the broad-universe price frontier first.",
+                "SourceContext": "data/imports/prices.csv fallback plus optional Yahoo refresh",
+                "FreshnessContext": "dry-run first; verify source/freshness and generated CSV churn after any refresh",
+            },
+            {
                 "Step": "Open Price Coverage Bundle (Broader Queue) runbook",
                 "Command": "make runbook-prices-broader",
                 "Reason": "Unlock Monthly Picks for 5 tickers across this bundle.",
@@ -636,9 +645,16 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
 
     assert payload is not None
     command_row = payload["recommended_next_command_rows"][0]
-    assert command_row["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
-    assert command_row["Reason"] == "Unlock Monthly Picks for 5 tickers across this guided data batch."
-    assert command_row["FreshnessContext"] == "guided batch generated from current onboarding outputs"
+    assert command_row["Step"] == "Refresh next capped missing-price batch"
+    assert (
+        command_row["FreshnessContext"]
+        == "dry-run first; verify source/readiness notes and local CSV changes after any refresh"
+    )
+    assert "generated CSV churn" not in command_row["FreshnessContext"]
+    guided_row = payload["recommended_next_command_rows"][1]
+    assert guided_row["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
+    assert guided_row["Reason"] == "Unlock Monthly Picks for 5 tickers across this guided data batch."
+    assert guided_row["FreshnessContext"] == "guided batch generated from current onboarding outputs"
 
 
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
@@ -779,6 +795,11 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
     assert payload["top_onboarding_actions"][0]["ticker"] == "AMD"
     assert payload["recommended_next_command_rows"][0]["Step"] == "Refresh next capped missing-price batch"
     assert payload["recommended_next_command_rows"][0]["Command"] == "make price-refresh-loop DRY_RUN=1"
+    assert (
+        payload["recommended_next_command_rows"][0]["FreshnessContext"]
+        == "dry-run first; verify source/readiness notes and local CSV changes after any refresh"
+    )
+    assert "generated CSV churn" not in payload["recommended_next_command_rows"][0]["FreshnessContext"]
     assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
     assert payload["recommended_next_command_rows"][2]["Command"] == "make runbook-prices-broader"
     assert payload["recommended_next_command_rows"][2]["FreshnessContext"] == "guided batch generated from current onboarding outputs"
