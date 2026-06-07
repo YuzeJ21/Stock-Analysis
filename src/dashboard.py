@@ -15821,9 +15821,9 @@ def overview_market_context_cards(
 
 ONBOARDING_NOTICE_DEFAULTS: dict[str, str] = {
     "coverage_wizard": "Run make onboarding to refresh the local coverage guide and see the next best coverage unlocks.",
-    "command_bundles": "Run make onboarding to refresh the onboarding outputs and generate holdings-first guided data batches.",
-    "command_bundle_details": "Run make onboarding to refresh the onboarding outputs and generate ticker-level guided-batch steps.",
-    "command_bundle_runbook": "Run make onboarding to refresh the onboarding outputs and generate ordered guided-batch runbook rows.",
+    "command_bundles": "Run make onboarding to refresh holdings-first guided data batches.",
+    "command_bundle_details": "Run make onboarding to refresh ticker-level guided-batch steps.",
+    "command_bundle_runbook": "Run make onboarding to refresh ordered guided-batch runbook rows.",
     "price_worklist": "Run make onboarding to refresh the onboarding outputs and see exact local price-history gaps plus the safe manual-import path.",
     "fundamentals_peer_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still need SEC fundamentals or manual peer mappings.",
     "optional_context_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still have optional earnings or analyst-estimate gaps.",
@@ -18071,8 +18071,8 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
                 st.dataframe(clean_display_frame(decisions[decision_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
-            "Research decisions are not available yet",
-            decisions_message or "Run make research-decisions or make pipeline to generate readiness-aware decision buckets.",
+            "Research decisions not ready yet",
+            decisions_message or "Run make research-decisions or make pipeline to refresh readiness-aware decision buckets.",
             "make research-decisions",
             tone="warning",
         )
@@ -20160,8 +20160,8 @@ def render_market_command_center(
 
     if ticker_readiness_frame is None or ticker_readiness_frame.empty:
         render_notice_card(
-            "Ticker readiness report is not available",
-            "Run make readiness to generate data/reports/ticker_readiness_report.csv before using the market-wide filters.",
+            "Ticker readiness report not ready yet",
+            "Run make readiness to refresh ticker readiness proof before using the market-wide filters.",
             "make readiness",
             tone="warning",
         )
@@ -20444,7 +20444,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         if command_bundles_frame is None:
             bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
             render_notice_card(
-                "Guided data batches have not been generated yet",
+                "Guided data batches not ready yet",
                 bundle_notice_body,
                 bundle_notice_command,
             )
@@ -20476,7 +20476,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         elif command_bundle_details_frame is None:
             detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
             render_notice_card(
-                "Ticker-level guided steps are not available yet",
+                "Ticker-level guided steps not ready yet",
                 detail_notice_body,
                 detail_notice_command,
             )
@@ -20504,7 +20504,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         elif command_bundle_runbook_frame is None:
             runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
             render_notice_card(
-                "Guided command steps are not available yet",
+                "Guided command steps not ready yet",
                 runbook_notice_body,
                 runbook_notice_command,
             )
@@ -20856,7 +20856,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 st.dataframe(clean_display_frame(ticker_readiness_frame[readiness_columns].head(200)), width="stretch", hide_index=True)
             else:
-                st.info(ticker_readiness_message or "Run make readiness to generate data/reports/ticker_readiness_report.csv.")
+                st.info(ticker_readiness_message or "Run make readiness to refresh ticker readiness proof.")
 
             with st.expander("Liquidity Context", expanded=False):
                 if liquidity_frame is not None and not liquidity_frame.empty:

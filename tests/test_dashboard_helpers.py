@@ -489,12 +489,30 @@ def test_data_health_bundle_detail_copy_uses_operator_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "Ticker-level guided steps" in source
-    assert "Ticker-level guided steps are not available yet" in source
-    assert "generate ticker-level guided-batch steps" in source
+    assert "Ticker-level guided steps not ready yet" in source
+    assert "refresh ticker-level guided-batch steps" in source
+    assert "Ticker-level guided steps are not available yet" not in source
+    assert "generate ticker-level guided-batch steps" not in source
     assert "Ticker-level bundle steps" not in source
     assert "Command bundle detail rows" not in source
     assert "generate ticker-level bundle detail rows" not in source
     assert "Command bundle runbook" not in source
+
+
+def test_dashboard_not_ready_notices_avoid_generated_file_language():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "Research decisions not ready yet" in source
+    assert "refresh readiness-aware decision buckets" in source
+    assert "Ticker readiness report not ready yet" in source
+    assert "refresh ticker readiness proof" in source
+    assert "Guided data batches not ready yet" in source
+    assert "Guided command steps not ready yet" in source
+    assert "Research decisions are not available yet" not in source
+    assert "generate readiness-aware decision buckets" not in source
+    assert "Run make readiness to generate data/reports/ticker_readiness_report.csv" not in source
+    assert "Guided data batches have not been generated yet" not in source
+    assert "Guided command steps are not available yet" not in source
 
 
 def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_details():
@@ -6154,7 +6172,8 @@ def test_onboarding_notice_copy_uses_onboarding_front_door_for_generated_artifac
     unlock_body, unlock_command = dashboard.onboarding_notice_copy("unlock_priority_summary")
 
     assert bundle_command == "make onboarding"
-    assert "generate holdings-first guided data batches" in bundle_body.lower()
+    assert "refresh holdings-first guided data batches" in bundle_body.lower()
+    assert "generate holdings-first guided data batches" not in bundle_body.lower()
     assert price_command == "make onboarding"
     assert "safe manual-import path" in price_body.lower()
     assert unlock_command == "make onboarding"
