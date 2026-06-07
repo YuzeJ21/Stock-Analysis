@@ -888,6 +888,8 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "make staged-hygiene-check" in checklist
     assert "outputs/staging/" in checklist
     assert "git add --pathspec-from-file=..." in checklist
+    assert "local review next steps" in diff_audit
+    assert "operator next steps" not in diff_audit
     assert "safe staging" in checklist
     assert "generated CSV/JSON churn" in checklist
     assert "new `docs/`, `scripts/`, and `tests/` files" in checklist

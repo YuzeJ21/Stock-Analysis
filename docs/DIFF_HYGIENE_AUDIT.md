@@ -58,7 +58,7 @@ license status, generated-data hygiene, and research-only guardrails.
 
 Purpose: improve dashboard workflow cards, plain-language labels, source and
 freshness context, no-refresh-on-load behavior, first-unlock guidance, and
-operator next steps.
+local review next steps.
 
 ### Analysis And Report Clarity
 
