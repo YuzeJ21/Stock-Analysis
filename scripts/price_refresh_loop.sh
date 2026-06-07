@@ -111,7 +111,7 @@ while [ "$i" -le "$BATCHES" ]; do
   echo "Starting capped price batch $i of $BATCHES..."
   if ! make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"; then
     echo "Price refresh batch $i failed. Local files may be partially updated; review provider output, keep generated CSV churn unstaged, then rerun a dry run before continuing." >&2
-    echo "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=... to switch to the local import draft workflow." >&2
+    echo "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=... to switch to the local import file workflow." >&2
     echo "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize, then run make price-validate, make price-preview, and make price-apply." >&2
     echo "Resume note: after fixing the source issue, rerun make price-refresh-loop DRY_RUN=1 so the next missing-only plan reflects the current local CSV state." >&2
     exit 1

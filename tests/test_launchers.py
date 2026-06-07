@@ -297,7 +297,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in script
     assert "Dry-run result: no data changed; review the planned command, then run exactly one capped loop when ready." in script
     assert "Recalculate anytime: rerun DRY_RUN=1 after interruptions, provider limits, or local CSV changes." in script
-    assert "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=..." in script
+    assert "Safe fallback: use make runbook-prices-broader or make focus-price TICKER=... to switch to the local import file workflow." in script
     assert "Manual CSV path: normalize downloaded OHLCV rows with make price-normalize" in script
     assert "Resume note: after fixing the source issue, rerun make price-refresh-loop DRY_RUN=1" in script
     assert 'make price-refresh TOP_N="$TOP_N" PROVIDER="$PROVIDER"' in script
