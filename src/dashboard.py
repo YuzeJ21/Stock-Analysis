@@ -20739,7 +20739,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             ]
             if column in validation_rows.columns
         ]
-        with st.expander("Local dataset validation details", expanded=False):
+        with st.expander("Local dataset checks", expanded=False):
             st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
