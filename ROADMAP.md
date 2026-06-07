@@ -264,17 +264,17 @@ The next roadmap milestone is complete when:
 - [x] Decision buckets remain more informative than generic monitor rows.
 - [x] `ARKF` and risk warnings are resolved or clearly classified.
 - [x] Single-stock research mode can generate a data-honest report.
-- [ ] `make pipeline` passes in the next full data-output verification run.
-- [ ] `make onboarding` passes in the next full data-output verification run.
-- [ ] `make research-health` passes in the next full data-output verification run.
-- [ ] `make readiness` passes in the next full data-output verification run.
+- [x] `make pipeline` passes in the latest full data-output verification run.
+- [x] `make onboarding` passes in the latest full data-output verification run.
+- [x] `make research-health` passes in the latest full data-output verification run.
+- [x] `make readiness` passes in the latest full data-output verification run.
 - [x] `make test` passes through `make public-check`.
 - [x] `make dashboard-smoke` passes through `make public-check`.
 
 Current boundary:
 
 - The product workflow for fundamentals import, SEC staging guidance, peer blocker triage, public UI polish, and single-stock report generation is implemented and verified at the public-share gate.
-- The remaining unchecked readiness-count items require real trusted data rows or a deliberate full generated-output refresh. They should not be closed by fabricated data or by committing broad CSV churn.
+- The remaining unchecked readiness-count items require real trusted data rows. They should not be closed by fabricated data or by committing broad CSV churn.
 - If the next work session is data-focused, start with `make readiness-snapshot`, then run only scoped trusted-data unlocks, then run the full verification commands listed above before updating these boxes.
 
 ## Guardrails
