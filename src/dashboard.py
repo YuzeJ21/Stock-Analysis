@@ -2838,6 +2838,14 @@ def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool =
     )
 
 
+def monthly_ideas_hero_label(monthly_count: int) -> str:
+    if monthly_count <= 0:
+        return "Monthly ideas locked"
+    if monthly_count == 1:
+        return "1 monthly idea ready"
+    return f"{monthly_count} monthly ideas ready"
+
+
 def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]]) -> None:
     universe = catalog.load_dataframe("universe")
     tickers = 0 if universe is None or universe.empty else len(universe)
@@ -2846,6 +2854,7 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
     monthly_frame, _ = monthly_tables["monthly_research_picks.csv"]
     final_count = 0 if final_frame is None else len(final_frame)
     monthly_count = 0 if monthly_frame is None else len(monthly_frame)
+    monthly_label = monthly_ideas_hero_label(monthly_count)
     latest_price = _latest_local_price_date(catalog)
     st.markdown(
         f"""
@@ -2859,7 +2868,7 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
           <div class="hero-pills">
             <span class="hero-pill">{tickers} tickers tracked</span>
             <span class="hero-pill">{final_count} names checked</span>
-            <span class="hero-pill">{monthly_count} monthly ideas</span>
+            <span class="hero-pill">{html.escape(monthly_label)}</span>
             <span class="hero-pill">Latest price: {html.escape(latest_price)}</span>
           </div>
         </div>

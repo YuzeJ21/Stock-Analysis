@@ -181,6 +181,13 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
     assert "sell" not in rendered
 
 
+def test_monthly_ideas_hero_label_explains_locked_zero_state():
+    assert dashboard.monthly_ideas_hero_label(0) == "Monthly ideas locked"
+    assert dashboard.monthly_ideas_hero_label(-1) == "Monthly ideas locked"
+    assert dashboard.monthly_ideas_hero_label(1) == "1 monthly idea ready"
+    assert dashboard.monthly_ideas_hero_label(3) == "3 monthly ideas ready"
+
+
 def test_purpose_evaluation_page_copy_uses_built_from_readiness_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
