@@ -363,7 +363,7 @@ def test_action_queue_uses_staged_import_titles_for_global_gap_rows():
     )
 
     row = rows[0]
-    assert row.title == "Review fundamentals import draft"
+    assert row.title == "Review fundamentals import file"
     assert row.focus_command == "make imports-validate"
     assert "data/imports/fundamentals.csv" in row.reason
 
@@ -577,9 +577,9 @@ def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp
     staged_row = next(
         row
         for row in payload["action_queue"]
-        if row["focus_command"] == "make imports-validate" and row["title"] == "Review fundamentals import draft"
+        if row["focus_command"] == "make imports-validate" and row["title"] == "Review fundamentals import file"
     )
-    assert staged_row["title"] == "Review fundamentals import draft"
+    assert staged_row["title"] == "Review fundamentals import file"
     assert "data/imports/fundamentals.csv" in staged_row["reason"]
 
 
@@ -641,7 +641,7 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
     assert fundamentals_row.title == "Stage fundamentals for AMD"
     assert fundamentals_row.recommended_action == (
         "Run make focus-fundamentals TICKER=AMD. If SEC_USER_AGENT is configured, run "
-        "make sec-stage TICKERS=AMD; otherwise prepare trusted manual fundamentals import draft rows in "
+            "make sec-stage TICKERS=AMD; otherwise prepare trusted manual fundamentals import file rows in "
         "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
         "and make imports-apply."
     )

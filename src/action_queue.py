@@ -69,7 +69,7 @@ def _command_safety_fields(example_command: object) -> dict[str, object]:
         "credential_present": credential_present,
         "manual_fallback_command": "make templates",
         "command_safety_note": (
-            "SEC import draft workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "SEC staging workflow requires SEC_USER_AGENT. If it is missing, use make templates, fill "
             "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
             "make imports-preview, and make imports-apply."
         ),
@@ -365,7 +365,7 @@ def _fundamentals_focus_recommended_action(ticker: str) -> str:
         return "Run make status, then follow the printed fundamentals focus or runbook path."
     return (
         f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
-        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import draft rows in "
+        f"make sec-stage TICKERS={ticker}; otherwise prepare trusted manual fundamentals import file rows in "
         "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
         "and make imports-apply."
     )
@@ -381,8 +381,8 @@ def _peer_focus_recommended_action(ticker: str, *, missing_mapping: bool) -> str
             "with transparent peer mappings."
         )
     return (
-        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the local import draft workflow "
-        "workflows so peer-relative valuation can calculate transparently."
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the local import file workflow "
+        "so peer-relative valuation can calculate transparently."
     )
 
 
@@ -590,9 +590,9 @@ def _global_gap_title(dataset: str, focus_command: str, ticker: str) -> str:
         return f"Resolve {dataset} gap for {ticker}".strip()
     normalized_focus = str(focus_command or "").strip().lower()
     if dataset == "fundamentals" and normalized_focus == "make imports-validate":
-        return "Review fundamentals import draft"
+        return "Review fundamentals import file"
     if dataset == "peers" and normalized_focus == "make imports-validate":
-        return "Review peer import draft"
+        return "Review peer import file"
     return f"Resolve {dataset} gap".strip()
 
 
