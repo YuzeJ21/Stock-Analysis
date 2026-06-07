@@ -2598,7 +2598,7 @@ def friendly_dashboard_card_copy(text: object) -> str:
         (r"\bstaged price import\b", "price import draft"),
         (r"\bLocal import draft rows\b", "Local import draft rows"),
         (r"\blocal import draft rows\b", "local import draft rows"),
-        (r"\blocal import draft workflows\b", "local import drafts"),
+        (r"\blocal import draft workflows\b", "local import files"),
         (r"\bstaged local workflow\b", "local import draft workflow"),
         (r"\bstaged flow\b", "import draft flow"),
         (r"\blive fundamentals import drafts\b", "live local fundamentals"),
@@ -6809,7 +6809,7 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         elif lowered_command == "make imports-validate":
             normalized_action = action.lower()
             if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
-                action = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+                action = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
         elif lowered_command == "make price-validate":
             normalized_action = action.lower()
             if "make price-preview" not in normalized_action or "make price-apply" not in normalized_action:
@@ -6915,7 +6915,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         elif lowered_command == "make imports-validate":
             normalized_action = recommended_action.lower()
             if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
-                recommended_action = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+                recommended_action = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
         elif lowered_command == "make price-validate":
             normalized_action = recommended_action.lower()
             if "make price-preview" not in normalized_action or "make price-apply" not in normalized_action:
@@ -7849,7 +7849,7 @@ def peer_mapping_studio_summary_cards(
         {
             "kicker": "MISSING MAPPINGS",
             "title": f"{int(missing_mapping.sum())} tickers",
-            "body": f"Active-universe affected: {int((missing_mapping & active).sum())}. Add transparent mappings through peer import drafts CSV and preview before apply.",
+            "body": f"Active-universe affected: {int((missing_mapping & active).sum())}. Add transparent mappings through peer import files and preview before apply.",
             "badges": ["manual peers", "source-backed"],
             "command": "make templates",
         },
@@ -14471,9 +14471,9 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
             normalized_body = body.lower()
             if "make imports-preview" not in normalized_body or "make imports-apply" not in normalized_body:
                 body = (
-                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
                     if reason and reason != "Not available"
-                    else "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+                    else "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
                 )
         elif lowered_command == "make price-validate":
             normalized_body = body.lower()
@@ -16040,7 +16040,7 @@ def overview_benchmark_pressure_cards(
         else "Ticker coverage is not ready yet."
     )
     if parse_or_source_errors:
-        pressure_body += f" Latest refresh surfaced {parse_or_source_errors} price-source issue(s), so reviewed local import drafts may still be the safer path."
+        pressure_body += f" Latest refresh surfaced {parse_or_source_errors} price-source issue(s), so reviewed local import files may still be the safer path."
 
     benchmark_body = (
         f"Strongest current local theme is {strongest_theme} at {relative_spy} vs SPY."
@@ -16099,7 +16099,7 @@ def overview_next_command_cards(
                 if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
                     body = reason
                 else:
-                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
                 badges = ["staged flow", "command"]
             elif lowered == "make price-validate":
                 if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
@@ -16564,7 +16564,7 @@ def overview_workflow_path_cards(
                 if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
                     body = reason
                 else:
-                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
             elif lowered == "make price-validate":
                 badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
                 if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
@@ -16614,7 +16614,7 @@ def overview_workflow_path_cards(
         first_body = GUIDED_BATCH_FIRST_COPY
         first_badges = ["today", "guided batch"]
     elif "imports-" in lowered_first:
-        first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+        first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
         first_badges = ["today", "staged flow"]
     elif "runbook-" in lowered_first:
         first_body = GUIDED_BATCH_WORKFLOW_COPY
@@ -16714,7 +16714,7 @@ def overview_handoff_cards() -> list[dict[str, object]]:
         {
             "kicker": "NEXT DEEPER TAB",
             "title": "Data Health",
-            "body": "Use this when prices, fundamentals, peers, or local import drafts are still blocking the local research workflow. It is the best place to inspect blockers before interpreting deeper outputs.",
+            "body": "Use this when prices, fundamentals, peers, or local import files are still blocking the local research workflow. It is the best place to inspect blockers before interpreting deeper outputs.",
             "badges": ["coverage", "read-only"],
             "command": "make onboarding",
         },
@@ -17356,9 +17356,9 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
             normalized_body = body_source.lower()
             if "make imports-preview" not in normalized_body or "make imports-apply" not in normalized_body:
                 body_source = (
-                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
                     if reason and reason != "Not available"
-                    else "Run make imports-validate, then make imports-preview, then make imports-apply so local import drafts are reviewed before apply."
+                    else "Run make imports-validate, then make imports-preview, then make imports-apply so local import files are reviewed before apply."
                 )
         elif lowered_command == "make price-validate":
             normalized_body = body_source.lower()

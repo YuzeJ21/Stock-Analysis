@@ -85,7 +85,7 @@ make peer-mapping-queue TOP_N=10
 make optional-context-worklist TOP_N=10
 ```
 
-For local import drafts, use preview before apply:
+For local import files, use preview before apply:
 
 ```bash
 make templates

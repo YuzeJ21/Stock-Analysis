@@ -837,7 +837,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "Methodology",
         "DCF formula path",
         "The At A Glance method cue and the `Methodology` section show the DCF formula path",
-        "For local import drafts, use preview before apply",
+        "For local import files, use preview before apply",
         "Evaluation Function Check",
         "Copyable Unlock Commands",
         "does not execute imports, refreshes, broker actions, or trades",
@@ -859,6 +859,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         assert phrase in guide
     assert "META` demonstrates company-level analysis where peer context is still locked" not in guide
     assert "For local import draft workflows" not in guide
+    assert "For local import drafts, use preview before apply" not in guide
     assert "make price-refresh-loop BATCHES=5 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30" not in guide
 
     for forbidden in (
