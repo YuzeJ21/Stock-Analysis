@@ -6961,16 +6961,16 @@ def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str,
         (
             "Staged universe",
             (
-                f"{staged_rows} staged ticker rows are waiting for review before make universe-apply."
+                f"{staged_rows} preview ticker rows are waiting for review before make universe-apply."
                 if staged_exists
-                else "No universe import draft is waiting. Build one with make universe-preview before make universe-apply."
+                else "No universe preview file is waiting. Build one with make universe-preview before make universe-apply."
             ),
             "make universe-preview",
             "warning" if staged_exists else "neutral",
         ),
         (
             "Safe expansion path",
-            "Run make universe-preview first, inspect the import draft CSV, then run make universe-apply yourself only after review.",
+            "Run make universe-preview first, inspect the preview CSV, then run make universe-apply yourself only after review.",
             "make universe-preview",
             "neutral",
         ),
@@ -6992,7 +6992,7 @@ def staged_universe_status_frame(staged: dict[str, Any]) -> pd.DataFrame:
         warning_text = format_missing(warnings, "No validation warnings")
     return pd.DataFrame(
         [
-            {"Field": "Import draft file", "Value": format_missing(staged.get("path"), "No import draft")},
+            {"Field": "Universe import file", "Value": format_missing(staged.get("path"), "No preview file")},
             {"Field": "Rows", "Value": format_value(staged.get("row_count"), fallback="0")},
             {"Field": "Validation", "Value": format_missing(validation.get("status"), "Not available")},
             {"Field": "Warnings", "Value": warning_text},
@@ -14153,11 +14153,11 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
     cards = [
         {
             "kicker": "BEST NEXT",
-            "title": "Preview universe update" if not staged_exists else "Apply universe draft",
+            "title": "Preview universe update" if not staged_exists else "Review universe preview",
             "body": (
                 "Start with make universe-preview so larger source-driven changes stay reviewable before make universe-apply."
                 if not staged_exists
-                else f"{staged_rows} draft ticker rows are already visible in the dashboard; run make universe-apply only after reviewing the CSV and review notes."
+                else f"{staged_rows} preview ticker rows are already visible in the dashboard; run make universe-apply only after reviewing the CSV and review notes."
             ),
             "badges": ["preview first", "read-only"],
             "command": "make universe-preview" if not staged_exists else "make universe-apply",
@@ -14174,7 +14174,7 @@ def universe_action_path_cards(universe_summary: dict[str, Any]) -> list[dict[st
         {
             "kicker": "REVIEW FLOW",
             "title": "Apply stays copy-only",
-            "body": "Run make universe-preview first, inspect the draft CSV and review notes, then run make universe-apply only after review.",
+            "body": "Run make universe-preview first, inspect the preview CSV and review notes, then run make universe-apply only after review.",
             "badges": ["backup on apply", "csv-first"],
             "command": "make universe-apply",
         },
@@ -14195,11 +14195,11 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
         },
         {
             "kicker": "IMPORT DRAFT",
-            "title": "Import draft present" if staged.get("exists") else "No universe import draft",
+            "title": "Universe preview ready" if staged.get("exists") else "No universe preview file",
             "body": (
                 "Run make universe-preview before make universe-apply. Dashboard stays read-only for safety."
                 if staged.get("exists")
-                else "No universe import draft is waiting; run make universe-preview before make universe-apply."
+                else "No universe preview file is waiting; run make universe-preview before make universe-apply."
             ),
             "badges": ["data/imports/universe.csv"],
             "command": "make universe-apply",
@@ -14207,7 +14207,7 @@ def universe_manager_summary_cards(current: dict[str, Any], staged: dict[str, An
         {
             "kicker": "WORKFLOW",
             "title": "Preview first",
-            "body": "Use source presets to build a candidate universe with make universe-preview, then run make universe-apply only after reviewing the draft CSV.",
+            "body": "Use source presets to build a candidate universe with make universe-preview, then run make universe-apply only after reviewing the preview CSV.",
             "badges": ["CSV-first", "backup on apply"],
             "command": "make universe-preview",
         },
@@ -21556,7 +21556,7 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
 
     render_section_header("Universe Workflow", "Preview-first expansion status. The dashboard stays read-only for safer universe changes.")
     render_action_cards(universe_workflow_cards(universe_summary))
-    render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, import draft state, and safer apply flow.")
+    render_section_header("Universe Action Paths", "The clearest preview-first command path for the current universe file, preview-file state, and safer apply flow.")
     render_signal_cards(universe_action_path_cards(universe_summary))
 
     with st.expander("Universe coverage and source details", expanded=False):

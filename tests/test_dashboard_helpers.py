@@ -12056,7 +12056,7 @@ def test_universe_workflow_cards_explain_preview_first_and_manual_fallback():
 
     assert cards[0][0] == "Current universe"
     assert cards[0][3] == "warning"
-    assert "4 staged ticker rows" in rendered
+    assert "4 preview ticker rows" in rendered
     assert "make universe-preview" in rendered
     assert "make universe-apply" in rendered
     assert "custom_universe.csv" in rendered
@@ -12078,11 +12078,13 @@ def test_universe_action_path_cards_surface_preview_review_and_apply_guidance():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 3
-    assert cards[0]["title"] == "Apply universe draft"
+    assert cards[0]["title"] == "Review universe preview"
     assert cards[0]["command"] == "make universe-apply"
     assert cards[2]["command"] == "make universe-apply"
     assert "12 current rows" in rendered
     assert "apply stays copy-only" in rendered
+    assert "preview csv" in rendered
+    assert "draft csv" not in rendered
     assert "cli-only" not in rendered
     assert "terminal-only" not in rendered
     assert "make universe-preview" in rendered
@@ -12110,7 +12112,8 @@ def test_universe_manager_summary_cards_surface_make_preview_and_apply():
     assert cards[2]["command"] == "make universe-preview"
     assert "make universe-preview" in rendered
     assert "make universe-apply" in rendered
-    assert "import draft present" in rendered
+    assert "universe preview ready" in rendered
+    assert "import draft present" not in rendered
 
 
 def test_staged_universe_status_frame_hides_raw_json_shape():
@@ -12123,7 +12126,7 @@ def test_staged_universe_status_frame_hides_raw_json_shape():
     )
 
     assert list(frame.columns) == ["Field", "Value"]
-    assert "Import draft file" in frame["Field"].tolist()
+    assert "Universe import file" in frame["Field"].tolist()
     assert "data/imports/universe.csv" in frame["Value"].tolist()
     assert "valid_with_warnings" in frame["Value"].tolist()
     assert "manual review recommended" in frame["Value"].tolist()
