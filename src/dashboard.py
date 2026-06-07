@@ -18467,10 +18467,10 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
             "command": "make price-refresh-loop DRY_RUN=1",
         },
         {
-            "kicker": "DEEP ANALYSIS",
+            "kicker": "VALUATION READY",
             "title": f"{dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready",
             "body": "Valuation and peer comparison appear only when the needed inputs exist. Missing peers or fundamentals stay visible.",
-            "badges": ["valuation gated", "source-aware"],
+            "badges": ["valuation gated", "source checked"],
             "command": "make sec-stage-queue TOP_N=25",
         },
         {
