@@ -2771,9 +2771,9 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
             valuation context, monthly research candidates, and data readiness. Research workflow only.
           </div>
           <div class="hero-pills">
-            <span class="hero-pill">{tickers} universe tickers</span>
-            <span class="hero-pill">{final_count} research rows</span>
-            <span class="hero-pill">{monthly_count} monthly candidates</span>
+            <span class="hero-pill">{tickers} tickers tracked</span>
+            <span class="hero-pill">{final_count} stocks checked</span>
+            <span class="hero-pill">{monthly_count} monthly ideas</span>
             <span class="hero-pill">Latest price: {html.escape(latest_price)}</span>
           </div>
         </div>
@@ -14450,7 +14450,7 @@ def overview_landing_cards(
     return [
         {
             "kicker": "RESEARCH FLOW",
-            "title": f"{watchlist_count} research rows",
+            "title": f"{watchlist_count} stocks checked",
             "body": f"{monthly_count} current monthly candidates and latest local price date {latest_price}.",
             "badges": ["local outputs"],
             "command": "make monthly",
