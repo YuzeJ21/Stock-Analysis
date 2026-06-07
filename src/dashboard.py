@@ -1530,6 +1530,10 @@ def apply_dashboard_theme() -> None:
           display: none !important;
           visibility: hidden !important;
         }
+        [data-testid="stIconMaterial"] {
+          display: none !important;
+          visibility: hidden !important;
+        }
         [data-testid="stSidebar"] {
           background: #f8faf5 !important;
           border-right: 1px solid var(--research-border);
