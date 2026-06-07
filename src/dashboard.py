@@ -377,9 +377,9 @@ DATA_ONBOARDING_FILES = {
     "peer_mapping_queue.csv": "Peer Review Queue",
     "ticker_unlock_ladder.csv": "Ticker Unlock Ladder",
     "unlock_priority_summary.csv": "Unlock Priority Summary",
-    "command_bundles.csv": "Guided Data Batches",
-    "command_bundle_details.csv": "Guided Data Batch Details",
-    "command_bundle_runbook.csv": "Guided Data Batch Runbook",
+    "command_bundles.csv": "Guided Coverage Plans",
+    "command_bundle_details.csv": "Guided Coverage Plan Details",
+    "command_bundle_runbook.csv": "Guided Coverage Steps",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -14577,7 +14577,7 @@ def overview_landing_cards(
         {
             "kicker": "FIX FIRST",
             "title": f"{queue_summary.get('critical', 0)} critical",
-            "body": f"{queue_summary.get('high', 0)} high-priority remediation items remain in the local action queue.",
+            "body": f"{queue_summary.get('high', 0)} high-priority data fixes remain in the local action queue.",
             "badges": ["make action-queue-check TOP_N=10"],
             "command": "make action-queue-check TOP_N=10",
         },
@@ -15891,9 +15891,9 @@ def overview_market_context_cards(
 
 ONBOARDING_NOTICE_DEFAULTS: dict[str, str] = {
     "coverage_wizard": "Run make onboarding to refresh the local coverage guide and see the next best coverage unlocks.",
-    "command_bundles": "Run make onboarding to refresh holdings-first guided data batches.",
-    "command_bundle_details": "Run make onboarding to refresh ticker-level guided-batch steps.",
-    "command_bundle_runbook": "Run make onboarding to refresh ordered guided-batch runbook rows.",
+    "command_bundles": "Run make onboarding to refresh holdings-first coverage plans.",
+    "command_bundle_details": "Run make onboarding to refresh ticker-level coverage steps.",
+    "command_bundle_runbook": "Run make onboarding to refresh ordered coverage steps.",
     "price_worklist": "Run make onboarding to refresh the onboarding outputs and see exact local price-history gaps plus the safe manual-import path.",
     "fundamentals_peer_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still need SEC fundamentals or manual peer mappings.",
     "optional_context_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still have optional earnings or analyst-estimate gaps.",
@@ -16038,13 +16038,13 @@ def overview_next_command_cards(
                 body = reason if has_reason else GUIDED_BATCH_WORKFLOW_COPY
                 badges = ["guided batch", "command"]
             elif "onboarding" in lowered:
-                body = "Refresh local data coverage, onboarding outputs, and action guidance before broader research work."
+                body = "Refresh local data coverage and next-step guidance before broader research work."
                 badges = ["data moat", "command"]
             elif "verify" in lowered:
                 body = "Run deterministic local verification before trusting the current dashboard and CSV outputs."
                 badges = ["verification", "command"]
             elif "dashboard-smoke" in lowered:
-                body = "Smoke-check the Streamlit surface after local outputs and operator artifacts are refreshed."
+                body = "Smoke-check the product page after local coverage views are refreshed."
                 badges = ["ui check", "command"]
             elif "dashboard" in lowered:
                 body = "Open the Streamlit surface after the smoke check confirms the local dashboard still boots cleanly."
@@ -16080,7 +16080,7 @@ def overview_next_command_cards(
             {
                 "kicker": "NEXT COMMAND",
                 "title": "make onboarding",
-                "body": "Run make onboarding to refresh local coverage, onboarding outputs, and operator guidance before broader research work.",
+                "body": "Run make onboarding to refresh local coverage and next-step guidance before broader research work.",
                 "badges": ["data moat", "command"],
                 "command": "make onboarding",
             }
@@ -17379,7 +17379,7 @@ def priority_now_fallback_actions(
         actions.append(
             (
                 "Workflow looks ready",
-                "Core outputs are present. Run make status-check TOP_N=5 to review the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
+                "Core research views are present. Run make status-check TOP_N=5 to review the saved coverage snapshot, then make dashboard-smoke before deeper dashboard review.",
                 "make status-check TOP_N=5",
                 "neutral",
             )
@@ -18434,12 +18434,12 @@ def render_overview(
                 ("Workflow Health", f"{health_score}/100", health_label),
                 ("Universe", current_universe["row_count"], "Tickers in data/universe.csv"),
                 ("Holdings", 0 if holdings is None or holdings.empty else len(holdings), "Rows in holdings.csv"),
-                ("Final Watchlist", watchlist_count, "Current state-machine rows"),
+                ("Final Watchlist", watchlist_count, "Current readiness-state rows"),
                 ("Latest Price", latest_price, "From local prices.csv"),
                 ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
                 ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
-                ("Research Ready", health_summary["research_ready"], "Data Quality Unlock Guide rows"),
-                ("Critical Actions", queue_summary["critical"], "Highest-priority remediation items"),
+                ("Research Ready", health_summary["research_ready"], "Coverage guide rows"),
+                ("Critical Actions", queue_summary["critical"], "Highest-priority data fixes"),
             ]
         )
 
@@ -18450,7 +18450,7 @@ def render_overview(
         st.markdown(
             (
                 "<div class='subtle-panel'>"
-                f"<strong>Coverage snapshot.</strong> {output_file_count} local output files are present. "
+                f"<strong>Coverage snapshot.</strong> {output_file_count} saved research views are present. "
                 f"{missing_warning_count} names still carry explicit missing-data warnings, "
                 f"{health_summary['thin_liquidity']} tickers look thin on local liquidity context, and "
                 f"{health_summary['high_correlation']} tickers show high local co-movement."
@@ -20390,8 +20390,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     if project_status_payload is None:
         with st.expander("Refresh status note", expanded=False):
             render_notice_card(
-                "Showing saved local results",
-                "Data Health opens with the latest saved outputs so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
+                "Saved coverage view",
+                "Data Health opens with the latest saved coverage view so the page stays fast. Copy `make project-status` when you want to refresh the next-step summary.",
                 "make project-status",
             )
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
@@ -20522,15 +20522,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 wizard_notice_body,
                 wizard_notice_command,
             )
-    with st.expander("Guided data batch details", expanded=False):
-        render_section_header("Guided Data Batches", "Holdings-first guided data batches for the next price, SEC fundamentals, and peer-mapping pass.")
+    with st.expander("Guided coverage plan details", expanded=False):
+        render_section_header("Guided Coverage Plans", "Holdings-first coverage plans for the next price, SEC fundamentals, and peer-mapping pass.")
         render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
-        render_section_header("Guided Batch Steps", "Ordered command steps for each current guided data batch so the local follow-through stays explicit.")
+        render_section_header("Guided Coverage Steps", "Ordered copy-only steps for each current coverage plan so the local follow-through stays explicit.")
         render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
         if command_bundles_frame is None:
             bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
             render_notice_card(
-                "Guided data batches not ready yet",
+                "Guided coverage plans not ready yet",
                 bundle_notice_body,
                 bundle_notice_command,
             )
@@ -20557,12 +20557,12 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 if column in command_bundle_details_frame.columns
             ]
-            st.caption("Ticker-level guided steps.")
+            st.caption("Ticker-level coverage steps.")
             st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
         elif command_bundle_details_frame is None:
             detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
             render_notice_card(
-                "Ticker-level guided steps not ready yet",
+                "Ticker-level coverage steps not ready yet",
                 detail_notice_body,
                 detail_notice_command,
             )
@@ -20585,12 +20585,12 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 ]
                 if column in command_bundle_runbook_frame.columns
             ]
-            st.caption("Guided command steps.")
+            st.caption("Guided coverage steps.")
             st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
         elif command_bundle_runbook_frame is None:
             runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
             render_notice_card(
-                "Guided command steps not ready yet",
+                "Guided coverage steps not ready yet",
                 runbook_notice_body,
                 runbook_notice_command,
             )

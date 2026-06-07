@@ -529,12 +529,14 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "diagnostics" not in source.lower()
 
 
-def test_data_health_bundle_detail_copy_uses_operator_language():
+def test_data_health_bundle_detail_copy_uses_public_product_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "Ticker-level guided steps" in source
-    assert "Ticker-level guided steps not ready yet" in source
-    assert "refresh ticker-level guided-batch steps" in source
+    assert "Ticker-level coverage steps" in source
+    assert "Ticker-level coverage steps not ready yet" in source
+    assert "refresh ticker-level coverage steps" in source
+    assert "Ticker-level guided steps" not in source
+    assert "Ticker-level guided steps not ready yet" not in source
     assert "Ticker-level guided steps are not available yet" not in source
     assert "generate ticker-level guided-batch steps" not in source
     assert "Ticker-level bundle steps" not in source
@@ -550,8 +552,8 @@ def test_dashboard_not_ready_notices_avoid_generated_file_language():
     assert "refresh readiness-aware decision buckets" in source
     assert "Ticker readiness report not ready yet" in source
     assert "refresh ticker readiness proof" in source
-    assert "Guided data batches not ready yet" in source
-    assert "Guided command steps not ready yet" in source
+    assert "Guided coverage plans not ready yet" in source
+    assert "Guided coverage steps not ready yet" in source
     assert "Research decisions are not available yet" not in source
     assert "generate readiness-aware decision buckets" not in source
     assert "Run make readiness to generate data/reports/ticker_readiness_report.csv" not in source
@@ -568,14 +570,14 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     planning_expander_index = source.index('st.expander("Planning details: price, valuation, and analysis unlocks"')
     market_expander_index = source.index('st.expander("Detailed market-wide workflow"')
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
-    bundle_expander_index = source.index('st.expander("Guided data batch details"')
+    bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
 
     assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
     assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
     assert 'st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False)' in source
     assert 'st.expander("Detailed market-wide workflow", expanded=False)' in source
     assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
-    assert 'st.expander("Guided data batch details", expanded=False)' in source
+    assert 'st.expander("Guided coverage plan details", expanded=False)' in source
     assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
     assert 'render_section_header("Priority Fixes"' not in source
 
@@ -6222,7 +6224,8 @@ def test_onboarding_notice_copy_uses_onboarding_front_door_for_generated_artifac
     unlock_body, unlock_command = dashboard.onboarding_notice_copy("unlock_priority_summary")
 
     assert bundle_command == "make onboarding"
-    assert "refresh holdings-first guided data batches" in bundle_body.lower()
+    assert "refresh holdings-first coverage plans" in bundle_body.lower()
+    assert "guided data batches" not in bundle_body.lower()
     assert "generate holdings-first guided data batches" not in bundle_body.lower()
     assert price_command == "make onboarding"
     assert "safe manual-import path" in price_body.lower()
@@ -6449,7 +6452,8 @@ def test_overview_next_command_cards_use_onboarding_front_door_without_guidance(
 
     assert cards[0]["title"] == "make onboarding"
     assert cards[0]["command"] == "make onboarding"
-    assert "refresh local coverage, onboarding outputs, and operator guidance" in rendered
+    assert "refresh local coverage and next-step guidance" in rendered
+    assert "operator guidance" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -9063,9 +9067,11 @@ def test_data_health_page_does_not_block_initial_render_on_project_status_build(
 
     assert 'if selected_page == "Overview":' in source
     assert 'if selected_page in {"Overview", "Data Health"}:' not in source
-    assert "Showing saved local results" in source
-    assert "Data Health opens with the latest saved outputs so the page stays fast" in source
+    assert "Saved coverage view" in source
+    assert "Data Health opens with the latest saved coverage view so the page stays fast" in source
     assert "Copy `make project-status` when you want to refresh the next-step summary" in source
+    assert "Showing saved local results" not in source
+    assert "latest saved outputs" not in source
     assert "Project status snapshot is not preloaded" not in source
     assert "Data Health is using saved local results first so the page stays responsive" not in source
     assert "rendering from existing local CSV outputs" not in source
@@ -11678,7 +11684,7 @@ def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
     for phrase in (
         "Data Coverage Unlock Guide",
         "Data Quality Unlock Guide",
-        "Data Quality Unlock Guide rows",
+        "Coverage guide rows",
         "Coverage unlock guide not ready yet",
         "Coverage Guide Rows",
         "Top Data Actions",
@@ -11693,6 +11699,7 @@ def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
         "Peer readiness report has not been generated",
         "Research decisions have not been generated",
         "Coverage unlock guide has not been generated",
+        "Data Quality Unlock Guide rows",
         "Data source status is not generated yet",
         '"data_quality_wizard.csv": "Data Quality Wizard"',
         "Data Coverage Wizard Rows",
