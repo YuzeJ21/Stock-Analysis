@@ -468,14 +468,14 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     fix_first_index = source.index('render_section_header("Fix First"')
     action_paths_index = source.index('render_section_header("Action Paths"')
     planning_expander_index = source.index('st.expander("Planning details: price, valuation, and analysis unlocks"')
-    market_expander_index = source.index('st.expander("Full market-wide command center details"')
+    market_expander_index = source.index('st.expander("Detailed market-wide workflow"')
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock queues"')
     bundle_expander_index = source.index('st.expander("Guided data batch details"')
 
     assert quick_read_index < fix_first_index < action_paths_index < planning_expander_index
     assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index
     assert 'st.expander("Planning details: price, valuation, and analysis unlocks", expanded=False)' in source
-    assert 'st.expander("Full market-wide command center details", expanded=False)' in source
+    assert 'st.expander("Detailed market-wide workflow", expanded=False)' in source
     assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
     assert 'st.expander("Guided data batch details", expanded=False)' in source
     assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
@@ -18668,7 +18668,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
     assert "readiness before conclusions" in rendered
     assert "research now gating" in rendered
     assert "etf / index dcf exclusion" in rendered
-    assert "active queue lane runbooks" in rendered
+    assert "active queue guided steps" in rendered
     assert "unsupported conclusions withheld" in rendered
     assert "peer action alignment" in rendered
     assert "purpose drilldown actionability" in rendered

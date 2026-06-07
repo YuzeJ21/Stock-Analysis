@@ -323,8 +323,8 @@ DATA_ONBOARDING_FILES = {
     "price_import_worklist.csv": "Price Import Worklist",
     "fundamentals_peer_worklist.csv": "Fundamentals Peer Worklist",
     "optional_context_worklist.csv": "Optional Context Worklist",
-    "sec_stage_queue.csv": "SEC Stage Queue",
-    "peer_mapping_queue.csv": "Peer Mapping Queue",
+    "sec_stage_queue.csv": "Fundamentals Review Queue",
+    "peer_mapping_queue.csv": "Peer Review Queue",
     "ticker_unlock_ladder.csv": "Ticker Unlock Ladder",
     "unlock_priority_summary.csv": "Unlock Priority Summary",
     "command_bundles.csv": "Guided Data Batches",
@@ -11087,10 +11087,10 @@ def product_page_logic_audit_frame(
 
     rows.append(
         {
-            "check": "Active queue lane runbooks",
+            "check": "Active queue guided steps",
             "status": "pass" if lane_count and has_validation and has_copy_only else "review",
             "evidence": f"{lane_count} active lane(s) with validation sequences: {'yes' if has_validation else 'no'}; copy-only notes: {'yes' if has_copy_only else 'no'}.",
-            "operator_action": "Use grouped lane runbooks before opening broad ticker tables.",
+            "operator_action": "Use grouped guided steps before opening broad ticker tables.",
             "source": "dashboard active evaluation queue",
         }
     )
@@ -11317,7 +11317,7 @@ def product_page_logic_audit_cards(audit_frame: pd.DataFrame | None) -> list[dic
         {
             "kicker": "LOGIC AUDIT",
             "title": f"{pass_count} pass / {review_count} review",
-            "body": "Audit checks readiness-first sequence, Research Now gating, ETF DCF exclusion, copy-only lane runbooks, withheld conclusions, peer-action alignment, exact copyable commands, research-only language, feature/decision/peer/fundamentals cards, purpose drilldown, next action console, import validation, blocker queues, next-best-action cards, readiness explorer, single-stock drilldown, and row limits.",
+            "body": "Audit checks readiness-first sequence, Research Now gating, ETF DCF exclusion, copy-only guided steps, withheld conclusions, peer-action alignment, exact copyable commands, research-only language, feature/decision/peer/fundamentals cards, purpose drilldown, next action console, import validation, blocker queues, next-best-action cards, readiness explorer, single-stock drilldown, and row limits.",
             "badges": ["product logic", "data-honest"],
             "command": "make project-status",
         },
@@ -11793,12 +11793,12 @@ def next_action_console_plain_english_state(category: str) -> dict[str, str]:
         "Fundamentals / DCF Unlock": {
             "can_analyze": "price-ready companies can be queued for SEC or trusted manual fundamentals review.",
             "locked": "company quality and DCF interpretation stay locked until required fundamentals and DCF fields validate.",
-            "copy_next": "inspect the capped SEC staging queue or targeted ticker workflow before importing rows.",
+            "copy_next": "inspect the capped fundamentals review queue or targeted ticker workflow before importing rows.",
         },
         "Peer Mapping Unlock": {
             "can_analyze": "standalone DCF-ready companies can be reviewed without forcing peer conclusions.",
             "locked": "peer trend needs mapped peer price history; peer valuation needs trusted peer mappings and peer metrics.",
-            "copy_next": "open the peer mapping queue and add only source-backed peer rows.",
+            "copy_next": "open the peer review queue and add only source-backed peer rows.",
         },
         "Earnings Import Setup": {
             "can_analyze": "core price, DCF, and peer lanes can still be reviewed without earnings rows.",
@@ -14892,7 +14892,7 @@ def holdings_deep_research_cards(
         {
             "kicker": "HOLDINGS DCF / PEERS",
             "title": "No holdings DCF / peer queue yet",
-            "body": "Run make onboarding to refresh the onboarding outputs and generate the SEC stage queue plus peer mapping queue for holdings-first deep-research blockers.",
+            "body": "Run make onboarding to refresh the local workflow and show the fundamentals and peer review queues for holdings-first deep-research blockers.",
             "badges": ["read-only"],
             "command": "make onboarding",
         }
@@ -15100,7 +15100,7 @@ def theme_deep_research_cards(
             {
                 "kicker": "THEME DCF / PEERS",
                 "title": "No theme deep-research board yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and generate the SEC stage queue plus peer mapping queue for theme-level deep-research blockers.",
+                "body": "Run make onboarding to refresh the local workflow and show the fundamentals and peer review queues for theme-level deep-research blockers.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15306,7 +15306,7 @@ def overview_deep_research_leverage_cards(
             {
                 "kicker": "DEEP RESEARCH LEVERAGE",
                 "title": "No deep-research leverage view yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and generate the SEC stage queue plus peer mapping queue before ranking the highest-leverage deep-research lane.",
+                "body": "Run make onboarding to refresh the local workflow and show the fundamentals and peer review queues before ranking the highest-leverage deep-research path.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15424,7 +15424,7 @@ def overview_deep_research_priority_bridge_cards(
             {
                 "kicker": "DEEP RESEARCH PRIORITIES",
                 "title": "No deep-research shortlist yet",
-                "body": "Run make onboarding to refresh the onboarding outputs and generate the SEC stage queue plus peer mapping queue for the next deep-research names.",
+                "body": "Run make onboarding to refresh the local workflow and show the fundamentals and peer review queues for the next deep-research names.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -15793,7 +15793,7 @@ def overview_market_context_cards(
 
 
 ONBOARDING_NOTICE_DEFAULTS: dict[str, str] = {
-    "coverage_wizard": "Run make onboarding to refresh the local data coverage wizard and see the next best coverage unlocks.",
+    "coverage_wizard": "Run make onboarding to refresh the local coverage guide and see the next best coverage unlocks.",
     "command_bundles": "Run make onboarding to refresh the onboarding outputs and generate holdings-first guided data batches.",
     "command_bundle_details": "Run make onboarding to refresh the onboarding outputs and generate ticker-level guided-batch steps.",
     "command_bundle_runbook": "Run make onboarding to refresh the onboarding outputs and generate ordered guided-batch runbook rows.",
@@ -18312,9 +18312,9 @@ def render_overview(
         render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
         render_section_header("Best Data Batches", "Holdings-first guided data batches for the next price, SEC fundamentals, or peer-mapping pass.")
         render_signal_cards(overview_command_bundle_cards(command_bundles_frame))
-        render_section_header("Bundle Lanes", "A lane-by-lane view of the current prices, fundamentals, and peers runbook so the next local pass is easier to follow.")
+        render_section_header("Guided Batch Steps", "A step-by-step view of the current prices, fundamentals, and peers workflow so the next local pass is easier to follow.")
         render_signal_cards(overview_bundle_runbook_cards(command_bundle_runbook_frame))
-        render_section_header("Bundle Handoff", "For the current top bundle, show the primary command, the follow-up step, the refresh step, and the first ticker to verify next.")
+        render_section_header("Guided Batch Handoff", "For the current top guided batch, show the primary command, the follow-up step, the refresh step, and the first ticker to verify next.")
         render_signal_cards(overview_bundle_handoff_cards(command_bundles_frame, command_bundle_details_frame, command_bundle_runbook_frame))
         render_section_header("Today's Workflow Path", "A compact local sequence from blocker triage to verification to dashboard review.")
         render_signal_cards(overview_workflow_path_cards(project_status_payload, action_queue_frame))
@@ -19841,7 +19841,7 @@ def render_market_command_center(
         )
         st.dataframe(clean_display_frame(active_evaluation_queue), width="stretch", hide_index=True)
         active_queue_detail = build_active_evaluation_lane_detail_frame(active_evaluation_queue)
-        with st.expander("Active queue detail: grouped lane runbook", expanded=False):
+        with st.expander("Active queue detail: grouped guided steps", expanded=False):
             render_signal_cards(active_evaluation_lane_detail_cards(active_queue_detail))
             st.caption(
                 "Grouped lane guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual terminal workflows."
@@ -20344,7 +20344,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "Plain-English valuation queues before the full command center details.",
         )
         render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
-    with st.expander("Full market-wide command center details", expanded=False):
+    with st.expander("Detailed market-wide workflow", expanded=False):
         render_market_command_center(
             ticker_readiness_frame,
             coverage_frame,
@@ -20404,7 +20404,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     with st.expander("Guided data batch details", expanded=False):
         render_section_header("Guided Data Batches", "Holdings-first guided data batches for the next price, SEC fundamentals, and peer-mapping pass.")
         render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
-        render_section_header("Bundle Runbook", "Ordered command steps for each current bundle lane so the local follow-through stays explicit.")
+        render_section_header("Guided Batch Steps", "Ordered command steps for each current guided data batch so the local follow-through stays explicit.")
         render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
         if command_bundles_frame is None:
             bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
@@ -20986,7 +20986,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     ]
                     st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(20)), width="stretch", hide_index=True)
             if sec_stage_queue_frame is not None and not sec_stage_queue_frame.empty:
-                with st.expander("SEC Stage Queue", expanded=False):
+                with st.expander("Fundamentals Review Queue", expanded=False):
                     sec_columns = operator_workflow_table_columns(
                         sec_stage_queue_frame,
                         [
