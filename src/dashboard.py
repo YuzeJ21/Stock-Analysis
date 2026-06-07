@@ -95,6 +95,21 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
             "Viewing Data Health.",
             "Use this page to see which trusted inputs are missing and which copy-only unlock path to follow next.",
         )
+    if selected_page == "Monthly Picks":
+        return (
+            "Viewing Monthly Picks.",
+            "Use this page as a data-gated candidate queue; empty slots mean the filters refused to force weak or unsupported names.",
+        )
+    if selected_page == "Final Watchlist":
+        return (
+            "Viewing Final Watchlist.",
+            "Use this page to read research-state buckets, blockers, and next local steps; it is not an action or recommendation list.",
+        )
+    if selected_page == "Universe Manager":
+        return (
+            "Viewing Universe Manager.",
+            "Use this page to review universe coverage and preview-first changes before any manual apply step.",
+        )
     return (
         f"Viewing {selected_page}.",
         "Use this page for the selected workflow. If you feel lost, return to Home for the plain-language readiness summary.",
@@ -16949,7 +16964,7 @@ def monthly_picks_landing_cards(
     universe_count: int,
 ) -> list[dict[str, object]]:
     candidate_count = 0 if picks_frame is None else len(picks_frame)
-    month_value = "Not generated" if picks_frame is None or picks_frame.empty else format_missing(picks_frame.iloc[0].get("Month"), "Not available")
+    month_value = "Not ready yet" if picks_frame is None or picks_frame.empty else format_missing(picks_frame.iloc[0].get("Month"), "Not available")
     track_ready = equity_frame is not None and not equity_frame.empty
     track_rows = 0 if track_frame is None else len(track_frame)
     pick_gap_count = 0
