@@ -606,6 +606,10 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
     assert "Advanced Unlock Map" not in source
     assert "detailed market-wide workspace" not in source
+    assert 'st.expander("Ticker Unlock Steps", expanded=False)' in source
+    assert 'st.expander("Ticker Unlock Ladder", expanded=False)' not in source
+    assert 'st.expander("Data Gap List", expanded=False)' in source
+    assert 'st.expander("Data Gap Report", expanded=False)' not in source
     assert 'st.expander("More readiness summaries and unlock queues", expanded=False)' in source
     assert 'st.expander("Guided coverage plan details", expanded=False)' in source
     assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)

@@ -21262,7 +21262,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             elif peer_mapping_queue_message:
                 st.info(peer_mapping_queue_message)
             if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
-                with st.expander("Ticker Unlock Ladder", expanded=False):
+                with st.expander("Ticker Unlock Steps", expanded=False):
                     ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=True)
                     st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(20)), width="stretch", hide_index=True)
             if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
@@ -21305,7 +21305,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     tone="warning",
                 )
             if gap_frame is not None and not gap_frame.empty:
-                with st.expander("Data Gap Report", expanded=False):
+                with st.expander("Data Gap List", expanded=False):
                     display_gaps = gap_frame.copy()
                     if "status" in display_gaps.columns:
                         display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
