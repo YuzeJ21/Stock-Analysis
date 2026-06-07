@@ -18140,7 +18140,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
     render_section_header("Valuation Quick Read", "Which valuation path to inspect first before reading detailed valuation outputs.")
     render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded))
     with st.expander("More valuation context, boundaries, and method", expanded=False):
-        render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before tables, rankings, or detailed output columns.")
+        render_section_header("Value / Re-rating At A Glance", "Plain-English valuation states before rankings or deeper valuation tables.")
         render_signal_cards(valuation_plain_language_cards(ready_companies, not_ready_companies, excluded))
         render_section_header("Valuation Boundaries", "What valuation can and cannot mean with the current trusted local inputs.")
         render_signal_cards(valuation_function_quality_cards(ready_companies, not_ready_companies, excluded))

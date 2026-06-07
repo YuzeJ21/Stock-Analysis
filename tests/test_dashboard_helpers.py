@@ -17046,6 +17046,8 @@ def test_value_re_rating_detail_tables_are_collapsed_by_default():
     assert quick_read_index < context_expander_index < blocked_detail_index < full_table_index
     assert context_expander_index < at_glance_index < boundaries_index < decision_guide_index < blocked_detail_index
     assert blocked_detail_index < excluded_detail_index < full_table_index
+    assert "Plain-English valuation states before rankings or deeper valuation tables." in source
+    assert "detailed output columns" not in source
     assert 'st.expander("More valuation context, boundaries, and method", expanded=False)' in source
     assert 'st.expander("Valuation method, boundaries, and decision guide"' not in source
     assert 'st.expander("What valuation can support today"' not in source
