@@ -618,6 +618,7 @@ def test_sample_stock_reports_explain_methodology_and_use_current_research_bound
         assert "peer_data_unavailable" not in report
         assert "insufficient_data" not in report
         assert "method=fcf_direct" not in report
+        assert "DCF assumptions and sensitivity; DCF assumptions and sensitivity" not in report
         assert "method=revenue_fcf_margin" not in report
         assert "Price ready: True" not in report
         assert "Price ready: False" not in report

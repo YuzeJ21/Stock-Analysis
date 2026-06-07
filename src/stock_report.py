@@ -1854,7 +1854,7 @@ def _stock_report_peer_unlock_lines(
             "premium/discount, and peer DCF comparison stay withheld."
         )
     else:
-        reviewable_peer_context = "DCF assumptions and sensitivity; peer trend status=not ready until mapped peer price history is sufficient."
+        reviewable_peer_context = "peer trend status=not ready until mapped peer price history is sufficient."
     return [
         f"- What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by {blocker}.",
         f"- What can be reviewed now: DCF assumptions and sensitivity; {reviewable_peer_context} Mapped peer count={peer_count}.",

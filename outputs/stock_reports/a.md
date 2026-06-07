@@ -184,7 +184,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Peer Workflow
 - What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by peer price missing.
-- What can be reviewed now: DCF assumptions and sensitivity; DCF assumptions and sensitivity; peer trend status=not ready until mapped peer price history is sufficient. Mapped peer count=3.
+- What can be reviewed now: DCF assumptions and sensitivity; peer trend status=not ready until mapped peer price history is sufficient. Mapped peer count=3.
 - What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison until source-backed peer mappings and peer valuation inputs pass readiness.
 - Trusted input path: add source-backed rows in `data/imports/peers.csv`, then run `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Next peer action: Add trusted price history for mapped peers: DHR, TMO, WAT.
