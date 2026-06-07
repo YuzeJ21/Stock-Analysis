@@ -815,7 +815,8 @@ def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaimi
 
     assert [card["kicker"] for card in cards] == ["STEP 1", "STEP 2", "STEP 3", "STEP 4"]
     assert "check readiness first" in rendered
-    assert "local prices, fundamentals, dcf fields, peers, earnings, and estimates" in rendered
+    assert "local or labeled provider-assisted prices, fundamentals, dcf fields, peers, earnings, and estimates" in rendered
+    assert "provider rows never decide conclusions by themselves" in rendered
     assert "run only supported analysis" in rendered
     assert "price-ready rows can support setup and risk context" in rendered
     assert "dcf-ready rows can support assumptions and sensitivity" in rendered

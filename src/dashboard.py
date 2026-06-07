@@ -18949,7 +18949,8 @@ def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
             "kicker": "STEP 1",
             "title": "Check readiness first",
             "body": (
-                "The product checks local prices, fundamentals, DCF fields, peers, earnings, and estimates before showing deeper analysis."
+                "The product checks local or labeled provider-assisted prices, fundamentals, DCF fields, peers, earnings, and estimates "
+                "before showing deeper analysis; provider rows never decide conclusions by themselves."
             ),
             "badges": ["data readiness", "no guessing"],
             "command": "make readiness",
