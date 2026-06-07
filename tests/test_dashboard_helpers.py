@@ -389,13 +389,16 @@ def test_single_stock_default_prefers_demo_ticker_when_available():
 def test_single_stock_source_json_label_uses_visitor_friendly_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "Source and freshness details" in source
+    assert "Source readiness details" in source
+    assert "Source readiness and gaps." in source
+    assert "Use this tab to verify source readiness, missing inputs" in source
     assert "Single-Stock Source Readiness Check" in source
     assert "Trusted local files, import status, credential state, and rejected-row reports" in source
     assert "Single-Stock Source/Freshness Audit" not in source
     assert "Local source paths, import draft paths" not in source
     assert "stock_report_source_detail_summary_frame(report_payload)" in source
     assert "Source and freshness details (JSON)" not in source
+    assert 'st.expander("Source and freshness details", expanded=False)' not in source
     assert "Advanced source audit (JSON)" not in source
     assert "Developer detail: raw report JSON" not in source
     assert "st.json(report_payload" not in source
@@ -412,6 +415,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Show source readiness details" in source
     assert "Adds extra source-readiness and missing-input checks under Sources & Gaps" in source
     assert "Show report source details" not in source
+    assert "Source and gaps." not in source
+    assert "Use this tab to verify freshness" not in source
     assert "Adds source and freshness troubleshooting under Sources & Gaps" not in source
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
