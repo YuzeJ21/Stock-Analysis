@@ -14040,12 +14040,12 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
         {
             "kicker": "VALUATION READINESS" if title == "Value / Re-rating" else "DATA GAPS",
             "title": (
-                f"{valuation_ready_count} inputs complete / {valuation_locked_count} locked"
+                f"{valuation_ready_count} broad input-ready row(s) / {valuation_locked_count} locked"
                 if title == "Value / Re-rating" and "ValuationStatus" in frame.columns
                 else f"{missing_count} row{'s' if missing_count != 1 else ''}"
             ),
             "body": (
-                "Rows with complete valuation inputs can support standalone valuation-readiness review; missing-data fields may still show peer, quality, or multiple context limits. Use the valuation readiness panel for exact company-ready counts."
+                "This broad output counts rows marked input-ready for valuation context. Use the quick-read cards and valuation readiness panel for exact company DCF-ready counts; missing-data fields may still show peer, quality, or multiple context limits."
                 if title == "Value / Re-rating" and "ValuationStatus" in frame.columns
                 else "Rows with explicit missing-data fields stay visible instead of being silently scored."
             ),

@@ -1381,10 +1381,10 @@ def test_output_tab_summary_cards_explain_missing_theme_context_without_zero_row
     assert "saved local output" not in rendered
     assert "valuation input state" in rendered
     assert "valuation readiness" in rendered
-    assert "1 inputs complete / 1 locked" in rendered
+    assert "1 broad input-ready row(s) / 1 locked" in rendered
     assert "ready-output" not in rendered
     assert "peer, quality, or multiple context limits" in rendered
-    assert "use the valuation readiness panel for exact company-ready counts" in rendered
+    assert "quick-read cards and valuation readiness panel for exact company dcf-ready counts" in rendered
     assert "csv output" not in rendered
     assert "across 0 rows" not in rendered
     assert "buy" not in rendered
