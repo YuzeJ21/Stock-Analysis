@@ -419,6 +419,7 @@ DATA_SOURCE_STATUS_LABELS = {
 }
 COLUMN_LABELS = {
     "Ticker": "Ticker",
+    "evaluation_lane": "Workflow Path",
     "Theme": "Theme",
     "Sector": "Sector",
     "SectorETF": "Sector ETF",
@@ -10883,7 +10884,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
     hidden_lane_count = max(len(lane_counts) - len(shown_lanes), 0)
     lane_title = ", ".join(f"{lane}: {int(count)}" for lane, count in shown_lanes)
     if hidden_lane_count:
-        lane_title = f"{lane_title}, +{hidden_lane_count} more lane(s)"
+        lane_title = f"{lane_title}, +{hidden_lane_count} more path(s)"
     return [
         {
             "kicker": "ACTIVE QUEUE",
@@ -10954,7 +10955,7 @@ def build_active_evaluation_lane_detail_frame(queue_frame: pd.DataFrame | None, 
                     max_sentences=3,
                     max_chars=360,
                 ),
-                "copy_only_note": "Copy-only lane guide; the dashboard does not execute refreshes, imports, or external account actions.",
+                "copy_only_note": "Copy-only workflow guide; the dashboard does not execute refreshes, imports, or external account actions.",
             }
         )
     detail = pd.DataFrame(rows, columns=ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS)
@@ -10969,8 +10970,8 @@ def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> li
         return [
             {
                 "kicker": "QUEUE DETAILS",
-                "title": "No lane detail",
-                "body": "Run make pipeline and make readiness to rebuild the active evaluation queue lane guide.",
+                "title": "No workflow detail",
+                "body": "Run make pipeline and make readiness to rebuild the active evaluation guided-step view.",
                 "badges": ["readiness first", "copy only"],
                 "command": "make pipeline",
             }
@@ -10981,13 +10982,13 @@ def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> li
     return [
         {
             "kicker": "QUEUE DETAILS",
-            "title": f"{len(frame)} lane(s), {total_tickers} ticker(s)",
-            "body": "Lane details group the active queue into review, monitor, and data-unlock workflows so the operator can act without reading every ticker row.",
+            "title": f"{len(frame)} workflow path(s), {total_tickers} ticker(s)",
+            "body": "Guided steps group the active queue into review, monitor, and data-unlock workflows so the operator can act without reading every ticker row.",
             "badges": ["grouped workflow", "row-limited"],
             "command": "make project-status",
         },
         {
-            "kicker": "FIRST LANE",
+            "kicker": "FIRST PATH",
             "title": format_missing(first.get("evaluation_lane"), "Active evaluation"),
             "body": compact_reason(first.get("operator_summary"), max_sentences=1, max_chars=180),
             "badges": ["copy only", f"{int(first.get('ticker_count', 0))} ticker(s)"],
@@ -11089,7 +11090,7 @@ def product_page_logic_audit_frame(
         {
             "check": "Active queue guided steps",
             "status": "pass" if lane_count and has_validation and has_copy_only else "review",
-            "evidence": f"{lane_count} active lane(s) with validation sequences: {'yes' if has_validation else 'no'}; copy-only notes: {'yes' if has_copy_only else 'no'}.",
+            "evidence": f"{lane_count} active workflow path(s) with validation sequences: {'yes' if has_validation else 'no'}; copy-only notes: {'yes' if has_copy_only else 'no'}.",
             "operator_action": "Use grouped guided steps before opening broad ticker tables.",
             "source": "dashboard active evaluation queue",
         }
@@ -11098,7 +11099,7 @@ def product_page_logic_audit_frame(
         {
             "check": "Unsupported conclusions withheld",
             "status": "pass" if lane_count and has_withheld else "review",
-            "evidence": f"{lane_count} active lane(s) show withheld or excluded conclusion wording: {'yes' if has_withheld else 'no'}.",
+            "evidence": f"{lane_count} active workflow path(s) show withheld or excluded conclusion wording: {'yes' if has_withheld else 'no'}.",
             "operator_action": "Do not show peer valuation, DCF, earnings, or estimate conclusions when inputs are unavailable.",
             "source": "dashboard active evaluation queue",
         }
@@ -19844,7 +19845,7 @@ def render_market_command_center(
         with st.expander("Active queue detail: grouped guided steps", expanded=False):
             render_signal_cards(active_evaluation_lane_detail_cards(active_queue_detail))
             st.caption(
-                "Grouped lane guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual terminal workflows."
+                "Grouped workflow guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual terminal workflows."
             )
             st.dataframe(clean_display_frame(active_queue_detail), width="stretch", hide_index=True)
     render_section_header(
