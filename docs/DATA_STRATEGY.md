@@ -22,7 +22,7 @@ Use this guide before changing local data:
 | --- | --- | --- |
 | Missing or stale prices | Run `make price-refresh-loop DRY_RUN=1`, then snapshot readiness before any capped refresh. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
 | Missing fundamentals or DCF fields | Run `make trusted-data-pilot-candidates TOP_N=10`, then use SEC staging or trusted manual imports for 5-10 reviewed companies. | Do not fill placeholder fundamentals to make valuation appear ready. |
-| Missing peers | Run `make peer-mapping-queue TOP_N=25`, then add source-backed peers and peer inputs only. | Do not turn sector or industry similarity into trusted peer valuation. |
+| Missing peers | Run `make peer-mapping-queue TOP_N=25`, then add source-backed mappings or mapped-peer price/fundamental inputs only. | Do not turn sector or industry similarity into trusted peer valuation. |
 | Missing earnings or estimates | Keep the section locked until trusted local rows pass validate, preview, and apply. | Do not render empty optional context as analysis. |
 
 ## Data Lanes
@@ -31,7 +31,7 @@ Use this guide before changing local data:
 | --- | --- | --- | --- |
 | Prices | Use local OHLCV CSVs, capped refresh loops, or reviewed manual imports. | Yes, with dry-run-first capped loops. | Missing prices block setup, momentum, liquidity, DCF, and peer context. |
 | Fundamentals | Use trusted SEC staging when configured or reviewed manual fundamentals imports. | Partly. SEC staging can prepare rows, but apply remains reviewable. | Missing fundamentals block company-quality and DCF interpretation. |
-| Peer mappings | Use source-backed manual peer mappings and peer metrics. | Not broadly yet. Human source judgment is still required. | Sector or industry fallback is not trusted peer valuation. |
+| Peer mappings and mapped-peer inputs | Use source-backed manual peer mappings first, then mapped-peer price, fundamentals, market cap, or valuation inputs. | Not broadly yet. Human source judgment is still required. | Sector or industry fallback is not trusted peer valuation. |
 | Earnings | Use trusted local earnings CSV rows only. | Not yet. | Empty earnings data stays intentionally locked. |
 | Analyst estimates | Use trusted local analyst-estimate CSV rows only. | Not yet. | Consensus context is optional and must not become a recommendation. |
 
@@ -43,7 +43,7 @@ The product can automate repeatable checks, but it should not automate source ju
 | --- | --- | --- |
 | Price coverage | Dry-run planning, capped refresh loops, import normalization, validation, readiness rebuilds. | Whether a refreshed CSV should be committed or treated as local working data. |
 | Fundamentals / DCF | Missing-field diagnostics, SEC staging helpers, schema validation, DCF readiness checks, report regeneration. | Whether a source row is trusted, which fiscal period is appropriate, and whether manual fundamentals should be applied. |
-| Peers | Peer blocker queues, import schema checks, readiness status, peer trend versus valuation gating. | Which companies are real peers and whether any fallback sector/industry context is acceptable as context only. |
+| Peers | Peer blocker queues, import schema checks, readiness status, peer trend versus valuation-input gating. | Which companies are real peers and whether any fallback sector/industry context is acceptable as context only. Also review whether mapped-peer inputs are source-backed. |
 | Earnings / estimates | Schema templates, staged-folder checks, rejected-row reports, unavailable-state rendering. | Whether a source is trusted enough to become local optional context. |
 | Public branch hygiene | Diff classification, public wording checks, staged hygiene, dashboard smoke. | Which generated sample reports or refreshed data artifacts are intentionally public. |
 
@@ -59,7 +59,7 @@ Use this split when deciding what can run on a schedule and what should stay rev
 | Price planning | Yes, as a dry run. | `make price-refresh-loop DRY_RUN=1`. | Review the planned tickers and source notes before any real refresh. |
 | Price refresh | Only capped and intentionally. | Use capped loops after a dry run, then inspect local CSV diffs. | Run readiness, check source freshness, and avoid committing broad CSV churn by default. |
 | Fundamentals / DCF | No broad unattended apply. | Stage or inspect a 5-10 company pilot. | Validate, preview, confirm trusted source rows, then rebuild DCF readiness. |
-| Peers | No broad unattended apply. | Use peer queues to choose source-backed mappings. | Confirm the peer relationship and peer inputs before peer valuation appears. |
+| Peers | No broad unattended apply. | Use peer queues to choose source-backed mappings or mapped-peer input gaps. | Confirm the peer relationship and mapped-peer inputs before peer valuation appears. |
 | Earnings / estimates | No. | Keep locked until trusted local rows exist. | Validate, preview, apply, then confirm optional-context readiness. |
 | Public repo cleanup | Yes for checks, no for staging decisions. | `make public-check`, `make diff-hygiene`, `make staged-hygiene-check`. | Human review decides which docs, tests, sample reports, or data artifacts are published. |
 
@@ -73,7 +73,7 @@ You do not need to hand-refresh every ticker every day for the product to stay u
 | --- | --- | --- | --- |
 | Prices | Run status/readiness checks whenever you open the project; use capped refresh loops only when coverage is stale or too short for the next research page. | `make price-refresh-loop DRY_RUN=1` can plan broad batches; a reviewed loop can refresh capped missing-price batches. | Inspect provider notes and generated CSV diffs before committing refreshed rows. |
 | Fundamentals / DCF | Refresh only around company review, filings, or a trusted-data pilot; do not chase every ticker daily. | SEC staging and missing-field diagnostics can prepare review queues. | Source trust, fiscal period, rejected rows, validation/preview/apply, and rebuilt DCF readiness. |
-| Peers | Update when a company enters a pilot or peer context is blocking a ready DCF report. | Peer queues can rank blockers and show exact next commands. | Whether the relationship is source-backed and whether peer valuation inputs are present. |
+| Peers | Update when a company enters a pilot or peer context is blocking a ready DCF report. | Peer queues can rank missing mappings separately from mapped-peer valuation-input blockers. | Whether the relationship is source-backed and whether mapped-peer valuation inputs are present. |
 | Earnings / estimates | Keep locked unless you have trusted local rows for a review cycle. | Templates, staged-folder checks, and rejected-row reports. | Whether the source is trusted and whether optional context should be applied. |
 
 A safe recurring routine is read-only by default: run `make status-check TOP_N=5`, `make readiness`, `make dashboard-smoke`, and `make price-refresh-loop DRY_RUN=1`. Only run a real capped price loop after reviewing the dry-run plan. Do not schedule unattended fundamentals, peer, earnings, estimate imports, or public commits.
