@@ -86,7 +86,7 @@ If you want to choose the next pilot from current local blockers, run `make trus
 
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
 
-Decision rule: choose one company only when the matching trusted input can be reviewed. For fundamentals/DCF, that means trusted SEC or manual fundamentals rows. For peer mapping, that means source-backed peer relationships. For peer valuation, that means mapped peers also have trusted valuation inputs. If the source proof is missing, the correct outcome is not failure; it is a visible data-blocked state and a move to the next candidate.
+Decision rule: choose one company only when the matching trusted input can be reviewed. For fundamentals/DCF, that means trusted SEC or manual fundamentals rows. For peer mapping, that means source-backed peer relationships. For peer valuation, that means mapped peers also have trusted valuation inputs. If the source proof is missing, the correct outcome is not failure; it is a visible missing-data state and a move to the next candidate.
 
 Each one-company packet now has a decision gate: continue only when the required source proof exists; otherwise leave the section blocked and do not apply placeholder rows so the report appears complete. This is the product boundary that keeps valuation useful rather than decorative.
 
@@ -121,7 +121,7 @@ Run the matching rebuild proof:
 A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists.
 
 - Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`.
-- Keep one regenerated Markdown report per pilot company so readers can see whether the mode changed or stayed data-blocked.
+- Keep one regenerated Markdown report per pilot company so readers can see whether the mode changed or stayed visibly blocked by missing data.
 - Keep the exact review and validation path that changed the state: lane review command, `make imports-validate`, `make imports-preview`, `make imports-apply`, rejected-row report path, then the relevant readiness proof command.
 - The single-stock report opens with the correct mode: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data needed before analysis.
 - DCF-ready companies show assumptions, sensitivity, source readiness, and any locked optional context before interpretation.

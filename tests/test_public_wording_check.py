@@ -99,7 +99,7 @@ def test_dashboard_preview_asset_uses_three_public_paths_in_order():
     svg = Path("docs/assets/dashboard-preview.svg").read_text(encoding="utf-8")
 
     review_index = svg.index("Review one stock: make stock-report-md TICKER=NVDA")
-    improve_index = svg.index("Improve data coverage: trusted-data pilot queue")
+    improve_index = svg.index("Improve data coverage: trusted-data candidate list")
     explore_index = svg.index("Explore ready names: Monthly Picks and sample reports")
 
     assert review_index < improve_index < explore_index
