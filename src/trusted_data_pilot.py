@@ -157,6 +157,66 @@ def pilot_rejected_report_path(candidate: PilotCandidate) -> str:
     return "data/rejected/<dataset>_import_rejected.csv"
 
 
+def _csv_data_row_count(path: Path) -> int | None:
+    if not path.exists() or not path.is_file():
+        return None
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.reader(handle)
+        rows = list(reader)
+    return max(len(rows) - 1, 0)
+
+
+def _staged_file_count(path: Path) -> int | None:
+    if not path.exists() or not path.is_dir():
+        return None
+    files = [
+        item
+        for item in path.iterdir()
+        if item.is_file() and item.name != ".gitkeep"
+    ]
+    return len(files)
+
+
+def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
+    """Return read-only local file state for the lane without validating rows."""
+
+    if candidate.lane == "fundamentals_dcf":
+        import_rows = _csv_data_row_count(root / "data" / "imports" / "fundamentals.csv")
+        staged_files = _staged_file_count(root / "data" / "staged" / "fundamentals")
+        rejected_exists = (root / "data" / "rejected" / "fundamentals_import_rejected.csv").exists()
+        return (
+            "Local file status: fundamentals import "
+            f"{'missing' if import_rows is None else f'{import_rows} data row(s)'}; "
+            f"staged fundamentals {'missing' if staged_files is None else f'{staged_files} file(s)'}; "
+            f"rejected-row report {'present' if rejected_exists else 'missing'}. "
+            "Rows still require source review, validate, preview, apply, and readiness proof."
+        )
+    if candidate.lane in {"peer_mapping", "peer_valuation_inputs"}:
+        import_rows = _csv_data_row_count(root / "data" / "imports" / "peers.csv")
+        rejected_exists = (root / "data" / "rejected" / "peers_import_rejected.csv").exists()
+        return (
+            "Local file status: peer import "
+            f"{'missing' if import_rows is None else f'{import_rows} data row(s)'}; "
+            f"rejected-row report {'present' if rejected_exists else 'missing'}. "
+            "Peer rows still require source-backed relationship review and readiness proof."
+        )
+    if candidate.lane == "optional_context_locked":
+        earnings_rows = _csv_data_row_count(root / "data" / "imports" / "earnings.csv")
+        estimate_rows = _csv_data_row_count(root / "data" / "imports" / "analyst_estimates.csv")
+        staged_earnings = _staged_file_count(root / "data" / "staged" / "earnings")
+        staged_estimates = _staged_file_count(root / "data" / "staged" / "analyst_estimates")
+        staged_total = (0 if staged_earnings is None else staged_earnings) + (0 if staged_estimates is None else staged_estimates)
+        return (
+            "Local file status: earnings import "
+            f"{'missing' if earnings_rows is None else f'{earnings_rows} data row(s)'}; "
+            "analyst-estimates import "
+            f"{'missing' if estimate_rows is None else f'{estimate_rows} data row(s)'}; "
+            f"staged optional files {staged_total}. "
+            "Optional rows remain locked until trusted local rows validate and readiness proves availability."
+        )
+    return "Local file status: not checked for this trusted-data lane."
+
+
 def pilot_rank_reason(candidate: PilotCandidate) -> str:
     """Explain why a candidate appears in the ranked pilot list."""
 
@@ -454,7 +514,12 @@ def load_trusted_data_pilot_candidates(
     )
 
 
-def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, top_n: int = DEFAULT_TOP_N) -> str:
+def render_trusted_data_pilot_candidates(
+    candidates: list[PilotCandidate],
+    *,
+    top_n: int = DEFAULT_TOP_N,
+    root: Path | None = None,
+) -> str:
     lines = [
         "Trusted Data Pilot Candidates",
         "Read-only: this command ranks current local blockers and does not refresh, import, edit CSVs, or change readiness outputs.",
@@ -498,6 +563,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Lane check: {candidate.next_command}",
                 f"   Review path: {pilot_review_path(candidate.validation_path)}",
                 f"   Trusted row target: {pilot_trusted_row_path(candidate)}",
+                f"   {pilot_local_file_status(candidate, root=root) if root is not None else 'Local file status: not checked in this render.'}",
                 f"   Skip if: {pilot_skip_condition(candidate)}",
                 "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
                 f"   Rejected-row report to review: {pilot_rejected_report_path(candidate)}",
@@ -529,7 +595,12 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
     return "\n".join(lines)
 
 
-def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, requested_ticker: str) -> str:
+def render_trusted_data_pilot_packet(
+    candidate: PilotCandidate | None,
+    *,
+    requested_ticker: str,
+    root: Path | None = None,
+) -> str:
     ticker = requested_ticker.strip().upper()
     lines = [
         "Trusted Data Pilot Evidence Packet",
@@ -560,6 +631,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             pilot_decision_gate(candidate),
             f"Source boundary: {candidate.source_boundary}",
             f"Trusted row target: {pilot_trusted_row_path(candidate)}",
+            pilot_local_file_status(candidate, root=root) if root is not None else "Local file status: not checked in this render.",
             f"Skip if: {pilot_skip_condition(candidate)}",
             "",
             "One-company evidence packet:",
@@ -597,10 +669,10 @@ def main() -> None:
     if args.packet:
         ticker = args.packet.strip().upper()
         candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=ticker, top_n=1)
-        print(render_trusted_data_pilot_packet(candidates[0] if candidates else None, requested_ticker=ticker))
+        print(render_trusted_data_pilot_packet(candidates[0] if candidates else None, requested_ticker=ticker, root=Path.cwd()))
         return
     candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
-    print(render_trusted_data_pilot_candidates(candidates, top_n=args.top_n))
+    print(render_trusted_data_pilot_candidates(candidates, top_n=args.top_n, root=Path.cwd()))
 
 
 if __name__ == "__main__":

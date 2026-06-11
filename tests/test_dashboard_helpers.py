@@ -9466,6 +9466,7 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
         "Review Decision",
         "Review Path",
         "Trusted Row Target",
+        "Local File Status",
         "Skip If",
         "Packet Command",
         "Next Command",
@@ -9482,6 +9483,8 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "choose this company only if you can review trusted sec or manual fundamentals rows" in rendered
     assert "make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
     assert "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "local file status:" in rendered
+    assert "rows still require source" in rendered
     assert "skip for now if peer relationships cannot be supported by a source note" in rendered
     assert "shares outstanding, free-cash-flow margin" in rendered
     assert "fcf_margin" not in rendered
@@ -9562,6 +9565,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Review Decision": "Choose this company only if you can document source-backed peer relationships.",
                 "Review Path": "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU",
                 "Trusted Row Target": "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed",
+                "Local File Status": "Local file status: peer import 1 data row(s); rejected-row report missing. Peer rows still require source-backed relationship review and readiness proof.",
                 "Skip If": "Skip for now if peer relationships cannot be supported by a source note.",
                 "Packet Command": "make trusted-data-pilot-packet TICKER=MU",
                 "Next Command": "make focus-peers TICKER=MU",
@@ -9578,6 +9582,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Review Decision": "Choose this company only if you can review trusted SEC or manual fundamentals rows.",
                 "Review Path": "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META",
                 "Trusted Row Target": "data/staged/fundamentals/ or data/imports/fundamentals.csv",
+                "Local File Status": "Local file status: fundamentals import 1 data row(s); staged fundamentals 0 file(s); rejected-row report present. Rows still require source review, validate, preview, apply, and readiness proof.",
                 "Skip If": "Skip for now if trusted SEC or manual fundamentals rows are not reviewable.",
                 "Packet Command": "make trusted-data-pilot-packet TICKER=META",
                 "Next Command": "make focus-fundamentals TICKER=META",
@@ -9600,6 +9605,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert "missing input: needs source-backed peer mappings; analyst estimates: trusted local csv input" in rendered
     assert "analyst_estimates" not in rendered
     assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
+    assert "local file status: peer import 1 data row(s); rejected-row report missing" in rendered
     assert "skip if: skip for now if peer relationships cannot be supported by a source note" in rendered
     assert "check first: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
     assert "then run make focus-peers ticker=mu" in rendered

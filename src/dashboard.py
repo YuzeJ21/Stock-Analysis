@@ -29,6 +29,7 @@ from src.trusted_data_pilot import (
     pilot_evidence_expectation,
     pilot_evidence_row_template,
     pilot_lane_label,
+    pilot_local_file_status,
     pilot_operator_decision,
     pilot_rank_reason,
     pilot_review_path,
@@ -6492,6 +6493,7 @@ def data_health_trusted_pilot_preview_frame(
             "Review Decision": pilot_operator_decision(candidate),
             "Review Path": pilot_review_path(candidate.validation_path),
             "Trusted Row Target": pilot_trusted_row_path(candidate),
+            "Local File Status": pilot_local_file_status(candidate, root=BASE_DIR),
             "Skip If": pilot_skip_condition(candidate),
             "Packet Command": f"make trusted-data-pilot-packet TICKER={candidate.ticker}",
             "Next Command": candidate.next_command,
@@ -6536,6 +6538,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
         rank_reason = compact_card_fragment(row.get("Rank Reason"), max_chars=170)
         missing_input = compact_card_fragment(plain_dashboard_input_copy(row.get("Missing Input")), max_chars=190)
         review_decision = compact_card_fragment(row.get("Review Decision") or row.get("Operator Decision"), max_chars=170)
+        local_status = compact_card_fragment(row.get("Local File Status"), max_chars=170)
         skip_if = compact_card_fragment(row.get("Skip If"), max_chars=150)
         review_path = compact_card_fragment(row.get("Review Path"), max_chars=165)
         evidence_row = compact_card_fragment(row.get("Evidence Row"), max_chars=170)
@@ -6554,6 +6557,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                     f"{card_sentence('Why this is next', rank_reason)} "
                     f"{card_sentence('Missing input', missing_input)} "
                     f"{card_sentence('Decision', review_decision)} "
+                    f"{card_sentence('Local file status', local_status)} "
                     f"{card_sentence('Skip if', skip_if)} "
                     f"Check first: {review_path}; then run {lane_command}. "
                     f"{card_sentence('Proof after data changes', proof)} "

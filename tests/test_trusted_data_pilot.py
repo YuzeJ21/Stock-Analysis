@@ -2,6 +2,7 @@ from src.trusted_data_pilot import (
     build_trusted_data_pilot_candidates,
     pilot_evidence_row_template,
     pilot_lane_label,
+    pilot_local_file_status,
     pilot_operator_decision,
     pilot_public_shortlist,
     pilot_rank_reason,
@@ -14,6 +15,11 @@ from src.trusted_data_pilot import (
     render_trusted_data_pilot_candidates,
     render_trusted_data_pilot_packet,
 )
+
+
+def _write_text(path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
 
 
 def test_trusted_data_pilot_candidates_prioritize_active_company_blockers():
@@ -171,6 +177,52 @@ def test_pilot_trusted_row_path_points_to_lane_specific_local_inputs():
     assert pilot_trusted_row_path(peers) == "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed"
     assert pilot_rejected_report_path(fundamentals) == "data/rejected/fundamentals_import_rejected.csv"
     assert pilot_rejected_report_path(peers) == "data/rejected/peers_import_rejected.csv"
+
+
+def test_pilot_local_file_status_surfaces_reviewable_file_state(tmp_path):
+    fundamentals = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+    peers = build_trusted_data_pilot_candidates(
+        [],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs source-backed peer mappings",
+                "focus_command": "make focus-peers TICKER=MU",
+            }
+        ],
+        [{"ticker": "MU", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+    _write_text(tmp_path / "data" / "imports" / "fundamentals.csv", "ticker,revenue\nCRDO,1\nMETA,2\n")
+    _write_text(tmp_path / "data" / "imports" / "peers.csv", "ticker,peer_ticker,source\nMU,NVDA,source note\n")
+    _write_text(tmp_path / "data" / "staged" / "fundamentals" / "crdo.csv", "ticker,revenue\nCRDO,1\n")
+    _write_text(tmp_path / "data" / "rejected" / "fundamentals_import_rejected.csv", "source_file,source_row,ticker,rejection_reason\n")
+
+    fundamentals_status = pilot_local_file_status(fundamentals, root=tmp_path).lower()
+    peer_status = pilot_local_file_status(peers, root=tmp_path).lower()
+
+    assert "fundamentals import 2 data row(s)" in fundamentals_status
+    assert "staged fundamentals 1 file(s)" in fundamentals_status
+    assert "rejected-row report present" in fundamentals_status
+    assert "rows still require source review" in fundamentals_status
+    assert "peer import 1 data row(s)" in peer_status
+    assert "rejected-row report missing" in peer_status
+    assert "source-backed relationship review" in peer_status
+    assert "buy" not in fundamentals_status + peer_status
+    assert "sell" not in fundamentals_status + peer_status
 
 
 def test_pilot_rank_reason_explains_queue_position_without_new_data():
@@ -380,7 +432,7 @@ def test_pilot_selection_brief_explains_how_to_choose_small_pilot():
     assert "recommend" not in brief.lower()
 
 
-def test_pilot_public_shortlist_prefers_active_and_demo_names_before_broad_fillers():
+def test_pilot_public_shortlist_prefers_active_and_demo_names_before_broad_fillers(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [
             {
@@ -416,7 +468,10 @@ def test_pilot_public_shortlist_prefers_active_and_demo_names_before_broad_fille
 
     shortlist = pilot_public_shortlist(candidates)
     brief = "\n".join(pilot_selection_brief(candidates))
-    rendered = render_trusted_data_pilot_candidates(candidates)
+    _write_text(tmp_path / "data" / "imports" / "fundamentals.csv", "ticker,revenue\nMETA,1\n")
+    _write_text(tmp_path / "data" / "rejected" / "fundamentals_import_rejected.csv", "source_file,source_row,ticker,rejection_reason\n")
+
+    rendered = render_trusted_data_pilot_candidates(candidates, root=tmp_path)
 
     assert [candidate.ticker for candidate in candidates] == ["META", "AAPG", "AARD"]
     assert [candidate.ticker for candidate in shortlist] == ["META"]
@@ -434,7 +489,7 @@ def test_pilot_selection_brief_handles_empty_queue_without_forcing_data():
     assert "before importing rows" in brief
 
 
-def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
+def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [
             {
@@ -450,7 +505,10 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
         top_n=10,
     )
 
-    rendered = render_trusted_data_pilot_candidates(candidates)
+    _write_text(tmp_path / "data" / "imports" / "fundamentals.csv", "ticker,revenue\nMETA,1\n")
+    _write_text(tmp_path / "data" / "rejected" / "fundamentals_import_rejected.csv", "source_file,source_row,ticker,rejection_reason\n")
+
+    rendered = render_trusted_data_pilot_candidates(candidates, root=tmp_path)
 
     assert "Read-only: this command ranks current local blockers" in rendered
     assert "does not refresh, import, edit CSVs, or change readiness outputs" in rendered
@@ -478,6 +536,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "Lane check: make focus-fundamentals TICKER=META" in rendered
     assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
+    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." in rendered
     assert "Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "Rejected-row report to review: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
@@ -554,7 +613,7 @@ def test_render_trusted_data_pilot_candidates_uses_specific_peer_review_path_by_
     assert "make templates -> fill source-backed peers" not in rendered
 
 
-def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
+def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [
             {
@@ -570,7 +629,10 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
         top_n=10,
     )
 
-    rendered = render_trusted_data_pilot_packet(candidates[0], requested_ticker="CRDO")
+    _write_text(tmp_path / "data" / "imports" / "fundamentals.csv", "ticker,revenue\nCRDO,1\n")
+    _write_text(tmp_path / "data" / "rejected" / "fundamentals_import_rejected.csv", "source_file,source_row,ticker,rejection_reason\n")
+
+    rendered = render_trusted_data_pilot_packet(candidates[0], requested_ticker="CRDO", root=tmp_path)
 
     assert "Trusted Data Pilot Evidence Packet" in rendered
     assert "Read-only: this command prints a one-company proof loop" in rendered
@@ -588,6 +650,7 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "If not, leave fundamentals and DCF blocked" in rendered
     assert "do not apply placeholder rows just to make the report look complete" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
+    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." in rendered
     assert "One-company evidence packet:" in rendered
     assert "1. Baseline readiness: make readiness-snapshot" in rendered
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
