@@ -1418,6 +1418,12 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Research-Only Guardrails" in readme
     assert "not a trading system" in readme
     assert "docs/DATA_STRATEGY.md" in operator_guide
+    assert "Public Visitor FAQ" in data_strategy
+    assert "The product analysis comes from this repository's readiness gates, DCF calculations, peer gates, decision buckets, and report wording." in data_strategy
+    assert "Local or provider-assisted rows supply inputs; they do not decide valuation status, confidence, peer readiness, or research state." in data_strategy
+    assert "Prices are the safest lane to refresh at scale because they are repeatable time-series rows" in data_strategy
+    assert "Fundamentals, peer mappings, earnings, and analyst estimates are judgment-required lanes" in data_strategy
+    assert "Missing trusted rows are a product signal." in data_strategy
     assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
     assert "make trusted-data-pilot-packet TICKER=CRDO" in data_strategy
