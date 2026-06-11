@@ -326,7 +326,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "company rows with complete valuation inputs can support assumption, scenario, sensitivity, and source-readiness review" in rendered
     assert "source-freshness review" not in rendered
     assert "missing inputs are an unlock list, not weak conclusions" in rendered
-    assert "dashboard does not run refreshes, imports, or external actions" in rendered
+    assert "dashboard does not run refreshes, imports, or external account actions" in rendered
     assert "proof after unlock:" in rendered
     assert "run make readiness and reopen home before interpreting changed counts" in rendered
     assert "regenerate the markdown report before reading newly available sections" in rendered
@@ -809,7 +809,7 @@ def test_home_capability_cards_explain_quality_limits_and_provenance():
     assert "ready-data research" in rendered
     assert "blocked fundamentals, peers, earnings, or estimates" in rendered
     assert "copy commands, then run them yourself" in rendered
-    assert "do not run refreshes, imports, or external actions" in rendered
+    assert "do not run refreshes, imports, or external account actions" in rendered
     assert "implemented in the project code" in rendered
     assert "project rules" in rendered
     assert "product boundary" in rendered
@@ -7706,7 +7706,7 @@ def test_monthly_picks_quality_cards_explain_candidate_boundary_without_recommen
     assert "weaker names are not forced into the list" in rendered
     assert "no allocation conclusion" in rendered
     assert "position sizing" in rendered
-    assert "external actions" in rendered
+    assert "external account actions" in rendered
     assert "direct portfolio actions" in rendered
     assert "track record limited" in rendered
     assert "track record ready" in rendered
@@ -14132,7 +14132,7 @@ def test_readiness_recent_progress_cards_show_current_only_baseline_without_prio
     assert "targeted refresh or import" in rendered
     assert "peer: 2" in rendered
     assert "copyable commands only" in rendered
-    assert "external actions" in rendered
+    assert "external account actions" in rendered
     assert "latest generated" not in rendered
     assert "generated timestamp" not in rendered
     assert "broker" not in rendered
@@ -17160,7 +17160,7 @@ def test_single_stock_quick_read_cards_route_dcf_ready_peer_locked():
     assert "dcf assumptions, sensitivity, source readiness, company setup, and peer trend context" in rendered
     assert "mapped peer price history" in rendered
     assert "peer-relative valuation, premium/discount, and peer dcf comparison wait" in rendered
-    assert "does not run refreshes, imports, or external actions" in rendered
+    assert "does not run refreshes, imports, or external account actions" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

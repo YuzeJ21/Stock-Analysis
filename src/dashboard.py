@@ -253,7 +253,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "title": "What should I do next?",
             "body": (
                 "Next step: use the command only when you are ready to run it yourself. "
-                "The dashboard does not run refreshes, imports, or external actions. "
+                "The dashboard does not run refreshes, imports, or external account actions. "
                 f"Review area: {guide['review_area']}. "
                 f"Proof after unlock: {guide['proof']}"
             ),
@@ -7649,7 +7649,7 @@ def readiness_recent_progress_cards(
             "kicker": "SOURCE / FRESHNESS",
             "title": "Copyable commands only",
             "body": (
-                "Dashboard cards display local commands and paths only; they do not run imports, refreshes, or external actions. "
+                "Dashboard cards display local commands and paths only; they do not run imports, refreshes, or external account actions. "
                 "Earnings and analyst estimates remain unavailable until trusted local CSV rows validate."
             ),
             "badges": ["copy only", "research-only"],
@@ -11380,7 +11380,7 @@ def build_active_evaluation_queue_frame(
         ),
         axis=1,
     )
-    frame["copy_only_note"] = "Copy-only command; the dashboard does not run refreshes, imports, or external actions."
+    frame["copy_only_note"] = "Copy-only command; the dashboard does not run refreshes, imports, or external account actions."
     frame["reason"] = frame.apply(active_evaluation_reason, axis=1)
     frame = frame.sort_values(["priority", "ticker"], kind="stable")
     return frame[ACTIVE_EVALUATION_QUEUE_COLUMNS].head(limit).reset_index(drop=True)
@@ -11476,7 +11476,7 @@ def build_active_evaluation_lane_detail_frame(queue_frame: pd.DataFrame | None, 
                     max_sentences=3,
                     max_chars=360,
                 ),
-                "copy_only_note": "Copy-only review guide; the dashboard does not run refreshes, imports, or external actions.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not run refreshes, imports, or external account actions.",
             }
         )
     detail = pd.DataFrame(rows, columns=ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS)
@@ -13376,7 +13376,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
             "kicker": "COPY ONLY",
             "title": "Copy the next command when ready",
             "body": (
-                "The dashboard explains the next local step, but it does not run refreshes, imports, or external actions. "
+                "The dashboard explains the next local step, but it does not run refreshes, imports, or external account actions. "
                 f"Proof command: {proof_command}"
             ),
             "badges": ["manual step", "research only"],
@@ -17605,7 +17605,7 @@ def monthly_picks_quality_cards(
         {
             "kicker": "WHAT STAYS WITHHELD",
             "title": "No allocation conclusion",
-            "body": "Monthly Picks is a research queue. It does not provide position sizing, external actions, or direct portfolio actions.",
+            "body": "Monthly Picks is a research queue. It does not provide position sizing, external account actions, or direct portfolio actions.",
             "badges": ["research-only", "copy-only"],
         },
         {
@@ -19449,7 +19449,7 @@ def _plain_home_capability_cards() -> list[dict[str, object]]:
         {
             "kicker": "OPERATOR SAFETY",
             "title": "Copy commands, then run them yourself",
-            "body": "Dashboard buttons and cards show local commands for review. They do not run refreshes, imports, or external actions.",
+            "body": "Dashboard buttons and cards show local commands for review. They do not run refreshes, imports, or external account actions.",
             "badges": ["copy-only", "local"],
         },
         {
@@ -20637,7 +20637,7 @@ def render_market_command_center(
         st.info("No purpose drilldown rows match the current filters. Try All filters or rebuild the local readiness snapshot.")
     else:
         st.caption(
-            "Purpose drilldown rows are built from current local readiness. Commands are copy-only; this dashboard does not run refreshes, imports, or external actions."
+            "Purpose drilldown rows are built from current local readiness. Commands are copy-only; this dashboard does not run refreshes, imports, or external account actions."
         )
         st.dataframe(clean_display_frame(purpose_drilldown), width="stretch", hide_index=True)
     action_console = build_next_action_console_frame(
