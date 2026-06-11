@@ -868,7 +868,11 @@ def test_home_first_run_path_cards_make_visitor_proof_trail_explicit():
         "VISITOR STEP 2",
         "VISITOR STEP 3",
         "VISITOR STEP 4",
+        "VISITOR STEP 5",
     ]
+    assert "print the guided proof trail" in rendered
+    assert "home -> nvda -> meta -> qqq -> trusted-data pilot walkthrough" in rendered
+    assert "without changing local files" in rendered
     assert "open the clean product view" in rendered
     assert "three clear paths" in rendered
     assert "read the nvda proof report" in rendered
@@ -882,6 +886,7 @@ def test_home_first_run_path_cards_make_visitor_proof_trail_explicit():
     assert "trusted-data pilot" in rendered
     assert "rank current company blockers first" in rendered
     assert "without importing rows" in rendered
+    assert "make demo" in rendered
     assert "make dashboard" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=meta" in rendered

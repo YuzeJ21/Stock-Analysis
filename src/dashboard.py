@@ -19201,6 +19201,15 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "VISITOR STEP 1",
+            "title": "Print the guided proof trail",
+            "body": (
+                "Use the demo command when sharing the repo: it prints the exact Home -> NVDA -> META -> QQQ -> trusted-data pilot walkthrough without changing local files."
+            ),
+            "badges": ["share path", "read-only"],
+            "command": "make demo",
+        },
+        {
+            "kicker": "VISITOR STEP 2",
             "title": "Open the clean product view",
             "body": (
                 "Start on Home for the coverage snapshot and three clear paths: review one stock, improve data coverage, or explore ready names."
@@ -19209,7 +19218,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "command": "make dashboard",
         },
         {
-            "kicker": "VISITOR STEP 2",
+            "kicker": "VISITOR STEP 3",
             "title": "Read the NVDA proof report",
             "body": (
                 "Use the NVDA Markdown report as the strongest ready-data demo because it shows DCF assumptions, peer context, locked optional context, and source notes."
@@ -19218,7 +19227,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "command": "make stock-report-md TICKER=NVDA",
         },
         {
-            "kicker": "VISITOR STEP 3",
+            "kicker": "VISITOR STEP 4",
             "title": "Compare META blocked and QQQ excluded",
             "body": (
                 "Open META next to see company valuation stays blocked until trusted fundamentals are ready; open QQQ to see ETF/index DCF excluded rather than failed."
@@ -19227,7 +19236,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "command": "make stock-report-md TICKER=META",
         },
         {
-            "kicker": "VISITOR STEP 4",
+            "kicker": "VISITOR STEP 5",
             "title": "Show the data unlock proof path",
             "body": (
                 "When a visitor asks how coverage improves, rank current company blockers first, then run the read-only trusted-data pilot for the chosen names without importing rows."
