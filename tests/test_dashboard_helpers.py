@@ -9277,15 +9277,81 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     assert "sell" not in rendered
 
 
+def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
+    fundamentals = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            },
+            {
+                "ticker": "APLD",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue",
+                "focus_command": "make focus-fundamentals TICKER=APLD",
+            },
+        ]
+    )
+    peers = pd.DataFrame(
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs source-backed peer mappings",
+                "focus_command": "make focus-peers TICKER=MU",
+            }
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "MU", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "APLD", "asset_type": "company", "in_active_universe": "False"},
+        ]
+    )
+
+    frame = dashboard.data_health_trusted_pilot_preview_frame(fundamentals, peers, readiness, limit=2)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame.columns) == [
+        "Ticker",
+        "Pilot Lane",
+        "Scope",
+        "Rank Reason",
+        "Missing Input",
+        "Next Command",
+        "Proof After Unlock",
+    ]
+    assert list(frame["Ticker"]) == ["MU", "META"]
+    assert len(frame) == 2
+    assert "active-universe" in rendered
+    assert "peer mapping unlock" in rendered
+    assert "fundamentals / dcf unlock" in rendered
+    assert "make focus-peers ticker=mu" in rendered
+    assert "make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     next_steps_index = source.index('render_section_header("Copy-Only Next Steps"')
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
+    pilot_preview_index = source.index("pilot_preview = data_health_trusted_pilot_preview_frame", pilot_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert next_steps_index < pilot_index < details_index
+    assert next_steps_index < pilot_index < pilot_preview_index < details_index
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
+    assert "`make trusted-data-pilot-candidates TOP_N=10`" in source
+    assert "st.dataframe(clean_display_frame(pilot_preview), width=\"stretch\", hide_index=True)" in source
 
 
 def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis():

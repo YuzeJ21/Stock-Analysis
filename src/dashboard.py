@@ -24,6 +24,7 @@ from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
+from src.trusted_data_pilot import build_trusted_data_pilot_candidates, pilot_lane_label, pilot_rank_reason
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
 
@@ -6298,6 +6299,37 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
             "command": "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10",
         },
     ]
+
+
+def data_health_trusted_pilot_preview_frame(
+    fundamentals_peer_worklist_frame: pd.DataFrame | None,
+    peer_unlock_worklist_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None,
+    *,
+    limit: int = 5,
+) -> pd.DataFrame:
+    fundamentals_rows = [] if fundamentals_peer_worklist_frame is None else fundamentals_peer_worklist_frame.to_dict("records")
+    peer_rows = [] if peer_unlock_worklist_frame is None else peer_unlock_worklist_frame.to_dict("records")
+    readiness_rows = [] if ticker_readiness_frame is None else ticker_readiness_frame.to_dict("records")
+    candidates = build_trusted_data_pilot_candidates(
+        fundamentals_rows,
+        peer_rows,
+        readiness_rows,
+        top_n=max(limit, 0),
+    )
+    rows = [
+        {
+            "Ticker": candidate.ticker,
+            "Pilot Lane": pilot_lane_label(candidate.lane),
+            "Scope": "Active universe" if candidate.active_universe else "Master universe",
+            "Rank Reason": pilot_rank_reason(candidate),
+            "Missing Input": candidate.missing_input,
+            "Next Command": candidate.next_command,
+            "Proof After Unlock": candidate.proof_after_unlock,
+        }
+        for candidate in candidates[: max(limit, 0)]
+    ]
+    return pd.DataFrame(rows)
 
 
 def data_health_advanced_unlock_map_cards(
@@ -20928,6 +20960,23 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")
     render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))
+    pilot_preview = data_health_trusted_pilot_preview_frame(
+        fundamentals_peer_worklist_frame,
+        peer_unlock_worklist_frame,
+        ticker_readiness_frame,
+        limit=5,
+    )
+    if pilot_preview.empty:
+        render_context_note(
+            "Pilot preview unavailable.",
+            "Run `make trusted-data-pilot-candidates TOP_N=10` after rebuilding readiness outputs to rank current company blockers.",
+        )
+    else:
+        render_context_note(
+            "Top ranked company blockers.",
+            "This read-only preview mirrors `make trusted-data-pilot-candidates TOP_N=10` and stays capped so Data Health does not become a broad raw table.",
+        )
+        st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
     with st.expander("Unlock planning cards", expanded=False):
         render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
