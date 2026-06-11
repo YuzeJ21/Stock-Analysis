@@ -47,6 +47,14 @@ The report is not a black box: local data rows provide inputs, and project rules
 
 The local sample currently tracks a broad universe of 3,538 tickers, with a smaller subset ready for each analysis feature. Exact ready counts can change after local refresh/import work, so use `make status-check TOP_N=5` or the dashboard Home page for the current snapshot.
 
+Read the counts in three layers:
+
+| Layer | What it means | How to use it |
+| --- | --- | --- |
+| Master universe | The broad ticker list the project can track. | Good for coverage planning, not proof that every analysis is ready. |
+| Active universe | The focused research list for demo and portfolio-style review. | Best place to inspect product flow and next trusted-data steps. |
+| Analysis-ready subset | Tickers whose required local inputs passed readiness for a feature. | Use this layer for DCF, peer context, or candidate review; blocked rows stay visibly locked. |
+
 Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, demo path, and public checks are working. Broad fundamentals, DCF, peers, earnings, and analyst estimates remain visibly blocked by missing trusted data until trusted rows exist, so those gaps should be read as source-proof work rather than broken analysis.
 
 ## Data Coverage Strategy
@@ -77,12 +85,6 @@ Start with the three paths the dashboard is built around:
 | Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |
 
 The dashboard keeps methodology, file paths, and update commands in collapsed sections so visitors can read the product first. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
-
-Two-minute visitor tour:
-
-1. Open `Home` to see what is ready, blocked, and intentionally locked.
-2. Run one proof report, usually `make stock-report-md TICKER=NVDA`.
-3. Open one blocked or excluded example, then run `make trusted-data-pilot-candidates TOP_N=10` to see how the next trusted-data review step would be chosen.
 
 ## Quick Start
 

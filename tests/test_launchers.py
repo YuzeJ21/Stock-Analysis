@@ -432,6 +432,10 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps." in readme
     assert "## What You Can Analyze" in readme
     assert "## How Analysis Works" in readme
+    assert "Read the counts in three layers:" in readme
+    assert "| Master universe | The broad ticker list the project can track. | Good for coverage planning, not proof that every analysis is ready. |" in readme
+    assert "| Active universe | The focused research list for demo and portfolio-style review. | Best place to inspect product flow and next trusted-data steps. |" in readme
+    assert "| Analysis-ready subset | Tickers whose required local inputs passed readiness for a feature. | Use this layer for DCF, peer context, or candidate review; blocked rows stay visibly locked. |" in readme
     assert "## What Works Today" in readme
     assert "## Try This Demo Path" in readme
     assert "Optional extra report states:" in readme
