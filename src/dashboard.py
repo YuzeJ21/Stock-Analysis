@@ -6271,16 +6271,17 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
             "title": "Rank 5-10 companies first",
             "body": (
                 f"{depth_gap:,} price-ready company row(s) still need trusted fundamentals or DCF inputs, and "
-                f"{peer_gap:,} DCF-ready row(s) still need source-backed peer context. Start with a small ranked pilot instead of the full universe."
+                f"{peer_gap:,} DCF-ready row(s) still need source-backed peer context. Start with a small ranked pilot instead of the full universe; "
+                "the candidate output explains each rank reason from scope, demo relevance, lane, priority, and missing input."
             ),
-            "badges": ["small pilot", "read-only"],
+            "badges": ["rank reason", "read-only"],
             "command": "make trusted-data-pilot-candidates TOP_N=10",
         },
         {
             "kicker": "PILOT STEP 2",
             "title": "Inspect one proof packet",
             "body": (
-                "Use one ticker packet to see the before report, exact missing input, lane-specific review command, validate/apply step, and rebuild proof. "
+                "Use one ticker packet to see rank reason, before report, exact missing input, lane-specific review command, validate/apply step, and rebuild proof. "
                 "If trusted rows are not available, keep that ticker blocked and choose the next candidate."
             ),
             "badges": ["one company", "no fake rows"],

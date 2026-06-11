@@ -9261,10 +9261,12 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     assert cards[0]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
     assert cards[1]["command"] == "make trusted-data-pilot-packet TICKER=<ticker>"
     assert cards[2]["command"] == "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"
+    assert "rank reason" in cards[0]["badges"]
     assert "217 price-ready company row(s) still need trusted fundamentals or dcf inputs" in rendered
     assert "14 dcf-ready row(s) still need source-backed peer context" in rendered
     assert "small ranked pilot instead of the full universe" in rendered
-    assert "before report, exact missing input, lane-specific review command, validate/apply step, and rebuild proof" in rendered
+    assert "candidate output explains each rank reason from scope, demo relevance, lane, priority, and missing input" in rendered
+    assert "rank reason, before report, exact missing input, lane-specific review command, validate/apply step, and rebuild proof" in rendered
     assert "keep that ticker blocked and choose the next candidate" in rendered
     assert "optional context remains locked at 0 earnings-ready and 0 estimate-ready row(s)" in rendered
     assert "source proof" in rendered
