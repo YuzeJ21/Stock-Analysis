@@ -6460,7 +6460,7 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
             "title": "Inspect one proof packet",
             "body": (
                 "Use the first shortlisted ticker packet to see the current report, missing input, review lane, trusted input target, and rebuild proof. "
-                "This mirrors the CLI quick path: shortlist, one packet, input target, then stop if source proof is unavailable."
+                "It explains the baseline, source proof, validation, rejected-row check, rebuild, and stop rule before any conclusion changes."
             ),
             "badges": ["one company", "no fake rows"],
             "command": "make trusted-data-pilot-packet TICKER=<ticker>",
@@ -6470,7 +6470,7 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
             "title": "Run the selected proof loop",
             "body": (
                 f"Optional context remains locked at {earnings_ready:,} earnings-ready and {estimates_ready:,} estimate-ready row(s) until trusted CSV rows exist. "
-                "Use the pilot loop only for selected company names with source proof."
+                "Use the pilot loop only for selected company names with source proof; only the rebuilt readiness and stock report can prove the lane changed."
             ),
             "badges": ["selected names", "trusted CSVs"],
             "command": "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10",

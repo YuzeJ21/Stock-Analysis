@@ -9415,9 +9415,9 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     assert "small ranked pilot instead of the full universe" in rendered
     assert "candidate output explains each rank reason from scope, demo relevance, lane, priority, and missing input" in rendered
     assert "current report, missing input, review lane, trusted input target, and rebuild proof" in rendered
-    assert "mirrors the cli quick path: shortlist, one packet, input target, then stop if source proof is unavailable" in rendered
+    assert "baseline, source proof, validation, rejected-row check, rebuild, and stop rule" in rendered
     assert "optional context remains locked at 0 earnings-ready and 0 estimate-ready row(s)" in rendered
-    assert "source proof" in rendered
+    assert "only the rebuilt readiness and stock report can prove the lane changed" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
