@@ -216,8 +216,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Operating-company DCF and peer valuation are excluded for this monitor context, so company valuation fields are not treated as repair items.
 - No trusted analyst-estimate CSV has been added yet.
 - No trusted earnings CSV has been added yet.
-- analyst estimates has no local row for this ticker.
-- earnings has no local row for this ticker.
+- Analyst estimates: no trusted local row for this ticker; optional context stays locked.
+- Earnings: no trusted local row for this ticker; optional context stays locked.
 
 ## Source Readiness
 - local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-22; Saved local research data.

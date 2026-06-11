@@ -233,9 +233,9 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Observed revenue growth 61.5% exceeded the conservative start-growth cap of 40.0% and was normalized before projection.
 - Observed revenue growth 65.5% exceeded the conservative start-growth cap of 40.0% and was normalized before projection.
 - Observed revenue growth 69.5% exceeded the conservative start-growth cap of 40.0% and was normalized before projection.
-- Valuation missing field: ebitda
-- analyst estimates has no local row for this ticker.
-- earnings has no local row for this ticker.
+- Valuation input still missing: EBITDA.
+- Analyst estimates: no trusted local row for this ticker; optional context stays locked.
+- Earnings: no trusted local row for this ticker; optional context stays locked.
 
 ## Source Readiness
 - local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-22; Saved local research data.

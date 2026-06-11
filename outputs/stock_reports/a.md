@@ -233,12 +233,12 @@ Research-only purpose brief. It separates what local data supports from what rem
 - No trusted earnings CSV has been added yet.
 - Normalized growth target was reduced to keep it conservatively below WACC.
 - Peer data is unavailable or insufficient, so only standalone multiples are shown.
-- Peer inputs for p_fcf were unavailable for: DHR, TMO, WAT.
-- Peer inputs for pe were unavailable for: DHR, TMO, WAT.
-- Peer inputs for ps were unavailable for: DHR, TMO, WAT.
-- Valuation missing field: ebitda
-- analyst estimates has no local row for this ticker.
-- earnings has no local row for this ticker.
+- Peer input still missing: price/free-cash-flow unavailable for peer(s) DHR, TMO, WAT.
+- Peer input still missing: P/E unavailable for peer(s) DHR, TMO, WAT.
+- Peer input still missing: price/sales unavailable for peer(s) DHR, TMO, WAT.
+- Valuation input still missing: EBITDA.
+- Analyst estimates: no trusted local row for this ticker; optional context stays locked.
+- Earnings: no trusted local row for this ticker; optional context stays locked.
 
 ## Source Readiness
 - local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-27; Saved local research data.

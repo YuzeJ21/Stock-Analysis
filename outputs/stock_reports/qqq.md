@@ -218,8 +218,8 @@ Research-only purpose brief. It separates what local data supports from what rem
 - 3M performance is unavailable from the current local price history.
 - No trusted analyst-estimate CSV has been added yet.
 - No trusted earnings CSV has been added yet.
-- analyst estimates has no local row for this ticker.
-- earnings has no local row for this ticker.
+- Analyst estimates: no trusted local row for this ticker; optional context stays locked.
+- Earnings: no trusted local row for this ticker; optional context stays locked.
 
 ## Source Readiness
 - local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-03-14; Saved local research data.

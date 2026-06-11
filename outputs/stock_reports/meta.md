@@ -227,12 +227,12 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Fair value per share could not be derived because shares outstanding is unavailable.
 - No trusted analyst-estimate CSV has been added yet.
 - No trusted earnings CSV has been added yet.
-- Peer inputs for pe were unavailable for: GOOG.
-- Valuation missing field: ebitda
-- Valuation missing field: market cap, price, and share count
-- Valuation missing field: shares outstanding
-- analyst estimates has no local row for this ticker.
-- earnings has no local row for this ticker.
+- Peer input still missing: P/E unavailable for peer(s) GOOG.
+- Valuation input still missing: EBITDA.
+- Valuation input still missing: market cap, price, and share count.
+- Valuation input still missing: shares outstanding.
+- Analyst estimates: no trusted local row for this ticker; optional context stays locked.
+- Earnings: no trusted local row for this ticker; optional context stays locked.
 
 ## Source Readiness
 - local:prices.csv: research-grade / local; source readiness: daily CSV through 2026-05-22; Saved local research data.

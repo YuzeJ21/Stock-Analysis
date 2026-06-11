@@ -232,16 +232,16 @@ Research-only purpose brief. It separates what local data supports from what rem
 - No trusted analyst-estimate CSV has been added yet.
 - No trusted earnings CSV has been added yet.
 - Revenue is unavailable from the current local fundamentals dataset.
-- Valuation missing field: FCF margin
-- Valuation missing field: cash
-- Valuation missing field: debt
-- Valuation missing field: ebitda
-- Valuation missing field: eps
-- Valuation missing field: free cash flow
-- Valuation missing field: market cap, price, and share count
-- Valuation missing field: revenue
-- analyst estimates has no local row for this ticker.
-- earnings has no local row for this ticker.
+- Valuation input still missing: EBITDA.
+- Valuation input still missing: FCF margin.
+- Valuation input still missing: cash.
+- Valuation input still missing: debt.
+- Valuation input still missing: eps.
+- Valuation input still missing: free cash flow.
+- Valuation input still missing: market cap, price, and share count.
+- Valuation input still missing: revenue.
+- Analyst estimates: no trusted local row for this ticker; optional context stays locked.
+- Earnings: no trusted local row for this ticker; optional context stays locked.
 - fundamentals has no local row for this ticker.
 
 ## Source Readiness

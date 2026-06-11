@@ -721,6 +721,30 @@ def test_stock_report_missing_data_hides_dcf_normalization_warnings_until_dcf_is
     assert "Observed FCF margin" in ready_rendered
 
 
+def test_stock_report_missing_data_uses_reader_friendly_lock_reasons():
+    lines = _stock_report_missing_data_lines(
+        {
+            "missing_data_warnings": [
+                "analyst_estimates has no local row for this ticker.",
+                "earnings has no local row for this ticker.",
+                "Valuation missing field: shares_outstanding",
+                "Peer inputs for pe were unavailable for: GOOG.",
+            ]
+        },
+        monitor_context=False,
+        dcf_status_text="ready",
+    )
+
+    rendered = " ".join(lines)
+
+    assert "Analyst estimates: no trusted local row for this ticker; optional context stays locked." in rendered
+    assert "Earnings: no trusted local row for this ticker; optional context stays locked." in rendered
+    assert "Valuation input still missing: shares outstanding." in rendered
+    assert "Peer input still missing: P/E unavailable for peer(s) GOOG." in rendered
+    assert "analyst_estimates" not in rendered
+    assert "shares_outstanding" not in rendered
+
+
 def test_stock_report_reader_guide_distinguishes_dcf_ready_from_standalone_dcf():
     standalone = " ".join(
         _stock_report_reader_guide_lines(

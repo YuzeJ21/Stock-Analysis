@@ -118,6 +118,7 @@ FIELD_LABELS = {
     "peer": "peer",
     "portfolio": "portfolio",
     "DebtToEquity": "debt to equity",
+    "ebitda": "EBITDA",
     "EPSGrowth": "EPS growth",
     "EVToEBITDA": "EV/EBITDA",
     "EVToSales": "EV/sales",
@@ -125,10 +126,17 @@ FIELD_LABELS = {
     "ForwardPE": "forward P/E",
     "GrossMargin": "gross margin",
     "PE": "P/E",
+    "P/E": "P/E",
     "PriceToFCF": "price to free cash flow",
     "fcf_margin": "FCF margin",
     "free_cash_flow": "free cash flow",
     "market_cap_or_price_and_shares": "market cap, price, and share count",
+    "analyst_estimates": "analyst estimates",
+    "earnings": "earnings",
+    "pe": "P/E",
+    "p/e": "P/E",
+    "p_fcf": "price/free-cash-flow",
+    "ps": "price/sales",
     "price": "price",
     "revenue": "revenue",
     "shares_outstanding": "shares outstanding",
@@ -1031,7 +1039,7 @@ def _stock_report_missing_data_lines(payload: dict[str, Any], *, monitor_context
             for warning in warnings
             if not any(str(warning).lower().startswith(prefix) for prefix in excluded_prefixes)
         ]
-    lines = [f"- {_humanize_schema_terms(warning)}" for warning in warnings[:20]]
+    lines = [f"- {_stock_report_missing_warning_copy(warning)}" for warning in warnings[:20]]
     if monitor_context:
         lines.insert(
             0,
@@ -1040,6 +1048,26 @@ def _stock_report_missing_data_lines(payload: dict[str, Any], *, monitor_context
     if not lines:
         lines.append("- None reported by the local provider.")
     return lines
+
+
+def _stock_report_missing_warning_copy(warning: Any) -> str:
+    """Make diagnostic missing-data warnings readable without hiding blockers."""
+
+    text = _humanize_schema_terms(warning).strip()
+    lower = text.lower()
+    if lower == "analyst estimates has no local row for this ticker.":
+        return "Analyst estimates: no trusted local row for this ticker; optional context stays locked."
+    if lower == "earnings has no local row for this ticker.":
+        return "Earnings: no trusted local row for this ticker; optional context stays locked."
+    if lower.startswith("valuation missing field:"):
+        field = text.split(":", 1)[1].strip().rstrip(".")
+        return f"Valuation input still missing: {field}."
+    peer_match = re.match(r"peer inputs for (?P<metric>.+?) were unavailable for: (?P<peers>.+)\.?$", text, flags=re.IGNORECASE)
+    if peer_match:
+        metric = _display_field_name(peer_match.group("metric").strip())
+        peers = peer_match.group("peers").strip().rstrip(".")
+        return f"Peer input still missing: {metric} unavailable for peer(s) {peers}."
+    return text
 
 
 def _stock_report_operator_summary(
