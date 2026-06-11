@@ -7729,6 +7729,61 @@ def test_monthly_picks_quality_cards_explain_candidate_boundary_without_recommen
     assert "sell" not in rendered
 
 
+def test_monthly_picks_reader_guide_routes_empty_state_to_data_health():
+    cards = dashboard.monthly_picks_reader_guide_cards(pd.DataFrame(), 5, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Start with coverage, not candidates"
+    assert cards[0]["command"] == "make data-wizard TOP_N=10"
+    assert "intentionally quiet" in rendered
+    assert "data health path" in rendered
+    assert "readiness proof" in rendered
+    assert "research queue" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+
+
+def test_monthly_picks_reader_guide_routes_candidates_to_single_stock_proof():
+    picks = pd.DataFrame(
+        [
+            {"Month": "2026-05", "Ticker": "NVDA", "MissingDataFields": "Return3M"},
+            {"Month": "2026-05", "Ticker": "META", "MissingDataFields": ""},
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "action_type": "prices",
+                "ticker": "AIAI",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "focus_command": "make focus-price TICKER=AIAI",
+            }
+        ]
+    )
+
+    cards = dashboard.monthly_picks_reader_guide_cards(picks, 5, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Read candidates as a review queue"
+    assert cards[0]["command"] == "make stock-report-md TICKER=<ticker>"
+    assert cards[2]["command"] == "make focus-price TICKER=AIAI"
+    assert "open one ticker report" in rendered
+    assert "candidate card is only a starting point" in rendered
+    assert "valuation layers are blocked or excluded" in rendered
+    assert "scores rank local research-review priority only" in rendered
+    assert "visible missing fields" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+
+
 def test_monthly_picks_function_quality_cards_explain_score_limits_and_provenance():
     cards = dashboard.monthly_picks_function_quality_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -7809,6 +7864,7 @@ def test_monthly_picks_page_copy_uses_context_and_proof_language():
     assert "Track-record proof is still unavailable" in source
     assert "Track-record proof is calculated only from local historical price data" in source
     assert "render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n), show_commands=False)" in source
+    assert "monthly_picks_reader_guide_cards(picks_frame, top_n, action_queue_frame)" in source
     assert "show_commands=False,\n    )\n    render_signal_cards(\n        monthly_picks_next_step_cards" in source
     assert "Monthly candidate outputs are unavailable right now" not in source
     assert "Generated from local outputs" not in source

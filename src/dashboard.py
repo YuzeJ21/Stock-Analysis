@@ -17664,6 +17664,77 @@ def monthly_picks_quality_cards(
     ]
 
 
+def monthly_picks_reader_guide_cards(
+    picks_frame: pd.DataFrame | None,
+    top_n: int,
+    action_queue: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    """Plain-language interpretation path for the visitor-facing Monthly Picks page."""
+
+    candidate_count = 0 if picks_frame is None else len(picks_frame)
+    has_candidates = picks_frame is not None and not picks_frame.empty
+    has_gaps = False
+    if has_candidates and "MissingDataFields" in picks_frame.columns:
+        has_gaps = non_empty_count(picks_frame, ["MissingDataFields"]) > 0
+
+    if not has_candidates:
+        first_title = "Start with coverage, not candidates"
+        first_body = (
+            "This page is intentionally quiet when local data cannot support a candidate list. "
+            "Use the Data Health path first, then return here after readiness proof is rebuilt."
+        )
+        first_command = "make data-wizard TOP_N=10"
+    else:
+        first_title = "Read candidates as a review queue"
+        first_body = (
+            f"{candidate_count} of {top_n} conservative slots are filled. Start with the top card, "
+            "then open one ticker report before drawing a deeper research view from the score."
+        )
+        first_command = "make stock-report-md TICKER=<ticker>"
+
+    coverage_command = monthly_picks_next_step_cards(picks_frame, None, None, top_n, action_queue)[0]["command"]
+    gap_sentence = (
+        "Some candidate rows still show visible missing fields, so confidence should stay partial until those inputs are reviewed."
+        if has_gaps
+        else "No candidate-row gaps were flagged in the saved list, but source readiness still belongs in the single-stock report."
+    )
+    return [
+        {
+            "kicker": "READ FIRST",
+            "title": first_title,
+            "body": first_body,
+            "badges": ["research queue", "data-gated"],
+            "command": first_command,
+        },
+        {
+            "kicker": "PROOF STEP",
+            "title": "Open a one-stock report next",
+            "body": (
+                "A candidate card is only a starting point. The one-stock report proves which analysis is supported, "
+                "which valuation layers are blocked or excluded, and which trusted input unlocks the next layer."
+            ),
+            "badges": ["one ticker", "valuation boundary"],
+            "command": "make stock-report-md TICKER=<ticker>",
+        },
+        {
+            "kicker": "CONFIDENCE",
+            "title": "Keep gaps visible",
+            "body": gap_sentence,
+            "badges": ["no inference", "source readiness"],
+            "command": coverage_command,
+        },
+        {
+            "kicker": "BOUNDARY",
+            "title": "No automatic conclusion",
+            "body": (
+                "Scores rank local research-review priority only. They do not replace readiness checks, "
+                "DCF boundaries, peer evidence, optional-context locks, or the final one-stock review."
+            ),
+            "badges": ["research-only", "review priority"],
+        },
+    ]
+
+
 def monthly_picks_function_quality_cards() -> list[dict[str, object]]:
     return [
         {
@@ -19948,6 +20019,8 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         show_commands=False,
     )
     render_signal_cards(monthly_picks_quality_cards(picks_frame, track_frame, equity_frame, top_n), show_commands=False)
+    render_section_header("Reader Guide", "How to use candidate cards before opening any detailed table.")
+    render_signal_cards(monthly_picks_reader_guide_cards(picks_frame, top_n, action_queue_frame), show_commands=False)
     render_section_header("How To Read Monthly Picks", "Candidate quality, limits, and method provenance before reading any ranked names.")
     render_signal_cards(monthly_picks_function_quality_cards())
 
