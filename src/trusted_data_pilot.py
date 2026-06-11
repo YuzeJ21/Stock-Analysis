@@ -292,15 +292,67 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
     return "\n".join(lines)
 
 
+def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, requested_ticker: str) -> str:
+    ticker = requested_ticker.strip().upper()
+    lines = [
+        "Trusted Data Pilot Evidence Packet",
+        "Read-only: this command prints a one-company proof loop and does not refresh, import, edit CSVs, or change readiness outputs.",
+        "",
+    ]
+    if candidate is None:
+        lines.extend(
+            [
+                f"No operating-company pilot candidate matched {ticker}.",
+                "Run `make trusted-data-pilot-candidates TOP_N=10` to choose from current local blockers.",
+                "ETF/index monitor examples such as QQQ and SMH are not operating-company DCF pilot targets.",
+            ]
+        )
+        return "\n".join(lines)
+
+    scope = "active universe" if candidate.active_universe else "master universe"
+    lines.extend(
+        [
+            f"Ticker: {candidate.ticker}",
+            f"Pilot lane: {candidate.lane}",
+            f"Scope: {scope}",
+            f"Priority: {candidate.priority}",
+            f"Why this candidate matters: {candidate.why_it_matters}",
+            f"Missing trusted input: {candidate.missing_input}",
+            f"Source boundary: {candidate.source_boundary}",
+            "",
+            "One-company evidence packet:",
+            "1. Baseline readiness: make readiness-snapshot",
+            f"2. Before report: make stock-report-md TICKER={candidate.ticker}",
+            f"3. Focused blocker check: {candidate.next_command}",
+            f"4. Prepare or stage trusted rows: {candidate.validation_path}",
+            "5. Apply only if reviewed rows exist: make imports-validate && make imports-preview && make imports-apply",
+            f"6. Rebuild proof: {candidate.proof_after_unlock}",
+            f"7. After report: make stock-report-md TICKER={candidate.ticker}",
+            "",
+            "Evidence table row to record:",
+            "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason",
+            "",
+            "Stop condition: if trusted source rows are unavailable, keep this ticker data-blocked and move to the next candidate.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Rank read-only trusted-data pilot candidates.")
     parser.add_argument("--top-n", type=int, default=DEFAULT_TOP_N)
     parser.add_argument("--tickers", default="")
+    parser.add_argument("--packet", default="", help="Print a one-company evidence packet for the requested ticker.")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.packet:
+        ticker = args.packet.strip().upper()
+        candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=ticker, top_n=1)
+        print(render_trusted_data_pilot_packet(candidates[0] if candidates else None, requested_ticker=ticker))
+        return
     candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
     print(render_trusted_data_pilot_candidates(candidates, top_n=args.top_n))
 

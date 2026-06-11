@@ -10,6 +10,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
 - Keep `make trusted-data-pilot-candidates TOP_N=10` visible as the read-only first step for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn.
+- Keep `make trusted-data-pilot-packet TICKER=CRDO` visible as the one-company before/focus/validate/prove packet after a candidate is chosen.
 - Keep `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` visible as the follow-up evidence loop after candidates are selected.
 - Keep the trusted-data pilot company-focused. Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. Treat `QQQ` and `SMH` as ETF/index monitor demos, not operating-company DCF targets.
 - Keep the pilot evidence packet visible: baseline readiness, before report, focused fundamentals check, focused peer check, validate/preview/apply, after readiness, and after report.
@@ -92,6 +93,7 @@ make readiness
 make project-status
 make demo
 make trusted-data-pilot-candidates TOP_N=10
+make trusted-data-pilot-packet TICKER=CRDO
 make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10
 make stock-report-md TICKER=NVDA
 make stock-report-md TICKER=A

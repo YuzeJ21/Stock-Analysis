@@ -42,6 +42,7 @@ def test_makefile_contains_convenience_targets():
         "demo",
         "diff-hygiene",
         "trusted-data-pilot-candidates",
+        "trusted-data-pilot-packet",
         "diff-hygiene-summary",
         "diff-hygiene-files",
         "staged-hygiene-check",
@@ -137,10 +138,13 @@ def test_makefile_help_documents_key_workflows():
         "Print the company-focused trusted-data pilot path",
         "make trusted-data-pilot-candidates TOP_N=10",
         "Rank current company candidates for the next trusted-data pilot",
+        "make trusted-data-pilot-packet TICKER=CRDO",
+        "Print one company's read-only evidence packet",
         "make public-check     Run before sharing the GitHub link",
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
         "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot",
+        "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before/focus/validate/prove evidence packet",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -926,6 +930,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "deeper local workflow guide" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10" in checklist
+    assert "make trusted-data-pilot-packet TICKER=CRDO" in checklist
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in checklist
     assert "read-only first step for ranking current company blockers" in checklist
     assert "Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in checklist
@@ -1060,6 +1065,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "public Data Strategy guide",
         "5-10 company pilot",
         "make trusted-data-pilot-candidates TOP_N=10",
+        "make trusted-data-pilot-packet TICKER=CRDO",
         "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10",
         "ranks current company blockers",
         "suggested starter company pilot",
@@ -1366,6 +1372,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "docs/DATA_STRATEGY.md" in operator_guide
     assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
+    assert "make trusted-data-pilot-packet TICKER=CRDO" in data_strategy
     assert "make trusted-data-pilot TOP_N=10" in data_strategy
     assert "Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in data_strategy
     assert "ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos" in data_strategy
@@ -1578,6 +1585,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
     assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "trusted-data-pilot-packet:\nifndef TICKER\n\t$(error TICKER is required, for example: make trusted-data-pilot-packet TICKER=CRDO)\nendif\n\t@python3 -m src.trusted_data_pilot --packet $(TICKER)" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile
     assert "Suggested company pilot: $(if $(TICKERS),$(TICKERS),NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META)" in makefile
@@ -1625,6 +1633,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"4. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10\"" in makefile
+    assert "@echo \"   make trusted-data-pilot-packet TICKER=CRDO\"" in makefile
     assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
     assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
     assert "@echo \"6. Before sharing or committing:\"" in makefile
