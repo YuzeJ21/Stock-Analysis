@@ -140,4 +140,4 @@ The app is organized around dashboard, readiness, decision, report, provider, lo
 
 ## Roadmap Snapshot
 
-The next product stage is not more unsupported indicators. It is a clearer research review path: readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source readiness explanations.
+The next product stage is not more indicators. It is a clearer research review path: readiness history, trusted fundamentals/DCF unlocks, source-backed peer mappings, optional earnings/estimate imports, and sharper source readiness explanations.

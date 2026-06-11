@@ -1083,7 +1083,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     assert "staged import validation" not in brief
     for guardrail_phrase in (
         "direct buy/sell instructions",
-        "unsupported stock picks",
+        "jumping straight to stock picks",
         "no broker integration",
     ):
         assert guardrail_phrase in brief
@@ -1354,8 +1354,12 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "then preview any broader update with `make price-refresh-loop DRY_RUN=1`" in data_strategy
     assert "Pilot Evidence Checklist" in data_strategy
     assert "A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists." in data_strategy
+    assert "Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`." in data_strategy
+    assert "Keep one regenerated Markdown report per pilot company" in data_strategy
+    assert "Keep the exact validation path that changed the state" in data_strategy
     assert "Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next." in data_strategy
     assert "The final proof is a regenerated report plus refreshed readiness counts" in data_strategy
+    assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy
     assert "Applying SEC/manual fundamentals rows without validation and preview" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
     for phrase in (
@@ -1547,6 +1551,10 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Company-by-company loop: open one report, inspect fundamentals, inspect peers, then validate trusted rows before reading any new valuation." in makefile
     assert "Starter loop example: make stock-report-md TICKER=NVDA -> make focus-fundamentals TICKER=NVDA -> make focus-peers TICKER=NVDA" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
+    assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, and the exact validation commands that changed the state." in makefile
+    assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker data-blocked." in makefile
+    assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
+    assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile
     assert "make price-worklist $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)" in makefile
     assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$(or $(TOP_N),10) TOP_N=$(or $(TOP_N),10) PROVIDER=yahoo" in makefile
     assert "Use a real capped price loop only after reviewing the dry run and saving a readiness snapshot." in makefile

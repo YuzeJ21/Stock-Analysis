@@ -29,11 +29,15 @@ Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/i
 5. For peers, use `make peer-mapping-queue TOP_N=25` and add only source-backed rows.
 6. For manual imports, run `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
 7. Prove the result with `make readiness`, `make project-status`, and `make stock-report-md TICKER=...`.
+8. Keep the public branch clean with `make diff-hygiene`; stage only reviewed docs/code/tests or sample Markdown reports unless a refreshed CSV is the artifact you intentionally want to publish.
 
 ## Pilot Evidence Checklist
 
 A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists.
 
+- Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`.
+- Keep one regenerated Markdown report per pilot company so readers can see whether the mode changed or stayed data-blocked.
+- Keep the exact validation path that changed the state: `make imports-validate`, `make imports-preview`, `make imports-apply`, then the relevant readiness command.
 - The single-stock report opens with the correct mode: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data-unlock only.
 - DCF-ready companies show assumptions, sensitivity, source readiness, and any locked optional context before interpretation.
 - Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next.

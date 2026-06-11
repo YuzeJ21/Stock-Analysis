@@ -2,7 +2,7 @@
 
 ## Short Version
 
-I built a local, CSV-first stock research command center that focuses on data readiness before analysis. Instead of producing unsupported stock picks, it checks whether each ticker has enough trusted local data for price, momentum, liquidity, correlation, fundamentals, DCF, peer comparison, earnings, and analyst-estimate context.
+I built a local, CSV-first stock research command center that focuses on data readiness before analysis. Instead of jumping straight to stock picks, it checks whether each ticker has enough trusted local data for price, momentum, liquidity, correlation, fundamentals, DCF, peer comparison, earnings, and analyst-estimate context.
 
 The system generates readiness-aware research decisions, single-stock reports, source readiness checks, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports now open with `At A Glance`, then `Best Review Path`, then `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands` sections so readers can see whether a ticker is in `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, or `Data-unlock only` mode, which confidence cue applies, which local method is being used, what to read first, and what command would unlock the next trusted input.
 
@@ -32,6 +32,7 @@ Current features:
 - A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of a fabricated full-universe unlock.
 - A read-only `make trusted-data-pilot TOP_N=10` command that prints a company-focused coverage-improvement path without importing rows or fabricating data.
 - A suggested starter company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`, with `QQQ` and `SMH` kept as ETF/index monitor demos rather than operating-company DCF targets.
+- A pilot evidence bundle: before/after readiness counts, one regenerated Markdown report per company, and the validation commands that changed the state.
 - CSV-first, preview-first local import workflows.
 - Original local analysis rules for readiness gates, DCF boundaries, peer readiness, decision buckets, and report wording; Python libraries and optional provider adapters support data handling and UI.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
