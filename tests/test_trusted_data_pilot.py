@@ -4,6 +4,7 @@ from src.trusted_data_pilot import (
     pilot_lane_label,
     pilot_local_file_status,
     pilot_operator_decision,
+    pilot_proof_story_lines,
     pilot_public_shortlist,
     pilot_quick_path_lines,
     pilot_rank_reason,
@@ -516,6 +517,34 @@ def test_pilot_quick_path_lines_show_first_action_before_detailed_evidence():
     assert "Evidence required:" not in quick_path
 
 
+def test_pilot_proof_story_lines_explain_loop_without_claiming_data_changed():
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )[0]
+
+    story = "\n".join(pilot_proof_story_lines(candidate))
+
+    assert "snapshot current readiness and generate a before report" in story
+    assert "review CRDO in the Fundamentals / DCF proof path" in story
+    assert "validate, preview, and check rejected rows" in story
+    assert "only the rebuilt report can prove the lane changed" in story
+    assert "keep the blocker visible and move to the next candidate" in story
+    assert "buy" not in story.lower()
+    assert "sell" not in story.lower()
+    assert "recommend" not in story.lower()
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -544,6 +573,11 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Quick path:" in rendered
     assert "Shortlist: META." in rendered
     assert "Start with one packet: make trusted-data-pilot-packet TICKER=META" in rendered
+    assert "What the proof loop proves:" in rendered
+    assert "Baseline: snapshot current readiness and generate a before report so the starting mode is visible." in rendered
+    assert "Source proof: review META in the Fundamentals / DCF proof path and add rows only when the source evidence is trusted." in rendered
+    assert "Rebuild: rerun readiness and the stock report; only the rebuilt report can prove the lane changed." in rendered
+    assert rendered.index("Quick path:") < rendered.index("What the proof loop proves:") < rendered.index("Compact review board:")
     assert rendered.index("Quick path:") < rendered.index("Compact review board:")
     assert "Compact review board:" in rendered
     assert "Detailed review board:" not in rendered
@@ -723,6 +757,11 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." in rendered
     assert "One-company evidence packet:" in rendered
+    assert "What this proves before any conclusion changes:" in rendered
+    assert "Baseline: snapshot current readiness and generate a before report so the starting mode is visible." in rendered
+    assert "Source proof: review CRDO in the Fundamentals / DCF proof path and add rows only when the source evidence is trusted." in rendered
+    assert "Validation: validate, preview, and check rejected rows before applying any local CSV change." in rendered
+    assert "Rebuild: rerun readiness and the stock report; only the rebuilt report can prove the lane changed." in rendered
     assert "1. Baseline readiness: make readiness-snapshot" in rendered
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered

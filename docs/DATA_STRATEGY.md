@@ -105,6 +105,8 @@ Decision rule: choose one company only when the matching trusted input can be re
 
 Each one-company packet now has a decision gate: continue only when the required source proof exists; otherwise leave the section blocked and do not apply placeholder rows so the report appears complete. This is the product boundary that keeps valuation useful rather than decorative.
 
+Every pilot packet follows the same proof loop: snapshot the baseline, generate the before report, review the source proof for the missing lane, validate/preview and check rejected rows before applying changes, rebuild readiness and the stock report, then compare the after report. Only the rebuilt report can prove a lane changed. If the proof is missing or the report remains blocked, keep the blocker visible and move to the next candidate.
+
 The candidate command also prints a compact review board. Read it as:
 
 | Step | Meaning |

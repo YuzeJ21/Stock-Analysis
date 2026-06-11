@@ -416,6 +416,20 @@ def pilot_quick_path_lines(candidates: list[PilotCandidate]) -> list[str]:
     ]
 
 
+def pilot_proof_story_lines(candidate: PilotCandidate | None = None) -> list[str]:
+    """Explain the trusted-data proof loop without turning it into data claims."""
+
+    ticker = candidate.ticker if candidate else "<ticker>"
+    lane = pilot_lane_label(candidate.lane) if candidate else "the selected proof path"
+    return [
+        "Baseline: snapshot current readiness and generate a before report so the starting mode is visible.",
+        f"Source proof: review {ticker} in the {lane} and add rows only when the source evidence is trusted.",
+        "Validation: validate, preview, and check rejected rows before applying any local CSV change.",
+        "Rebuild: rerun readiness and the stock report; only the rebuilt report can prove the lane changed.",
+        "Stop rule: if source proof is missing or the rebuilt report is still blocked, keep the blocker visible and move to the next candidate.",
+    ]
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -581,6 +595,9 @@ def render_trusted_data_pilot_candidates(
             "Quick path:",
             *[f"- {line}" for line in pilot_quick_path_lines(candidates)],
             "",
+            "What the proof loop proves:",
+            *[f"- {line}" for line in pilot_proof_story_lines(candidates[0])],
+            "",
             "Compact review board:",
             *[f"- {pilot_compact_board_row(candidate)}" for candidate in candidates[: min(top_n, len(candidates))]],
             "",
@@ -682,6 +699,8 @@ def render_trusted_data_pilot_packet(
             f"Skip if: {pilot_skip_condition(candidate)}",
             "",
             "One-company evidence packet:",
+            "What this proves before any conclusion changes:",
+            *[f"- {line}" for line in pilot_proof_story_lines(candidate)],
             "1. Baseline readiness: make readiness-snapshot",
             f"2. Before report: make stock-report-md TICKER={candidate.ticker}",
             f"3. Focused blocker check: {candidate.next_command}",
