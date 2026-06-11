@@ -128,6 +128,8 @@ For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERAT
 
 When you are ready to improve real coverage, start with `make trusted-data-pilot-candidates TOP_N=10`. It ranks current operating-company blockers from local readiness outputs without importing or fabricating data. Then run `make trusted-data-pilot-packet TICKER=CRDO` for a one-company before report, review path, validate/apply step, and rebuild-proof packet, or `make trusted-data-pilot TICKERS=<comma-separated candidates> TOP_N=10` for the broader copyable evidence loop.
 
+The trusted-data pilot has one simple decision rule: proceed only when source proof exists for the missing input. Otherwise, keep the ticker visibly data-blocked and move to the next candidate.
+
 The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers.
 
 ## Local Data Hygiene

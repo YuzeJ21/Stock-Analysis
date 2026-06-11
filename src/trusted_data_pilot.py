@@ -156,6 +156,42 @@ def pilot_rank_reason(candidate: PilotCandidate) -> str:
     )
 
 
+def pilot_operator_decision(candidate: PilotCandidate) -> str:
+    """Explain the plain next decision for a pilot candidate."""
+
+    if candidate.lane == "fundamentals_dcf":
+        return (
+            "Choose this company only if you can review trusted SEC or manual fundamentals rows; "
+            "otherwise leave DCF blocked and move to the next candidate."
+        )
+    if candidate.lane == "peer_mapping":
+        return (
+            "Choose this company only if you can document source-backed peer relationships; "
+            "sector or industry similarity is research context, not trusted peer data."
+        )
+    if candidate.lane == "peer_valuation_inputs":
+        return (
+            "Choose this company only if mapped peers also have trusted peer valuation inputs; "
+            "otherwise show peer trend only and keep peer valuation blocked."
+        )
+    if candidate.lane == "optional_context_locked":
+        return (
+            "Choose this company only if trusted earnings or analyst-estimate rows are available; "
+            "otherwise keep optional context intentionally locked."
+        )
+    return "Choose this candidate only when trusted source rows can be reviewed; otherwise keep it data-blocked."
+
+
+def pilot_evidence_expectation(candidate: PilotCandidate) -> str:
+    """Return the evidence that should exist before claiming a pilot unlock."""
+
+    return (
+        "Evidence required: before report, lane review output, trusted source row or source note, "
+        "validate/preview/apply result if rows are applied, rebuilt readiness, after report, and still-blocked reason if unchanged. "
+        f"Do not call {candidate.ticker} unlocked until the rebuilt report proves the lane changed."
+    )
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -319,11 +355,13 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Why it matters: {candidate.why_it_matters}",
                 f"   Rank reason: {pilot_rank_reason(candidate)}",
                 f"   Missing input: {candidate.missing_input}",
+                f"   Operator decision: {pilot_operator_decision(candidate)}",
                 f"   Next command: {candidate.next_command}",
                 f"   Review path: {pilot_review_path(candidate.validation_path)}",
                 f"   Trusted row target: {pilot_trusted_row_path(candidate)}",
                 "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
                 f"   Proof after unlock: {candidate.proof_after_unlock}",
+                f"   Evidence expectation: {pilot_evidence_expectation(candidate)}",
                 f"   Source boundary: {candidate.source_boundary}",
                 "",
             ]
@@ -375,6 +413,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             f"Rank reason: {pilot_rank_reason(candidate)}",
             f"Why this candidate matters: {candidate.why_it_matters}",
             f"Missing trusted input: {candidate.missing_input}",
+            f"Operator decision: {pilot_operator_decision(candidate)}",
             f"Source boundary: {candidate.source_boundary}",
             f"Trusted row target: {pilot_trusted_row_path(candidate)}",
             "",
@@ -386,6 +425,8 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
             f"6. Rebuild proof and after report: {candidate.proof_after_unlock}",
             "7. Record the evidence row and keep any remaining blocker visible.",
+            "",
+            pilot_evidence_expectation(candidate),
             "",
             "Evidence table row to record:",
             "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason",

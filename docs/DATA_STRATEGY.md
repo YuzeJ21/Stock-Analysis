@@ -47,6 +47,8 @@ If you want to choose the next pilot from current local blockers, run `make trus
 
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
 
+Decision rule: choose one company only when the matching trusted input can be reviewed. For fundamentals/DCF, that means trusted SEC or manual fundamentals rows. For peer mapping, that means source-backed peer relationships. For peer valuation, that means mapped peers also have trusted valuation inputs. If the source proof is missing, the correct outcome is not failure; it is a visible data-blocked state and a move to the next candidate.
+
 One-company evidence packet:
 
 ```bash

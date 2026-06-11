@@ -24,7 +24,12 @@ from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
-from src.trusted_data_pilot import build_trusted_data_pilot_candidates, pilot_lane_label, pilot_rank_reason
+from src.trusted_data_pilot import (
+    build_trusted_data_pilot_candidates,
+    pilot_lane_label,
+    pilot_operator_decision,
+    pilot_rank_reason,
+)
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
 
@@ -6324,6 +6329,7 @@ def data_health_trusted_pilot_preview_frame(
             "Scope": "Active universe" if candidate.active_universe else "Master universe",
             "Rank Reason": pilot_rank_reason(candidate),
             "Missing Input": candidate.missing_input,
+            "Operator Decision": pilot_operator_decision(candidate),
             "Next Command": candidate.next_command,
             "Proof After Unlock": candidate.proof_after_unlock,
         }
@@ -6342,6 +6348,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
         scope = format_missing(row.get("Scope"), "Current queue")
         rank_reason = compact_reason(row.get("Rank Reason"), max_sentences=1, max_chars=180)
         missing_input = compact_reason(row.get("Missing Input"), max_sentences=1, max_chars=140)
+        operator_decision = compact_reason(row.get("Operator Decision"), max_sentences=1, max_chars=180)
         proof = format_missing(row.get("Proof After Unlock"), "make readiness && make stock-report-md TICKER=<ticker>")
         command = format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")
         cards.append(
@@ -6350,6 +6357,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                 "title": f"{ticker}: {lane}",
                 "body": (
                     f"Rank reason: {rank_reason} Next trusted input: {missing_input}. "
+                    f"Decision: {operator_decision} "
                     f"Proof after unlock: {proof}."
                 ),
                 "badges": [scope, "read-only"],

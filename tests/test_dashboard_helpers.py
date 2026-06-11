@@ -9381,6 +9381,7 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
         "Scope",
         "Rank Reason",
         "Missing Input",
+        "Operator Decision",
         "Next Command",
         "Proof After Unlock",
     ]
@@ -9389,6 +9390,8 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "active-universe" in rendered
     assert "peer mapping unlock" in rendered
     assert "fundamentals / dcf unlock" in rendered
+    assert "choose this company only if you can document source-backed peer relationships" in rendered
+    assert "choose this company only if you can review trusted sec or manual fundamentals rows" in rendered
     assert "make focus-peers ticker=mu" in rendered
     assert "make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "broker" not in rendered
@@ -9406,6 +9409,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Scope": "Active universe",
                 "Rank Reason": "active-universe public-demo name; peer mapping unlock; priority 2; missing needs source-backed peers.",
                 "Missing Input": "needs source-backed peer mappings",
+                "Operator Decision": "Choose this company only if you can document source-backed peer relationships.",
                 "Next Command": "make focus-peers TICKER=MU",
                 "Proof After Unlock": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
             },
@@ -9415,6 +9419,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Scope": "Active universe",
                 "Rank Reason": "active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares_outstanding.",
                 "Missing Input": "shares_outstanding",
+                "Operator Decision": "Choose this company only if you can review trusted SEC or manual fundamentals rows.",
                 "Next Command": "make focus-fundamentals TICKER=META",
                 "Proof After Unlock": "make readiness && make dcf-readiness && make stock-report-md TICKER=META",
             },
@@ -9431,6 +9436,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert cards[0]["badges"] == ["Active universe", "read-only"]
     assert "rank reason:" in rendered
     assert "next trusted input: needs source-backed peer mappings" in rendered
+    assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
     assert "proof after unlock: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
