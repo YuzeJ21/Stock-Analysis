@@ -115,6 +115,23 @@ def pilot_lane_label(lane: str) -> str:
     }.get(str(lane or "").strip(), "Trusted-data unlock")
 
 
+def pilot_review_path(validation_path: str) -> str:
+    """Show lane diagnostics separately from validate/preview/apply commands."""
+
+    steps = [step.strip() for step in str(validation_path or "").split("->") if step.strip()]
+    review_steps = [
+        step
+        for step in steps
+        if step
+        not in {
+            "make imports-validate",
+            "make imports-preview",
+            "make imports-apply",
+        }
+    ]
+    return " -> ".join(review_steps or steps) or "make trusted-data-pilot-candidates TOP_N=10"
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -278,7 +295,8 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Why it matters: {candidate.why_it_matters}",
                 f"   Missing input: {candidate.missing_input}",
                 f"   Next command: {candidate.next_command}",
-                f"   Validation path: {candidate.validation_path}",
+                f"   Review path: {pilot_review_path(candidate.validation_path)}",
+                "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
                 f"   Proof after unlock: {candidate.proof_after_unlock}",
                 f"   Source boundary: {candidate.source_boundary}",
                 "",
@@ -292,12 +310,11 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             "Suggested safe loop:",
             "1. make readiness-snapshot",
             f"2. make trusted-data-pilot-packet TICKER={first}",
-            f"3. make trusted-data-pilot TICKERS={ticker_list} TOP_N={len(candidates)}",
-            f"4. make stock-report-md TICKER={first}",
-            f"5. {candidates[0].next_command}",
-            "6. make imports-validate && make imports-preview && make imports-apply",
-            f"7. Rebuild lane proof: {candidates[0].proof_after_unlock}",
-            f"8. make stock-report-md TICKER={first}",
+            f"3. {candidates[0].next_command}",
+            f"4. Prepare trusted rows only if the source review passes: {pilot_review_path(candidates[0].validation_path)}",
+            "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
+            f"6. Rebuild lane proof: {candidates[0].proof_after_unlock}",
+            f"7. If still blocked, keep the blocker visible and move to the next candidate: make trusted-data-pilot TICKERS={ticker_list} TOP_N={len(candidates)}",
             "",
             "Stop condition: if trusted source rows are unavailable, keep the ticker data-blocked and move to the next candidate.",
         ]
@@ -337,10 +354,10 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             "1. Baseline readiness: make readiness-snapshot",
             f"2. Before report: make stock-report-md TICKER={candidate.ticker}",
             f"3. Focused blocker check: {candidate.next_command}",
-            f"4. Prepare or stage trusted rows: {candidate.validation_path}",
-            "5. Apply only if reviewed rows exist: make imports-validate && make imports-preview && make imports-apply",
-            f"6. Rebuild proof: {candidate.proof_after_unlock}",
-            f"7. After report: make stock-report-md TICKER={candidate.ticker}",
+            f"4. Prepare or stage trusted rows only if source review passes: {pilot_review_path(candidate.validation_path)}",
+            "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
+            f"6. Rebuild proof and after report: {candidate.proof_after_unlock}",
+            "7. Record the evidence row and keep any remaining blocker visible.",
             "",
             "Evidence table row to record:",
             "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason",

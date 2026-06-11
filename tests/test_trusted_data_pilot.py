@@ -1,6 +1,7 @@
 from src.trusted_data_pilot import (
     build_trusted_data_pilot_candidates,
     pilot_lane_label,
+    pilot_review_path,
     render_trusted_data_pilot_candidates,
     render_trusted_data_pilot_packet,
 )
@@ -116,6 +117,19 @@ def test_pilot_lane_label_translates_internal_codes_for_visitors():
     assert pilot_lane_label("unexpected") == "Trusted-data unlock"
 
 
+def test_pilot_review_path_separates_review_from_validate_apply_steps():
+    path = (
+        "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU -> "
+        "make imports-validate -> make imports-preview -> make imports-apply"
+    )
+
+    rendered = pilot_review_path(path)
+
+    assert rendered == "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU"
+    assert "imports-validate" not in rendered
+    assert pilot_review_path("") == "make trusted-data-pilot-candidates TOP_N=10"
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -140,10 +154,15 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "1. META - Fundamentals / DCF unlock" in rendered
     assert "fundamentals_dcf" not in rendered
     assert "make focus-fundamentals TICKER=META" in rendered
+    assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
+    assert "Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
-    assert "3. make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
-    assert "7. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
+    assert "3. make focus-fundamentals TICKER=META" in rendered
+    assert "4. Prepare trusted rows only if the source review passes:" in rendered
+    assert "6. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
+    assert "7. If still blocked, keep the blocker visible and move to the next candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
+    assert "8. make stock-report-md" not in rendered
     assert "QQQ and SMH are excluded from this company pilot queue" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
 
@@ -169,8 +188,8 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
 
     assert "1. MU - Peer mapping unlock" in rendered
     assert "peer_mapping" not in rendered
-    assert "5. make focus-peers TICKER=MU" in rendered
-    assert "7. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
+    assert "3. make focus-peers TICKER=MU" in rendered
+    assert "6. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
     assert "7. make readiness && make dcf-readiness" not in rendered
     assert "sector or industry fallback" in rendered.lower()
 
@@ -203,9 +222,12 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "1. Baseline readiness: make readiness-snapshot" in rendered
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered
-    assert "4. Prepare or stage trusted rows:" in rendered
-    assert "5. Apply only if reviewed rows exist: make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "4. Prepare or stage trusted rows only if source review passes:" in rendered
+    assert "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "make readiness && make dcf-readiness && make stock-report-md TICKER=CRDO" in rendered
+    assert "6. Rebuild proof and after report:" in rendered
+    assert "7. After report:" not in rendered
+    assert "7. Record the evidence row and keep any remaining blocker visible." in rendered
     assert "still_blocked_reason" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
 
