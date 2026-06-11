@@ -56,7 +56,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - `Standalone DCF review` (current): Company DCF can be reviewed, but peer-relative valuation remains blocked.
 - `Price/setup review only` (other): Use trend/setup context only; company valuation waits for trusted fundamentals and DCF inputs.
 - `Monitor-only context` (other): Use ETF/index/fund market or risk context; operating-company DCF is excluded, not failed.
-- `Data-unlock only` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
+- `Data needed before analysis` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
 
 ## One-Minute Status
 A overall readiness: partial because optional earnings/estimate context is locked; standalone DCF inputs are ready. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF: ready. Primary blocker: peers. Peer workflow: peer price missing. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Add trusted price history for mapped peers: DHR, TMO, WAT.

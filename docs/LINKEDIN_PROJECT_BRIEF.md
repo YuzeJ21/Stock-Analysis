@@ -6,7 +6,7 @@ I built a local, CSV-first stock research command center that focuses on data re
 
 The system generates readiness-aware research decisions, single-stock reports, source readiness checks, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports open with a visitor scan cue, then `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, and `Best Review Path` before deeper methodology sections, so readers can quickly see the report mode, valuation boundary, which confidence cue applies, which local method is being used, what to read first, what command would unlock the next trusted input, current proof, and next trusted input.
 
-The scan path covers `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only` modes, with the valuation boundary and DCF method path visible before detailed report tables.
+The scan path covers `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data needed before analysis` modes, with the valuation boundary and DCF method path visible before detailed report tables.
 
 ## Suggested LinkedIn Post
 
@@ -28,7 +28,7 @@ Current features:
 - Evaluation Snapshot summaries that state supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before detailed sections.
 - Proof Checklist sections that show why the current mode is allowed and what must stay withheld until trusted rows exist.
 - Best Review Path cards that tell readers whether to review DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
-- Analysis Quality labels and confidence cues that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and data-unlock mode.
+- Analysis Quality labels and confidence cues that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and the data-needed-before-analysis mode.
 - Methodology sections that show the DCF formula path, readiness gates, peer boundaries, and why missing fields are not inferred.
 - Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Copyable Unlock Commands that keep next steps local, capped, and research-only.
@@ -54,7 +54,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Built a Python and Streamlit stock research command center that evaluates market-wide ticker readiness before generating research decisions.
 - Designed a CSV-first data pipeline covering price, momentum, liquidity, correlation, fundamentals, DCF, peer mapping, earnings, and analyst-estimate readiness.
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
-- Added single-stock At A Glance, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, Analysis Quality, Methodology, Evaluation Function Check, and Copyable Unlock Commands sections to explain whether each report supports DCF-ready review, standalone DCF review, monitor-only context, price/setup review, or data-unlock work, with the valuation boundary and DCF method path visible before detailed report tables.
+- Added single-stock At A Glance, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, Analysis Quality, Methodology, Evaluation Function Check, and Copyable Unlock Commands sections to explain whether each report supports DCF-ready review, standalone DCF review, monitor-only context, price/setup review, or data-needed-before-analysis work, with the valuation boundary and DCF method path visible before detailed report tables.
 - Added source readiness checks, preview-first local import validation, rejected-row reporting, and research-only guardrails to prevent overclaims.
 - Documented which parts are original analysis rules, which parts are support libraries, and which actions remain permanently out of scope.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.

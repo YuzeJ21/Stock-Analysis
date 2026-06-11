@@ -268,7 +268,7 @@ def _decision_boundary(bucket: str, subtype: str, primary_blocker: str, asset_ty
     if bucket == "Blocked by Data":
         blocker = primary_blocker if primary_blocker and primary_blocker != "none" else "required inputs"
         return (
-            f"Data-unlock state: {blocker} blocks evaluation, so valuation conclusions and thesis-level "
+            f"Data unlock state: {blocker} blocks evaluation, so valuation conclusions and thesis-level "
             "interpretation stay withheld."
         )
     if bucket == "Excluded":

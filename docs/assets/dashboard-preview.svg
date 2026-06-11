@@ -87,7 +87,7 @@
     <text x="932" y="509" fill="#172820" font-size="15" font-weight="700">Next local step</text>
     <text x="932" y="526" fill="#68796f" font-size="12">Monitor-only context</text>
     <rect x="672" y="548" width="216" height="26" rx="13" fill="#e9ece2"/>
-    <text x="694" y="566" fill="#172820" font-size="13" font-weight="700">Data-unlock only</text>
+    <text x="694" y="566" fill="#172820" font-size="13" font-weight="700">Data needed before analysis</text>
     <rect x="910" y="548" width="216" height="26" rx="13" fill="#172820"/>
     <text x="932" y="566" fill="#f8f1df" font-size="13">Method: project DCF</text>
   </g>

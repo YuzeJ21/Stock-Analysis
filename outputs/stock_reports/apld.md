@@ -56,10 +56,10 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - `Standalone DCF review` (other): Company DCF can be reviewed, but peer-relative valuation remains blocked.
 - `Price/setup review only` (current): Use trend/setup context only; company valuation waits for trusted fundamentals and DCF inputs.
 - `Monitor-only context` (other): Use ETF/index/fund market or risk context; operating-company DCF is excluded, not failed.
-- `Data-unlock only` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
+- `Data needed before analysis` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
 
 ## One-Minute Status
-APLD overall readiness: partial; review ready inputs first and treat locked inputs as data-unlock work. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
+APLD overall readiness: partial; review ready inputs first and treat locked inputs as data unlock work. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## What We Can Analyze Now
 - Ready inputs: price, momentum, market direction, liquidity, correlation.
@@ -118,7 +118,7 @@ APLD overall readiness: partial; review ready inputs first and treat locked inpu
 ## Decision
 - Bucket: Blocked by Data
 - Subtype: Blocked by Data - Missing Fundamentals
-- Boundary: Data-unlock state: fundamentals blocks evaluation, so conclusions stay withheld.
+- Boundary: Data unlock state: fundamentals blocks evaluation, so conclusions stay withheld.
 - Primary blocker: fundamentals
 - Main reason: Company research is blocked by missing DCF, fundamentals data.
 - Next action: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.

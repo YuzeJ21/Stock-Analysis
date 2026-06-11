@@ -123,7 +123,7 @@ A company is a useful pilot win only when the evidence is reviewable, not just w
 - Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`.
 - Keep one regenerated Markdown report per pilot company so readers can see whether the mode changed or stayed data-blocked.
 - Keep the exact review and validation path that changed the state: lane review command, `make imports-validate`, `make imports-preview`, `make imports-apply`, rejected-row report path, then the relevant readiness proof command.
-- The single-stock report opens with the correct mode: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data-unlock only.
+- The single-stock report opens with the correct mode: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data needed before analysis.
 - DCF-ready companies show assumptions, sensitivity, source readiness, and any locked optional context before interpretation.
 - Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next.
 - Fundamentals-limited companies show the missing fields and whether SEC staging or manual fundamentals imports are the next trusted path.

@@ -228,7 +228,7 @@ Single-stock reports are assembled from the same gates and calculations:
 - Evaluation Snapshot: summarizes supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before the detailed sections.
 - Best Review Path: tells the reader whether to review DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
 - What can be analyzed now.
-- Which mode applies: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data-unlock only.
+- Which mode applies: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data needed before analysis.
 - Which calculations ran and which assumptions were used.
 - Which sections are blocked or excluded.
 - What local input would unlock the next useful research step.

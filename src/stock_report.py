@@ -1244,7 +1244,7 @@ def _stock_report_decision_boundary(*, readiness: dict[str, Any], decision: dict
             "peer-relative company valuation stay excluded."
         )
     if "blocked" in bucket:
-        return f"Data-unlock state: {blocker} blocks evaluation, so conclusions stay withheld."
+        return f"Data unlock state: {blocker} blocks evaluation, so conclusions stay withheld."
     if "excluded" in bucket:
         return "Method-exclusion state: the analysis is intentionally omitted, not treated as a failed calculation."
     return "Review state only: use readiness, blockers, and source readiness before drawing a conclusion."
@@ -1290,7 +1290,7 @@ def _stock_report_one_minute_state_phrase(
     if state_text == "partial" and dcf_status_text == "ready" and optional_locked:
         return f"{ticker} overall readiness: partial because optional earnings/estimate context is locked; standalone DCF inputs are ready."
     if state_text == "partial":
-        return f"{ticker} overall readiness: partial; review ready inputs first and treat locked inputs as data-unlock work."
+        return f"{ticker} overall readiness: partial; review ready inputs first and treat locked inputs as data unlock work."
     return f"{ticker} overall readiness: {state}."
 
 
@@ -1330,7 +1330,7 @@ def _stock_report_analysis_quality_lines(
             "DCF inputs exist."
         )
     else:
-        quality_title = "Data-unlock only"
+        quality_title = "Data needed before analysis"
         quality_reason = (
             "Start with verified local price history before relying on momentum, liquidity, valuation, or peer context."
         )
@@ -1521,7 +1521,7 @@ def _stock_report_reader_guide_lines(
     elif price_ready:
         current_use = "Price/setup review only until trusted fundamentals, DCF, and peer inputs are ready."
     elif dcf_status_text == "blocked":
-        current_use = "Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready."
+        current_use = "Data needed before analysis until trusted price, fundamentals, DCF, and peer inputs are ready."
     else:
         current_use = "Only the local inputs explicitly marked ready in this report should be interpreted."
     return [
@@ -1592,7 +1592,7 @@ def _stock_report_next_layer_lines(
     estimates_ready: Any,
 ) -> list[str]:
     if not bool(price_ready):
-        current_layer = "Data-unlock only; conclusions stay withheld until trusted local price history exists."
+        current_layer = "Data needed before analysis; conclusions stay withheld until trusted local price history exists."
         next_input = "Trusted local price history."
         proof_command = f"make focus-price TICKER={ticker}"
     elif monitor_context:
@@ -1911,12 +1911,12 @@ def _stock_report_mode_guide_lines(current_mode: str) -> list[str]:
         "Standalone DCF review": "Company DCF can be reviewed, but peer-relative valuation remains blocked.",
         "Price/setup review only": "Use trend/setup context only; company valuation waits for trusted fundamentals and DCF inputs.",
         "Monitor-only context": "Use ETF/index/fund market or risk context; operating-company DCF is excluded, not failed.",
-        "Data-unlock only": "Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.",
+        "Data needed before analysis": "Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.",
     }
     lines = []
     for mode, description in descriptions.items():
         marker = "current" if mode == current_mode else "other"
-        if mode == "Data-unlock only" and mode == current_mode:
+        if mode == "Data needed before analysis" and mode == current_mode:
             description = "Pause analysis for this ticker until the first trusted local input is available."
         lines.append(f"- `{mode}` ({marker}): {description}")
     return lines
@@ -3094,7 +3094,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "## How To Read This Report",
         *reader_guide_lines,
         "",
-        "This is a data-unlock report because local price history is not ready for price-backed analysis yet.",
+        "This report needs data before analysis because local price history is not ready for price-backed review yet.",
         f"First blocker to resolve: {_display_value(failure_reason)}",
         "",
         "## Executive Summary",
@@ -3623,7 +3623,7 @@ def main() -> None:
             )
             if not args.quiet:
                 print_paths()
-            print(f"Data-unlock Markdown report: {display_cli_path(markdown_path)}")
+            print(f"Data-needed Markdown report: {display_cli_path(markdown_path)}")
             print(f"First blocker to resolve: {exc}")
             return
         raise SystemExit(f"Stock report generation failed: {exc}") from exc

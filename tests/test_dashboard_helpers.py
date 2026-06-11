@@ -113,7 +113,7 @@ def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations
     assert "standalone dcf review" in rendered
     assert "price/setup review only" in rendered
     assert "monitor-only context" in rendered
-    assert "data-unlock only" in rendered
+    assert "data needed before analysis" in rendered
     assert "trusted local dcf inputs, input path, assumptions, and sensitivity" in rendered
     assert "peer-relative valuation stays locked" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
@@ -8441,17 +8441,17 @@ def test_stock_report_evaluation_summary_frame_explains_supported_withheld_and_n
     assert dcf_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Standalone DCF review"}
     assert full_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "DCF-ready review"}
     assert price_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Price/setup review only"}
-    assert unlock_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Data-unlock only"}
+    assert unlock_frame.iloc[0].to_dict() == {"Question": "Evaluation mode", "Answer": "Data needed before analysis"}
     assert "what this report can support" in rendered
     assert "monitor-only context" in rendered
     assert "standalone dcf review" in rendered
     assert "dcf-ready review" in rendered
     assert "price/setup review only" in rendered
-    assert "data-unlock only" in rendered
+    assert "data needed before analysis" in rendered
     assert "operating-company dcf and peer valuation are excluded, not failed" in rendered
     assert "standalone dcf assumptions" in rendered
     assert "peer-relative valuation remains withheld" in rendered
-    assert "data-unlock review only" in rendered
+    assert "data readiness review only" in rendered
     assert "conclusions stay unavailable until price coverage starts" in rendered
     assert "missing inputs reduce data confidence" in rendered
     assert "broker" not in rendered
@@ -8696,7 +8696,7 @@ def test_stock_report_mode_guide_cards_compare_all_modes_and_mark_current():
         "Standalone DCF review",
         "Price/setup review only",
         "Monitor-only context",
-        "Data-unlock only",
+        "Data needed before analysis",
     ]
     assert cards[1]["kicker"] == "CURRENT MODE"
     assert cards[1]["badges"] == ["current"]
@@ -8723,7 +8723,7 @@ def test_stock_report_mode_guide_cards_use_strict_copy_for_current_data_unlock_m
     current_cards = [card for card in cards if card["kicker"] == "CURRENT MODE"]
 
     assert len(current_cards) == 1
-    assert current_cards[0]["title"] == "Data-unlock only"
+    assert current_cards[0]["title"] == "Data needed before analysis"
     assert current_cards[0]["body"] == "Pause analysis for this ticker until the first trusted local input is available."
 
 

@@ -396,7 +396,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Standalone DCF review",
         "Price/setup review",
         "Monitor-only context",
-        "Data-unlock only",
+        "Data needed before analysis",
         "Method: project DCF",
         "project DCF method notes",
         "DCF path: cash flows, terminal value, cash/debt, fair value/share",
@@ -491,7 +491,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Standalone DCF review",
         "Price/setup review only",
         "Monitor-only context",
-        "Data-unlock only",
+        "Data needed before analysis",
         "Company DCF assumptions and source-backed peer context",
         "Standalone DCF review where peer-relative valuation is still locked",
         "Price/setup review where valuation remains gated",
@@ -931,7 +931,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "Standalone DCF review",
         "Price/setup review only",
         "Monitor-only context",
-        "Data-unlock only",
+        "Data needed before analysis",
         "Large refreshed CSVs are local working data",
         "set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover",
         "docs/analysis_capability_audit.md",
@@ -1071,7 +1071,7 @@ def test_license_decision_guide_is_present_until_license_is_chosen():
 def test_stock_report_cli_data_unlock_fallback_uses_product_language():
     source = Path("src/stock_report.py").read_text(encoding="utf-8")
 
-    assert "Data-unlock Markdown report:" in source
+    assert "Data-needed Markdown report:" in source
     assert "First blocker to resolve:" in source
     assert "Readiness-only Markdown report:" not in source
     assert "Full stock report blocked:" not in source
@@ -1101,10 +1101,10 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "standalone DCF review",
         "Price/setup review only",
         "Monitor-only context",
-        "Data-unlock only",
+        "Data needed before analysis",
         "monitor context",
         "price/setup review",
-        "data-unlock work",
+        "data-needed-before-analysis work",
         "ready, blocked, excluded, or optional",
         "CSV-first, preview-first local import workflows",
         "public Data Strategy guide",
@@ -1231,7 +1231,7 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Standalone DCF review",
         "Price/setup review only",
         "Monitor-only context",
-        "Data-unlock only",
+        "Data needed before analysis",
         "Standard Python packages support data handling, UI, tests, and optional provider access",
         "Readiness gates",
         "Fundamentals and DCF",

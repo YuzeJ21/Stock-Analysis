@@ -66,7 +66,7 @@ The product now uses the same plain modes across the dashboard and single-stock 
 | `Standalone DCF review` | Reviewing company DCF assumptions before peer context is ready. | Peer-relative valuation until source-backed peer inputs exist. |
 | `Price/setup review only` | Local price, setup, and missing-data diagnosis. | Company valuation or quality conclusions. |
 | `Monitor-only context` | ETF/index/fund market, theme, liquidity, and risk monitoring. | Operating-company DCF, which is excluded rather than failed. |
-| `Data-unlock only` | Identifying the next trusted local input to add. | Any analytical conclusion beyond the visible blocker. |
+| `Data needed before analysis` | Identifying the next trusted local input to add. | Any analytical conclusion beyond the visible blocker. |
 
 ## Methodology And Provenance
 

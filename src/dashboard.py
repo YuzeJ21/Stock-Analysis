@@ -4342,7 +4342,7 @@ def stock_report_analysis_quality_cards(report_payload: dict[str, object]) -> li
         status_body = "Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist."
         status_badges = ["price ready", "valuation blocked"]
     else:
-        status_title = "Data-unlock only"
+        status_title = "Data needed before analysis"
         status_body = "Start with verified local price history before relying on momentum, liquidity, valuation, or peer context."
         status_badges = ["unlock first"]
 
@@ -4505,8 +4505,8 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
         withheld = "Company valuation remains blocked until trusted fundamentals and DCF inputs are ready."
         next_review = "Use Data Health or the next-step cards to unlock fundamentals before valuation review."
     else:
-        mode = "Data-unlock only"
-        supported = "Data-unlock review only."
+        mode = "Data needed before analysis"
+        supported = "Data readiness review only."
         withheld = "Momentum, liquidity, DCF, peer context, and conclusions stay unavailable until price coverage starts."
         next_review = "Start with verified local price history, then regenerate readiness before interpreting the ticker."
 
@@ -4581,12 +4581,12 @@ def stock_report_mode_guide_cards(report_payload: dict[str, object]) -> list[dic
         "Standalone DCF review": "Company DCF can be reviewed, but peer-relative valuation remains blocked.",
         "Price/setup review only": "Use trend/setup context only; company valuation waits for trusted fundamentals and DCF inputs.",
         "Monitor-only context": "Use ETF/index/fund market or risk context; operating-company DCF is excluded, not failed.",
-        "Data-unlock only": "Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.",
+        "Data needed before analysis": "Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.",
     }
     cards: list[dict[str, object]] = []
     for mode, body in descriptions.items():
         is_current = mode == current_mode
-        if mode == "Data-unlock only" and is_current:
+        if mode == "Data needed before analysis" and is_current:
             body = "Pause analysis for this ticker until the first trusted local input is available."
         cards.append(
             {
@@ -19743,7 +19743,7 @@ def _plain_home_demo_example_frame() -> pd.DataFrame:
                 "Example": "APLD",
                 "Comparison Role": "Blocked-data example",
                 "What It Shows": "Blocked-data report where missing price history prevents deeper analysis.",
-                "Review Mode": "Data-unlock only",
+                "Review Mode": "Data needed before analysis",
                 "What To Check": "No valuation conclusion appears; the next action starts with trusted local price rows.",
                 "Copy Command": "make stock-report-md TICKER=APLD",
             },

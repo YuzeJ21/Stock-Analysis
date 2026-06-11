@@ -73,7 +73,7 @@ The dashboard and single-stock report use plain modes before showing detailed ta
 - `Standalone DCF review`: company DCF can be reviewed, but peer-relative valuation is still waiting on source-backed peers.
 - `Price/setup review only`: local price/setup context is available, but company valuation remains blocked.
 - `Monitor-only context`: ETF/index/fund rows can support market, theme, liquidity, or risk monitoring; operating-company DCF is excluded.
-- `Data-unlock only`: the ticker needs trusted local inputs before analysis should be interpreted.
+- `Data needed before analysis`: the ticker needs trusted local inputs before analysis should be interpreted.
 
 ## Data Unlock Workflows
 

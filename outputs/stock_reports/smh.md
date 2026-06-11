@@ -56,7 +56,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - `Standalone DCF review` (other): Company DCF can be reviewed, but peer-relative valuation remains blocked.
 - `Price/setup review only` (other): Use trend/setup context only; company valuation waits for trusted fundamentals and DCF inputs.
 - `Monitor-only context` (current): Use ETF/index/fund market or risk context; operating-company DCF is excluded, not failed.
-- `Data-unlock only` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
+- `Data needed before analysis` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
 
 ## One-Minute Status
 SMH overall readiness: partial because monitor context is usable while company valuation is excluded. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor context: operating-company DCF and peer valuation are excluded. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
