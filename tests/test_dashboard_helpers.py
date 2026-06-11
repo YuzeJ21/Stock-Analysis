@@ -8999,7 +8999,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert cards[2]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[3]["command"] == "make focus-fundamentals TICKER=META"
     assert cards[4]["command"] == "make stock-report-md TICKER=QQQ"
-    assert "start with nvda" in rendered
+    assert "start with a valuation-ready example such as nvda" in rendered
     assert "prove readiness before interpretation" in rendered
     assert "read valuation only after the relevant readiness path passes" in rendered
     assert "copy next: `make stock-report-md ticker=nvda`" not in rendered
@@ -9008,7 +9008,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert "not price targets" in rendered
     assert "1 valuation-ready company row(s)" in rendered
     assert "dcf-ready company row(s)" not in rendered
-    assert "open nvda for valuation assumptions" in rendered
+    assert "open the nvda report for valuation assumptions" in rendered
     assert "peer trend can be reviewed only when mapped peer price history is ready" in rendered
     assert "peer comparison still needs trusted peer inputs" in rendered
     assert "valuation-readiness review" in rendered

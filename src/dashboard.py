@@ -13969,7 +13969,7 @@ def valuation_quick_read_cards(
     elif not ready.empty:
         first_title = "Review valuation-ready companies first"
         first_body = (
-            f"Start with {ready_ticker}. Rows with complete valuation inputs can support assumption, scenario, sensitivity, and source readiness review; "
+            f"Start with a valuation-ready example such as {ready_ticker}. Rows with complete valuation inputs can support assumption, scenario, sensitivity, and source readiness review; "
             "they are still research context, not price targets."
         )
         first_command = stock_report_md_command(ready_ticker)
@@ -14003,7 +14003,7 @@ def valuation_quick_read_cards(
     else:
         analyze_title = f"{len(ready)} valuation-ready company row(s)"
         analyze_body = (
-            f"What you can analyze now: open {ready_ticker} for valuation assumptions, scenarios, "
+            f"What you can analyze now: open the {ready_ticker} report for valuation assumptions, scenarios, "
             "sensitivity, and source readiness. Peer trend can be reviewed only when mapped peer price history is ready; "
             "peer comparison still needs trusted peer inputs. This is a valuation-readiness review, "
             "not a recommendation, price target, or full investment conclusion."
