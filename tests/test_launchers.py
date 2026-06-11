@@ -387,6 +387,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Evaluation Snapshot",
         "Best Review Path",
         "At A Glance + Evaluation Snapshot before tables",
+        "Explore ready names: Monthly Picks and sample reports",
         "Mode + decision",
         "DCF + peers",
         "What not to infer",
@@ -402,7 +403,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "copy-only unlock commands",
     ):
         assert preview_phrase in preview
-    for stale_preview_phrase in ("Analysis modes before tables", "Standalone DCF</text>", "Price/setup only", "Monitor-only</text>"):
+    for stale_preview_phrase in ("Analysis modes before tables", "Standalone DCF</text>", "Price/setup only", "Monitor-only</text>", "Explore ready names: Home filters and sample reports"):
         assert stale_preview_phrase not in preview
     assert "## Quick Start" in readme
     assert "Run these from the repository root so `make` can find the project targets:" in readme
