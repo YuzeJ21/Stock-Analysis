@@ -1311,7 +1311,7 @@ def _stock_report_one_minute_state_phrase(
     if state_text == "partial" and dcf_status_text == "ready" and optional_locked:
         return f"{ticker} overall readiness: partial because optional earnings/estimate context is locked; standalone DCF inputs are ready."
     if state_text == "partial":
-        return f"{ticker} overall readiness: partial; review ready inputs first and treat locked inputs as missing-data review work."
+        return f"{ticker} overall readiness: partial; review local inputs that are present and treat locked sections as missing-data proof work."
     return f"{ticker} overall readiness: {state}."
 
 

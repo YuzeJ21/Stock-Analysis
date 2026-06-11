@@ -103,7 +103,7 @@ def test_stock_report_one_minute_state_phrase_explains_partial_readiness():
 
     assert "optional earnings/estimate context is locked; core DCF and peer inputs are ready" in core_ready
     assert "monitor context is usable while company valuation is excluded" in monitor
-    assert "review ready inputs first and treat locked inputs as missing-data review work" in data_unlock
+    assert "review local inputs that are present and treat locked sections as missing-data proof work" in data_unlock
 
 
 def test_stock_report_humanized_terms_preserve_copyable_dcf_commands():
