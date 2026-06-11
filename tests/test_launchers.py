@@ -1469,6 +1469,8 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "fundamentals lane: make readiness && make dcf-readiness" in data_strategy
     assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in data_strategy
     assert "lane review path, validate/apply step, rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
+    assert "The candidate list and one-company packet also print local file status" in data_strategy
+    assert "A file with rows is not automatically trusted coverage" in data_strategy
     assert "rejected-row report path, then the relevant readiness proof command" in data_strategy
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
@@ -1490,6 +1492,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`." in data_strategy
     assert "Keep one regenerated Markdown report per pilot company" in data_strategy
     assert "Keep the exact review and validation path that changed the state" in data_strategy
+    assert "Record local file status from the pilot output, but do not treat row counts or file existence as proof by themselves." in data_strategy
     assert "Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next." in data_strategy
     assert "The final proof is a regenerated report plus refreshed readiness counts, recorded alongside any still-blocked reason" in data_strategy
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy

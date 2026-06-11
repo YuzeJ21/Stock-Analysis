@@ -84,6 +84,8 @@ Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 
 
 If you want to choose the next pilot from current local blockers, run `make trusted-data-pilot-candidates TOP_N=10`. It ranks operating-company candidates and excludes ETF/index monitor examples from the company DCF pilot list. If you want a one-company packet after choosing a name, run `make trusted-data-pilot-packet TICKER=CRDO`; it prints the before report, focused blocker check, lane review path, validate/apply step, rejected-row report path, rebuild proof, and evidence row to record. If you want the copyable read-only checklist after choosing several names, run `make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10`. The broader checklist remains available as `make trusted-data-pilot TOP_N=10`. Each command does not refresh, import, or edit local CSV files.
 
+The candidate list and one-company packet also print local file status, such as import CSV data-row counts, staged-folder file counts, and whether the rejected-row report path exists. Treat that as an inspection cue only. A file with rows is not automatically trusted coverage; it still needs source review, validation, preview, apply when appropriate, and rebuilt readiness before analysis is described as available.
+
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
 
 Decision rule: choose one company only when the matching trusted input can be reviewed. For fundamentals/DCF, that means trusted SEC or manual fundamentals rows. For peer mapping, that means source-backed peer relationships. For peer valuation, that means mapped peers also have trusted valuation inputs. If the source proof is missing, the correct outcome is not failure; it is a visible missing-data state and a move to the next candidate.
@@ -133,6 +135,7 @@ A company is a useful pilot win only when the evidence is reviewable, not just w
 - Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`.
 - Keep one regenerated Markdown report per pilot company so readers can see whether the mode changed or stayed visibly blocked by missing data.
 - Keep the exact review and validation path that changed the state: lane review command, `make imports-validate`, `make imports-preview`, `make imports-apply`, rejected-row report path, then the relevant readiness proof command.
+- Record local file status from the pilot output, but do not treat row counts or file existence as proof by themselves.
 - The single-stock report opens with the correct mode: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data needed before analysis.
 - DCF-ready companies show assumptions, sensitivity, source readiness, and any locked optional context before interpretation.
 - Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next.
