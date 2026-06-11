@@ -9420,6 +9420,7 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     assert cards[1]["command"] == "make trusted-data-pilot-packet TICKER=<ticker>"
     assert cards[2]["command"] == "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"
     assert "rank reason" in cards[0]["badges"]
+    assert "supported / blocked / skip" in cards[2]["badges"]
     assert "217 price-ready company row(s) still need trusted fundamentals or dcf inputs" in rendered
     assert "14 dcf-ready row(s) still need source-backed peer context" in rendered
     assert "small ranked pilot instead of the full universe" in rendered
@@ -9428,6 +9429,8 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     assert "baseline, source proof, validation, rejected-row check, rebuild, and stop rule" in rendered
     assert "optional context remains locked at 0 earnings-ready and 0 estimate-ready row(s)" in rendered
     assert "only the rebuilt readiness and stock report can prove the lane changed" in rendered
+    assert "read the outcome as supported, still blocked, or skip" in rendered
+    assert "a still-blocked or skipped ticker is useful proof, not a failure" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -9666,6 +9669,8 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
     assert "stop rule: skip for now if peer relationships cannot be supported by a source note" in rendered
     assert "proof after data changes: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
+    assert "outcome: supported only after rebuilt readiness and the regenerated report prove it" in rendered
+    assert "still blocked or skip should stay visible when source proof is missing" in rendered
     assert "local file status:" not in rendered
     assert "evidence row:" not in rendered
     assert "...." not in rendered

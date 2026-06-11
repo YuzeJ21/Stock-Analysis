@@ -6470,9 +6470,10 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
             "title": "Run the selected proof loop",
             "body": (
                 f"Optional context remains locked at {earnings_ready:,} earnings-ready and {estimates_ready:,} estimate-ready row(s) until trusted CSV rows exist. "
-                "Use the pilot loop only for selected company names with source proof; only the rebuilt readiness and stock report can prove the lane changed."
+                "Use the pilot loop only for selected company names with source proof; only the rebuilt readiness and stock report can prove the lane changed. "
+                "Read the outcome as Supported, Still blocked, or Skip; a still-blocked or skipped ticker is useful proof, not a failure."
             ),
-            "badges": ["selected names", "trusted CSVs"],
+            "badges": ["supported / blocked / skip", "trusted CSVs"],
             "command": "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10",
         },
     ]
@@ -6612,7 +6613,8 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                     f"{card_sentence('Trusted input target', trusted_target)} "
                     f"{card_sentence('Decision', review_decision)} "
                     f"{card_sentence('Stop rule', skip_if)} "
-                    f"{card_sentence('Proof after data changes', proof)}"
+                    f"{card_sentence('Proof after data changes', proof)} "
+                    "Outcome: Supported only after rebuilt readiness and the regenerated report prove it; Still blocked or Skip should stay visible when source proof is missing."
                 ),
                 "badges": [scope, "read-only"],
                 "command": command,
