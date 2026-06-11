@@ -1478,6 +1478,13 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Automation Boundary" in data_strategy
     assert "The product can automate repeatable checks, but it should not automate source judgment." in data_strategy
     assert "Dry-run planning, capped refresh loops, import normalization, validation, readiness rebuilds." in data_strategy
+    assert "Freshness Without Daily Manual Work" in data_strategy
+    assert "You do not need to hand-refresh every ticker every day for the product to stay useful." in data_strategy
+    assert "Treat freshness as a lane-specific review workflow" in data_strategy
+    assert "Run status/readiness checks whenever you open the project" in data_strategy
+    assert "use capped refresh loops only when coverage is stale or too short for the next research page" in data_strategy
+    assert "Only run a real capped price loop after reviewing the dry-run plan." in data_strategy
+    assert "Do not schedule unattended fundamentals, peer, earnings, estimate imports, or public commits." in data_strategy
     assert "Whether a source row is trusted, which fiscal period is appropriate, and whether manual fundamentals should be applied." in data_strategy
     assert "Which companies are real peers and whether any fallback sector/industry context is acceptable as context only." in data_strategy
     assert "If a workflow depends on source credibility, issuer judgment, fiscal-period choice, peer selection, or optional provider licensing" in data_strategy

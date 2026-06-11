@@ -65,6 +65,19 @@ Use this split when deciding what can run on a schedule and what should stay rev
 
 The practical rule is simple: automate repeatable checks and capped previews; require human/source review before anything changes valuation, peer context, earnings context, estimates context, or public committed data.
 
+## Freshness Without Daily Manual Work
+
+You do not need to hand-refresh every ticker every day for the product to stay useful. Treat freshness as a lane-specific review workflow:
+
+| Lane | Practical cadence | Safe automation | What still needs review |
+| --- | --- | --- | --- |
+| Prices | Run status/readiness checks whenever you open the project; use capped refresh loops only when coverage is stale or too short for the next research page. | `make price-refresh-loop DRY_RUN=1` can plan broad batches; a reviewed loop can refresh capped missing-price batches. | Inspect provider notes and generated CSV diffs before committing refreshed rows. |
+| Fundamentals / DCF | Refresh only around company review, filings, or a trusted-data pilot; do not chase every ticker daily. | SEC staging and missing-field diagnostics can prepare review queues. | Source trust, fiscal period, rejected rows, validation/preview/apply, and rebuilt DCF readiness. |
+| Peers | Update when a company enters a pilot or peer context is blocking a ready DCF report. | Peer queues can rank blockers and show exact next commands. | Whether the relationship is source-backed and whether peer valuation inputs are present. |
+| Earnings / estimates | Keep locked unless you have trusted local rows for a review cycle. | Templates, staged-folder checks, and rejected-row reports. | Whether the source is trusted and whether optional context should be applied. |
+
+A safe recurring routine is read-only by default: run `make status-check TOP_N=5`, `make readiness`, `make dashboard-smoke`, and `make price-refresh-loop DRY_RUN=1`. Only run a real capped price loop after reviewing the dry-run plan. Do not schedule unattended fundamentals, peer, earnings, estimate imports, or public commits.
+
 ## Safe Overnight Automation
 
 If you want the project to keep working while unattended, keep the job in review mode by default.
