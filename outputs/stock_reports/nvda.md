@@ -107,8 +107,8 @@ NVDA overall readiness: partial because optional earnings/estimate context is lo
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Momentum Leader. Judge the brief through trend, relative strength, extension risk, and setup quality; current state is Review Thesis.
 - Alignment: Purpose alignment needs review: Momentum Leader requires relative strength support, but current local outputs flag weak relative strength.
-- Research review summary: Purpose alignment needs review: Momentum Leader requires relative strength support, but current local outputs flag weak relative strength; Research Candidate - Core Data Ready. Next blocker: earnings. Withheld: earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the momentum research setup if relative strength weakens, trend support fails, or extension risk dominates the setup.
-- Setup: Momentum setup: Setup Forming; final state: Review Thesis. Check relative strength, trend, volume context, and extension risk before deeper research. Base score 45 from final state `Review Thesis`. Added 3 points because the ticker is already a holding. Adjusted +0 points for value category `Insufficient Data`.
+- Research review summary: Purpose alignment needs review: Momentum Leader requires relative strength support, but current local outputs flag weak relative strength; Research Candidate - Core Data Ready. Next blocker: earnings. Withheld: earnings timing or surprise context, analyst estimate trend context. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Setup: Momentum setup: Setup Forming; final state: Review Thesis. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
 - Valuation boundary: Report-local peer valuation is calculated from trusted peer inputs; broad value labels may still remain limited when optional value-engine fields are missing.
 
 ## Supported Analysis
@@ -118,7 +118,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Currently withheld: earnings timing or surprise context, analyst estimate trend context.
 
 ## Setup / Momentum
-- Momentum setup: Setup Forming; final state: Review Thesis. Check relative strength, trend, volume context, and extension risk before deeper research. Base score 45 from final state `Review Thesis`. Added 3 points because the ticker is already a holding. Adjusted +0 points for value category `Insufficient Data`.
+- Momentum setup: Setup Forming; final state: Review Thesis. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
 - 1M performance: 7.9%
 - 3M performance: 16.5%
 - 1Y performance: 54.7%

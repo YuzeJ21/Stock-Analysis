@@ -107,8 +107,8 @@ QQQ overall readiness: partial because monitor context is usable while company v
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: ETF / Defensive / Hedge. Evaluate as market, theme, liquidity, or risk context; operating-company valuation remains excluded.
 - Alignment: ETF / Defensive / Hedge is evaluated as market/risk context when price, liquidity, and correlation data are ready; operating-company valuation is not applicable.
-- Research review summary: Monitor context; Monitor - ETF Market Proxy. Monitor role: market, theme, liquidity, or risk proxy. Withheld: operating-company DCF and peer valuation are excluded. Invalidation: proxy usefulness weakens if liquidity, correlation, or theme trend no longer supports monitoring.
-- Setup: Setup Forming; final state: Setup Forming. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`. Capped score at 50 because valuation readiness is not ready; treat as data-limited review until missing data is resolved.
+- Research review summary: Monitor context; Monitor - ETF Market Proxy. Withheld: operating-company DCF and peer valuation are excluded. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Setup: Setup Forming; final state: Setup Forming. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
 - Valuation boundary: Operating-company DCF is excluded for this asset type; use market/risk context instead of valuation conclusions.
 
 ## Supported Analysis
@@ -118,7 +118,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Currently withheld: fundamental quality and operating-company valuation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, operating-company DCF conclusions.
 
 ## Setup / Momentum
-- Setup Forming; final state: Setup Forming. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`. Capped score at 50 because valuation readiness is not ready; treat as data-limited review until missing data is resolved.
+- Setup Forming; final state: Setup Forming. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
 - 1M performance: 8.4%
 - 3M performance: Not available
 - 1Y performance: Not available

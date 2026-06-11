@@ -107,8 +107,8 @@ A overall readiness: partial because optional earnings/estimate context is locke
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is Setup Forming.
 - Alignment: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below.
-- Research review summary: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below; Research Candidate - DCF Ready But Peer Blocked. Next blocker: peers. Withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context. Invalidation: Invalidate the compounder thesis review if trend conflict persists and updated fundamentals/DCF no longer support the stated purpose.
-- Setup: Compounder setup: Setup Forming; final state: Setup Forming. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`.
+- Research review summary: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below; Research Candidate - DCF Ready But Peer Blocked. Next blocker: peers. Withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Setup: Compounder setup: Setup Forming; final state: Setup Forming. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
 - Valuation boundary: DCF inputs are ready, but valuation interpretation is constrained by Insufficient Data and peer status `Insufficient Peer Data`.
 
 ## Supported Analysis
@@ -118,7 +118,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Currently withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context.
 
 ## Setup / Momentum
-- Compounder setup: Setup Forming; final state: Setup Forming. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Base score 68 from final state `Setup Forming`. Adjusted +0 points for value category `Insufficient Data`.
+- Compounder setup: Setup Forming; final state: Setup Forming. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
 - 1M performance: -0.3%
 - 3M performance: -7.5%
 - 1Y performance: Not available

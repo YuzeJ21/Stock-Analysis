@@ -20,6 +20,7 @@ from src.providers.mock_market_data import MockMarketDataProvider
 from src.stock_report import (
     _display_setup_text,
     _format_inline_make_commands,
+    _public_report_brief,
     _stock_report_dcf_input_triage_lines,
     _stock_report_best_review_path_lines,
     _stock_report_optional_context_ladder_lines,
@@ -53,7 +54,27 @@ def test_stock_report_formats_bare_make_commands_as_copyable_inline_commands():
     assert "`make dashboard`" in text
     assert "make the comparison" in text
     assert "`make the`" not in text
-    assert "Run make focus-fundamentals" not in text
+
+
+def test_public_report_brief_caps_dense_diagnostic_bullets():
+    long_text = (
+        "Purpose alignment: Purpose alignment needs review because the saved research view includes trend conflict. "
+        "Trend support failed below both 50SMA and 200SMA. Missing data: EPS growth, gross margin, debt to equity, "
+        "P/E, forward P/E, EV/sales, EV/EBITDA, price to free cash flow, FCF yield. "
+        "Next blocker: fundamentals. Withheld: DCF interpretation and peer-relative valuation."
+    )
+
+    brief = _public_report_brief(long_text, "Purpose alignment:", max_chars=120)
+
+    assert brief.startswith("Purpose alignment needs review")
+    assert "Additional diagnostics are summarized in Data Readiness" in brief
+    assert "Valuation Readiness" in brief
+    assert "Missing Data" in brief
+    assert "Source Readiness" in brief
+    assert "Next blocker: fundamentals" in brief
+    assert "Withheld: DCF interpretation and peer-relative valuation" in brief
+    assert "EV/EBITDA" not in brief
+    assert "Run make focus-fundamentals" not in brief
 
 
 def test_stock_report_one_minute_state_phrase_explains_partial_readiness():

@@ -575,6 +575,24 @@ def _brief_value(value: Any, *prefixes: str, fallback: str = "Not available") ->
     return text
 
 
+def _public_report_brief(value: Any, *prefixes: str, fallback: str = "Not available", max_chars: int = 260) -> str:
+    text = _brief_value(value, *prefixes, fallback=fallback)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= max_chars:
+        return text
+    first_sentence = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)[0].strip()
+    if len(first_sentence) > max_chars:
+        first_sentence = first_sentence[: max_chars - 1].rstrip(" ,;:") + "."
+    blocker_match = re.search(r"\bNext blocker:\s*([^.;]+)", text, flags=re.IGNORECASE)
+    blocker_suffix = f" Next blocker: {blocker_match.group(1).strip()}." if blocker_match else ""
+    withheld_match = re.search(r"\bWithheld:\s*([^.;]+)", text, flags=re.IGNORECASE)
+    withheld_suffix = f" Withheld: {withheld_match.group(1).strip()}." if withheld_match else ""
+    return (
+        f"{first_sentence}{blocker_suffix}{withheld_suffix} Additional diagnostics are summarized in Data Readiness, "
+        "Valuation Readiness, Missing Data, and Source Readiness below."
+    )
+
+
 def _atr_or_volatility_source_label(source: Any) -> str:
     normalized = str(source or "").strip().lower()
     if normalized == "atr":
@@ -2500,9 +2518,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Purpose Evaluation",
         "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
         f"- Thesis: {_brief_value(purpose_fields.get('purpose_thesis'), 'Purpose:')}",
-        f"- Alignment: {_brief_value(purpose_fields.get('purpose_alignment'), 'Purpose alignment:')}",
-        f"- Research review summary: {_brief_value(operator_summary, 'Research review summary:')}",
-        f"- Setup: {_brief_value(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
+        f"- Alignment: {_public_report_brief(purpose_fields.get('purpose_alignment'), 'Purpose alignment:')}",
+        f"- Research review summary: {_public_report_brief(operator_summary, 'Research review summary:')}",
+        f"- Setup: {_public_report_brief(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
         f"- Valuation boundary: {_display_value(purpose_fields.get('valuation_evaluation'))}",
         "",
         "## Supported Analysis",
@@ -2512,15 +2530,15 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Currently withheld: {_brief_value(purpose_fields.get('unsupported_analysis'), 'Unsupported analysis:', 'Currently withheld:')}",
         "",
         "## Setup / Momentum",
-        f"- {_brief_value(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
+        f"- {_public_report_brief(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
         f"- 1M performance: {_format_pct(payload.get('performance', {}).get('one_month'))}",
         f"- 3M performance: {_format_pct(payload.get('performance', {}).get('three_month'))}",
         f"- 1Y performance: {_format_pct(payload.get('performance', {}).get('one_year'))}",
         *_stock_report_volatility_lines(payload),
         "",
         "## Risk Notes",
-        f"- Risk watchpoint: {_brief_value(purpose_fields.get('risk_watchpoint'), 'Risk watchpoint:')}",
-        f"- Invalidation condition: {_display_value(purpose_fields.get('invalidation_condition'))}",
+        f"- Risk watchpoint: {_public_report_brief(purpose_fields.get('risk_watchpoint'), 'Risk watchpoint:')}",
+        f"- Invalidation condition: {_public_report_brief(purpose_fields.get('invalidation_condition'))}",
         "",
         "## Next Research Step",
         f"- Next research question: {_display_value(purpose_fields.get('next_research_question'))}",
@@ -2886,9 +2904,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "## Purpose Evaluation",
         "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
         f"- Thesis: {_brief_value(purpose_fields.get('purpose_thesis'), 'Purpose:')}",
-        f"- Alignment: {_brief_value(purpose_fields.get('purpose_alignment'), 'Purpose alignment:')}",
-        f"- Research review summary: {_brief_value(operator_summary, 'Research review summary:')}",
-        f"- Setup: {_brief_value(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
+        f"- Alignment: {_public_report_brief(purpose_fields.get('purpose_alignment'), 'Purpose alignment:')}",
+        f"- Research review summary: {_public_report_brief(operator_summary, 'Research review summary:')}",
+        f"- Setup: {_public_report_brief(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
         f"- Valuation boundary: {_display_value(purpose_fields.get('valuation_evaluation'))}",
         "",
         "## Supported Analysis",
@@ -2898,11 +2916,11 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Currently withheld: {_brief_value(purpose_fields.get('unsupported_analysis'), 'Unsupported analysis:', 'Currently withheld:')}",
         "",
         "## Setup / Momentum",
-        f"- {_brief_value(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
+        f"- {_public_report_brief(purpose_fields.get('setup_evaluation'), 'Setup status:')}",
         "",
         "## Risk Notes",
-        f"- Risk watchpoint: {_brief_value(purpose_fields.get('risk_watchpoint'), 'Risk watchpoint:')}",
-        f"- Invalidation condition: {_display_value(purpose_fields.get('invalidation_condition'))}",
+        f"- Risk watchpoint: {_public_report_brief(purpose_fields.get('risk_watchpoint'), 'Risk watchpoint:')}",
+        f"- Invalidation condition: {_public_report_brief(purpose_fields.get('invalidation_condition'))}",
         "",
         "## Next Research Step",
         f"- Next research question: {_display_value(purpose_fields.get('next_research_question'))}",
