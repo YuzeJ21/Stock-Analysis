@@ -31,6 +31,7 @@ from src.trusted_data_pilot import (
     pilot_lane_label,
     pilot_local_file_status,
     pilot_operator_decision,
+    pilot_quick_path_lines,
     pilot_rank_reason,
     pilot_review_path,
     pilot_selection_brief,
@@ -6462,8 +6463,8 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
             "kicker": "PILOT STEP 2",
             "title": "Inspect one proof packet",
             "body": (
-                "Use one ticker packet to see rank reason, before report, exact missing input, lane-specific review command, validate/apply step, rejected-row report, and rebuild proof. "
-                "If trusted rows are not available, keep that ticker blocked and choose the next candidate."
+                "Use the first shortlisted ticker packet to see the current report, missing input, review lane, trusted input target, and rebuild proof. "
+                "This mirrors the CLI quick path: shortlist, one packet, input target, then stop if source proof is unavailable."
             ),
             "badges": ["one company", "no fake rows"],
             "command": "make trusted-data-pilot-packet TICKER=<ticker>",
@@ -6545,7 +6546,7 @@ def data_health_trusted_pilot_preview_frame(
             "Missing Input": plain_dashboard_input_copy(candidate.missing_input),
             "Review Decision": pilot_operator_decision(candidate),
             "Review Path": pilot_review_path(candidate.validation_path),
-            "Trusted Row Target": pilot_trusted_row_path(candidate),
+            "Trusted Input Target": pilot_trusted_row_path(candidate),
             "Local File Status": pilot_local_file_status(candidate, root=BASE_DIR),
             "Skip If": pilot_skip_condition(candidate),
             "Packet Command": f"make trusted-data-pilot-packet TICKER={candidate.ticker}",
@@ -6577,7 +6578,9 @@ def data_health_trusted_pilot_selection_note(
         readiness_rows,
         top_n=max(limit, 0),
     )
-    return " ".join(pilot_selection_brief(candidates))
+    brief = pilot_selection_brief(candidates)
+    quick_path = pilot_quick_path_lines(candidates)
+    return " ".join([*brief, "Quick path:", *quick_path])
 
 
 def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -6591,10 +6594,9 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
         rank_reason = compact_card_fragment(row.get("Rank Reason"), max_chars=170)
         missing_input = compact_card_fragment(plain_dashboard_input_copy(row.get("Missing Input")), max_chars=190)
         review_decision = compact_card_fragment(row.get("Review Decision") or row.get("Operator Decision"), max_chars=170)
-        local_status = compact_card_fragment(row.get("Local File Status"), max_chars=170)
+        trusted_target = compact_card_fragment(row.get("Trusted Input Target") or row.get("Trusted Row Target"), max_chars=170)
         skip_if = compact_card_fragment(row.get("Skip If"), max_chars=150)
         review_path = compact_card_fragment(row.get("Review Path"), max_chars=165)
-        evidence_row = compact_card_fragment(row.get("Evidence Row"), max_chars=170)
         proof = compact_card_fragment(
             row.get("Proof After Data Changes") or row.get("Proof After Unlock"),
             "make readiness && make stock-report-md TICKER=<ticker>",
@@ -6609,12 +6611,12 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                 "body": (
                     f"{card_sentence('Why this is next', rank_reason)} "
                     f"{card_sentence('Missing input', missing_input)} "
+                    f"Start with: {command}. "
+                    f"Review lane: {review_path}; then run {lane_command}. "
+                    f"{card_sentence('Trusted input target', trusted_target)} "
                     f"{card_sentence('Decision', review_decision)} "
-                    f"{card_sentence('Local file status', local_status)} "
-                    f"{card_sentence('Skip if', skip_if)} "
-                    f"Check first: {review_path}; then run {lane_command}. "
-                    f"{card_sentence('Proof after data changes', proof)} "
-                    f"{card_sentence('Evidence row', evidence_row)}"
+                    f"{card_sentence('Stop rule', skip_if)} "
+                    f"{card_sentence('Proof after data changes', proof)}"
                 ),
                 "badges": [scope, "read-only"],
                 "command": command,

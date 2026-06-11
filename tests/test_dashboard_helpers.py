@@ -9408,8 +9408,8 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     assert "14 dcf-ready row(s) still need source-backed peer context" in rendered
     assert "small ranked pilot instead of the full universe" in rendered
     assert "candidate output explains each rank reason from scope, demo relevance, lane, priority, and missing input" in rendered
-    assert "rank reason, before report, exact missing input, lane-specific review command, validate/apply step, rejected-row report, and rebuild proof" in rendered
-    assert "keep that ticker blocked and choose the next candidate" in rendered
+    assert "current report, missing input, review lane, trusted input target, and rebuild proof" in rendered
+    assert "mirrors the cli quick path: shortlist, one packet, input target, then stop if source proof is unavailable" in rendered
     assert "optional context remains locked at 0 earnings-ready and 0 estimate-ready row(s)" in rendered
     assert "source proof" in rendered
     assert "broker" not in rendered
@@ -9499,7 +9499,7 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
         "Missing Input",
         "Review Decision",
         "Review Path",
-        "Trusted Row Target",
+        "Trusted Input Target",
         "Local File Status",
         "Skip If",
         "Packet Command",
@@ -9572,6 +9572,11 @@ def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
     assert "peer mapping proof path: 1" in rendered
     assert "make trusted-data-pilot tickers=mu,meta top_n=2" in rendered
     assert "useful pilot win: before report, lane review, trusted source row" in rendered
+    assert "quick path:" in rendered
+    assert "shortlist: mu, meta." in rendered
+    assert "start with one packet: make trusted-data-pilot-packet ticker=mu" in rendered
+    assert "trusted input target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "stop if source proof is unavailable: keep mu visibly blocked" in rendered
     assert "rather than filling placeholder data" in rendered
     assert "recommend" not in rendered
     assert "buy" not in rendered
@@ -9598,7 +9603,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Missing Input": "needs source-backed peer mappings; analyst_estimates: trusted local CSV input",
                 "Review Decision": "Choose this company only if you can document source-backed peer relationships.",
                 "Review Path": "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU",
-                "Trusted Row Target": "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed",
+                "Trusted Input Target": "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed",
                 "Local File Status": "Local file status: peer import 1 data row(s); rejected-row report missing. Peer rows still require source-backed relationship review and readiness proof.",
                 "Skip If": "Skip for now if peer relationships cannot be supported by a source note.",
                 "Packet Command": "make trusted-data-pilot-packet TICKER=MU",
@@ -9615,7 +9620,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Missing Input": "shares_outstanding",
                 "Review Decision": "Choose this company only if you can review trusted SEC or manual fundamentals rows.",
                 "Review Path": "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META",
-                "Trusted Row Target": "data/staged/fundamentals/ or data/imports/fundamentals.csv",
+                "Trusted Input Target": "data/staged/fundamentals/ or data/imports/fundamentals.csv",
                 "Local File Status": "Local file status: fundamentals import 1 data row(s); staged fundamentals 0 file(s); rejected-row report present. Rows still require source review, validate, preview, apply, and readiness proof.",
                 "Skip If": "Skip for now if trusted SEC or manual fundamentals rows are not reviewable.",
                 "Packet Command": "make trusted-data-pilot-packet TICKER=META",
@@ -9638,13 +9643,15 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert "why this is next:" in rendered
     assert "missing input: needs source-backed peer mappings; analyst estimates: trusted local csv input" in rendered
     assert "analyst_estimates" not in rendered
-    assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
-    assert "local file status: peer import 1 data row(s); rejected-row report missing" in rendered
-    assert "skip if: skip for now if peer relationships cannot be supported by a source note" in rendered
-    assert "check first: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
+    assert "start with: make trusted-data-pilot-packet ticker=mu" in rendered
+    assert "review lane: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
     assert "then run make focus-peers ticker=mu" in rendered
+    assert "trusted input target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
+    assert "stop rule: skip for now if peer relationships cannot be supported by a source note" in rendered
     assert "proof after data changes: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
-    assert "evidence row: mu | before: run report | after: rerun report" in rendered
+    assert "local file status:" not in rendered
+    assert "evidence row:" not in rendered
     assert "...." not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
