@@ -67,10 +67,8 @@ def test_public_report_brief_caps_dense_diagnostic_bullets():
     brief = _public_report_brief(long_text, "Purpose alignment:", max_chars=120)
 
     assert brief.startswith("Purpose alignment needs review")
-    assert "Additional diagnostics are summarized in Data Readiness" in brief
-    assert "Valuation Readiness" in brief
-    assert "Missing Data" in brief
-    assert "Source Readiness" in brief
+    assert "Review the readiness sections below before drawing conclusions" in brief
+    assert "Additional diagnostics are summarized" not in brief
     assert "Next blocker: fundamentals" in brief
     assert "Withheld: DCF interpretation and peer-relative valuation" in brief
     assert "EV/EBITDA" not in brief

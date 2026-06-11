@@ -596,8 +596,8 @@ def _public_report_brief(value: Any, *prefixes: str, fallback: str = "Not availa
     withheld_match = re.search(r"\bWithheld:\s*([^.;]+)", text, flags=re.IGNORECASE)
     withheld_suffix = f" Withheld: {withheld_match.group(1).strip()}." if withheld_match else ""
     return (
-        f"{first_sentence}{blocker_suffix}{withheld_suffix} Additional diagnostics are summarized in Data Readiness, "
-        "Valuation Readiness, Missing Data, and Source Readiness below."
+        f"{first_sentence}{blocker_suffix}{withheld_suffix} "
+        "Review the readiness sections below before drawing conclusions."
     )
 
 
