@@ -922,6 +922,8 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "read-only next step for improving 5-10 trusted companies" in checklist
     assert "Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in checklist
     assert "Treat `QQQ` and `SMH` as ETF/index monitor demos" in checklist
+    assert "Keep the pilot evidence packet visible" in checklist
+    assert "baseline readiness, before report, focused fundamentals check, focused peer check" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
     assert "small pilot" in checklist
@@ -1052,6 +1054,8 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "make trusted-data-pilot TOP_N=10",
         "company-focused coverage-improvement path",
         "suggested starter company pilot",
+        "one-company evidence packet",
+        "before/after proof",
         "NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META",
         "QQQ` and `SMH` kept as ETF/index monitor demos",
         "company pilot should use operating-company tickers",

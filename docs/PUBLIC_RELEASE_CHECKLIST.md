@@ -11,6 +11,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
 - Keep `make trusted-data-pilot TOP_N=10` visible as the read-only next step for improving 5-10 trusted companies without broad generated data churn.
 - Keep the trusted-data pilot company-focused. Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. Treat `QQQ` and `SMH` as ETF/index monitor demos, not operating-company DCF targets.
+- Keep the pilot evidence packet visible: baseline readiness, before report, focused fundamentals check, focused peer check, validate/preview/apply, after readiness, and after report.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Keep `docs/METHODOLOGY.md` linked from the README so visitors can see the readiness gates, DCF formula path, peer boundaries, and report-explanation rules.
