@@ -9416,6 +9416,37 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     assert "sell" not in rendered
 
 
+def test_data_health_freshness_routine_cards_separate_read_only_from_review_required_lanes():
+    cards = dashboard.data_health_freshness_routine_cards(
+        {
+            "master_universe": 3538,
+            "price_ready": 265,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "READ-ONLY ROUTINE",
+        "PRICE FRESHNESS",
+        "REVIEW-REQUIRED LANES",
+    ]
+    assert cards[0]["command"] == "make status-check TOP_N=5 && make readiness && make dashboard-smoke && make price-refresh-loop DRY_RUN=1"
+    assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3300 TOP_N=100 PROVIDER=yahoo"
+    assert cards[2]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert "without changing files" in rendered
+    assert "without hand-refreshing every ticker every day" in rendered
+    assert "prices are the only broad lane designed for capped refresh loops" in rendered
+    assert "run a real loop only after reviewing the dry-run plan" in rendered
+    assert "inspect generated csv diffs before committing" in rendered
+    assert "fundamentals, peer mappings, earnings, and analyst estimates stay review-required" in rendered
+    assert "validation, preview, rejected-row checks, and readiness rebuilds" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     fundamentals = pd.DataFrame(
         [
@@ -9842,6 +9873,9 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert 'st.expander("Local dataset checks", expanded=False)' in source
     assert 'st.expander("Local dataset validation details", expanded=False)' not in source
     assert "Supported Analysis Ladder" in source
+    assert "Freshness Routine" in source
+    assert "How to keep data current without daily manual full-universe refreshes." in source
+    assert "render_signal_cards(data_health_freshness_routine_cards(readiness_summary))" in source
     assert "Valuation Proof Snapshot" in source
     assert "Plain-English valuation worklists before the broader market-wide tables." in source
     assert "Plain-English valuation queues before the full command center details." not in source

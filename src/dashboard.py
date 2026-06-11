@@ -6481,6 +6481,45 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
     ]
 
 
+def data_health_freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    missing_prices = max(master - price_ready, 0) if master else 0
+    capped_target = ((min(max(missing_prices, 100), 3500) + 99) // 100) * 100 if missing_prices else 100
+    return [
+        {
+            "kicker": "READ-ONLY ROUTINE",
+            "title": "Start without changing files",
+            "body": (
+                "Use status, readiness, dashboard smoke, and a price-loop dry run as the normal freshness check. "
+                "This keeps the app useful without hand-refreshing every ticker every day."
+            ),
+            "badges": ["safe default", "no file changes"],
+            "command": "make status-check TOP_N=5 && make readiness && make dashboard-smoke && make price-refresh-loop DRY_RUN=1",
+        },
+        {
+            "kicker": "PRICE FRESHNESS",
+            "title": f"{missing_prices:,} ticker(s) still need price coverage",
+            "body": (
+                "Prices are the only broad lane designed for capped refresh loops. Run a real loop only after reviewing the dry-run plan, "
+                "then inspect generated CSV diffs before committing anything."
+            ),
+            "badges": ["dry run first", "review diffs"],
+            "command": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES={capped_target} TOP_N=100 PROVIDER=yahoo",
+        },
+        {
+            "kicker": "REVIEW-REQUIRED LANES",
+            "title": "Do not automate source judgment",
+            "body": (
+                "Fundamentals, peer mappings, earnings, and analyst estimates stay review-required. "
+                "Use trusted-data pilot packets, validation, preview, rejected-row checks, and readiness rebuilds before analysis changes."
+            ),
+            "badges": ["trusted source", "no unattended apply"],
+            "command": "make trusted-data-pilot-candidates TOP_N=10",
+        },
+    ]
+
+
 def data_health_trusted_pilot_preview_frame(
     fundamentals_peer_worklist_frame: pd.DataFrame | None,
     peer_unlock_worklist_frame: pd.DataFrame | None,
@@ -21400,6 +21439,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))
         with st.expander("Capped pilot candidate table", expanded=False):
             st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
+    render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
+    render_signal_cards(data_health_freshness_routine_cards(readiness_summary))
     with st.expander("Coverage proof planning cards", expanded=False):
         render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
