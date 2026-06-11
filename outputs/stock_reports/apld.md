@@ -158,7 +158,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Why DCF is blocked: missing free cash flow, shares outstanding, revenue, FCF margin.
 - DCF assumptions: withheld until price, fundamentals, free cash flow or FCF margin, and share-count inputs are ready.
 - Sensitivity table: unavailable until the base DCF can be calculated.
-- Relative valuation: withheld until trusted fundamentals and DCF readiness pass; background relative-multiple calculation is not reader-ready yet (status=insufficient data; peer count=0).
+- Relative valuation: withheld until trusted fundamentals and DCF readiness pass; available peer context is held back until the company DCF gate is ready (peer status=insufficient data; peer count=0).
 - Valuation conclusion is shown only when trusted DCF and peer inputs support it; missing valuation inputs are not inferred.
 
 ## DCF Calculation Path
@@ -217,7 +217,6 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Free cash flow is unavailable from the current local fundamentals dataset.
 - No trusted analyst-estimate CSV has been added yet.
 - No trusted earnings CSV has been added yet.
-- Normalized growth target was reduced to keep it conservatively below WACC.
 - Revenue is unavailable from the current local fundamentals dataset.
 - Valuation missing field: FCF margin
 - Valuation missing field: cash

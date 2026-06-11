@@ -26,6 +26,7 @@ from src.stock_report import (
     _stock_report_one_minute_state_phrase,
     _stock_report_peer_evidence_ladder_lines,
     _stock_report_peer_unlock_lines,
+    _stock_report_missing_data_lines,
     _stock_report_reader_guide_lines,
     _stock_report_reader_question_lines,
     _stock_report_valuation_lines,
@@ -650,10 +651,32 @@ def test_stock_report_valuation_lines_withhold_relative_valuation_when_dcf_readi
     assert "dcf status: blocked" in rendered
     assert "dcf status: calculated" not in rendered
     assert "relative valuation: withheld until trusted fundamentals and dcf readiness pass" in rendered
-    assert "background relative-multiple calculation is not reader-ready yet (status=calculated; peer count=2)" in rendered
+    assert "available peer context is held back until the company dcf gate is ready (peer status=calculated; peer count=2)" in rendered
+    assert "background relative-multiple calculation" not in rendered
     assert "relative valuation: calculated from trusted peer inputs" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_stock_report_missing_data_hides_dcf_normalization_warnings_until_dcf_is_ready():
+    payload = {
+        "missing_data_warnings": [
+            "Observed revenue growth 65.5% exceeded the conservative start-growth cap of 40.0% and was normalized before projection.",
+            "Observed FCF margin 113.4% exceeded the conservative margin cap of 45.0% and was normalized before projection.",
+            "No trusted earnings CSV has been added yet.",
+        ]
+    }
+
+    blocked_lines = _stock_report_missing_data_lines(payload, monitor_context=False, dcf_status_text="blocked")
+    ready_lines = _stock_report_missing_data_lines(payload, monitor_context=False, dcf_status_text="ready")
+
+    blocked_rendered = " ".join(blocked_lines)
+    ready_rendered = " ".join(ready_lines)
+    assert "Observed revenue growth" not in blocked_rendered
+    assert "Observed FCF margin" not in blocked_rendered
+    assert "No trusted earnings CSV has been added yet" in blocked_rendered
+    assert "Observed revenue growth" in ready_rendered
+    assert "Observed FCF margin" in ready_rendered
 
 
 def test_stock_report_reader_guide_distinguishes_dcf_ready_from_standalone_dcf():
@@ -1136,7 +1159,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "DCF input triage: blocked inputs are repair steps, not negative company signals" in markdown
     assert "Safe sequence: `make focus-fundamentals TICKER=APLD` -> stage SEC or trusted manual fundamentals rows -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`" in markdown
     assert "Relative valuation: withheld until trusted fundamentals and DCF readiness pass" in markdown
-    assert "background relative-multiple calculation is not reader-ready yet" in markdown
+    assert "available peer context is held back until the company DCF gate is ready" in markdown
+    assert "background relative-multiple calculation" not in markdown
     assert "## DCF Calculation Path" in markdown
     assert "State: blocked; the product withholds DCF math until trusted company inputs pass readiness checks" in markdown
     assert "Formula path: withheld before base FCF, projected FCF, terminal value, equity value, or fair value/share are calculated" in markdown

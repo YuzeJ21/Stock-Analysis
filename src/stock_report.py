@@ -775,8 +775,8 @@ def _stock_report_valuation_lines(
     if dcf_status_text.lower() != "ready":
         lines.append(
             "- Relative valuation: withheld until trusted fundamentals and DCF readiness pass; "
-            f"background relative-multiple calculation is not reader-ready yet "
-            f"(status={relative_status_display}; peer count={peer_count})."
+            f"available peer context is held back until the company DCF gate is ready "
+            f"(peer status={relative_status_display}; peer count={peer_count})."
         )
     elif relative_status_key in {"insufficient_data", "not available", "peer_data_unavailable"} or peer_inputs_missing:
         lines.append(
@@ -987,8 +987,19 @@ def _stock_report_valuation_boundary_checklist_lines(
     ]
 
 
-def _stock_report_missing_data_lines(payload: dict[str, Any], *, monitor_context: bool) -> list[str]:
+def _stock_report_missing_data_lines(payload: dict[str, Any], *, monitor_context: bool, dcf_status_text: str) -> list[str]:
     warnings = list(payload.get("missing_data_warnings", []))
+    if dcf_status_text.lower() != "ready":
+        dcf_warning_prefixes = (
+            "normalized growth target",
+            "observed fcf margin",
+            "observed revenue growth",
+        )
+        warnings = [
+            warning
+            for warning in warnings
+            if not any(str(warning).lower().startswith(prefix) for prefix in dcf_warning_prefixes)
+        ]
     if monitor_context:
         excluded_prefixes = (
             "valuation missing field:",
@@ -2145,7 +2156,11 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     dcf_status_text = "excluded" if "dcf" in str(readiness.get("excluded_features", "")).lower() or asset_type.lower() in {"etf", "index_proxy", "fund"} else "ready" if dcf_ready else "blocked"
     optional_locked = not earnings_ready or not estimates_ready
     monitor_context = _stock_report_is_monitor_context(readiness=readiness, decision=decision, dcf_status_text=dcf_status_text)
-    missing_lines = _stock_report_missing_data_lines(payload, monitor_context=monitor_context)
+    missing_lines = _stock_report_missing_data_lines(
+        payload,
+        monitor_context=monitor_context,
+        dcf_status_text=dcf_status_text,
+    )
     one_minute_parts = [
         _stock_report_one_minute_state_phrase(
             ticker=report.ticker,

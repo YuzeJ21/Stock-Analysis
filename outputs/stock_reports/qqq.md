@@ -204,7 +204,6 @@ Research-only purpose brief. It separates what local data supports from what rem
 - 3M performance is unavailable from the current local price history.
 - No trusted analyst-estimate CSV has been added yet.
 - No trusted earnings CSV has been added yet.
-- Normalized growth target was reduced to keep it conservatively below WACC.
 - analyst estimates has no local row for this ticker.
 - earnings has no local row for this ticker.
 

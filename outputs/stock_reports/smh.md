@@ -202,7 +202,6 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Operating-company DCF and peer valuation are excluded for this monitor context, so company valuation fields are not treated as repair items.
 - No trusted analyst-estimate CSV has been added yet.
 - No trusted earnings CSV has been added yet.
-- Normalized growth target was reduced to keep it conservatively below WACC.
 - analyst estimates has no local row for this ticker.
 - earnings has no local row for this ticker.
 
