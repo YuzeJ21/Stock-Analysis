@@ -8783,7 +8783,7 @@ def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language(
     assert "1 dcf-ready review" in rendered
     assert "examples: nvda" in rendered
     assert "assumptions, scenarios, and sensitivity as research context" in rendered
-    assert "unsupported recommendations and allocation instructions remain withheld" in rendered
+    assert "recommendations and allocation instructions remain outside this research-only product" in rendered
     assert "2 locked by missing inputs" in rendered
     assert "examples: amd, meta" in rendered
     assert "company valuation is locked until missing inputs are filled" in rendered
@@ -9261,7 +9261,7 @@ def test_data_health_supported_ladder_cards_explain_analysis_levels_without_over
     assert "source-backed peer mappings and peer metrics" in rendered
     assert "sector fallback is not trusted peer valuation" in rendered
     assert "0 earnings / 0 estimates" in rendered
-    assert "locked instead of producing unsupported conclusions" in rendered
+    assert "locked instead of producing overclaims" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report ticker=nvda" not in rendered
     assert "make dcf-readiness" in rendered
@@ -19524,7 +19524,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
     assert "etf / index dcf exclusion" in rendered
     assert "active queue review steps" in rendered
     assert "active queue guided steps" not in rendered
-    assert "unsupported conclusions withheld" in rendered
+    assert "unavailable conclusions withheld" in rendered
     assert "peer action alignment" in rendered
     assert "purpose drilldown actionability" in rendered
     assert "exact copyable commands" in rendered

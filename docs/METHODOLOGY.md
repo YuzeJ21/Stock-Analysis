@@ -33,7 +33,7 @@ The product follows a familiar equity-research sequence, but keeps each step vis
 | Quality control | Readiness gates for each analysis feature before calculations run. | Valuation, peer comparison, or optional context when required inputs are absent. |
 | Intrinsic valuation | A free-cash-flow DCF with visible scenario assumptions, WACC, terminal growth, and sensitivity. | Price targets or valuation claims when DCF inputs are incomplete. |
 | Relative valuation | Source-backed peer workflow and peer-input checks. | Peer valuation from guessed relationships, sector fallback, or incomplete peer metrics. |
-| Research note | Single-stock report sections generated from readiness, calculations, blockers, and source readiness state. | Unsupported recommendations, allocation instructions, or hidden analyst-opinion imports. |
+| Research note | Single-stock report sections generated from readiness, calculations, blockers, and source readiness state. | Recommendations, allocation instructions, or hidden analyst-opinion imports. |
 
 Compared with a professional research terminal or analyst model, this project is intentionally narrower. It does not try to own every data feed or produce a final investment call. Its value is that the workflow is inspectable: the same project code checks data readiness, runs DCF math only when inputs exist, withholds unsupported peer valuation, and explains the next trusted input needed.
 

@@ -46,7 +46,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Designed a CSV-first data pipeline covering price, momentum, liquidity, correlation, fundamentals, DCF, peer mapping, earnings, and analyst-estimate readiness.
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
 - Added single-stock At A Glance, Best Review Path, Analysis Quality, Methodology, Evaluation Function Check, and Copyable Unlock Commands sections to explain whether each report supports DCF-ready review, standalone DCF review, monitor-only context, price/setup review, or data-unlock work, with the DCF method path visible before detailed report tables.
-- Added source readiness checks, preview-first local import validation, rejected-row reporting, and research-only guardrails to prevent unsupported conclusions.
+- Added source readiness checks, preview-first local import validation, rejected-row reporting, and research-only guardrails to prevent overclaims.
 - Documented which parts are original analysis rules, which parts are support libraries, and which actions remain permanently out of scope.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
 

@@ -4394,7 +4394,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
     elif dcf_ready and peer_ready:
         mode = "DCF-ready review"
         supported = "Price setup, company fundamentals, standalone DCF, and peer-relative context."
-        withheld = "Unsupported recommendations and allocation instructions remain withheld."
+        withheld = "Recommendations and allocation instructions remain outside this research-only product."
         next_review = "Review assumptions, sensitivity, peer inputs, warnings, and source readiness before forming a research view."
     elif dcf_ready:
         mode = "Standalone DCF review"
@@ -5969,8 +5969,8 @@ def data_health_supported_ladder_cards(readiness_summary: dict[str, object]) -> 
         {
             "kicker": "LEVEL 4",
             "title": f"{earnings_ready} earnings / {estimates_ready} estimates",
-            "body": "Earnings and analyst estimates are optional context. If they are empty, the app should say locked instead of producing unsupported conclusions.",
-            "badges": ["optional context", "no unsupported conclusions"],
+            "body": "Earnings and analyst estimates are optional context. If they are empty, the app should say locked instead of producing overclaims.",
+            "badges": ["optional context", "no overclaims"],
             "command": "make optional-context-worklist TOP_N=10",
         },
     ]
@@ -9630,7 +9630,7 @@ def fundamentals_dcf_function_quality_frame(
                 "Function Area": "DCF-ready companies",
                 "Current Coverage": f"{dcf_ready_count} company row(s)",
                 "Supported Today": "Assumption and sensitivity review after required company DCF fields pass readiness.",
-                "Not Supported Yet": "Unsupported recommendations or conclusions when optional context remains unavailable.",
+                "Not Supported Yet": "Recommendations or conclusions that require unavailable optional context.",
                 "Methodology / Provenance": "Project DCF readiness and valuation method in src/valuation.py.",
                 "Next Step": "make dcf-readiness",
             },
@@ -10987,7 +10987,7 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
         {
             "kicker": "RISK / INVALIDATION",
             "title": "Watchpoints included",
-            "body": "Each brief includes a risk watchpoint and invalidation condition so supported analysis stays separated from unsupported conclusions.",
+            "body": "Each brief includes a risk watchpoint and invalidation condition so supported analysis stays separated from unavailable conclusions.",
             "badges": ["research-only", "no execution"],
             "command": "make project-status",
         },
@@ -11116,7 +11116,7 @@ def active_evaluation_withheld_conclusion(row: pd.Series) -> str:
         return "Earnings and analyst-estimate context is withheld; core supported analysis may still be reviewed."
     if "monitor etf" in lane:
         return "Operating-company DCF is excluded for ETF/index-proxy monitoring."
-    return "Unsupported conclusions remain withheld when the stock report lists missing or excluded inputs."
+    return "Unavailable conclusions remain withheld when the stock report lists missing or excluded inputs."
 
 
 def active_evaluation_reason(row: pd.Series) -> str:
@@ -11254,7 +11254,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
         {
             "kicker": "QUEUE MIX",
             "title": lane_title,
-            "body": "Research Now rows stay separated from monitor rows and data-unlock rows so missing inputs do not look like unsupported conclusions.",
+            "body": "Research Now rows stay separated from monitor rows and data-unlock rows so missing inputs do not look like conclusions.",
             "badges": ["readiness gated", "data-honest"],
             "command": "make readiness",
         },
@@ -11299,7 +11299,7 @@ def build_active_evaluation_lane_detail_frame(queue_frame: pd.DataFrame | None, 
                 "validation_sequence": format_missing(first.get("validation_sequence"), "make project-status"),
                 "withheld_conclusion": format_missing(
                     first.get("withheld_conclusion"),
-                    "Unsupported conclusions remain withheld until the relevant readiness inputs are available.",
+                    "Unavailable conclusions remain withheld until the relevant readiness inputs are available.",
                 ),
                 "operator_summary": compact_reason(
                     active_evaluation_operator_summary(first),
@@ -11448,7 +11448,7 @@ def product_page_logic_audit_frame(
     )
     rows.append(
         {
-            "check": "Unsupported conclusions withheld",
+            "check": "Unavailable conclusions withheld",
             "status": "pass" if lane_count and has_withheld else "review",
             "evidence": f"{lane_count} active review route(s) show withheld or excluded conclusion wording: {'yes' if has_withheld else 'no'}.",
             "operator_action": "Do not show peer valuation, DCF, earnings, or estimate conclusions when inputs are unavailable.",
@@ -11827,7 +11827,7 @@ def purpose_evaluation_drilldown_cards(drilldown_frame: pd.DataFrame | None) -> 
             "kicker": "PEER / OPTIONAL LIMITS",
             "title": f"{peer_limited} peer-limited, {optional_locked} optional-context-limited",
             "body": "Peer valuation remains blocked until source-backed peer mappings and valuation inputs exist; earnings and estimates remain locked until trusted CSV rows are imported.",
-            "badges": ["no fabricated peers", "no unsupported conclusions"],
+            "badges": ["no fabricated peers", "no overclaims"],
             "command": "make templates",
         },
     ]
@@ -13495,7 +13495,7 @@ def valuation_readiness_operator_frame(
                 "Count": len(ready_companies),
                 "Example Tickers": example_tickers(ready_companies),
                 "What It Means": "DCF inputs are present enough to review assumptions, scenarios, and sensitivity as research context.",
-                "What Stays Withheld": "Unsupported recommendations and allocation instructions remain withheld.",
+                "What Stays Withheld": "Recommendations and allocation instructions remain outside this research-only product.",
                 "Next Command": "make dcf-readiness",
             },
             {
@@ -16916,7 +16916,7 @@ def overview_handoff_cards() -> list[dict[str, object]]:
         {
             "kicker": "NEXT DEEPER TAB",
             "title": "Monthly Picks",
-            "body": "Use this after core coverage is in place to compare the current local candidate set, visible data gaps, and track-record readiness without turning the workflow into unsupported conclusions.",
+            "body": "Use this after core coverage is in place to compare the current local candidate set, visible data gaps, and track-record readiness without turning missing data into conclusions.",
             "badges": ["candidate view", "research only"],
             "command": "make monthly",
         },
@@ -19883,7 +19883,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         st.markdown("#### Evaluation Summary")
         render_context_note(
             "Analysis mode guide.",
-            "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like unsupported conclusions.",
+            "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like conclusions.",
         )
         render_signal_cards(stock_report_mode_guide_cards(report_payload))
         render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
@@ -20247,7 +20247,7 @@ def render_market_command_center(
             st.dataframe(clean_display_frame(active_drilldown), width="stretch", hide_index=True)
     render_section_header("Feature Readiness", "Which product modules are usable today, partially usable, blocked, or excluded.")
     render_signal_cards(feature_readiness_payload_cards)
-    render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without unsupported conclusions.")
+    render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without overclaims.")
     render_signal_cards(decision_interpretation_ladder_cards())
     render_signal_cards(decision_workflow_payload_cards)
     render_section_header("Active Universe Research Briefs", "Purpose, setup, valuation, risk, invalidation, and next research questions for active tickers using current trusted outputs.")
