@@ -102,9 +102,11 @@ def dashboard_page_from_query(value: object) -> str:
         "stock-report": "Single-Stock Report",
         "universe": "Universe Manager",
         "universe-manager": "Universe Manager",
+        "undervalued-candidates": "Value / Re-rating",
         "valuation": "Value / Re-rating",
         "value": "Value / Re-rating",
         "value-re-rating": "Value / Re-rating",
+        "value-rerating": "Value / Re-rating",
     }
     if slug in aliases:
         return aliases[slug]

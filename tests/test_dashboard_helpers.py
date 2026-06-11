@@ -275,6 +275,8 @@ def test_dashboard_page_query_supports_visitor_friendly_deep_links():
     assert dashboard.dashboard_page_from_query(["data_health"]) == "Data Health"
     assert dashboard.dashboard_page_from_query("Value / Re-rating") == "Value / Re-rating"
     assert dashboard.dashboard_page_from_query("value") == "Value / Re-rating"
+    assert dashboard.dashboard_page_from_query("value_rerating") == "Value / Re-rating"
+    assert dashboard.dashboard_page_from_query("undervalued_candidates") == "Value / Re-rating"
     assert dashboard.dashboard_page_from_query("portfolio_review") == "Portfolio Review"
     assert dashboard.dashboard_page_from_query("monthly") == "Monthly Picks"
     assert dashboard.dashboard_page_from_query("not-a-page") == "Home"
