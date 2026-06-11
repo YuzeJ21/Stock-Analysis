@@ -683,7 +683,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert planning_expander_index < market_details_gate_index < market_expander_index < summary_expander_index < bundle_expander_index < hidden_tables_note_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
-    assert "Read these next three sections first." in source
+    assert "Read these next four sections first: quick read, fix first, copy-only next steps, and trusted-data pilot." in source
     assert "without opening the broader tables" in source
     assert "Turn on page tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
@@ -9687,6 +9687,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert 'st.expander("Refresh status note", expanded=False)' in source
     assert "Beginner view." in source
     assert "Data Health Quick Read" in source
+    assert "Read these next four sections first" in source
     assert "Which unlock path should you inspect first, before opening detailed sections." in source
     assert "The shortest safe local path before deeper unlock lists." in source
     assert "before opening detailed tables" not in source

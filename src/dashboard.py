@@ -21090,7 +21090,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_context_note(
         "Beginner view.",
-        "Read these next three sections first. They show the safest unlock path without opening the broader tables.",
+        "Read these next four sections first: quick read, fix first, copy-only next steps, and trusted-data pilot. They show the safest unlock path without opening the broader tables.",
     )
     render_section_header("Data Health Quick Read", "Which unlock path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
