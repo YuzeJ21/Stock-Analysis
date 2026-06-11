@@ -138,8 +138,13 @@ def pilot_trusted_row_path(candidate: PilotCandidate) -> str:
 
     if candidate.lane == "fundamentals_dcf":
         return "data/staged/fundamentals/ or data/imports/fundamentals.csv"
-    if candidate.lane in {"peer_mapping", "peer_valuation_inputs"}:
+    if candidate.lane == "peer_mapping":
         return "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed"
+    if candidate.lane == "peer_valuation_inputs":
+        return (
+            "reviewed mapped-peer fundamentals in data/imports/fundamentals.csv or verified peer price history; "
+            "use data/imports/peers.csv only if mappings change"
+        )
     if candidate.lane == "optional_context_locked":
         return "data/staged/earnings/ or data/staged/analyst_estimates/"
     return "trusted local CSV import files"
@@ -150,8 +155,10 @@ def pilot_rejected_report_path(candidate: PilotCandidate) -> str:
 
     if candidate.lane == "fundamentals_dcf":
         return "data/rejected/fundamentals_import_rejected.csv"
-    if candidate.lane in {"peer_mapping", "peer_valuation_inputs"}:
+    if candidate.lane == "peer_mapping":
         return "data/rejected/peers_import_rejected.csv"
+    if candidate.lane == "peer_valuation_inputs":
+        return "data/rejected/fundamentals_import_rejected.csv and data/rejected/price_import_rejected.csv when peer price rows change"
     if candidate.lane == "optional_context_locked":
         return "data/rejected/earnings_import_rejected.csv and data/rejected/analyst_estimates_import_rejected.csv"
     return "data/rejected/<dataset>_import_rejected.csv"
@@ -191,7 +198,7 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             f"rejected-row report {'present' if rejected_exists else 'missing'}. "
             "Rows still require source review, validate, preview, apply, and readiness proof."
         )
-    if candidate.lane in {"peer_mapping", "peer_valuation_inputs"}:
+    if candidate.lane == "peer_mapping":
         import_rows = _csv_data_row_count(root / "data" / "imports" / "peers.csv")
         rejected_exists = (root / "data" / "rejected" / "peers_import_rejected.csv").exists()
         return (
@@ -199,6 +206,21 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             f"{'missing' if import_rows is None else f'{import_rows} data row(s)'}; "
             f"rejected-row report {'present' if rejected_exists else 'missing'}. "
             "Peer rows still require source-backed relationship review and readiness proof."
+        )
+    if candidate.lane == "peer_valuation_inputs":
+        peer_rows = _csv_data_row_count(root / "data" / "imports" / "peers.csv")
+        fundamentals_rows = _csv_data_row_count(root / "data" / "imports" / "fundamentals.csv")
+        fundamentals_rejected = (root / "data" / "rejected" / "fundamentals_import_rejected.csv").exists()
+        price_rejected = (root / "data" / "rejected" / "price_import_rejected.csv").exists()
+        return (
+            "Local file status: peer mapping import "
+            f"{'missing' if peer_rows is None else f'{peer_rows} data row(s)'}; "
+            "fundamentals import "
+            f"{'missing' if fundamentals_rows is None else f'{fundamentals_rows} data row(s)'}; "
+            "rejected-row reports "
+            f"fundamentals {'present' if fundamentals_rejected else 'missing'}, "
+            f"price {'present' if price_rejected else 'missing'}. "
+            "Mapped peers still require trusted fundamentals or verified price-history proof before peer valuation appears."
         )
     if candidate.lane == "optional_context_locked":
         earnings_rows = _csv_data_row_count(root / "data" / "imports" / "earnings.csv")
@@ -483,25 +505,56 @@ def build_trusted_data_pilot_candidates(
             continue
         missing_dcf = _clean(row.get("missing_required_for_dcf"), "")
         has_dcf = _truthy(row.get("dcf_ready"))
-        if not missing_dcf or has_dcf:
-            continue
-        candidate = PilotCandidate(
-            ticker=ticker,
-            lane="fundamentals_dcf",
-            priority=_int_value(row.get("priority")),
-            why_it_matters="Proves whether company fundamentals review and the DCF readiness gate can become available.",
-            missing_input=missing_dcf,
-            next_command=_clean(row.get("focus_command"), f"make focus-fundamentals TICKER={ticker}"),
-            validation_path=(
-                "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER="
-                f"{ticker} -> make imports-validate -> make imports-preview -> make imports-apply"
-            ),
-            proof_after_unlock=f"make readiness && make dcf-readiness && make stock-report-md TICKER={ticker}",
-            source_boundary="Use SEC staging or trusted manual rows only; leave blank fields blocked.",
-            active_universe=_truthy((readiness_row or {}).get("in_active_universe")),
-            demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
-        )
-        by_ticker[ticker] = candidate
+        if missing_dcf and not has_dcf:
+            candidate = PilotCandidate(
+                ticker=ticker,
+                lane="fundamentals_dcf",
+                priority=_int_value(row.get("priority")),
+                why_it_matters="Proves whether company fundamentals review and the DCF readiness gate can become available.",
+                missing_input=missing_dcf,
+                next_command=_clean(row.get("focus_command"), f"make focus-fundamentals TICKER={ticker}"),
+                validation_path=(
+                    "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER="
+                    f"{ticker} -> make imports-validate -> make imports-preview -> make imports-apply"
+                ),
+                proof_after_unlock=f"make readiness && make dcf-readiness && make stock-report-md TICKER={ticker}",
+                source_boundary="Use SEC staging or trusted manual rows only; leave blank fields blocked.",
+                active_universe=_truthy((readiness_row or {}).get("in_active_universe")),
+                demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
+            )
+            by_ticker[ticker] = candidate
+
+        missing_peer_relative = _clean(row.get("missing_required_for_peer_relative"), "")
+        peer_ready = _truthy(row.get("peer_ready"))
+        if missing_peer_relative and not peer_ready:
+            has_peer_mapping = _truthy(row.get("has_peer_mapping"))
+            lane = "peer_valuation_inputs" if has_peer_mapping else "peer_mapping"
+            peer_review_command = f"make focus-peers TICKER={ticker}"
+            peer_metric_command = _clean(row.get("focus_command"), "")
+            validation_path = (
+                f"make peer-mapping-queue TOP_N=25 -> {peer_review_command}"
+                + (f" -> {peer_metric_command}" if peer_metric_command and peer_metric_command != peer_review_command else "")
+                + " -> make imports-validate -> make imports-preview -> make imports-apply"
+            )
+            candidate = PilotCandidate(
+                ticker=ticker,
+                lane=lane,
+                priority=_int_value(row.get("priority")),
+                why_it_matters=_clean(
+                    row.get("recommended_action"),
+                    "Proves whether source-backed peer context can become available for a DCF-ready company report.",
+                ),
+                missing_input=missing_peer_relative,
+                next_command=peer_review_command,
+                validation_path=validation_path,
+                proof_after_unlock=f"make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
+                source_boundary="Peer rows must be source-backed; sector or industry fallback is context only.",
+                active_universe=_truthy((readiness_row or {}).get("in_active_universe")),
+                demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
+            )
+            current = by_ticker.get(ticker)
+            if current is None or _candidate_sort_key(candidate) < _candidate_sort_key(current):
+                by_ticker[ticker] = candidate
 
     for row in peer_rows:
         ticker = _clean(row.get("ticker"), "").upper()

@@ -756,6 +756,45 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
     assert "sector or industry fallback" in verbose.lower()
 
 
+def test_trusted_data_pilot_uses_peer_valuation_lane_for_mapped_dcf_ready_rows():
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "dcf_ready": "True",
+                "has_peer_mapping": "True",
+                "peer_ready": "False",
+                "missing_required_for_dcf": "",
+                "missing_required_for_peer_relative": "peer fundamentals or peer price/market-cap context",
+                "focus_command": "make focus-fundamentals TICKER=SNDK",
+                "recommended_action": "Complete trusted peer fundamentals or peer price history before treating peer-relative context as ready.",
+            }
+        ],
+        [],
+        [{"ticker": "MU", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.lane == "peer_valuation_inputs"
+    assert candidate.next_command == "make focus-peers TICKER=MU"
+    assert "make focus-fundamentals TICKER=SNDK" in candidate.validation_path
+    assert "reviewed mapped-peer fundamentals" in pilot_trusted_row_path(candidate)
+    assert "use data/imports/peers.csv only if mappings change" in pilot_trusted_row_path(candidate)
+    assert "data/rejected/fundamentals_import_rejected.csv" in pilot_rejected_report_path(candidate)
+    assert "data/rejected/price_import_rejected.csv" in pilot_rejected_report_path(candidate)
+
+    rendered = render_trusted_data_pilot_candidates(candidates)
+
+    assert "MU: Peer valuation inputs proof path" in rendered
+    assert "missing input: peer fundamentals or peer price/market-cap context" in rendered
+    assert "Review its lane: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU -> make focus-fundamentals TICKER=SNDK" in rendered
+    assert "Trusted input target: reviewed mapped-peer fundamentals in data/imports/fundamentals.csv or verified peer price history" in rendered
+    assert "Peer mapping proof path" not in rendered
+
+
 def test_render_trusted_data_pilot_candidates_uses_specific_peer_review_path_by_default():
     candidates = build_trusted_data_pilot_candidates(
         [],
