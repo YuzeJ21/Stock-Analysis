@@ -32,7 +32,7 @@ Boundary checked:
 
 - `Best Review Path` correctly routes the DCF/peer-ready `NVDA` example to review DCF, peers, and source readiness instead of sending it back to price coverage.
 - Optional earnings and analyst-estimate context remains locked unless trusted local rows exist.
-- Commands remain copy-only; the dashboard does not execute refreshes, imports, broker actions, or trades from the UI.
+- Commands remain copy-only; the dashboard does not run refreshes or imports and does not connect to external accounts from the UI.
 
 ## 2026-06-07 Follow-Up Product Copy Pass
 
@@ -61,7 +61,7 @@ Checked pages and docs:
 
 Boundary checked:
 
-- Commands remain copy-only; the dashboard does not execute refreshes, imports, broker actions, or trades from the UI.
+- Commands remain copy-only; the dashboard does not run refreshes or imports and does not connect to external accounts from the UI.
 - Data coverage guidance still requires trusted source rows for fundamentals, peers, earnings, analyst estimates, and valuation inputs.
 
 ## 2026-06-10 Trusted Pilot Candidate UX Pass

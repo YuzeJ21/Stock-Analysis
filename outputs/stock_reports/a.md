@@ -242,8 +242,9 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
 ## Copyable Unlock Commands
-- Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
+- Copy-only: these are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
 - Inspect this ticker: `make stock-report-md TICKER=A`.
+- One-company proof packet: `make trusted-data-pilot-packet TICKER=A`.
 - Price source readiness: `make focus-price TICKER=A`.
 - DCF review: `make focus-fundamentals TICKER=A`.
 - Peer mapping: `make focus-peers TICKER=A`.

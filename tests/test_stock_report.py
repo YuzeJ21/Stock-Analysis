@@ -592,11 +592,12 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "## Copyable Unlock Commands" in markdown
     assert "## Copyable Unlock Commands" in markdown.split("## Source Readiness Check")[0]
     assert "Copy-only: these are local research commands to copy when you choose" in markdown
-    assert "the report does not execute imports, refreshes, broker actions, or trades" in markdown
+    assert "the report does not run imports or refreshes and does not connect to external accounts" in markdown
     assert "`make stock-report-md TICKER=MSFT`" in markdown
     assert "Report command: `make stock-report-md TICKER=MSFT`. Research-only Markdown output; copyable command only." in markdown
     assert "Report command: `make stock-report TICKER=MSFT`" not in markdown
     assert "`make trusted-data-pilot-packet TICKER=MSFT`" in markdown
+    assert markdown.count("`make trusted-data-pilot-packet TICKER=MSFT`") == 1
     assert "`make focus-fundamentals TICKER=MSFT`" in markdown
     assert "`make focus-peers TICKER=MSFT`" in markdown
     assert "`make optional-context-worklist TICKERS=MSFT TOP_N=10`" in markdown
@@ -1232,7 +1233,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "DCF rebuild proof: `make dcf-readiness && make readiness`" in markdown
     assert "`make peer-mapping-queue TICKERS=APLD TOP_N=10`" in markdown
     assert "`make optional-context-worklist TICKERS=APLD TOP_N=10`" in markdown
-    assert "the report does not execute imports, refreshes, broker actions, or trades" in markdown
+    assert "the report does not run imports or refreshes and does not connect to external accounts" in markdown
     assert "Wait on fundamentals / DCF interpretation until price coverage starts" in markdown
     assert "After `make focus-price TICKER=APLD` is resolved, run `make focus-fundamentals TICKER=APLD`" in markdown
     assert "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown

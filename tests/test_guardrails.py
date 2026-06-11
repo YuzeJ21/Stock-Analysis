@@ -107,7 +107,7 @@ def test_public_docs_explain_single_stock_reader_guide():
     expected_methodology_phrases = (
         "reader guide: answers what can be analyzed now",
         "at a glance first, reader guide second",
-        "the report does not execute imports, refreshes, broker actions, or trades",
+        "the report does not run imports or refreshes and does not connect to external accounts",
     )
     for phrase in expected_methodology_phrases:
         assert phrase in methodology_text

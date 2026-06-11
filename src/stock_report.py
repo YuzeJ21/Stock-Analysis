@@ -2067,11 +2067,16 @@ def _stock_report_unlock_command_lines(
     fundamentals_ready = bool(readiness.get("fundamentals_ready"))
     peer_is_ready = bool(peer_ready)
     optional_ready = bool(earnings_ready) and bool(estimates_ready)
+    needs_company_proof_packet = (
+        not monitor_context and (not fundamentals_ready or dcf_status_text != "ready" or not peer_is_ready)
+    )
 
     lines = [
-        "- Copy-only: these are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.",
+        "- Copy-only: these are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.",
         f"- Inspect this ticker: `make stock-report-md TICKER={ticker}`.",
     ]
+    if needs_company_proof_packet:
+        lines.append(f"- One-company proof packet: `make trusted-data-pilot-packet TICKER={ticker}`.")
     if not price_ready:
         lines.extend(
             [
@@ -2089,7 +2094,6 @@ def _stock_report_unlock_command_lines(
     elif not fundamentals_ready or dcf_status_text != "ready":
         lines.extend(
             [
-                f"- One-company proof packet: `make trusted-data-pilot-packet TICKER={ticker}`.",
                 f"- Fundamentals / DCF: `make focus-fundamentals TICKER={ticker}`.",
                 f"- SEC/manual import checklist: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
                 "- Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.",
@@ -2104,7 +2108,6 @@ def _stock_report_unlock_command_lines(
     elif not peer_is_ready:
         lines.extend(
             [
-                f"- One-company proof packet: `make trusted-data-pilot-packet TICKER={ticker}`.",
                 f"- Peer mapping: `make focus-peers TICKER={ticker}`.",
                 f"- Peer mapping checklist: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
                 "- Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.",

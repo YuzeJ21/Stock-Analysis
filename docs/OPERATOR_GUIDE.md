@@ -63,7 +63,7 @@ Read `At A Glance` first. It gives the mode, decision view, DCF state, peer cont
 
 Then read `Analysis Quality`, `Methodology`, and `Evaluation Function Check`. They explain which functions are ready, blocked, excluded, or optional. The At A Glance method cue and the `Methodology` section show the DCF formula path so the valuation workflow is not a black box.
 
-When a ticker is blocked or partial, use `Copyable Unlock Commands` next. Those are local research commands to copy when you choose; the report does not execute imports, refreshes, broker actions, or trades.
+When a ticker is blocked or partial, use `Copyable Unlock Commands` next. Those are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
 
 ## Analysis Modes
 

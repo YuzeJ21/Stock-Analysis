@@ -611,7 +611,7 @@ def test_sample_stock_reports_explain_methodology_and_use_current_research_bound
         assert "## Evaluation Function Check" in report
         assert "## Copyable Unlock Commands" in report
         assert "Copy-only: these are local research commands to copy when you choose" in report
-        assert "the report does not execute imports, refreshes, broker actions, or trades" in report
+        assert "the report does not run imports or refreshes and does not connect to external accounts" in report
         assert "## Copyable Unlock Commands" in report.split("## Source Readiness Check")[0]
         assert "readiness gate first, supported analysis second, valuation math third, explanation last" in report
         assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in report
@@ -726,7 +726,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "Best Review Path: tells the reader whether to review DCF and peers",
         "The report should be read top-down: At A Glance first, Reader Guide second, Best Review Path third",
         "copyable local unlock commands next",
-        "the report does not execute imports, refreshes, broker actions, or trades",
+        "the report does not run imports or refreshes and does not connect to external accounts",
         "At A Glance mode, method cue, and next local step",
         "Best Review Path for the safest reading order and proof step",
         "Price, momentum, liquidity, and market-context review",
@@ -886,7 +886,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "For local import files, use preview before apply",
         "Evaluation Function Check",
         "Copyable Unlock Commands",
-        "does not execute imports, refreshes, broker actions, or trades",
+        "does not run imports or refreshes and does not connect to external accounts",
         "ready, blocked, excluded, or optional",
         "Analysis Modes",
         "DCF-ready review",
