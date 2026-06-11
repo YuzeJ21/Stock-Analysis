@@ -103,7 +103,7 @@ def test_stock_report_one_minute_state_phrase_explains_partial_readiness():
 
     assert "optional earnings/estimate context is locked; core DCF and peer inputs are ready" in core_ready
     assert "monitor context is usable while company valuation is excluded" in monitor
-    assert "review ready inputs first and treat locked inputs as data unlock work" in data_unlock
+    assert "review ready inputs first and treat locked inputs as missing-data review work" in data_unlock
 
 
 def test_stock_report_humanized_terms_preserve_copyable_dcf_commands():
@@ -329,7 +329,7 @@ def test_stock_report_best_review_path_routes_ready_blocked_and_monitor_modes():
         estimates_ready=False,
     )
     blocked_rendered = " ".join(blocked_lines).lower()
-    assert "dcf input triage and data unlock summary" in blocked_rendered
+    assert "dcf input triage and missing-data proof summary" in blocked_rendered
     assert "company valuation stays blocked" in blocked_rendered
     assert "`make focus-fundamentals ticker=meta`" in blocked_rendered
 
@@ -493,8 +493,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Analyze now:" in markdown
     assert "- Still locked:" in markdown
     assert "- Trusted input: Source-backed peer mappings and peer valuation inputs." in markdown
-    assert "- Data Health lane: Peer Mapping Unlock. Suggested local check: `make focus-peers TICKER=MSFT`" in markdown
-    assert "Confirm with `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10` before treating the lane as unlocked" in markdown
+    assert "- Data Health lane: Peer Mapping Proof. Suggested local check: `make focus-peers TICKER=MSFT`" in markdown
+    assert "Confirm with `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10` before treating the lane as available" in markdown
     assert "- First read: Start with DCF Calculation Path and Valuation Boundary Checklist" in markdown
     assert "- Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check." in markdown
     assert "- Copy-only proof step: `make focus-peers TICKER=MSFT`" in markdown
@@ -541,10 +541,10 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Ready inputs:" in markdown
     assert "Supported now:" in markdown
     assert "Still locked or excluded:" in markdown
-    assert "## Next Layer To Unlock" in markdown
+    assert "## Next Layer To Prove" in markdown
     assert "Current supported layer: Standalone DCF review; assumptions and sensitivity can be read before peer-relative valuation." in markdown
     assert "Next trusted input: Source-backed peer mappings plus peer price, fundamentals, and valuation inputs." in markdown
-    assert "Proof command: `make focus-peers TICKER=MSFT` before treating the next layer as unlocked." in markdown
+    assert "Proof command: `make focus-peers TICKER=MSFT` before treating the next layer as available." in markdown
     assert "Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders." in markdown
     assert "Excluded features: Not available" not in markdown
     assert "Missing price reason: Not available" not in markdown
@@ -555,7 +555,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "## Methodology" in markdown
     assert "Method order: readiness gate first, supported analysis second, valuation math third, explanation last" in markdown
     assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in markdown
-    assert "Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality" in markdown
+    assert "Analysis recipe: prices support setup/trend review; fundamentals support field review and DCF input quality" in markdown
     assert "Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker" in markdown
     assert "Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step" in markdown
     assert "Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow" in markdown
@@ -599,15 +599,15 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "DCF missing fields: Not available" not in markdown
     assert "missing valuation inputs are not inferred" in markdown
     assert "Relative valuation: blocked until trusted peer mappings and peer valuation inputs are ready" in markdown
-    assert "## Data Unlock Summary" in markdown
-    assert "## Data Unlock Summary" in markdown.split("## Source Readiness Check")[0]
-    assert "Data Health lane: Peer Mapping Unlock" in markdown
-    assert "Price unlock:" in markdown
-    assert "Fundamentals / DCF unlock:" in markdown
-    assert "Peer unlock:" in markdown
-    assert "Optional context unlock:" in markdown
-    assert "## Copyable Unlock Commands" in markdown
-    assert "## Copyable Unlock Commands" in markdown.split("## Source Readiness Check")[0]
+    assert "## Missing-Data Proof Summary" in markdown
+    assert "## Missing-Data Proof Summary" in markdown.split("## Source Readiness Check")[0]
+    assert "Data Health lane: Peer Mapping Proof" in markdown
+    assert "Price proof path:" in markdown
+    assert "Fundamentals / DCF proof path:" in markdown
+    assert "Peer proof path:" in markdown
+    assert "Optional context proof path:" in markdown
+    assert "## Copyable Proof Commands" in markdown
+    assert "## Copyable Proof Commands" in markdown.split("## Source Readiness Check")[0]
     assert "Copy-only: these are local research commands to copy when you choose" in markdown
     assert "the report does not run imports or refreshes and does not connect to external accounts" in markdown
     assert "`make stock-report-md TICKER=MSFT`" in markdown
@@ -812,10 +812,10 @@ def test_build_stock_report_surfaces_missing_data_risks(tmp_path: Path):
     assert "Inspect `make focus-fundamentals TICKER=TSLA`" in markdown
     assert "`make sec-stage TICKERS=TSLA`" in markdown
     assert "trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`" in markdown
-    assert "## Next Layer To Unlock" in markdown
+    assert "## Next Layer To Prove" in markdown
     assert "Current supported layer: Price/setup review only; company valuation stays locked until fundamentals and DCF inputs pass readiness." in markdown
     assert "Next trusted input: Trusted fundamentals, free-cash-flow or margin inputs, share count, and DCF fields." in markdown
-    assert "Proof command: `make focus-fundamentals TICKER=TSLA` before treating the next layer as unlocked." in markdown
+    assert "Proof command: `make focus-fundamentals TICKER=TSLA` before treating the next layer as available." in markdown
 
 
 def test_stock_report_json_export_is_serializable_and_contains_freshness_metadata(tmp_path: Path):
@@ -953,14 +953,14 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "- Still locked: Blocked features: none. Excluded features: DCF." in markdown
     assert "- Trusted input: No company DCF input is required for monitor context." in markdown
     assert "- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=QQQ`" in markdown
-    assert "## Next Layer To Unlock" in markdown
+    assert "## Next Layer To Prove" in markdown
     assert "## Proof Checklist" in markdown
     assert "Current mode proof: `Monitor-only context` because asset-type gate marks this as monitor context" in markdown
-    assert "Next unlock proof: `make stock-report-md TICKER=QQQ` after any local data changes" in markdown
+    assert "Next proof step: `make stock-report-md TICKER=QQQ` after any local data changes" in markdown
     assert "Withhold until proven: Blocked features: none. Excluded features: DCF" in markdown
     assert "Current supported layer: Monitor-only context; market, theme, liquidity, or risk review can be read when local inputs are ready." in markdown
     assert "Next trusted input: No operating-company DCF or peer-valuation input is required for this monitor role." in markdown
-    assert "Proof command: `make stock-report-md TICKER=QQQ` before treating the next layer as unlocked." in markdown
+    assert "Proof command: `make stock-report-md TICKER=QQQ` before treating the next layer as available." in markdown
     assert "Bottom line: QQQ is in `Monitor-only context` mode" in markdown
     assert "`Monitor-only context` (current)" in markdown
     assert "Decision: Monitor - ETF Market Proxy" in markdown
@@ -1110,7 +1110,7 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     assert "Which source-backed peers should be added for COHR" in markdown
     assert "## Proof Checklist" in markdown
     assert "Current mode proof: `Standalone DCF review` because standalone DCF passed local readiness" in markdown
-    assert "Next unlock proof: `make focus-peers TICKER=COHR` with source-backed peer mappings and peer inputs" in markdown
+    assert "Next proof step: `make focus-peers TICKER=COHR` with source-backed peer mappings and peer inputs" in markdown
     assert "What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by peer valuation blocked" in markdown
     assert "peer trend comparison can be reviewed from mapped peer price history" in markdown
     assert "but peer-relative valuation, premium/discount, and peer DCF comparison stay withheld" in markdown
@@ -1199,7 +1199,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- DCF: Blocked until trusted fundamentals and DCF inputs are ready." in markdown
     assert "- Valuation support: Blocked until trusted price, fundamentals, cash-flow or margin, and share-count inputs are ready." in markdown
     assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
-    assert "- Boundary: Data unlock state: price blocks evaluation, so conclusions stay withheld." in markdown
+    assert "- Boundary: Missing-data proof state: price blocks evaluation, so conclusions stay withheld." in markdown
     assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
     assert "- Method: project readiness gates decide what can appear" in markdown
     assert "discounted terminal value, cash/debt adjustment, and fair value per share when ready" in markdown
@@ -1208,14 +1208,14 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Still locked: Blocked features: price, momentum, DCF." in markdown
     assert "- Trusted input: Trusted local price history." in markdown
     assert "- Data Health lane: Price Coverage Batch. Suggested local check: `make focus-price TICKER=APLD`" in markdown
-    assert "Confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as unlocked" in markdown
+    assert "Confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as available" in markdown
     assert "- Supported evaluation: Use available price or setup context only." in markdown
     assert "- Valuation boundary: Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness." in markdown
-    assert "- Confidence cue: low: price history is still the first required unlock." in markdown
+    assert "- Confidence cue: low: price history is still the first required input." in markdown
     assert "- Stop rule: Blocked features: price, momentum, DCF." in markdown
     assert "## Proof Checklist" in markdown
     assert "Current mode proof: `Data needed before analysis` because trusted local price history is not ready" in markdown
-    assert "Next unlock proof: `make focus-price TICKER=APLD` followed by readiness rebuild" in markdown
+    assert "Next proof step: `make focus-price TICKER=APLD` followed by readiness rebuild" in markdown
     assert "Withhold until proven: Blocked features: price, momentum, DCF" in markdown
     assert "Data needed before analysis until trusted price, fundamentals, DCF, and peer inputs are ready" in markdown
     assert "Read top-down: readiness state first" in markdown
@@ -1223,10 +1223,10 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Bottom line: APLD is in `Data needed before analysis` mode" in markdown
     assert "Ready inputs: none yet." in markdown
     assert "Next step: Add or refresh trusted local price history for APLD" in markdown
-    assert "## Next Layer To Unlock" in markdown
+    assert "## Next Layer To Prove" in markdown
     assert "Current supported layer: Data needed before analysis; conclusions stay withheld until trusted local price history exists." in markdown
     assert "Next trusted input: Trusted local price history." in markdown
-    assert "Proof command: `make focus-price TICKER=APLD` before treating the next layer as unlocked." in markdown
+    assert "Proof command: `make focus-price TICKER=APLD` before treating the next layer as available." in markdown
     assert "`Data needed before analysis` (current)" in markdown
     assert (
         "`Data needed before analysis` (current): Pause analysis for this ticker until the first trusted local input is available."
@@ -1242,7 +1242,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "## Methodology" in markdown
     assert "## Evaluation Function Check" in markdown
     assert "Analysis mode: Data needed before analysis" in markdown
-    assert "Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality" in markdown
+    assert "Analysis recipe: prices support setup/trend review; fundamentals support field review and DCF input quality" in markdown
     assert "Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker" in markdown
     assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in markdown
     assert "standalone DCF stays blocked until trusted local price, revenue, free cash flow or FCF margin" in markdown
@@ -1297,11 +1297,11 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "analytical blindness" in markdown
     assert "Unlock priority: price is the first blocker" in markdown
     assert "primary blocker is price" in markdown
-    assert "## Data Unlock Summary" in markdown
+    assert "## Missing-Data Proof Summary" in markdown
     assert "Data Health lane: Price Coverage Batch" in markdown
-    assert "Price history is the first unlock" in markdown
+    assert "Price history is the first required input" in markdown
     assert "make focus-price TICKER=APLD" in markdown
-    assert "## Copyable Unlock Commands" in markdown
+    assert "## Copyable Proof Commands" in markdown
     assert "`make price-worklist TICKERS=APLD TOP_N=10`" in markdown
     assert "`make price-validate && make price-preview && make price-apply`" in markdown
     assert "Price rebuild proof: `make price-coverage TOP_N=25 && make readiness`" in markdown

@@ -63,7 +63,7 @@ Read the visitor scan cue first, then `At A Glance`. Those lines give the mode, 
 
 Then read `Analysis Quality`, `Methodology`, and `Evaluation Function Check`. They explain which functions are ready, blocked, excluded, or optional. The At A Glance method cue and the `Methodology` section show the DCF formula path so the valuation workflow is not a black box.
 
-When a ticker is blocked or partial, use `Copyable Unlock Commands` next. Those are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
+When a ticker is blocked or partial, use `Copyable Proof Commands` next. Those are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
 
 ## Analysis Modes
 
@@ -77,7 +77,7 @@ The dashboard and single-stock report use plain modes before showing detailed ta
 
 ## Data Unlock Workflows
 
-Use targeted unlock commands instead of broad refreshes by default:
+Use targeted proof commands instead of broad refreshes by default:
 
 ```bash
 make price-worklist TOP_N=10

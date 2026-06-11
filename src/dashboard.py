@@ -159,7 +159,7 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
     if selected_page == "Data Health":
         return (
             "Improve data coverage.",
-            "Use this page to see which trusted inputs are missing and which unlock path needs proof next.",
+            "Use this page to see which trusted inputs are missing and which proof path should be checked next.",
         )
     if selected_page == "Monthly Picks":
         return (
@@ -210,7 +210,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "locked": "Any module without trusted local rows stays locked; broad universe coverage is not the same as analysis readiness.",
             "read": "Read readiness cards first, then What Changed Recently, then the next-step cards. Treat big universe counts as coverage, not proof that every ticker is analysis-ready.",
             "proof": "After any refresh or import, run make readiness and reopen Home before interpreting changed counts.",
-            "review_route": "Start on Home for readiness, open Value / Re-rating for valuation boundaries, use Single-Stock Report for ticker proof, then use Data Health for unlock steps.",
+            "review_route": "Start on Home for readiness, open Value / Re-rating for valuation boundaries, use Single-Stock Report for ticker proof, then use Data Health for missing-input steps.",
             "review_area": "Home next-step cards",
             "command": "make status-check TOP_N=5",
         },
@@ -218,8 +218,8 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "analyze": "One ticker's ready inputs, valuation boundary, peer boundary, optional-context gaps, and source readiness notes.",
             "locked": "Company valuation, peer comparison, earnings, and estimate sections stay withheld when trusted inputs are missing or excluded.",
             "read": "Read At A Glance, then Quick Read, then the source readiness check. Locked sections are boundaries, not hidden conclusions.",
-            "proof": "After an unlock, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
-            "review_route": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact unlock path if anything is still locked.",
+            "proof": "After trusted rows change, rerun the relevant readiness command, then regenerate the Markdown report before reading newly available sections.",
+            "review_route": "Use Single-Stock Report after Home or Value / Re-rating to prove one ticker, then go to Data Health for the exact missing-input path if anything is still locked.",
             "review_area": "Single-Stock Review",
             "command": "make stock-report-md TICKER=NVDA",
         },
@@ -228,17 +228,17 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "locked": "Blocked company rows need trusted fundamentals or valuation fields; ETF/index/fund rows are monitor context, not failed valuation.",
             "read": "Read the ready, locked, and excluded split before looking at rankings. Complete valuation inputs mean assumption review, not a price target.",
             "proof": "After fundamentals change, refresh valuation readiness before reading valuation output.",
-            "review_route": "Use Value / Re-rating to classify ready, locked, or excluded valuation states, then open Single-Stock Report for proof and Data Health for unlock steps.",
-            "review_area": "Fundamentals / DCF Unlock",
+            "review_route": "Use Value / Re-rating to classify ready, locked, or excluded valuation states, then open Single-Stock Report for proof and Data Health for missing-input steps.",
+            "review_area": "Fundamentals / DCF Proof",
             "command": "make dcf-readiness",
         },
         "Data Health": {
             "analyze": "Which trusted inputs are ready across prices, fundamentals, company valuation, peers, earnings, and analyst estimates.",
-            "locked": "Missing inputs are an unlock list, not weak conclusions; imports should validate, preview, and apply before trust.",
-            "read": "Start with the unlock path cards, then inspect row-limited queues. Use validation and preview commands before trusting newly imported rows.",
-            "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a path as unlocked.",
+            "locked": "Missing inputs are a proof checklist, not weak conclusions; imports should validate, preview, and apply before trust.",
+            "read": "Start with the proof-path cards, then inspect row-limited candidate lists. Use validation and preview commands before trusting newly imported rows.",
+            "proof": "After validate/preview/apply, run the matching readiness command and reopen Data Health before treating a path as available.",
             "review_route": "Use Data Health when Home, Value / Re-rating, or Single-Stock Report shows a lock; return to those pages only after readiness proof passes.",
-            "review_area": "Data Health unlock paths",
+            "review_area": "Data Health proof paths",
             "command": "make data-wizard TOP_N=10",
         },
     }
@@ -249,7 +249,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "locked": "Rows missing trusted inputs remain visible as blocked or partial rather than inferred.",
             "read": "Read summary cards first, then the table. Use the command card only when you intentionally want to rebuild saved research views.",
             "proof": "After local data changes, rerun readiness before interpreting changed research views.",
-            "review_route": "Use Home for the current state, Single-Stock Report for ticker proof, and Data Health for locked-input unlock steps.",
+            "review_route": "Use Home for the current state, Single-Stock Report for ticker proof, and Data Health for locked-input proof steps.",
             "review_area": "Current page summary",
             "command": "make status-check TOP_N=5",
         },
@@ -276,7 +276,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
                 "Next step: use the command only when you are ready to run it yourself. "
                 "The dashboard does not run refreshes, imports, or external account actions. "
                 f"Review area: {guide['review_area']}. "
-                f"Proof after unlock: {guide['proof']}"
+                f"Proof after data changes: {guide['proof']}"
             ),
             "badges": ["copy-only", "research-only"],
             "command": guide["command"],
@@ -4652,7 +4652,7 @@ def stock_report_at_a_glance_cards(
         {
             "kicker": "NEXT LOCAL STEP",
             "title": next_title,
-            "body": "Copy the command if you want to inspect or unlock the next local input; the dashboard does not run it.",
+            "body": "Copy the command if you want to inspect or prove the next local input; the dashboard does not run it.",
             "badges": ["copy-only", "local"],
             "command": next_command,
         },
@@ -4680,7 +4680,7 @@ def stock_report_best_review_path_cards(
     if not price_ready:
         first_title = "Start with price coverage"
         first_body = (
-            "Use Data Unlock Summary and the price coverage lane first. Setup, valuation, and peer context stay unavailable "
+            "Use Missing-Data Proof Summary and the price coverage lane first. Setup, valuation, and peer context stay unavailable "
             "until trusted local price history is ready."
         )
         first_command = ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker}")
@@ -4712,7 +4712,7 @@ def stock_report_best_review_path_cards(
     else:
         first_title = "Unlock fundamentals before valuation"
         first_body = (
-            "Start with DCF Input Triage and Data Unlock Summary. Company valuation stays blocked until trusted fundamentals "
+            "Start with DCF Input Triage and Missing-Data Proof Summary. Company valuation stays blocked until trusted fundamentals "
             "and DCF inputs are ready."
         )
         first_command = ticker_focus_command("fundamentals", ticker, fallback=f"make sec-stage TICKERS={ticker}")
@@ -4744,7 +4744,7 @@ def stock_report_best_review_path_cards(
         {
             "kicker": "PROOF STEP",
             "title": next_title,
-            "body": f"{optional_body} Copy the next command only when you want to inspect or unlock that local lane.",
+            "body": f"{optional_body} Copy the next command only when you want to inspect or prove that local lane.",
             "badges": ["copy-only", "research-only"],
             "command": next_command,
         },
@@ -5985,7 +5985,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_badges = ["optional context", "trusted rows only"]
     else:
         first_title = "Review single-stock reports"
-        first_body = "Core unlock paths look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and source readiness."
+        first_body = "Core proof paths look ready from current counts. Use ticker-level reports to inspect assumptions, blockers, and source readiness."
         first_command = "make stock-report-md TICKER=NVDA"
         first_badges = ["single-stock review", "source readiness"]
 
@@ -6513,7 +6513,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                     f"{card_sentence('Missing input', missing_input)} "
                     f"{card_sentence('Decision', operator_decision)} "
                     f"Check first: {review_path}; then run {lane_command}. "
-                    f"{card_sentence('Proof after unlock', proof)}"
+                    f"{card_sentence('Proof after data changes', proof)}"
                 ),
                 "badges": [scope, "read-only"],
                 "command": command,
@@ -9414,7 +9414,7 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
             "title": "Prove the fundamentals unlock before DCF",
             "body": (
                 "Inspect the next ticker, stage only trusted SEC or manual fundamentals rows, then validate and preview before apply. "
-                "Rebuild DCF readiness and overall readiness before treating fundamentals or DCF as unlocked."
+                "Rebuild DCF readiness and overall readiness before treating fundamentals or DCF as available."
             ),
             "badges": ["copy-only", "proof before analysis"],
             "command": command,
@@ -9672,7 +9672,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
             "Step": "4. Validate before applying",
             "Why It Matters": (
                 "Readiness counts should improve only after trusted rows pass validation, preview, and apply. "
-                "Rejected rows must be reviewed before treating fundamentals or DCF as unlocked."
+                "Rejected rows must be reviewed before treating fundamentals or DCF as available."
             ),
             "Copy Command": "make imports-validate && make imports-preview && make imports-apply",
             "Trusted Input": "Rejected rows: data/rejected/fundamentals_import_rejected.csv",
@@ -10268,13 +10268,13 @@ def decision_next_action_proof(row: pd.Series) -> str:
     if asset_type in {"etf", "index_proxy", "fund"}:
         return f"Proof after review: run `{report_command}` and confirm operating-company DCF is excluded, not failed."
     if blocker == "price":
-        return f"Proof after unlock: run `make price-coverage TOP_N=25`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make price-coverage TOP_N=25`, `make readiness`, then `{report_command}`."
     if blocker in {"fundamentals", "dcf"}:
-        return f"Proof after unlock: run `make dcf-readiness`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make dcf-readiness`, `make readiness`, then `{report_command}`."
     if blocker in {"peer", "peers"}:
-        return f"Proof after unlock: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `{report_command}`."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
-        return f"Proof after unlock: run `make optional-context-readiness`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make optional-context-readiness`, `make readiness`, then `{report_command}`."
     return f"Proof before interpretation: run `make readiness`, then `{report_command}`."
 
 
@@ -10445,7 +10445,7 @@ def decision_workflow_summary_cards(
                 "title": f"{len(research_now_optional_locked)} research row(s)",
                 "body": (
                     f"Optional Context Locked row(s): {ticker_text}. Research Now rows have supported core or DCF context, but earnings or analyst-estimate context remains unavailable "
-                    "until trusted local CSV rows exist. Proof after unlock: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report."
+                    "until trusted local CSV rows exist. Proof after data changes: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report."
                 ),
                 "badges": ["core research ok", "optional locked"],
                 "command": "make optional-context-worklist TOP_N=25",
@@ -11902,8 +11902,8 @@ def product_page_logic_audit_frame(
         {
             "check": "Purpose drilldown actionability",
             "status": "pass" if purpose_drilldown_mismatches == 0 else "review",
-            "evidence": f"{purpose_drilldown_mismatches} of {purpose_peer_rows} peer-limited company drilldown row(s) lack exact review and peer-unlock commands.",
-            "operator_action": "Purpose drilldown peer-limited company rows should show both stock-report-md review and focus-peers unlock commands.",
+            "evidence": f"{purpose_drilldown_mismatches} of {purpose_peer_rows} peer-limited company drilldown row(s) lack exact review and peer-proof commands.",
+            "operator_action": "Purpose drilldown peer-limited company rows should show both stock-report-md review and focus-peers proof commands.",
             "source": "dashboard purpose evaluation drilldown",
         }
     )
@@ -14879,7 +14879,7 @@ def sidebar_quick_help_lines() -> list[str]:
         "Start with Home for the coverage snapshot.",
         "Review one stock when you want a ticker-level report.",
         "Explore ready names only after local coverage is sufficient.",
-        "Improve data coverage when you want unlock commands.",
+        "Improve data coverage when you want proof commands.",
         "Commands are copy-only; the dashboard never runs refreshes or imports.",
     ]
 
@@ -15683,7 +15683,7 @@ def theme_unlock_cards(
                 f"Staged price import is waiting in {target_file}; run make price-validate, then make price-preview, then make price-apply before trusting grouped local price coverage."
             )
         else:
-            fallback_action = command_family_fallback(command, 'Review grouped unlock path.')
+            fallback_action = command_family_fallback(command, 'Review grouped proof path.')
         next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
         if staged_price_import and (
             "make price-validate" not in next_action_summary
@@ -17368,7 +17368,7 @@ def overview_ready_name_handoff_cards(
         command_text = format_missing(best_name.get("command"), "make monthly")
         badges = [str(item) for item in best_name.get("badges", [])][:2] or ["candidate view", "research only"]
         body = (
-            "Open Monthly Picks for the selected locally usable name. Broader data-unlock commands stay in the blocker queues."
+            "Open Monthly Picks for the selected locally usable name. Broader proof commands stay in the blocker lists."
         )
     elif surface == "No current ready names yet":
         command_text = "make onboarding"
@@ -20020,7 +20020,7 @@ def render_home_page(
 
     if show_details:
         with st.expander("Optional: coverage details", expanded=False):
-            render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe unlock path comes first.")
+            render_section_header("Current Data Coverage", "A quick public snapshot of what is ready, what is locked, and which safe proof path comes first.")
             render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)
 
         with st.expander("Optional: how evaluation works", expanded=False):
@@ -20798,7 +20798,7 @@ def render_market_command_center(
         with st.expander("Active queue detail: grouped review steps", expanded=False):
             render_signal_cards(active_evaluation_lane_detail_cards(active_queue_detail))
             st.caption(
-                "Grouped review guide. Review commands and unlock commands are copy-only; validation/preview/apply remain manual review steps."
+                "Grouped review guide. Review commands and proof commands are copy-only; validation/preview/apply remain manual review steps."
             )
             st.dataframe(clean_display_frame(active_queue_detail), width="stretch", hide_index=True)
     render_section_header(
@@ -20813,7 +20813,7 @@ def render_market_command_center(
         st.dataframe(clean_display_frame(purpose_evaluation_summary_frame.head(25)), width="stretch", hide_index=True)
     render_section_header(
         "Purpose Evaluation Drilldown",
-        "Ticker-level purpose, supported analysis, blocked analysis, source readiness, and exact copy-only unlock commands.",
+        "Ticker-level purpose, supported analysis, blocked analysis, source readiness, and exact copy-only proof commands.",
     )
     drilldown_filter_cols = st.columns([1.3, 1.3, 1.3, 1, 1])
     purpose_family_options = ["All"]
@@ -21228,7 +21228,7 @@ def render_market_command_center(
 def render_data_health(provider, project_status_payload: dict[str, Any] | None = None, show_details: bool = False) -> None:
     render_section_header(
         "Data Health",
-        "See what trusted local inputs are ready, what analysis is still locked, and which unlock path needs proof next.",
+        "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next.",
     )
     if provider is None:
         st.warning("Local provider could not be initialized.")
@@ -21295,9 +21295,9 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_context_note(
         "Beginner view.",
-        "Read these next four sections first: quick read, fix first, copy-only next steps, and trusted-data pilot. They show the safest unlock path without opening the broader tables.",
+        "Read these next four sections first: quick read, fix first, copy-only next steps, and trusted-data pilot. They show the safest proof path without opening the broader tables.",
     )
-    render_section_header("Data Health Quick Read", "Which unlock path should you inspect first, before opening detailed sections.")
+    render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
     render_section_header("Fix First", "The shortest safe local path before deeper unlock lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))

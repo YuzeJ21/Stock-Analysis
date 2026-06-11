@@ -137,7 +137,7 @@ def test_dcf_readiness_cli_prints_plain_english_unlock_path(
     assert "top missing dcf fields:" in output
     assert "- free_cash_flow: 1 ticker(s)" in output
     assert "- price: 1 ticker(s)" in output
-    assert "next dcf unlock path:" in output
+    assert "next dcf proof path:" in output
     assert "make focus-fundamentals ticker=amd" in output
     assert "make sec-stage tickers=amd" in output
     assert "data/imports/fundamentals.csv" in output

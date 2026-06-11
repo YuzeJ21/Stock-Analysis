@@ -17,7 +17,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Analyze now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Still locked: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: No company DCF input is required for monitor context.
-- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=SMH`. Confirm with `make readiness` before treating the lane as unlocked.
+- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=SMH`. Confirm with `make readiness` before treating the lane as available.
 - Next research step: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
 ## Evaluation Snapshot
@@ -29,7 +29,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 
 ## Proof Checklist
 - Current mode proof: `Monitor-only context` because asset-type gate marks this as monitor context, so company DCF and peer valuation are excluded.
-- Next unlock proof: `make stock-report-md TICKER=SMH` after any local data changes.
+- Next proof step: `make stock-report-md TICKER=SMH` after any local data changes.
 - Withhold until proven: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Manual check: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
@@ -66,10 +66,10 @@ SMH overall readiness: partial because monitor context is usable while company v
 - Supported now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Still locked or excluded: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
-## Next Layer To Unlock
+## Next Layer To Prove
 - Current supported layer: Monitor-only context; market, theme, liquidity, or risk review can be read when local inputs are ready.
 - Next trusted input: No operating-company DCF or peer-valuation input is required for this monitor role.
-- Proof command: `make stock-report-md TICKER=SMH` before treating the next layer as unlocked.
+- Proof command: `make stock-report-md TICKER=SMH` before treating the next layer as available.
 - Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.
 
 ## Data And App Method
@@ -89,7 +89,7 @@ SMH overall readiness: partial because monitor context is usable while company v
 ## Methodology
 - Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
-- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
+- Analysis recipe: prices support setup/trend review; fundamentals support field review and DCF input quality; DCF supports scenario math; source-backed peers support peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
 - Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step.
 - Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
@@ -232,15 +232,15 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields stay locked until trusted rows are imported.
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
-## Data Unlock Summary
-- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=SMH`. Confirm with `make readiness` before treating the lane as unlocked.
-- Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
-- Fundamentals / DCF unlock: Operating-company DCF is excluded for this ETF/index/fund monitor context; no fundamentals import is required for company valuation.
-- Peer unlock: Peer valuation is excluded for monitor context; peer rows are optional context, not a required unlock.
-- Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+## Missing-Data Proof Summary
+- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=SMH`. Confirm with `make readiness` before treating the lane as available.
+- Price proof path: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
+- Fundamentals / DCF proof path: Operating-company DCF is excluded for this ETF/index/fund monitor context; no fundamentals import is required for company valuation.
+- Peer proof path: Peer valuation is excluded for monitor context; peer rows are optional context, not a required company-valuation input.
+- Optional context proof path: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
-## Copyable Unlock Commands
+## Copyable Proof Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
 - Inspect this ticker: `make stock-report-md TICKER=SMH`.
 - Price source readiness: `make focus-price TICKER=SMH`.

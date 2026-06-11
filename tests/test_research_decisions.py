@@ -22,7 +22,7 @@ def test_research_decisions_block_missing_price_instead_of_weak_recommendation()
 
     assert row["decision_bucket"] == "Blocked by Data"
     assert row["decision_subtype"] == "Blocked by Data - Missing Price"
-    assert "Data unlock state" in row["decision_boundary"]
+    assert "Missing-data proof state" in row["decision_boundary"]
     assert "valuation conclusions and thesis-level interpretation stay withheld" in row["decision_boundary"]
     assert row["primary_blocker"] == "price"
     assert "Missing usable price data" in row["main_reason"]

@@ -101,7 +101,7 @@ Run the lane-specific review command printed by the packet:
   fundamentals lane: make focus-fundamentals TICKER=<ticker>
   peer lane: make focus-peers TICKER=<ticker>
 make imports-validate && make imports-preview && make imports-apply
-Check the rejected-row report printed by the packet before treating the lane as unlocked.
+Check the rejected-row report printed by the packet before treating the lane as available.
 Run the matching rebuild proof:
   fundamentals lane: make readiness && make dcf-readiness
   peer lane: make readiness && make peer-mapping-queue TOP_N=25

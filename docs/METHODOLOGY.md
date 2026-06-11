@@ -232,10 +232,10 @@ Single-stock reports are assembled from the same gates and calculations:
 - Which calculations ran and which assumptions were used.
 - Which sections are blocked or excluded.
 - What local input would unlock the next useful research step.
-- Copyable Unlock Commands for local, capped, research-only follow-up workflows.
+- Copyable Proof Commands for local, capped, research-only follow-up workflows.
 - Which sources were used and how fresh they are.
 
-The report should be read top-down: visitor scan cue first, At A Glance second, Reader Guide third, Evaluation Snapshot fourth, Proof Checklist fifth, Best Review Path sixth, supported analysis next, blocked or excluded analysis next, copyable local unlock commands next, then source readiness and valuation detail. The commands are displayed for the reader to copy manually; the report does not run imports or refreshes and does not connect to external accounts.
+The report should be read top-down: visitor scan cue first, At A Glance second, Reader Guide third, Evaluation Snapshot fourth, Proof Checklist fifth, Best Review Path sixth, supported analysis next, blocked or excluded analysis next, copyable local proof commands next, then source readiness and valuation detail. The commands are displayed for the reader to copy manually; the report does not run imports or refreshes and does not connect to external accounts.
 
 When a company ticker has the full trusted local input stack, the single-stock report can show:
 
@@ -251,7 +251,7 @@ When a company ticker has the full trusted local input stack, the single-stock r
 - Copyable local commands for optional context, peer review, or source-readiness checks when more trusted data is needed.
 - Source-readiness notes and the next research question.
 
-When any part of that stack is missing, only the supported sections appear. The report keeps the blocked section visible and explains the exact local input needed next, plus the local command path for inspecting or unlocking that input.
+When any part of that stack is missing, only the supported sections appear. The report keeps the blocked section visible and explains the exact local input needed next, plus the local command path for inspecting or proving that input.
 
 ## 11. Data Unlock Ladder
 
@@ -275,7 +275,7 @@ The safe local sequence is:
 3. Run validation and preview before apply: `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
 4. Regenerate readiness, then read the report again before interpreting the newly unlocked section.
 
-This ladder is why empty or partial outputs are useful: they show the first trustworthy unlock instead of hiding the gap behind a weak conclusion.
+This ladder is why empty or partial outputs are useful: they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion.
 
 ## 12. Methodology Limits
 

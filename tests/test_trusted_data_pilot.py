@@ -391,7 +391,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
 
     assert "Read-only: this command ranks current local blockers" in rendered
     assert "does not refresh, import, edit CSVs, or change readiness outputs" in rendered
-    assert "Pilot lanes are plain-English unlock paths" in rendered
+    assert "Pilot lanes are plain-English proof paths" in rendered
     assert "How to choose the pilot:" in rendered
     assert "Pilot selection rule: choose 5-10 operating companies only when you can review source proof" in rendered
     assert "Suggested pilot command after choosing active/demo names: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered

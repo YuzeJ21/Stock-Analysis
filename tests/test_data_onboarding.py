@@ -833,7 +833,7 @@ def test_data_onboarding_cli_optional_context_worklist_text_surfaces_unlock_summ
     assert "project: current repository root" in output
     assert "data: data" in output
     assert "outputs: outputs" in output
-    assert "unlock path: make templates -> make import-earnings or make import-analyst-estimates" in output
+    assert "proof path: make templates -> make import-earnings or make import-analyst-estimates" in output
     assert "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness" in output
     assert "data/staged/earnings/" in output
     assert "data/staged/analyst_estimates/" in output
@@ -989,7 +989,7 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
     assert "mapped row(s) still waiting on peer valuation inputs" in output
     assert "peer trend can be reviewed from mapped peer price history when ready" in output
     assert "peer valuation needs source-backed mappings plus trusted peer fundamentals or market metrics" in output
-    assert "unlock path: use make focus-peers ticker=..." in output
+    assert "proof path: use make focus-peers ticker=..." in output
     assert "group=" in output
     assert "scope=" in output
     assert "validation:" in output

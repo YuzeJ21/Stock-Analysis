@@ -174,7 +174,7 @@ demo:
 	@echo "   make staged-hygiene-check # after staging, before commit"
 	@echo ""
 	@echo "This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/."
-	@echo "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, then the trusted-data pilot as the honest unlock path."
+	@echo "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, then the trusted-data pilot as the honest proof path."
 
 trusted-data-pilot:
 	@echo "Trusted Data Pilot"
@@ -203,7 +203,7 @@ trusted-data-pilot:
 	@echo "      fundamentals lane: make focus-fundamentals TICKER=<ticker>"
 	@echo "      peer lane: make focus-peers TICKER=<ticker>"
 	@echo "   make imports-validate && make imports-preview && make imports-apply"
-	@echo "   Check the rejected-row report printed by the packet before treating the lane as unlocked."
+	@echo "   Check the rejected-row report printed by the packet before treating the lane as available."
 	@echo "   Run the matching rebuild proof:"
 	@echo "      fundamentals lane: make readiness && make dcf-readiness"
 	@echo "      peer lane: make readiness && make peer-mapping-queue TOP_N=25"

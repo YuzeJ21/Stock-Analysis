@@ -309,14 +309,14 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "workflow path:" not in rendered
     assert "review area: home next-step cards" in rendered
     assert "review area: single-stock review" in rendered
-    assert "review area: fundamentals / dcf unlock" in rendered
-    assert "review area: data health unlock paths" in rendered
+    assert "review area: fundamentals / dcf proof" in rendered
+    assert "review area: data health proof paths" in rendered
     assert "how should i read this page?" in rendered
     assert "read readiness cards first" in rendered
     assert "locked sections are boundaries, not hidden conclusions" in rendered
     assert "complete valuation inputs mean assumption review, not a price target" in rendered
     assert "use validation and preview commands before trusting newly imported rows" in rendered
-    assert "start on home for readiness, open value / re-rating for valuation boundaries, use single-stock report for ticker proof, then use data health for unlock steps" in rendered
+    assert "start on home for readiness, open value / re-rating for valuation boundaries, use single-stock report for ticker proof, then use data health for missing-input steps" in rendered
     assert "use value / re-rating to classify ready, locked, or excluded valuation states" in rendered
     assert "use single-stock report after home or value / re-rating to prove one ticker" in rendered
     assert "use data health when home, value / re-rating, or single-stock report shows a lock" in rendered
@@ -325,14 +325,14 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "unsupported dcf" not in rendered
     assert "company rows with complete valuation inputs can support assumption, scenario, sensitivity, and source-readiness review" in rendered
     assert "source-freshness review" not in rendered
-    assert "missing inputs are an unlock list, not weak conclusions" in rendered
+    assert "missing inputs are a proof checklist, not weak conclusions" in rendered
     assert "dashboard does not run refreshes, imports, or external account actions" in rendered
-    assert "proof after unlock:" in rendered
+    assert "proof after data changes:" in rendered
     assert "run make readiness and reopen home before interpreting changed counts" in rendered
     assert "regenerate the markdown report before reading newly available sections" in rendered
     assert "refresh valuation readiness before reading valuation output" in rendered
     assert "run make dcf-readiness" not in rendered
-    assert "run the matching readiness command and reopen data health before treating a path as unlocked" in rendered
+    assert "run the matching readiness command and reopen data health before treating a path as available" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make dcf-readiness" in rendered
     assert "make data-wizard top_n=10" in rendered
@@ -403,7 +403,7 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert "DCF-ready review" not in value_body
     assert health_title == "Improve data coverage."
     assert "trusted inputs are missing" in health_body
-    assert "unlock path needs proof" in health_body
+    assert "proof path should be checked" in health_body
     assert monthly_title == "Explore ready names."
     assert "data-gated candidate list" in monthly_body
     assert "refused to force weak or unsupported names" in monthly_body
@@ -577,9 +577,9 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Start with Home for the coverage snapshot." in source
     assert "Review one stock when you want a ticker-level report." in source
     assert "Explore ready names only after local coverage is sufficient." in source
-    assert "Improve data coverage when you want unlock commands." in source
+    assert "Improve data coverage when you want proof commands." in source
     assert "Open Single-Stock Report to review one ticker." not in source
-    assert "Open Data Health only when you want unlock commands." not in source
+    assert "Open Data Health only when you want proof commands." not in source
     assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard"' in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
@@ -621,7 +621,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "diagnostics" not in source.lower()
     assert 'st.expander("Active queue detail: grouped review steps", expanded=False)' in source
     assert 'st.expander("Active queue detail: grouped guided steps", expanded=False)' not in source
-    assert "Grouped review guide. Review commands and unlock commands are copy-only" in source
+    assert "Grouped review guide. Review commands and proof commands are copy-only" in source
     assert "Grouped workflow guide." not in source
     assert "No review route detail" in source
     assert "No workflow detail" not in source
@@ -9591,7 +9591,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
     assert "check first: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
     assert "then run make focus-peers ticker=mu" in rendered
-    assert "proof after unlock: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
+    assert "proof after data changes: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "...." not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -9804,7 +9804,7 @@ def test_data_health_valuation_unlock_snapshot_handles_missing_readiness_without
 def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "See what trusted local inputs are ready, what analysis is still locked, and which unlock path needs proof next." in source
+    assert "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next." in source
     refresh_note_index = source.index('st.expander("Refresh status note"')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     assert refresh_note_index < quick_read_index
@@ -9812,7 +9812,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Beginner view." in source
     assert "Data Health Quick Read" in source
     assert "Read these next four sections first" in source
-    assert "Which unlock path should you inspect first, before opening detailed sections." in source
+    assert "Which proof path should you inspect first, before opening detailed sections." in source
     assert "The shortest safe local path before deeper unlock lists." in source
     assert "before opening detailed tables" not in source
     assert "deeper Data Health details" not in source
@@ -15329,7 +15329,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "stage only trusted sec or manual fundamentals rows" in rendered
     assert "prove the fundamentals unlock before dcf" in rendered
     assert "inspect the next ticker, stage only trusted sec or manual fundamentals rows" in rendered
-    assert "before treating fundamentals or dcf as unlocked" in rendered
+    assert "before treating fundamentals or dcf as available" in rendered
     assert "next proof: validate and preview trusted fundamentals, apply only reviewed rows, then rebuild dcf readiness" in rendered
     assert "validation proof: validate and preview trusted fundamentals, apply only reviewed rows, then rebuild dcf readiness" in rendered
     assert "readiness proof: run `make dcf-readiness` and `make readiness`" in rendered
@@ -15567,7 +15567,7 @@ def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_ag
     assert "data/imports/fundamentals.csv manual rows" in rendered
     assert "minimum dcf fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source" in rendered
     assert "data/rejected/fundamentals_import_rejected.csv" in rendered
-    assert "rejected rows must be reviewed before treating fundamentals or dcf as unlocked" in rendered
+    assert "rejected rows must be reviewed before treating fundamentals or dcf as available" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "readiness counts should improve only after trusted rows pass validation" in rendered
     assert "buy" not in rendered
@@ -16174,7 +16174,7 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
     assert "make research-health top_n=10" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "data/imports/peers.csv" in rendered
-    assert "proof after unlock: run `make peer-mapping-queue top_n=25`, `make readiness`, then `make stock-report-md ticker=a`" in rendered
+    assert "proof after data changes: run `make peer-mapping-queue top_n=25`, `make readiness`, then `make stock-report-md ticker=a`" in rendered
     assert "peer mappings and peer metrics" not in rendered
     assert "trade" not in rendered
     assert "broker" not in rendered
@@ -16518,7 +16518,7 @@ def test_decision_workflow_summary_cards_route_price_blocker_to_refresh_loop_dry
     assert next_card["command"] == "make focus-price TICKER=APLD"
     assert "make price-refresh-loop dry_run=1" in rendered
     assert "review the planned batches" in rendered
-    assert "proof after unlock: run `make price-coverage top_n=25`, `make readiness`, then `make stock-report-md ticker=apld`" in rendered
+    assert "proof after data changes: run `make price-coverage top_n=25`, `make readiness`, then `make stock-report-md ticker=apld`" in rendered
     assert "manually run 25" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -16569,7 +16569,7 @@ def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     assert "data/imports/peers.csv" in str(next_card["body"])
     assert "make imports-validate" in str(next_card["body"])
     assert "make focus-peers ticker=cohr" in rendered
-    assert "proof after unlock: run `make peer-mapping-queue top_n=25`, `make readiness`, then `make stock-report-md ticker=cohr`" in rendered
+    assert "proof after data changes: run `make peer-mapping-queue top_n=25`, `make readiness`, then `make stock-report-md ticker=cohr`" in rendered
     assert "optional context missing for cohr" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -16666,7 +16666,7 @@ def test_decision_workflow_summary_cards_surface_research_now_optional_context_l
     assert "supported core or dcf context" in rendered
     assert "earnings or analyst-estimate context remains unavailable" in rendered
     assert "trusted local csv rows" in rendered
-    assert "proof after unlock: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report" in rendered
+    assert "proof after data changes: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -20274,7 +20274,7 @@ def test_product_page_logic_audit_flags_peer_limited_drilldown_without_unlock_co
 
     assert drilldown_check["status"] == "review"
     assert "1 of 1 peer-limited company drilldown row" in str(drilldown_check["evidence"]).lower()
-    assert "focus-peers unlock commands" in str(drilldown_check["operator_action"]).lower()
+    assert "focus-peers proof commands" in str(drilldown_check["operator_action"]).lower()
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

@@ -17,7 +17,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Analyze now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding.
-- Data Health lane: Fundamentals / DCF Unlock. Suggested local check: `make focus-fundamentals TICKER=META`. Confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
+- Data Health lane: Fundamentals / DCF Proof. Suggested local check: `make focus-fundamentals TICKER=META`. Confirm with `make dcf-readiness && make readiness` before treating the lane as available.
 - Next research step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## Evaluation Snapshot
@@ -29,12 +29,12 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 
 ## Proof Checklist
 - Current mode proof: `Price/setup review only` because price/setup may be usable, but fundamentals or DCF inputs have not passed readiness.
-- Next unlock proof: `make focus-fundamentals TICKER=META` before reviewing company valuation.
+- Next proof step: `make focus-fundamentals TICKER=META` before reviewing company valuation.
 - Withhold until proven: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 - Manual check: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## Best Review Path
-- First read: Start with DCF Input Triage and Data Unlock Summary. Company valuation stays blocked until trusted fundamentals and DCF inputs are ready.
+- First read: Start with DCF Input Triage and Missing-Data Proof Summary. Company valuation stays blocked until trusted fundamentals and DCF inputs are ready.
 - Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.
 - Optional context: Optional earnings and analyst-estimate context remains locked unless trusted local rows exist.
 - Copy-only proof step: `make focus-fundamentals TICKER=META`
@@ -59,17 +59,17 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - `Data needed before analysis` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
 
 ## One-Minute Status
-META overall readiness: partial; review ready inputs first and treat locked inputs as data unlock work. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
+META overall readiness: partial; review ready inputs first and treat locked inputs as missing-data review work. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## What We Can Analyze Now
 - Ready inputs: price, momentum, market direction, liquidity, correlation, portfolio.
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked or excluded: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
-## Next Layer To Unlock
+## Next Layer To Prove
 - Current supported layer: Price/setup review only; company valuation stays locked until fundamentals and DCF inputs pass readiness.
 - Next trusted input: Trusted fundamentals, free-cash-flow or margin inputs, share count, and DCF fields.
-- Proof command: `make focus-fundamentals TICKER=META` before treating the next layer as unlocked.
+- Proof command: `make focus-fundamentals TICKER=META` before treating the next layer as available.
 - Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.
 
 ## Data And App Method
@@ -89,7 +89,7 @@ META overall readiness: partial; review ready inputs first and treat locked inpu
 ## Methodology
 - Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
-- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
+- Analysis recipe: prices support setup/trend review; fundamentals support field review and DCF input quality; DCF supports scenario math; source-backed peers support peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
 - Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step.
 - Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
@@ -118,7 +118,7 @@ META overall readiness: partial; review ready inputs first and treat locked inpu
 ## Decision
 - Bucket: Blocked by Data
 - Subtype: Blocked by Data - Missing Fundamentals
-- Boundary: Data unlock state: fundamentals blocks evaluation, so conclusions stay withheld.
+- Boundary: Missing-data proof state: fundamentals blocks evaluation, so conclusions stay withheld.
 - Primary blocker: fundamentals
 - Main reason: Company research is blocked by missing DCF data.
 - Next action: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
@@ -247,15 +247,15 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields stay locked until trusted rows are imported.
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
-## Data Unlock Summary
-- Data Health lane: Fundamentals / DCF Unlock. Suggested local check: `make focus-fundamentals TICKER=META`. Confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
-- Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
-- Fundamentals / DCF unlock: Fundamentals / DCF are blocked: missing shares outstanding. Inspect `make focus-fundamentals TICKER=META`, then use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or prepare trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`.
-- Peer unlock: Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
-- Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+## Missing-Data Proof Summary
+- Data Health lane: Fundamentals / DCF Proof. Suggested local check: `make focus-fundamentals TICKER=META`. Confirm with `make dcf-readiness && make readiness` before treating the lane as available.
+- Price proof path: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
+- Fundamentals / DCF proof path: Fundamentals / DCF are blocked: missing shares outstanding. Inspect `make focus-fundamentals TICKER=META`, then use `make sec-stage TICKERS=META` when SEC_USER_AGENT is configured or prepare trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`.
+- Peer proof path: Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+- Optional context proof path: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
-## Copyable Unlock Commands
+## Copyable Proof Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
 - Inspect this ticker: `make stock-report-md TICKER=META`.
 - One-company proof packet: `make trusted-data-pilot-packet TICKER=META`.

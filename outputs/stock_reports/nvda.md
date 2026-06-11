@@ -17,7 +17,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Trusted optional earnings or analyst-estimate CSV rows, only if you have a source you trust.
-- Data Health lane: Optional Context Unlock. Suggested local check: `make optional-context-worklist TICKERS=NVDA TOP_N=10`. Confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
+- Data Health lane: Optional Context Proof. Suggested local check: `make optional-context-worklist TICKERS=NVDA TOP_N=10`. Confirm with `make optional-context-readiness && make readiness` before treating the lane as available.
 - Next research step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## Evaluation Snapshot
@@ -29,7 +29,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 
 ## Proof Checklist
 - Current mode proof: `DCF-ready review` because price, fundamentals, DCF, and source-backed peer inputs passed local readiness.
-- Next unlock proof: `make optional-context-worklist TICKERS=NVDA TOP_N=10` only if trusted optional rows exist.
+- Next proof step: `make optional-context-worklist TICKERS=NVDA TOP_N=10` only if trusted optional rows exist.
 - Withhold until proven: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 - Manual check: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
@@ -66,10 +66,10 @@ NVDA overall readiness: partial because optional earnings/estimate context is lo
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
-## Next Layer To Unlock
+## Next Layer To Prove
 - Current supported layer: DCF-ready review; core company and peer context can be read while optional context remains locked.
 - Next trusted input: Trusted earnings or analyst-estimate CSV rows only when a source is available.
-- Proof command: `make optional-context-worklist TICKERS=NVDA TOP_N=10` before treating the next layer as unlocked.
+- Proof command: `make optional-context-worklist TICKERS=NVDA TOP_N=10` before treating the next layer as available.
 - Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.
 
 ## Data And App Method
@@ -89,7 +89,7 @@ NVDA overall readiness: partial because optional earnings/estimate context is lo
 ## Methodology
 - Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
-- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
+- Analysis recipe: prices support setup/trend review; fundamentals support field review and DCF input quality; DCF supports scenario math; source-backed peers support peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
 - Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step.
 - Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
@@ -250,15 +250,15 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields stay locked until trusted rows are imported.
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
-## Data Unlock Summary
-- Data Health lane: Optional Context Unlock. Suggested local check: `make optional-context-worklist TICKERS=NVDA TOP_N=10`. Confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
-- Price unlock: Price history is usable now (621 local row(s)); keep it fresh before relying on setup or risk context.
-- Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context.
-- Peer unlock: Peer context is usable now; review mapped peers and source readiness before interpreting peer-relative context.
-- Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+## Missing-Data Proof Summary
+- Data Health lane: Optional Context Proof. Suggested local check: `make optional-context-worklist TICKERS=NVDA TOP_N=10`. Confirm with `make optional-context-readiness && make readiness` before treating the lane as available.
+- Price proof path: Price history is usable now (621 local row(s)); keep it fresh before relying on setup or risk context.
+- Fundamentals / DCF proof path: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context.
+- Peer proof path: Peer context is usable now; review mapped peers and source readiness before interpreting peer-relative context.
+- Optional context proof path: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
-## Copyable Unlock Commands
+## Copyable Proof Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
 - Inspect this ticker: `make stock-report-md TICKER=NVDA`.
 - Price source readiness: `make focus-price TICKER=NVDA`.

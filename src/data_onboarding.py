@@ -2965,7 +2965,7 @@ def _print_optional_context_worklist(payload: dict[str, Any], *, top_n: int | No
         "missing rows should stay locked rather than inferred from price, DCF, peer, or sector data."
     )
     print(
-        "Unlock path: make templates -> make import-earnings or make import-analyst-estimates -> "
+        "Proof path: make templates -> make import-earnings or make import-analyst-estimates -> "
         "make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness."
     )
     print(
@@ -3035,7 +3035,7 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         "peer valuation needs source-backed mappings plus trusted peer fundamentals or market metrics."
     )
     print(
-        "Unlock path: use make focus-peers TICKER=... or fill data/imports/peers.csv, "
+        "Proof path: use make focus-peers TICKER=... or fill data/imports/peers.csv, "
         "then validate, preview, apply, and rerun readiness."
     )
     for row in _limited_rows(rows, top_n=top_n, default=30):

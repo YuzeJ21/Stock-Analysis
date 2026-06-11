@@ -450,7 +450,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
         [
             f"Top {min(top_n, len(candidates))} operating-company candidates:",
             "ETF/index monitor examples such as QQQ and SMH are excluded from this company pilot list.",
-            "Pilot lanes are plain-English unlock paths; they do not mean the missing data is available yet.",
+            "Pilot lanes are plain-English proof paths; they do not mean the missing data is available yet.",
             "",
             "How to choose the pilot:",
             *[f"- {line}" for line in pilot_selection_brief(candidates)],
@@ -473,7 +473,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Trusted row target: {pilot_trusted_row_path(candidate)}",
                 "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
                 f"   Rejected-row report to review: {pilot_rejected_report_path(candidate)}",
-                f"   Proof after unlock: {candidate.proof_after_unlock}",
+                f"   Proof after data changes: {candidate.proof_after_unlock}",
                 f"   Evidence expectation: {pilot_evidence_expectation(candidate)}",
                 f"   Source boundary: {candidate.source_boundary}",
                 "",

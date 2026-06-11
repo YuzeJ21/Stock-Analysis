@@ -1157,7 +1157,7 @@ def _stock_report_purpose_fields(
     else:
         blocker_verb = "remain" if blocker.lower().endswith("s") else "remains"
         valuation = "Valuation interpretation is limited to the locally ready inputs; unavailable valuation inputs are not inferred."
-        next_question = f"Which trusted local input would unlock the next supported analysis for {ticker}?"
+        next_question = f"Which trusted local input would prove the next supported analysis for {ticker}?"
         if blocker.lower() in {"peer", "peers"} or "peer" in missing.lower():
             valuation = "Standalone DCF may be reviewable, but peer-relative valuation is withheld until source-backed peer inputs are ready."
             next_question = f"Which source-backed peers should be added for {ticker} before peer-relative valuation is reviewed?"
@@ -1244,7 +1244,7 @@ def _stock_report_decision_boundary(*, readiness: dict[str, Any], decision: dict
             "peer-relative company valuation stay excluded."
         )
     if "blocked" in bucket:
-        return f"Data unlock state: {blocker} blocks evaluation, so conclusions stay withheld."
+        return f"Missing-data proof state: {blocker} blocks evaluation, so conclusions stay withheld."
     if "excluded" in bucket:
         return "Method-exclusion state: the analysis is intentionally omitted, not treated as a failed calculation."
     return "Review state only: use readiness, blockers, and source readiness before drawing a conclusion."
@@ -1290,7 +1290,7 @@ def _stock_report_one_minute_state_phrase(
     if state_text == "partial" and dcf_status_text == "ready" and optional_locked:
         return f"{ticker} overall readiness: partial because optional earnings/estimate context is locked; standalone DCF inputs are ready."
     if state_text == "partial":
-        return f"{ticker} overall readiness: partial; review ready inputs first and treat locked inputs as data unlock work."
+        return f"{ticker} overall readiness: partial; review ready inputs first and treat locked inputs as missing-data review work."
     return f"{ticker} overall readiness: {state}."
 
 
@@ -1336,7 +1336,7 @@ def _stock_report_analysis_quality_lines(
         )
 
     if not price_ready:
-        confidence_line = "low: price history is still the first required unlock."
+        confidence_line = "low: price history is still the first required input."
     elif monitor_context:
         confidence_line = "medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded."
     elif dcf_ready and peer_is_ready:
@@ -1453,7 +1453,7 @@ def _stock_report_methodology_lines(
     return [
         "- Method order: readiness gate first, supported analysis second, valuation math third, explanation last.",
         "- Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.",
-        "- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.",
+        "- Analysis recipe: prices support setup/trend review; fundamentals support field review and DCF input quality; DCF supports scenario math; source-backed peers support peer context; optional earnings and estimates add timing or consensus context only.",
         "- Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.",
         "- Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step.",
         "- Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.",
@@ -1619,7 +1619,7 @@ def _stock_report_next_layer_lines(
     return [
         f"- Current supported layer: {current_layer}",
         f"- Next trusted input: {next_input}",
-        f"- Proof command: `{proof_command}` before treating the next layer as unlocked.",
+        f"- Proof command: `{proof_command}` before treating the next layer as available.",
         "- Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.",
     ]
 
@@ -1643,22 +1643,22 @@ def _stock_report_data_health_handoff_line(
         command = f"make stock-report-md TICKER={ticker}"
         proof = "make readiness"
     elif dcf_status_text == "blocked":
-        lane = "Fundamentals / DCF Unlock"
+        lane = "Fundamentals / DCF Proof"
         command = f"make focus-fundamentals TICKER={ticker}"
         proof = "make dcf-readiness && make readiness"
     elif not bool(peer_ready):
-        lane = "Peer Mapping Unlock"
+        lane = "Peer Mapping Proof"
         command = f"make focus-peers TICKER={ticker}"
         proof = f"make readiness && make peer-mapping-queue TICKERS={ticker} TOP_N=10"
     elif not bool(earnings_ready) or not bool(estimates_ready):
-        lane = "Optional Context Unlock"
+        lane = "Optional Context Proof"
         command = f"make optional-context-worklist TICKERS={ticker} TOP_N=10"
         proof = "make optional-context-readiness && make readiness"
     else:
         lane = "Single-Stock Review"
         command = f"make stock-report-md TICKER={ticker}"
         proof = "make readiness"
-    return f"- Data Health lane: {lane}. Suggested local check: `{command}`. Confirm with `{proof}` before treating the lane as unlocked."
+    return f"- Data Health lane: {lane}. Suggested local check: `{command}`. Confirm with `{proof}` before treating the lane as available."
 
 
 def _stock_report_executive_summary_lines(
@@ -1741,7 +1741,7 @@ def _stock_report_proof_checklist_lines(
     locked_now: str,
 ) -> list[str]:
     if not price_ready:
-        evidence = "trusted local price history is not ready, so this report is an unlock checklist."
+        evidence = "trusted local price history is not ready, so this report is a missing-data checklist."
         next_proof = f"`make focus-price TICKER={ticker}` followed by readiness rebuild."
     elif monitor_context:
         evidence = "asset-type gate marks this as monitor context, so company DCF and peer valuation are excluded."
@@ -1761,7 +1761,7 @@ def _stock_report_proof_checklist_lines(
 
     return [
         f"- Current mode proof: `{report_mode}` because {evidence}",
-        f"- Next unlock proof: {next_proof}",
+        f"- Next proof step: {next_proof}",
         f"- Withhold until proven: {_sentence_value(locked_now)}.",
         f"- Manual check: {_sentence_value(_humanize_schema_terms(next_action), 'No next local action is available')}.",
     ]
@@ -1779,7 +1779,7 @@ def _stock_report_best_review_path_lines(
 ) -> list[str]:
     if not price_ready:
         primary = (
-            "Start with Data Unlock Summary and Price Coverage. Do not interpret setup, valuation, or peer context "
+            "Start with Missing-Data Proof Summary and Price Coverage. Do not interpret setup, valuation, or peer context "
             "until trusted local price history is ready."
         )
         proof = f"`make focus-price TICKER={ticker}`"
@@ -1803,7 +1803,7 @@ def _stock_report_best_review_path_lines(
         proof = f"`make focus-peers TICKER={ticker}`"
     else:
         primary = (
-            "Start with DCF Input Triage and Data Unlock Summary. Company valuation stays blocked until trusted "
+            "Start with DCF Input Triage and Missing-Data Proof Summary. Company valuation stays blocked until trusted "
             "fundamentals and DCF inputs are ready."
         )
         proof = f"`make focus-fundamentals TICKER={ticker}`"
@@ -1998,7 +1998,7 @@ def _stock_report_data_unlock_lines(
     if price_ready:
         price_line = f"Price history is usable now ({price_rows} local row(s)); keep it fresh before relying on setup or risk context."
     else:
-        price_line = f"Price history is the first unlock. Run `make focus-price TICKER={ticker}` or use the price import flow before interpreting setup."
+        price_line = f"Price history is the first required input. Run `make focus-price TICKER={ticker}` or use the price import flow before interpreting setup."
 
     if monitor_context:
         dcf_line = "Operating-company DCF is excluded for this ETF/index/fund monitor context; no fundamentals import is required for company valuation."
@@ -2018,14 +2018,14 @@ def _stock_report_data_unlock_lines(
         )
 
     if monitor_context:
-        peer_line = "Peer valuation is excluded for monitor context; peer rows are optional context, not a required unlock."
+        peer_line = "Peer valuation is excluded for monitor context; peer rows are optional context, not a required company-valuation input."
     elif peer_ready:
         peer_line = "Peer context is usable now; review mapped peers and source readiness before interpreting peer-relative context."
     elif dcf_status_text != "ready":
         peer_line = "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready."
     else:
         peer_suffix = "" if "data/imports/peers.csv" in peer_reason else " Add source-backed mappings in `data/imports/peers.csv`."
-        peer_line = f"Peer context is the next unlock after DCF: {peer_reason}.{peer_suffix}"
+        peer_line = f"Peer context is the next proof path after DCF: {peer_reason}.{peer_suffix}"
 
     if optional_ready:
         optional_line = "Earnings and analyst-estimate context is available from trusted local rows; treat it as context, not a recommendation."
@@ -2037,10 +2037,10 @@ def _stock_report_data_unlock_lines(
 
     return [
         handoff_line,
-        f"- Price unlock: {price_line}",
-        f"- Fundamentals / DCF unlock: {dcf_line}",
-        f"- Peer unlock: {peer_line}",
-        f"- Optional context unlock: {optional_line}",
+        f"- Price proof path: {price_line}",
+        f"- Fundamentals / DCF proof path: {dcf_line}",
+        f"- Peer proof path: {peer_line}",
+        f"- Optional context proof path: {optional_line}",
         "- Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.",
     ]
 
@@ -2685,7 +2685,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
         "",
-        "## Next Layer To Unlock",
+        "## Next Layer To Prove",
         *next_layer_lines,
         "",
         "## Data And App Method",
@@ -2796,10 +2796,10 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Source Readiness",
         *source_lines,
         "",
-        "## Data Unlock Summary",
+        "## Missing-Data Proof Summary",
         *data_unlock_lines,
         "",
-        "## Copyable Unlock Commands",
+        "## Copyable Proof Commands",
         *unlock_command_lines,
         "",
         "## Source Readiness Check",
@@ -3111,7 +3111,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
         "",
-        "## Next Layer To Unlock",
+        "## Next Layer To Prove",
         *next_layer_lines,
         "",
         "## Data And App Method",
@@ -3210,10 +3210,10 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "## Missing Data",
         f"- {_humanize_schema_terms(_display_value(readiness.get('missing_data')))}",
         "",
-        "## Data Unlock Summary",
+        "## Missing-Data Proof Summary",
         *data_unlock_lines,
         "",
-        "## Copyable Unlock Commands",
+        "## Copyable Proof Commands",
         *unlock_command_lines,
         "",
         "## Source Readiness Check",

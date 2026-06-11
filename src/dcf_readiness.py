@@ -222,7 +222,7 @@ def main() -> None:
         for field, count in list(field_counts.items())[:5]:
             print(f"- {field}: {count} ticker(s)")
     first_blocker = _first_company_blocker(frame)
-    print("Next DCF unlock path:")
+    print("Next DCF proof path:")
     print(f"- Inspect one company: make focus-fundamentals TICKER={first_blocker}")
     print(f"- Stage SEC rows when configured: make sec-stage TICKERS={first_blocker}")
     print("- Or add trusted manual rows to data/imports/fundamentals.csv")

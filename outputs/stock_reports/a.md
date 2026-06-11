@@ -17,7 +17,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Source-backed peer mappings and peer valuation inputs.
-- Data Health lane: Peer Mapping Unlock. Suggested local check: `make focus-peers TICKER=A`. Confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
+- Data Health lane: Peer Mapping Proof. Suggested local check: `make focus-peers TICKER=A`. Confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as available.
 - Next research step: Add trusted price history for mapped peers: DHR, TMO, WAT.
 
 ## Evaluation Snapshot
@@ -29,7 +29,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 
 ## Proof Checklist
 - Current mode proof: `Standalone DCF review` because standalone DCF passed local readiness, while peer-relative valuation remains locked.
-- Next unlock proof: `make focus-peers TICKER=A` with source-backed peer mappings and peer inputs.
+- Next proof step: `make focus-peers TICKER=A` with source-backed peer mappings and peer inputs.
 - Withhold until proven: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Manual check: Add trusted price history for mapped peers: DHR, TMO, WAT.
 
@@ -66,10 +66,10 @@ A overall readiness: partial because optional earnings/estimate context is locke
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
-## Next Layer To Unlock
+## Next Layer To Prove
 - Current supported layer: Standalone DCF review; assumptions and sensitivity can be read before peer-relative valuation.
 - Next trusted input: Source-backed peer mappings plus peer price, fundamentals, and valuation inputs.
-- Proof command: `make focus-peers TICKER=A` before treating the next layer as unlocked.
+- Proof command: `make focus-peers TICKER=A` before treating the next layer as available.
 - Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.
 
 ## Data And App Method
@@ -89,7 +89,7 @@ A overall readiness: partial because optional earnings/estimate context is locke
 ## Methodology
 - Method order: readiness gate first, supported analysis second, valuation math third, explanation last.
 - Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording.
-- Analysis recipe: prices unlock setup/trend review; fundamentals unlock field review and DCF input quality; DCF unlocks scenario math; source-backed peers unlock peer context; optional earnings and estimates add timing or consensus context only.
+- Analysis recipe: prices support setup/trend review; fundamentals support field review and DCF input quality; DCF supports scenario math; source-backed peers support peer context; optional earnings and estimates add timing or consensus context only.
 - Black-box check: every supported section should trace back to a ready input, a visible formula or score, or an explicit blocker listed in this report.
 - Methodology proof ladder: input row -> readiness gate -> local calculation or score -> supported/blocked/excluded label -> explicit next step.
 - Reader check path: start with Source Readiness, then Data Readiness, then DCF Calculation Path or Peer Workflow; if any step is missing, the related conclusion stays withheld.
@@ -253,15 +253,15 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:earnings.csv: research-grade / local; source readiness: not available in local CSVs; Earnings fields stay locked until trusted rows are imported.
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
-## Data Unlock Summary
-- Data Health lane: Peer Mapping Unlock. Suggested local check: `make focus-peers TICKER=A`. Confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as unlocked.
-- Price unlock: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
-- Fundamentals / DCF unlock: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context.
-- Peer unlock: Peer context is the next unlock after DCF: Add trusted price history for mapped peers: DHR, TMO, WAT. Add source-backed mappings in `data/imports/peers.csv`.
-- Optional context unlock: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+## Missing-Data Proof Summary
+- Data Health lane: Peer Mapping Proof. Suggested local check: `make focus-peers TICKER=A`. Confirm with `make readiness && make peer-mapping-queue TICKERS=A TOP_N=10` before treating the lane as available.
+- Price proof path: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
+- Fundamentals / DCF proof path: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context.
+- Peer proof path: Peer context is the next proof path after DCF: Add trusted price history for mapped peers: DHR, TMO, WAT. Add source-backed mappings in `data/imports/peers.csv`.
+- Optional context proof path: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
-## Copyable Unlock Commands
+## Copyable Proof Commands
 - Copy-only: these are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
 - Inspect this ticker: `make stock-report-md TICKER=A`.
 - One-company proof packet: `make trusted-data-pilot-packet TICKER=A`.

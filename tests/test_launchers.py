@@ -400,7 +400,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Method: project DCF",
         "project DCF method notes",
         "DCF path: cash flows, terminal value, cash/debt, fair value/share",
-        "copy-only unlock commands",
+        "copy-only proof commands",
     ):
         assert preview_phrase in preview
     for stale_preview_phrase in ("Analysis modes before tables", "Standalone DCF</text>", "Price/setup only", "Monitor-only</text>", "Explore ready names: Home filters and sample reports"):
@@ -450,9 +450,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Example map",
         "Operating-company DCF is excluded, not failed",
         "Price/setup review with valuation still locked",
-        "next trusted fundamentals unlock step",
-        "At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, source readiness notes, and copyable local unlock commands",
-        "At A Glance status, a Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, methodology, risks, blockers, copyable local unlock commands",
+        "next trusted fundamentals proof step",
+        "At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, source readiness notes, and copyable local proof commands",
+        "At A Glance status, a Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, methodology, risks, blockers, copyable local proof commands",
         "The report is not a black box",
         "project rules decide what can be analyzed",
         "Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears",
@@ -469,7 +469,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "what evidence proves the current mode",
         "what valuation is supported or blocked",
         "what to read first",
-        "Copyable Unlock Commands",
+        "Copyable Proof Commands",
         "readiness-state output, not an action list",
         "Roadmap Snapshot",
         "Review them before committing",
@@ -533,7 +533,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     for visitor_clutter in (
         "http://localhost:8501/?page=single-stock-report",
         "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
-        "Targeted data-unlock examples",
+        "Targeted missing-data examples",
         "Preview-first import flow",
     ):
         assert visitor_clutter not in readme
@@ -643,10 +643,10 @@ def test_sample_stock_reports_explain_methodology_and_use_current_research_bound
         assert "## Analysis Quality" in report
         assert "## Methodology" in report
         assert "## Evaluation Function Check" in report
-        assert "## Copyable Unlock Commands" in report
+        assert "## Copyable Proof Commands" in report
         assert "Copy-only: these are local research commands to copy when you choose" in report
         assert "the report does not run imports or refreshes and does not connect to external accounts" in report
-        assert "## Copyable Unlock Commands" in report.split("## Source Readiness Check")[0]
+        assert "## Copyable Proof Commands" in report.split("## Source Readiness Check")[0]
         assert "readiness gate first, supported analysis second, valuation math third, explanation last" in report
         assert "Input boundary: local or provider-assisted rows supply data; project rules decide readiness, calculations, blockers, and report wording" in report
         assert "DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value" in report
@@ -760,7 +760,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "Best Review Path: tells the reader whether to review DCF and peers",
         "Evaluation Snapshot: summarizes supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before the detailed sections",
         "The report should be read top-down: visitor scan cue first, At A Glance second, Reader Guide third, Evaluation Snapshot fourth, Proof Checklist fifth",
-        "copyable local unlock commands next",
+        "copyable local proof commands next",
         "the report does not run imports or refreshes and does not connect to external accounts",
         "At A Glance mode, method cue, and next local step",
         "Evaluation Snapshot for supported evaluation, valuation boundary, confidence cue, next proof, and stop rule",
@@ -770,7 +770,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "Peer trend or peer valuation context only when source-backed peer inputs are ready",
         "Copyable local commands for optional context, peer review, or source-readiness checks",
         "When any part of that stack is missing, only the supported sections appear",
-        "local command path for inspecting or unlocking that input",
+        "local command path for inspecting or proving that input",
         "Data Unlock Ladder",
         "The product uses the same unlock ladder in the dashboard, single-stock reports, and Data Health review lists",
         "Price-ready does not mean fundamentals-ready",
@@ -784,7 +784,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "`data/imports/fundamentals.csv`",
         "`data/imports/peers.csv`",
         "`make imports-validate`, then `make imports-preview`, then `make imports-apply`",
-        "they show the first trustworthy unlock instead of hiding the gap behind a weak conclusion",
+        "they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion",
         "Where This Lives In Code",
         "`src/readiness_engine.py`",
         "`src/dcf_readiness.py`",
@@ -841,7 +841,7 @@ def test_product_spec_keeps_execution_features_permanently_out_of_scope():
     for phrase in (
         "## Current Product Surfaces",
         "`Home`: plain-language readiness cards and next-action cards first, with methodology ladder and example report comparisons in collapsed sections",
-        "`Single-Stock Report`: ticker-level visitor scan cue, At A Glance status, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, confidence cue, methodology cue, analysis quality, valuation state, source readiness check, and copyable local unlock commands",
+        "`Single-Stock Report`: ticker-level visitor scan cue, At A Glance status, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, confidence cue, methodology cue, analysis quality, valuation state, source readiness check, and copyable local proof commands",
         "`Data Health`: trusted local data paths, import validation, rejected-row reports, and unlock review paths",
         "`Value / Re-rating`: DCF-ready, peer-limited, blocked, and ETF/index/fund excluded valuation states",
         "Markdown reports under `outputs/stock_reports/`",
@@ -849,7 +849,7 @@ def test_product_spec_keeps_execution_features_permanently_out_of_scope():
         "Broad-universe tables should stay filtered and row-limited by default",
         "## Public Share Definition",
         "the README has a short demo path and dashboard preview",
-        "sample reports show a visitor scan cue, `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, confidence cues, methodology, evaluation function checks, source readiness, and copyable local unlock commands",
+        "sample reports show a visitor scan cue, `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, confidence cues, methodology, evaluation function checks, source readiness, and copyable local proof commands",
         "project code provides readiness gates, DCF math, peer boundaries, and report wording",
         "`make public-check` passes",
         "generated CSV/JSON churn is reviewed before staging and is not committed by default",
@@ -923,7 +923,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "The At A Glance method cue and the `Methodology` section show the DCF formula path",
         "For local import files, use preview before apply",
         "Evaluation Function Check",
-        "Copyable Unlock Commands",
+        "Copyable Proof Commands",
         "does not run imports or refreshes and does not connect to external accounts",
         "ready, blocked, excluded, or optional",
         "Analysis Modes",
@@ -981,7 +981,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "baseline readiness, before report, focused blocker check, lane review path" in checklist
     assert "validate/preview/apply, rejected-row check, rebuild proof" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
-    assert "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
+    assert "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Proof Commands`" in checklist
     assert "small pilot" in checklist
     assert "After it passes, run `make diff-hygiene`" in checklist
     assert "make diff-hygiene-files" in checklist
@@ -1088,14 +1088,14 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "Analysis Quality",
         "Methodology",
         "Evaluation Function Check",
-        "Copyable Unlock Commands",
+        "Copyable Proof Commands",
         "mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
         "which confidence cue applies",
         "which local method is being used",
         "what to read first",
         "with the valuation boundary and DCF method path visible before detailed report tables",
         "At A Glance status, Evaluation Snapshot, Proof Checklist, Best Review Path, method cue, DCF assumptions",
-        "what command would unlock the next trusted input",
+        "which command proves the next trusted input",
         "DCF-ready review",
         "DCF-ready review",
         "standalone DCF review",
@@ -1145,7 +1145,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "click the tracked sample reports under `outputs/stock_reports/`",
         "make status-check TOP_N=5",
         "read-only command-center summary without refreshing local artifacts",
-        "exact copyable local commands for the next unlock",
+        "exact copyable local commands for the next proof step",
     ):
         assert phrase in brief
 
@@ -1217,7 +1217,7 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Reader Guide near the top",
         "Evaluation Snapshot",
         "Best Review Path",
-        "copyable local unlock commands",
+        "copyable local proof commands",
         "Reader Guide near the top, Evaluation Snapshot near the top, Proof Checklist next",
         "copyable local missing-data proof commands",
         "Supported-Today Assessment",
@@ -1457,7 +1457,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in data_strategy
     assert "peer lane: make focus-peers TICKER=<ticker>" in data_strategy
     assert "make imports-validate && make imports-preview && make imports-apply" in data_strategy
-    assert "Check the rejected-row report printed by the packet before treating the lane as unlocked." in data_strategy
+    assert "Check the rejected-row report printed by the packet before treating the lane as available." in data_strategy
     assert "Run the matching rebuild proof:" in data_strategy
     assert "fundamentals lane: make readiness && make dcf-readiness" in data_strategy
     assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in data_strategy
@@ -1694,7 +1694,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in makefile
     assert "peer lane: make focus-peers TICKER=<ticker>" in makefile
     assert "make imports-validate && make imports-preview && make imports-apply" in makefile
-    assert "Check the rejected-row report printed by the packet before treating the lane as unlocked." in makefile
+    assert "Check the rejected-row report printed by the packet before treating the lane as available." in makefile
     assert "Run the matching rebuild proof:" in makefile
     assert "fundamentals lane: make readiness && make dcf-readiness" in makefile
     assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in makefile
@@ -1750,7 +1750,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make diff-hygiene-files  # optional for large dirty trees\"" in makefile
     assert "@echo \"   make staged-hygiene-check # after staging, before commit\"" in makefile
     assert 'This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/.' in makefile
-    assert "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, then the trusted-data pilot as the honest unlock path." in makefile
+    assert "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, then the trusted-data pilot as the honest proof path." in makefile
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
     assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile
     assert "public-check:" in makefile
