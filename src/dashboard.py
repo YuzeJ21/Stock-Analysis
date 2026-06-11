@@ -19068,11 +19068,11 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "kicker": "PILOT PATH",
             "title": "Improve 5-10 companies first",
             "body": (
-                "Do not try to unlock the full universe at once. Pick a small trusted-data pilot, then improve prices, "
-                "fundamentals, DCF fields, and peers only where source proof exists."
+                "Do not try to unlock the full universe at once. Start with the read-only pilot checklist for a small "
+                "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists."
             ),
             "badges": ["trusted data", "pilot"],
-            "command": "make sec-stage-queue TOP_N=25",
+            "command": "make trusted-data-pilot TOP_N=10",
         },
     ]
 
