@@ -22541,9 +22541,9 @@ def main() -> None:
         show_source_details = False
         if selected_page == "Single-Stock Report":
             show_source_details = st.checkbox(
-                "Show source readiness details",
+                "Show data source details",
                 value=False,
-                help="Adds extra source-readiness and missing-input checks under Sources & Gaps. Most users can leave this off.",
+                help="Adds extra data-source and missing-input checks under Sources & Gaps. Most users can leave this off.",
             )
         st.divider()
         note_title, note_body = sidebar_navigation_note(selected_page)

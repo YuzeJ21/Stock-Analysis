@@ -1406,7 +1406,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "Online lookup (off by default)" in dashboard
     assert "Online data check (optional)" not in dashboard
     assert "Use research-grade online data" not in dashboard
-    assert "Show source readiness details" in dashboard
+    assert "Show data source details" in dashboard
+    assert "Show source readiness details" not in dashboard
     assert "Show report source details" not in dashboard
     assert "Download Local Report Data" in dashboard
     assert "Download Structured Report" not in dashboard
