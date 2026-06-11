@@ -181,6 +181,7 @@ Current status:
 - The dashboard Single-Stock Report page includes At A Glance and Best Review Path cards, while Markdown reports include an Evaluation Snapshot explaining supported evaluation, valuation boundary, data-confidence cue, next proof, and stop rule before detailed sections.
 - Reports include a mode guide comparing `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data needed before analysis`.
 - Blocked and partial reports include `Copyable Proof Commands` with capped, local, research-only commands for price, fundamentals/DCF, peer mapping, optional-context imports, and the one-company trusted-data pilot packet.
+- Reports flag caveated peer-relative context in At A Glance when trusted peers exist but mapped-peer valuation metrics are incomplete.
 
 Next improvements:
 
@@ -272,6 +273,7 @@ The next roadmap milestone is complete when:
 - [x] Decision buckets remain more informative than generic monitor rows.
 - [x] `ARKF` and risk warnings are resolved or clearly classified.
 - [x] Single-stock research mode can generate a data-honest report.
+- [x] Single-stock reports distinguish clean peer readiness from peer readiness with missing valuation-metric caveats.
 - [x] Dashboard navigation defaults to public visitor paths while preserving `More pages` and deep links.
 - [x] Public data-strategy docs explain what can be automated and what still requires trusted source judgment.
 - [x] `make pipeline` passes in the latest full data-output verification run.
