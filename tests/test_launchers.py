@@ -1503,6 +1503,8 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1" in data_strategy
     assert "default candidate output is compact" in data_strategy
+    assert "row-level proof detail" in data_strategy
+    assert "row-level diagnostic" not in data_strategy
     assert "make trusted-data-pilot-packet TICKER=CRDO" in data_strategy
     assert "make trusted-data-pilot TOP_N=10" in data_strategy
     assert "rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
