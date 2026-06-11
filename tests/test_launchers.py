@@ -136,6 +136,8 @@ def test_makefile_help_documents_key_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
     for phrase in (
+        "help-full:",
+        "For the full local operator command catalog, run: make help-full",
         "Stock Research Command Center convenience commands",
         "First-time path:",
         "Print the clean visitor walkthrough",
@@ -263,6 +265,21 @@ def test_makefile_help_documents_key_workflows():
     assert makefile.index("make price-refresh-loop [MAX_CANDIDATES=3500]") < makefile.index(
         "make price-refresh TICKERS=NVDA,MSFT"
     )
+
+
+def test_make_help_output_stays_visitor_friendly():
+    result = subprocess.run(["make", "help"], check=True, capture_output=True, text=True)
+    output = result.stdout
+
+    assert "Stock Research Command Center" in output
+    assert "Start here:" in output
+    assert "make demo" in output
+    assert "make stock-report-md TICKER=NVDA" in output
+    assert "make trusted-data-pilot-candidates TOP_N=10" in output
+    assert "For the full local operator command catalog, run: make help-full" in output
+    assert "Data onboarding:" not in output
+    assert "Preview-first fundamentals and universe imports:" not in output
+    assert len(output.splitlines()) <= 25
 
 
 def test_price_refresh_defaults_to_capped_broad_universe_batch():

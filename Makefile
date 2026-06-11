@@ -1,6 +1,28 @@
-.PHONY: help demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 help:
+	@echo "Stock Research Command Center"
+	@echo ""
+	@echo "Start here:"
+	@echo "  make demo                       Print the clean visitor walkthrough"
+	@echo "  make status-check TOP_N=5       Show current readiness and top blockers"
+	@echo "  make stock-report-md TICKER=NVDA Generate the clearest sample stock report"
+	@echo "  make dashboard                  Open the dashboard"
+	@echo "  make trusted-data-pilot-candidates TOP_N=10"
+	@echo "                                  Rank the next source-backed data pilot"
+	@echo "  make trusted-data-pilot-packet TICKER=CRDO"
+	@echo "                                  Print one company's read-only proof packet"
+	@echo "  make public-check               Run before sharing the GitHub link"
+	@echo ""
+	@echo "Useful next paths:"
+	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
+	@echo "  Improve data coverage:   make trusted-data-pilot-candidates TOP_N=10"
+	@echo "  Check price freshness:   make price-refresh-loop DRY_RUN=1"
+	@echo "  Verify public hygiene:   make diff-hygiene && make staged-hygiene-check"
+	@echo ""
+	@echo "For the full local operator command catalog, run: make help-full"
+
+help-full:
 	@echo "Stock Research Command Center convenience commands"
 	@echo ""
 	@echo "First-time path:"
