@@ -14602,19 +14602,25 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
         (
             "Start at Home",
             "Use this first for the current coverage snapshot, ready sections, locked sections, and next safe step.",
-            "Home page",
+            "Start at Home",
             "neutral",
         ),
         (
-            "Review One Stock",
-            "Use Single-Stock Report for one ticker's ready, blocked, excluded, or monitor-only analysis.",
-            "Single-Stock Report page",
+            "Review one stock",
+            "Open a ticker-level report with ready, blocked, excluded, or monitor-only analysis.",
+            "Single-Stock Report",
             "neutral",
         ),
         (
-            "Unlock Missing Data",
+            "Explore ready names",
+            "Open candidate lists only after the data behind them has enough trusted local coverage.",
+            "Monthly Picks",
+            "neutral",
+        ),
+        (
+            "Improve data coverage",
             "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
-            "Data Health page",
+            "Data Health",
             "warning",
         ),
     ]
@@ -14627,8 +14633,9 @@ def public_path_label(page_title: str) -> str:
 def sidebar_quick_help_lines() -> list[str]:
     return [
         "Start with Home for the coverage snapshot.",
-        "Open Single-Stock Report to review one ticker.",
-        "Open Data Health only when you want unlock commands.",
+        "Review one stock when you want a ticker-level report.",
+        "Explore ready names only after local coverage is sufficient.",
+        "Improve data coverage when you want unlock commands.",
         "Commands are copy-only; the dashboard never runs refreshes or imports.",
     ]
 

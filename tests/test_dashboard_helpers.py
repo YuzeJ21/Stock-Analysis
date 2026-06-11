@@ -571,6 +571,11 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Start with Home, then open one focused page" not in source
     assert "Simple path." in source
     assert "Start with Home for the coverage snapshot." in source
+    assert "Review one stock when you want a ticker-level report." in source
+    assert "Explore ready names only after local coverage is sufficient." in source
+    assert "Improve data coverage when you want unlock commands." in source
+    assert "Open Single-Stock Report to review one ticker." not in source
+    assert "Open Data Health only when you want unlock commands." not in source
     assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard"' in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
@@ -17682,7 +17687,9 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "use this first" in nav_rendered
     assert "review one stock" in nav_rendered
     assert "ready, blocked, excluded, or monitor-only" in nav_rendered
-    assert "unlock missing data" in nav_rendered
+    assert "explore ready names" in nav_rendered
+    assert "candidate lists only after the data behind them has enough trusted local coverage" in nav_rendered
+    assert "improve data coverage" in nav_rendered
     assert "blocking analysis" in nav_rendered
     assert "make status-check top_n=5" in rendered
     fundamentals_row = next(row for row in missing_rows if row["Dashboard Label"] == "Missing company fundamentals")
@@ -17700,7 +17707,7 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "make import-analyst-estimates" in estimates_row["What to do"]
     assert "data/rejected/analyst_estimates_import_rejected.csv" in estimates_row["What to do"]
     assert "make data-wizard top_n=5" in rendered
-    assert "data health page" in nav_rendered
+    assert "data health" in nav_rendered
     assert "make runbook-prices-broader" in empty_rendered
     assert "make runbook-fundamentals-broader" in empty_rendered
     assert "make runbook-peers-broader" in empty_rendered
@@ -17914,9 +17921,12 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Single-Stock Report" not in dashboard.ADVANCED_PAGE_TITLES
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
-    assert "Home page" in navigation
-    assert "Single-Stock Report page" in navigation
-    assert "Data Health page" in navigation
+    assert "Start at Home" in navigation
+    assert "Review one stock" in navigation
+    assert "Explore ready names" in navigation
+    assert "Improve data coverage" in navigation
+    assert "Single-Stock Report" in navigation
+    assert "Data Health" in navigation
     assert "Overview page" not in navigation
     assert "Monthly Picks page" not in navigation
 
