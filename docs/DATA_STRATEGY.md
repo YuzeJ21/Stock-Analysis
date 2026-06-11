@@ -117,6 +117,14 @@ The candidate command also prints a compact review board. Read it as:
 
 This keeps the pilot practical: a useful result can be either "this ticker became supported after trusted rows were validated" or "this ticker stayed blocked for a specific missing input."
 
+Read each pilot outcome in three states:
+
+| Outcome | Meaning |
+| --- | --- |
+| Supported | Rebuilt readiness and the regenerated report show the lane is ready. |
+| Still blocked | Validation failed, rejected rows appeared, or the report stayed locked; keep the named blocker visible. |
+| Skip | Source proof is unavailable or not reviewable; do not apply placeholder rows, and move to the next shortlisted company. |
+
 One-company evidence packet:
 
 ```bash

@@ -445,7 +445,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> MU peer-limited example -> CRDO fundamentals-gated example -> trusted-data pilot." in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" in readme
     assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" in readme
-    assert "Only the rebuilt report can prove a lane changed" in readme
+    assert "Read the outcome in three states: `Supported` means rebuilt readiness and the regenerated report show the lane is ready" in readme
+    assert "`Still blocked` means validation failed, rejected rows appeared, or the report stayed locked" in readme
+    assert "`Skip` means source proof is unavailable, so no placeholder rows are applied and the next candidate moves up" in readme
     assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
     assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
     assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < readme.index("Optional extra report states:")
@@ -1546,6 +1548,10 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "snapshot the baseline, generate the before report, review the source proof for the missing lane" in data_strategy
     assert "Only the rebuilt report can prove a lane changed" in data_strategy
     assert "keep the blocker visible and move to the next candidate" in data_strategy
+    assert "Read each pilot outcome in three states:" in data_strategy
+    assert "| Supported | Rebuilt readiness and the regenerated report show the lane is ready. |" in data_strategy
+    assert "| Still blocked | Validation failed, rejected rows appeared, or the report stayed locked; keep the named blocker visible. |" in data_strategy
+    assert "| Skip | Source proof is unavailable or not reviewable; do not apply placeholder rows, and move to the next shortlisted company. |" in data_strategy
     assert "rejected-row report path, then the relevant readiness proof command" in data_strategy
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
