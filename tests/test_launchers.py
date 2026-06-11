@@ -1179,6 +1179,13 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "Product Tour routes `Explore ready names` directly to `Monthly Picks`",
         "Explore ready names: Monthly Picks and sample reports",
         "generated Monthly Picks CSV remains local working output",
+        "2026-06-11 Visitor Guide Browser Pass",
+        "Monthly Picks: confirmed the page renders the new `Reader Guide`",
+        "`Open a one-stock report next`, `No automatic conclusion`",
+        "Single-Stock Report: confirmed the page renders the demo ticker guide",
+        "`NVDA`, `META or APLD`, `QQQ or SMH`, and `A`",
+        "Trusted Data Pilot CLI: confirmed candidate output no longer repeats the `Decision gate` label",
+        "Monthly candidate guidance stays a research queue, not a recommendation list.",
         "Commands remain copy-only",
         "No generated CSV/JSON churn was published with the UI copy pass",
     ):

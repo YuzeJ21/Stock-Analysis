@@ -90,3 +90,17 @@ Boundary checked:
 
 - The route change is navigation copy only; it does not refresh data, import rows, or change readiness outputs.
 - The generated Monthly Picks CSV remains local working output and was not committed as part of this QA pass.
+
+## 2026-06-11 Visitor Guide Browser Pass
+
+Checked pages and commands:
+
+- Monthly Picks: confirmed the page renders the new `Reader Guide` with `Open a one-stock report next`, `No automatic conclusion`, and the Data Health path for empty candidate states.
+- Single-Stock Report: confirmed the page renders the demo ticker guide for `NVDA`, `META or APLD`, `QQQ or SMH`, and `A` before the report button.
+- Trusted Data Pilot CLI: confirmed candidate output no longer repeats the `Decision gate` label and still prints read-only source-proof boundaries.
+
+Boundary checked:
+
+- The browser pass used the local Streamlit page only; it did not refresh data, import rows, or change readiness outputs.
+- Monthly candidate guidance stays a research queue, not a recommendation list.
+- Single-stock demo guidance keeps DCF-ready, blocked, excluded, and standalone DCF examples separate.
