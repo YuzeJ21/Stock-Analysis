@@ -221,6 +221,14 @@ def pilot_evidence_row_template(candidate: PilotCandidate) -> str:
     )
 
 
+def pilot_public_shortlist(candidates: list[PilotCandidate], *, limit: int = 10) -> list[PilotCandidate]:
+    """Prefer active or public-demo names for the small trusted-data pilot."""
+
+    public_candidates = [candidate for candidate in candidates if candidate.active_universe or candidate.demo_rank < 999]
+    selected = public_candidates or candidates
+    return selected[: max(limit, 0)]
+
+
 def pilot_decision_gate(candidate: PilotCandidate) -> str:
     """Return the plain-language go/no-go gate for a one-company pilot packet."""
 
@@ -261,11 +269,19 @@ def pilot_selection_brief(candidates: list[PilotCandidate]) -> list[str]:
     lane_summary = ", ".join(
         f"{pilot_lane_label(lane)}: {count}" for lane, count in sorted(lane_counts.items())
     )
-    suggested = ",".join(candidate.ticker for candidate in candidates[: min(10, len(candidates))])
+    suggested_candidates = pilot_public_shortlist(candidates, limit=10)
+    suggested = ",".join(candidate.ticker for candidate in suggested_candidates)
+    overflow = [candidate.ticker for candidate in candidates if candidate not in suggested_candidates]
+    overflow_line = (
+        f"Optional broad-universe overflow: {', '.join(overflow[:5])}; use only after source proof exists."
+        if overflow
+        else "No broad-universe overflow is needed for the first pilot shortlist."
+    )
     return [
         "Pilot selection rule: choose 5-10 operating companies only when you can review source proof for the missing input.",
         f"Current short list: {active_count} active-universe candidate(s); lane mix: {lane_summary}.",
-        f"Suggested pilot command after choosing names: make trusted-data-pilot TICKERS={suggested} TOP_N={min(10, len(candidates))}",
+        f"Suggested pilot command after choosing active/demo names: make trusted-data-pilot TICKERS={suggested} TOP_N={len(suggested_candidates)}",
+        overflow_line,
         "Useful pilot win: before report, lane review, trusted source row, validate/preview/apply if rows change, rebuilt readiness, after report, and any still-blocked reason.",
         "If source proof is unavailable, keep that ticker blocked and move to the next candidate rather than filling placeholder data.",
     ]
@@ -451,7 +467,8 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             ]
         )
 
-    ticker_list = ",".join(candidate.ticker for candidate in candidates)
+    safe_loop_candidates = pilot_public_shortlist(candidates, limit=10)
+    ticker_list = ",".join(candidate.ticker for candidate in safe_loop_candidates)
     first = candidates[0].ticker
     lines.extend(
         [
@@ -462,7 +479,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             f"4. Prepare trusted rows only if the source review passes: {pilot_trusted_row_path(candidates[0])}",
             "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
             f"6. Rebuild lane proof: {candidates[0].proof_after_unlock}",
-            f"7. If still blocked, keep the blocker visible and move to the next candidate: make trusted-data-pilot TICKERS={ticker_list} TOP_N={len(candidates)}",
+            f"7. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS={ticker_list} TOP_N={len(safe_loop_candidates)}",
             "",
             "Stop condition: if trusted source rows are unavailable, keep the ticker data-blocked and move to the next candidate.",
         ]

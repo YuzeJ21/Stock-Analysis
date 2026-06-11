@@ -3,6 +3,7 @@ from src.trusted_data_pilot import (
     pilot_evidence_row_template,
     pilot_lane_label,
     pilot_operator_decision,
+    pilot_public_shortlist,
     pilot_rank_reason,
     pilot_review_path,
     pilot_selection_brief,
@@ -305,10 +306,58 @@ def test_pilot_selection_brief_explains_how_to_choose_small_pilot():
     assert "Fundamentals / DCF unlock: 1" in brief
     assert "Peer mapping unlock: 1" in brief
     assert "make trusted-data-pilot TICKERS=MU,META TOP_N=2" in brief
+    assert "after choosing active/demo names" in brief
+    assert "No broad-universe overflow is needed for the first pilot shortlist." in brief
     assert "before report, lane review, trusted source row" in brief
     assert "keep that ticker blocked and move to the next candidate" in brief
     assert "placeholder" in brief
     assert "recommend" not in brief.lower()
+
+
+def test_pilot_public_shortlist_prefers_active_and_demo_names_before_broad_fillers():
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "AAPG",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue",
+                "focus_command": "make focus-fundamentals TICKER=AAPG",
+            },
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            },
+            {
+                "ticker": "AARD",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue",
+                "focus_command": "make focus-fundamentals TICKER=AARD",
+            },
+        ],
+        [],
+        [
+            {"ticker": "AAPG", "asset_type": "company", "in_active_universe": "False"},
+            {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "AARD", "asset_type": "company", "in_active_universe": "False"},
+        ],
+        top_n=10,
+    )
+
+    shortlist = pilot_public_shortlist(candidates)
+    brief = "\n".join(pilot_selection_brief(candidates))
+    rendered = render_trusted_data_pilot_candidates(candidates)
+
+    assert [candidate.ticker for candidate in candidates] == ["META", "AAPG", "AARD"]
+    assert [candidate.ticker for candidate in shortlist] == ["META"]
+    assert "Suggested pilot command after choosing active/demo names: make trusted-data-pilot TICKERS=META TOP_N=1" in brief
+    assert "Optional broad-universe overflow: AAPG, AARD; use only after source proof exists." in brief
+    assert "move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
+    assert "make trusted-data-pilot TICKERS=META,AAPG,AARD TOP_N=3" not in rendered
 
 
 def test_pilot_selection_brief_handles_empty_queue_without_forcing_data():
@@ -342,7 +391,8 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "Pilot lanes are plain-English unlock paths" in rendered
     assert "How to choose the pilot:" in rendered
     assert "Pilot selection rule: choose 5-10 operating companies only when you can review source proof" in rendered
-    assert "Suggested pilot command after choosing names: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
+    assert "Suggested pilot command after choosing active/demo names: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
+    assert "No broad-universe overflow is needed for the first pilot shortlist." in rendered
     assert "Useful pilot win: before report, lane review, trusted source row" in rendered
     assert "1. META - Fundamentals / DCF unlock" in rendered
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares outstanding." in rendered
@@ -366,7 +416,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "6. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
     assert "Evidence expectation: Evidence required: before report, lane review output" in rendered
     assert "Do not call META unlocked until the rebuilt report proves the lane changed." in rendered
-    assert "7. If still blocked, keep the blocker visible and move to the next candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
+    assert "7. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "8. make stock-report-md" not in rendered
     assert "QQQ and SMH are excluded from this company pilot queue" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
