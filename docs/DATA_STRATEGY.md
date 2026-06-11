@@ -65,6 +65,19 @@ Use this split when deciding what can run on a schedule and what should stay rev
 
 The practical rule is simple: automate repeatable checks and capped previews; require human/source review before anything changes valuation, peer context, earnings context, estimates context, or public committed data.
 
+## Safe Overnight Automation
+
+If you want the project to keep working while unattended, keep the job in review mode by default.
+
+Safe overnight jobs:
+
+- Run status, readiness, dashboard smoke, public wording, and diff-hygiene checks.
+- Run `make price-refresh-loop DRY_RUN=1` to produce a capped price-refresh plan without changing local files.
+- Run capped price refreshes only when you already accepted the planned scope; review refreshed CSV diffs before committing.
+- Regenerate selected Markdown reports for demo tickers after reviewed data changes.
+
+Do not run unattended jobs that apply fundamentals, peer mappings, earnings, analyst estimates, or public commits. Those lanes require source judgment, validation, preview, rejected-row review, and readiness proof before analysis changes.
+
 ## Recommended Pilot
 
 Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.

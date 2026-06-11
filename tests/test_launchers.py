@@ -1385,7 +1385,8 @@ def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     assert "Build Local Report Preview" not in dashboard
     assert "Show Report Preview" not in dashboard
     assert "Generate Local Stock Report" not in dashboard
-    assert "Online data check (optional)" in dashboard
+    assert "Online lookup (off by default)" in dashboard
+    assert "Online data check (optional)" not in dashboard
     assert "Use research-grade online data" not in dashboard
     assert "Show source readiness details" in dashboard
     assert "Show report source details" not in dashboard
@@ -1471,6 +1472,10 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Whether a source row is trusted, which fiscal period is appropriate, and whether manual fundamentals should be applied." in data_strategy
     assert "Which companies are real peers and whether any fallback sector/industry context is acceptable as context only." in data_strategy
     assert "If a workflow depends on source credibility, issuer judgment, fiscal-period choice, peer selection, or optional provider licensing" in data_strategy
+    assert "Safe Overnight Automation" in data_strategy
+    assert "keep the job in review mode by default" in data_strategy
+    assert "Run `make price-refresh-loop DRY_RUN=1` to produce a capped price-refresh plan without changing local files." in data_strategy
+    assert "Do not run unattended jobs that apply fundamentals, peer mappings, earnings, analyst estimates, or public commits." in data_strategy
     assert "make price-worklist TOP_N=10" in data_strategy
     assert "then preview any broader update with `make price-refresh-loop DRY_RUN=1`" in data_strategy
     assert "Pilot Evidence Checklist" in data_strategy
