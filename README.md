@@ -120,7 +120,7 @@ In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticke
 
 For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md). Those guides cover targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
 
-When you are ready to improve real coverage, start with `make trusted-data-pilot-candidates TOP_N=10`. It ranks current operating-company blockers from local readiness outputs without importing or fabricating data. Then run `make trusted-data-pilot-packet TICKER=CRDO` for a one-company before/focus/review/validate/rebuild packet, or `make trusted-data-pilot TICKERS=<comma-separated candidates> TOP_N=10` for the broader copyable evidence loop.
+When you are ready to improve real coverage, start with `make trusted-data-pilot-candidates TOP_N=10`. It ranks current operating-company blockers from local readiness outputs without importing or fabricating data. Then run `make trusted-data-pilot-packet TICKER=CRDO` for a one-company before report, review path, validate/apply step, and rebuild-proof packet, or `make trusted-data-pilot TICKERS=<comma-separated candidates> TOP_N=10` for the broader copyable evidence loop.
 
 The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers.
 

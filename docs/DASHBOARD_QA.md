@@ -41,7 +41,7 @@ Checked pages and reports:
 - Sidebar: confirmed the main navigation control reads `Choose your path`, not internal review-control language.
 - Data Health: confirmed first-screen wording uses checklist/review-path language before advanced command detail.
 - Value / Re-rating: confirmed the broad valuation input count is labeled separately from exact company DCF-ready counts.
-- Portfolio Review: confirmed table helper copy says `next-step context` instead of engineering-heavy operational wording.
+- Portfolio Review: confirmed table helper copy says `next-step context` instead of internal-tool operational wording.
 - Trusted Data Pilot: confirmed the read-only pilot prints a company starter set and separates `QQQ` / `SMH` as ETF/index monitor examples, not operating-company DCF targets.
 - `outputs/stock_reports/a.md`: confirmed standalone DCF peer wording no longer repeats `DCF assumptions and sensitivity`.
 

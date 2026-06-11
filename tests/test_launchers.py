@@ -144,7 +144,7 @@ def test_makefile_help_documents_key_workflows():
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
         "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot",
-        "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before/focus/review/validate/rebuild evidence packet",
+        "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before-report/review/validate/rebuild evidence packet",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -789,7 +789,7 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "Data strategy",
         "Read `docs/DATA_STRATEGY.md`, then use the targeted commands above for a 5-10 company pilot.",
         "Do not publish broad generated CSV churn unless it is the reviewed artifact for that release",
-        "Do not add execution workflows, direct recommendations, fabricated data, or valuation labels without ready inputs",
+        "Do not add workflows that run imports, refreshes, account actions, direct recommendations, fabricated data, or valuation labels without ready inputs",
     ):
         assert phrase in roadmap
 
@@ -937,7 +937,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in checklist
     assert "Treat `QQQ` and `SMH` as ETF/index monitor demos" in checklist
     assert "Keep the pilot evidence packet visible" in checklist
-    assert "before/focus/review/validate/rebuild packet" in checklist
+    assert "before report, review path, validate/apply, and rebuild-proof packet" in checklist
     assert "baseline readiness, before report, focused blocker check, lane review path" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
@@ -1135,7 +1135,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "Portfolio Review: confirmed the page renders plain-language capability and limit cards",
         "checklist/review-path language before advanced command detail",
         "broad valuation input count is labeled separately from exact company DCF-ready counts",
-        "`next-step context` instead of engineering-heavy operational wording",
+        "`next-step context` instead of internal-tool operational wording",
         "prints a company starter set and separates `QQQ` / `SMH` as ETF/index monitor examples",
         "standalone DCF peer wording no longer repeats `DCF assumptions and sensitivity`",
         "Commands remain copy-only",

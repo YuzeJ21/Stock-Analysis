@@ -21,7 +21,7 @@ help:
 	@echo "  make demo             Print a short visitor demo path without refreshing broad local data"
 	@echo "  make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan"
 	@echo "  make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot"
-	@echo "  make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before/focus/review/validate/rebuild evidence packet"
+	@echo "  make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before-report/review/validate/rebuild evidence packet"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"

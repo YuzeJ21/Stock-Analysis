@@ -253,7 +253,7 @@ Public-share rules for this stage:
 - Keep dashboard pages plain-language first, with commands and file paths behind focused help or tables.
 - Keep the sidebar focused on the three main visitor paths, with advanced pages still reachable for deeper local review.
 - Do not publish broad generated CSV churn unless it is the reviewed artifact for that release.
-- Do not add execution workflows, direct recommendations, fabricated data, or valuation labels without ready inputs.
+- Do not add workflows that run imports, refreshes, account actions, direct recommendations, fabricated data, or valuation labels without ready inputs.
 
 ## 9. Acceptance Criteria For The Next Roadmap Milestone
 
