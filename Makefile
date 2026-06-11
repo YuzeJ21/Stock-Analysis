@@ -161,6 +161,9 @@ trusted-data-pilot:
 	@echo "Starter loop example: make stock-report-md TICKER=NVDA -> make focus-fundamentals TICKER=NVDA -> make focus-peers TICKER=NVDA"
 	@echo "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence."
 	@echo "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, and the exact validation commands that changed the state."
+	@if [ -n "$$SEC_USER_AGENT" ]; then echo "SEC credential state: SEC_USER_AGENT is configured for local staging checks."; else echo "SEC credential state: SEC_USER_AGENT is not configured; use manual trusted fundamentals or stop at diagnostics."; fi
+	@echo "Evidence table columns to record: ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path."
+	@echo "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker data-blocked and record the missing input."
 	@echo ""
 	@echo "1. Save the current baseline:"
 	@echo "   make readiness-snapshot"

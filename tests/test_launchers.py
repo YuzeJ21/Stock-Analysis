@@ -1552,6 +1552,10 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Starter loop example: make stock-report-md TICKER=NVDA -> make focus-fundamentals TICKER=NVDA -> make focus-peers TICKER=NVDA" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
     assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, and the exact validation commands that changed the state." in makefile
+    assert "SEC credential state: SEC_USER_AGENT is configured for local staging checks." in makefile
+    assert "SEC credential state: SEC_USER_AGENT is not configured; use manual trusted fundamentals or stop at diagnostics." in makefile
+    assert "Evidence table columns to record: ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path." in makefile
+    assert "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker data-blocked and record the missing input." in makefile
     assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker data-blocked." in makefile
     assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
     assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile
