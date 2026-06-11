@@ -149,6 +149,7 @@ help-full:
 demo:
 	@echo "Stock Research Command Center visitor demo"
 	@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."
+	@echo "Full share-ready walkthrough: docs/PUBLIC_DEMO_WALKTHROUGH.md"
 	@echo "Run these from the repository root so make can find the project targets."
 	@echo ""
 	@echo "Visitor demo path:"
@@ -173,7 +174,7 @@ demo:
 	@echo "   make stock-report-md TICKER=QQQ"
 	@echo "      Shows: ETF/index monitor context where operating-company DCF is excluded, not failed."
 	@echo "   make stock-report-md TICKER=MU"
-	@echo "      Shows: standalone DCF review with peer-relative valuation still locked."
+	@echo "      Shows: standalone DCF review with mapped-peer valuation inputs still locked."
 	@echo "   make stock-report-md TICKER=CRDO"
 	@echo "      Shows: fundamentals/DCF proof workflow with a one-company pilot packet."
 	@echo ""

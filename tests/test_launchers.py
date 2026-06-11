@@ -395,6 +395,7 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
 def test_readme_public_landing_page_is_short_visual_and_command_focused():
     readme = Path("README.md").read_text(encoding="utf-8")
     preview = Path("docs/assets/dashboard-preview.svg").read_text(encoding="utf-8")
+    public_demo = Path("docs/PUBLIC_DEMO_WALKTHROUGH.md").read_text(encoding="utf-8")
 
     assert len(readme.splitlines()) < 180
     assert "![Dashboard preview](docs/assets/dashboard-preview.svg)" in readme
@@ -443,11 +444,19 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "| Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |" in readme
     assert "`Home`, then focused review pages" not in readme
     assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> MU peer-limited example -> CRDO fundamentals-gated example -> trusted-data pilot." in readme
-    assert "validate/apply step, rejected-row report, and rebuild-proof packet" in readme
-    assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" in readme
-    assert "Read the outcome in three states: `Supported` means rebuilt readiness and the regenerated report show the lane is ready" in readme
-    assert "`Still blocked` means validation failed, rejected rows appeared, or the report stayed locked" in readme
-    assert "`Skip` means source proof is unavailable, so no placeholder rows are applied and the next candidate moves up" in readme
+    assert "[Public Demo Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
+    assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
+    assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
+    assert "mapped-peer valuation inputs" in public_demo
+    assert "Missing data is not a product failure here" in public_demo
+    assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" not in readme
+    assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" in public_demo
+    assert "Read the outcome in three states: `Supported` means rebuilt readiness and the regenerated report show the lane is ready" not in readme
+    assert "Read the outcome in three states: `Supported` means rebuilt readiness and the regenerated report show the lane is ready" in public_demo
+    assert "`Still blocked` means validation failed, rejected rows appeared, or the report stayed locked" not in readme
+    assert "`Still blocked` means validation failed, rejected rows appeared, or the report stayed locked" in public_demo
+    assert "`Skip` means source proof is unavailable, so no placeholder rows are applied" not in readme
+    assert "`Skip` means source proof is unavailable, so no placeholder rows are applied" in public_demo
     assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
     assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
     assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < readme.index("Optional extra report states:")
@@ -1830,7 +1839,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"      Shows: ETF/index monitor context where operating-company DCF is excluded, not failed.\"" in makefile
     assert "@echo \"      Shows: fundamentals/DCF proof workflow with a one-company pilot packet.\"" in makefile
     assert "@echo \"   Optional extra states:\"" in makefile
-    assert "@echo \"      Shows: standalone DCF review with peer-relative valuation still locked.\"" in makefile
+    assert "@echo \"      Shows: standalone DCF review with mapped-peer valuation inputs still locked.\"" in makefile
+    assert "@echo \"      Shows: standalone DCF review with peer-relative valuation still locked.\"" not in makefile
     assert "@echo \"      Shows: another standalone DCF review with peer-relative valuation still locked.\"" in makefile
     assert "@echo \"      Shows: sector ETF monitor context.\"" in makefile
     assert "@echo \"      Shows: price/setup review with fundamentals still locked.\"" in makefile
