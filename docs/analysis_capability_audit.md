@@ -44,7 +44,7 @@ The product follows the same inspectable path for every ticker:
 2. Validate whether each feature is `ready`, `partial`, `blocked`, or `excluded`.
 3. Run only calculations supported by ready inputs, such as price setup, ATR/proxy volatility, DCF scenarios, or peer context.
 4. Reduce confidence or withhold sections when required inputs are missing.
-5. Write the report from those local states: At A Glance first, Evaluation Snapshot near the top, Proof Checklist next, Best Review Path next, supported analysis next, blocked or excluded analysis next, and copyable local data-unlock commands near the source readiness check.
+5. Write the report from those local states: visitor scan cue first, At A Glance near the top, Evaluation Snapshot near the top, Proof Checklist next, Best Review Path next, supported analysis next, blocked or excluded analysis next, and copyable local data-unlock commands near the source readiness check.
 
 That contract is why a full-data company can show fundamentals, DCF assumptions, sensitivity, and peer context, while a partial-data company shows only the supported setup or blocker explanation.
 

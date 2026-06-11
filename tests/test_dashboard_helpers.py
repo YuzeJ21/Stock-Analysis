@@ -10389,11 +10389,11 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "does not convert partial data into a portfolio action" in rendered
     assert "start with a demo or one selected ticker" in rendered
     assert "for a visitor demo, copy the markdown report command" in rendered
-    assert "read at a glance and the reader guide before opening detailed sections" in rendered
+    assert "read the visitor scan cue, at a glance, and the reader guide before opening detailed sections" in rendered
     assert len(summary_cards) == 1
     assert summary_cards[0]["kicker"] == "ONE-TICKER REVIEW"
     assert "show one local report" in summary_rendered
-    assert "select a ticker, show the local read-only report, then read at a glance first" in summary_rendered
+    assert "select a ticker, show the local read-only report, then read the visitor scan cue and at a glance first" in summary_rendered
     assert "locked inputs" in summary_rendered
     assert "excluded company valuation" in summary_rendered
     assert "next local proof step" in summary_rendered

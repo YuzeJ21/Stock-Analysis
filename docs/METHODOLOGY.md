@@ -235,7 +235,7 @@ Single-stock reports are assembled from the same gates and calculations:
 - Copyable Unlock Commands for local, capped, research-only follow-up workflows.
 - Which sources were used and how fresh they are.
 
-The report should be read top-down: At A Glance first, Reader Guide second, Evaluation Snapshot third, Proof Checklist fourth, Best Review Path fifth, supported analysis sixth, blocked or excluded analysis seventh, copyable local unlock commands next, then source readiness and valuation detail. The commands are displayed for the reader to copy manually; the report does not run imports or refreshes and does not connect to external accounts.
+The report should be read top-down: visitor scan cue first, At A Glance second, Reader Guide third, Evaluation Snapshot fourth, Proof Checklist fifth, Best Review Path sixth, supported analysis next, blocked or excluded analysis next, copyable local unlock commands next, then source readiness and valuation detail. The commands are displayed for the reader to copy manually; the report does not run imports or refreshes and does not connect to external accounts.
 
 When a company ticker has the full trusted local input stack, the single-stock report can show:
 

@@ -106,7 +106,7 @@ def test_public_docs_explain_single_stock_reader_guide():
         assert phrase in readme_text
     expected_methodology_phrases = (
         "reader guide: answers what can be analyzed now",
-        "at a glance first, reader guide second",
+        "visitor scan cue first, at a glance second, reader guide third",
         "the report does not run imports or refreshes and does not connect to external accounts",
     )
     for phrase in expected_methodology_phrases:

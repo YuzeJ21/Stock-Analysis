@@ -758,7 +758,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
         "Best Review Path: tells the reader whether to review DCF and peers",
         "Evaluation Snapshot: summarizes supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before the detailed sections",
-        "The report should be read top-down: At A Glance first, Reader Guide second, Evaluation Snapshot third, Proof Checklist fourth, Best Review Path fifth",
+        "The report should be read top-down: visitor scan cue first, At A Glance second, Reader Guide third, Evaluation Snapshot fourth, Proof Checklist fifth",
         "copyable local unlock commands next",
         "the report does not run imports or refreshes and does not connect to external accounts",
         "At A Glance mode, method cue, and next local step",

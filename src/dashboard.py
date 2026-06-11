@@ -5596,7 +5596,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "title": "Start with a demo or one selected ticker",
             "body": (
                 "For a visitor demo, copy the Markdown report command. For your own ticker, select a local ticker above, "
-                "show the local report, then read At A Glance and the reader guide before opening detailed sections."
+                "show the local report, then read the visitor scan cue, At A Glance, and the reader guide before opening detailed sections."
             ),
             "badges": ["visitor path", "one ticker"],
             "command": "make stock-report-md TICKER=NVDA",
@@ -5610,7 +5610,7 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
             "kicker": "ONE-TICKER REVIEW",
             "title": "Show one local report",
             "body": (
-                "Select a ticker, show the local read-only report, then read At A Glance first. "
+                "Select a ticker, show the local read-only report, then read the visitor scan cue and At A Glance first. "
                 "The report separates ready analysis, locked inputs, excluded company valuation, and the next local proof step."
             ),
             "badges": ["plain English", "readiness first", "copy-only"],
