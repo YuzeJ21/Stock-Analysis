@@ -16465,11 +16465,20 @@ def test_first_optional_context_unlock_cards_are_recommendation_free():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["command"] == "make optional-context-worklist TOP_N=25"
-    assert cards[1]["command"] == "make import-earnings"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
+    assert [card["kicker"] for card in cards] == [
+        "FIRST OPTIONAL UNLOCK",
+        "SCHEMA TEMPLATE",
+        "TRUSTED OPTIONAL INPUT",
+        "OPTIONAL READINESS PROOF",
+    ]
+    assert cards[1]["command"] == "make templates"
+    assert cards[2]["command"] == "make import-earnings"
+    assert cards[3]["command"] == "make imports-validate && make imports-preview && make imports-apply && make optional-context-readiness && make onboarding TOP_N=10"
     assert "data/staged/earnings/" in rendered
     assert "data/imports/earnings.csv" in rendered
     assert "schema fields: ticker, fiscal_period, report_date, eps_actual, eps_estimate, revenue_actual, revenue_estimate, source, updated_at" in rendered
+    assert "templates are blank aids, not synthetic data or coverage" in rendered
+    assert "schema only" in rendered
     assert "rejected-row report: rejected rows: data/rejected/earnings_import_rejected.csv" in rendered
     assert "rebuild proof: make optional-context-readiness && make onboarding top_n=10" in rendered
     assert "trusted source only" in rendered

@@ -3354,6 +3354,7 @@ def first_optional_context_unlock_frame(dataset: str = "earnings") -> pd.DataFra
 def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[str, object]]:
     frame = first_optional_context_unlock_frame(dataset)
     confirm = frame.iloc[0]
+    template = frame.iloc[1]
     stage = frame.iloc[2]
     validate = frame.iloc[3]
     rebuild = frame.iloc[4]
@@ -3364,6 +3365,13 @@ def first_optional_context_unlock_cards(dataset: str = "earnings") -> list[dict[
             "body": format_missing(confirm.get("Why It Matters"), ""),
             "badges": ["optional", "trusted source only"],
             "command": format_missing(confirm.get("Copy Command"), ""),
+        },
+        {
+            "kicker": "SCHEMA TEMPLATE",
+            "title": format_missing(template.get("Step"), "Create schema-only templates"),
+            "body": format_missing(template.get("Why It Matters"), ""),
+            "badges": ["schema only", "not data"],
+            "command": format_missing(template.get("Copy Command"), ""),
         },
         {
             "kicker": "TRUSTED OPTIONAL INPUT",
