@@ -131,52 +131,52 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
         return "Start here.", "Home shows what is ready, what is blocked, recent progress, and the safest next review path."
     if selected_page == "Single-Stock Report":
         return (
-            "Viewing Single-Stock Report.",
+            "Review one stock.",
             "Use this page to review one ticker's ready analysis, locked inputs, source notes, and next local proof step.",
         )
     if selected_page == "Value / Re-rating":
         return (
-            "Viewing Value / Re-rating.",
+            "Check valuation readiness.",
             "Use this page to separate valuation-ready companies, locked inputs, peer-comparison limits, and ETF/index monitor context.",
         )
     if selected_page == "Data Health":
         return (
-            "Viewing Data Health.",
+            "Improve data coverage.",
             "Use this page to see which trusted inputs are missing and which unlock path needs proof next.",
         )
     if selected_page == "Monthly Picks":
         return (
-            "Viewing Monthly Picks.",
+            "Explore ready names.",
             "Use this page as a data-gated candidate list; empty slots mean the filters refused to force weak or unsupported names.",
         )
     if selected_page == "Final Watchlist":
         return (
-            "Viewing Final Watchlist.",
+            "Read research states.",
             "Use this page to read research-state buckets, blockers, and next local steps; it is not an action or recommendation list.",
         )
     if selected_page == "Universe Manager":
         return (
-            "Viewing Universe Manager.",
+            "Review the universe.",
             "Use this page to review universe coverage and preview-first changes before any manual apply step.",
         )
     if selected_page == "Overview":
         return (
-            "Viewing Overview.",
+            "Scan broad status.",
             "Use this page for the broad status view: readiness, blockers, source notes, and copy-only next steps.",
         )
     if selected_page == "Market Direction":
         return (
-            "Viewing Market Direction.",
+            "Review market context.",
             "Use this page for local market and theme context where price history is ready; it is not a timing signal.",
         )
     if selected_page == "Momentum Leaders":
         return (
-            "Viewing Momentum Leaders.",
+            "Review setup strength.",
             "Use this page to review local setup strength for price-ready names before opening a single-stock report.",
         )
     if selected_page == "Portfolio Review":
         return (
-            "Viewing Portfolio Review.",
+            "Review portfolio context.",
             "Use this page to review local holding purpose, concentration, and risk context without creating portfolio actions.",
         )
     return (

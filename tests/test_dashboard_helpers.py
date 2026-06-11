@@ -394,40 +394,42 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert home_title == "Start here."
     assert "what is ready" in home_body
     assert "safest next review path" in home_body
-    assert report_title == "Viewing Single-Stock Report."
+    assert report_title == "Review one stock."
     assert "one ticker's ready analysis" in report_body
     assert "Home explains what is ready" not in report_body
-    assert value_title == "Viewing Value / Re-rating."
+    assert value_title == "Check valuation readiness."
     assert "valuation-ready companies" in value_body
     assert "peer-comparison limits" in value_body
     assert "DCF-ready review" not in value_body
-    assert health_title == "Viewing Data Health."
+    assert health_title == "Improve data coverage."
     assert "trusted inputs are missing" in health_body
     assert "unlock path needs proof" in health_body
-    assert monthly_title == "Viewing Monthly Picks."
+    assert monthly_title == "Explore ready names."
     assert "data-gated candidate list" in monthly_body
     assert "refused to force weak or unsupported names" in monthly_body
-    assert watchlist_title == "Viewing Final Watchlist."
+    assert watchlist_title == "Read research states."
     assert "research-state buckets" in watchlist_body
     assert "not an action or recommendation list" in watchlist_body
-    assert universe_title == "Viewing Universe Manager."
+    assert universe_title == "Review the universe."
     assert "preview-first changes" in universe_body
     assert "manual apply step" in universe_body
-    assert overview_title == "Viewing Overview."
+    assert overview_title == "Scan broad status."
     assert "broad status view" in overview_body
     assert "copy-only next steps" in overview_body
-    assert market_title == "Viewing Market Direction."
+    assert market_title == "Review market context."
     assert "local market and theme context" in market_body
     assert "not a timing signal" in market_body
-    assert momentum_title == "Viewing Momentum Leaders."
+    assert momentum_title == "Review setup strength."
     assert "local setup strength" in momentum_body
     assert "single-stock report" in momentum_body
-    assert portfolio_title == "Viewing Portfolio Review."
+    assert portfolio_title == "Review portfolio context."
     assert "holding purpose" in portfolio_body
     assert "without creating portfolio actions" in portfolio_body
     assert unknown_title == "Viewing Unknown Page."
     assert "selected review area" in unknown_body
     assert "return to Home" in unknown_body
+    public_titles = [home_title, report_title, health_title, monthly_title]
+    assert all(not title.startswith("Viewing ") for title in public_titles)
 
 
 def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
