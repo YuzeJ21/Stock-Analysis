@@ -24,6 +24,8 @@ PROJECT_STATUS_JSON = "project_status.json"
 PROJECT_STATUS_SUMMARY_CSV = "project_status_summary.csv"
 PROJECT_STATUS_TOP_ACTIONS_CSV = "project_status_top_actions.csv"
 PROJECT_STATUS_NEXT_STEPS_CSV = "project_status_next_steps.csv"
+TRUSTED_DATA_PILOT_CANDIDATES_COMMAND = "make trusted-data-pilot-candidates TOP_N=10"
+LEGACY_TRUSTED_DATA_PILOT_COMMAND = "make trusted-data-pilot TOP_N=10"
 
 
 def _friendly_cli_guidance(text: object) -> str:
@@ -336,7 +338,10 @@ def _fast_status_payload_from_outputs(
         command_rows = _recommended_next_command_rows(sorted_actions, bundles, [])
     if not command_rows:
         command_rows = _recommended_next_command_rows(sorted_actions, bundles, [] if allowed else problem_sources)
-    elif not allowed and not any(str(row.get("Command") or "").strip() == "make trusted-data-pilot TOP_N=10" for row in command_rows):
+    elif not allowed and not any(
+        str(row.get("Command") or "").strip() == TRUSTED_DATA_PILOT_CANDIDATES_COMMAND
+        for row in command_rows
+    ):
         command_rows.append(_trusted_data_pilot_command_row())
     command_rows = _prioritize_public_command_rows(command_rows)
 
@@ -610,14 +615,14 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
 
 def _trusted_data_pilot_command_row() -> dict[str, str]:
     return _command_row(
-        "Plan trusted data pilot",
-        "make trusted-data-pilot TOP_N=10",
+        "Rank trusted data pilot candidates",
+        TRUSTED_DATA_PILOT_CANDIDATES_COMMAND,
         (
-            "Use a 5-10 company evidence loop for fundamentals, DCF, and source-backed peers instead of "
-            "trying to unlock the full universe at once."
+            "Rank current operating-company blockers first, then use the selected names for the trusted-data "
+            "pilot evidence loop instead of trying to unlock the full universe at once."
         ),
         source_context="trusted local CSVs plus SEC/manual review paths",
-        freshness_context="read-only guide; run before importing trusted fundamentals or peer rows",
+        freshness_context="read-only ranking; run before importing trusted fundamentals or peer rows",
     )
 
 
@@ -627,6 +632,8 @@ def _prioritize_public_command_rows(rows: list[dict[str, str]]) -> list[dict[str
     seen: set[str] = set()
     for row in rows:
         command = str(row.get("Command") or "").strip()
+        if command == LEGACY_TRUSTED_DATA_PILOT_COMMAND:
+            continue
         if not command or command in seen:
             continue
         seen.add(command)
@@ -637,11 +644,11 @@ def _prioritize_public_command_rows(rows: list[dict[str, str]]) -> list[dict[str
 
     first = deduped[0]
     rest = deduped[1:]
-    pilot_rows = [row for row in rest if str(row.get("Command") or "").strip() == "make trusted-data-pilot TOP_N=10"]
-    if not pilot_rows or str(first.get("Command") or "").strip() == "make trusted-data-pilot TOP_N=10":
+    pilot_rows = [row for row in rest if str(row.get("Command") or "").strip() == TRUSTED_DATA_PILOT_CANDIDATES_COMMAND]
+    if not pilot_rows or str(first.get("Command") or "").strip() == TRUSTED_DATA_PILOT_CANDIDATES_COMMAND:
         return deduped
 
-    without_pilot = [row for row in rest if str(row.get("Command") or "").strip() != "make trusted-data-pilot TOP_N=10"]
+    without_pilot = [row for row in rest if str(row.get("Command") or "").strip() != TRUSTED_DATA_PILOT_CANDIDATES_COMMAND]
     return [first, pilot_rows[0], *without_pilot]
 
 

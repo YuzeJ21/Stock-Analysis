@@ -590,7 +590,7 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "Read-only operator snapshot." not in output
     assert "Commands below are copy-only local research helpers" in output
     assert "Recommended next local steps:" in output
-    assert "plan trusted data pilot: make trusted-data-pilot top_n=10" in output.lower()
+    assert "rank trusted data pilot candidates: make trusted-data-pilot-candidates top_n=10" in output.lower()
     assert "Local folders:" in output
     assert "data: data" in output
     assert "outputs: outputs" in output
@@ -668,15 +668,15 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     assert "manual import file fallback" in command_row["Reason"]
     assert "manual import draft fallback" not in command_row["Reason"]
     assert "generated CSV churn" not in command_row["FreshnessContext"]
-    assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot TOP_N=10"
+    assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
     guided_row = payload["recommended_next_command_rows"][2]
     assert guided_row["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
     assert guided_row["Reason"] == "Unlock Monthly Picks for 5 tickers across this guided data batch."
     assert guided_row["FreshnessContext"] == "guided batch generated from current onboarding outputs"
     pilot_row = payload["recommended_next_command_rows"][1]
-    assert pilot_row["Step"] == "Plan trusted data pilot"
-    assert "5-10 company evidence loop" in pilot_row["Reason"]
-    assert pilot_row["FreshnessContext"] == "read-only guide; run before importing trusted fundamentals or peer rows"
+    assert pilot_row["Step"] == "Rank trusted data pilot candidates"
+    assert "Rank current operating-company blockers first" in pilot_row["Reason"]
+    assert pilot_row["FreshnessContext"] == "read-only ranking; run before importing trusted fundamentals or peer rows"
     import_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
     assert import_row["Step"] == "Review import files"
     assert "Local import files already have rows" in import_row["Reason"]
@@ -828,8 +828,8 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
         == "dry-run first; verify source readiness notes and local CSV changes after any refresh"
     )
     assert "generated CSV churn" not in payload["recommended_next_command_rows"][0]["FreshnessContext"]
-    assert payload["recommended_next_command_rows"][1]["Step"] == "Plan trusted data pilot"
-    assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot TOP_N=10"
+    assert payload["recommended_next_command_rows"][1]["Step"] == "Rank trusted data pilot candidates"
+    assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
     assert payload["recommended_next_command_rows"][2]["Step"] == "Fix top prices blocker (AMD)"
     assert payload["recommended_next_command_rows"][3]["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
     assert payload["recommended_next_command_rows"][3]["Command"] == "make runbook-prices-broader"
@@ -867,7 +867,7 @@ def test_project_status_prefers_holdings_first_price_blockers_when_priority_matc
     assert payload["top_onboarding_actions"][0]["ticker"] == "META"
     assert payload["top_onboarding_actions"][0]["focus_command"] == "make focus-price TICKER=META"
     assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=META"
-    assert payload["recommended_next_command_rows"][1]["Step"] == "Plan trusted data pilot"
-    assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot TOP_N=10"
+    assert payload["recommended_next_command_rows"][1]["Step"] == "Rank trusted data pilot candidates"
+    assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
     assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Guided Data Batch"
     assert payload["recommended_next_command_rows"][2]["Command"] == "make runbook-prices"
