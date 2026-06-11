@@ -14025,6 +14025,8 @@ def valuation_quick_read_cards(
             "peer comparison still needs trusted peer inputs. This is a valuation-readiness review, "
             "not a recommendation, price target, or full investment conclusion."
         )
+    excluded_subject = excluded_ticker if not excluded.empty else "ETF/index/fund rows"
+    excluded_verb = "uses" if not excluded.empty and len(excluded) == 1 else "use"
 
     return [
         {
@@ -14066,7 +14068,7 @@ def valuation_quick_read_cards(
             "kicker": "EXCLUDED",
             "title": f"{len(excluded)} ETF/index/fund row(s)",
             "body": (
-                f"What is excluded: {excluded_ticker if not excluded.empty else 'ETF/index/fund rows'} use monitor context because company valuation "
+                f"What is excluded: {excluded_subject} {excluded_verb} monitor context because company valuation "
                 "does not apply; use market or risk context instead."
             ),
             "badges": ["not failed", "monitor only"],

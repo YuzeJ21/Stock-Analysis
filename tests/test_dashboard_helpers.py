@@ -9022,7 +9022,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert "fcf margin" not in rendered
     assert "fair value/share, intrinsic-value interpretation, and re-rating context" in rendered
     assert "1 etf/index/fund row(s)" in rendered
-    assert "qqq use monitor context because company valuation does not apply" in rendered
+    assert "qqq uses monitor context because company valuation does not apply" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -9071,7 +9071,7 @@ def test_valuation_quick_read_cards_keep_etf_rows_monitor_only_when_no_company_r
     assert "start with qqq" in rendered
     assert "no company valuation assumptions or sensitivity should be reviewed yet" in rendered
     assert "open the next dcf-ready ticker" not in rendered
-    assert "qqq use monitor context because company valuation does not apply" in rendered
+    assert "qqq uses monitor context because company valuation does not apply" in rendered
     assert "company valuation is excluded, not failed" in rendered
     assert "monitor only" in rendered
 
