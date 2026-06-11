@@ -1400,6 +1400,7 @@ def _stock_report_function_quality_lines(
     optional_ready = bool(earnings_ready) and bool(estimates_ready)
     asset_type = _display_value(readiness.get("asset_type"), "").lower()
     monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    core_company_before_peers = not monitor_context and dcf_status_text != "ready"
 
     price_status = (
         "ready for local trend/setup review"
@@ -1417,13 +1418,14 @@ def _stock_report_function_quality_lines(
         valuation_status = "ready for standalone DCF assumptions and sensitivity review"
     else:
         valuation_status = "blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready"
-    peer_status = (
-        "ready for peer-relative review"
-        if peer_is_ready and not monitor_context
-        else "excluded for monitor context"
-        if monitor_context
-        else "blocked until source-backed peer mappings and peer valuation inputs are ready"
-    )
+    if monitor_context:
+        peer_status = "excluded for monitor context"
+    elif core_company_before_peers:
+        peer_status = "held back until trusted fundamentals and DCF readiness pass first"
+    elif peer_is_ready:
+        peer_status = "ready for peer-relative review"
+    else:
+        peer_status = "blocked until source-backed peer mappings and peer valuation inputs are ready"
     optional_status = (
         "ready for earnings and analyst-estimate context"
         if optional_ready
@@ -1449,6 +1451,7 @@ def _stock_report_methodology_lines(
 ) -> list[str]:
     asset_type = _display_value(readiness.get("asset_type"), "").lower()
     monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    core_company_before_peers = not monitor_context and dcf_status_text != "ready"
     if monitor_context:
         valuation_method = (
             "operating-company DCF is excluded because this ticker is treated as ETF/index/fund monitor context; "
@@ -1467,6 +1470,11 @@ def _stock_report_methodology_lines(
 
     if monitor_context:
         peer_method = "peer-relative company valuation is excluded for monitor context"
+    elif core_company_before_peers:
+        peer_method = (
+            "peer-relative valuation is held back until trusted fundamentals and DCF readiness pass first; "
+            "peer rows cannot bypass the company DCF gate"
+        )
     elif bool(peer_ready):
         peer_method = "peer-relative valuation can be reviewed because source-backed peer inputs are ready"
     else:
@@ -1510,7 +1518,7 @@ def _stock_report_source_logic_lines(
         )
     else:
         dcf_logic = "blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing"
-        peer_logic = "blocked locally until source-backed peer mappings and peer metrics exist"
+        peer_logic = "held back locally until trusted fundamentals and standalone DCF readiness pass first"
     optional_logic = (
         "available from trusted local earnings and analyst-estimate rows"
         if bool(earnings_ready) and bool(estimates_ready)
@@ -1883,13 +1891,15 @@ def _stock_report_at_a_glance_lines(
 ) -> list[str]:
     asset_type = _display_value(readiness.get("asset_type"), "").lower()
     monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
-    peer_status = (
-        "Excluded for monitor context"
-        if monitor_context
-        else "Ready for source-backed peer review"
-        if bool(peer_ready)
-        else "Locked until source-backed peer inputs are ready"
-    )
+    core_company_before_peers = not monitor_context and dcf_status_text != "ready"
+    if monitor_context:
+        peer_status = "Excluded for monitor context"
+    elif core_company_before_peers:
+        peer_status = "Held back until trusted fundamentals and DCF inputs are ready"
+    elif bool(peer_ready):
+        peer_status = "Ready for source-backed peer review"
+    else:
+        peer_status = "Locked until source-backed peer inputs are ready"
     optional_status = (
         "Ready"
         if bool(earnings_ready) and bool(estimates_ready)

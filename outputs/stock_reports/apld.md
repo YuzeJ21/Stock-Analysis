@@ -8,7 +8,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Decision view: Blocked by Data - Missing Fundamentals.
 - DCF: Blocked until trusted fundamentals and DCF inputs are ready.
 - Valuation support: Blocked until trusted DCF inputs are ready; missing now: free cash flow, shares outstanding, revenue, FCF margin.
-- Peer context: Locked until source-backed peer inputs are ready.
+- Peer context: Held back until trusted fundamentals and DCF inputs are ready.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF formula output is withheld until trusted price, fundamentals, cash-flow or margin, share-count, and DCF fields pass readiness.
 - Next local step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
@@ -77,7 +77,7 @@ APLD overall readiness: partial; review ready inputs first and treat locked inpu
 - Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
 - Product checks: project readiness gates decide whether each input is usable before report sections appear.
 - DCF method: blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing; the report does not ask a third party or model to create a valuation opinion.
-- Peer method: blocked locally until source-backed peer mappings and peer metrics exist; sector or industry fallback is not treated as trusted peer valuation.
+- Peer method: held back locally until trusted fundamentals and standalone DCF readiness pass first; sector or industry fallback is not treated as trusted peer valuation.
 - Optional context method: locked locally until trusted earnings and analyst-estimate rows pass import validation; empty optional files are an intentional locked state, not hidden analysis.
 - Output wording: supported, blocked, partial, and excluded sections are written from project code so missing data cannot become a weak conclusion.
 
@@ -98,7 +98,7 @@ APLD overall readiness: partial; review ready inputs first and treat locked inpu
 - DCF formula path: base FCF -> projected FCF -> discounted FCF plus discounted terminal value -> enterprise value -> equity value -> fair value per share.
 - DCF status boundary: ready means assumptions can be reviewed, blocked means required company inputs are missing, and excluded means the method does not fit ETF/index/fund monitor context.
 - DCF method: standalone DCF stays blocked until trusted local price, revenue, free cash flow or FCF margin, shares outstanding, and DCF fields pass readiness checks.
-- Peer method: peer-relative valuation stays withheld until source-backed peer mappings and peer valuation inputs are ready.
+- Peer method: peer-relative valuation is held back until trusted fundamentals and DCF readiness pass first; peer rows cannot bypass the company DCF gate.
 - Score boundary: setup, watchlist, confidence, and monthly scores are triage aids for review order only; they are not price targets, expected returns, or allocation instructions.
 - Report method: text is built from local readiness, DCF, peer, decision, and source readiness outputs; blocked or excluded sections are explained instead of filled.
 
@@ -107,7 +107,7 @@ APLD overall readiness: partial; review ready inputs first and treat locked inpu
 - Price and setup: ready for local trend/setup review.
 - Risk context: ready for local liquidity/correlation context.
 - Fundamentals / DCF: blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs are ready.
-- Peer comparison: blocked until source-backed peer mappings and peer valuation inputs are ready.
+- Peer comparison: held back until trusted fundamentals and DCF readiness pass first.
 - Optional context: locked until trusted local earnings and analyst-estimate rows exist.
 - Method source: readiness gates, DCF boundaries, peer blockers, and report wording are implemented in project code; standard libraries/adapters support data handling and UI, but shipped analysis comes from project code and local data.
 

@@ -1203,7 +1203,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Mode: `Data needed before analysis`." in markdown
     assert "- DCF: Blocked until trusted fundamentals and DCF inputs are ready." in markdown
     assert "- Valuation support: Blocked until trusted price, fundamentals, cash-flow or margin, and share-count inputs are ready." in markdown
-    assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
+    assert "- Peer context: Held back until trusted fundamentals and DCF inputs are ready." in markdown
+    assert "- Peer context: Ready for source-backed peer review." not in markdown
     assert "- Boundary: Missing-data proof state: price blocks evaluation, so conclusions stay withheld." in markdown
     assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
     assert "- Method: project readiness gates decide what can appear" in markdown
@@ -1242,7 +1243,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "## Data And App Method" in markdown
     assert "## Data Vs Product Logic" not in markdown
     assert "DCF method: blocked locally because required price, fundamentals, cash-flow or margin, share count, or DCF fields are missing" in markdown
-    assert "Peer method: blocked locally until source-backed peer mappings and peer metrics exist" in markdown
+    assert "Peer method: held back locally until trusted fundamentals and standalone DCF readiness pass first" in markdown
     assert "empty optional files are an intentional locked state" in markdown
     assert "## Methodology" in markdown
     assert "## Evaluation Function Check" in markdown
@@ -1320,6 +1321,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "the report does not run imports or refreshes and does not connect to external accounts" in markdown
     assert "Wait on fundamentals / DCF interpretation until price coverage starts" in markdown
     assert "After `make focus-price TICKER=APLD` is resolved, run `make focus-fundamentals TICKER=APLD`" in markdown
+    assert "Peer comparison: held back until trusted fundamentals and DCF readiness pass first" in markdown
+    assert "peer rows cannot bypass the company DCF gate" in markdown
     assert "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown
     assert "## Source Readiness Check" in markdown
     assert "Report command: `make stock-report-md TICKER=APLD`. Research-only Markdown output; copyable command only." in markdown
