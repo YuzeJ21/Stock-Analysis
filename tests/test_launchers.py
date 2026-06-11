@@ -1360,6 +1360,12 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
     assert "Provider-assisted does not mean provider-decided" in data_strategy
+    assert "Automation Boundary" in data_strategy
+    assert "The product can automate repeatable checks, but it should not automate source judgment." in data_strategy
+    assert "Dry-run planning, capped refresh loops, import normalization, validation, readiness rebuilds." in data_strategy
+    assert "Whether a source row is trusted, which fiscal period is appropriate, and whether manual fundamentals should be applied." in data_strategy
+    assert "Which companies are real peers and whether any fallback sector/industry context is acceptable as context only." in data_strategy
+    assert "If a workflow depends on source credibility, issuer judgment, fiscal-period choice, peer selection, or optional provider licensing" in data_strategy
     assert "make price-worklist TOP_N=10" in data_strategy
     assert "then preview any broader update with `make price-refresh-loop DRY_RUN=1`" in data_strategy
     assert "Pilot Evidence Checklist" in data_strategy

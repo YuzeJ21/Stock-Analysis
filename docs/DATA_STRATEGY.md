@@ -25,6 +25,20 @@ Use this guide before changing local data:
 | Earnings | Use trusted local earnings CSV rows only. | Not yet. | Empty earnings data stays intentionally locked. |
 | Analyst estimates | Use trusted local analyst-estimate CSV rows only. | Not yet. | Consensus context is optional and must not become a recommendation. |
 
+## Automation Boundary
+
+The product can automate repeatable checks, but it should not automate source judgment. Use this split when deciding what belongs in code versus what belongs in a reviewed local CSV:
+
+| Workflow | Safe to automate | Keep human-reviewed |
+| --- | --- | --- |
+| Price coverage | Dry-run planning, capped refresh loops, import normalization, validation, readiness rebuilds. | Whether a refreshed CSV should be committed or treated as local working data. |
+| Fundamentals / DCF | Missing-field diagnostics, SEC staging helpers, schema validation, DCF readiness checks, report regeneration. | Whether a source row is trusted, which fiscal period is appropriate, and whether manual fundamentals should be applied. |
+| Peers | Peer blocker queues, import schema checks, readiness status, peer trend versus valuation gating. | Which companies are real peers and whether any fallback sector/industry context is acceptable as context only. |
+| Earnings / estimates | Schema templates, staged-folder checks, rejected-row reports, unavailable-state rendering. | Whether a source is trusted enough to become local optional context. |
+| Public branch hygiene | Diff classification, public wording checks, staged hygiene, dashboard smoke. | Which generated sample reports or refreshed data artifacts are intentionally public. |
+
+If a workflow depends on source credibility, issuer judgment, fiscal-period choice, peer selection, or optional provider licensing, treat it as reviewed input rather than background automation.
+
 ## Recommended Pilot
 
 Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.
