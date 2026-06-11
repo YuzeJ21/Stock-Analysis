@@ -69,7 +69,7 @@ Boundary checked:
 Checked pages and docs:
 
 - Home: confirmed the first-run proof trail now points visitors to `make trusted-data-pilot-candidates TOP_N=10` before the ticker-scoped trusted-data pilot checklist.
-- Home: confirmed the next-step cards describe the candidate queue as read-only and keep the ticker-scoped pilot as the follow-up proof loop.
+- Home: confirmed the next-step cards describe the candidate list as read-only and keep the ticker-scoped pilot as the follow-up proof loop.
 - Portfolio Review: confirmed the page renders plain-language capability and limit cards after Streamlit finishes loading, with review-only wording and no portfolio action instruction.
 - Public docs: confirmed the release checklist and LinkedIn brief explain candidate ranking first, then the selected-company evidence loop.
 

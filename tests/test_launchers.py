@@ -1179,7 +1179,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "detailed pages remain available under `Advanced pages`",
         "Automation Boundary table separates repeatable checks from human-reviewed source judgment",
         "first-run proof trail now points visitors to `make trusted-data-pilot-candidates TOP_N=10`",
-        "candidate queue as read-only",
+        "candidate list as read-only",
         "Portfolio Review: confirmed the page renders plain-language capability and limit cards",
         "checklist/review-path language before advanced command detail",
         "broad valuation input count is labeled separately from exact company DCF-ready counts",
