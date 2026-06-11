@@ -515,6 +515,46 @@ def test_research_decisions_normalize_watchlist_columns_for_evaluation_fields():
     assert row["analysis_score"] == 0.68
 
 
+def test_research_decisions_do_not_confirm_compounder_alignment_when_dcf_is_blocked():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "CRDO",
+                "name": "Credo Technology",
+                "asset_type": "company",
+                "ready_features": "price, momentum, peer",
+                "partial_features": float("nan"),
+                "blocked_features": "fundamentals, dcf, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "revenue, fcf_margin",
+                "next_action": "Complete trusted fundamentals for CRDO.",
+            }
+        ]
+    )
+    watchlist = pd.DataFrame(
+        {
+            "Ticker": ["CRDO"],
+            "PrimaryPurpose": ["Core Compounder"],
+            "SetupStatus": ["Extended"],
+            "FinalState": ["Extended"],
+            "ValuationStatus": ["not_ready"],
+            "FinalValueCategory": ["Insufficient Data"],
+            "PeerRelativeStatus": ["Calculated"],
+            "WatchlistScore": [54],
+            "RankReason": ["Setup is extended."],
+            "Reason": ["Price setup exists, but fundamentals are incomplete."],
+        }
+    )
+
+    row = build_research_decisions_frame(readiness, watchlist).iloc[0]
+
+    assert row["decision_subtype"] == "Blocked by Data - Missing Fundamentals"
+    assert "Purpose alignment is not confirmed" in row["purpose_alignment"]
+    assert "trusted fundamentals and DCF evidence" in row["purpose_alignment"]
+    assert "price/setup context only" in row["purpose_alignment"]
+    assert "appears consistent" not in row["purpose_alignment"]
+
+
 def test_research_decisions_tailor_momentum_leader_brief_without_recommendation_language():
     readiness = pd.DataFrame(
         [

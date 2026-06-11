@@ -362,6 +362,12 @@ def _purpose_alignment(asset_type: str, watch_row: pd.Series, ready: list[str], 
         return f"Purpose alignment needs review: {purpose} depends on durable thesis support, but saved research views flag trend/thesis conflict. {reason}"
     if family == "rerating" and ("dcf" in blocked or "fundamentals" in blocked or "peer" in blocked):
         return f"Purpose alignment is blocked: {purpose} requires valuation inputs, but missing fundamentals, DCF, or peer context prevents a supported re-rating read."
+    if family == "compounder" and ("fundamentals" in blocked or "dcf" in blocked):
+        setup_note = f" Current setup `{setup}` can be reviewed as price/setup context only." if setup and setup != "Not available" else ""
+        return (
+            f"Purpose alignment is not confirmed: {purpose} requires trusted fundamentals and DCF evidence, "
+            f"but those inputs are still blocked.{setup_note}"
+        )
     if family == "speculative" and "price" not in ready:
         return f"Purpose alignment for {purpose} is not testable until price, liquidity, and volatility context are available."
     if final_state in {"Broken", "Review Thesis", "Risk Reduce"} or review_state in {"Broken", "Review Thesis", "Risk Reduce"}:

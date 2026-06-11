@@ -259,7 +259,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source Readiness Check
 - Prices: ready; local source `data/prices.csv`; coverage 2026-02-10 to 2026-03-14; rows=25; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
 - Fundamentals / DCF: excluded; local source `data/fundamentals.csv`; reason dcf excluded for etf, use etf/rotation analysis instead of operating-company dcf; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: monitor context; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context.
+- Peers: monitor context; local source `data/peers.csv`; import target `data/imports/peers.csv`; next peer action No peer import is required; operating-company peer valuation is excluded for ETF/index/fund monitor context.
 - Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
 - Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.

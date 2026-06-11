@@ -129,8 +129,8 @@ CRDO overall readiness: partial; review local inputs that are present and treat 
 ## Purpose Evaluation
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is Extended.
-- Alignment: Purpose alignment appears consistent with current setup `Extended` for Core Compounder, subject to the missing-data limits below.
-- Research review summary: Purpose alignment appears consistent with current setup `Extended` for Core Compounder, subject to the missing-data limits below; Blocked by Data - Missing Fundamentals. Next blocker: fundamentals. Withheld: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Review the readiness sections below before drawing conclusions.
+- Alignment: Purpose alignment is not confirmed for CRDO: price/setup context may be reviewable, but trusted fundamentals and DCF inputs are still required before thesis alignment can be supported.
+- Research review summary: Purpose alignment is not confirmed for CRDO: price/setup context may be reviewable, but trusted fundamentals and DCF inputs are still required before thesis alignment can be supported; Blocked by Data - Missing Fundamentals. Next blocker: fundamentals. Withheld: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Review the readiness sections below before drawing conclusions.
 - Setup: Compounder setup: Extended; final state: Extended. Review the readiness sections below before drawing conclusions.
 - Valuation boundary: Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete.
 
@@ -282,7 +282,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source Readiness Check
 - Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=616; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
 - Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing revenue, FCF margin; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import target `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
 - Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
 - Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.

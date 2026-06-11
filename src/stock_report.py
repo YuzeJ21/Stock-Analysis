@@ -1212,6 +1212,12 @@ def _stock_report_purpose_fields(
         if any(term in current_question for term in peer_question_terms):
             result["next_research_question"] = fallback["next_research_question"]
         return result
+    alignment_text = result.get("purpose_alignment", "")
+    if dcf_status_text == "blocked" and "appears consistent" in alignment_text.lower():
+        result["purpose_alignment"] = (
+            f"Purpose alignment is not confirmed for {ticker}: price/setup context may be reviewable, "
+            "but trusted fundamentals and DCF inputs are still required before thesis alignment can be supported."
+        )
     relative_status_key = _display_value(relative_status, "").lower()
     if (
         not monitor_context

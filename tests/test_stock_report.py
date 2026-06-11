@@ -1407,6 +1407,7 @@ def test_stock_report_distinguishes_local_inputs_from_allowed_analysis_when_dcf_
                 "primary_blocker": "fundamentals",
                 "main_reason": "Company research is blocked by missing DCF data.",
                 "next_best_action": "Complete trusted fundamentals for CRDO; missing fields: revenue, fcf_margin.",
+                "purpose_alignment": "Purpose alignment appears consistent with current setup `Extended` for Core Compounder, subject to the missing-data limits below.",
                 "supported_analysis": "Supported analysis: price history, setup and momentum context, peer rows exist locally.",
                 "unsupported_analysis": "Unsupported analysis: DCF interpretation, peer-relative valuation.",
                 "confidence_explanation": "Data confidence is low: primary blocker is fundamentals.",
@@ -1438,6 +1439,8 @@ def test_stock_report_distinguishes_local_inputs_from_allowed_analysis_when_dcf_
     assert "Peer context: Ready for source-backed peer review." not in markdown
     assert "peer rows exist locally" in markdown
     assert "peer-relative valuation" in markdown
+    assert "Purpose alignment is not confirmed for CRDO" in markdown
+    assert "appears consistent" not in markdown
     assert "buy" not in markdown.lower()
     assert "sell" not in markdown.lower()
 
