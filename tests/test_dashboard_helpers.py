@@ -968,6 +968,7 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "review the local status snapshot and reopen home" in rendered
     assert "do not try to unlock the full universe at once" in rendered
     assert "small trusted-data pilot" in rendered
+    assert "evidence packet" in rendered
     assert "use make readiness" not in rendered
     assert "run make readiness" not in rendered
     assert "broker" not in rendered
