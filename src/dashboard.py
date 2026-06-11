@@ -7562,7 +7562,7 @@ def readiness_recent_progress_cards(
             "kicker": "SOURCE / FRESHNESS",
             "title": "Copyable commands only",
             "body": (
-                "Dashboard cards display local commands and paths only; they do not execute imports, refreshes, or external actions. "
+                "Dashboard cards display local commands and paths only; they do not run imports, refreshes, or external actions. "
                 "Earnings and analyst estimates remain unavailable until trusted local CSV rows validate."
             ),
             "badges": ["copy only", "research-only"],
@@ -10391,7 +10391,7 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
         {
             "kicker": "NEXT ACTION",
             "title": f"{next_action_count} row(s) with next steps",
-            "body": "Next-action fields point to copyable local workflow steps. They do not execute anything from the dashboard.",
+            "body": "Next-action fields point to copyable local workflow steps. They do not run anything from the dashboard.",
             "badges": ["copy-only", "local workflow"],
             "command": "make research-health TOP_N=10",
         },
@@ -11511,7 +11511,9 @@ def product_page_logic_audit_frame(
             if column not in detail.columns:
                 detail[column] = ""
         has_validation = detail["validation_sequence"].fillna("").astype(str).str.contains("make ", case=False, na=False).all()
-        has_copy_only = detail["copy_only_note"].fillna("").astype(str).str.contains("copy-only|does not execute", case=False, na=False).all()
+        has_copy_only = detail["copy_only_note"].fillna("").astype(str).str.contains(
+            "copy-only|does not execute|does not run", case=False, na=False
+        ).all()
         has_withheld = detail["withheld_conclusion"].fillna("").astype(str).str.contains("withheld|excluded|unsupported", case=False, na=False).all()
         lane_count = len(detail)
     else:
@@ -12274,12 +12276,12 @@ def next_action_console_safety_note(command: object) -> str:
     if "price-refresh-loop" in lowered:
         return "Capped refresh loop; updates local price CSVs only after the dry run is reviewed. Rerun readiness and diff hygiene afterward."
     if "top_n=" in lowered:
-        return "Capped batch; copy manually when ready. The dashboard does not execute it."
+        return "Capped batch; copy manually when ready. The dashboard does not run it."
     if "ticker=" in lowered or "tickers=" in lowered:
-        return "Ticker-targeted command; copy manually when ready. The dashboard does not execute it."
+        return "Ticker-targeted command; copy manually when ready. The dashboard does not run it."
     if "imports-validate" in lowered or "imports-preview" in lowered or "imports-apply" in lowered or "import-" in lowered or "templates" in lowered:
-        return "Preview or import workflow; validate before apply. The dashboard does not execute it."
-    return "Copyable local command only; the dashboard does not execute it."
+        return "Preview or import workflow; validate before apply. The dashboard does not run it."
+    return "Copyable local command only; the dashboard does not run it."
 
 
 def build_next_action_console_frame(
@@ -20693,7 +20695,7 @@ def render_market_command_center(
         "Small, safe review entry points for turning known tickers into analysis-ready tickers.",
     )
     render_signal_cards(blocker_summary_cards)
-    render_section_header("Next Best Actions", "Practical command cards for the next local data unlock. These are copyable commands only; the dashboard does not execute them.")
+    render_section_header("Next Best Actions", "Practical command cards for the next local data unlock. These are copyable commands only; the dashboard does not run them.")
     render_signal_cards(next_best_action_cards)
 
     if ticker_readiness_frame is None or ticker_readiness_frame.empty:

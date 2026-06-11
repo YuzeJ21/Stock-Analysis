@@ -13267,7 +13267,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert str(single_row["command"]).startswith("make stock-report-md TICKER=")
     assert "source_freshness_note" in " ".join(console.columns)
     assert "scope" in console.columns
-    assert "dashboard does not execute" in rendered
+    assert "dashboard does not run" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -13334,7 +13334,7 @@ def test_next_action_console_prioritizes_active_samples_without_hiding_broad_cou
     assert single_row["sample_tickers"].split(",")[:3] == ["COHR", "LITE", "QQQ"]
     assert "one ticker explained in plain language" in single_row["when_to_use"].lower()
     assert "markdown report" in single_row["output_to_check"].lower()
-    assert "dashboard does not execute" in rendered
+    assert "dashboard does not run" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -15926,7 +15926,7 @@ def test_final_decision_table_guide_cards_explain_columns_before_rows():
     assert "use primary_blocker, missing_data, blocked_features, and excluded_features" in rendered
     assert "3 row(s) with next steps" in rendered
     assert "copyable local workflow steps" in rendered
-    assert "do not execute anything from the dashboard" in rendered
+    assert "do not run anything from the dashboard" in rendered
     assert "make research-health top_n=10" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -19552,7 +19552,7 @@ def test_product_page_logic_audit_checks_readiness_gating_and_queue_safety():
                 "action_category": "Single-Stock Review",
                 "command": "make stock-report TICKER=QQQ",
                 "why_it_matters": "Use one ticker drilldown to verify readiness and source readiness notes.",
-                "safety_note": "Ticker-targeted command; copy manually when ready. The dashboard does not execute it.",
+                "safety_note": "Ticker-targeted command; copy manually when ready. The dashboard does not run it.",
             }
         ]
     )

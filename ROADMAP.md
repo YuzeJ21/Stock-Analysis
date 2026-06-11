@@ -67,7 +67,7 @@ Goal: turn the Streamlit page into a research command center instead of a collec
   - Earnings Import Setup
   - Analyst Estimates Import Setup
   - Single-Stock Review
-- Keep dashboard commands copyable only; do not execute actions from the product page.
+- Keep dashboard commands copyable only; do not run imports, refreshes, or account actions from the product page.
 - Keep broad-universe tables row-limited by default.
 - Add source readiness notes wherever an action depends on local CSVs, staged import files, Yahoo price refresh, SEC staging, or manual trusted inputs.
 - [x] Add source readiness context to `project_status_next_steps.csv`, `make project-status`, and dashboard next-action cards.
