@@ -33,6 +33,18 @@ If you want the copyable read-only checklist first, run `make trusted-data-pilot
 
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
 
+One-company evidence packet:
+
+```bash
+make readiness-snapshot
+make stock-report-md TICKER=NVDA
+make focus-fundamentals TICKER=NVDA
+make focus-peers TICKER=NVDA
+make imports-validate && make imports-preview && make imports-apply
+make readiness && make dcf-readiness
+make stock-report-md TICKER=NVDA
+```
+
 1. Save the baseline with `make readiness-snapshot`.
 2. Confirm blockers with `make status-check TOP_N=10`.
 3. For prices, inspect ticker-level gaps with `make price-worklist TOP_N=10`, then preview any broader update with `make price-refresh-loop DRY_RUN=1`.
