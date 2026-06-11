@@ -107,6 +107,8 @@ make diff-hygiene
 
 The dry run shows the planned loop command and total capped candidates before local files change. This is the scalable path for broad coverage work; set `MAX_CANDIDATES` to the approximate number of missing-price rows you want to cover, dry-run again, snapshot readiness, then run one capped loop instead of repeating 25-ticker refreshes manually unless you are intentionally doing a tiny targeted check. Large refreshed CSVs are local working data, so review generated changes before committing them.
 
+Provider boundary: price refreshes can improve research-grade local price rows, but they do not create fundamentals, source-backed peers, earnings, analyst estimates, DCF inputs, or research conclusions. Use Data Health and the trusted-data pilot for those lanes.
+
 ## Function Quality Checklist
 
 - Readiness gates are the strongest layer; they decide whether deeper analysis is allowed.

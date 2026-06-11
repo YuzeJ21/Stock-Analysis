@@ -280,6 +280,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "TOTAL_CANDIDATES=$((BATCHES * TOP_N))" in script
     assert "MANUAL_25_BATCHES=$(((TOTAL_CANDIDATES + 24) / 25))" in script
     assert "Coverage target: $TARGET_NOTE. The final batch may have unused capacity if fewer missing tickers remain." in script
+    assert "Provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, DCF inputs, or conclusions." in script
     assert "Use this loop for broad coverage work instead of repeating 25-ticker refreshes manually." in script
     assert "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)." in script
     assert "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time." in script
@@ -355,6 +356,7 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
     assert "review summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in output
     assert "review summary: max_candidates is the approximate missing-price target; top_n is the per-batch safety cap." in output
     assert "no provider call, import, validation apply, broker action, or trade action runs during this dry run." in output
+    assert "provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, dcf inputs, or conclusions." in output
     assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=yahoo sleep_seconds=30" in output
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in output
     assert "dry-run result: no data changed; review the planned command, then run exactly one capped loop when ready." in output
@@ -500,6 +502,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make imports-preview",
         "make imports-apply",
         "Large refreshed CSVs are local working data",
+        "Provider boundary: price refreshes can improve research-grade local price rows",
+        "they do not create fundamentals, source-backed peers, earnings, analyst estimates, DCF inputs, or research conclusions",
     ):
         assert phrase in operator_guide
     for visitor_clutter in (
