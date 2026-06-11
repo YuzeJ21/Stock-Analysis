@@ -638,7 +638,14 @@ def test_sample_stock_reports_explain_methodology_and_use_current_research_bound
         assert "- Peer context:" in report
         assert "- Optional context:" in report
         assert "- Method: project readiness gates decide what can appear" in report
-        assert "discounted terminal value, cash/debt adjustment, and fair value per share when ready" in report
+        assert any(
+            method_boundary in report
+            for method_boundary in (
+                "discounted terminal value, cash/debt adjustment, and fair value per share when ready",
+                "DCF formula output is withheld until trusted price, fundamentals, cash-flow or margin, share-count, and DCF fields pass readiness",
+                "monitor reports use local price, market, liquidity, correlation, or theme context and exclude operating-company valuation methods",
+            )
+        )
         assert "- Next local step:" in report
         assert "## Analysis Quality" in report
         assert "## Methodology" in report
