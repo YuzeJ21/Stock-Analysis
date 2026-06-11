@@ -538,6 +538,7 @@ def render_trusted_data_pilot_candidates(
     *,
     top_n: int = DEFAULT_TOP_N,
     root: Path | None = None,
+    verbose: bool = False,
 ) -> str:
     lines = [
         "Trusted Data Pilot Candidates",
@@ -566,32 +567,41 @@ def render_trusted_data_pilot_candidates(
             "Quick path:",
             *[f"- {line}" for line in pilot_quick_path_lines(candidates)],
             "",
-            "Detailed review board:",
+            "Compact review board:",
             *[f"- {pilot_review_board_row(candidate)}" for candidate in candidates[: min(top_n, len(candidates))]],
             "",
         ]
     )
-    for index, candidate in enumerate(candidates, start=1):
-        scope = "active universe" if candidate.active_universe else "master universe"
+    if verbose:
+        lines.append("Verbose candidate details:")
+        for index, candidate in enumerate(candidates, start=1):
+            scope = "active universe" if candidate.active_universe else "master universe"
+            lines.extend(
+                [
+                    f"{index}. {candidate.ticker} - {pilot_lane_label(candidate.lane)} ({scope}, priority {candidate.priority})",
+                    f"   Why it matters: {candidate.why_it_matters}",
+                    f"   Rank reason: {pilot_rank_reason(candidate)}",
+                    f"   Missing input: {plain_pilot_input_copy(candidate.missing_input)}",
+                    f"   Next decision: {pilot_operator_decision(candidate)}",
+                    f"   {pilot_decision_gate(candidate)}",
+                    f"   Packet command: make trusted-data-pilot-packet TICKER={candidate.ticker}",
+                    f"   Lane check: {candidate.next_command}",
+                    f"   Review path: {pilot_review_path(candidate.validation_path)}",
+                    f"   Trusted row target: {pilot_trusted_row_path(candidate)}",
+                    f"   {pilot_local_file_status(candidate, root=root) if root is not None else 'Local file status: not checked in this render.'}",
+                    f"   Skip if: {pilot_skip_condition(candidate)}",
+                    "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
+                    f"   Rejected-row report to review: {pilot_rejected_report_path(candidate)}",
+                    f"   Proof after data changes: {candidate.proof_after_unlock}",
+                    f"   Evidence expectation: {pilot_evidence_expectation(candidate)}",
+                    f"   Source boundary: {candidate.source_boundary}",
+                    "",
+                ]
+            )
+    else:
         lines.extend(
             [
-                f"{index}. {candidate.ticker} - {pilot_lane_label(candidate.lane)} ({scope}, priority {candidate.priority})",
-                f"   Why it matters: {candidate.why_it_matters}",
-                f"   Rank reason: {pilot_rank_reason(candidate)}",
-                f"   Missing input: {plain_pilot_input_copy(candidate.missing_input)}",
-                f"   Next decision: {pilot_operator_decision(candidate)}",
-                f"   {pilot_decision_gate(candidate)}",
-                f"   Packet command: make trusted-data-pilot-packet TICKER={candidate.ticker}",
-                f"   Lane check: {candidate.next_command}",
-                f"   Review path: {pilot_review_path(candidate.validation_path)}",
-                f"   Trusted row target: {pilot_trusted_row_path(candidate)}",
-                f"   {pilot_local_file_status(candidate, root=root) if root is not None else 'Local file status: not checked in this render.'}",
-                f"   Skip if: {pilot_skip_condition(candidate)}",
-                "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
-                f"   Rejected-row report to review: {pilot_rejected_report_path(candidate)}",
-                f"   Proof after data changes: {candidate.proof_after_unlock}",
-                f"   Evidence expectation: {pilot_evidence_expectation(candidate)}",
-                f"   Source boundary: {candidate.source_boundary}",
+                "Need full candidate detail? Rerun with `make trusted-data-pilot-candidates VERBOSE=1`.",
                 "",
             ]
         )
@@ -683,6 +693,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-n", type=int, default=DEFAULT_TOP_N)
     parser.add_argument("--tickers", default="")
     parser.add_argument("--packet", default="", help="Print a one-company evidence packet for the requested ticker.")
+    parser.add_argument("--verbose", action="store_true", help="Print full per-candidate evidence details.")
     return parser.parse_args()
 
 
@@ -694,7 +705,7 @@ def main() -> None:
         print(render_trusted_data_pilot_packet(candidates[0] if candidates else None, requested_ticker=ticker, root=Path.cwd()))
         return
     candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
-    print(render_trusted_data_pilot_candidates(candidates, top_n=args.top_n, root=Path.cwd()))
+    print(render_trusted_data_pilot_candidates(candidates, top_n=args.top_n, root=Path.cwd(), verbose=args.verbose))
 
 
 if __name__ == "__main__":

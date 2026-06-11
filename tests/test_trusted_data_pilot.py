@@ -544,9 +544,9 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Quick path:" in rendered
     assert "Shortlist: META." in rendered
     assert "Start with one packet: make trusted-data-pilot-packet TICKER=META" in rendered
-    assert rendered.index("Quick path:") < rendered.index("Detailed review board:")
-    assert "Detailed review board:" in rendered
-    assert "Pilot review board:" not in rendered
+    assert rendered.index("Quick path:") < rendered.index("Compact review board:")
+    assert "Compact review board:" in rendered
+    assert "Detailed review board:" not in rendered
     assert "META: continue if source proof exists" in rendered
     assert "Skip for now if trusted SEC or manual fundamentals rows are not reviewable." in rendered
     assert "evidence row: META | before: run report | after: rerun report" in rendered
@@ -554,35 +554,56 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Suggested pilot command after choosing active/demo names: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "No broad-universe overflow is needed for the first pilot shortlist." in rendered
     assert "Useful pilot win: before report, lane review, trusted source row" in rendered
-    assert "1. META - Fundamentals / DCF proof path" in rendered
-    assert "Rank reason: active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing shares outstanding." in rendered
-    assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
+    assert "1. META - Fundamentals / DCF proof path" not in rendered
+    assert "Need full candidate detail? Rerun with `make trusted-data-pilot-candidates VERBOSE=1`." in rendered
+    assert "Rank reason: active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing shares outstanding." not in rendered
+    assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" not in rendered
     assert (
         "Decision gate: continue only if you have trusted SEC or manual fundamentals rows for the missing DCF fields"
-        in rendered
+        not in rendered
     )
     assert "Decision gate: Decision gate:" not in rendered
-    assert "do not apply placeholder rows just to make the report look complete" in rendered
+    assert "do not apply placeholder rows just to make the report look complete" not in rendered
     assert "fundamentals_dcf" not in rendered
-    assert "Packet command: make trusted-data-pilot-packet TICKER=META" in rendered
-    assert "Lane check: make focus-fundamentals TICKER=META" in rendered
-    assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
-    assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
-    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." in rendered
+    assert "Packet command: make trusted-data-pilot-packet TICKER=META" not in rendered
+    assert "Lane check: make focus-fundamentals TICKER=META" not in rendered
+    assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" not in rendered
+    assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" not in rendered
+    assert "Trusted input target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
+    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." not in rendered
     assert "Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
-    assert "Rejected-row report to review: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
     assert "3. Review the lane blocker: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
     assert "4. Prepare trusted rows only if the source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "7. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
-    assert "Evidence expectation: Evidence required: before report, lane review output" in rendered
-    assert "Do not call META available until the rebuilt report proves the lane changed." in rendered
+    assert "Evidence expectation: Evidence required: before report, lane review output" not in rendered
+    assert "Do not call META available until the rebuilt report proves the lane changed." not in rendered
     assert "8. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "8. make stock-report-md" not in rendered
     assert "QQQ and SMH are excluded from this company pilot list" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
+
+    verbose = render_trusted_data_pilot_candidates(candidates, root=tmp_path, verbose=True)
+
+    assert "Verbose candidate details:" in verbose
+    assert "Need full candidate detail?" not in verbose
+    assert "1. META - Fundamentals / DCF proof path" in verbose
+    assert "Rank reason: active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing shares outstanding." in verbose
+    assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in verbose
+    assert (
+        "Decision gate: continue only if you have trusted SEC or manual fundamentals rows for the missing DCF fields"
+        in verbose
+    )
+    assert "do not apply placeholder rows just to make the report look complete" in verbose
+    assert "Packet command: make trusted-data-pilot-packet TICKER=META" in verbose
+    assert "Lane check: make focus-fundamentals TICKER=META" in verbose
+    assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in verbose
+    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." in verbose
+    assert "Rejected-row report to review: data/rejected/fundamentals_import_rejected.csv" in verbose
+    assert "Evidence expectation: Evidence required: before report, lane review output" in verbose
+    assert "Do not call META available until the rebuilt report proves the lane changed." in verbose
 
 
 def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop():
@@ -604,22 +625,37 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
 
     rendered = render_trusted_data_pilot_candidates(candidates)
 
-    assert "1. MU - Peer mapping proof path" in rendered
+    assert "1. MU - Peer mapping proof path" not in rendered
     assert "peer_mapping" not in rendered
-    assert "Packet command: make trusted-data-pilot-packet TICKER=MU" in rendered
-    assert "Lane check: make focus-peers TICKER=MU" in rendered
+    assert "Packet command: make trusted-data-pilot-packet TICKER=MU" not in rendered
+    assert "Lane check: make focus-peers TICKER=MU" not in rendered
     assert "3. Review the lane blocker: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
-    assert "Trusted row target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
-    assert "Rejected-row report to review: data/rejected/peers_import_rejected.csv" in rendered
+    assert "Trusted row target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" not in rendered
+    assert "Trusted input target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "Rejected-row report to review: data/rejected/peers_import_rejected.csv" not in rendered
     assert (
         "Decision gate: continue only if you have source-backed peer relationships, not sector or industry similarity alone"
-        in rendered
+        not in rendered
     )
     assert "Decision gate: Decision gate:" not in rendered
-    assert "leave peer valuation blocked and show peer context only when supported" in rendered
+    assert "leave peer valuation blocked and show peer context only when supported" not in rendered
     assert "7. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
     assert "8. make readiness && make dcf-readiness" not in rendered
-    assert "sector or industry fallback" in rendered.lower()
+    assert "sector or industry fallback" not in rendered.lower()
+
+    verbose = render_trusted_data_pilot_candidates(candidates, verbose=True)
+
+    assert "1. MU - Peer mapping proof path" in verbose
+    assert "Packet command: make trusted-data-pilot-packet TICKER=MU" in verbose
+    assert "Lane check: make focus-peers TICKER=MU" in verbose
+    assert "Trusted row target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in verbose
+    assert "Rejected-row report to review: data/rejected/peers_import_rejected.csv" in verbose
+    assert (
+        "Decision gate: continue only if you have source-backed peer relationships, not sector or industry similarity alone"
+        in verbose
+    )
+    assert "leave peer valuation blocked and show peer context only when supported" in verbose
+    assert "sector or industry fallback" in verbose.lower()
 
 
 def test_render_trusted_data_pilot_candidates_uses_specific_peer_review_path_by_default():
@@ -638,7 +674,7 @@ def test_render_trusted_data_pilot_candidates_uses_specific_peer_review_path_by_
         top_n=10,
     )
 
-    rendered = render_trusted_data_pilot_candidates(candidates)
+    rendered = render_trusted_data_pilot_candidates(candidates, verbose=True)
 
     assert "Review path: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
     assert "3. Review the lane blocker: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered

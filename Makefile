@@ -275,7 +275,7 @@ trusted-data-pilot:
 	@echo "Guardrail: do not fabricate fundamentals, peers, earnings, estimates, valuation inputs, or recommendations."
 
 trusted-data-pilot-candidates:
-	@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),)
+	@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(filter 1 true TRUE yes YES,$(VERBOSE)),--verbose,)
 
 trusted-data-pilot-packet:
 ifndef TICKER

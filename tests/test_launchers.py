@@ -1232,7 +1232,8 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "Monthly candidate guidance stays a research queue, not a recommendation list.",
         "2026-06-11 Data Health Freshness Routine Pass",
         "Data Health: confirmed the `Freshness Routine` section explains a read-only daily/opening routine",
-        "quick read, freshness routine, fix first, copy-only next steps, and trusted-data pilot",
+        "quick read`, `fix first`, and `trusted-data pilot",
+        "Refresh and command details",
         "price freshness guidance starts with a capped dry-run command",
         "fundamentals, peer mappings, earnings, and analyst estimates remain review-required lanes",
         "does not claim new fundamentals, peer, earnings, or analyst-estimate coverage",
@@ -1720,7 +1721,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
-    assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(filter 1 true TRUE yes YES,$(VERBOSE)),--verbose,)" in makefile
     assert "trusted-data-pilot-packet:\nifndef TICKER\n\t$(error TICKER is required, for example: make trusted-data-pilot-packet TICKER=CRDO)\nendif\n\t@python3 -m src.trusted_data_pilot --packet $(TICKER)" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile
