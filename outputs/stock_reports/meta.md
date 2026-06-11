@@ -119,9 +119,9 @@ META overall readiness: partial; review ready inputs first and treat locked inpu
 ## Purpose Evaluation
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state needs thesis review.
-- Alignment: Purpose alignment needs review: Core Compounder depends on durable thesis support, but current local outputs flag trend/thesis conflict. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
-- Research review summary: Purpose alignment needs review: Core Compounder depends on durable thesis support, but current local outputs flag trend/thesis conflict. Next blocker: fundamentals. Withheld: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
-- Setup: Compounder setup: Thesis Review Needed; final state: Thesis Review Needed. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Alignment: Purpose alignment needs review: Core Compounder depends on durable thesis support, but current local outputs flag trend/thesis conflict. Review the readiness sections below before drawing conclusions.
+- Research review summary: Purpose alignment needs review: Core Compounder depends on durable thesis support, but current local outputs flag trend/thesis conflict. Next blocker: fundamentals. Withheld: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Review the readiness sections below before drawing conclusions.
+- Setup: Compounder setup: Thesis Review Needed; final state: Thesis Review Needed. Review the readiness sections below before drawing conclusions.
 - Valuation boundary: Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete.
 
 ## Supported Analysis
@@ -131,14 +131,14 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Currently withheld: DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation.
 
 ## Setup / Momentum
-- Compounder setup: Thesis Review Needed; final state: Thesis Review Needed. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Compounder setup: Thesis Review Needed; final state: Thesis Review Needed. Review the readiness sections below before drawing conclusions.
 - 1M performance: -7.4%
 - 3M performance: -4.2%
 - 1Y performance: -4.0%
 - ATR / volatility: Not available; missing values stay visible instead of guessed.
 
 ## Risk Notes
-- Risk watchpoint: compounder purpose is under thesis review because final state is `Thesis Review Needed`. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Risk watchpoint: compounder purpose is under thesis review because final state is `Thesis Review Needed`. Review the readiness sections below before drawing conclusions.
 - Invalidation condition: Already flagged for trend/purpose review in the current local setup state.
 
 ## Next Research Step
