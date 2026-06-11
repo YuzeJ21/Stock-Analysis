@@ -9237,6 +9237,48 @@ def test_data_health_quick_read_cards_start_with_price_when_no_price_ready_rows(
     assert "make stock-report ticker" not in rendered
 
 
+def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet():
+    cards = dashboard.data_health_trusted_pilot_cards(
+        {
+            "price_ready": 240,
+            "fundamentals_ready": 23,
+            "dcf_ready": 23,
+            "peer_ready": 9,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["PILOT STEP 1", "PILOT STEP 2", "PILOT STEP 3"]
+    assert cards[0]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
+    assert cards[1]["command"] == "make trusted-data-pilot-packet TICKER=<ticker>"
+    assert cards[2]["command"] == "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"
+    assert "217 price-ready company row(s) still need trusted fundamentals or dcf inputs" in rendered
+    assert "14 dcf-ready row(s) still need source-backed peer context" in rendered
+    assert "small ranked pilot instead of the full universe" in rendered
+    assert "before state, exact missing input, focus command, validate/preview/apply path, and after-proof command" in rendered
+    assert "keep that ticker blocked and choose the next candidate" in rendered
+    assert "optional context remains locked at 0 earnings-ready and 0 estimate-ready row(s)" in rendered
+    assert "source proof" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    next_steps_index = source.index('render_section_header("Copy-Only Next Steps"')
+    pilot_index = source.index('render_section_header("Trusted Data Pilot"')
+    details_index = source.index("if show_details:", next_steps_index)
+
+    assert next_steps_index < pilot_index < details_index
+    assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
+
+
 def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis():
     cards = dashboard.data_health_analysis_unlock_cards(
         {

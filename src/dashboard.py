@@ -6245,6 +6245,50 @@ def data_health_action_path_cards(
     return cards[:4]
 
 
+def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    fundamentals_ready = int(readiness_summary.get("fundamentals_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    depth_gap = max(price_ready - min(fundamentals_ready, dcf_ready), 0)
+    peer_gap = max(dcf_ready - peer_ready, 0)
+
+    return [
+        {
+            "kicker": "PILOT STEP 1",
+            "title": "Rank 5-10 companies first",
+            "body": (
+                f"{depth_gap:,} price-ready company row(s) still need trusted fundamentals or DCF inputs, and "
+                f"{peer_gap:,} DCF-ready row(s) still need source-backed peer context. Start with a small ranked pilot instead of the full universe."
+            ),
+            "badges": ["small pilot", "read-only"],
+            "command": "make trusted-data-pilot-candidates TOP_N=10",
+        },
+        {
+            "kicker": "PILOT STEP 2",
+            "title": "Inspect one proof packet",
+            "body": (
+                "Use one ticker packet to see the before state, exact missing input, focus command, validate/preview/apply path, and after-proof command. "
+                "If trusted rows are not available, keep that ticker blocked and choose the next candidate."
+            ),
+            "badges": ["one company", "no fake rows"],
+            "command": "make trusted-data-pilot-packet TICKER=<ticker>",
+        },
+        {
+            "kicker": "PILOT STEP 3",
+            "title": "Run the selected proof loop",
+            "body": (
+                f"Optional context remains locked at {earnings_ready:,} earnings-ready and {estimates_ready:,} estimate-ready row(s) until trusted CSV rows exist. "
+                "Use the pilot loop only for selected company names with source proof."
+            ),
+            "badges": ["selected names", "trusted CSVs"],
+            "command": "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10",
+        },
+    ]
+
+
 def data_health_advanced_unlock_map_cards(
     fundamentals_peer_worklist_frame: pd.DataFrame | None,
     peer_unlock_worklist_frame: pd.DataFrame | None,
@@ -20845,6 +20889,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
+    render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")
+    render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))
     with st.expander("Unlock planning cards", expanded=False):
         render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
