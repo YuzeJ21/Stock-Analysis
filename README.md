@@ -53,7 +53,7 @@ The product separates refreshable data from judgment-required data:
 | Data lane | Best next move | Why it matters |
 | --- | --- | --- |
 | Prices | Use `make price-refresh-loop DRY_RUN=1` before capped refreshes. | Price coverage can scale safely, but refreshed CSVs should be reviewed before commit. |
-| Fundamentals / DCF | Use `make trusted-data-pilot TOP_N=10`, SEC staging, or trusted manual imports. | Company valuation only appears after required fields pass readiness. |
+| Fundamentals / DCF | Use `make trusted-data-pilot-candidates TOP_N=10`, then SEC staging or trusted manual imports. | Company valuation only appears after required fields pass readiness. |
 | Peers | Add source-backed peer mappings and peer inputs. | Peer trend and peer valuation stay separate; guessed peers do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
@@ -120,7 +120,9 @@ In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticke
 
 For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md). Those guides cover targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
 
-When you are ready to improve real coverage, start with `make trusted-data-pilot TOP_N=10`. It prints a read-only 5-10 company pilot path for fundamentals, DCF, and peer inputs without importing or fabricating data.
+When you are ready to improve real coverage, start with `make trusted-data-pilot-candidates TOP_N=10`. It ranks current operating-company blockers from local readiness outputs without importing or fabricating data. Then run `make trusted-data-pilot TICKERS=<comma-separated candidates> TOP_N=10` for the copyable evidence loop.
+
+The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers.
 
 ## Local Data Hygiene
 

@@ -41,6 +41,7 @@ def test_makefile_contains_convenience_targets():
         "help",
         "demo",
         "diff-hygiene",
+        "trusted-data-pilot-candidates",
         "diff-hygiene-summary",
         "diff-hygiene-files",
         "staged-hygiene-check",
@@ -132,8 +133,14 @@ def test_makefile_help_documents_key_workflows():
         "make stock-report-md TICKER=NVDA",
         "make dashboard-smoke",
         "make dashboard",
+        "make trusted-data-pilot TOP_N=10",
+        "Print the company-focused trusted-data pilot path",
+        "make trusted-data-pilot-candidates TOP_N=10",
+        "Rank current company candidates for the next trusted-data pilot",
         "make public-check     Run before sharing the GitHub link",
         "make demo",
+        "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
+        "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -1352,6 +1359,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "not a trading system" in readme
     assert "docs/DATA_STRATEGY.md" in operator_guide
     assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
+    assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
     assert "make trusted-data-pilot TOP_N=10" in data_strategy
     assert "Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in data_strategy
     assert "ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos" in data_strategy
@@ -1563,11 +1571,13 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
+    assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile
     assert "Suggested company pilot: $(if $(TICKERS),$(TICKERS),NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META)" in makefile
     assert "ETF/index examples such as QQQ and SMH are monitor-context demos, not operating-company DCF targets." in makefile
     assert "Ticker-scoped example: make trusted-data-pilot TICKERS=NVDA,AVGO,AMD,MU,CRDO TOP_N=10" in makefile
+    assert "Candidate queue: make trusted-data-pilot-candidates TOP_N=10" in makefile
     assert "Company-by-company loop: open one report, inspect fundamentals, inspect peers, then validate trusted rows before reading any new valuation." in makefile
     assert "Starter loop example: make stock-report-md TICKER=NVDA -> make focus-fundamentals TICKER=NVDA -> make focus-peers TICKER=NVDA" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
@@ -1591,6 +1601,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Use a real capped price loop only after reviewing the dry run and saving a readiness snapshot." in makefile
     assert "Use trusted fundamentals, peer, earnings, or estimate rows only, then validate before apply" in makefile
     assert "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan" in makefile
+    assert "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "stock-report-md:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)\nendif\n\t@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
@@ -1608,6 +1619,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"4. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
     assert "@echo \"   make trusted-data-pilot TOP_N=10\"" in makefile
+    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10\"" in makefile
     assert "@echo \"6. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
     assert "@echo \"   make diff-hygiene\"" in makefile

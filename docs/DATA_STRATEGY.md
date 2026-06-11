@@ -11,7 +11,7 @@ Use this guide before changing local data:
 | If the gap is... | Do this first | Do not do this |
 | --- | --- | --- |
 | Missing or stale prices | Run `make price-refresh-loop DRY_RUN=1`, then snapshot readiness before any capped refresh. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
-| Missing fundamentals or DCF fields | Run `make trusted-data-pilot TOP_N=10`, then use SEC staging or trusted manual imports for 5-10 reviewed companies. | Do not fill placeholder fundamentals to make valuation appear ready. |
+| Missing fundamentals or DCF fields | Run `make trusted-data-pilot-candidates TOP_N=10`, then use SEC staging or trusted manual imports for 5-10 reviewed companies. | Do not fill placeholder fundamentals to make valuation appear ready. |
 | Missing peers | Run `make peer-mapping-queue TOP_N=25`, then add source-backed peers and peer inputs only. | Do not turn sector or industry similarity into trusted peer valuation. |
 | Missing earnings or estimates | Keep the section locked until trusted local rows pass validate, preview, and apply. | Do not render empty optional context as analysis. |
 
@@ -43,7 +43,7 @@ If a workflow depends on source credibility, issuer judgment, fiscal-period choi
 
 Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.
 
-If you want the copyable read-only checklist first, run `make trusted-data-pilot TOP_N=10`. It prints the pilot sequence and does not refresh, import, or edit local CSV files.
+If you want to choose the next pilot from current local blockers, run `make trusted-data-pilot-candidates TOP_N=10`. It ranks operating-company candidates and excludes ETF/index monitor examples from the company DCF pilot queue. If you want the copyable read-only checklist after choosing names, run `make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10`. The broader checklist remains available as `make trusted-data-pilot TOP_N=10`. Each command does not refresh, import, or edit local CSV files.
 
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
 
