@@ -1163,6 +1163,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "2026-06-07 Follow-Up Product Copy Pass",
         "2026-06-10 Public Navigation And Data Strategy Pass",
         "2026-06-10 Trusted Pilot Candidate UX Pass",
+        "2026-06-11 Public Route Alignment Pass",
         "main navigation control reads `Choose your path`",
         "`Review one stock`, `Improve data coverage`, and `Explore ready names`",
         "detailed pages remain available under `Advanced pages`",
@@ -1175,6 +1176,9 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`next-step context` instead of internal-tool operational wording",
         "prints a company starter set and separates `QQQ` / `SMH` as ETF/index monitor examples",
         "standalone DCF peer wording no longer repeats `DCF assumptions and sensitivity`",
+        "Product Tour routes `Explore ready names` directly to `Monthly Picks`",
+        "Explore ready names: Monthly Picks and sample reports",
+        "generated Monthly Picks CSV remains local working output",
         "Commands remain copy-only",
         "No generated CSV/JSON churn was published with the UI copy pass",
     ):

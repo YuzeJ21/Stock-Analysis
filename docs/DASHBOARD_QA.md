@@ -77,3 +77,16 @@ Boundary checked:
 
 - Candidate ranking remains copy-only and read-only; it does not refresh prices, import rows, or change readiness outputs.
 - ETF/index examples remain monitor-context demos, not operating-company DCF pilot targets.
+
+## 2026-06-11 Public Route Alignment Pass
+
+Checked pages and assets:
+
+- README: confirmed the Product Tour routes `Explore ready names` directly to `Monthly Picks`.
+- Dashboard preview asset: confirmed the visual route copy now says `Explore ready names: Monthly Picks and sample reports`.
+- Public checks: confirmed `make public-check` passes after the route and preview alignment.
+
+Boundary checked:
+
+- The route change is navigation copy only; it does not refresh data, import rows, or change readiness outputs.
+- The generated Monthly Picks CSV remains local working output and was not committed as part of this QA pass.
