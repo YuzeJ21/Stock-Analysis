@@ -1,5 +1,6 @@
 from src.trusted_data_pilot import (
     build_trusted_data_pilot_candidates,
+    pilot_lane_label,
     render_trusted_data_pilot_candidates,
     render_trusted_data_pilot_packet,
 )
@@ -107,6 +108,14 @@ def test_trusted_data_pilot_candidates_honor_ticker_filter():
     assert [candidate.ticker for candidate in candidates] == ["META"]
 
 
+def test_pilot_lane_label_translates_internal_codes_for_visitors():
+    assert pilot_lane_label("fundamentals_dcf") == "Fundamentals / DCF unlock"
+    assert pilot_lane_label("peer_mapping") == "Peer mapping unlock"
+    assert pilot_lane_label("peer_valuation_inputs") == "Peer valuation inputs unlock"
+    assert pilot_lane_label("optional_context_locked") == "Optional context unlock"
+    assert pilot_lane_label("unexpected") == "Trusted-data unlock"
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -127,7 +136,9 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
 
     assert "Read-only: this command ranks current local blockers" in rendered
     assert "does not refresh, import, edit CSVs, or change readiness outputs" in rendered
-    assert "1. META - fundamentals_dcf" in rendered
+    assert "Pilot lanes are plain-English unlock paths" in rendered
+    assert "1. META - Fundamentals / DCF unlock" in rendered
+    assert "fundamentals_dcf" not in rendered
     assert "make focus-fundamentals TICKER=META" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
@@ -156,7 +167,8 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
 
     rendered = render_trusted_data_pilot_candidates(candidates)
 
-    assert "1. MU - peer_mapping" in rendered
+    assert "1. MU - Peer mapping unlock" in rendered
+    assert "peer_mapping" not in rendered
     assert "5. make focus-peers TICKER=MU" in rendered
     assert "7. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
     assert "7. make readiness && make dcf-readiness" not in rendered
@@ -184,7 +196,8 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "Trusted Data Pilot Evidence Packet" in rendered
     assert "Read-only: this command prints a one-company proof loop" in rendered
     assert "Ticker: CRDO" in rendered
-    assert "Pilot lane: fundamentals_dcf" in rendered
+    assert "Pilot lane: Fundamentals / DCF unlock" in rendered
+    assert "fundamentals_dcf" not in rendered
     assert "Missing trusted input: revenue, fcf_margin" in rendered
     assert "One-company evidence packet:" in rendered
     assert "1. Baseline readiness: make readiness-snapshot" in rendered

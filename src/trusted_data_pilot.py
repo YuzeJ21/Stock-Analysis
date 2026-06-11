@@ -104,6 +104,17 @@ def _candidate_sort_key(candidate: PilotCandidate) -> tuple[int, int, int, int, 
     return (active_rank, candidate.demo_rank, lane_rank, candidate.priority, candidate.ticker)
 
 
+def pilot_lane_label(lane: str) -> str:
+    """Return a visitor-facing lane name for internal pilot lane codes."""
+
+    return {
+        "fundamentals_dcf": "Fundamentals / DCF unlock",
+        "peer_mapping": "Peer mapping unlock",
+        "peer_valuation_inputs": "Peer valuation inputs unlock",
+        "optional_context_locked": "Optional context unlock",
+    }.get(str(lane or "").strip(), "Trusted-data unlock")
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -255,6 +266,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
         [
             f"Top {min(top_n, len(candidates))} operating-company candidates:",
             "ETF/index monitor examples such as QQQ and SMH are excluded from this company pilot queue.",
+            "Pilot lanes are plain-English unlock paths; they do not mean the missing data is available yet.",
             "",
         ]
     )
@@ -262,7 +274,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
         scope = "active universe" if candidate.active_universe else "master universe"
         lines.extend(
             [
-                f"{index}. {candidate.ticker} - {candidate.lane} ({scope}, priority {candidate.priority})",
+                f"{index}. {candidate.ticker} - {pilot_lane_label(candidate.lane)} ({scope}, priority {candidate.priority})",
                 f"   Why it matters: {candidate.why_it_matters}",
                 f"   Missing input: {candidate.missing_input}",
                 f"   Next command: {candidate.next_command}",
@@ -314,7 +326,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
     lines.extend(
         [
             f"Ticker: {candidate.ticker}",
-            f"Pilot lane: {candidate.lane}",
+            f"Pilot lane: {pilot_lane_label(candidate.lane)}",
             f"Scope: {scope}",
             f"Priority: {candidate.priority}",
             f"Why this candidate matters: {candidate.why_it_matters}",
