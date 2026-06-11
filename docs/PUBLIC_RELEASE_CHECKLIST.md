@@ -9,6 +9,8 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep `make stock-report TICKER=NVDA` available for optional machine-readable local inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
+- Keep the dashboard `Data Health` page visible as the safe freshness guide: read-only routine first, capped price dry-run before real refreshes, and review-required lanes for fundamentals, peers, earnings, and analyst estimates.
+- Confirm visitors are not told to manually refresh all 3,538 tickers every day; the public workflow should explain lane-specific freshness and generated-data hygiene instead.
 - Keep `make trusted-data-pilot-candidates TOP_N=10` visible as the read-only first step for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn.
 - Keep `make trusted-data-pilot-packet TICKER=CRDO` visible as the one-company before report, review path, validate/apply, rejected-row, and rebuild-proof packet after a candidate is chosen.
 - Keep `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` visible as the follow-up evidence loop after candidates are selected.

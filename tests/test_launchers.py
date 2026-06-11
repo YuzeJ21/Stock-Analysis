@@ -973,6 +973,11 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "docs/DIFF_HYGIENE_AUDIT.md" in checklist
     assert "portfolio/demo project" in checklist
     assert "deeper local workflow guide" in checklist
+    assert "dashboard `Data Health` page visible as the safe freshness guide" in checklist
+    assert "read-only routine first, capped price dry-run before real refreshes" in checklist
+    assert "review-required lanes for fundamentals, peers, earnings, and analyst estimates" in checklist
+    assert "not told to manually refresh all 3,538 tickers every day" in checklist
+    assert "lane-specific freshness and generated-data hygiene" in checklist
     assert "make demo`, `make status-check TOP_N=5`, `make stock-report-md TICKER=NVDA`, and `make dashboard" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10" in checklist
@@ -1203,6 +1208,11 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`NVDA`, `META`, `QQQ`, `MU`, `CRDO`, plus optional `A`, `SMH`, and `APLD`",
         "Trusted Data Pilot CLI: confirmed candidate output no longer repeats the `Decision gate` label",
         "Monthly candidate guidance stays a research queue, not a recommendation list.",
+        "2026-06-11 Data Health Freshness Routine Pass",
+        "Data Health: confirmed the `Freshness Routine` section explains a read-only daily/opening routine",
+        "price freshness guidance starts with a capped dry-run command",
+        "fundamentals, peer mappings, earnings, and analyst estimates remain review-required lanes",
+        "does not claim new fundamentals, peer, earnings, or analyst-estimate coverage",
         "Commands remain copy-only",
         "No generated CSV/JSON churn was published with the UI copy pass",
     ):

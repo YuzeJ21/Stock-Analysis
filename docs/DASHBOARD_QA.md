@@ -104,3 +104,17 @@ Boundary checked:
 - The browser pass used the local Streamlit page only; it did not refresh data, import rows, or change readiness outputs.
 - Monthly candidate guidance stays a research queue, not a recommendation list.
 - Single-stock demo guidance keeps DCF-ready, blocked, excluded, and standalone DCF examples separate.
+
+## 2026-06-11 Data Health Freshness Routine Pass
+
+Checked pages and docs:
+
+- Data Health: confirmed the `Freshness Routine` section explains a read-only daily/opening routine before any refresh or import step.
+- Data Health: confirmed price freshness guidance starts with a capped dry-run command and tells users to inspect generated CSV diffs before a real capped loop.
+- Data Health: confirmed fundamentals, peer mappings, earnings, and analyst estimates remain review-required lanes instead of unattended automation targets.
+- Public checklist: confirmed the release flow points visitors to Data Health for safe freshness guidance without suggesting daily manual full-universe refreshes.
+
+Boundary checked:
+
+- The freshness routine is copy-only; the dashboard does not execute refreshes, imports, broker actions, or trades.
+- This pass documents workflow clarity only; it does not claim new fundamentals, peer, earnings, or analyst-estimate coverage.
