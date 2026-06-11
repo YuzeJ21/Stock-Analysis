@@ -21345,7 +21345,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     )
     render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
-    render_section_header("Fix First", "The shortest safe local path before deeper unlock lists.")
+    render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
@@ -21379,22 +21379,22 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))
         with st.expander("Capped pilot candidate table", expanded=False):
             st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
-    with st.expander("Unlock planning cards", expanded=False):
+    with st.expander("Coverage proof planning cards", expanded=False):
         render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
-        render_section_header("Analysis Unlock Map", "What each trusted data path makes available to review next.")
+        render_section_header("Analysis Availability Map", "What each trusted data path makes available to review next.")
         render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
         render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
         render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
         render_section_header(
-            "Valuation Unlock Snapshot",
+            "Valuation Proof Snapshot",
             "Plain-English valuation worklists before the broader market-wide tables.",
         )
         render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
     if show_details:
         with st.expander("Detailed market-wide review", expanded=False):
             render_section_header(
-                "Detailed Unlock Map",
+                "Detailed Proof Map",
                 "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context.",
             )
             render_signal_cards(
@@ -21668,11 +21668,11 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             )
             next_fundamentals_ticker = next_fundamentals_unlock_ticker(fundamentals_peer_worklist_frame)
             render_section_header(
-                "First Trusted Fundamentals Unlock",
+                "First Trusted Fundamentals Proof",
                 "The shortest safe path from missing company fundamentals to a readiness count that can honestly improve.",
             )
             render_signal_cards(first_fundamentals_unlock_cards(sec_configured, next_fundamentals_ticker))
-            with st.expander("First fundamentals unlock steps", expanded=False):
+            with st.expander("First fundamentals proof steps", expanded=False):
                 st.dataframe(
                     clean_display_frame(first_fundamentals_unlock_frame(sec_configured, next_fundamentals_ticker)),
                     width="stretch",
@@ -21737,12 +21737,12 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             with st.expander("Optional context details", expanded=False):
                 st.dataframe(clean_display_frame(optional_ladder), width="stretch", hide_index=True)
             render_section_header(
-                "First Trusted Optional Context Unlock",
+                "First Trusted Optional Context Proof",
                 "Optional context should stay locked unless trusted earnings or estimate rows are available locally.",
             )
             render_signal_cards(first_optional_context_unlock_cards("earnings"))
             render_signal_cards(first_optional_context_unlock_cards("analyst_estimates"))
-            with st.expander("First optional context unlock steps", expanded=False):
+            with st.expander("First optional context proof steps", expanded=False):
                 st.dataframe(
                     clean_display_frame(
                         pd.concat(

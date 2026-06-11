@@ -677,10 +677,10 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     fix_first_index = source.index('render_section_header("Fix First"')
     action_paths_index = source.index('render_section_header("Copy-Only Next Steps"')
-    planning_expander_index = source.index('st.expander("Unlock planning cards"')
+    planning_expander_index = source.index('st.expander("Coverage proof planning cards"')
     market_details_gate_index = source.index('if show_details:\n        with st.expander("Detailed market-wide review"')
     market_expander_index = source.index('st.expander("Detailed market-wide review"', market_details_gate_index)
-    detailed_map_index = source.index('render_section_header(\n                "Detailed Unlock Map"', market_expander_index)
+    detailed_map_index = source.index('render_section_header(\n                "Detailed Proof Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
     summary_expander_index = source.index('st.expander("More readiness summaries and proof lists"')
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
@@ -697,7 +697,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert "render_data_health(provider, project_status_payload, show_reason_details)" in source
     assert 'render_section_header("Action Paths"' not in source
-    assert 'st.expander("Unlock planning cards", expanded=False)' in source
+    assert 'st.expander("Coverage proof planning cards", expanded=False)' in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
     assert "Advanced Unlock Map" not in source
     assert "detailed market-wide workspace" not in source
@@ -9825,7 +9825,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert "Data Health Quick Read" in source
     assert "Read these next four sections first" in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
-    assert "The shortest safe local path before deeper unlock lists." in source
+    assert "The shortest safe local path before deeper proof lists." in source
     assert "before opening detailed tables" not in source
     assert "deeper Data Health details" not in source
     assert "missing_optional_labels = [public_dataset_name(name) for name in missing_optional]" in source
@@ -9833,7 +9833,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert 'st.expander("Local dataset checks", expanded=False)' in source
     assert 'st.expander("Local dataset validation details", expanded=False)' not in source
     assert "Supported Analysis Ladder" in source
-    assert "Valuation Unlock Snapshot" in source
+    assert "Valuation Proof Snapshot" in source
     assert "Plain-English valuation worklists before the broader market-wide tables." in source
     assert "Plain-English valuation queues before the full command center details." not in source
     assert "When Is A Stock Ready Enough?" not in source
