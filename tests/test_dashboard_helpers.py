@@ -582,6 +582,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard"' in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
     assert "sidebar_quick_help_lines()" in source
+    assert "path_options = sidebar_path_options(initial_page)" in source
+    assert "selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection" in source
     assert 'st.expander("Help for using the app"' not in source
     assert 'st.expander("Help, commands, and paths"' not in source
     assert 'st.expander("Quick help and safe commands"' not in source
@@ -18298,9 +18300,20 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.DASHBOARD_TAB_TITLES[8] == "Data Health"
     assert dashboard.USER_PAGE_TITLES[0] == "Home"
     assert dashboard.PUBLIC_PATH_PAGE_TITLES == ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
+    assert dashboard.sidebar_path_options("Home") == ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
+    assert dashboard.sidebar_path_options("Value / Re-rating") == [
+        "Home",
+        "Single-Stock Report",
+        "Data Health",
+        "Monthly Picks",
+        "Detailed page",
+    ]
+    assert dashboard.sidebar_path_index("Value / Re-rating", dashboard.sidebar_path_options("Value / Re-rating")) == 4
+    assert dashboard.sidebar_path_index("Single-Stock Report", dashboard.sidebar_path_options("Single-Stock Report")) == 1
     assert dashboard.public_path_label("Single-Stock Report") == "Review one stock"
     assert dashboard.public_path_label("Data Health") == "Improve data coverage"
     assert dashboard.public_path_label("Monthly Picks") == "Explore ready names"
+    assert dashboard.public_path_label("Detailed page") == "Detailed page"
     assert "Overview" in dashboard.ADVANCED_PAGE_TITLES
     assert "Portfolio Review" in dashboard.ADVANCED_PAGE_TITLES
     assert "Universe Manager" in dashboard.ADVANCED_PAGE_TITLES

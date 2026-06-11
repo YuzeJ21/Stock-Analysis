@@ -70,11 +70,13 @@ DASHBOARD_TAB_TITLES = [
 USER_PAGE_TITLES = ["Home"] + DASHBOARD_TAB_TITLES
 PUBLIC_PATH_PAGE_TITLES = ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
 ADVANCED_PAGE_TITLES = [title for title in USER_PAGE_TITLES if title not in PUBLIC_PATH_PAGE_TITLES]
+DETAILED_PAGE_PATH_TITLE = "Detailed page"
 PUBLIC_PATH_LABELS = {
     "Home": "Start at Home",
     "Single-Stock Report": "Review one stock",
     "Data Health": "Improve data coverage",
     "Monthly Picks": "Explore ready names",
+    DETAILED_PAGE_PATH_TITLE: "Detailed page",
 }
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
@@ -124,6 +126,21 @@ def dashboard_page_from_query(value: object) -> str:
         if dashboard_page_slug(title) == slug:
             return title
     return "Home"
+
+
+def sidebar_path_options(initial_page: str) -> list[str]:
+    """Return visitor path choices without pretending advanced pages are Home."""
+    if initial_page in ADVANCED_PAGE_TITLES:
+        return PUBLIC_PATH_PAGE_TITLES + [DETAILED_PAGE_PATH_TITLE]
+    return PUBLIC_PATH_PAGE_TITLES
+
+
+def sidebar_path_index(initial_page: str, path_options: list[str]) -> int:
+    if initial_page in path_options:
+        return path_options.index(initial_page)
+    if initial_page in ADVANCED_PAGE_TITLES and DETAILED_PAGE_PATH_TITLE in path_options:
+        return path_options.index(DETAILED_PAGE_PATH_TITLE)
+    return path_options.index("Home") if "Home" in path_options else 0
 
 
 def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
@@ -22354,13 +22371,15 @@ def main() -> None:
     with st.sidebar:
         st.header("Explore")
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
-        selected_page = st.radio(
+        path_options = sidebar_path_options(initial_page)
+        path_selection = st.radio(
             "Choose your path",
-            PUBLIC_PATH_PAGE_TITLES,
-            index=PUBLIC_PATH_PAGE_TITLES.index(initial_page) if initial_page in PUBLIC_PATH_PAGE_TITLES else 0,
+            path_options,
+            index=sidebar_path_index(initial_page, path_options),
             format_func=public_path_label,
             help="Most visitors only need these paths: review one stock, improve data coverage, or explore ready names.",
         )
+        selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection
         with st.expander("Advanced pages", expanded=initial_page in ADVANCED_PAGE_TITLES):
             advanced_page = st.selectbox(
                 "Open a detailed page",
