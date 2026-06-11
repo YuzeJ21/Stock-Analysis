@@ -956,6 +956,7 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[5]["command"] == "make trusted-data-pilot TOP_N=10"
     assert price_gap_cards[5]["title"] == "Improve 5-10 companies first"
     assert "read-only pilot checklist" in price_gap_cards[5]["body"]
+    assert "make trusted-data-pilot TOP_N=10" in price_gap_cards[5]["body"]
     assert "scalable dry run" in rendered
     assert "instead of repeating 25-ticker refreshes manually" in rendered
     assert "blocked rows are useful, but they are a data-unlock list, not a conclusion list" in rendered

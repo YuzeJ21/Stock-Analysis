@@ -19069,7 +19069,8 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "title": "Improve 5-10 companies first",
             "body": (
                 "Do not try to unlock the full universe at once. Start with the read-only pilot checklist for a small "
-                "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists."
+                "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists. "
+                "Copy `make trusted-data-pilot TOP_N=10` when you are ready to plan the local proof loop."
             ),
             "badges": ["trusted data", "pilot"],
             "command": "make trusted-data-pilot TOP_N=10",
