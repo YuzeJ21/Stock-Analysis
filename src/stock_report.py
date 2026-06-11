@@ -493,6 +493,27 @@ def _display_value(value: Any, fallback: str = "Not available") -> str:
     return fallback if not text or text.lower() in {"nan", "none", "nat", "null"} else text
 
 
+def _proof_language(value: Any, fallback: str = "Not available") -> str:
+    text = _display_value(value, fallback)
+    if text == fallback:
+        return text
+    replacements = {
+        "Unlock priority:": "Proof priority:",
+        "unlock priority:": "proof priority:",
+        "Unlock path:": "Proof path:",
+        "unlock path:": "proof path:",
+        "an unlock checklist": "a proof checklist",
+        "An unlock checklist": "A proof checklist",
+        "Unlock checklist": "Proof checklist",
+        "unlock checklist": "proof checklist",
+        "an proof checklist": "a proof checklist",
+        "An proof checklist": "A proof checklist",
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    return text
+
+
 def _display_setup_text(value: Any, fallback: str = "Not available") -> str:
     text = _display_value(value, fallback)
     replacements = {
@@ -969,7 +990,7 @@ def _stock_report_dcf_input_triage_lines(
             )
             continue
         lines.append(
-            f"- Missing {label}: {detail['why']} Unlock path: {detail['path'].format(ticker=ticker)}"
+            f"- Missing {label}: {detail['why']} Proof path: {detail['path'].format(ticker=ticker)}"
         )
     lines.append(
         "- Safe sequence: `make focus-fundamentals TICKER={ticker}` -> stage SEC or trusted manual fundamentals rows -> "
@@ -2734,7 +2755,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Valuation boundary: {_display_value(purpose_fields.get('valuation_evaluation'))}",
         "",
         "## Supported Analysis",
-        f"- Supported analysis: {_brief_value(purpose_fields.get('supported_analysis'), 'Supported analysis:')}",
+        f"- Supported analysis: {_brief_value(_proof_language(purpose_fields.get('supported_analysis')), 'Supported analysis:')}",
         "",
         "## Locked Analysis",
         f"- Currently withheld: {_brief_value(purpose_fields.get('unsupported_analysis'), 'Unsupported analysis:', 'Currently withheld:')}",
@@ -2752,8 +2773,8 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Next Research Step",
         f"- Next research question: {_display_value(purpose_fields.get('next_research_question'))}",
-        f"- Review priority: {_display_value(purpose_fields.get('review_priority_reason'))}",
-        f"- Data-confidence explanation: {_display_value(purpose_fields.get('confidence_explanation'))}",
+        f"- Review priority: {_proof_language(purpose_fields.get('review_priority_reason'))}",
+        f"- Data-confidence explanation: {_proof_language(purpose_fields.get('confidence_explanation'))}",
         "",
         "## Data Readiness",
         f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",
@@ -3160,7 +3181,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Valuation boundary: {_display_value(purpose_fields.get('valuation_evaluation'))}",
         "",
         "## Supported Analysis",
-        f"- Supported analysis: {_brief_value(purpose_fields.get('supported_analysis'), 'Supported analysis:')}",
+        f"- Supported analysis: {_brief_value(_proof_language(purpose_fields.get('supported_analysis')), 'Supported analysis:')}",
         "",
         "## Locked Analysis",
         f"- Currently withheld: {_brief_value(purpose_fields.get('unsupported_analysis'), 'Unsupported analysis:', 'Currently withheld:')}",
@@ -3174,8 +3195,8 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## Next Research Step",
         f"- Next research question: {_display_value(purpose_fields.get('next_research_question'))}",
-        f"- Review priority: {_display_value(purpose_fields.get('review_priority_reason'))}",
-        f"- Data-confidence explanation: {_display_value(purpose_fields.get('confidence_explanation'))}",
+        f"- Review priority: {_proof_language(purpose_fields.get('review_priority_reason'))}",
+        f"- Data-confidence explanation: {_proof_language(purpose_fields.get('confidence_explanation'))}",
         "",
         "## Data Readiness",
         f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",

@@ -150,7 +150,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Next Research Step
 - Next research question: Which trusted fundamentals or DCF fields are needed to confirm whether the compounder thesis remains supported?
-- Review priority: Unlock priority: price context exists, but fundamentals blocks deeper analysis.
+- Review priority: Proof priority: price context exists, but fundamentals blocks deeper analysis.
 - Data-confidence explanation: Data confidence is low: primary blocker is fundamentals; blocked features are fundamentals, DCF, peer, earnings, analyst estimates.
 
 ## Data Readiness
@@ -192,10 +192,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## DCF Input Triage
 - DCF input triage: blocked inputs are repair steps, not negative company signals.
 - Calculation dependency: trusted price and share count anchor per-share output; revenue plus free cash flow or FCF margin builds base FCF; cash/debt adjusts enterprise value to equity value.
-- Missing free cash flow: drives base FCF for projected cash flows; without it the DCF cannot calculate operating cash generation. Unlock path: add trusted free-cash-flow rows through SEC staging or `data/imports/fundamentals.csv`, then validate and preview.
-- Missing shares outstanding: converts equity value into fair value per share; missing share count blocks per-share DCF output. Unlock path: add trusted shares outstanding in the fundamentals import, then run `make imports-validate` and `make dcf-readiness`.
-- Missing revenue: sets the operating scale used for forecast assumptions when direct free cash flow is not enough by itself. Unlock path: use `make focus-fundamentals TICKER=APLD`, then `make sec-stage TICKERS=APLD` or trusted manual fundamentals import.
-- Missing FCF margin: lets the model estimate free cash flow from revenue when direct free cash flow is unavailable. Unlock path: add a trusted FCF margin or direct free-cash-flow field before rerunning DCF readiness.
+- Missing free cash flow: drives base FCF for projected cash flows; without it the DCF cannot calculate operating cash generation. Proof path: add trusted free-cash-flow rows through SEC staging or `data/imports/fundamentals.csv`, then validate and preview.
+- Missing shares outstanding: converts equity value into fair value per share; missing share count blocks per-share DCF output. Proof path: add trusted shares outstanding in the fundamentals import, then run `make imports-validate` and `make dcf-readiness`.
+- Missing revenue: sets the operating scale used for forecast assumptions when direct free cash flow is not enough by itself. Proof path: use `make focus-fundamentals TICKER=APLD`, then `make sec-stage TICKERS=APLD` or trusted manual fundamentals import.
+- Missing FCF margin: lets the model estimate free cash flow from revenue when direct free cash flow is unavailable. Proof path: add a trusted FCF margin or direct free-cash-flow field before rerunning DCF readiness.
 - Safe sequence: `make focus-fundamentals TICKER=APLD` -> stage SEC or trusted manual fundamentals rows -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`.
 
 ## Valuation Boundary Checklist

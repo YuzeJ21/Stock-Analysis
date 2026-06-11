@@ -192,7 +192,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## DCF Input Triage
 - DCF input triage: blocked inputs are repair steps, not negative company signals.
 - Calculation dependency: trusted price and share count anchor per-share output; revenue plus free cash flow or FCF margin builds base FCF; cash/debt adjusts enterprise value to equity value.
-- Missing shares outstanding: converts equity value into fair value per share; missing share count blocks per-share DCF output. Unlock path: add trusted shares outstanding in the fundamentals import, then run `make imports-validate` and `make dcf-readiness`.
+- Missing shares outstanding: converts equity value into fair value per share; missing share count blocks per-share DCF output. Proof path: add trusted shares outstanding in the fundamentals import, then run `make imports-validate` and `make dcf-readiness`.
 - Safe sequence: `make focus-fundamentals TICKER=META` -> stage SEC or trusted manual fundamentals rows -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`.
 
 ## Valuation Boundary Checklist

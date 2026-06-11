@@ -1296,7 +1296,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Supported analysis: none yet" in markdown
     assert "Currently withheld: trend, setup, liquidity" in markdown
     assert "analytical blindness" in markdown
-    assert "Unlock priority: price is the first blocker" in markdown
+    assert "Proof priority: price is the first blocker" in markdown
+    assert "current output is a proof checklist" in markdown
+    assert "unlock checklist" not in markdown.lower()
     assert "primary blocker is price" in markdown
     assert "## Missing-Data Proof Summary" in markdown
     assert "Data Health lane: Price Coverage Batch" in markdown
