@@ -908,6 +908,20 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
     print(f"- Missing-data steps: {summary['onboarding_actions']} ({summary['critical_actions']} urgent)")
     print(f"- Research-purpose groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
+    print("First read:")
+    print(
+        f"- Ready now: {summary['tickers_with_prices']} price-ready, "
+        f"{summary['tickers_dcf_ready']} DCF-ready, {summary['tickers_peer_ready']} peer-ready."
+    )
+    print(
+        "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
+        "stay locked where source-backed rows are missing."
+    )
+    print(
+        f"- Best next proof: {TRUSTED_DATA_PILOT_CANDIDATES_COMMAND} for company-depth work, "
+        "or make price-refresh-loop DRY_RUN=1 for price coverage planning."
+    )
+    print("- Details below are capped and copy-only.")
     for warning in payload.get("warnings", []):
         print(f"Warning: {warning}")
     print("Top locked inputs to review:")

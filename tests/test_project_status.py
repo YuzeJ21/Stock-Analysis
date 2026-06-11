@@ -534,6 +534,11 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
         sys.argv = argv_before
 
     assert "top locked inputs to review" in output
+    assert "first read:" in output
+    assert "ready now:" in output
+    assert "still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates" in output
+    assert "best next proof: make trusted-data-pilot-candidates top_n=10" in output
+    assert "details below are capped and copy-only" in output
     assert "trusted import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
     assert "suggested check: make focus-fundamentals ticker=nvda" in output
     assert "trusted import/fallback: make sec-stage tickers=nvda" in output
@@ -561,6 +566,9 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
         sys.argv = argv_before
 
     assert "project status summary" in output
+    assert "first read:" in output
+    assert "ready now:" in output
+    assert "best next proof: make trusted-data-pilot-candidates top_n=10" in output
     assert "missing-data steps:" in output
     assert "research-purpose groups:" in output
     assert "onboarding actions:" not in output
@@ -589,6 +597,9 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
         sys.argv = argv_before
 
     assert "Project status summary:" in output
+    assert "First read:" in output
+    assert "Ready now: 1 price-ready, 1 DCF-ready, 0 peer-ready." in output
+    assert "Best next proof: make trusted-data-pilot-candidates TOP_N=10" in output
     assert "Read-only project snapshot." in output
     assert "Read-only operator snapshot." not in output
     assert "Commands below are copy-only local research helpers" in output
