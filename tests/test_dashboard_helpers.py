@@ -1076,11 +1076,15 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Monthly Picks"]
     assert cards[1][3] == "warning"
     assert "23 ticker(s) have dcf-ready local inputs" in rendered
-    assert "one report can show the valuation boundary, assumptions, and next proof step" in rendered
+    assert "use nvda first for valuation proof" in rendered
+    assert "meta blocked" in rendered
+    assert "qqq excluded" in rendered
+    assert "mu peer-limited" in rendered
     assert "raw tables" not in rendered
     assert "best next for coverage" in rendered
     assert "3,273 ticker(s) still need price coverage" in rendered
-    assert "trusted fundamentals, source-backed peers, earnings, and estimates remain intentionally gated" in rendered
+    assert "open data health for the trusted-data pilot path" in rendered
+    assert "fundamentals, source-backed peers, earnings, and estimates remain gated" in rendered
     assert "readiness protection, not failure" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -1105,7 +1109,10 @@ def test_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
     assert cards[0][0] == "Review one stock"
     assert cards[1][0] == "Improve data coverage"
     assert cards[1][3] == "warning"
-    assert "one ticker-level report shows what is ready, blocked, excluded, and calculated locally" in rendered
+    assert "open nvda for ready-data proof" in rendered
+    assert "meta blocked" in rendered
+    assert "qqq excluded" in rendered
+    assert "mu peer-limited" in rendered
     assert "skip this until price coverage exists" in rendered
     assert "candidate pages should stay empty when local data cannot support them" in rendered
     assert "25 ticker(s) still need price coverage" in rendered

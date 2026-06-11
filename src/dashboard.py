@@ -19652,15 +19652,15 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
     data_gap_count = max(master - price_ready, 0) if master else 0
 
     review_body = (
-        "Start here for the public demo: one ticker-level report shows what is ready, blocked, excluded, and calculated locally."
+        "Start here for the public demo: open NVDA for ready-data proof, then compare META blocked, QQQ excluded, and MU peer-limited states."
     )
     if dcf_ready > 0:
         review_body = (
-            f"Start here: {dcf_ready} ticker(s) have DCF-ready local inputs, so one report can show the valuation boundary, assumptions, and next proof step."
+            f"Start here: {dcf_ready} ticker(s) have DCF-ready local inputs. Use NVDA first for valuation proof, then compare META blocked, QQQ excluded, and MU peer-limited states."
         )
     elif price_ready > 0:
         review_body = (
-            f"Start here for a ticker-level proof: {price_ready} ticker(s) can support setup review while deeper valuation stays gated."
+            f"Start here for ticker-level proof: {price_ready} ticker(s) can support setup review; use META or APLD to see valuation stay gated."
         )
 
     explore_body = (
@@ -19672,14 +19672,14 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
         explore_body = "Use this for price/setup-ready names only; valuation-style lists should stay locked until trusted company inputs exist."
 
     improve_body = (
-        "Use this when the product says a section is locked. It shows the next trusted input, copy-only command, validation path, and proof step."
+        "Use this when a section is locked. It shows the next trusted input, copy-only command, validation path, and proof step."
     )
     improve_tone = "neutral"
     if has_price_gap or has_depth_gap:
         improve_tone = "warning"
         gap_note = f"{data_gap_count:,} ticker(s) still need price coverage. " if data_gap_count else ""
         improve_body = (
-            f"Best next for coverage: {gap_note}trusted fundamentals, source-backed peers, earnings, and estimates remain intentionally gated until local rows exist."
+            f"Best next for coverage: {gap_note}open Data Health for the trusted-data pilot path; fundamentals, source-backed peers, earnings, and estimates remain gated until local rows exist."
         )
 
     return [
