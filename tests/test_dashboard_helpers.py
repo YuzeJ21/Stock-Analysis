@@ -997,6 +997,7 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[5]["title"] == "Improve 5-10 companies first"
     assert "read-only candidate queue" in price_gap_cards[5]["body"]
     assert "make trusted-data-pilot-candidates TOP_N=10" in price_gap_cards[5]["body"]
+    assert "make trusted-data-pilot-packet TICKER=CRDO" in price_gap_cards[5]["body"]
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in price_gap_cards[5]["body"]
     assert "scalable dry run" in rendered
     assert "instead of repeating 25-ticker refreshes manually" in rendered
@@ -1009,7 +1010,7 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "review the local status snapshot and reopen home" in rendered
     assert "do not try to unlock the full universe at once" in rendered
     assert "small trusted-data pilot" in rendered
-    assert "evidence packet" in rendered
+    assert "broader local proof loop" in rendered
     assert "use make readiness" not in rendered
     assert "run make readiness" not in rendered
     assert "broker" not in rendered

@@ -19127,7 +19127,8 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "body": (
                 "Do not try to unlock the full universe at once. Start with the read-only candidate queue for a small "
                 "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists. "
-                "Copy `make trusted-data-pilot-candidates TOP_N=10` first; then use `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` for the local proof loop and evidence packet."
+                "Copy `make trusted-data-pilot-candidates TOP_N=10` first, inspect one company with `make trusted-data-pilot-packet TICKER=CRDO`, "
+                "then use `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` for the broader local proof loop."
             ),
             "badges": ["trusted data", "pilot"],
             "command": "make trusted-data-pilot-candidates TOP_N=10",
