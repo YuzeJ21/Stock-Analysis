@@ -95,6 +95,18 @@ def test_public_wording_scan_scope_is_public_but_not_tests_or_generated_csvs():
     assert "data/reports/ticker_readiness_report.csv" not in paths
 
 
+def test_dashboard_preview_asset_uses_three_public_paths_in_order():
+    svg = Path("docs/assets/dashboard-preview.svg").read_text(encoding="utf-8")
+
+    review_index = svg.index("Review one stock: make stock-report-md TICKER=NVDA")
+    improve_index = svg.index("Improve data coverage: trusted-data pilot queue")
+    explore_index = svg.index("Explore ready names: Home filters and sample reports")
+
+    assert review_index < improve_index < explore_index
+    assert "Stock Research Command Center dashboard preview" in svg
+    assert "research-only" in svg
+
+
 def test_public_wording_report_is_read_only_and_concise():
     module = load_public_wording_module()
     clean_report = module.build_report(3, [])

@@ -1139,7 +1139,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
 
     for phrase in (
         "2026-06-07 Public Product Flow Pass",
-        "`Review one stock`, `Explore ready names`, and `Improve data coverage`",
+        "`Review one stock`, `Improve data coverage`, and `Explore ready names`",
         "trusted-data pilot path for improving 5-10 companies first",
         "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, then `Best Review Path`",
         "routes the DCF/peer-ready `NVDA` example to review DCF, peers, and source readiness",

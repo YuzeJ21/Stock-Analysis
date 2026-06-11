@@ -62,14 +62,14 @@
     <text x="507" y="448" fill="#172820" font-size="11" font-weight="700">report</text>
 
     <rect x="136" y="479" width="454" height="44" rx="12" fill="#f5f1e8"/>
-    <text x="156" y="507" fill="#172820" font-size="13">Explore ready names: Home filters and sample reports</text>
-    <rect x="495" y="491" width="67" height="20" rx="10" fill="#cfdcae"/>
-    <text x="510" y="506" fill="#172820" font-size="11" font-weight="700">ready</text>
+    <text x="156" y="507" fill="#172820" font-size="13">Improve data coverage: trusted-data pilot queue</text>
+    <rect x="495" y="491" width="67" height="20" rx="10" fill="#bad4df"/>
+    <text x="509" y="506" fill="#172820" font-size="11" font-weight="700">unlock</text>
 
     <rect x="136" y="537" width="454" height="44" rx="12" fill="#f5f1e8"/>
-    <text x="156" y="565" fill="#172820" font-size="13">Improve data coverage: trusted-data pilot queue</text>
-    <rect x="495" y="549" width="67" height="20" rx="10" fill="#bad4df"/>
-    <text x="509" y="564" fill="#172820" font-size="11" font-weight="700">unlock</text>
+    <text x="156" y="565" fill="#172820" font-size="13">Explore ready names: Home filters and sample reports</text>
+    <rect x="495" y="549" width="67" height="20" rx="10" fill="#cfdcae"/>
+    <text x="510" y="564" fill="#172820" font-size="11" font-weight="700">ready</text>
 
     <rect x="648" y="326" width="508" height="264" rx="22" fill="#ffffff" stroke="#d8dfd2"/>
     <text x="672" y="363" fill="#172820" font-size="21" font-weight="700">Single-Stock Report</text>
