@@ -10360,8 +10360,10 @@ def test_stock_report_technical_context_frame_formats_missing_values_cleanly():
 def test_single_stock_report_intro_cards_explain_output_before_generation():
     cards = dashboard.single_stock_report_intro_cards()
     summary_cards = dashboard.single_stock_report_intro_summary_cards()
+    demo_cards = dashboard.single_stock_demo_ticker_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
     summary_rendered = " ".join(str(value) for card in summary_cards for value in card.values()).lower()
+    demo_rendered = " ".join(str(value) for card in demo_cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
         "WHAT THIS MEANS",
@@ -10394,6 +10396,15 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=apld" in rendered
     assert "make stock-report-md ticker=nvda" not in summary_rendered
+    assert [card["title"] for card in demo_cards] == ["NVDA", "META or APLD", "QQQ or SMH", "A"]
+    assert "strongest company example" in demo_rendered
+    assert "withholds valuation until trusted fundamentals" in demo_rendered
+    assert "operating-company dcf is excluded rather than failed" in demo_rendered
+    assert "peer-relative valuation still stays locked" in demo_rendered
+    assert "make stock-report-md ticker=nvda" in demo_rendered
+    assert "make stock-report-md ticker=meta" in demo_rendered
+    assert "make stock-report-md ticker=qqq" in demo_rendered
+    assert "make stock-report-md ticker=a" in demo_rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -10404,18 +10415,24 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "trading" not in summary_rendered
     assert "buy" not in summary_rendered
     assert "sell" not in summary_rendered
+    assert "broker" not in demo_rendered
+    assert "order" not in demo_rendered
+    assert "trading" not in demo_rendered
+    assert "buy" not in demo_rendered
+    assert "sell" not in demo_rendered
 
 
 def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
+    demo_index = source.index("render_signal_cards(single_stock_demo_ticker_cards())")
     expander_index = source.index('st.expander("How single-stock reports work"')
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
     preview_note_index = source.index('render_context_note(\n        "What happens when you open a report."')
     build_button_index = source.index('st.button("Show Local Report"')
 
-    assert summary_index < expander_index < full_intro_index < preview_note_index < build_button_index
+    assert summary_index < demo_index < expander_index < full_intro_index < preview_note_index < build_button_index
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
     assert 'st.expander("Coverage and peer readiness", expanded=False)' in source
     assert 'st.expander("More coverage details", expanded=False)' in source

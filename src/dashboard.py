@@ -5619,6 +5619,39 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
     ]
 
 
+def single_stock_demo_ticker_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "RICH DEMO",
+            "title": "NVDA",
+            "body": "Use this first when you want the strongest company example: DCF assumptions, peer context, optional-context locks, and source notes.",
+            "badges": ["company", "valuation ready"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "BLOCKED EXAMPLE",
+            "title": "META or APLD",
+            "body": "Use this when you want to show how the product withholds valuation until trusted fundamentals, DCF fields, or peers are ready.",
+            "badges": ["blocked is useful", "data unlock"],
+            "command": "make stock-report-md TICKER=META",
+        },
+        {
+            "kicker": "EXCLUDED EXAMPLE",
+            "title": "QQQ or SMH",
+            "body": "Use this for ETF/index or sector-monitor context where operating-company DCF is excluded rather than failed.",
+            "badges": ["monitor context", "excluded not failed"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+        {
+            "kicker": "STANDALONE DCF",
+            "title": "A",
+            "body": "Use this when you want a company DCF review where peer-relative valuation still stays locked until source-backed peer inputs exist.",
+            "badges": ["company", "peer locked"],
+            "command": "make stock-report-md TICKER=A",
+        },
+    ]
+
+
 def stock_report_technical_context_frame(report_payload: dict[str, object]) -> pd.DataFrame:
     screener_context = report_payload.get("screener_context", {}) or {}
     momentum = screener_context.get("momentum_leaders", {}) or {}
@@ -20220,6 +20253,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
     render_signal_cards(single_stock_report_intro_summary_cards())
+    render_signal_cards(single_stock_demo_ticker_cards())
     with st.expander("How single-stock reports work", expanded=False):
         render_signal_cards(single_stock_report_intro_cards())
 
