@@ -20253,8 +20253,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
 def render_single_stock_report(provider, show_source_details: bool) -> None:
     render_section_header(
         "Single-Stock Report",
-        "One-ticker research review. Saved local data is the default. "
-        "Optional online research mode stays off by default and is labeled unofficial / research-grade.",
+        "One-ticker research review. Start with the saved local report; optional online lookup stays off by default.",
     )
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     selection_cols = st.columns([2, 2, 1])
@@ -20266,11 +20265,11 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     )
     manual_ticker = selection_cols[1].text_input("Enter ticker", value="" if selected != "Custom" else "AAPL")
     use_yfinance = selection_cols[2].checkbox(
-        "Online data check (optional)",
+        "Online lookup (off by default)",
         value=False,
         help=(
-            "Leave this off for the saved local-data path. If enabled, online data is unofficial / "
-            "research-grade and should be checked against source readiness notes."
+            "Most visitors should leave this off. If enabled, online data is unofficial / research-grade "
+            "and should be checked against source readiness notes."
         ),
     )
     ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()

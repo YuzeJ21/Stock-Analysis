@@ -523,13 +523,15 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "A structured view of local research inputs" not in source
     assert "Download Local Report Data" in source
     assert "Download Structured Report" not in source
-    assert "Saved local data is the default" in source
-    assert "Optional online research mode stays off by default" in source
+    assert "Start with the saved local report" in source
+    assert "Start with the saved local report; optional online lookup stays off by default" in source
+    assert "Optional online research mode stays off by default" not in source
     assert "Local CSV-backed data is the default" not in source
     assert "Optional yfinance mode stays off by default" not in source
-    assert "Online data check (optional)" in source
+    assert "Online lookup (off by default)" in source
+    assert "Online data check (optional)" not in source
     assert "Use research-grade online data" not in source
-    assert "saved local-data path" in source
+    assert "Most visitors should leave this off" in source
     assert "Show source readiness details" in source
     assert "Adds extra source-readiness and missing-input checks under Sources & Gaps" in source
     assert "Show report source details" not in source
