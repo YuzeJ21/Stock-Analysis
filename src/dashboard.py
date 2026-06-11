@@ -8172,7 +8172,7 @@ def universe_layer_frame(summary: dict[str, object], decisions: pd.DataFrame | N
             "Layer": "Active research list",
             "Current count": f"{active:,} focused ticker(s)",
             "What it means": "Smaller list shown first in unlock queues and research briefs.",
-            "Safe next step": "Review Active-Universe Unlock Cockpit before expanding broad-market work.",
+            "Safe next step": "Review Active-Universe Data Unlocks before expanding broad-market work.",
         },
         {
             "Layer": "Price and momentum ready",
@@ -15229,7 +15229,7 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
     return (
         "<div class='cockpit-panel'>"
         f"<div class='cockpit-summary {html.escape(tone)}'>"
-        "<div class='cockpit-kicker'>Research Cockpit</div>"
+        "<div class='cockpit-kicker'>Research Readiness</div>"
         f"<div class='cockpit-title'>{html.escape(health_label)} review readiness, {health_score}/100</div>"
         f"<div class='cockpit-copy'>{html.escape(summary_copy)}</div>"
         "</div>"
@@ -15559,7 +15559,7 @@ def holdings_deep_research_cards(
             {
                 "kicker": "HOLDINGS DCF / PEERS",
                 "title": "No holdings deep-research board yet",
-                "body": "Add holdings rows, then build onboarding coverage to see which portfolio names next benefit from SEC staging workflow or manual peer research.",
+                "body": "Add holdings rows, then build onboarding coverage to see which portfolio names next benefit from SEC staging workflow or manual peer review.",
                 "badges": ["read-only"],
                 "command": "make onboarding",
             }
@@ -19134,9 +19134,9 @@ def render_overview(
         )
         render_section_header("Price History Targets", "The next exact local history rows needed for Monthly Picks, track record, or fuller 1Y research coverage.")
         render_signal_cards(overview_price_target_cards(price_worklist_frame))
-        render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF proof and manual peer-context completion.")
+        render_section_header("Company Data Targets", "The next exact fundamentals and peer-relative targets for DCF proof and manual peer-context completion.")
         render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
-        render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research path before you open the fuller worklists.")
+        render_section_header("Company Data Priorities", "The specific holdings or universe names that best match the current company-data path before you open the fuller worklists.")
         render_signal_cards(
             overview_deep_research_priority_bridge_cards(
                 holdings,
@@ -19175,8 +19175,8 @@ def render_overview(
         render_section_header("Theme First", "Which local themes or sector ETF clusters can make the most research value available next.")
         render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
 
-    with st.expander("More deep-research context", expanded=False):
-        render_section_header("Deep Research Leverage", "Which deeper research path currently makes the most value available next when you weigh holdings impact, theme breadth, and queued ticker count.")
+    with st.expander("More company-data context", expanded=False):
+        render_section_header("Company Data Impact", "Which company-data path currently unlocks the most review value when you weigh holdings impact, theme breadth, and queued ticker count.")
         render_signal_cards(
             overview_deep_research_leverage_cards(
                 holdings,
@@ -19184,7 +19184,7 @@ def render_overview(
                 peer_mapping_queue_frame,
             )
         )
-        render_section_header("Deep Research Handoff", "For the top deep-research name, show the exact local command to run next and the best page to use for queue confirmation.")
+        render_section_header("Company Data Handoff", "For the top company-data name, show the exact local command to run next and the best page to use for queue confirmation.")
         render_signal_cards(
             overview_deep_research_handoff_cards(
                 holdings,
@@ -19194,9 +19194,9 @@ def render_overview(
                 action_queue_frame,
             )
         )
-        render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging workflow or manual peer research once price blockers are understood.")
+        render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging workflow or manual peer review once price blockers are understood.")
         render_signal_cards(holdings_deep_research_cards(holdings, sec_stage_queue_frame, peer_mapping_queue_frame))
-        render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals staging workflow or manual peer research once price-led blockers are already understood.")
+        render_section_header("Theme DCF / Peers", "Which themes next benefit from SEC fundamentals staging workflow or manual peer review once price-led blockers are already understood.")
         render_signal_cards(theme_deep_research_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
 
     with st.expander("More market and review context", expanded=False):
@@ -20843,8 +20843,8 @@ def render_market_command_center(
         )
     )
     render_section_header(
-        "Active-Universe Unlock Cockpit",
-        "The 12-ticker active research list with readiness blockers, import/rejected-row context, and exact copy-only next commands.",
+        "Active-Universe Data Unlocks",
+        "The 12-ticker active research list with missing inputs, import/rejected-row context, and exact copy-only next commands.",
     )
     import_health = import_health_frame()
     active_unlock = build_active_universe_unlock_frame(ticker_readiness_frame, decisions_frame, import_health)
@@ -21873,7 +21873,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                     )
                     render_signal_cards(data_health_peer_unlock_cards(peer_unlock))
                     st.dataframe(clean_display_frame(peer_unlock), width="stretch", hide_index=True)
-                render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
+                render_section_header("Company Data Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
                 render_signal_cards(data_health_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
             if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
                 ladder_summary = summarize_ticker_unlock_ladder(ticker_unlock_ladder_frame)

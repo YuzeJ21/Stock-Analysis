@@ -6,7 +6,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 
 - Keep the top of `README.md` focused on what the project does, why it matters, and how to run it.
 - Put the best demo commands near the top: `make demo`, `make status-check TOP_N=5`, `make stock-report-md TICKER=NVDA`, and `make dashboard`.
-- Keep `make stock-report TICKER=NVDA` available for optional machine-readable local inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
+- Keep `make stock-report TICKER=NVDA` available for optional local report-data inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
 - Keep the dashboard `Data Health` page visible as the safe freshness guide: read-only routine first, capped price dry-run before real refreshes, and review-required lanes for fundamentals, peers, earnings, and analyst estimates.

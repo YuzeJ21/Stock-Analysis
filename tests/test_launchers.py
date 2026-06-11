@@ -930,7 +930,7 @@ def test_operator_guide_is_command_focused_and_research_only():
         "make stock-report-md TICKER=SMH",
         "make stock-report-md TICKER=APLD",
         "For public demos, prefer `make stock-report-md TICKER=NVDA`.",
-        "Use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.",
+        "Use `make stock-report TICKER=NVDA` only when you want the optional local report data for inspection.",
         "make dashboard",
         "make dashboard-smoke",
         "Open the Home page `Example reports` section to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples",
@@ -1089,6 +1089,17 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
         "make public-check",
     ):
         assert phrase in diff_audit
+
+
+def test_public_docs_avoid_machine_readable_first_read_copy():
+    public_docs = {
+        "README.md": Path("README.md").read_text(encoding="utf-8"),
+        "docs/OPERATOR_GUIDE.md": Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8"),
+        "docs/PUBLIC_RELEASE_CHECKLIST.md": Path("docs/PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8"),
+    }
+
+    for path, text in public_docs.items():
+        assert "machine-readable" not in text, path
 
 
 def test_license_decision_guide_is_present_until_license_is_chosen():

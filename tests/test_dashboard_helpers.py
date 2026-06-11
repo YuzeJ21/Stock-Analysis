@@ -800,7 +800,7 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     assert "if project_status_payload:\n        st.markdown(project_status_cockpit_html" in source
     assert status_unlock_index < next_data_unlocks_index
     assert 'st.expander("More readiness and routing detail", expanded=False)' in source
-    assert 'st.expander("More deep-research context", expanded=False)' in source
+    assert 'st.expander("More company-data context", expanded=False)' in source
     assert 'st.expander("More market and review context", expanded=False)' in source
     assert 'if selected_page == "Overview":\n        project_status_payload = build_project_status_payload' not in source
 
@@ -3764,7 +3764,7 @@ def test_project_status_cockpit_is_readable_and_research_safe():
 
     html = dashboard.project_status_cockpit_html(payload, 44, "Needs Data")
 
-    assert "Research Cockpit" in html
+    assert "Research Readiness" in html
     assert "3/12" in html
     assert "0/12" in html
     assert "missing inputs are labeled instead of guessed" in html
