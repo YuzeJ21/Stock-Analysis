@@ -56,7 +56,7 @@ Checked pages and docs:
 
 - Sidebar: confirmed the main navigation control reads `Choose your path` and exposes `Review one stock`, `Improve data coverage`, and `Explore ready names` before advanced pages.
 - Sidebar: confirmed detailed pages remain available under `Advanced pages`, so deep research views are not removed.
-- Home: confirmed the first-run proof trail shows copyable commands for the dashboard, one proof report, one blocked/excluded example, and the trusted-data pilot.
+- Home: confirmed the first-run proof trail shows copyable commands for the dashboard, NVDA ready proof, META blocked proof, QQQ excluded proof, MU peer-limited proof, CRDO fundamentals-gated proof, and the trusted-data pilot.
 - Data Strategy: confirmed the Automation Boundary table separates repeatable checks from human-reviewed source judgment.
 
 Boundary checked:
@@ -96,7 +96,7 @@ Boundary checked:
 Checked pages and commands:
 
 - Monthly Picks: confirmed the page renders the new `Reader Guide` with `Open a one-stock report next`, `No automatic conclusion`, and the Data Health path for empty candidate states.
-- Single-Stock Report: confirmed the page renders the demo ticker guide for `NVDA`, `META or APLD`, `QQQ or SMH`, and `A` before the report button.
+- Single-Stock Report: confirmed the page renders the demo ticker guide for `NVDA`, `META`, `QQQ`, `MU`, `CRDO`, plus optional `A`, `SMH`, and `APLD` before the report button.
 - Trusted Data Pilot CLI: confirmed candidate output no longer repeats the `Decision gate` label and still prints read-only source-proof boundaries.
 
 Boundary checked:

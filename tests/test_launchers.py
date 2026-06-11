@@ -414,7 +414,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "Optional extra report states:" in readme
     assert "| Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |" in readme
     assert "`Home`, then focused review pages" not in readme
-    assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> trusted-data pilot." in readme
+    assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> MU peer-limited example -> CRDO fundamentals-gated example -> trusted-data pilot." in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" in readme
     assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
     assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
@@ -1200,7 +1200,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "Monthly Picks: confirmed the page renders the new `Reader Guide`",
         "`Open a one-stock report next`, `No automatic conclusion`",
         "Single-Stock Report: confirmed the page renders the demo ticker guide",
-        "`NVDA`, `META or APLD`, `QQQ or SMH`, and `A`",
+        "`NVDA`, `META`, `QQQ`, `MU`, `CRDO`, plus optional `A`, `SMH`, and `APLD`",
         "Trusted Data Pilot CLI: confirmed candidate output no longer repeats the `Decision gate` label",
         "Monthly candidate guidance stays a research queue, not a recommendation list.",
         "Commands remain copy-only",
