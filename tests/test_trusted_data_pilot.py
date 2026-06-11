@@ -4,6 +4,7 @@ from src.trusted_data_pilot import (
     pilot_lane_label,
     pilot_local_file_status,
     pilot_operator_decision,
+    pilot_primary_missing_input,
     pilot_proof_story_lines,
     pilot_public_shortlist,
     pilot_quick_path_lines,
@@ -11,6 +12,7 @@ from src.trusted_data_pilot import (
     pilot_rejected_report_path,
     pilot_review_path,
     pilot_review_board_row,
+    pilot_secondary_locked_context,
     pilot_selection_brief,
     pilot_skip_condition,
     pilot_trusted_row_path,
@@ -329,6 +331,33 @@ def test_pilot_evidence_row_template_is_copyable_and_data_honest():
     assert "fcf_margin" not in row
     assert "buy" not in row.lower()
     assert "sell" not in row.lower()
+
+
+def test_pilot_primary_missing_input_separates_secondary_optional_context():
+    candidate = build_trusted_data_pilot_candidates(
+        [],
+        [],
+        [
+            {
+                "ticker": "MU",
+                "asset_type": "company",
+                "in_active_universe": "True",
+                "peer_ready": "False",
+                "missing_data": "peers: needs at least 2 peers with momentum-ready price history; earnings: trusted local CSV input; analyst_estimates: trusted local CSV input",
+                "next_action": "make focus-peers TICKER=MU",
+            }
+        ],
+        top_n=10,
+    )[0]
+
+    assert pilot_primary_missing_input(candidate) == "peers: needs at least 2 peers with momentum-ready price history"
+    assert pilot_secondary_locked_context(candidate) == "earnings: trusted local CSV input; analyst estimates: trusted local CSV input"
+    assert pilot_rank_reason(candidate).endswith(
+        "missing peers: needs at least 2 peers with momentum-ready price history."
+    )
+    assert pilot_evidence_row_template(candidate).startswith(
+        "MU | before: run report | after: rerun report | peers: needs at least 2 peers with momentum-ready price history |"
+    )
 
 
 def test_pilot_review_board_row_makes_continue_skip_and_evidence_explicit():
@@ -745,7 +774,8 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "Pilot lane: Fundamentals / DCF proof path" in rendered
     assert "fundamentals_dcf" not in rendered
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing revenue, free-cash-flow margin." in rendered
-    assert "Missing trusted input: revenue, free-cash-flow margin" in rendered
+    assert "Primary lane input: revenue, free-cash-flow margin" in rendered
+    assert "Secondary locked context:" not in rendered
     assert "fcf_margin" not in rendered
     assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
     assert (
@@ -781,6 +811,35 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "keep visible if source proof is unavailable or readiness remains blocked" in rendered
     assert "still_blocked_reason" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
+
+
+def test_render_trusted_data_pilot_packet_separates_primary_lane_from_optional_context(tmp_path):
+    candidates = build_trusted_data_pilot_candidates(
+        [],
+        [],
+        [
+            {
+                "ticker": "MU",
+                "asset_type": "company",
+                "in_active_universe": "True",
+                "peer_ready": "False",
+                "missing_data": "peers: needs at least 2 peers with momentum-ready price history; earnings: trusted local CSV input; analyst_estimates: trusted local CSV input",
+                "next_action": "make focus-peers TICKER=MU",
+            }
+        ],
+        top_n=10,
+    )
+    _write_text(tmp_path / "data" / "imports" / "peers.csv", "ticker,peer_ticker,source\nMU,NVDA,source note\n")
+
+    rendered = render_trusted_data_pilot_packet(candidates[0], requested_ticker="MU", root=tmp_path)
+
+    assert "Primary lane input: peers: needs at least 2 peers with momentum-ready price history" in rendered
+    assert "Secondary locked context: earnings: trusted local CSV input; analyst estimates: trusted local CSV input" in rendered
+    assert "Rank reason: active-universe public-demo name; peer mapping proof path; priority 2; missing peers: needs at least 2 peers with momentum-ready price history." in rendered
+    assert "MU | before: run report | after: rerun report | peers: needs at least 2 peers with momentum-ready price history |" in rendered
+    assert "analyst_estimates" not in rendered
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
 
 
 def test_render_trusted_data_pilot_packet_handles_non_candidate_without_inventing_data():

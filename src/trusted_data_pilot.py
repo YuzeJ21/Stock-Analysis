@@ -225,7 +225,7 @@ def pilot_rank_reason(candidate: PilotCandidate) -> str:
     lane = pilot_lane_label(candidate.lane).lower()
     return (
         f"{scope} {demo_note}; {lane}; priority {candidate.priority}; "
-        f"missing {plain_pilot_input_copy(candidate.missing_input)}."
+        f"missing {pilot_primary_missing_input(candidate)}."
     )
 
 
@@ -243,6 +243,21 @@ def plain_pilot_input_copy(value: object) -> str:
     for raw, label in replacements.items():
         text = re.sub(rf"\b{re.escape(raw)}\b", label, text, flags=re.IGNORECASE)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def pilot_primary_missing_input(candidate: PilotCandidate) -> str:
+    """Return the lane-specific blocker before secondary optional-context locks."""
+
+    return plain_pilot_input_copy(candidate.missing_input).split("; ", 1)[0]
+
+
+def pilot_secondary_locked_context(candidate: PilotCandidate) -> str:
+    """Return secondary locked context that should stay visible but not drive the pilot lane."""
+
+    missing_input = plain_pilot_input_copy(candidate.missing_input)
+    if "; " not in missing_input:
+        return ""
+    return missing_input.split("; ", 1)[1]
 
 
 def pilot_operator_decision(candidate: PilotCandidate) -> str:
@@ -301,7 +316,7 @@ def pilot_evidence_row_template(candidate: PilotCandidate) -> str:
     report_path = f"outputs/stock_reports/{candidate.ticker.lower()}.md"
     return (
         f"{candidate.ticker} | before: run report | after: rerun report | "
-        f"{plain_pilot_input_copy(candidate.missing_input)} | "
+        f"{pilot_primary_missing_input(candidate)} | "
         "make imports-validate && make imports-preview && make imports-apply | "
         f"{report_path} | keep visible if source proof is unavailable or readiness remains blocked"
     )
@@ -612,7 +627,12 @@ def render_trusted_data_pilot_candidates(
                     f"{index}. {candidate.ticker} - {pilot_lane_label(candidate.lane)} ({scope}, priority {candidate.priority})",
                     f"   Why it matters: {candidate.why_it_matters}",
                     f"   Rank reason: {pilot_rank_reason(candidate)}",
-                    f"   Missing input: {plain_pilot_input_copy(candidate.missing_input)}",
+                    f"   Primary lane input: {pilot_primary_missing_input(candidate)}",
+                    *(
+                        [f"   Secondary locked context: {pilot_secondary_locked_context(candidate)}"]
+                        if pilot_secondary_locked_context(candidate)
+                        else []
+                    ),
                     f"   Next decision: {pilot_operator_decision(candidate)}",
                     f"   {pilot_decision_gate(candidate)}",
                     f"   Packet command: make trusted-data-pilot-packet TICKER={candidate.ticker}",
@@ -682,6 +702,7 @@ def render_trusted_data_pilot_packet(
         return "\n".join(lines)
 
     scope = "active universe" if candidate.active_universe else "master universe"
+    secondary_context = pilot_secondary_locked_context(candidate)
     lines.extend(
         [
             f"Ticker: {candidate.ticker}",
@@ -690,7 +711,8 @@ def render_trusted_data_pilot_packet(
             f"Priority: {candidate.priority}",
             f"Rank reason: {pilot_rank_reason(candidate)}",
             f"Why this candidate matters: {candidate.why_it_matters}",
-            f"Missing trusted input: {plain_pilot_input_copy(candidate.missing_input)}",
+            f"Primary lane input: {pilot_primary_missing_input(candidate)}",
+            *([f"Secondary locked context: {secondary_context}"] if secondary_context else []),
             f"Next decision: {pilot_operator_decision(candidate)}",
             pilot_decision_gate(candidate),
             f"Source boundary: {candidate.source_boundary}",
