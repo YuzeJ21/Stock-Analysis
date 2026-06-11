@@ -906,7 +906,7 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- Tickers usable for momentum: {summary['tickers_usable_for_momentum']}/{summary['tickers_total']}")
     print(f"- DCF-ready tickers: {summary['tickers_dcf_ready']}/{summary['tickers_total']}")
     print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
-    print(f"- Data-unlock steps: {summary['onboarding_actions']} ({summary['critical_actions']} urgent)")
+    print(f"- Missing-data steps: {summary['onboarding_actions']} ({summary['critical_actions']} urgent)")
     print(f"- Research-purpose groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
     for warning in payload.get("warnings", []):
         print(f"Warning: {warning}")

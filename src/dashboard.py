@@ -14954,7 +14954,7 @@ def project_status_metric_cards(payload: dict[str, Any] | None) -> list[tuple[st
         (
             "Urgent Unlock Steps",
             int(summary.get("critical_actions") or 0),
-            f"{int(summary.get('onboarding_actions') or 0)} data-unlock steps total",
+            f"{int(summary.get('onboarding_actions') or 0)} missing-data steps total",
         ),
     ]
 
