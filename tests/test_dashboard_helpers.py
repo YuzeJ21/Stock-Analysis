@@ -13141,7 +13141,7 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "without changing local csv files" in rendered
     assert "peer trend needs mapped peer price history" in rendered
     assert "peer valuation needs trusted peer mappings and peer metrics" in rendered
-    assert "the report withholds unsupported valuation, peer, earnings, and estimate sections" in rendered
+    assert "the report withholds valuation, peer, earnings, and estimate sections when required inputs are missing" in rendered
     assert "dry-run-first capped yahoo refresh loops" in rendered
     assert "capped refresh; verify source readiness after merge" in rendered
     assert "output_to_check" in console.columns
@@ -13181,7 +13181,7 @@ def test_next_action_console_plain_english_states_cover_unlock_lanes():
     assert "earnings context stays unavailable until trusted local rows pass validate, preview, and apply" in rendered
     assert "consensus is context, not a conclusion" in rendered
     assert "source readiness, dcf boundary, peer boundary, and optional-context gaps" in rendered
-    assert "unsupported valuation, peer, earnings, and estimate sections" in rendered
+    assert "valuation, peer, earnings, and estimate sections when required inputs are missing" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered

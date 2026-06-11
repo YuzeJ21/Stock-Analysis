@@ -778,7 +778,7 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "Data strategy",
         "Read `docs/DATA_STRATEGY.md`, then use the targeted commands above for a 5-10 company pilot.",
         "Do not publish broad generated CSV churn unless it is the reviewed artifact for that release",
-        "Do not add execution workflows, direct recommendations, fabricated data, or unsupported valuation labels",
+        "Do not add execution workflows, direct recommendations, fabricated data, or valuation labels without ready inputs",
     ):
         assert phrase in roadmap
 

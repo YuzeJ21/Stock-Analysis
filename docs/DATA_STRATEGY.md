@@ -47,7 +47,7 @@ A company is a useful pilot win only when the evidence is reviewable, not just w
 - Applying SEC/manual fundamentals rows without validation and preview.
 - Peer relationships inferred only from sector labels.
 - Earnings or estimate context from empty optional files.
-- Unsupported valuation labels for blocked rows.
+- Valuation labels for blocked rows.
 - Broad generated CSV churn in the public branch.
 
 The product should get more useful by improving trusted coverage and proof paths, not by filling missing fields with guesses.

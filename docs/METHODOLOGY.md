@@ -72,7 +72,7 @@ The fundamental-analysis contract is:
 | Can DCF run? | Requires price, revenue, free cash flow or FCF margin, shares outstanding, and valid assumptions. | Fair value/share, sensitivity, and valuation interpretation until required fields pass readiness. |
 | Can peer valuation run? | Requires standalone company readiness plus source-backed peer mappings and peer valuation inputs. | Peer-relative valuation from guessed peers, sector fallback, or incomplete peer metrics. |
 
-This means a fundamentals-ready row is not automatically a conclusion. It is permission to review the fields that are present. A DCF-ready row is permission to review scenario math. A peer-ready row is permission to review source-backed relative context. The report and dashboard keep those permissions separate so a partial fundamentals row cannot become an unsupported valuation view.
+This means a fundamentals-ready row is not automatically a conclusion. It is permission to review the fields that are present. A DCF-ready row is permission to review scenario math. A peer-ready row is permission to review source-backed relative context. The report and dashboard keep those permissions separate so a partial fundamentals row cannot become a valuation view without ready inputs.
 
 ## 4. Price, Momentum, And Risk Context
 
@@ -119,7 +119,7 @@ DCF output is treated as scenario math, not a price target. The report should sh
 
 ### Conservative DCF Normalization
 
-The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into an unsupported valuation story.
+The product can normalize unusually high or unusually low assumptions before projecting cash flows. This is not a third-party opinion and it does not create new fundamentals. It is a transparent guardrail inside `src/valuation.py` to keep one extreme input from turning into a valuation story without ready inputs.
 
 - Observed revenue growth above the conservative start-growth cap is capped before projection.
 - Very negative observed revenue growth is floored before projection so the model does not compound an extreme one-period decline indefinitely.
@@ -135,7 +135,7 @@ The report uses three DCF states:
 - `blocked`: one or more required company inputs are missing, so the report shows missing fields and withholds valuation interpretation.
 - `excluded`: the ticker is an ETF, index proxy, or fund monitor context where operating-company DCF does not apply.
 
-This distinction matters because a blocked DCF is not a negative company signal, and an excluded DCF is not a failed calculation. Both are product gates that prevent unsupported valuation language.
+This distinction matters because a blocked DCF is not a negative company signal, and an excluded DCF is not a failed calculation. Both are product gates that prevent valuation language without ready inputs.
 
 ## 6. Peer And Relative Context
 

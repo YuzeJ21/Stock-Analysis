@@ -37,7 +37,7 @@ The following milestones are completed or mostly completed across the active-uni
 
 The product is usable today for price, momentum, and market-direction monitoring across the current active universe and a growing analysis-ready subset of the broad master universe.
 
-The product is partially decision-useful for DCF-ready company research, but peer-relative analysis, earnings context, and analyst-estimate context remain blocked for most tickers because trusted source data is missing or incomplete. This is expected and correct: the system should not promote unsupported conclusions when the underlying data is not ready.
+The product is partially decision-useful for DCF-ready company research, but peer-relative analysis, earnings context, and analyst-estimate context remain blocked for most tickers because trusted source data is missing or incomplete. This is expected and correct: the system should not promote conclusions when the underlying data is not ready.
 
 Current readiness pattern:
 
@@ -47,11 +47,11 @@ Current readiness pattern:
 - Fundamentals and DCF coverage remain limited to trusted local/SEC-backed rows.
 - Peer readiness remains intentionally sparse until source-backed peer mappings and peer inputs are imported.
 - Earnings and analyst estimates remain locked until trusted local CSV rows are imported.
-- Decision buckets remain readiness-gated: incomplete rows stay `Blocked by Data` or `Monitor` rather than becoming unsupported recommendations.
+- Decision buckets remain readiness-gated: incomplete rows stay `Blocked by Data` or `Monitor` rather than becoming recommendations.
 
 Use `make status-check TOP_N=5`, `make readiness`, or the dashboard Home page for exact current local counts.
 
-The product correctly withholds unsupported conclusions. The next improvement is product-page workflow clarity plus trusted data ingestion, not more indicators.
+The product correctly withholds unavailable conclusions. The next improvement is product-page workflow clarity plus trusted data ingestion, not more indicators.
 
 ## 3. Product-Page Roadmap
 
@@ -187,7 +187,7 @@ Rules:
 - Must stay data-honest.
 - Must show blocked, partial, ready, and excluded states.
 - Must not fabricate missing fundamentals, earnings, analyst estimates, peers, or valuation inputs.
-- Must not produce unsupported buy/sell instructions.
+- Must not produce buy/sell instructions.
 
 ### C. Market-Wide Universe Layer
 
@@ -213,7 +213,7 @@ Goal: add trusted optional context workflows after fundamentals/DCF/peer readine
 Rules:
 
 - Earnings and analyst estimates are manual/trusted-local only until a provider interface is deliberately added.
-- Empty trusted rows should render as unavailable, not as unsupported conclusions.
+- Empty trusted rows should render as unavailable, not as conclusions.
 - Analyst consensus must not be treated as a recommendation.
 
 ## 7. Deprioritized Items
@@ -249,7 +249,7 @@ Public-share rules for this stage:
 - Keep the README demo path and sample reports short enough for GitHub/LinkedIn visitors.
 - Keep dashboard pages plain-language first, with commands and file paths behind focused help or tables.
 - Do not publish broad generated CSV churn unless it is the reviewed artifact for that release.
-- Do not add execution workflows, direct recommendations, fabricated data, or unsupported valuation labels.
+- Do not add execution workflows, direct recommendations, fabricated data, or valuation labels without ready inputs.
 
 ## 9. Acceptance Criteria For The Next Roadmap Milestone
 
@@ -287,4 +287,4 @@ Current boundary:
 - Do not fabricate analyst estimates.
 - Do not add broker integration.
 - Do not add auto-trading.
-- Do not produce unsupported buy/sell recommendations.
+- Do not produce buy/sell recommendations.
