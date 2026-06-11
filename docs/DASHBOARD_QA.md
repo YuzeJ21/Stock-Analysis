@@ -138,7 +138,7 @@ Boundary checked:
 Checked commands and docs:
 
 - Trusted Data Pilot CLI: confirmed `make trusted-data-pilot-candidates TOP_N=10` prints a compact visitor-friendly shortlist, quick path, and short review board instead of a full row-by-row diagnostics wall.
-- Trusted Data Pilot CLI: confirmed `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` remains available for local operator detail, including file status, decision gates, rejected-row paths, and evidence expectations.
+- Trusted Data Pilot CLI: confirmed `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` remains available for local proof detail, including file status, decision gates, rejected-row paths, and evidence expectations.
 - Public docs: confirmed README, Data Strategy, Public Release Checklist, LinkedIn brief, and `make demo` present compact candidate ranking first, then verbose detail only as an optional follow-up.
 - Public release flow: confirmed the compact default points to one-company evidence packets before validate/preview/apply and rebuild proof, so visitors see the workflow without needing to import data.
 

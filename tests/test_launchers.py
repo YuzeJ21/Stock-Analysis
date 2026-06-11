@@ -1247,7 +1247,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "No generated CSV/JSON churn was published with the UI copy pass",
         "2026-06-11 Trusted Pilot Compact Output Pass",
         "`make trusted-data-pilot-candidates TOP_N=10` prints a compact visitor-friendly shortlist",
-        "`make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` remains available for local operator detail",
+        "`make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` remains available for local proof detail",
         "file status, decision gates, rejected-row paths, and evidence expectations",
         "README, Data Strategy, Public Release Checklist, LinkedIn brief, and `make demo`",
         "compact default points to one-company evidence packets before validate/preview/apply and rebuild proof",
@@ -1812,12 +1812,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10\"" in makefile
-    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional operator detail\"" in makefile
+    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail\"" in makefile
     assert "@echo \"   make trusted-data-pilot-packet TICKER=CRDO\"" in makefile
     assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
     assert "@echo \"   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
     assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
-    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional operator detail"')
+    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail"')
     assert "@echo \"6. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
     assert "@echo \"   make diff-hygiene\"" in makefile

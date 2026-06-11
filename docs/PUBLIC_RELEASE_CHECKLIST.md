@@ -12,7 +12,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep the dashboard `Data Health` page visible as the safe freshness guide: read-only routine first, capped price dry-run before real refreshes, and review-required lanes for fundamentals, peers, earnings, and analyst estimates.
 - Confirm visitors are not told to manually refresh all 3,538 tickers every day; the public workflow should explain lane-specific freshness and generated-data hygiene instead.
 - Keep `make trusted-data-pilot-candidates TOP_N=10` visible as the read-only first step for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn.
-- Confirm the default candidate output stays compact for visitors; use `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` only when operator-level file status, decision gates, rejected-row paths, and evidence expectations are needed.
+- Confirm the default candidate output stays compact for visitors; use `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` only when local proof file status, decision gates, rejected-row paths, and evidence expectations are needed.
 - Keep `make trusted-data-pilot-packet TICKER=CRDO` visible as the one-company before report, review path, validate/apply, rejected-row, and rebuild-proof packet after a candidate is chosen.
 - Keep `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` visible as the follow-up evidence loop after candidates are selected.
 - Confirm the pilot output shows the next decision and evidence expectation: proceed only when source proof exists, otherwise keep the ticker visibly blocked by missing data and move to the next candidate.
@@ -98,7 +98,7 @@ make readiness
 make status-check TOP_N=5
 make demo
 make trusted-data-pilot-candidates TOP_N=10
-make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional operator detail
+make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional local proof detail
 make trusted-data-pilot-packet TICKER=CRDO
 make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10
 make stock-report-md TICKER=NVDA
