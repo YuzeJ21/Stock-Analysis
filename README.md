@@ -46,6 +46,17 @@ The report is not a black box: local data rows provide inputs, and project rules
 
 The local sample currently tracks a broad universe of 3,538 tickers, with a smaller subset ready for each analysis feature. Exact ready counts can change after local refresh/import work, so use `make status-check TOP_N=5` or the dashboard Home page for the current snapshot.
 
+## Data Coverage Strategy
+
+The product separates refreshable data from judgment-required data:
+
+| Data lane | Best next move | Why it matters |
+| --- | --- | --- |
+| Prices | Use `make price-refresh-loop DRY_RUN=1` before capped refreshes. | Price coverage can scale safely, but refreshed CSVs should be reviewed before commit. |
+| Fundamentals / DCF | Use `make trusted-data-pilot TOP_N=10`, SEC staging, or trusted manual imports. | Company valuation only appears after required fields pass readiness. |
+| Peers | Add source-backed peer mappings and peer inputs. | Peer trend and peer valuation stay separate; guessed peers do not become valuation. |
+| Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
+
 ## What Works Today
 
 This is a working local research prototype with deterministic outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.

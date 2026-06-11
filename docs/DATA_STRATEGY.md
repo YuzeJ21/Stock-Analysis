@@ -4,6 +4,17 @@ The product is CSV-first. Local rows are the source of truth; provider-assisted 
 
 Provider-assisted does not mean provider-decided. A provider can help populate local price rows, but the product still validates local CSV coverage before momentum, liquidity, DCF, peer, or decision sections appear. Fundamentals, peer relationships, earnings, and analyst estimates need trusted source review before they become analysis inputs.
 
+## Quick Decision Guide
+
+Use this guide before changing local data:
+
+| If the gap is... | Do this first | Do not do this |
+| --- | --- | --- |
+| Missing or stale prices | Run `make price-refresh-loop DRY_RUN=1`, then snapshot readiness before any capped refresh. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
+| Missing fundamentals or DCF fields | Run `make trusted-data-pilot TOP_N=10`, then use SEC staging or trusted manual imports for 5-10 reviewed companies. | Do not fill placeholder fundamentals to make valuation appear ready. |
+| Missing peers | Run `make peer-mapping-queue TOP_N=25`, then add source-backed peers and peer inputs only. | Do not turn sector or industry similarity into trusted peer valuation. |
+| Missing earnings or estimates | Keep the section locked until trusted local rows pass validate, preview, and apply. | Do not render empty optional context as analysis. |
+
 ## Data Lanes
 
 | Lane | Current strategy | Can be automated now? | Product boundary |
