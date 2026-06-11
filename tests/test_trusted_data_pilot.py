@@ -268,7 +268,8 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares outstanding." in rendered
     assert "Operator decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
     assert "fundamentals_dcf" not in rendered
-    assert "make focus-fundamentals TICKER=META" in rendered
+    assert "Packet command: make trusted-data-pilot-packet TICKER=META" in rendered
+    assert "Lane check: make focus-fundamentals TICKER=META" in rendered
     assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
@@ -306,6 +307,8 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
 
     assert "1. MU - Peer mapping unlock" in rendered
     assert "peer_mapping" not in rendered
+    assert "Packet command: make trusted-data-pilot-packet TICKER=MU" in rendered
+    assert "Lane check: make focus-peers TICKER=MU" in rendered
     assert "3. Review the lane blocker: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
     assert "Trusted row target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
     assert "6. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
