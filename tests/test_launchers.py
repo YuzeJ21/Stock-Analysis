@@ -423,7 +423,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     for stale_preview_phrase in ("Analysis modes before tables", "Standalone DCF</text>", "Price/setup only", "Monitor-only</text>", "Explore ready names: Home filters and sample reports"):
         assert stale_preview_phrase not in preview
     assert "## Quick Start" in readme
-    assert "Run these from the repository root so `make` can find the project targets:" in readme
+    assert "Run these from the repository root so `make` can find the project targets. This first path is visitor-safe" in readme
+    assert "it does not rebuild broad generated outputs before you have seen the product" in readme
+    assert "When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps." in readme
     assert "## What You Can Analyze" in readme
     assert "## How Analysis Works" in readme
     assert "## What Works Today" in readme
@@ -446,8 +448,6 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "pip install -e '.[dev]'" in readme
     assert "pip install -e .[dev]" not in readme
     for phrase in (
-        "make pipeline",
-        "make readiness",
         "make demo",
         "make trusted-data-pilot TOP_N=10",
         "make public-check",
@@ -460,7 +460,6 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "price/setup report with fundamentals still locked",
         "make stock-report TICKER=NVDA",
         "make dashboard",
-        "make dashboard-smoke",
         "make status-check TOP_N=5",
         "not investment advice",
         "review states",
@@ -528,6 +527,12 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "not automatic undervalued calls",
     ):
         assert phrase in readme
+    quick_start = readme.split("## Quick Start", 1)[1].split("## Try This Demo Path", 1)[0]
+    assert "make pipeline" not in quick_start
+    assert "make readiness" not in quick_start
+    assert quick_start.index("make demo") < quick_start.index("make status-check TOP_N=5")
+    assert quick_start.index("make status-check TOP_N=5") < quick_start.index("make stock-report-md TICKER=NVDA")
+    assert quick_start.index("make stock-report-md TICKER=NVDA") < quick_start.index("make dashboard")
     operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     for phrase in (
         "make price-worklist TOP_N=10",

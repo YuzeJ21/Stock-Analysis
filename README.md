@@ -85,18 +85,17 @@ Two-minute visitor tour:
 
 ## Quick Start
 
-Run these from the repository root so `make` can find the project targets:
+Run these from the repository root so `make` can find the project targets. This first path is visitor-safe: it does not rebuild broad generated outputs before you have seen the product.
 
 ```bash
 pip install -e '.[dev]'
-make pipeline
-make readiness
 make demo
+make status-check TOP_N=5
 make stock-report-md TICKER=NVDA
-make public-check
-make dashboard-smoke
 make dashboard
 ```
+
+When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps.
 
 ## Try This Demo Path
 
