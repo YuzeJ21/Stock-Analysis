@@ -1736,7 +1736,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert '@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."' in makefile
     assert "@echo \"Visitor proof trail:\"" in makefile
-    assert "@echo \"   Home -> one proof report -> one blocked/excluded example -> trusted-data pilot\"" in makefile
+    assert "@echo \"   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot\"" in makefile
     assert "@echo \"What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
     assert "@echo \"2. Open the clean dashboard path:\"" in makefile
     assert "@echo \"   Proves: current readiness counts and top blockers without changing local files.\"" in makefile

@@ -130,7 +130,7 @@ demo:
 	@echo "Run these from the repository root so make can find the project targets."
 	@echo ""
 	@echo "Visitor proof trail:"
-	@echo "   Home -> one proof report -> one blocked/excluded example -> trusted-data pilot"
+	@echo "   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot"
 	@echo "What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced."
 	@echo ""
 	@echo "1. Confirm the local snapshot:"
