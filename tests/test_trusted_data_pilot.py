@@ -547,9 +547,10 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert rendered.index("Quick path:") < rendered.index("Compact review board:")
     assert "Compact review board:" in rendered
     assert "Detailed review board:" not in rendered
-    assert "META: continue if source proof exists" in rendered
-    assert "Skip for now if trusted SEC or manual fundamentals rows are not reviewable." in rendered
-    assert "evidence row: META | before: run report | after: rerun report" in rendered
+    assert "META: Fundamentals / DCF proof path; missing input: shares outstanding; packet make trusted-data-pilot-packet TICKER=META; skip if source proof is unavailable." in rendered
+    assert "META: continue if source proof exists" not in rendered
+    assert "Skip for now if trusted SEC or manual fundamentals rows are not reviewable." not in rendered
+    assert "evidence row: META | before: run report | after: rerun report" not in rendered
     assert "Pilot selection rule: choose 5-10 operating companies only when you can review source proof" in rendered
     assert "Suggested pilot command after choosing active/demo names: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "No broad-universe overflow is needed for the first pilot shortlist." in rendered
@@ -603,6 +604,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." in verbose
     assert "Rejected-row report to review: data/rejected/fundamentals_import_rejected.csv" in verbose
     assert "Evidence expectation: Evidence required: before report, lane review output" in verbose
+    assert "Evidence row: META | before: run report | after: rerun report" in verbose
     assert "Do not call META available until the rebuilt report proves the lane changed." in verbose
 
 
@@ -632,6 +634,7 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
     assert "3. Review the lane blocker: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
     assert "Trusted row target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" not in rendered
     assert "Trusted input target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "MU: Peer mapping proof path; missing input: needs at least 2 source-backed peer mappings; packet make trusted-data-pilot-packet TICKER=MU; skip if source proof is unavailable." in rendered
     assert "Rejected-row report to review: data/rejected/peers_import_rejected.csv" not in rendered
     assert (
         "Decision gate: continue only if you have source-backed peer relationships, not sector or industry similarity alone"

@@ -317,6 +317,20 @@ def pilot_review_board_row(candidate: PilotCandidate) -> str:
     )
 
 
+def pilot_compact_board_row(candidate: PilotCandidate) -> str:
+    """Return a short visitor-facing candidate row without row-level diagnostics."""
+
+    missing_input = plain_pilot_input_copy(candidate.missing_input)
+    if "; " in missing_input:
+        missing_input = f"{missing_input.split('; ', 1)[0]}; optional context locked"
+    return (
+        f"{candidate.ticker}: {pilot_lane_label(candidate.lane)}; "
+        f"missing input: {missing_input}; "
+        f"packet make trusted-data-pilot-packet TICKER={candidate.ticker}; "
+        "skip if source proof is unavailable."
+    )
+
+
 def pilot_public_shortlist(candidates: list[PilotCandidate], *, limit: int = 10) -> list[PilotCandidate]:
     """Prefer active or public-demo names for the small trusted-data pilot."""
 
@@ -568,7 +582,7 @@ def render_trusted_data_pilot_candidates(
             *[f"- {line}" for line in pilot_quick_path_lines(candidates)],
             "",
             "Compact review board:",
-            *[f"- {pilot_review_board_row(candidate)}" for candidate in candidates[: min(top_n, len(candidates))]],
+            *[f"- {pilot_compact_board_row(candidate)}" for candidate in candidates[: min(top_n, len(candidates))]],
             "",
         ]
     )
@@ -594,6 +608,7 @@ def render_trusted_data_pilot_candidates(
                     f"   Rejected-row report to review: {pilot_rejected_report_path(candidate)}",
                     f"   Proof after data changes: {candidate.proof_after_unlock}",
                     f"   Evidence expectation: {pilot_evidence_expectation(candidate)}",
+                    f"   Evidence row: {pilot_evidence_row_template(candidate)}",
                     f"   Source boundary: {candidate.source_boundary}",
                     "",
                 ]
