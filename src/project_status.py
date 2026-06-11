@@ -199,7 +199,7 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
         if reason:
             row["Reason"] = reason.replace("across this bundle", "across this guided data batch").replace(
                 "current bundle", "current guided data batch"
-            )
+            ).replace("Unlock Monthly Picks", "Make Monthly Picks available")
     return row
 
 
@@ -640,7 +640,7 @@ def _trusted_data_pilot_command_row() -> dict[str, str]:
         (
             "Rank current operating-company blockers first, inspect one company with "
             "make trusted-data-pilot-packet TICKER=<ticker>, then use selected names for the trusted-data "
-            "evidence loop instead of trying to unlock the full universe at once."
+            "evidence loop instead of trying to make the full universe analysis-ready at once."
         ),
         source_context="trusted local CSVs plus SEC/manual review paths",
         freshness_context="read-only ranking; run before importing trusted fundamentals or peer rows",

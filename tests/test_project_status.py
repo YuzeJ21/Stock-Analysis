@@ -675,12 +675,14 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
     guided_row = payload["recommended_next_command_rows"][2]
     assert guided_row["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
-    assert guided_row["Reason"] == "Unlock Monthly Picks for 5 tickers across this guided data batch."
+    assert guided_row["Reason"] == "Make Monthly Picks available for 5 tickers across this guided data batch."
     assert guided_row["FreshnessContext"] == "guided batch generated from current onboarding outputs"
     pilot_row = payload["recommended_next_command_rows"][1]
     assert pilot_row["Step"] == "Rank trusted data pilot candidates"
     assert "Rank current operating-company blockers first" in pilot_row["Reason"]
     assert "make trusted-data-pilot-packet TICKER=<ticker>" in pilot_row["Reason"]
+    assert "make the full universe analysis-ready at once" in pilot_row["Reason"]
+    assert "unlock the full universe" not in pilot_row["Reason"]
     assert pilot_row["FreshnessContext"] == "read-only ranking; run before importing trusted fundamentals or peer rows"
     import_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
     assert import_row["Step"] == "Review import files"

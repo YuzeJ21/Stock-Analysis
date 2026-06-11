@@ -48,7 +48,7 @@
     <rect x="820" y="164" width="336" height="124" rx="18" fill="#fff8ec" stroke="#e3c78e"/>
     <text x="842" y="198" fill="#9a6429" font-size="13" font-weight="700">RESEARCH GUARDRAIL</text>
     <text x="842" y="231" fill="#172820" font-size="24" font-weight="700">No data, no conclusion</text>
-    <text x="842" y="260" fill="#6f766f" font-size="15">Blocked rows become unlock checklists.</text>
+    <text x="842" y="260" fill="#6f766f" font-size="15">Blocked rows become proof checklists.</text>
   </g>
 
   <g font-family="Verdana, sans-serif">
@@ -64,7 +64,7 @@
     <rect x="136" y="479" width="454" height="44" rx="12" fill="#f5f1e8"/>
     <text x="156" y="507" fill="#172820" font-size="13">Improve data coverage: trusted-data candidate list</text>
     <rect x="495" y="491" width="67" height="20" rx="10" fill="#bad4df"/>
-    <text x="509" y="506" fill="#172820" font-size="11" font-weight="700">unlock</text>
+    <text x="510" y="506" fill="#172820" font-size="11" font-weight="700">proof</text>
 
     <rect x="136" y="537" width="454" height="44" rx="12" fill="#f5f1e8"/>
     <text x="156" y="565" fill="#172820" font-size="13">Explore ready names: Monthly Picks and sample reports</text>
