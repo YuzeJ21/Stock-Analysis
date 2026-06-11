@@ -110,7 +110,7 @@ Boundary checked:
 Checked pages and docs:
 
 - Data Health: confirmed the `Freshness Routine` section explains a read-only daily/opening routine before any refresh or import step.
-- Data Health: confirmed the beginner path now reads `quick read, freshness routine, fix first, copy-only next steps, and trusted-data pilot`.
+- Data Health: confirmed the beginner path now starts with `quick read`, `fix first`, and `trusted-data pilot`, with refresh and command-heavy details available only when opened.
 - Data Health: confirmed price freshness guidance starts with a capped dry-run command and tells users to inspect generated CSV diffs before a real capped loop.
 - Data Health: confirmed fundamentals, peer mappings, earnings, and analyst estimates remain review-required lanes instead of unattended automation targets.
 - Public checklist: confirmed the release flow points visitors to Data Health for safe freshness guidance without suggesting daily manual full-universe refreshes.
@@ -118,4 +118,17 @@ Checked pages and docs:
 Boundary checked:
 
 - The freshness routine is copy-only; the dashboard does not execute refreshes, imports, broker actions, or trades.
+
+## 2026-06-11 Data Health Compact Default Pass
+
+Checked pages and docs:
+
+- Data Health: confirmed the default page keeps `Data Health Quick Read`, `Fix First`, and `Trusted Data Pilot` visible before broad tables.
+- Data Health: confirmed `Refresh and command details` is collapsed by default, so `Freshness Routine` and `Copy-Only Next Steps` do not crowd the first scan.
+- Data Health: confirmed `Pilot selection details` is collapsed by default, while top pilot candidates remain visible.
+- Sidebar: confirmed the control reads `Show extra guidance`, not `Show page tips`.
+
+Boundary checked:
+
+- Collapsing details is a UI/readability change only; commands remain copy-only and no data refresh, import, or account action is triggered from the dashboard.
 - This pass documents workflow clarity only; it does not claim new fundamentals, peer, earnings, or analyst-estimate coverage.
