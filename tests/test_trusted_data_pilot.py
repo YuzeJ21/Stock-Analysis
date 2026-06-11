@@ -5,6 +5,7 @@ from src.trusted_data_pilot import (
     pilot_local_file_status,
     pilot_operator_decision,
     pilot_public_shortlist,
+    pilot_quick_path_lines,
     pilot_rank_reason,
     pilot_rejected_report_path,
     pilot_review_path,
@@ -489,6 +490,32 @@ def test_pilot_selection_brief_handles_empty_queue_without_forcing_data():
     assert "before importing rows" in brief
 
 
+def test_pilot_quick_path_lines_show_first_action_before_detailed_evidence():
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            }
+        ],
+        [],
+        [{"ticker": "META", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )
+
+    quick_path = "\n".join(pilot_quick_path_lines(candidates))
+
+    assert "Shortlist: META." in quick_path
+    assert "Start with one packet: make trusted-data-pilot-packet TICKER=META" in quick_path
+    assert "Review its lane: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in quick_path
+    assert "Trusted input target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in quick_path
+    assert "Stop if source proof is unavailable: keep META visibly blocked" in quick_path
+    assert "Evidence required:" not in quick_path
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -514,7 +541,12 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "does not refresh, import, edit CSVs, or change readiness outputs" in rendered
     assert "Pilot lanes are plain-English proof paths" in rendered
     assert "How to choose the pilot:" in rendered
-    assert "Pilot review board:" in rendered
+    assert "Quick path:" in rendered
+    assert "Shortlist: META." in rendered
+    assert "Start with one packet: make trusted-data-pilot-packet TICKER=META" in rendered
+    assert rendered.index("Quick path:") < rendered.index("Detailed review board:")
+    assert "Detailed review board:" in rendered
+    assert "Pilot review board:" not in rendered
     assert "META: continue if source proof exists" in rendered
     assert "Skip for now if trusted SEC or manual fundamentals rows are not reviewable." in rendered
     assert "evidence row: META | before: run report | after: rerun report" in rendered

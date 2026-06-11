@@ -383,6 +383,25 @@ def pilot_selection_brief(candidates: list[PilotCandidate]) -> list[str]:
     ]
 
 
+def pilot_quick_path_lines(candidates: list[PilotCandidate]) -> list[str]:
+    """Return the shortest visitor-facing path before detailed evidence rows."""
+
+    if not candidates:
+        return [
+            "Quick path: no company pilot is available from the current filters.",
+            "Next command: make trusted-data-pilot-candidates TOP_N=10 after rebuilding readiness outputs.",
+        ]
+    shortlist = pilot_public_shortlist(candidates, limit=10)
+    first = shortlist[0]
+    return [
+        f"Shortlist: {', '.join(candidate.ticker for candidate in shortlist)}.",
+        f"Start with one packet: make trusted-data-pilot-packet TICKER={first.ticker}",
+        f"Review its lane: {pilot_review_path(first.validation_path)}",
+        f"Trusted input target: {pilot_trusted_row_path(first)}",
+        f"Stop if source proof is unavailable: keep {first.ticker} visibly blocked and move to the next shortlisted company.",
+    ]
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -544,7 +563,10 @@ def render_trusted_data_pilot_candidates(
             "How to choose the pilot:",
             *[f"- {line}" for line in pilot_selection_brief(candidates)],
             "",
-            "Pilot review board:",
+            "Quick path:",
+            *[f"- {line}" for line in pilot_quick_path_lines(candidates)],
+            "",
+            "Detailed review board:",
             *[f"- {pilot_review_board_row(candidate)}" for candidate in candidates[: min(top_n, len(candidates))]],
             "",
         ]
