@@ -130,6 +130,8 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "1. META - fundamentals_dcf" in rendered
     assert "make focus-fundamentals TICKER=META" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
+    assert "3. make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "QQQ and SMH are excluded from this company pilot queue" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
 
