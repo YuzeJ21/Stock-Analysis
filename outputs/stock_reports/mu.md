@@ -17,7 +17,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Source-backed peer mappings and peer valuation inputs.
-- One-company pilot packet: `make trusted-data-pilot-packet TICKER=MU` is read-only; use it to inspect local file status, rejected-row checks, and the validate/preview/apply proof path before changing readiness.
+- One-company pilot packet: `make trusted-data-pilot-packet TICKER=MU` is read-only; use it to see the trusted-data proof path and stop if source evidence is unavailable.
 - Data Health lane: Peer Mapping Proof. Suggested local check: `make focus-peers TICKER=MU`. Confirm with `make readiness && make peer-mapping-queue TICKERS=MU TOP_N=10` before treating the lane as available.
 - Next research step: Add trusted price history for mapped peers: SNDK, WDC.
 

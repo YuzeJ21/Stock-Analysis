@@ -1697,7 +1697,7 @@ def _stock_report_pilot_packet_line(
         return ""
     return (
         f"- One-company pilot packet: `make trusted-data-pilot-packet TICKER={ticker}` is read-only; "
-        "use it to inspect local file status, rejected-row checks, and the validate/preview/apply proof path before changing readiness."
+        "use it to see the trusted-data proof path and stop if source evidence is unavailable."
     )
 
 

@@ -17,7 +17,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Analyze now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked: Blocked features: fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 - Trusted input: Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding.
-- One-company pilot packet: `make trusted-data-pilot-packet TICKER=APLD` is read-only; use it to inspect local file status, rejected-row checks, and the validate/preview/apply proof path before changing readiness.
+- One-company pilot packet: `make trusted-data-pilot-packet TICKER=APLD` is read-only; use it to see the trusted-data proof path and stop if source evidence is unavailable.
 - Data Health lane: Fundamentals / DCF Proof. Suggested local check: `make focus-fundamentals TICKER=APLD`. Confirm with `make dcf-readiness && make readiness` before treating the lane as available.
 - Next research step: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 

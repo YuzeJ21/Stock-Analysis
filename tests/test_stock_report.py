@@ -617,7 +617,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "`make trusted-data-pilot-packet TICKER=MSFT`" in markdown
     assert markdown.count("`make trusted-data-pilot-packet TICKER=MSFT`") == 2
     assert "One-company pilot packet: `make trusted-data-pilot-packet TICKER=MSFT` is read-only" in markdown
-    assert "local file status, rejected-row checks, and the validate/preview/apply proof path" in markdown
+    assert "trusted-data proof path and stop if source evidence is unavailable" in markdown
+    assert "local file status, rejected-row checks, and the validate/preview/apply proof path" not in markdown
     assert "`make focus-fundamentals TICKER=MSFT`" in markdown
     assert "`make focus-peers TICKER=MSFT`" in markdown
     assert "`make optional-context-worklist TICKERS=MSFT TOP_N=10`" in markdown
@@ -1272,6 +1273,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Safe sequence: `make focus-fundamentals TICKER=APLD` -> stage SEC or trusted manual fundamentals rows -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`" in markdown
     assert "`make trusted-data-pilot-packet TICKER=APLD`" in markdown
     assert "One-company pilot packet: `make trusted-data-pilot-packet TICKER=APLD` is read-only" in markdown
+    assert "trusted-data proof path and stop if source evidence is unavailable" in markdown
     assert "Relative valuation: withheld until trusted fundamentals and DCF readiness pass" in markdown
     assert "available peer context is held back until the company DCF gate is ready" in markdown
     assert "background relative-multiple calculation" not in markdown
