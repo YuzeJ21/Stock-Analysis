@@ -6983,12 +6983,13 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
             command = "make imports-validate"
             staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the peer import file."
         elif target_file == "data/imports/prices.csv":
-            command = "make price-validate"
-            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the price import file."
+            if not command or command == "Not available":
+                command = "make price-validate"
+            staged_follow_through = "If trusted price rows are already staged, run make price-validate, then make price-preview, then make price-apply."
         action = compact_reason(
             row.get("recommended_action") or command_family_fallback(command, "Review local data coverage."),
-            max_sentences=1,
-            max_chars=150,
+            max_sentences=2 if target_file == "data/imports/prices.csv" else 1,
+            max_chars=190 if target_file == "data/imports/prices.csv" else 150,
         )
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
@@ -7004,12 +7005,15 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         if staged_follow_through:
             normalized_action = action.lower()
             if target_file == "data/imports/prices.csv":
+                if "make price-refresh-loop dry_run=1" not in normalized_action:
+                    action = f"{action} For batch planning, preview make price-refresh-loop DRY_RUN=1 before larger refreshes.".strip()
+                    normalized_action = action.lower()
                 if (
                     "make price-validate" not in normalized_action
                     or "make price-preview" not in normalized_action
                     or "make price-apply" not in normalized_action
                 ):
-                    action = staged_follow_through
+                    action = f"{action} {staged_follow_through}".strip()
             else:
                 if (
                     "make imports-validate" not in normalized_action

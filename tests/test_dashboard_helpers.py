@@ -10542,6 +10542,31 @@ def test_data_health_fix_first_cards_keep_staged_follow_through_visible_when_tar
     assert "use local import draft workflows if the free refresh fails" not in " ".join(card[1] for card in cards).lower()
 
 
+def test_data_health_fix_first_cards_keep_price_focus_command_before_staged_validation():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "dataset": "prices",
+                "ticker": "AIAI",
+                "reason": "Only 9 verified local price rows are present.",
+                "recommended_action": "Run make focus-price TICKER=AIAI first. For batch planning, preview make price-refresh-loop DRY_RUN=1.",
+                "focus_command": "make focus-price TICKER=AIAI",
+                "example_command": "make price-normalize INPUT=data/raw/prices/AIAI.csv TICKER=AIAI SOURCE=yahoo_manual",
+                "target_file": "data/imports/prices.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_fix_first_cards(actions)
+
+    assert cards[0][2] == "make focus-price TICKER=AIAI"
+    assert "make price-refresh-loop dry_run=1" in cards[0][1].lower()
+    assert "make price-validate" in cards[0][1].lower()
+    assert "make price-preview" in cards[0][1].lower()
+    assert "make price-apply" in cards[0][1].lower()
+
+
 def test_data_health_action_path_cards_surface_best_and_lane_commands():
     actions = pd.DataFrame(
         [
