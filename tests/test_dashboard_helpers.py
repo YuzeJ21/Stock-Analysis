@@ -569,7 +569,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert 'st.header("Navigation")' not in source
     assert '"Choose your path"' in source
     assert '"Choose a page"' not in source
-    assert 'st.expander("Advanced pages"' in source
+    assert 'st.expander("More pages"' in source
+    assert 'st.expander("Advanced pages"' not in source
     assert '"Open a detailed page"' in source
     assert "Most visitors only need these paths" in source
     assert "Detailed research views remain available" in source

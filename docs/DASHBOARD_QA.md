@@ -54,8 +54,8 @@ Boundary checked:
 
 Checked pages and docs:
 
-- Sidebar: confirmed the main navigation control reads `Choose your path` and exposes `Review one stock`, `Improve data coverage`, and `Explore ready names` before advanced pages.
-- Sidebar: confirmed detailed pages remain available under `Advanced pages`, so deep research views are not removed.
+- Sidebar: confirmed the main navigation control reads `Choose your path` and exposes `Review one stock`, `Improve data coverage`, and `Explore ready names` before the `More pages` section.
+- Sidebar: confirmed detailed pages remain available under `More pages`, so deep research views are not removed.
 - Home: confirmed the first-run proof trail shows copyable commands for the dashboard, NVDA ready proof, META blocked proof, QQQ excluded proof, MU peer-limited proof, CRDO fundamentals-gated proof, and the trusted-data pilot.
 - Data Strategy: confirmed the Automation Boundary table separates repeatable checks from human-reviewed source judgment.
 

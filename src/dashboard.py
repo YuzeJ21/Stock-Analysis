@@ -132,7 +132,7 @@ def dashboard_page_from_query(value: object) -> str:
 
 
 def sidebar_path_options(initial_page: str) -> list[str]:
-    """Return visitor path choices without pretending advanced pages are Home."""
+    """Return visitor path choices without pretending detailed pages are Home."""
     if initial_page in ADVANCED_PAGE_TITLES:
         return PUBLIC_PATH_PAGE_TITLES + [DETAILED_PAGE_PATH_TITLE]
     return PUBLIC_PATH_PAGE_TITLES
@@ -22522,7 +22522,7 @@ def main() -> None:
             help="Most visitors only need these paths: review one stock, improve data coverage, or explore ready names.",
         )
         selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection
-        with st.expander("Advanced pages", expanded=initial_page in ADVANCED_PAGE_TITLES):
+        with st.expander("More pages", expanded=initial_page in ADVANCED_PAGE_TITLES):
             advanced_page = st.selectbox(
                 "Open a detailed page",
                 ["Keep current path"] + ADVANCED_PAGE_TITLES,
