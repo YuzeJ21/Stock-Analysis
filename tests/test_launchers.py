@@ -423,6 +423,10 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     for stale_preview_phrase in ("Analysis modes before tables", "Standalone DCF</text>", "Price/setup only", "Monitor-only</text>", "Explore ready names: Home filters and sample reports"):
         assert stale_preview_phrase not in preview
     assert "## Quick Start" in readme
+    assert "flowchart LR" in readme
+    assert 'Home["Home: ready vs blocked"] --> Report["Single-stock report"]' in readme
+    assert 'Report --> Health["Data Health: missing input"]' in readme
+    assert 'Health --> Pilot["Trusted-data pilot"]' in readme
     assert "Run these from the repository root so `make` can find the project targets. This first path is visitor-safe" in readme
     assert "it does not rebuild broad generated outputs before you have seen the product" in readme
     assert "When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps." in readme

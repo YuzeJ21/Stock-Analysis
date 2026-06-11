@@ -8,13 +8,14 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 
 ## What It Does
 
-This project turns a broad stock universe into a readiness-first research dashboard:
+This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, source readiness notes, and copyable local proof commands.
 
-- Checks market data readiness before showing analysis.
-- Separates `Research Now`, `Monitor`, and `Blocked by Data` review states.
-- Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
-- Builds transparent local research views for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
-- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, source readiness notes, and copyable local proof commands.
+```mermaid
+flowchart LR
+    Home["Home: ready vs blocked"] --> Report["Single-stock report"]
+    Report --> Health["Data Health: missing input"]
+    Health --> Pilot["Trusted-data pilot"]
+```
 
 ## Why It Matters
 
