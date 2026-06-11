@@ -34,7 +34,7 @@ Current features:
 - Copyable Proof Commands that keep next steps local, capped, and research-only.
 - Source-readiness sections.
 - A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of fabricated full-universe readiness.
-- A read-only `make trusted-data-pilot-candidates TOP_N=10` command that ranks current company blockers, states the review decision for each lane, and keeps the coverage-improvement path focused without importing rows or fabricating data.
+- A read-only `make trusted-data-pilot-candidates TOP_N=10` command that ranks current company blockers with a compact shortlist, quick path, and review board without importing rows or fabricating data; `VERBOSE=1` adds full file status, decision gates, rejected-row paths, and evidence expectations.
 - A plain selection rule for the pilot: choose 5-10 operating companies only when source proof exists, review the lane mix, and treat a useful pilot win as before/after report evidence plus rebuilt readiness, not just a new CSV row.
 - A read-only `make trusted-data-pilot-packet TICKER=CRDO` command that prints the before report, focused blocker check, lane review path, review decision, evidence expectation, validate/apply step, rejected-row report, rebuild proof, and evidence row for one company.
 - A follow-up `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` command that prints the evidence loop for selected pilot companies.
@@ -68,7 +68,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` or `outputs/stock_reports/crdo.md` to show how the product handles blocked data without inventing valuation conclusions, including the exact copyable local commands for the next proof step and one-company pilot packet.
-- Run `make trusted-data-pilot-candidates TOP_N=10` to show which company blockers the current local data suggests improving next.
+- Run `make trusted-data-pilot-candidates TOP_N=10` to show which company blockers the current local data suggests improving next; use `VERBOSE=1` only when you want operator-level detail.
 - Run `make trusted-data-pilot-packet TICKER=CRDO` to show the one-company evidence packet without importing or applying rows.
 - Then run `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` to show the safe company-focused path for trusted fundamentals, DCF, and peer inputs.
 - Use the one-company evidence packet to explain that a useful coverage win needs before/after proof, source evidence, and a rebuilt report, not just a new CSV row.

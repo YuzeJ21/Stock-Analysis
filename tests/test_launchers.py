@@ -1003,6 +1003,8 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "make demo`, `make status-check TOP_N=5`, `make stock-report-md TICKER=NVDA`, and `make dashboard" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10" in checklist
+    assert "make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1" in checklist
+    assert "default candidate output stays compact for visitors" in checklist
     assert "make trusted-data-pilot-packet TICKER=CRDO" in checklist
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in checklist
     assert "read-only first step for ranking current company blockers" in checklist
@@ -1487,6 +1489,8 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Missing trusted rows are a product signal." in data_strategy
     assert "Do not try to make all 3,538 tickers fully analysis-ready at once" in data_strategy
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
+    assert "make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1" in data_strategy
+    assert "default candidate output is compact" in data_strategy
     assert "make trusted-data-pilot-packet TICKER=CRDO" in data_strategy
     assert "make trusted-data-pilot TOP_N=10" in data_strategy
     assert "rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
@@ -1796,10 +1800,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10\"" in makefile
+    assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional operator detail\"" in makefile
     assert "@echo \"   make trusted-data-pilot-packet TICKER=CRDO\"" in makefile
     assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
     assert "@echo \"   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
     assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
+    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional operator detail"')
     assert "@echo \"6. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
     assert "@echo \"   make diff-hygiene\"" in makefile

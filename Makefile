@@ -189,6 +189,7 @@ demo:
 	@echo ""
 	@echo "5. Optional: see the safe coverage-improvement path:"
 	@echo "   make trusted-data-pilot-candidates TOP_N=10"
+	@echo "   make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1  # optional operator detail"
 	@echo "   make trusted-data-pilot-packet TICKER=CRDO"
 	@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"
 	@echo "   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows."
