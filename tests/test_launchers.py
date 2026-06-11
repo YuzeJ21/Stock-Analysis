@@ -401,6 +401,11 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## How Analysis Works" in readme
     assert "## What Works Today" in readme
     assert "## Try This Demo Path" in readme
+    assert "Optional extra report states:" in readme
+    assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> trusted-data pilot." in readme
+    assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
+    assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
+    assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage unlock queue") < readme.index("Optional extra report states:")
     assert "## Local Data Hygiene" in readme
     assert "## License" in readme
     assert "## Analysis Methodology" in readme
@@ -1661,7 +1666,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"Visitor proof trail:\"" in makefile
     assert "@echo \"   Home -> one proof report -> one blocked/excluded example -> trusted-data pilot\"" in makefile
     assert "@echo \"2. Open the clean dashboard path:\"" in makefile
-    assert "@echo \"3. Generate readable sample reports:\"" in makefile
+    assert "@echo \"3. Generate the minimum proof reports:\"" in makefile
+    assert "@echo \"   Optional extra states:\"" in makefile
+    assert makefile.index('@echo "   make stock-report-md TICKER=NVDA"') < makefile.index('@echo "   make stock-report-md TICKER=META"')
+    assert makefile.index('@echo "   make stock-report-md TICKER=META"') < makefile.index('@echo "   make stock-report-md TICKER=QQQ"')
+    assert makefile.index('@echo "   make stock-report-md TICKER=QQQ"') < makefile.index('@echo "   Optional extra states:"')
+    assert makefile.index('@echo "   Optional extra states:"') < makefile.index('@echo "   make stock-report-md TICKER=A"')
     assert "@echo \"4. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10\"" in makefile
