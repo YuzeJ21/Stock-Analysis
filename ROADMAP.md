@@ -6,7 +6,7 @@ This roadmap reflects the current direction of the local Python/Streamlit stock 
 2. Analysis second.
 3. Research decision last.
 
-The next phase is not to add more indicators or AI-generated summaries. The next phase should turn the product page into a shareable broad-market research workflow while continuing to unlock decision-useful research through trusted fundamentals, peer metrics, earnings, and analyst estimates.
+The next phase is not to add more indicators or AI-generated summaries. The next phase should turn the product page into a shareable broad-market research workflow while continuing to prove decision-useful research through trusted fundamentals, peer metrics, earnings, and analyst estimates.
 
 ## 1. Completed Milestones
 
@@ -62,8 +62,8 @@ Goal: turn the Streamlit page into a research command center instead of a collec
 - Keep the top-level page focused on readiness, blockers, next actions, and single-stock drilldowns.
 - Group next actions by feature:
   - Price Coverage Batch
-  - Fundamentals / DCF Unlock
-  - Peer Mapping Unlock
+  - Fundamentals / DCF Proof
+  - Peer Mapping Proof
   - Earnings Import Setup
   - Analyst Estimates Import Setup
   - Single-Stock Review
@@ -73,11 +73,11 @@ Goal: turn the Streamlit page into a research command center instead of a collec
 - [x] Add source readiness context to `project_status_next_steps.csv`, `make project-status`, and dashboard next-action cards.
 - Make active-universe vs master-universe language visible wherever counts differ.
 
-## 4. Data-Unlock Roadmap
+## 4. Trusted Data Proof Roadmap
 
 ### A. Trusted Fundamentals Ingestion
 
-Goal: unlock fundamentals readiness without fabricating company data.
+Goal: prove fundamentals readiness without fabricating company data.
 
 - Configure `SEC_USER_AGENT`.
 - Run SEC staging for active company tickers.
@@ -96,7 +96,7 @@ Acceptance notes:
 - Manual imports must be source-backed.
 - Invalid rows must be rejected into CSV reports instead of silently dropped.
 
-### B. DCF Readiness Unlock
+### B. DCF Readiness Proof
 
 Goal: allow valuation conclusions only when DCF data is genuinely ready.
 
@@ -112,7 +112,7 @@ Acceptance notes:
 - DCF-ready companies must have trusted price and fundamentals inputs.
 - DCF logic should remain transparent and conservative.
 
-### C. Peer Readiness Unlock
+### C. Peer Readiness Proof
 
 Goal: support peer analysis without pretending peer valuation is available when only partial peer data exists.
 
@@ -234,7 +234,7 @@ Reason: the blocker is not the lack of indicators. The blocker is missing truste
 
 ## 8. Next Public Roadmap Stage
 
-Goal: turn the public project into a usable research workflow while the data universe grows through safe, reviewable unlocks.
+Goal: turn the public project into a usable research workflow while the data universe grows through safe, reviewable proof steps.
 
 This stage should improve breadth without pretending the whole 3,538-ticker universe is analysis-ready. It should favor capped refreshes, preview-first imports, source readiness visibility, and plain-English next actions.
 
@@ -245,7 +245,7 @@ This stage should improve breadth without pretending the whole 3,538-ticker univ
 | Source-backed peers | Prioritize active-universe and DCF-ready peer blockers before broad peer work. | `make peer-mapping-queue TOP_N=25`, `make focus-peers TICKER=...`, `make templates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Peer trend and peer valuation states are separated; peer valuation appears only when trusted peer inputs pass readiness. |
 | Optional context | Keep earnings and analyst estimates locked until trusted local rows exist. | `make optional-context-worklist TOP_N=25`, `make import-earnings`, `make import-analyst-estimates`, `make imports-validate`, `make imports-preview`, `make imports-apply`. | Empty optional context reads as intentionally locked, not broken or inferred. |
 | Source readiness guidance | Make source age, rejected-row reports, and generated-data hygiene visible before interpretation. | `make project-status`, `make research-health-check TOP_N=10`, `make public-check`, `make diff-hygiene`. | Visitors can see what is fresh, what is stale, what is local-only, and what should not be committed. |
-| Data strategy | Keep a public, data-honest explanation of what can refresh safely and what still needs trusted human/source review. | Read `docs/DATA_STRATEGY.md`, then use the targeted commands above for a 5-10 company pilot. | Visitors understand why broad valuation coverage is limited and how the next trusted unlock should happen. |
+| Data strategy | Keep a public, data-honest explanation of what can refresh safely and what still needs trusted human/source review. | Read `docs/DATA_STRATEGY.md`, then use the targeted commands above for a 5-10 company pilot. | Visitors understand why broad valuation coverage is limited and how the next trusted proof step should happen. |
 
 Public-share rules for this stage:
 
@@ -282,7 +282,7 @@ Current boundary:
 
 - The product workflow for fundamentals import, SEC staging guidance, peer blocker triage, public UI polish, and single-stock report generation is implemented and verified at the public-share gate.
 - The remaining unchecked readiness-count items require real trusted data rows. They should not be closed by fabricated data or by committing broad CSV churn.
-- If the next work session is data-focused, start with `make readiness-snapshot`, then run only scoped trusted-data unlocks, then run the full verification commands listed above before updating these boxes.
+- If the next work session is data-focused, start with `make readiness-snapshot`, then run only scoped trusted-data proof loops, then run the full verification commands listed above before updating these boxes.
 
 ## Guardrails
 
