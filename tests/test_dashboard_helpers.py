@@ -9423,6 +9423,60 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "sell" not in rendered
 
 
+def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
+    fundamentals = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            },
+        ]
+    )
+    peers = pd.DataFrame(
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs source-backed peer mappings",
+                "focus_command": "make focus-peers TICKER=MU",
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "MU", "asset_type": "company", "in_active_universe": "True"},
+        ]
+    )
+
+    note = dashboard.data_health_trusted_pilot_selection_note(fundamentals, peers, readiness, limit=10)
+    rendered = note.lower()
+
+    assert "choose 5-10 operating companies only when you can review source proof" in rendered
+    assert "2 active-universe candidate(s)" in rendered
+    assert "fundamentals / dcf unlock: 1" in rendered
+    assert "peer mapping unlock: 1" in rendered
+    assert "make trusted-data-pilot tickers=mu,meta top_n=2" in rendered
+    assert "useful pilot win: before report, lane review, trusted source row" in rendered
+    assert "rather than filling placeholder data" in rendered
+    assert "recommend" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_trusted_pilot_selection_note_handles_empty_queue():
+    note = dashboard.data_health_trusted_pilot_selection_note(None, None, None)
+    rendered = note.lower()
+
+    assert "no company candidates matched" in rendered
+    assert "do not force a pilot" in rendered
+    assert "before importing rows" in rendered
+
+
 def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     preview = pd.DataFrame(
         [
@@ -9488,6 +9542,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
 
     assert next_steps_index < pilot_index < pilot_preview_index < details_index
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
+    assert 'render_context_note(\n        "How to choose the pilot."' in source
     assert "render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))" in source
     assert "`make trusted-data-pilot-candidates TOP_N=10`" in source
     assert 'st.expander("Capped pilot candidate table", expanded=False)' in source

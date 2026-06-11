@@ -31,6 +31,7 @@ from src.trusted_data_pilot import (
     pilot_operator_decision,
     pilot_rank_reason,
     pilot_review_path,
+    pilot_selection_brief,
     pilot_trusted_row_path,
 )
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
@@ -6383,6 +6384,27 @@ def data_health_trusted_pilot_preview_frame(
         for candidate in candidates[: max(limit, 0)]
     ]
     return pd.DataFrame(rows)
+
+
+def data_health_trusted_pilot_selection_note(
+    fundamentals_peer_worklist_frame: pd.DataFrame | None,
+    peer_unlock_worklist_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None,
+    *,
+    limit: int = 10,
+) -> str:
+    """Return a capped dashboard note that mirrors the trusted-data CLI selection brief."""
+
+    fundamentals_rows = [] if fundamentals_peer_worklist_frame is None else fundamentals_peer_worklist_frame.to_dict("records")
+    peer_rows = [] if peer_unlock_worklist_frame is None else peer_unlock_worklist_frame.to_dict("records")
+    readiness_rows = [] if ticker_readiness_frame is None else ticker_readiness_frame.to_dict("records")
+    candidates = build_trusted_data_pilot_candidates(
+        fundamentals_rows,
+        peer_rows,
+        readiness_rows,
+        top_n=max(limit, 0),
+    )
+    return " ".join(pilot_selection_brief(candidates))
 
 
 def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
@@ -21100,6 +21122,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")
     render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))
+    render_context_note(
+        "How to choose the pilot.",
+        data_health_trusted_pilot_selection_note(
+            fundamentals_peer_worklist_frame,
+            peer_unlock_worklist_frame,
+            ticker_readiness_frame,
+            limit=10,
+        ),
+    )
     pilot_preview = data_health_trusted_pilot_preview_frame(
         fundamentals_peer_worklist_frame,
         peer_unlock_worklist_frame,
