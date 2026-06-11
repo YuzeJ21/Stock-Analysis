@@ -300,7 +300,7 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Unused capacity is expected when the last batch has fewer missing tickers than TOP_N." in script
     assert "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES." in script
     assert "If interrupted or provider-limited, rerun the dry run" in script
-    assert "No provider call, import, validation apply, broker action, or trade action runs during this dry run." in script
+    assert "No provider call, import, validation apply, or external account action runs during this dry run." in script
     assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
@@ -355,7 +355,7 @@ def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_write
     assert "manual 25-ticker commands avoided: about 144." in output
     assert "review summary: one dry run gives a copyable capped plan; one reviewed loop command replaces many manual refresh commands." in output
     assert "review summary: max_candidates is the approximate missing-price target; top_n is the per-batch safety cap." in output
-    assert "no provider call, import, validation apply, broker action, or trade action runs during this dry run." in output
+    assert "no provider call, import, validation apply, or external account action runs during this dry run." in output
     assert "provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, dcf inputs, or conclusions." in output
     assert "planned loop command: make price-refresh-loop max_candidates=3538 top_n=100 provider=yahoo sleep_seconds=30" in output
     assert "copy the one planned loop command instead of running many 25-ticker commands by hand" in output

@@ -76,7 +76,7 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Unused capacity is expected when the last batch has fewer missing tickers than TOP_N."
   echo "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES."
   echo "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time."
-  echo "No provider call, import, validation apply, broker action, or trade action runs during this dry run."
+  echo "No provider call, import, validation apply, or external account action runs during this dry run."
   echo "If interrupted or provider-limited, rerun the dry run; missing-only batches recalculate from current local prices."
   if [ -n "$MAX_CANDIDATES" ]; then
     echo "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
