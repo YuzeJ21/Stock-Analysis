@@ -20,7 +20,7 @@ help:
 	@echo "  Check price freshness:   make price-refresh-loop DRY_RUN=1"
 	@echo "  Verify public hygiene:   make diff-hygiene && make staged-hygiene-check"
 	@echo ""
-	@echo "For the full local operator command catalog, run: make help-full"
+	@echo "For the full local command catalog, run: make help-full"
 
 help-full:
 	@echo "Stock Research Command Center convenience commands"

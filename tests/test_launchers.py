@@ -137,7 +137,7 @@ def test_makefile_help_documents_key_workflows():
 
     for phrase in (
         "help-full:",
-        "For the full local operator command catalog, run: make help-full",
+        "For the full local command catalog, run: make help-full",
         "Stock Research Command Center convenience commands",
         "First-time path:",
         "Print the clean visitor walkthrough",
@@ -276,7 +276,7 @@ def test_make_help_output_stays_visitor_friendly():
     assert "make demo" in output
     assert "make stock-report-md TICKER=NVDA" in output
     assert "make trusted-data-pilot-candidates TOP_N=10" in output
-    assert "For the full local operator command catalog, run: make help-full" in output
+    assert "For the full local command catalog, run: make help-full" in output
     assert "Data onboarding:" not in output
     assert "Preview-first fundamentals and universe imports:" not in output
     assert len(output.splitlines()) <= 25
