@@ -19418,7 +19418,7 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
         (
             "Explore ready names",
             explore_body,
-            "Home / Monthly Picks",
+            "Monthly Picks",
             "neutral",
         ),
     ]

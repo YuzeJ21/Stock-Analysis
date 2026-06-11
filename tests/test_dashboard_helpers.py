@@ -1050,7 +1050,7 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
     assert [card[0] for card in cards] == ["Review one stock", "Improve data coverage", "Explore ready names"]
-    assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Home / Monthly Picks"]
+    assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Monthly Picks"]
     assert cards[1][3] == "warning"
     assert "23 ticker(s) have dcf-ready local inputs" in rendered
     assert "without opening raw tables" in rendered
