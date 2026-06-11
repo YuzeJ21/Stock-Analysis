@@ -16,9 +16,9 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 ## Reader Guide
 - Analyze now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
-- Trusted input: Source-backed peer mappings and peer valuation inputs.
+- Trusted input: Verified mapped-peer price history in data/imports/prices.csv, fundamentals, market cap, or valuation inputs.
 - One-company pilot packet: `make trusted-data-pilot-packet TICKER=MU` is read-only; use it to see the trusted-data proof path and stop if source evidence is unavailable.
-- Data Health lane: Peer Mapping Proof. Suggested local check: `make focus-peers TICKER=MU`. Confirm with `make readiness && make peer-mapping-queue TICKERS=MU TOP_N=10` before treating the lane as available.
+- Data Health lane: Peer Valuation Inputs Proof. Suggested local check: `make focus-peers TICKER=MU`. Confirm with `make readiness && make peer-mapping-queue TICKERS=MU TOP_N=10` before treating the lane as available.
 - Next research step: Add trusted price history for mapped peers: SNDK, WDC.
 
 ## Evaluation Snapshot
@@ -209,14 +209,14 @@ Research-only purpose brief. It separates what local data supports from what rem
 - What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by peer price missing.
 - What can be reviewed now: DCF assumptions and sensitivity; peer trend status=not ready until mapped peer price history is sufficient. Mapped peer count=2.
 - What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison until source-backed peer mappings and peer valuation inputs pass readiness.
-- Trusted input path: add source-backed rows in `data/imports/peers.csv`, then run `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
+- Trusted input path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals; use `data/imports/peers.csv` only if mappings change. Then run `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Next peer action: Add trusted price history for mapped peers: SNDK, WDC.
 - Fallback boundary: sector or industry context is fallback only; it is not trusted manual peer data. Current mapping status=mapped.
 - Peer ladder: standalone DCF can be reviewed before peer valuation is ready.
 - Mapping evidence: mapping status=mapped; peer count=2; blocker=peer price missing.
 - Trend evidence: not ready until mapped peer price history is sufficient.
 - Valuation evidence: locked; do not show peer-relative premium/discount, peer valuation comparison, or peer DCF comparison.
-- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`.
+- Trusted peer path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals; use `data/imports/peers.csv` only if mappings change. Then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`.
 - Peer blocker type: peer price missing
 - Mapping status: mapped
 - Peer count: 2
@@ -258,10 +258,10 @@ Research-only purpose brief. It separates what local data supports from what rem
 - local:analyst_estimates.csv: research-grade / local; source readiness: not available in local CSVs; Analyst-estimate fields stay locked until trusted rows are imported.
 
 ## Missing-Data Proof Summary
-- Data Health lane: Peer Mapping Proof. Suggested local check: `make focus-peers TICKER=MU`. Confirm with `make readiness && make peer-mapping-queue TICKERS=MU TOP_N=10` before treating the lane as available.
+- Data Health lane: Peer Valuation Inputs Proof. Suggested local check: `make focus-peers TICKER=MU`. Confirm with `make readiness && make peer-mapping-queue TICKERS=MU TOP_N=10` before treating the lane as available.
 - Price proof path: Price history is usable now (616 local row(s)); keep it fresh before relying on setup or risk context.
 - Fundamentals / DCF proof path: Fundamentals and standalone DCF inputs are usable now; review assumptions, sensitivity, and source readiness before interpreting valuation context.
-- Peer proof path: Peer context is the next proof path after DCF: Add trusted price history for mapped peers: SNDK, WDC. Add source-backed mappings in `data/imports/peers.csv`.
+- Peer proof path: Peer context is the next proof path after DCF: Add trusted price history for mapped peers: SNDK, WDC. Review mapped-peer price history in `data/imports/prices.csv`, fundamentals, market cap, or valuation inputs; edit `data/imports/peers.csv` only if mappings change.
 - Optional context proof path: Earnings and analyst estimates remain optional and locked until trusted local rows are imported with `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.
 - Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below.
 
@@ -285,7 +285,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source Readiness Check
 - Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=616; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
 - Fundamentals / DCF: ready; local source `data/fundamentals.csv`; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: peer price missing; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action Add trusted price history for mapped peers: SNDK, WDC.
+- Peers: peer price missing; local source `data/peers.csv`; import target verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals in `data/imports/fundamentals.csv`; use `data/imports/peers.csv` only if mappings change; next peer action Add trusted price history for mapped peers: SNDK, WDC.
 - Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
 - Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.

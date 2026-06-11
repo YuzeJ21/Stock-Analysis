@@ -1572,6 +1572,7 @@ def _stock_report_reader_question_lines(
     monitor_context: bool,
     price_ready: bool,
     peer_ready: Any = None,
+    peer: dict[str, Any] | None = None,
     earnings_ready: Any = None,
     estimates_ready: Any = None,
 ) -> list[str]:
@@ -1592,7 +1593,10 @@ def _stock_report_reader_question_lines(
         next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
         command = f"make focus-fundamentals TICKER={ticker}"
     elif dcf_status_text == "ready" and not bool(peer_ready):
-        next_input = "Source-backed peer mappings and peer valuation inputs."
+        if _stock_report_peer_lane(peer, peer_ready) == "peer_valuation_inputs":
+            next_input = "Verified mapped-peer price history in data/imports/prices.csv, fundamentals, market cap, or valuation inputs."
+        else:
+            next_input = "Source-backed peer mappings and peer valuation inputs."
         command = f"make focus-peers TICKER={ticker}"
     elif not bool(earnings_ready) or not bool(estimates_ready):
         next_input = "Trusted optional earnings or analyst-estimate CSV rows, only if you have a source you trust."
@@ -1606,6 +1610,7 @@ def _stock_report_reader_question_lines(
         monitor_context=monitor_context,
         price_ready=price_ready,
         peer_ready=peer_ready,
+        peer=peer,
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
@@ -1702,6 +1707,22 @@ def _stock_report_pilot_packet_line(
     )
 
 
+def _stock_report_peer_lane(peer: dict[str, Any] | None, peer_ready: Any) -> str:
+    """Separate missing mappings from mapped peers that still lack valuation inputs."""
+    if bool(peer_ready):
+        return "ready"
+    peer = peer or {}
+    mapping_status = _display_report_status(peer.get("mapping_status"), "").lower()
+    peer_count_text = _display_value(peer.get("peer_count"), "0").replace(",", "")
+    try:
+        peer_count = int(float(peer_count_text))
+    except ValueError:
+        peer_count = 0
+    if mapping_status == "mapped" or peer_count > 0:
+        return "peer_valuation_inputs"
+    return "peer_mapping"
+
+
 def _stock_report_data_health_handoff_line(
     *,
     ticker: str,
@@ -1711,6 +1732,7 @@ def _stock_report_data_health_handoff_line(
     peer_ready: Any,
     earnings_ready: Any,
     estimates_ready: Any,
+    peer: dict[str, Any] | None = None,
 ) -> str:
     if not bool(price_ready):
         lane = "Price Coverage Batch"
@@ -1725,7 +1747,8 @@ def _stock_report_data_health_handoff_line(
         command = f"make focus-fundamentals TICKER={ticker}"
         proof = "make dcf-readiness && make readiness"
     elif not bool(peer_ready):
-        lane = "Peer Mapping Proof"
+        peer_lane = _stock_report_peer_lane(peer, peer_ready)
+        lane = "Peer Valuation Inputs Proof" if peer_lane == "peer_valuation_inputs" else "Peer Mapping Proof"
         command = f"make focus-peers TICKER={ticker}"
         proof = f"make readiness && make peer-mapping-queue TICKERS={ticker} TOP_N=10"
     elif not bool(earnings_ready) or not bool(estimates_ready):
@@ -2057,12 +2080,18 @@ def _stock_report_source_audit_lines(
     else:
         peer_status = _display_report_status(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "ready")
         peer_action = _sentence_value(peer.get("next_peer_action") or peer.get("missing_peer_reason"))
+    peer_lane = _stock_report_peer_lane(peer, readiness.get("peer_ready"))
+    peer_import_target = (
+        "verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals in `data/imports/fundamentals.csv`; use `data/imports/peers.csv` only if mappings change"
+        if peer_lane == "peer_valuation_inputs" and not monitor_context and not core_data_before_peers
+        else "`data/imports/peers.csv`"
+    )
     dcf_reason = _display_field_list(dcf.get("reason_not_ready") or dcf.get("missing_dcf_fields"), "")
     dcf_reason_clause = f"; reason {dcf_reason}" if dcf_reason and dcf_reason != "Not available" else ""
     return [
         f"- Prices: {_display_report_status(readiness.get('price_ready'))}; local source `data/prices.csv`; coverage {price_window}; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.",
         f"- Fundamentals / DCF: {_display_report_status(dcf_status_text)}; local source `data/fundamentals.csv`{dcf_reason_clause}; SEC_USER_AGENT {sec_status}; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.",
-        f"- Peers: {peer_status}; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action {peer_action}.",
+        f"- Peers: {peer_status}; local source `data/peers.csv`; import target {peer_import_target}; next peer action {peer_action}.",
         f"- Earnings: {_display_report_status(earnings_ready)}; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
         f"- Analyst estimates: {_display_report_status(estimates_ready)}; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
         f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; missing remote credentials should not break local CSV reports or preview-first local import workflows.",
@@ -2097,6 +2126,7 @@ def _stock_report_data_unlock_lines(
         monitor_context=monitor_context,
         price_ready=price_ready,
         peer_ready=peer_ready,
+        peer=peer,
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
@@ -2130,7 +2160,13 @@ def _stock_report_data_unlock_lines(
     elif dcf_status_text != "ready":
         peer_line = "Peer valuation should wait until trusted price, fundamentals, and DCF inputs are ready."
     else:
-        peer_suffix = "" if "data/imports/peers.csv" in peer_reason else " Add source-backed mappings in `data/imports/peers.csv`."
+        if _stock_report_peer_lane(peer, peer_ready) == "peer_valuation_inputs":
+            peer_suffix = (
+                " Review mapped-peer price history in `data/imports/prices.csv`, fundamentals, market cap, or valuation inputs; "
+                "edit `data/imports/peers.csv` only if mappings change."
+            )
+        else:
+            peer_suffix = "" if "data/imports/peers.csv" in peer_reason else " Add source-backed mappings in `data/imports/peers.csv`."
         peer_line = f"Peer context is the next proof path after DCF: {peer_reason}.{peer_suffix}"
 
     if optional_ready:
@@ -2196,11 +2232,22 @@ def _stock_report_peer_unlock_lines(
         )
     else:
         reviewable_peer_context = "peer trend status=not ready until mapped peer price history is sufficient."
+    if _stock_report_peer_lane(peer, peer_ready) == "peer_valuation_inputs":
+        trusted_input_path = (
+            "- Trusted input path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals; "
+            "use `data/imports/peers.csv` only if mappings change. Then run `make templates`, "
+            "`make imports-validate`, `make imports-preview`, and `make imports-apply`."
+        )
+    else:
+        trusted_input_path = (
+            "- Trusted input path: add source-backed rows in `data/imports/peers.csv`, then run `make templates`, "
+            "`make imports-validate`, `make imports-preview`, and `make imports-apply`."
+        )
     return [
         f"- What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by {blocker}.",
         f"- What can be reviewed now: DCF assumptions and sensitivity; {reviewable_peer_context} Mapped peer count={peer_count}.",
         "- What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison until source-backed peer mappings and peer valuation inputs pass readiness.",
-        f"- Trusted input path: add source-backed rows in `data/imports/peers.csv`, then run `make templates`, `make imports-validate`, `make imports-preview`, and `make imports-apply`.",
+        trusted_input_path,
         f"- Next peer action: {_sentence_value(next_peer_action, f'Run make focus-peers TICKER={ticker}')}.",
         f"- Fallback boundary: sector or industry context is fallback only; it is not trusted manual peer data. Current mapping status={mapping_status}.",
     ]
@@ -2250,12 +2297,23 @@ def _stock_report_peer_evidence_ladder_lines(
         if trend_ready
         else "not ready until mapped peer price history is sufficient"
     )
+    if _stock_report_peer_lane(peer, peer_ready) == "peer_valuation_inputs":
+        trusted_peer_path = (
+            "- Trusted peer path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals; "
+            "use `data/imports/peers.csv` only if mappings change. Then run `make imports-validate`, "
+            "`make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`."
+        )
+    else:
+        trusted_peer_path = (
+            "- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate`, "
+            "`make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`."
+        )
     return [
         "- Peer ladder: standalone DCF can be reviewed before peer valuation is ready.",
         f"- Mapping evidence: mapping status={mapping_status}; peer count={peer_count}; blocker={blocker}.",
         f"- Trend evidence: {trend_line}.",
         "- Valuation evidence: locked; do not show peer-relative premium/discount, peer valuation comparison, or peer DCF comparison.",
-        "- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate`, `make imports-preview`, `make imports-apply`, `make readiness`, and `make peer-mapping-queue TOP_N=25`.",
+        trusted_peer_path,
     ]
 
 
@@ -2712,6 +2770,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         monitor_context=monitor_context,
         price_ready=bool(readiness.get("price_ready")),
         peer_ready=peer_ready,
+        peer=peer,
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
@@ -3155,6 +3214,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         monitor_context=monitor_context,
         price_ready=bool(readiness.get("price_ready")),
         peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        peer=peer,
         earnings_ready=readiness.get("earnings_ready"),
         estimates_ready=readiness.get("analyst_estimates_ready"),
     )

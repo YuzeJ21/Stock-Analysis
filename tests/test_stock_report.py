@@ -628,7 +628,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Optional-context rebuild proof: `make optional-context-readiness && make readiness`" in markdown
     assert "Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below." in markdown
     assert "import file path `data/staged/prices/` or `data/imports/prices.csv`" in markdown
-    assert "import file path `data/imports/peers.csv`" in markdown
+    assert "import target `data/imports/peers.csv`" in markdown
     assert "import draft path" not in markdown
     assert "preview-first local import workflows" in markdown
     assert "staged path" not in markdown
@@ -1128,12 +1128,14 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     assert "but peer-relative valuation, premium/discount, and peer DCF comparison stay withheld" in markdown
     assert "Mapped peer count=2" in markdown
     assert "What is still locked: peer valuation, peer-relative premium/discount, and peer DCF comparison" in markdown
-    assert "Trusted input path: add source-backed rows in `data/imports/peers.csv`" in markdown
+    assert "Data Health lane: Peer Valuation Inputs Proof" in markdown
+    assert "Trusted input path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals" in markdown
+    assert "use `data/imports/peers.csv` only if mappings change" in markdown
     assert "Peer ladder: standalone DCF can be reviewed before peer valuation is ready" in markdown
     assert "Mapping evidence: mapping status=mapped; peer count=2; blocker=peer valuation blocked" in markdown
     assert "Trend evidence: possible from mapped peer price history" in markdown
     assert "Valuation evidence: locked; do not show peer-relative premium/discount, peer valuation comparison, or peer DCF comparison" in markdown
-    assert "Trusted peer path: add source-backed rows in `data/imports/peers.csv`" in markdown
+    assert "Trusted peer path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals" in markdown
     assert "make imports-validate" in markdown
     assert "Fallback boundary: sector or industry context is fallback only; it is not trusted manual peer data" in markdown
     assert "## Optional Context Workflow" in markdown
