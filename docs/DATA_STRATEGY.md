@@ -49,7 +49,7 @@ Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/i
 
 Decision rule: choose one company only when the matching trusted input can be reviewed. For fundamentals/DCF, that means trusted SEC or manual fundamentals rows. For peer mapping, that means source-backed peer relationships. For peer valuation, that means mapped peers also have trusted valuation inputs. If the source proof is missing, the correct outcome is not failure; it is a visible data-blocked state and a move to the next candidate.
 
-Each one-company packet now has a decision gate: continue only when the required source proof exists; otherwise leave the section blocked and do not apply placeholder rows just to make the report look complete. This is the product boundary that keeps valuation useful rather than decorative.
+Each one-company packet now has a decision gate: continue only when the required source proof exists; otherwise leave the section blocked and do not apply placeholder rows so the report appears complete. This is the product boundary that keeps valuation useful rather than decorative.
 
 One-company evidence packet:
 
