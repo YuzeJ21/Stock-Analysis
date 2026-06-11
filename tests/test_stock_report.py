@@ -919,7 +919,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
                 "invalidation_condition": "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.",
                 "next_research_question": "Which source-backed peer mappings or peer metrics would make the market-proxy comparison more trustworthy?",
                 "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.",
-                "confidence_explanation": "Data confidence is medium: monitoring is supported by price, momentum, market_direction, while optional context remains unavailable.",
+                "confidence_explanation": "Data confidence is low: stale saved decision explanation should not override report-mode confidence.",
             },
             "dcf": {"reason_not_ready": "DCF excluded for etf."},
             "peer": {
@@ -976,6 +976,9 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Research-only local report" in markdown
     assert "- Method: project readiness gates decide what can appear; monitor reports use local price, market, liquidity, correlation, or theme context and exclude operating-company valuation methods." in markdown
     assert "Monitor-only context when local price, liquidity, correlation, or theme inputs are ready" in markdown
+    assert "- Data-confidence cue: medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded." in markdown
+    assert "- Data-confidence explanation: Data confidence is medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded." in markdown
+    assert "stale saved decision explanation" not in markdown
     assert "shipped analysis comes from project code and local data" in markdown
     assert "plugins can help development review" not in markdown
     assert "source readiness:" in markdown

@@ -1805,6 +1805,20 @@ def _stock_report_evaluation_snapshot_lines(
     ]
 
 
+def _stock_report_confidence_explanation(
+    analysis_quality_lines: list[str],
+    fallback: Any = None,
+    *,
+    prefer_report_mode: bool = False,
+) -> str:
+    if prefer_report_mode:
+        for line in analysis_quality_lines:
+            if line.startswith("- Data confidence:"):
+                confidence = _brief_value(line, "- Data confidence:").rstrip(".")
+                return f"Data confidence is {confidence}."
+    return _proof_language(fallback)
+
+
 def _stock_report_proof_checklist_lines(
     *,
     ticker: str,
@@ -2840,7 +2854,7 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "## Next Research Step",
         f"- Next research question: {_display_value(purpose_fields.get('next_research_question'))}",
         f"- Review priority: {_proof_language(purpose_fields.get('review_priority_reason'))}",
-        f"- Data-confidence explanation: {_proof_language(purpose_fields.get('confidence_explanation'))}",
+        f"- Data-confidence explanation: {_stock_report_confidence_explanation(analysis_quality_lines, purpose_fields.get('confidence_explanation'), prefer_report_mode=monitor_context)}",
         "",
         "## Data Readiness",
         f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",
@@ -3269,7 +3283,7 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "## Next Research Step",
         f"- Next research question: {_display_value(purpose_fields.get('next_research_question'))}",
         f"- Review priority: {_proof_language(purpose_fields.get('review_priority_reason'))}",
-        f"- Data-confidence explanation: {_proof_language(purpose_fields.get('confidence_explanation'))}",
+        f"- Data-confidence explanation: {_stock_report_confidence_explanation(analysis_quality_lines, purpose_fields.get('confidence_explanation'), prefer_report_mode=monitor_context)}",
         "",
         "## Data Readiness",
         f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",
