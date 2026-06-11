@@ -88,7 +88,7 @@ def test_purpose_evaluation_summary_keeps_etf_monitor_question_out_of_peer_unloc
 
     assert "market, theme, liquidity, or risk signal" in question
     assert "peer mappings" not in question
-    assert summary.loc[summary["purpose_family"].eq("ETF / Hedge"), "top_unlock_command"].iloc[0] == "make stock-report TICKER=QQQ"
+    assert summary.loc[summary["purpose_family"].eq("ETF / Hedge"), "top_unlock_command"].iloc[0] == "make stock-report-md TICKER=QQQ"
 
 
 def test_purpose_evaluation_enrichment_does_not_match_fundamentals_as_fund_asset():
@@ -271,7 +271,7 @@ def test_purpose_evaluation_drilldown_keeps_etf_monitor_on_stock_report_when_pee
     meta = drilldown.loc[drilldown["ticker"].eq("META")].iloc[0]
 
     assert qqq["purpose_family"] == "ETF / Hedge"
-    assert qqq["unlock_command"] == "make stock-report TICKER=QQQ"
+    assert qqq["unlock_command"] == "make stock-report-md TICKER=QQQ"
     assert "monitor, and what would invalidate" in qqq["next_research_question"].lower()
     assert "operating-company dcf and peer valuation are excluded" in qqq["unsupported_analysis"].lower()
     assert "market-proxy usefulness" in qqq["invalidation_condition"].lower()

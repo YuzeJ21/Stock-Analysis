@@ -113,6 +113,23 @@ def purpose_status_label(alignment_text: object, decision_bucket: object) -> str
     return "Purpose supported by current local data"
 
 
+def stock_report_md_command(ticker: object, fallback: str = "TICKER") -> str:
+    symbol = text_value(ticker, fallback).upper()
+    return f"make stock-report-md TICKER={symbol}"
+
+
+def markdown_review_command(command: object, ticker: object = "") -> str:
+    text = text_value(command)
+    symbol = text_value(ticker).upper()
+    if text.startswith("make stock-report TICKER="):
+        return text.replace("make stock-report TICKER=", "make stock-report-md TICKER=", 1)
+    if text == "make stock-report" and symbol:
+        return stock_report_md_command(symbol)
+    if text:
+        return text
+    return stock_report_md_command(symbol) if symbol else ""
+
+
 def purpose_unlock_command(
     ticker: object,
     primary_blocker: object,
@@ -128,7 +145,7 @@ def purpose_unlock_command(
     subtype = text_value(decision_subtype).lower()
     if not symbol:
         return text_value(exact_command, "make project-status")
-    fallback = text_value(exact_command, f"make stock-report TICKER={symbol}")
+    fallback = markdown_review_command(exact_command, symbol)
     if "monitor" in bucket or "market proxy" in subtype or asset_kind in {"etf", "index_proxy", "fund"}:
         return fallback
     if blocker == "price":
@@ -483,7 +500,7 @@ def build_purpose_evaluation_drilldown(
             frame[column] = False
 
     frame["priority"] = frame.apply(purpose_drilldown_priority, axis=1)
-    frame["exact_command"] = frame["ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+    frame["exact_command"] = frame["ticker"].apply(stock_report_md_command)
     frame["unlock_command"] = frame.apply(
         lambda row: purpose_unlock_command(
             row.get("ticker"),

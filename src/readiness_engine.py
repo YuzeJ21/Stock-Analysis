@@ -782,7 +782,7 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
             workflow_group = "peer_context_review"
             next_action_summary = "Review peer readiness details and keep valuation blocked until required peer inputs are present."
             next_input_file = "data/peers.csv"
-            validation_sequence = f"make readiness -> make stock-report TICKER={ticker}"
+            validation_sequence = f"make readiness -> make stock-report-md TICKER={ticker}"
         rows.append(
             {
                 "priority": priority,
