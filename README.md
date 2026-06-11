@@ -17,9 +17,12 @@ flowchart LR
     Health --> Pilot["Trusted-data pilot"]
 ```
 
-## Why It Matters
+## LinkedIn Visitor Snapshot
 
-Many stock tools jump straight to rankings. This product treats missing data as a first-class signal: if a ticker is not ready for a specific analysis, it says why and shows the next local proof step. That makes the output more trustworthy, not weaker.
+- Best first click: open the dashboard preview, then skim the example reports for `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`.
+- Core product idea: missing data is a quality-control signal, not something to hide or guess.
+- Strongest demo: ready data is analyzed, blocked data stays visible, and ETF/index methods are excluded instead of forced.
+- Share-safe boundary: this is research software, not investment advice, broker integration, or an execution system.
 
 ## What You Can Analyze
 

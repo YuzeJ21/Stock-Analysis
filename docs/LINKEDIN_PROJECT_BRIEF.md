@@ -2,50 +2,33 @@
 
 ## Short Version
 
-I built a local, CSV-first stock research command center that focuses on data readiness before analysis. Instead of jumping straight to stock picks, it checks whether each ticker has enough trusted local data for price, momentum, liquidity, correlation, fundamentals, DCF, peer comparison, earnings, and analyst-estimate context.
+I built a local, CSV-first stock research command center that checks whether a ticker has enough trusted data before showing deeper analysis. The main idea is simple: data readiness first, analysis second, research decision last.
 
-The system generates readiness-aware research decisions, single-stock reports, source readiness checks, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports open with a visitor scan cue, then `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, and `Best Review Path` before deeper methodology sections, so readers can quickly see the report mode, valuation boundary, which data-confidence cue applies, which local method is being used, what to read first, which command proves the next trusted input, current proof, and next trusted input.
+The dashboard and single-stock reports show what can be reviewed now, what is blocked by missing data, what is excluded because the method does not apply, and which trusted local input would unlock the next layer.
 
-The scan path covers `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data needed before analysis` modes, with the valuation boundary and DCF method path visible before detailed report tables.
+Best demos: `NVDA` for DCF-ready company review, `META` for valuation still gated by trusted fundamentals, `QQQ` for ETF/index monitor context, `MU` for standalone DCF with peer valuation still locked, and `CRDO` for a fundamentals-gated proof workflow.
 
 ## Suggested LinkedIn Post
 
-I have been building a local Python stock research command center focused on a simple principle:
+I built a local Python and Streamlit stock research command center around one principle:
 
 Data readiness first. Analysis second. Research decision last.
 
-The project tracks a broad market universe, separates it from an active research list, and makes every analysis feature explicit: price, momentum, liquidity, correlation, fundamentals, DCF, peer data, earnings, and analyst estimates.
+Instead of jumping straight to rankings, the project checks whether each ticker has enough trusted local data for the analysis being shown: price, momentum, liquidity, fundamentals, DCF inputs, peer context, earnings, and analyst estimates.
 
-What I like most about the design is that missing data does not disappear. If a ticker is not ready, the app shows the exact blocker and the next local CSV workflow that would prove the analysis is ready. If an analysis does not apply, such as operating-company DCF for ETF/index proxies, the output labels it as excluded instead of failed.
+What I like most about the product is that missing data stays visible. If a ticker is not ready for DCF, peer comparison, earnings context, or analyst-estimate context, the dashboard says why and shows the next local proof step. If a method does not apply, such as operating-company DCF for an ETF/index proxy, the report labels it as excluded instead of failed.
 
-Current features:
+What it includes:
 
-- Market-wide ticker readiness model.
-- Purpose-aware research decisions.
-- Streamlit command center dashboard.
-- Single-stock Markdown reports.
-- At A Glance summaries that put mode, decision view, DCF state, peer context, optional context, method cue, and next local step at the top.
-- Evaluation Snapshot summaries that state supported evaluation, valuation boundary, data-confidence cue, next proof step, and stop rule before detailed sections.
-- Proof Checklist sections that show why the current mode is allowed and what must stay withheld until trusted rows exist.
-- Best Review Path cards that tell readers whether to review DCF and peers, prove fundamentals readiness, use monitor context, or start with price coverage.
-- Analysis Quality labels and data-confidence cues that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and the data-needed-before-analysis mode.
-- Methodology sections that show the DCF formula path, readiness gates, peer boundaries, and why missing fields are not inferred.
-- Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
-- Copyable Proof Commands that keep next steps local, capped, and research-only.
-- Source-readiness sections.
-- A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of fabricated full-universe readiness.
-- A read-only `make trusted-data-pilot-candidates TOP_N=10` command that ranks current company blockers with a compact shortlist, quick path, and review board without importing rows or fabricating data; `VERBOSE=1` adds full file status, decision gates, rejected-row paths, and evidence expectations.
-- A plain selection rule for the pilot: choose 5-10 operating companies only when source proof exists, review the lane mix, and treat a useful pilot win as before/after report evidence plus rebuilt readiness, not just a new CSV row.
-- A read-only `make trusted-data-pilot-packet TICKER=CRDO` command that prints the before report, focused blocker check, lane review path, review decision, evidence expectation, validate/apply step, rejected-row report, rebuild proof, and evidence row for one company.
-- A follow-up `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` command that prints the evidence loop for selected pilot companies.
-- A suggested starter company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`, with `QQQ` and `SMH` kept as ETF/index monitor demos rather than operating-company DCF targets.
-- A pilot evidence bundle: before/after readiness counts, one regenerated Markdown report per company, and the validation commands that changed the state.
-- A one-company evidence packet: baseline readiness, before report, focused blocker check, lane review path, review decision, evidence expectation, validate/preview/apply, rejected-row check, rebuild proof, and still-blocked evidence row.
-- CSV-first, preview-first local import workflows.
-- Original local analysis rules for readiness gates, DCF boundaries, peer readiness, decision buckets, and report wording; Python libraries and optional provider adapters support data handling and UI.
+- A Streamlit command center dashboard.
+- Market-wide readiness checks across a broad ticker universe.
+- Single-stock Markdown reports with At A Glance, Reader Guide, Evaluation Snapshot, Proof Checklist, and Best Review Path sections.
+- DCF-ready, standalone DCF, price/setup-only, monitor-only, and data-needed-before-analysis report modes.
+- Source readiness notes and copyable local proof commands.
+- CSV-first import, validation, preview, rejected-row, and readiness workflows.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
 
-This was a great project for practicing product thinking, deterministic data workflows, test coverage, and financial-analysis guardrails in Python.
+The most important design choice was refusing to present every ticker as complete. The product is useful because it refuses to overclaim: ready data can be analyzed, blocked data is explained, and missing rows are treated as the next proof step.
 
 GitHub: https://github.com/YuzeJ21/Stock-Analysis
 
