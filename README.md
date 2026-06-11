@@ -71,7 +71,7 @@ Start with the three paths the dashboard is built around:
 | --- | --- | --- |
 | Review one stock | You want a ticker-level research note with ready, blocked, excluded, and confidence states. | `Single-Stock Report` |
 | Improve data coverage | You want to understand what trusted input is missing and how to add it safely. | `Data Health` |
-| Explore ready names | You want to browse what the current local data can already support. | `Home`, then focused review pages |
+| Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |
 
 The dashboard keeps methodology, file paths, and update commands in collapsed sections so visitors can read the product first. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 

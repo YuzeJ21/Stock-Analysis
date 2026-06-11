@@ -411,6 +411,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## What Works Today" in readme
     assert "## Try This Demo Path" in readme
     assert "Optional extra report states:" in readme
+    assert "| Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |" in readme
+    assert "`Home`, then focused review pages" not in readme
     assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> trusted-data pilot." in readme
     assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
     assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
