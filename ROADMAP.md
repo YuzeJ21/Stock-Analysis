@@ -182,7 +182,7 @@ Current status:
 Next improvements:
 
 - [x] Add more visible examples of richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data reports on the dashboard Home page.
-- [x] Link Data Health and blocked single-stock reports to `make trusted-data-pilot-packet TICKER=<ticker>` so the trusted-data pilot has one consistent before/focus/validate/prove path.
+- [x] Link Data Health and blocked single-stock reports to `make trusted-data-pilot-packet TICKER=<ticker>` so the trusted-data pilot has one consistent before/report, review, validate/apply, and rebuild-proof path.
 - Keep methodology and assumptions visible while continuing to reduce engineer-heavy wording.
 
 Rules:

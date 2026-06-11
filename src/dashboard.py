@@ -6280,7 +6280,7 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
             "kicker": "PILOT STEP 2",
             "title": "Inspect one proof packet",
             "body": (
-                "Use one ticker packet to see the before state, exact missing input, focus command, validate/preview/apply path, and after-proof command. "
+                "Use one ticker packet to see the before report, exact missing input, lane-specific review command, validate/apply step, and rebuild proof. "
                 "If trusted rows are not available, keep that ticker blocked and choose the next candidate."
             ),
             "badges": ["one company", "no fake rows"],
@@ -9400,8 +9400,8 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
         {
             "Step": "2. Inspect the one-company packet",
             "Why It Matters": (
-                "The packet shows the before report, exact missing input, focus command, validation path, and rebuild proof "
-                "before any trusted rows are applied."
+                "The packet shows the before report, exact missing input, lane-specific review command, validate/apply step, "
+                "and rebuild proof before any trusted rows are applied."
             ),
             "Copy Command": f"make trusted-data-pilot-packet TICKER={ticker}" if has_ticker else "make trusted-data-pilot-candidates TOP_N=10",
             "Trusted Input": "Read-only current blockers; no refresh or import runs from this command",
@@ -9456,7 +9456,7 @@ def first_fundamentals_unlock_cards(sec_configured: bool, next_ticker: str | Non
             "kicker": "ONE-COMPANY PACKET",
             "title": format_missing(packet_row.get("Step"), "Inspect the one-company packet"),
             "body": format_missing(packet_row.get("Why It Matters"), ""),
-            "badges": ["before/focus/prove", "read-only"],
+            "badges": ["review/validate/rebuild", "read-only"],
             "command": format_missing(packet_row.get("Copy Command"), ""),
         },
         {
@@ -11293,7 +11293,7 @@ def build_active_evaluation_queue_frame(
         ),
         axis=1,
     )
-    frame["copy_only_note"] = "Copy-only command; the dashboard does not execute refreshes, imports, or external actions."
+    frame["copy_only_note"] = "Copy-only command; the dashboard does not run refreshes, imports, or external actions."
     frame["reason"] = frame.apply(active_evaluation_reason, axis=1)
     frame = frame.sort_values(["priority", "ticker"], kind="stable")
     return frame[ACTIVE_EVALUATION_QUEUE_COLUMNS].head(limit).reset_index(drop=True)
@@ -11389,7 +11389,7 @@ def build_active_evaluation_lane_detail_frame(queue_frame: pd.DataFrame | None, 
                     max_sentences=3,
                     max_chars=360,
                 ),
-                "copy_only_note": "Copy-only review guide; the dashboard does not execute refreshes, imports, or external actions.",
+                "copy_only_note": "Copy-only review guide; the dashboard does not run refreshes, imports, or external actions.",
             }
         )
     detail = pd.DataFrame(rows, columns=ACTIVE_EVALUATION_LANE_DETAIL_COLUMNS)
@@ -19605,7 +19605,7 @@ def render_home_page(
     render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
-    render_section_header("First-Run Proof Trail", "A short path for GitHub or LinkedIn visitors to understand the product without reading raw tables.")
+    render_section_header("First-Run Proof Trail", "A short path for GitHub or LinkedIn visitors to understand the product without opening spreadsheets or internal files.")
     render_signal_cards(_plain_home_first_run_path_cards())
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
@@ -20497,7 +20497,7 @@ def render_market_command_center(
         st.info("No purpose drilldown rows match the current filters. Try All filters or rebuild the local readiness snapshot.")
     else:
         st.caption(
-            "Purpose drilldown rows are built from current local readiness. Commands are copy-only; this dashboard does not execute refreshes, imports, or external actions."
+            "Purpose drilldown rows are built from current local readiness. Commands are copy-only; this dashboard does not run refreshes, imports, or external actions."
         )
         st.dataframe(clean_display_frame(purpose_drilldown), width="stretch", hide_index=True)
     action_console = build_next_action_console_frame(
@@ -20569,7 +20569,7 @@ def render_market_command_center(
     )
     render_signal_cards(product_page_logic_audit_cards(product_logic_audit))
     st.caption(
-        "Check rows are built from current local readiness and dashboard queues; they do not execute imports, refreshes, or account actions."
+        "Check rows are built from current local readiness and dashboard queues; they do not run imports, refreshes, or account actions."
     )
     st.dataframe(clean_display_frame(product_logic_audit), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")

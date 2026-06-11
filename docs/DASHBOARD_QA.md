@@ -19,7 +19,7 @@ Screenshots:
 Boundary checked:
 
 - No broker integration, order execution, auto-trading, or direct buy/sell instruction language appeared in the checked pages.
-- Commands remain copy-only; the dashboard does not execute refreshes or imports from the UI.
+- Commands remain copy-only; the dashboard does not run refreshes or imports from the UI.
 
 ## 2026-06-07 Public Product Flow Pass
 
@@ -38,7 +38,7 @@ Boundary checked:
 
 Checked pages and reports:
 
-- Sidebar: confirmed the main navigation control reads `Choose a page`, not internal review-control language.
+- Sidebar: confirmed the main navigation control reads `Choose your path`, not internal review-control language.
 - Data Health: confirmed first-screen wording uses checklist/review-path language before advanced command detail.
 - Value / Re-rating: confirmed the broad valuation input count is labeled separately from exact company DCF-ready counts.
 - Portfolio Review: confirmed table helper copy says `next-step context` instead of engineering-heavy operational wording.
