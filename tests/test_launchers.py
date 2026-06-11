@@ -928,6 +928,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "docs/DIFF_HYGIENE_AUDIT.md" in checklist
     assert "portfolio/demo project" in checklist
     assert "deeper local workflow guide" in checklist
+    assert "make demo`, `make status-check TOP_N=5`, `make stock-report-md TICKER=NVDA`, and `make dashboard" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10" in checklist
     assert "make trusted-data-pilot-packet TICKER=CRDO" in checklist
@@ -1092,6 +1093,8 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "does not connect to a broker or place trades",
         "README example map",
         "click the tracked sample reports under `outputs/stock_reports/`",
+        "make status-check TOP_N=5",
+        "read-only command-center summary without refreshing local artifacts",
         "exact copyable local commands for the next unlock",
     ):
         assert phrase in brief

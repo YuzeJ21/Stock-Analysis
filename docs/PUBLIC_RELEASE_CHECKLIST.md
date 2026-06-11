@@ -5,7 +5,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 ## README And Visitor Experience
 
 - Keep the top of `README.md` focused on what the project does, why it matters, and how to run it.
-- Put the best demo commands near the top: `make pipeline`, `make project-status`, `make stock-report-md TICKER=NVDA`, and `make dashboard`.
+- Put the best demo commands near the top: `make demo`, `make status-check TOP_N=5`, `make stock-report-md TICKER=NVDA`, and `make dashboard`.
 - Keep `make stock-report TICKER=NVDA` available for optional machine-readable local inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
@@ -90,7 +90,7 @@ Expanded command list:
 ```bash
 make pipeline
 make readiness
-make project-status
+make status-check TOP_N=5
 make demo
 make trusted-data-pilot-candidates TOP_N=10
 make trusted-data-pilot-packet TICKER=CRDO

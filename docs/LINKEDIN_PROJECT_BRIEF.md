@@ -57,7 +57,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 ## Demo Talking Points
 
 - In GitHub, start with the README example map and click the tracked sample reports under `outputs/stock_reports/`.
-- Start with `make project-status` to show the command-center summary.
+- Start with `make status-check TOP_N=5` to show the read-only command-center summary without refreshing local artifacts.
 - Open `outputs/stock_reports/nvda.md` to show a company report with At A Glance status, Best Review Path, method cue, DCF assumptions, DCF formula path, Analysis Quality notes, Methodology, Evaluation Function Check, and Copyable Unlock Commands.
 - Open `outputs/stock_reports/a.md` to show standalone DCF review where peer-relative valuation is still locked.
 - Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
