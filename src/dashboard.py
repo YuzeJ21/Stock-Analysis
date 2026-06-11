@@ -7016,7 +7016,7 @@ def overview_deep_research_target_cards(
                 fallback_action = GUIDED_BATCH_WORKFLOW_COPY
             cards.append(
                 {
-                    "kicker": "UNLOCK DCF",
+                    "kicker": "DCF PROOF",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
                         f"{normalize_operator_copy(format_missing(row.get('missing_required_for_dcf'), 'Not specified'))}. "
@@ -7060,7 +7060,7 @@ def overview_deep_research_target_cards(
                 fallback_action = GUIDED_BATCH_WORKFLOW_COPY
             cards.append(
                 {
-                    "kicker": "UNLOCK PEERS",
+                    "kicker": "PEER PROOF",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
                         f"{normalize_operator_copy(format_missing(row.get('missing_required_for_peer_relative'), 'Not specified'))}. "
@@ -7391,9 +7391,9 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
     if wizard_frame is None or wizard_frame.empty:
         return [
             {
-                "kicker": "UNLOCK GUIDE",
-                "title": "Unlock guide not ready yet",
-                "body": "Run the local unlock guide to see which verified CSV inputs unlock the most value next.",
+                "kicker": "PROOF GUIDE",
+                "title": "Coverage proof guide not ready yet",
+                "body": "Run the local coverage proof guide to see which verified CSV inputs make the most analysis available next.",
                 "badges": ["make data-wizard"],
                 "command": "make data-wizard TOP_N=10",
             }
@@ -16064,7 +16064,7 @@ def overview_deep_research_leverage_cards(
             "kicker": "BEST DEEP WORK NEXT",
             "title": str(best_lane.get("title", "Deep research")),
             "body": (
-                f"{best_lane.get('kicker', 'This lane')} currently unlocks the most local research value next "
+                f"{best_lane.get('kicker', 'This lane')} currently makes the most local research value available next "
                 "when you weigh holdings impact, grouped theme breadth, and queued ticker count."
             ),
             "badges": [str(item) for item in best_lane.get("badges", [])][:2] or ["research only"],
@@ -19068,7 +19068,7 @@ def render_overview(
     with st.expander("More overview worklists", expanded=False):
         render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local review path.")
         render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
-        render_section_header("Research Unlock Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
+        render_section_header("Research Proof Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
         render_signal_cards(
             overview_research_pressure_cards(
                 price_worklist_frame,
@@ -19079,7 +19079,7 @@ def render_overview(
         )
         render_section_header("Price History Targets", "The next exact local history rows needed for Monthly Picks, track record, or fuller 1Y research coverage.")
         render_signal_cards(overview_price_target_cards(price_worklist_frame))
-        render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF unlocks and manual peer-context completion.")
+        render_section_header("Deep Research Targets", "The next exact fundamentals and peer-relative targets for DCF proof and manual peer-context completion.")
         render_signal_cards(overview_deep_research_target_cards(sec_stage_queue_frame, peer_mapping_queue_frame))
         render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research path before you open the fuller worklists.")
         render_signal_cards(
@@ -19104,7 +19104,7 @@ def render_overview(
     )
 
     with st.expander("More readiness and routing detail", expanded=False):
-        render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need unlock work first.")
+        render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need proof work first.")
         render_signal_cards(overview_ready_blocked_cards(coverage_frame, ticker_unlock_ladder_frame, holdings))
         render_section_header("Ready Name Handoff", "For the strongest currently usable name, show the next exact local command when context is still partial and the best follow-up page.")
         render_signal_cards(
@@ -19117,11 +19117,11 @@ def render_overview(
         )
         render_section_header("Holdings First", "Blocked portfolio names and the next local proof stage before broader universe work.")
         render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
-        render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
+        render_section_header("Theme First", "Which local themes or sector ETF clusters can make the most research value available next.")
         render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
 
     with st.expander("More deep-research context", expanded=False):
-        render_section_header("Deep Research Leverage", "Which deeper research path currently unlocks the most value next when you weigh holdings impact, theme breadth, and queued ticker count.")
+        render_section_header("Deep Research Leverage", "Which deeper research path currently makes the most value available next when you weigh holdings impact, theme breadth, and queued ticker count.")
         render_signal_cards(
             overview_deep_research_leverage_cards(
                 holdings,

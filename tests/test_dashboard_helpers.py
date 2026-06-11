@@ -5117,7 +5117,7 @@ def test_overview_deep_research_leverage_cards_rank_sec_and_peer_lanes():
     assert "sec fundamentals path" in rendered
     assert "manual peer path" in rendered
     assert "ai semiconductors" in rendered
-    assert "unlocks the most local research value next" in rendered
+    assert "makes the most local research value available next" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -12416,8 +12416,8 @@ def test_overview_deep_research_target_cards_surface_dcf_and_peer_targets_safely
     cards = dashboard.overview_deep_research_target_cards(sec_queue, peer_queue)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[0]["kicker"] == "UNLOCK DCF"
-    assert "unlock peers" in rendered
+    assert cards[0]["kicker"] == "DCF PROOF"
+    assert "peer proof" in rendered
     assert "fundamentals row" in rendered
     assert "peer mapping" in rendered
     assert "make focus-fundamentals ticker=nvda" in rendered
@@ -12672,10 +12672,10 @@ def test_data_coverage_wizard_cards_handle_missing_output():
     cards = dashboard.data_coverage_wizard_cards(None)
     rendered = " ".join(str(value) for card in cards for value in card.values())
 
-    assert cards[0]["kicker"] == "UNLOCK GUIDE"
-    assert "Unlock guide not ready yet" in rendered
+    assert cards[0]["kicker"] == "PROOF GUIDE"
+    assert "Coverage proof guide not ready yet" in rendered
     assert "Not generated" not in rendered
-    assert "local unlock guide" in rendered
+    assert "local coverage proof guide" in rendered
     assert cards[0]["command"] == "make data-wizard TOP_N=10"
     assert "make data-wizard" in rendered
 
