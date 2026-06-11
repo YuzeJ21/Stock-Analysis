@@ -6364,7 +6364,7 @@ def data_health_trusted_pilot_cards(readiness_summary: dict[str, object]) -> lis
             "kicker": "PILOT STEP 2",
             "title": "Inspect one proof packet",
             "body": (
-                "Use one ticker packet to see rank reason, before report, exact missing input, lane-specific review command, validate/apply step, and rebuild proof. "
+                "Use one ticker packet to see rank reason, before report, exact missing input, lane-specific review command, validate/apply step, rejected-row report, and rebuild proof. "
                 "If trusted rows are not available, keep that ticker blocked and choose the next candidate."
             ),
             "badges": ["one company", "no fake rows"],
@@ -9599,7 +9599,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
             "Step": "2. Inspect the one-company packet",
             "Why It Matters": (
                 "The packet shows the before report, exact missing input, lane-specific review command, validate/apply step, "
-                "and rebuild proof before any trusted rows are applied."
+                "rejected-row report, and rebuild proof before any trusted rows are applied."
             ),
             "Copy Command": f"make trusted-data-pilot-packet TICKER={ticker}" if has_ticker else "make trusted-data-pilot-candidates TOP_N=10",
             "Trusted Input": "Read-only current blockers; no refresh or import runs from this command",

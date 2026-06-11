@@ -9398,7 +9398,7 @@ def test_data_health_trusted_pilot_cards_bridge_blockers_to_one_company_packet()
     assert "14 dcf-ready row(s) still need source-backed peer context" in rendered
     assert "small ranked pilot instead of the full universe" in rendered
     assert "candidate output explains each rank reason from scope, demo relevance, lane, priority, and missing input" in rendered
-    assert "rank reason, before report, exact missing input, lane-specific review command, validate/apply step, and rebuild proof" in rendered
+    assert "rank reason, before report, exact missing input, lane-specific review command, validate/apply step, rejected-row report, and rebuild proof" in rendered
     assert "keep that ticker blocked and choose the next candidate" in rendered
     assert "optional context remains locked at 0 earnings-ready and 0 estimate-ready row(s)" in rendered
     assert "source proof" in rendered
@@ -15555,7 +15555,7 @@ def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_ag
     assert frame.iloc[2]["Copy Command"] == "make templates"
     assert frame.iloc[2]["Trusted Input"].startswith("data/imports/fundamentals.csv")
     assert "sec_user_agent is missing" in rendered
-    assert "before report, exact missing input, lane-specific review command, validate/apply step, and rebuild proof" in rendered
+    assert "before report, exact missing input, lane-specific review command, validate/apply step, rejected-row report, and rebuild proof" in rendered
     assert "data/imports/fundamentals.csv manual rows" in rendered
     assert "minimum dcf fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source" in rendered
     assert "data/rejected/fundamentals_import_rejected.csv" in rendered

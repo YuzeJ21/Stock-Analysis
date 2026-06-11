@@ -153,7 +153,7 @@ def test_makefile_help_documents_key_workflows():
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
         "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot",
-        "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before-report/review/validate/rebuild evidence packet",
+        "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before-report/review/validate/rejected-row/rebuild evidence packet",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -415,6 +415,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "| Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |" in readme
     assert "`Home`, then focused review pages" not in readme
     assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> trusted-data pilot." in readme
+    assert "validate/apply step, rejected-row report, and rebuild-proof packet" in readme
     assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
     assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
     assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage unlock queue") < readme.index("Optional extra report states:")
@@ -976,8 +977,9 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in checklist
     assert "Treat `QQQ` and `SMH` as ETF/index monitor demos" in checklist
     assert "Keep the pilot evidence packet visible" in checklist
-    assert "before report, review path, validate/apply, and rebuild-proof packet" in checklist
+    assert "before report, review path, validate/apply, rejected-row, and rebuild-proof packet" in checklist
     assert "baseline readiness, before report, focused blocker check, lane review path" in checklist
+    assert "validate/preview/apply, rejected-row check, rebuild proof" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
     assert "small pilot" in checklist
@@ -1117,6 +1119,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "one-company evidence packet",
         "lane review path",
         "validate/apply step",
+        "rejected-row report",
         "before/after proof",
         "NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META",
         "QQQ` and `SMH` kept as ETF/index monitor demos",
@@ -1734,7 +1737,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10\"" in makefile
     assert "@echo \"   make trusted-data-pilot-packet TICKER=CRDO\"" in makefile
     assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
-    assert "@echo \"   Proves: coverage improves through source proof, validation, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
+    assert "@echo \"   Proves: coverage improves through source proof, validation, rejected-row review, rebuild proof, and still-blocked evidence, not fake rows.\"" in makefile
     assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
     assert "@echo \"6. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
