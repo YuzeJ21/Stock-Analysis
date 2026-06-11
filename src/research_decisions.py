@@ -434,7 +434,7 @@ def _supported_analysis(bucket: str, asset_type: str, ready: list[str], partial:
     if asset_type in {"etf", "index_proxy", "fund"} or "dcf" in excluded:
         supported.append("ETF/index monitoring, not operating-company valuation")
     if not supported:
-        return "Supported analysis: none yet; this row is an unlock checklist until core inputs are available."
+        return "Supported analysis: none yet; this row is a data-proof checklist until core inputs are available."
     partial_text = f" Partial inputs present: {', '.join(partial)}." if partial else ""
     return f"Supported analysis: {', '.join(supported)}.{partial_text}"
 
@@ -610,11 +610,11 @@ def _review_priority_reason(
     if family == "compounder" and final_state in {"Broken", "Review Thesis", "Risk Reduce"}:
         return "High review priority: compounder purpose conflicts with current trend/thesis state and needs manual thesis review."
     if family == "rerating" and ("peer" in blocked or "fundamentals" in blocked or "dcf" in blocked):
-        return "Unlock priority: re-rating purpose is valuation-gated until fundamentals, DCF, and peer context are sufficiently complete."
+        return "Proof priority: re-rating purpose is valuation-gated until fundamentals, DCF, and peer context are sufficiently complete."
     if family == "speculative" and "price" in blocked:
-        return "Unlock priority: speculative optionality cannot be evaluated until trusted price history exists."
+        return "Proof priority: speculative optionality cannot be evaluated until trusted price history exists."
     if family == "pullback" and ("price" in blocked or "momentum" in blocked):
-        return "Unlock priority: pullback purpose requires price and momentum context before setup quality can be reviewed."
+        return "Proof priority: pullback purpose requires price and momentum context before setup quality can be reviewed."
     if family == "broken":
         return "Review priority: no-setup purpose should remain thesis-review context until readiness supports a different classification."
     if bucket == "Research Now" and ("peer" in blocked or "peer" in partial):
@@ -624,9 +624,9 @@ def _review_priority_reason(
     if bucket == "Monitor" and asset_type in {"etf", "index_proxy", "fund"}:
         return "Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation."
     if bucket == "Blocked by Data" and "price" not in blocked and "price" in ready:
-        return f"Unlock priority: price context exists, but {primary_blocker} blocks deeper analysis."
+        return f"Proof priority: price context exists, but {primary_blocker} blocks deeper analysis."
     if bucket == "Blocked by Data":
-        return f"Unlock priority: {primary_blocker} is the first blocker before setup, valuation, or risk interpretation should be trusted."
+        return f"Proof priority: {primary_blocker} is the first blocker before setup, valuation, or risk interpretation should be trusted."
     if final_state != "Not available":
         suffix = f" with watchlist score {score}" if score != "Not available" else ""
         return f"Review priority is current-state driven: final state `{final_state}`{suffix}; use readiness before drawing conclusions."
@@ -653,7 +653,7 @@ def _evaluation_status(bucket: str, subtype: str, primary_blocker: str, asset_ty
             return "Ready for market, theme, liquidity, or risk monitoring; operating-company valuation is excluded."
         return "Price-supported monitoring is available; deeper research waits for the missing inputs."
     if bucket == "Blocked by Data":
-        return f"Not ready for evaluation; unlock {primary_blocker} before drawing a thesis-level conclusion."
+        return f"Not ready for evaluation; prove {primary_blocker} coverage before drawing a thesis-level conclusion."
     if bucket == "Excluded":
         return f"Analysis is intentionally excluded for this ticker or asset type: {subtype}."
     return "Review later; current local data does not support a stronger evaluation state."

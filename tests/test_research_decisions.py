@@ -23,6 +23,7 @@ def test_research_decisions_block_missing_price_instead_of_weak_recommendation()
     assert row["decision_bucket"] == "Blocked by Data"
     assert row["decision_subtype"] == "Blocked by Data - Missing Price"
     assert "Missing-data proof state" in row["decision_boundary"]
+    assert row["evaluation_status"] == "Not ready for evaluation; prove price coverage before drawing a thesis-level conclusion."
     assert "valuation conclusions and thesis-level interpretation stay withheld" in row["decision_boundary"]
     assert row["primary_blocker"] == "price"
     assert "Missing usable price data" in row["main_reason"]
@@ -34,6 +35,8 @@ def test_research_decisions_block_missing_price_instead_of_weak_recommendation()
     assert "data/imports/prices.csv" in row["next_best_action"]
     assert "make price-validate, make price-preview, and make price-apply" in row["next_best_action"]
     assert row["next_best_action"] == row["next_action"]
+    rendered = " ".join(str(value) for value in row.to_numpy()).lower()
+    assert "unlock price" not in rendered
 
 
 def test_research_decisions_monitor_etf_and_exclude_company_dcf():
@@ -606,10 +609,13 @@ def test_research_decisions_tailor_rerating_and_speculative_boundaries():
     assert "re-rating interpretation" in value["invalidation_condition"]
     assert "re-rating read is supportable" in value["next_research_question"]
     assert "valuation-gated" in value["review_priority_reason"]
+    assert value["review_priority_reason"].startswith("Proof priority:")
     assert "high-uncertainty research" in spec["purpose_thesis"]
     assert "speculative setup and volatility read" in spec["unsupported_analysis"]
     assert "trusted price rows" in spec["next_research_question"]
     assert "speculative optionality cannot be evaluated" in spec["review_priority_reason"]
+    assert spec["review_priority_reason"].startswith("Proof priority:")
+    assert "unlock priority" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
