@@ -6354,6 +6354,7 @@ def data_health_trusted_pilot_preview_frame(
             "Operator Decision": pilot_operator_decision(candidate),
             "Review Path": pilot_review_path(candidate.validation_path),
             "Trusted Row Target": pilot_trusted_row_path(candidate),
+            "Packet Command": f"make trusted-data-pilot-packet TICKER={candidate.ticker}",
             "Next Command": candidate.next_command,
             "Proof After Unlock": candidate.proof_after_unlock,
             "Evidence Expectation": pilot_evidence_expectation(candidate),
@@ -6376,7 +6377,8 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
         operator_decision = compact_reason(row.get("Operator Decision"), max_sentences=1, max_chars=180)
         review_path = compact_reason(row.get("Review Path"), max_sentences=1, max_chars=180)
         proof = format_missing(row.get("Proof After Unlock"), "make readiness && make stock-report-md TICKER=<ticker>")
-        command = format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")
+        lane_command = format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")
+        command = format_missing(row.get("Packet Command"), f"make trusted-data-pilot-packet TICKER={ticker}")
         cards.append(
             {
                 "kicker": "PILOT CANDIDATE",
@@ -6384,7 +6386,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                 "body": (
                     f"Rank reason: {rank_reason} Next trusted input: {missing_input}. "
                     f"Decision: {operator_decision} "
-                    f"Review path: {review_path}. "
+                    f"Review path: {review_path}. Lane check: {lane_command}. "
                     f"Proof after unlock: {proof}."
                 ),
                 "badges": [scope, "read-only"],

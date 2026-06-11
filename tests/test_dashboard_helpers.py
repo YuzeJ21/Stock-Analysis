@@ -9392,6 +9392,7 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
         "Operator Decision",
         "Review Path",
         "Trusted Row Target",
+        "Packet Command",
         "Next Command",
         "Proof After Unlock",
         "Evidence Expectation",
@@ -9407,6 +9408,7 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
     assert "shares outstanding, free-cash-flow margin" in rendered
     assert "fcf_margin" not in rendered
+    assert "make trusted-data-pilot-packet ticker=mu" in rendered
     assert "make focus-peers ticker=mu" in rendered
     assert "make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "evidence required: before report, lane review output" in rendered
@@ -9428,6 +9430,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Operator Decision": "Choose this company only if you can document source-backed peer relationships.",
                 "Review Path": "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU",
                 "Trusted Row Target": "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed",
+                "Packet Command": "make trusted-data-pilot-packet TICKER=MU",
                 "Next Command": "make focus-peers TICKER=MU",
                 "Proof After Unlock": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
                 "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
@@ -9441,6 +9444,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Operator Decision": "Choose this company only if you can review trusted SEC or manual fundamentals rows.",
                 "Review Path": "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META",
                 "Trusted Row Target": "data/staged/fundamentals/ or data/imports/fundamentals.csv",
+                "Packet Command": "make trusted-data-pilot-packet TICKER=META",
                 "Next Command": "make focus-fundamentals TICKER=META",
                 "Proof After Unlock": "make readiness && make dcf-readiness && make stock-report-md TICKER=META",
                 "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
@@ -9454,13 +9458,14 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert len(cards) == 1
     assert cards[0]["kicker"] == "PILOT CANDIDATE"
     assert cards[0]["title"] == "MU: Peer mapping unlock"
-    assert cards[0]["command"] == "make focus-peers TICKER=MU"
+    assert cards[0]["command"] == "make trusted-data-pilot-packet TICKER=MU"
     assert cards[0]["badges"] == ["Active universe", "read-only"]
     assert "rank reason:" in rendered
     assert "next trusted input: needs source-backed peer mappings; analyst estimates: trusted local csv input" in rendered
     assert "analyst_estimates" not in rendered
     assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
     assert "review path: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
+    assert "lane check: make focus-peers ticker=mu" in rendered
     assert "proof after unlock: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
