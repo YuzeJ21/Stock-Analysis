@@ -17753,7 +17753,7 @@ def test_single_stock_peer_path_waits_for_fundamentals_before_peer_unlock(monkey
         "status": "partial",
         "decision_subtype": "Blocked by Data - Missing Fundamentals",
         "confidence": "low",
-        "main_reason": "Company research is blocked by missing DCF data.",
+        "main_reason": "Company research is blocked by missing trusted fundamentals and DCF inputs.",
         "next_action": "Import trusted fundamentals for CRDO.",
         "ready_features": "price, momentum",
         "blocked_features": "dcf, peer, earnings, analyst_estimates",

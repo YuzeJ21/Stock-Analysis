@@ -1405,7 +1405,7 @@ def test_stock_report_distinguishes_local_inputs_from_allowed_analysis_when_dcf_
                 "decision_bucket": "Blocked by Data",
                 "decision_subtype": "Blocked by Data - Missing Fundamentals",
                 "primary_blocker": "fundamentals",
-                "main_reason": "Company research is blocked by missing DCF data.",
+                "main_reason": "Company research is blocked by missing trusted fundamentals and DCF inputs.",
                 "next_best_action": "Complete trusted fundamentals for CRDO; missing fields: revenue, fcf_margin.",
                 "purpose_alignment": "Purpose alignment appears consistent with current setup `Extended` for Core Compounder, subject to the missing-data limits below.",
                 "supported_analysis": "Supported analysis: price history, setup and momentum context, peer rows exist locally.",
@@ -1437,6 +1437,8 @@ def test_stock_report_distinguishes_local_inputs_from_allowed_analysis_when_dcf_
     )
     assert "Peer context: Held back until trusted fundamentals and DCF inputs are ready." in markdown
     assert "Peer context: Ready for source-backed peer review." not in markdown
+    assert "Main reason: Company research is blocked by missing trusted fundamentals and DCF inputs." in markdown
+    assert "Main reason: Company research is blocked by missing DCF data." not in markdown
     assert "peer rows exist locally" in markdown
     assert "peer-relative valuation" in markdown
     assert "Purpose alignment is not confirmed for CRDO" in markdown

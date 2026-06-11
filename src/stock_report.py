@@ -191,6 +191,12 @@ def _humanize_schema_terms(value: Any) -> str:
     text = _display_value(value)
     if text == "Not available":
         return text
+    text = re.sub(
+        r"Company research is blocked by missing dcf data\.?",
+        "Company research is blocked by missing trusted fundamentals and DCF inputs.",
+        text,
+        flags=re.IGNORECASE,
+    )
     for raw, label in sorted(FIELD_LABELS.items(), key=lambda item: len(item[0]), reverse=True):
         text = re.sub(rf"(?<![A-Za-z0-9_]){re.escape(raw)}(?![A-Za-z0-9_])", label, text)
     text = text.replace("make DCF-", "make dcf-")

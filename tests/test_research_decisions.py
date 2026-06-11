@@ -122,7 +122,7 @@ def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing()
     assert row["decision_bucket"] == "Blocked by Data"
     assert row["decision_subtype"] == "Blocked by Data - Missing Fundamentals"
     assert row["primary_blocker"] == "fundamentals"
-    assert "missing dcf, fundamentals data" in row["main_reason"]
+    assert row["main_reason"] == "Company research is blocked by missing trusted fundamentals and DCF inputs."
     assert row["confidence"] <= 0.45
     assert "Import trusted fundamentals" in row["next_action"]
     assert "make focus-fundamentals TICKER=AMD" in row["next_best_action"]

@@ -187,6 +187,17 @@ def _feature_summary(ready: list[str], partial: list[str], blocked: list[str], e
     return "; ".join(parts)
 
 
+def _core_company_blocker_reason(blockers: list[str]) -> str:
+    blocker_set = set(blockers)
+    if {"fundamentals", "dcf"} <= blocker_set:
+        return "Company research is blocked by missing trusted fundamentals and DCF inputs."
+    if "fundamentals" in blocker_set:
+        return "Company research is blocked by missing trusted fundamentals."
+    if "dcf" in blocker_set:
+        return "Company research is blocked by missing trusted DCF inputs."
+    return "Company research is blocked by missing trusted company inputs."
+
+
 def _price_unlock_guidance(ticker: str) -> str:
     return (
         f"Start with make focus-price TICKER={ticker}, then run make price-refresh-loop DRY_RUN=1 "
@@ -756,7 +767,7 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
             main_reason = "Ticker is excluded from the relevant company analysis."
         elif company_like and core_company_blockers:
             bucket = "Blocked by Data"
-            main_reason = f"Company research is blocked by missing {', '.join(core_company_blockers)} data."
+            main_reason = _core_company_blocker_reason(core_company_blockers)
         elif asset_type == "company" and "momentum" in ready and "dcf" in ready and "fundamentals" in ready:
             bucket = "Research Now"
             main_reason = "Core data is ready for a supported research pass."

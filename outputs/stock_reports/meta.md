@@ -122,7 +122,7 @@ META overall readiness: partial; review local inputs that are present and treat 
 - Subtype: Blocked by Data - Missing Fundamentals
 - Boundary: Missing-data proof state: fundamentals blocks evaluation, so conclusions stay withheld.
 - Primary blocker: fundamentals
-- Main reason: Company research is blocked by missing DCF data.
+- Main reason: Company research is blocked by missing trusted fundamentals and DCF inputs.
 - Next action: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
 ## Purpose Evaluation
@@ -280,7 +280,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source Readiness Check
 - Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=616; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
 - Fundamentals / DCF: blocked; local source `data/fundamentals.csv`; reason missing shares outstanding; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
+- Peers: blocked until fundamentals / DCF; local source `data/peers.csv`; import target `data/imports/peers.csv`; next peer action Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready.
 - Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
 - Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.

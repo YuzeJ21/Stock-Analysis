@@ -123,7 +123,7 @@ CRDO overall readiness: partial; review local inputs that are present and treat 
 - Subtype: Blocked by Data - Missing Fundamentals
 - Boundary: Missing-data proof state: fundamentals blocks evaluation, so conclusions stay withheld.
 - Primary blocker: fundamentals
-- Main reason: Company research is blocked by missing DCF data.
+- Main reason: Company research is blocked by missing trusted fundamentals and DCF inputs.
 - Next action: Complete trusted fundamentals for CRDO; missing fields: revenue, FCF margin. Run `make focus-fundamentals TICKER=CRDO`, then use SEC staging or the manual fundamentals import workflow.
 
 ## Purpose Evaluation
