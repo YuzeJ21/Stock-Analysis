@@ -154,7 +154,7 @@ demo:
 	@echo "Visitor demo path:"
 	@echo "   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot"
 	@echo "What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced."
-	@echo "Data-confidence note: report confidence describes readiness and review routing, not investment conviction."
+	@echo "Data-confidence note: data confidence describes readiness and review routing, not investment conviction."
 	@echo ""
 	@echo "1. Confirm the local snapshot:"
 	@echo "   make status-check TOP_N=5"

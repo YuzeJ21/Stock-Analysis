@@ -1808,7 +1808,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"Visitor demo path:\"" in makefile
     assert "@echo \"   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot\"" in makefile
     assert "@echo \"What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
-    assert "@echo \"Data-confidence note: report confidence describes readiness and review routing, not investment conviction.\"" in makefile
+    assert "@echo \"Data-confidence note: data confidence describes readiness and review routing, not investment conviction.\"" in makefile
     assert "@echo \"2. Open the clean dashboard path:\"" in makefile
     assert "@echo \"   Proves: current readiness counts and top blockers without changing local files.\"" in makefile
     assert "@echo \"   Proves: the product journey starts with Review one stock, Improve data coverage, and Explore ready names.\"" in makefile
