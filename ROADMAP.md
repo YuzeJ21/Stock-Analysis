@@ -66,6 +66,7 @@ Goal: turn the Streamlit page into a research command center instead of a collec
   - Price Coverage Batch
   - Fundamentals / DCF Proof
   - Peer Mapping Proof
+  - Peer Valuation Inputs Proof
   - Earnings Import Setup
   - Analyst Estimates Import Setup
   - Single-Stock Review
@@ -119,7 +120,7 @@ Acceptance notes:
 Goal: support peer analysis without pretending peer valuation is available when only partial peer data exists.
 
 - Add source-backed peer mappings.
-- Add peer metrics.
+- Add mapped-peer price, fundamentals, market cap, and valuation inputs when mappings already exist.
 - Separate readiness into:
   - `peer_price_ready`
   - `peer_momentum_ready`

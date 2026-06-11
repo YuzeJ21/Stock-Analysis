@@ -65,7 +65,7 @@ The product separates refreshable data from judgment-required data:
 | --- | --- | --- |
 | Prices | Use `make price-refresh-loop DRY_RUN=1` before capped refreshes. | Price coverage can scale safely, but refreshed CSVs should be reviewed before commit. |
 | Fundamentals / DCF | Use `make trusted-data-pilot-candidates TOP_N=10`, inspect one ticker with `make trusted-data-pilot-packet TICKER=CRDO`, then use SEC staging or trusted manual imports. | Company valuation only appears after required fields, validation, rejected-row review, and readiness proof pass. |
-| Peers | Add source-backed peer mappings and peer inputs. | Peer trend and peer valuation stay separate; guessed peers do not become valuation. |
+| Peers | Add source-backed peer mappings first, then mapped-peer price/fundamental inputs when mappings already exist. | Peer trend and peer valuation stay separate; guessed peers do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
 ## What Works Today

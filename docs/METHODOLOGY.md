@@ -143,7 +143,7 @@ Peer analysis is separate from standalone DCF.
 
 - Peer trend context can be available when mapped peers have enough local price history.
 - Peer valuation context requires source-backed peer mappings and peer valuation inputs.
-- Missing peer mappings or peer fundamentals block peer valuation.
+- Missing peer mappings block the mapping proof path; mapped peers with missing price, fundamentals, market cap, or valuation fields block the peer valuation inputs proof path.
 - Sector or industry fallback context, if shown, must be labeled as fallback and not trusted manual peer data.
 
 This prevents the report from pretending that peer valuation exists when only partial peer data is available.
@@ -261,7 +261,7 @@ The product uses the same readiness proof ladder in the dashboard, single-stock 
 | --- | --- | --- | --- |
 | 1. Prices | Trusted local price rows. | Price/setup review, trend context, basic risk context when enough history exists. | Fundamentals, DCF, peers, earnings, and estimates. |
 | 2. Fundamentals / DCF inputs | Trusted company fundamentals with revenue, free cash flow or FCF margin, shares outstanding, and source metadata. | Fundamental field review and standalone DCF assumptions, scenarios, sensitivity, and fair value/share math. | Peer-relative valuation and optional earnings/estimate context. |
-| 3. Source-backed peers | Trusted peer mappings plus peer valuation inputs. | Peer trend context first, then peer-relative valuation only when peer valuation inputs pass readiness. | Peer premium/discount or peer DCF comparison when peer inputs are incomplete. |
+| 3. Source-backed peers | Trusted peer mappings first, then mapped-peer price, fundamentals, market cap, and valuation inputs. | Peer trend context first, then peer-relative valuation only when mapped-peer valuation inputs pass readiness. | Peer premium/discount or peer DCF comparison when peer mappings or mapped-peer inputs are incomplete. |
 | 4. Optional context | Trusted earnings and analyst-estimate CSV rows. | Earnings timing context and analyst-estimate context. | Optional sections remain unavailable when those rows are missing. |
 
 Each step is permission to review a specific analysis layer, not permission to invent the next layer. Price-ready does not mean fundamentals-ready. Fundamentals-ready does not mean DCF-ready unless all required DCF fields pass. DCF-ready does not mean peer-ready. Peer-ready does not mean earnings or analyst estimates are available.
