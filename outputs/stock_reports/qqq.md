@@ -19,6 +19,13 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=QQQ`. Confirm with `make readiness` before treating the lane as unlocked.
 - Next research step: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
+## Evaluation Snapshot
+- Supported evaluation: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
+- Valuation boundary: Operating-company DCF and peer valuation are excluded for this monitor role; use market, theme, liquidity, and risk context only.
+- Confidence cue: medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded.
+- Next proof: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
+- Stop rule: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+
 ## Best Review Path
 - First read: Start with monitor context. Operating-company DCF and peer-relative company valuation are excluded, so review market, theme, liquidity, and risk context only.
 - Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.

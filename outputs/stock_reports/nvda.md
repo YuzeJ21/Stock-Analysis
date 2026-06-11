@@ -19,6 +19,13 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Data Health lane: Optional Context Unlock. Suggested local check: `make optional-context-worklist TICKERS=NVDA TOP_N=10`. Confirm with `make optional-context-readiness && make readiness` before treating the lane as unlocked.
 - Next research step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
+## Evaluation Snapshot
+- Supported evaluation: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
+- Valuation boundary: Standalone DCF assumptions and source-backed peer context can be reviewed; optional context may still be locked.
+- Confidence cue: medium: core price, fundamentals, DCF, and peer inputs are ready, but optional context is still locked.
+- Next proof: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
+- Stop rule: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
+
 ## Best Review Path
 - First read: Start with DCF Calculation Path, then Peer Workflow, then Source Readiness. This is the richest company-review path, but it remains research context.
 - Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.

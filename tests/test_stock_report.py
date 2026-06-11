@@ -469,9 +469,16 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "account actions" in markdown
     assert "## At A Glance" in markdown
     assert "## Reader Guide" in markdown
+    assert "## Evaluation Snapshot" in markdown
     assert "## Best Review Path" in markdown
     assert markdown.index("## At A Glance") < markdown.index("## How To Read This Report")
-    assert markdown.index("## At A Glance") < markdown.index("## Reader Guide") < markdown.index("## Best Review Path") < markdown.index("## How To Read This Report")
+    assert (
+        markdown.index("## At A Glance")
+        < markdown.index("## Reader Guide")
+        < markdown.index("## Evaluation Snapshot")
+        < markdown.index("## Best Review Path")
+        < markdown.index("## How To Read This Report")
+    )
     assert "- Mode: `Standalone DCF review`." in markdown
     assert "- Decision view:" in markdown
     assert "- DCF: Ready for scenario review." in markdown
@@ -512,6 +519,11 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Use now:" in markdown
     assert "Do not infer:" in markdown
     assert "Next step:" in markdown
+    assert "- Supported evaluation: Company-level review can use local price context, fundamentals, and standalone DCF assumptions" in markdown
+    assert "- Valuation boundary: Standalone DCF assumptions can be reviewed, but peer-relative valuation stays locked until source-backed peer inputs exist." in markdown
+    assert "- Confidence cue: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked." in markdown
+    assert "- Next proof: Not available." in markdown
+    assert "- Stop rule: Blocked features:" in markdown
     assert "## Analysis Mode Guide" in markdown
     assert "`Standalone DCF review` (current)" in markdown
     assert (
@@ -1142,8 +1154,14 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "# APLD Single-Stock Research Report" in markdown
     assert "## At A Glance" in markdown
     assert "## Reader Guide" in markdown
+    assert "## Evaluation Snapshot" in markdown
     assert markdown.index("## At A Glance") < markdown.index("## How To Read This Report")
-    assert markdown.index("## At A Glance") < markdown.index("## Reader Guide") < markdown.index("## How To Read This Report")
+    assert (
+        markdown.index("## At A Glance")
+        < markdown.index("## Reader Guide")
+        < markdown.index("## Evaluation Snapshot")
+        < markdown.index("## How To Read This Report")
+    )
     assert "- Mode: `Data-unlock only`." in markdown
     assert "- DCF: Blocked until trusted fundamentals and DCF inputs are ready." in markdown
     assert "- Valuation support: Blocked until trusted price, fundamentals, cash-flow or margin, and share-count inputs are ready." in markdown
@@ -1158,6 +1176,10 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Trusted input: Trusted local price history." in markdown
     assert "- Data Health lane: Price Coverage Batch. Suggested local check: `make focus-price TICKER=APLD`" in markdown
     assert "Confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as unlocked" in markdown
+    assert "- Supported evaluation: Use available price or setup context only." in markdown
+    assert "- Valuation boundary: Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness." in markdown
+    assert "- Confidence cue: low: price history is still the first required unlock." in markdown
+    assert "- Stop rule: Blocked features: price, momentum, DCF." in markdown
     assert "Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready" in markdown
     assert "Read top-down: readiness state first" in markdown
     assert "## Executive Summary" in markdown

@@ -1657,6 +1657,48 @@ def _stock_report_executive_summary_lines(
     ]
 
 
+def _stock_report_evaluation_snapshot_lines(
+    *,
+    supported_now: str,
+    locked_now: str,
+    next_action: str,
+    analysis_quality_lines: list[str],
+    dcf_status_text: str,
+    monitor_context: bool,
+    peer_ready: Any,
+) -> list[str]:
+    confidence = "Use only the ready sections; locked sections remain unavailable."
+    for line in analysis_quality_lines:
+        if line.startswith("- Confidence:"):
+            confidence = _brief_value(line, "- Confidence:").rstrip(".")
+            break
+
+    if monitor_context:
+        valuation_boundary = (
+            "Operating-company DCF and peer valuation are excluded for this monitor role; use market, theme, liquidity, and risk context only."
+        )
+    elif dcf_status_text == "ready" and bool(peer_ready):
+        valuation_boundary = (
+            "Standalone DCF assumptions and source-backed peer context can be reviewed; optional context may still be locked."
+        )
+    elif dcf_status_text == "ready":
+        valuation_boundary = (
+            "Standalone DCF assumptions can be reviewed, but peer-relative valuation stays locked until source-backed peer inputs exist."
+        )
+    else:
+        valuation_boundary = (
+            "Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness."
+        )
+
+    return [
+        f"- Supported evaluation: {_sentence_value(supported_now)}.",
+        f"- Valuation boundary: {valuation_boundary}",
+        f"- Confidence cue: {confidence}.",
+        f"- Next proof: {_sentence_value(next_action, 'No next local proof step is available')}.",
+        f"- Stop rule: {_sentence_value(locked_now)}.",
+    ]
+
+
 def _stock_report_best_review_path_lines(
     *,
     ticker: str,
@@ -2440,6 +2482,15 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         locked_now=locked_now,
         next_action=one_minute_next,
     )
+    evaluation_snapshot_lines = _stock_report_evaluation_snapshot_lines(
+        supported_now=supported_now,
+        locked_now=locked_now,
+        next_action=one_minute_next,
+        analysis_quality_lines=analysis_quality_lines,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer_ready,
+    )
     report_mode = _stock_report_mode_from_quality_lines(analysis_quality_lines)
     at_a_glance_lines = _stock_report_at_a_glance_lines(
         mode=report_mode,
@@ -2526,6 +2577,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Reader Guide",
         *reader_question_lines,
+        "",
+        "## Evaluation Snapshot",
+        *evaluation_snapshot_lines,
         "",
         "## Best Review Path",
         *best_review_path_lines,
@@ -2848,6 +2902,15 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         locked_now=locked_now,
         next_action=next_action,
     )
+    evaluation_snapshot_lines = _stock_report_evaluation_snapshot_lines(
+        supported_now=supported_now,
+        locked_now=locked_now,
+        next_action=next_action,
+        analysis_quality_lines=analysis_quality_lines,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+    )
     report_mode = _stock_report_mode_from_quality_lines(analysis_quality_lines)
     at_a_glance_lines = _stock_report_at_a_glance_lines(
         mode=report_mode,
@@ -2924,6 +2987,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## Reader Guide",
         *reader_question_lines,
+        "",
+        "## Evaluation Snapshot",
+        *evaluation_snapshot_lines,
         "",
         "## How To Read This Report",
         *reader_guide_lines,

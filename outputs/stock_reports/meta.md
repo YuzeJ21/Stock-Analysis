@@ -19,6 +19,13 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Data Health lane: Fundamentals / DCF Unlock. Suggested local check: `make focus-fundamentals TICKER=META`. Confirm with `make dcf-readiness && make readiness` before treating the lane as unlocked.
 - Next research step: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 
+## Evaluation Snapshot
+- Supported evaluation: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
+- Valuation boundary: Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness.
+- Confidence cue: low: price/setup context is available, but company valuation inputs are blocked.
+- Next proof: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
+- Stop rule: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
+
 ## Best Review Path
 - First read: Start with DCF Input Triage and Data Unlock Summary. Company valuation stays blocked until trusted fundamentals and DCF inputs are ready.
 - Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.
