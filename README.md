@@ -64,8 +64,8 @@ The product separates refreshable data from judgment-required data:
 | Data lane | Best next move | Why it matters |
 | --- | --- | --- |
 | Prices | Use `make price-refresh-loop DRY_RUN=1` before capped refreshes. | Price coverage can scale safely, but refreshed CSVs should be reviewed before commit. |
-| Fundamentals / DCF | Use `make trusted-data-pilot-candidates TOP_N=10`, inspect one ticker with `make trusted-data-pilot-packet TICKER=CRDO`, then use SEC staging or trusted manual imports. | Company valuation only appears after required fields, validation, rejected-row review, and readiness proof pass. |
-| Peers | Add source-backed peer mappings first, then mapped-peer price/fundamental inputs when mappings already exist. | Peer trend and peer valuation stay separate; guessed peers do not become valuation. |
+| Fundamentals / DCF | Use `make trusted-data-pilot-candidates TOP_N=10`, then inspect a fundamentals example such as `make trusted-data-pilot-packet TICKER=CRDO` before SEC staging or trusted manual imports. | Company valuation only appears after required fields, validation, rejected-row review, and readiness proof pass. |
+| Peers | Use the ranked pilot packet first when a peer-input lane leads, such as `make trusted-data-pilot-packet TICKER=MU`, then add source-backed mappings or mapped-peer price/fundamental inputs only when source proof exists. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
 ## What Works Today
@@ -111,6 +111,8 @@ make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded
 make stock-report-md TICKER=MU   # standalone DCF report with peer valuation still locked
 make stock-report-md TICKER=CRDO # fundamentals/DCF proof packet example
 make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list
+make trusted-data-pilot-packet TICKER=MU   # first ranked peer-input proof packet
+make trusted-data-pilot-packet TICKER=CRDO # fundamentals/DCF proof packet
 ```
 
 Optional extra report states:
@@ -134,7 +136,7 @@ Example map:
 
 In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what trusted input matters next, what evidence proves the current mode, what to read first, and which copy-only command or proof step comes next. They show `Copyable Proof Commands` only when local data gaps block analysis; use `make stock-report TICKER=NVDA` only when you also want optional local report data for inspection.
 
-For a share-ready walkthrough, use [Public Demo Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md). The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers. For deeper local missing-data details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md).
+For a share-ready walkthrough, use [Public Demo Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md). The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`; both remain read-only proof packets until source review and rebuilt readiness prove a lane changed. The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers. For deeper local missing-data details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md).
 
 ## Local Data Hygiene
 

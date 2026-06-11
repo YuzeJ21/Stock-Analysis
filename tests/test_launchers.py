@@ -462,6 +462,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
     assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
     assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < readme.index("Optional extra report states:")
+    demo_path = readme.split("## Try This Demo Path", 1)[1].split("Optional extra report states:", 1)[0]
+    assert demo_path.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < demo_path.index("make trusted-data-pilot-packet TICKER=MU")
+    assert demo_path.index("make trusted-data-pilot-packet TICKER=MU") < demo_path.index("make trusted-data-pilot-packet TICKER=CRDO")
     assert "## Local Data Hygiene" in readme
     assert "## License" in readme
     assert "## Analysis Methodology" in readme
@@ -474,6 +477,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     for phrase in (
         "make demo",
         "make trusted-data-pilot TOP_N=10",
+        "make trusted-data-pilot-packet TICKER=MU",
+        "make trusted-data-pilot-packet TICKER=CRDO",
         "make public-check",
         "make stock-report-md TICKER=NVDA",
         "make stock-report-md TICKER=A",
@@ -491,6 +496,10 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Operating-company DCF is excluded, not failed",
         "Price/setup review with valuation still locked",
         "next trusted fundamentals proof step",
+        "ranked pilot packet first when a peer-input lane leads",
+        "guessed peers or file row counts do not become valuation",
+        "The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`",
+        "both remain read-only proof packets until source review and rebuilt readiness prove a lane changed",
         "At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and copyable local proof commands",
         "At A Glance status, a Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, methodology, risks, blockers, copyable local proof commands",
         "The report is not a black box",
