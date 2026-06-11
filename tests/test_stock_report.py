@@ -21,6 +21,7 @@ from src.stock_report import (
     _display_setup_text,
     _format_inline_make_commands,
     _public_report_brief,
+    _stock_report_at_a_glance_lines,
     _stock_report_dcf_input_triage_lines,
     _stock_report_best_review_path_lines,
     _stock_report_optional_context_ladder_lines,
@@ -240,6 +241,34 @@ def test_stock_report_peer_ready_copy_uses_source_readiness_language():
     assert "source readiness" in rendered
     assert "mapped peers and freshness" not in rendered
     assert "review freshness" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_at_a_glance_flags_peer_metric_caveats():
+    lines = _stock_report_at_a_glance_lines(
+        mode="DCF-ready review",
+        decision={"decision_subtype": "Research Candidate - Core Data Ready"},
+        dcf_status_text="ready",
+        dcf={},
+        readiness={"asset_type": "company"},
+        peer_ready=True,
+        earnings_ready=False,
+        estimates_ready=False,
+        next_action="Review optional context only if trusted rows exist.",
+        valuation_snapshot={
+            "relative_valuation": {
+                "status": "calculated",
+                "missing_fields": ["ebitda"],
+                "peer_missing_data_warnings": [],
+            }
+        },
+    )
+    rendered = " ".join(lines).lower()
+
+    assert "peer context: available with caveats" in rendered
+    assert "review missing peer metrics before interpreting relative valuation" in rendered
+    assert "ready for source-backed peer review" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

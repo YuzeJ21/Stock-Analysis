@@ -1952,10 +1952,26 @@ def _stock_report_at_a_glance_lines(
     asset_type = _display_value(readiness.get("asset_type"), "").lower()
     monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
     core_company_before_peers = not monitor_context and dcf_status_text != "ready"
+    valuation_snapshot = valuation_snapshot or {}
+    relative_valuation = (
+        valuation_snapshot.get("relative_valuation")
+        if isinstance(valuation_snapshot.get("relative_valuation"), dict)
+        else {}
+    )
+    peer_caveats = [
+        str(item).strip()
+        for item in (
+            list(relative_valuation.get("missing_fields") or [])
+            + list(relative_valuation.get("peer_missing_data_warnings") or [])
+        )
+        if str(item).strip()
+    ]
     if monitor_context:
         peer_status = "Excluded for monitor context"
     elif core_company_before_peers:
         peer_status = "Held back until trusted fundamentals and DCF inputs are ready"
+    elif bool(peer_ready) and peer_caveats:
+        peer_status = "Available with caveats; review missing peer metrics before interpreting relative valuation"
     elif bool(peer_ready):
         peer_status = "Ready for source-backed peer review"
     else:
@@ -1972,7 +1988,6 @@ def _stock_report_at_a_glance_lines(
         if dcf_status_text == "ready"
         else "Blocked until trusted fundamentals and DCF inputs are ready"
     )
-    valuation_snapshot = valuation_snapshot or {}
     nested_dcf_result = dcf.get("dcf_result") if isinstance(dcf.get("dcf_result"), dict) else {}
     snapshot_dcf_result = (
         valuation_snapshot.get("dcf_result") if isinstance(valuation_snapshot.get("dcf_result"), dict) else {}

@@ -8,7 +8,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Decision view: Research Candidate - Core Data Ready.
 - DCF: Ready for scenario review.
 - Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base scenario fair value/share is $143.42 as scenario math, not a price target.
-- Peer context: Ready for source-backed peer review.
+- Peer context: Available with caveats; review missing peer metrics before interpreting relative valuation.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
 - Next local step: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
@@ -275,7 +275,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 ## Source Readiness Check
 - Prices: ready; local source `data/prices.csv`; coverage 2023-12-07 to 2026-05-22; rows=621; import file path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.
 - Fundamentals / DCF: ready; local source `data/fundamentals.csv`; SEC_USER_AGENT present; import file path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.
-- Peers: ready; local source `data/peers.csv`; import file path `data/imports/peers.csv`; next peer action Peer trend and valuation comparison are ready for NVDA.
+- Peers: ready; local source `data/peers.csv`; import target `data/imports/peers.csv`; next peer action Peer trend and valuation comparison are ready for NVDA.
 - Earnings: not ready; trusted local CSV only; import file path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.
 - Analyst estimates: not ready; trusted local CSV only; import file path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.
 - Credentials: SEC_USER_AGENT present; STOOQ_API_KEY missing; missing remote credentials should not break local CSV reports or preview-first local import workflows.
