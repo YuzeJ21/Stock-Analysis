@@ -30,7 +30,8 @@ Current features:
 - Copyable Unlock Commands that keep next steps local, capped, and research-only.
 - Source-readiness sections.
 - A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of a fabricated full-universe unlock.
-- A read-only `make trusted-data-pilot TOP_N=10` command that prints a company-focused coverage-improvement path without importing rows or fabricating data.
+- A read-only `make trusted-data-pilot-candidates TOP_N=10` command that ranks current company blockers for a focused coverage-improvement path without importing rows or fabricating data.
+- A follow-up `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` command that prints the evidence loop for selected pilot companies.
 - A suggested starter company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`, with `QQQ` and `SMH` kept as ETF/index monitor demos rather than operating-company DCF targets.
 - A pilot evidence bundle: before/after readiness counts, one regenerated Markdown report per company, and the validation commands that changed the state.
 - A one-company evidence packet: baseline readiness, before report, focused fundamentals check, focused peer check, validate/preview/apply, after readiness, and after report.
@@ -61,7 +62,8 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` to show how the product handles blocked data without inventing valuation conclusions, including the exact copyable local commands for the next unlock.
-- Run `make trusted-data-pilot TOP_N=10` to show the safe company-focused path for improving trusted fundamentals, DCF, and peer inputs.
+- Run `make trusted-data-pilot-candidates TOP_N=10` to show which company blockers the current local data suggests improving next.
+- Then run `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` to show the safe company-focused path for trusted fundamentals, DCF, and peer inputs.
 - Use the one-company evidence packet to explain that a useful coverage win needs before/after proof, not just a new CSV row.
 - Mention that `QQQ` and `SMH` demonstrate monitor context; the company pilot should use operating-company tickers.
 - Run `make dashboard` locally to show readiness cards, next-action cards, and single-stock drilldowns.

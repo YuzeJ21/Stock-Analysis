@@ -19038,10 +19038,10 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "kicker": "VISITOR STEP 4",
             "title": "Show the data unlock proof path",
             "body": (
-                "When a visitor asks how coverage improves, show the read-only trusted-data pilot. It prints the exact evidence loop without importing rows."
+                "When a visitor asks how coverage improves, rank current company blockers first, then run the read-only trusted-data pilot for the chosen names without importing rows."
             ),
             "badges": ["read-only", "trusted data"],
-            "command": "make trusted-data-pilot TOP_N=10",
+            "command": "make trusted-data-pilot-candidates TOP_N=10",
         },
     ]
 
@@ -19125,12 +19125,12 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "kicker": "PILOT PATH",
             "title": "Improve 5-10 companies first",
             "body": (
-                "Do not try to unlock the full universe at once. Start with the read-only pilot checklist for a small "
+                "Do not try to unlock the full universe at once. Start with the read-only candidate queue for a small "
                 "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists. "
-                "Copy `make trusted-data-pilot TOP_N=10` when you are ready to plan the local proof loop and evidence packet."
+                "Copy `make trusted-data-pilot-candidates TOP_N=10` first; then use `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` for the local proof loop and evidence packet."
             ),
             "badges": ["trusted data", "pilot"],
-            "command": "make trusted-data-pilot TOP_N=10",
+            "command": "make trusted-data-pilot-candidates TOP_N=10",
         },
     ]
 

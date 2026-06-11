@@ -870,11 +870,12 @@ def test_home_first_run_path_cards_make_visitor_proof_trail_explicit():
     assert "blocked company valuation stays blocked" in rendered
     assert "etf/index dcf is excluded rather than failed" in rendered
     assert "trusted-data pilot" in rendered
+    assert "rank current company blockers first" in rendered
     assert "without importing rows" in rendered
     assert "make dashboard" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=qqq" in rendered
-    assert "make trusted-data-pilot top_n=10" in rendered
+    assert "make trusted-data-pilot-candidates top_n=10" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -992,10 +993,11 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[2]["command"] == "make data-wizard TOP_N=10"
     assert price_gap_cards[3]["command"] == "make optional-context-worklist TOP_N=25"
     assert price_gap_cards[4]["command"] == "make readiness && make status-check TOP_N=5"
-    assert price_gap_cards[5]["command"] == "make trusted-data-pilot TOP_N=10"
+    assert price_gap_cards[5]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
     assert price_gap_cards[5]["title"] == "Improve 5-10 companies first"
-    assert "read-only pilot checklist" in price_gap_cards[5]["body"]
-    assert "make trusted-data-pilot TOP_N=10" in price_gap_cards[5]["body"]
+    assert "read-only candidate queue" in price_gap_cards[5]["body"]
+    assert "make trusted-data-pilot-candidates TOP_N=10" in price_gap_cards[5]["body"]
+    assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in price_gap_cards[5]["body"]
     assert "scalable dry run" in rendered
     assert "instead of repeating 25-ticker refreshes manually" in rendered
     assert "blocked rows are useful, but they are a data-unlock list, not a conclusion list" in rendered

@@ -925,8 +925,9 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "portfolio/demo project" in checklist
     assert "deeper local workflow guide" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
-    assert "make trusted-data-pilot TOP_N=10" in checklist
-    assert "read-only next step for improving 5-10 trusted companies" in checklist
+    assert "make trusted-data-pilot-candidates TOP_N=10" in checklist
+    assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in checklist
+    assert "read-only first step for ranking current company blockers" in checklist
     assert "Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in checklist
     assert "Treat `QQQ` and `SMH` as ETF/index monitor demos" in checklist
     assert "Keep the pilot evidence packet visible" in checklist
@@ -1058,8 +1059,9 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "CSV-first, preview-first local import workflows",
         "public Data Strategy guide",
         "5-10 company pilot",
-        "make trusted-data-pilot TOP_N=10",
-        "company-focused coverage-improvement path",
+        "make trusted-data-pilot-candidates TOP_N=10",
+        "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10",
+        "ranks current company blockers",
         "suggested starter company pilot",
         "one-company evidence packet",
         "before/after proof",
@@ -1111,10 +1113,14 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "routes the DCF/peer-ready `NVDA` example to review DCF, peers, and source readiness",
         "2026-06-07 Follow-Up Product Copy Pass",
         "2026-06-10 Public Navigation And Data Strategy Pass",
+        "2026-06-10 Trusted Pilot Candidate UX Pass",
         "main navigation control reads `Choose your path`",
         "`Review one stock`, `Improve data coverage`, and `Explore ready names`",
         "detailed pages remain available under `Advanced pages`",
         "Automation Boundary table separates repeatable checks from human-reviewed source judgment",
+        "first-run proof trail now points visitors to `make trusted-data-pilot-candidates TOP_N=10`",
+        "candidate queue as read-only",
+        "Portfolio Review: confirmed the page renders plain-language capability and limit cards",
         "checklist/review-path language before advanced command detail",
         "broad valuation input count is labeled separately from exact company DCF-ready counts",
         "`next-step context` instead of engineering-heavy operational wording",
@@ -1618,8 +1624,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"3. Generate readable sample reports:\"" in makefile
     assert "@echo \"4. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"5. Optional: see the safe coverage-improvement path:\"" in makefile
-    assert "@echo \"   make trusted-data-pilot TOP_N=10\"" in makefile
     assert "@echo \"   make trusted-data-pilot-candidates TOP_N=10\"" in makefile
+    assert "@echo \"   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10\"" in makefile
+    assert makefile.index('@echo "   make trusted-data-pilot-candidates TOP_N=10"') < makefile.index('@echo "   make trusted-data-pilot TICKERS=<chosen names> TOP_N=10"')
     assert "@echo \"6. Before sharing or committing:\"" in makefile
     assert "@echo \"   make public-check\"" in makefile
     assert "@echo \"   make diff-hygiene\"" in makefile
