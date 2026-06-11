@@ -616,7 +616,7 @@ def render_trusted_data_pilot_candidates(
     else:
         lines.extend(
             [
-                "Need full candidate detail? Rerun with `make trusted-data-pilot-candidates VERBOSE=1`.",
+                f"Need local proof detail? Rerun with `make trusted-data-pilot-candidates TOP_N={top_n} VERBOSE=1`.",
                 "",
             ]
         )

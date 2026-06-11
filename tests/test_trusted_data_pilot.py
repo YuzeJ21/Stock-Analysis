@@ -556,7 +556,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "No broad-universe overflow is needed for the first pilot shortlist." in rendered
     assert "Useful pilot win: before report, lane review, trusted source row" in rendered
     assert "1. META - Fundamentals / DCF proof path" not in rendered
-    assert "Need full candidate detail? Rerun with `make trusted-data-pilot-candidates VERBOSE=1`." in rendered
+    assert "Need local proof detail? Rerun with `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1`." in rendered
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing shares outstanding." not in rendered
     assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" not in rendered
     assert (
@@ -589,7 +589,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     verbose = render_trusted_data_pilot_candidates(candidates, root=tmp_path, verbose=True)
 
     assert "Verbose candidate details:" in verbose
-    assert "Need full candidate detail?" not in verbose
+    assert "Need local proof detail?" not in verbose
     assert "1. META - Fundamentals / DCF proof path" in verbose
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing shares outstanding." in verbose
     assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in verbose
