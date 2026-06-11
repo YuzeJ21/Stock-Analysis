@@ -8914,7 +8914,7 @@ def test_valuation_decision_guide_cards_turn_operator_table_into_plain_language(
 
 def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclaiming():
     ready = pd.DataFrame({"ticker": ["NVDA"]})
-    blocked = pd.DataFrame({"ticker": ["META"], "missing_dcf_fields": ["free_cash_flow"]})
+    blocked = pd.DataFrame({"ticker": ["META"], "missing_dcf_fields": ["free_cash_flow, fcf_margin"]})
     excluded = pd.DataFrame({"ticker": ["QQQ"], "asset_type": ["etf"]})
 
     cards = dashboard.valuation_quick_read_cards(ready, blocked, excluded)
@@ -8943,7 +8943,8 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
     assert "not a recommendation, price target, or full investment conclusion" in rendered
     assert "1 company row(s) need inputs" in rendered
     assert "for meta, fair value/share" in rendered
-    assert "free cash flow pass readiness" in rendered
+    assert "free cash flow, free-cash-flow margin pass readiness" in rendered
+    assert "fcf margin" not in rendered
     assert "fair value/share, intrinsic-value interpretation, and re-rating context" in rendered
     assert "1 etf/index/fund row(s)" in rendered
     assert "qqq use monitor context because company valuation does not apply" in rendered
@@ -8957,7 +8958,7 @@ def test_valuation_quick_read_cards_prioritize_ready_dcf_review_without_overclai
 def test_valuation_quick_read_cards_prioritize_missing_inputs_when_no_ready_rows():
     cards = dashboard.valuation_quick_read_cards(
         pd.DataFrame(),
-        pd.DataFrame({"ticker": ["META"], "missing_dcf_fields": ["free_cash_flow, shares_outstanding"]}),
+        pd.DataFrame({"ticker": ["META"], "missing_dcf_fields": ["free_cash_flow, shares_outstanding, fcf_margin"]}),
         pd.DataFrame({"ticker": ["QQQ"], "asset_type": ["etf"]}),
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -8972,8 +8973,9 @@ def test_valuation_quick_read_cards_prioritize_missing_inputs_when_no_ready_rows
     assert "no company valuation assumptions or sensitivity should be reviewed yet" in rendered
     assert "use the locked-input and monitor-context cards until trusted valuation rows exist" in rendered
     assert "open the next dcf-ready ticker" not in rendered
-    assert "free cash flow, shares outstanding" in rendered
-    assert "until free cash flow, shares outstanding pass readiness" in rendered
+    assert "free cash flow, shares outstanding, free-cash-flow margin" in rendered
+    assert "until free cash flow, shares outstanding, free-cash-flow margin pass readiness" in rendered
+    assert "fcf margin" not in rendered
     assert "missing inputs are not undervalued, overvalued, or weak-company conclusions" in rendered
 
 

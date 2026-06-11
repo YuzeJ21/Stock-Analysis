@@ -13848,7 +13848,7 @@ def valuation_quick_read_cards(
         missing_values = blocked["missing_dcf_fields"].fillna("").astype(str).str.strip()
         missing_values = missing_values.loc[missing_values.ne("")]
         if not missing_values.empty:
-            blocked_missing = missing_values.iloc[0].replace("_", " ")
+            blocked_missing = plain_dashboard_input_copy(missing_values.iloc[0])
 
     if ready.empty and blocked.empty and excluded.empty:
         first_title = "Generate DCF readiness first"
