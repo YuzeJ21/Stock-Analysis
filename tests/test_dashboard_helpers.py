@@ -871,17 +871,20 @@ def test_home_first_run_path_cards_make_visitor_proof_trail_explicit():
     ]
     assert "open the clean product view" in rendered
     assert "three clear paths" in rendered
-    assert "read one proof report" in rendered
-    assert "ready dcf assumptions" in rendered
-    assert "compare a blocked or excluded case" in rendered
-    assert "blocked company valuation stays blocked" in rendered
-    assert "etf/index dcf is excluded rather than failed" in rendered
+    assert "read the nvda proof report" in rendered
+    assert "ready-data demo" in rendered
+    assert "dcf assumptions" in rendered
+    assert "compare meta blocked and qqq excluded" in rendered
+    assert "open meta next" in rendered
+    assert "open qqq" in rendered
+    assert "company valuation stays blocked until trusted fundamentals are ready" in rendered
+    assert "etf/index dcf excluded rather than failed" in rendered
     assert "trusted-data pilot" in rendered
     assert "rank current company blockers first" in rendered
     assert "without importing rows" in rendered
     assert "make dashboard" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
-    assert "make stock-report-md ticker=qqq" in rendered
+    assert "make stock-report-md ticker=meta" in rendered
     assert "make trusted-data-pilot-candidates top_n=10" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -950,6 +953,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
 
     assert proof_trail_index < next_step_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
+    assert "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, then trusted-data pilot." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards())" in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source

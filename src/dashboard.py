@@ -19193,21 +19193,21 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "VISITOR STEP 2",
-            "title": "Read one proof report",
+            "title": "Read the NVDA proof report",
             "body": (
-                "Use the NVDA Markdown report as the strongest demo because it shows ready DCF assumptions, peer context, locked optional context, and source notes."
+                "Use the NVDA Markdown report as the strongest ready-data demo because it shows DCF assumptions, peer context, locked optional context, and source notes."
             ),
             "badges": ["one ticker", "proof report"],
             "command": "make stock-report-md TICKER=NVDA",
         },
         {
             "kicker": "VISITOR STEP 3",
-            "title": "Compare a blocked or excluded case",
+            "title": "Compare META blocked and QQQ excluded",
             "body": (
-                "Open META or QQQ next to see the honest boundaries: blocked company valuation stays blocked, and ETF/index DCF is excluded rather than failed."
+                "Open META next to see company valuation stays blocked until trusted fundamentals are ready; open QQQ to see ETF/index DCF excluded rather than failed."
             ),
-            "badges": ["blocked is useful", "excluded is not failed"],
-            "command": "make stock-report-md TICKER=QQQ",
+            "badges": ["blocked is useful", "excluded is not failed", "optional: QQQ"],
+            "command": "make stock-report-md TICKER=META",
         },
         {
             "kicker": "VISITOR STEP 4",
@@ -19774,7 +19774,7 @@ def render_home_page(
     render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
-    render_section_header("First-Run Proof Trail", "A short path for GitHub or LinkedIn visitors to understand the product without opening spreadsheets or internal files.")
+    render_section_header("First-Run Proof Trail", "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, then trusted-data pilot.")
     render_signal_cards(_plain_home_first_run_path_cards())
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
