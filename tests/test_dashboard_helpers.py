@@ -10376,9 +10376,11 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     cards = dashboard.single_stock_report_intro_cards()
     summary_cards = dashboard.single_stock_report_intro_summary_cards()
     demo_cards = dashboard.single_stock_demo_ticker_cards()
+    demo_picker_cards = dashboard.single_stock_demo_picker_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
     summary_rendered = " ".join(str(value) for card in summary_cards for value in card.values()).lower()
     demo_rendered = " ".join(str(value) for card in demo_cards for value in card.values()).lower()
+    demo_picker_rendered = " ".join(str(value) for card in demo_picker_cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
         "WHAT THIS MEANS",
@@ -10411,14 +10413,24 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=apld" in rendered
     assert "make stock-report-md ticker=nvda" not in summary_rendered
-    assert [card["title"] for card in demo_cards] == ["NVDA", "META or APLD", "QQQ or SMH", "A"]
-    assert "strongest company example" in demo_rendered
-    assert "withholds valuation until trusted fundamentals" in demo_rendered
-    assert "operating-company dcf is excluded rather than failed" in demo_rendered
+    assert dashboard.single_stock_demo_picker_note() == (
+        "Pick a demo state.",
+        "Use these examples to review each stock-evaluation mode before choosing your own ticker.",
+    )
+    assert [card["title"] for card in demo_cards] == ["NVDA", "META", "APLD", "QQQ", "SMH", "A"]
+    assert [card["title"] for card in demo_picker_cards] == ["6 report states", "NVDA", "META", "APLD", "QQQ", "SMH", "A"]
+    assert "richest company example" in demo_rendered
+    assert "company valuation stays blocked until trusted fundamentals and dcf inputs are available" in demo_rendered
+    assert "fundamentals still need proof before dcf or peer-relative valuation" in demo_rendered
+    assert "operating-company dcf and peer valuation are excluded rather than failed" in demo_rendered
+    assert "sector etf monitor context" in demo_rendered
     assert "peer-relative valuation still stays locked" in demo_rendered
+    assert "each command is copy-only and writes a local markdown report" in demo_picker_rendered
     assert "make stock-report-md ticker=nvda" in demo_rendered
     assert "make stock-report-md ticker=meta" in demo_rendered
+    assert "make stock-report-md ticker=apld" in demo_rendered
     assert "make stock-report-md ticker=qqq" in demo_rendered
+    assert "make stock-report-md ticker=smh" in demo_rendered
     assert "make stock-report-md ticker=a" in demo_rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -10435,19 +10447,25 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "trading" not in demo_rendered
     assert "buy" not in demo_rendered
     assert "sell" not in demo_rendered
+    assert "broker" not in demo_picker_rendered
+    assert "order" not in demo_picker_rendered
+    assert "trading" not in demo_picker_rendered
+    assert "buy" not in demo_picker_rendered
+    assert "sell" not in demo_picker_rendered
 
 
 def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
-    demo_index = source.index("render_signal_cards(single_stock_demo_ticker_cards())")
+    note_index = source.index("demo_note_title, demo_note_body = single_stock_demo_picker_note()", summary_index)
+    demo_index = source.index("render_signal_cards(single_stock_demo_picker_cards())")
     expander_index = source.index('st.expander("How single-stock reports work"')
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
     preview_note_index = source.index('render_context_note(\n        "What happens when you open a report."')
     build_button_index = source.index('st.button("Show Local Report"')
 
-    assert summary_index < demo_index < expander_index < full_intro_index < preview_note_index < build_button_index
+    assert summary_index < note_index < demo_index < expander_index < full_intro_index < preview_note_index < build_button_index
     assert 'st.expander("How single-stock reports work", expanded=False)' in source
     assert 'st.expander("Coverage and peer readiness", expanded=False)' in source
     assert 'st.expander("More coverage details", expanded=False)' in source

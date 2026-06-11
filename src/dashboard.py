@@ -5666,34 +5666,71 @@ def single_stock_report_intro_summary_cards() -> list[dict[str, object]]:
 def single_stock_demo_ticker_cards() -> list[dict[str, object]]:
     return [
         {
-            "kicker": "RICH DEMO",
+            "kicker": "DCF + PEERS READY",
             "title": "NVDA",
-            "body": "Use this first when you want the strongest company example: DCF assumptions, peer context, optional-context locks, and source notes.",
-            "badges": ["company", "valuation ready"],
+            "body": "Open this first for the richest company example: DCF assumptions, source-backed peer context, optional-context locks, and source notes.",
+            "badges": ["company", "DCF ready", "peer ready"],
             "command": "make stock-report-md TICKER=NVDA",
         },
         {
-            "kicker": "BLOCKED EXAMPLE",
-            "title": "META or APLD",
-            "body": "Use this when you want to show how the product withholds valuation until trusted fundamentals, DCF fields, or peers are ready.",
-            "badges": ["blocked is useful", "proof path"],
+            "kicker": "FUNDAMENTALS BLOCKED",
+            "title": "META",
+            "body": "Open this when you want to show price/setup context while company valuation stays blocked until trusted fundamentals and DCF inputs are available.",
+            "badges": ["price/setup", "valuation blocked"],
             "command": "make stock-report-md TICKER=META",
         },
         {
-            "kicker": "EXCLUDED EXAMPLE",
-            "title": "QQQ or SMH",
-            "body": "Use this for ETF/index or sector-monitor context where operating-company DCF is excluded rather than failed.",
-            "badges": ["monitor context", "excluded not failed"],
+            "kicker": "EARLY COMPANY REVIEW",
+            "title": "APLD",
+            "body": "Open this for a price/setup report where fundamentals still need proof before DCF or peer-relative valuation can be reviewed.",
+            "badges": ["setup only", "fundamentals next"],
+            "command": "make stock-report-md TICKER=APLD",
+        },
+        {
+            "kicker": "ETF MONITOR",
+            "title": "QQQ",
+            "body": "Open this for ETF/index monitor context where operating-company DCF and peer valuation are excluded rather than failed.",
+            "badges": ["monitor context", "DCF excluded"],
             "command": "make stock-report-md TICKER=QQQ",
+        },
+        {
+            "kicker": "SECTOR MONITOR",
+            "title": "SMH",
+            "body": "Open this for sector ETF monitor context where theme, liquidity, and risk review can be useful without forcing company valuation.",
+            "badges": ["sector context", "valuation excluded"],
+            "command": "make stock-report-md TICKER=SMH",
         },
         {
             "kicker": "STANDALONE DCF",
             "title": "A",
-            "body": "Use this when you want a company DCF review where peer-relative valuation still stays locked until source-backed peer inputs exist.",
+            "body": "Open this for a company DCF review where peer-relative valuation still stays locked until source-backed peer inputs exist.",
             "badges": ["company", "peer locked"],
             "command": "make stock-report-md TICKER=A",
         },
     ]
+
+
+def single_stock_demo_picker_note() -> tuple[str, str]:
+    return (
+        "Pick a demo state.",
+        "Use these examples to review each stock-evaluation mode before choosing your own ticker.",
+    )
+
+
+def single_stock_demo_picker_cards() -> list[dict[str, object]]:
+    cards = single_stock_demo_ticker_cards()
+    return [
+        {
+            "kicker": "DEMO MAP",
+            "title": f"{len(cards)} report states",
+            "body": (
+                "Start with NVDA for the ready company case, then compare a blocked company, an ETF/index monitor, "
+                "a sector monitor, and a standalone DCF case. Each command is copy-only and writes a local Markdown report."
+            ),
+            "badges": ["visitor path", "one ticker at a time"],
+            "command": "make demo",
+        }
+    ] + cards
 
 
 def stock_report_technical_context_frame(report_payload: dict[str, object]) -> pd.DataFrame:
@@ -20328,7 +20365,9 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
             readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
     render_signal_cards(single_stock_report_intro_summary_cards())
-    render_signal_cards(single_stock_demo_ticker_cards())
+    demo_note_title, demo_note_body = single_stock_demo_picker_note()
+    render_context_note(demo_note_title, demo_note_body)
+    render_signal_cards(single_stock_demo_picker_cards())
     with st.expander("How single-stock reports work", expanded=False):
         render_signal_cards(single_stock_report_intro_cards())
 
