@@ -338,6 +338,7 @@ def _fast_status_payload_from_outputs(
         command_rows = _recommended_next_command_rows(sorted_actions, bundles, [] if allowed else problem_sources)
     elif not allowed and not any(str(row.get("Command") or "").strip() == "make trusted-data-pilot TOP_N=10" for row in command_rows):
         command_rows.append(_trusted_data_pilot_command_row())
+    command_rows = _prioritize_public_command_rows(command_rows)
 
     return {
         "project_root": str(root),
@@ -620,6 +621,30 @@ def _trusted_data_pilot_command_row() -> dict[str, str]:
     )
 
 
+def _prioritize_public_command_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Keep the public next-step order aligned with the product roadmap."""
+    deduped: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for row in rows:
+        command = str(row.get("Command") or "").strip()
+        if not command or command in seen:
+            continue
+        seen.add(command)
+        deduped.append(row)
+
+    if len(deduped) <= 2:
+        return deduped
+
+    first = deduped[0]
+    rest = deduped[1:]
+    pilot_rows = [row for row in rest if str(row.get("Command") or "").strip() == "make trusted-data-pilot TOP_N=10"]
+    if not pilot_rows or str(first.get("Command") or "").strip() == "make trusted-data-pilot TOP_N=10":
+        return deduped
+
+    without_pilot = [row for row in rest if str(row.get("Command") or "").strip() != "make trusted-data-pilot TOP_N=10"]
+    return [first, pilot_rows[0], *without_pilot]
+
+
 def _recommended_next_command_rows(
     actions: list[dict[str, Any]],
     bundles: list[dict[str, Any]],
@@ -729,15 +754,7 @@ def _recommended_next_command_rows(
         ]
     )
 
-    deduped: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for row in rows:
-        command = str(row.get("Command") or "").strip()
-        if not command or command in seen:
-            continue
-        seen.add(command)
-        deduped.append(row)
-    return deduped
+    return _prioritize_public_command_rows(rows)
 
 
 def build_project_status_payload(
