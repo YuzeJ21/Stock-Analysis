@@ -590,6 +590,7 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "Read-only operator snapshot." not in output
     assert "Commands below are copy-only local research helpers" in output
     assert "Recommended next local steps:" in output
+    assert "plan trusted data pilot: make trusted-data-pilot top_n=10" in output.lower()
     assert "Local folders:" in output
     assert "data: data" in output
     assert "outputs: outputs" in output
@@ -671,7 +672,11 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     assert guided_row["Step"] == "Open Price Coverage Guided Data Batch (Broader Queue)"
     assert guided_row["Reason"] == "Unlock Monthly Picks for 5 tickers across this guided data batch."
     assert guided_row["FreshnessContext"] == "guided batch generated from current onboarding outputs"
-    import_row = payload["recommended_next_command_rows"][2]
+    pilot_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make trusted-data-pilot TOP_N=10")
+    assert pilot_row["Step"] == "Plan trusted data pilot"
+    assert "5-10 company evidence loop" in pilot_row["Reason"]
+    assert pilot_row["FreshnessContext"] == "read-only guide; run before importing trusted fundamentals or peer rows"
+    import_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
     assert import_row["Step"] == "Review import files"
     assert "Local import files already have rows" in import_row["Reason"]
     assert "import files" in import_row["Reason"]

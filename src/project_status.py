@@ -336,6 +336,8 @@ def _fast_status_payload_from_outputs(
         command_rows = _recommended_next_command_rows(sorted_actions, bundles, [])
     if not command_rows:
         command_rows = _recommended_next_command_rows(sorted_actions, bundles, [] if allowed else problem_sources)
+    elif not allowed and not any(str(row.get("Command") or "").strip() == "make trusted-data-pilot TOP_N=10" for row in command_rows):
+        command_rows.append(_trusted_data_pilot_command_row())
 
     return {
         "project_root": str(root),
@@ -605,6 +607,19 @@ def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> l
     return rows
 
 
+def _trusted_data_pilot_command_row() -> dict[str, str]:
+    return _command_row(
+        "Plan trusted data pilot",
+        "make trusted-data-pilot TOP_N=10",
+        (
+            "Use a 5-10 company evidence loop for fundamentals, DCF, and source-backed peers instead of "
+            "trying to unlock the full universe at once."
+        ),
+        source_context="trusted local CSVs plus SEC/manual review paths",
+        freshness_context="read-only guide; run before importing trusted fundamentals or peer rows",
+    )
+
+
 def _recommended_next_command_rows(
     actions: list[dict[str, Any]],
     bundles: list[dict[str, Any]],
@@ -688,6 +703,8 @@ def _recommended_next_command_rows(
                     freshness_context=_freshness_context(top_bundle, fallback="guided batch generated from current onboarding outputs"),
                 )
             )
+
+    rows.append(_trusted_data_pilot_command_row())
 
     problem_source_rows = _recommended_source_command_rows(problem_sources)
     if problem_source_rows:
