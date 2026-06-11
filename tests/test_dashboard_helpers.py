@@ -425,10 +425,10 @@ def test_sidebar_navigation_note_matches_selected_page():
     assert portfolio_title == "Review portfolio context."
     assert "holding purpose" in portfolio_body
     assert "without creating portfolio actions" in portfolio_body
-    assert unknown_title == "Viewing Unknown Page."
-    assert "selected review area" in unknown_body
+    assert unknown_title == "Review this page."
+    assert "Unknown Page as a local research view" in unknown_body
     assert "return to Home" in unknown_body
-    public_titles = [home_title, report_title, health_title, monthly_title]
+    public_titles = [home_title, report_title, health_title, monthly_title, unknown_title]
     assert all(not title.startswith("Viewing ") for title in public_titles)
 
 
@@ -550,7 +550,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Home -> Single-Stock Report -> Data Health" in source
     assert "Turn on page tips only when you want extra review context" in source
     assert "Turn on guided help only when you want extra review routes" not in source
-    assert 'st.expander("Recommended route", expanded=False)' in source
+    assert 'st.expander("Best beginner path", expanded=False)' in source
     assert 'render_context_note(\n                "Start simple."' in source
     assert 'render_context_note(\n            "Recommended route."' not in source
     assert 'st.expander("How to use the path", expanded=False)' not in source
@@ -558,7 +558,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
     assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Copy-only local commands"' in source
+    assert 'st.expander("Local commands to copy"' in source
     assert 'st.expander("Quick reading guide"' not in source
     assert 'st.expander("Need help?"' not in source
     assert 'st.header("Explore")' in source
@@ -571,7 +571,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Detailed research views remain available" in source
     assert '"Page to review"' not in source
     assert "Start with Home, then open one focused page" not in source
-    assert "Simple path." in source
+    assert "Copy only." in source
     assert "Start with Home for the coverage snapshot." in source
     assert "Review one stock when you want a ticker-level report." in source
     assert "Explore ready names only after local coverage is sufficient." in source

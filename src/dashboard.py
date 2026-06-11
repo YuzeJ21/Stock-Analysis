@@ -180,8 +180,8 @@ def sidebar_navigation_note(selected_page: str) -> tuple[str, str]:
             "Use this page to review local holding purpose, concentration, and risk context without creating portfolio actions.",
         )
     return (
-        f"Viewing {selected_page}.",
-        "Use this page for the selected review area. If you feel lost, return to Home for the plain-language readiness summary.",
+        "Review this page.",
+        f"Use {format_missing(selected_page, 'this page')} as a local research view. If you feel lost, return to Home for the plain-language readiness summary.",
     )
 
 
@@ -22362,15 +22362,15 @@ def main() -> None:
         st.divider()
         note_title, note_body = sidebar_navigation_note(selected_page)
         render_context_note(note_title, note_body, tone="success")
-        with st.expander("Recommended route", expanded=False):
+        with st.expander("Best beginner path", expanded=False):
             render_context_note(
                 "Start simple.",
                 "Home -> Single-Stock Report -> Data Health. Turn on page tips only when you want extra review context.",
             )
             render_sidebar_route_steps(dashboard_navigation_cards())
-        with st.expander("Copy-only local commands", expanded=False):
+        with st.expander("Local commands to copy", expanded=False):
             render_context_note(
-                "Simple path.",
+                "Copy only.",
                 " ".join(sidebar_quick_help_lines()),
             )
             st.code(
