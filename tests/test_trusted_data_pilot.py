@@ -4,6 +4,7 @@ from src.trusted_data_pilot import (
     pilot_operator_decision,
     pilot_rank_reason,
     pilot_review_path,
+    pilot_selection_brief,
     pilot_trusted_row_path,
     render_trusted_data_pilot_candidates,
     render_trusted_data_pilot_packet,
@@ -243,6 +244,54 @@ def test_pilot_operator_decision_keeps_each_lane_data_honest():
     assert "sell" not in rendered
 
 
+def test_pilot_selection_brief_explains_how_to_choose_small_pilot():
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            }
+        ],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs source-backed peer mappings",
+                "focus_command": "make focus-peers TICKER=MU",
+            }
+        ],
+        [
+            {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "MU", "asset_type": "company", "in_active_universe": "True"},
+        ],
+        top_n=10,
+    )
+
+    brief = "\n".join(pilot_selection_brief(candidates))
+
+    assert "choose 5-10 operating companies only when you can review source proof" in brief
+    assert "2 active-universe candidate(s)" in brief
+    assert "Fundamentals / DCF unlock: 1" in brief
+    assert "Peer mapping unlock: 1" in brief
+    assert "make trusted-data-pilot TICKERS=MU,META TOP_N=2" in brief
+    assert "before report, lane review, trusted source row" in brief
+    assert "keep that ticker blocked and move to the next candidate" in brief
+    assert "placeholder" in brief
+    assert "recommend" not in brief.lower()
+
+
+def test_pilot_selection_brief_handles_empty_queue_without_forcing_data():
+    brief = "\n".join(pilot_selection_brief([]))
+
+    assert "no company candidates matched" in brief
+    assert "do not force a pilot" in brief
+    assert "before importing rows" in brief
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -264,6 +313,10 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "Read-only: this command ranks current local blockers" in rendered
     assert "does not refresh, import, edit CSVs, or change readiness outputs" in rendered
     assert "Pilot lanes are plain-English unlock paths" in rendered
+    assert "How to choose the pilot:" in rendered
+    assert "Pilot selection rule: choose 5-10 operating companies only when you can review source proof" in rendered
+    assert "Suggested pilot command after choosing names: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
+    assert "Useful pilot win: before report, lane review, trusted source row" in rendered
     assert "1. META - Fundamentals / DCF unlock" in rendered
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares outstanding." in rendered
     assert "Operator decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered

@@ -233,6 +233,32 @@ def pilot_decision_gate(candidate: PilotCandidate) -> str:
     )
 
 
+def pilot_selection_brief(candidates: list[PilotCandidate]) -> list[str]:
+    """Return concise operator guidance for choosing a small trusted-data pilot."""
+
+    if not candidates:
+        return [
+            "Pilot selection rule: no company candidates matched the current filters, so do not force a pilot.",
+            "Next move: rebuild readiness outputs or choose a different company filter before importing rows.",
+        ]
+
+    active_count = sum(1 for candidate in candidates if candidate.active_universe)
+    lane_counts: dict[str, int] = {}
+    for candidate in candidates:
+        lane_counts[candidate.lane] = lane_counts.get(candidate.lane, 0) + 1
+    lane_summary = ", ".join(
+        f"{pilot_lane_label(lane)}: {count}" for lane, count in sorted(lane_counts.items())
+    )
+    suggested = ",".join(candidate.ticker for candidate in candidates[: min(10, len(candidates))])
+    return [
+        "Pilot selection rule: choose 5-10 operating companies only when you can review source proof for the missing input.",
+        f"Current short list: {active_count} active-universe candidate(s); lane mix: {lane_summary}.",
+        f"Suggested pilot command after choosing names: make trusted-data-pilot TICKERS={suggested} TOP_N={min(10, len(candidates))}",
+        "Useful pilot win: before report, lane review, trusted source row, validate/preview/apply if rows change, rebuilt readiness, after report, and any still-blocked reason.",
+        "If source proof is unavailable, keep that ticker blocked and move to the next candidate rather than filling placeholder data.",
+    ]
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -385,6 +411,9 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             f"Top {min(top_n, len(candidates))} operating-company candidates:",
             "ETF/index monitor examples such as QQQ and SMH are excluded from this company pilot queue.",
             "Pilot lanes are plain-English unlock paths; they do not mean the missing data is available yet.",
+            "",
+            "How to choose the pilot:",
+            *[f"- {line}" for line in pilot_selection_brief(candidates)],
             "",
         ]
     )
