@@ -1031,10 +1031,10 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "no data, no conclusion" in rendered
     assert "earnings and analyst estimates are not broken" in rendered
     assert "optional context is available" in rendered
-    assert "prove the unlock before reading conclusions" in rendered
+    assert "prove the new state before reading conclusions" in rendered
     assert "rerun readiness before interpreting changed cards" in rendered
     assert "review the local status snapshot and reopen home" in rendered
-    assert "do not try to unlock the full universe at once" in rendered
+    assert "do not try to make the full universe analysis-ready at once" in rendered
     assert "small trusted-data pilot" in rendered
     assert "source proof is missing" in rendered
     assert "move to the next candidate" in rendered

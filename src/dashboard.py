@@ -19516,7 +19516,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
         },
         {
             "kicker": "PROOF PATH",
-            "title": "Prove the unlock before reading conclusions",
+            "title": "Prove the new state before reading conclusions",
             "body": (
                 "After a refresh or import, rerun readiness before interpreting changed cards. "
                 "Then review the local status snapshot and reopen Home so ready and locked counts are current."
@@ -19528,7 +19528,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "kicker": "PILOT PATH",
             "title": "Improve 5-10 companies first",
             "body": (
-                "Do not try to unlock the full universe at once. Start with the read-only candidate list for a small "
+                "Do not try to make the full universe analysis-ready at once. Start with the read-only candidate list for a small "
                 "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists. "
                 "Inspect one company packet before applying rows; if source proof is missing, keep the ticker visibly blocked "
                 "and move to the next candidate."
