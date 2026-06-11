@@ -20095,8 +20095,8 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         render_signal_cards(single_stock_report_intro_cards())
 
     render_context_note(
-        "What this button does.",
-        "Show Local Report reads the selected source and displays the result on this page. It does not refresh prices, import files, or run external actions.",
+        "What happens when you open a report.",
+        "Show Local Report displays the selected local ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
     )
     if st.button("Show Local Report", key="single-stock-report-button"):
         if not ticker:

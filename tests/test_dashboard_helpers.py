@@ -10267,7 +10267,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     summary_index = source.index("render_signal_cards(single_stock_report_intro_summary_cards())")
     expander_index = source.index('st.expander("How single-stock reports work"')
     full_intro_index = source.index("render_signal_cards(single_stock_report_intro_cards())")
-    preview_note_index = source.index('render_context_note(\n        "What this button does."')
+    preview_note_index = source.index('render_context_note(\n        "What happens when you open a report."')
     build_button_index = source.index('st.button("Show Local Report"')
 
     assert summary_index < expander_index < full_intro_index < preview_note_index < build_button_index
@@ -10279,7 +10279,7 @@ def test_single_stock_page_keeps_full_intro_collapsed_before_build():
     assert 'metric("Peer File"' in source
     assert 'metric("Peer Dataset"' not in source
     assert "Preview action." not in source
-    assert "It does not refresh prices, import files, or run external actions." in source
+    assert "It does not refresh prices, import files, or contact external accounts." in source
 
 
 def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance():
