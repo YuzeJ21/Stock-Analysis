@@ -104,8 +104,9 @@ def test_dashboard_preview_asset_uses_three_public_paths_in_order():
 
     assert review_index < improve_index < explore_index
     assert "Stock Research Command Center dashboard preview" in svg
-    assert "Public Demo Walkthrough" in svg
-    assert "MU proof path: mapped-peer valuation inputs stay locked until verified rows exist" in svg
+    assert "Public Demo" in svg
+    assert "MU peer-input and CRDO fundamentals-gated proof paths" in svg
+    assert "Pilot outcomes: Supported, Still blocked, or Skip after proof" in svg
     assert "research-only" in svg
 
 
