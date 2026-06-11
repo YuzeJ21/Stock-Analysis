@@ -7,7 +7,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Mode: `DCF-ready review`.
 - Decision view: Research Candidate - Core Data Ready.
 - DCF: Ready for scenario review.
-- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base scenario fair value/share is $143.42 as scenario math.
+- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base scenario fair value/share is $143.42 as scenario math, not a price target.
 - Peer context: Ready for source-backed peer review.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.

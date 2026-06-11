@@ -7,7 +7,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Mode: `Standalone DCF review`.
 - Decision view: Research Candidate - DCF Ready But Peer Blocked.
 - DCF: Ready for scenario review.
-- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base scenario fair value/share is $79.75 as scenario math.
+- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base scenario fair value/share is $79.75 as scenario math, not a price target.
 - Peer context: Locked until source-backed peer inputs are ready.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.

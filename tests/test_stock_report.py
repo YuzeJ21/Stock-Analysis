@@ -483,7 +483,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Decision view:" in markdown
     assert "- DCF: Ready for scenario review." in markdown
     assert "- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base scenario fair value/share is $" in markdown
-    assert "as scenario math" in markdown
+    assert "as scenario math, not a price target" in markdown
     assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
     assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
     assert "- Method: project readiness gates decide what can appear" in markdown

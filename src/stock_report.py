@@ -1931,9 +1931,9 @@ def _stock_report_at_a_glance_lines(
         )
     elif dcf_status_text == "ready":
         fair_value_note = (
-            f"; base scenario fair value/share is {_format_money(fair_value)} as scenario math"
+            f"; base scenario fair value/share is {_format_money(fair_value)} as scenario math, not a price target"
             if fair_value is not None
-            else "; review the DCF section for scenario math"
+            else "; review the DCF section for scenario math, not a price target"
         )
         valuation_support = f"Standalone DCF assumptions and sensitivity are reviewable{fair_value_note}."
         method_line = (
