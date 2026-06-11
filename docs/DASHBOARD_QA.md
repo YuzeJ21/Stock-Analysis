@@ -49,3 +49,17 @@ Boundary checked:
 
 - The changes stay copy-only and research-only.
 - No generated CSV/JSON churn was published with the UI copy pass.
+
+## 2026-06-10 Public Navigation And Data Strategy Pass
+
+Checked pages and docs:
+
+- Sidebar: confirmed the main navigation control reads `Choose your path` and exposes `Review one stock`, `Improve data coverage`, and `Explore ready names` before advanced pages.
+- Sidebar: confirmed detailed pages remain available under `Advanced pages`, so deep research views are not removed.
+- Home: confirmed the first-run proof trail shows copyable commands for the dashboard, one proof report, one blocked/excluded example, and the trusted-data pilot.
+- Data Strategy: confirmed the Automation Boundary table separates repeatable checks from human-reviewed source judgment.
+
+Boundary checked:
+
+- Commands remain copy-only; the dashboard does not execute refreshes, imports, broker actions, or trades from the UI.
+- Data coverage guidance still requires trusted source rows for fundamentals, peers, earnings, analyst estimates, and valuation inputs.
