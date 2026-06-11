@@ -324,6 +324,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
         "Decision gate: continue only if you have trusted SEC or manual fundamentals rows for the missing DCF fields"
         in rendered
     )
+    assert "Decision gate: Decision gate:" not in rendered
     assert "do not apply placeholder rows just to make the report look complete" in rendered
     assert "fundamentals_dcf" not in rendered
     assert "Packet command: make trusted-data-pilot-packet TICKER=META" in rendered
@@ -373,6 +374,7 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
         "Decision gate: continue only if you have source-backed peer relationships, not sector or industry similarity alone"
         in rendered
     )
+    assert "Decision gate: Decision gate:" not in rendered
     assert "leave peer valuation blocked and show peer context only when supported" in rendered
     assert "6. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
     assert "7. make readiness && make dcf-readiness" not in rendered

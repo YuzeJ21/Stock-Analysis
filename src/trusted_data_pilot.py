@@ -426,7 +426,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Rank reason: {pilot_rank_reason(candidate)}",
                 f"   Missing input: {plain_pilot_input_copy(candidate.missing_input)}",
                 f"   Operator decision: {pilot_operator_decision(candidate)}",
-                f"   Decision gate: {pilot_decision_gate(candidate)}",
+                f"   {pilot_decision_gate(candidate)}",
                 f"   Packet command: make trusted-data-pilot-packet TICKER={candidate.ticker}",
                 f"   Lane check: {candidate.next_command}",
                 f"   Review path: {pilot_review_path(candidate.validation_path)}",
