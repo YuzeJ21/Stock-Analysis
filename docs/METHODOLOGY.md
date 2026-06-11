@@ -226,12 +226,12 @@ Single-stock reports are assembled from the same gates and calculations:
 - At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step.
 - Reader Guide: answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and the next copy-only command.
 - Evaluation Snapshot: summarizes supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before the detailed sections.
-- Best Review Path: tells the reader whether to review DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
+- Best Review Path: tells the reader whether to review DCF and peers, prove fundamentals are available, use monitor context, or start with price coverage.
 - What can be analyzed now.
 - Which mode applies: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data needed before analysis.
 - Which calculations ran and which assumptions were used.
 - Which sections are blocked or excluded.
-- What local input would unlock the next useful research step.
+- What local input would prove the next useful research step is available.
 - Copyable Proof Commands for local, capped, research-only follow-up workflows.
 - Which sources were used and how fresh they are.
 

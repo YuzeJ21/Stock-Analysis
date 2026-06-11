@@ -4425,7 +4425,7 @@ def stock_report_fundamentals_quality_cards(report_payload: dict[str, object]) -
         next_command = report_command
         next_badges = ["proof first", "no price target"]
     elif price_ready:
-        next_title = "Unlock fundamentals before valuation"
+        next_title = "Prove fundamentals before valuation"
         next_body = (
             f"Price/setup context can be reviewed for {ticker or 'this ticker'}, but company valuation stays locked until "
             f"trusted fundamentals fill {missing_text} and `make dcf-readiness` confirms the gate. "
@@ -4502,7 +4502,7 @@ def stock_report_evaluation_summary_frame(report_payload: dict[str, object]) -> 
         mode = "Price/setup review only"
         supported = "Price/setup review and missing-data diagnosis."
         withheld = "Company valuation remains blocked until trusted fundamentals and DCF inputs are ready."
-        next_review = "Use Data Health or the next-step cards to unlock fundamentals before valuation review."
+        next_review = "Use Data Health or the next-step cards to prove fundamentals are available before valuation review."
     else:
         mode = "Data needed before analysis"
         supported = "Data readiness review only."
@@ -4709,7 +4709,7 @@ def stock_report_best_review_path_cards(
         first_command = ticker_focus_command("peers", ticker, fallback="make templates")
         first_badges = ["standalone DCF", "peer locked"]
     else:
-        first_title = "Unlock fundamentals before valuation"
+        first_title = "Prove fundamentals before valuation"
         first_body = (
             "Start with DCF Input Triage and Missing-Data Proof Summary. Company valuation stays blocked until trusted fundamentals "
             "and DCF inputs are ready."
@@ -5954,7 +5954,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_badges = ["price first", "dry run first"]
     elif fundamentals_ready < price_ready:
         gap = max(price_ready - fundamentals_ready, 0)
-        first_title = "Unlock fundamentals before valuation"
+        first_title = "Prove fundamentals before valuation"
         first_body = (
             f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
             "Missing fundamentals are an input gap, not a negative company signal. Review the fundamentals list first, then stage SEC or trusted manual rows only when sources are ready. "
@@ -9410,7 +9410,7 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
         },
         {
             "kicker": "COPY NEXT",
-            "title": "Prove the fundamentals unlock before DCF",
+            "title": "Prove fundamentals are available before DCF",
             "body": (
                 "Inspect the next ticker, stage only trusted SEC or manual fundamentals rows, then validate and preview before apply. "
                 "Rebuild DCF readiness and overall readiness before treating fundamentals or DCF as available."

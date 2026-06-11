@@ -8366,7 +8366,7 @@ def test_stock_report_fundamentals_quality_cards_explain_dcf_input_readiness():
     assert "review assumptions and source readiness" in rendered
     assert "partial fundamentals context" in rendered
     assert "missing: fcf margin" in rendered
-    assert "unlock fundamentals before valuation" in rendered
+    assert "prove fundamentals before valuation" in rendered
     assert "price/setup context can be reviewed for meta" in rendered
     assert "make dcf-readiness" in rendered
     assert "fundamentals need data" in rendered
@@ -9303,7 +9303,7 @@ def test_data_health_quick_read_cards_prioritize_first_unlock_lane_without_execu
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED"]
-    assert cards[0]["title"] == "Unlock fundamentals before valuation"
+    assert cards[0]["title"] == "Prove fundamentals before valuation"
     assert cards[0]["command"] == "make sec-stage-queue TOP_N=25"
     assert "217 price-ready row(s) still need trusted fundamentals" in rendered
     assert "not a negative company signal" in rendered
@@ -15329,7 +15329,7 @@ def test_data_health_fundamentals_unlock_cards_summarize_next_row_before_table()
     assert "fair value/share, and peer-relative valuation stay locked" in rendered
     assert "boundary: do not label the ticker undervalued, overvalued, or dcf-ready" in rendered
     assert "stage only trusted sec or manual fundamentals rows" in rendered
-    assert "prove the fundamentals unlock before dcf" in rendered
+    assert "prove fundamentals are available before dcf" in rendered
     assert "inspect the next ticker, stage only trusted sec or manual fundamentals rows" in rendered
     assert "before treating fundamentals or dcf as available" in rendered
     assert "next proof: validate and preview trusted fundamentals, apply only reviewed rows, then rebuild dcf readiness" in rendered
