@@ -19071,11 +19071,11 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "research review summary" in rendered
     assert "purpose alignment needs review" in rendered
     assert "supported analysis" in rendered
-    assert "unsupported analysis" in rendered
+    assert "currently withheld" in rendered
     assert "peer-relative context is incomplete" in rendered
     assert "operating-company dcf is excluded" in rendered
     assert cards[0]["title"] == "2 active ticker(s)"
-    assert "research review summary plus purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
+    assert "research review summary plus purpose, setup, valuation, supported analysis, currently withheld analysis" in rendered_cards
     assert "purpose check" in rendered_cards
     assert "purpose groups" in rendered_cards
     assert "next question" in rendered_cards
@@ -19263,7 +19263,7 @@ def test_active_evaluation_lane_detail_groups_runbook_without_overclaiming():
                 "exact_command": "make stock-report TICKER=QQQ",
                 "review_command": "make stock-report TICKER=QQQ",
                 "data_unlock_command": "",
-                "validation_sequence": "make stock-report TICKER=<ticker> -> compare purpose, supported analysis, unsupported analysis, and source readiness notes",
+                "validation_sequence": "make stock-report TICKER=<ticker> -> compare purpose, supported analysis, currently withheld analysis, and source readiness notes",
                 "withheld_conclusion": "Operating-company DCF is excluded for ETF/index-proxy monitoring.",
                 "next_operator_step": "Open QQQ's stock report and compare market-proxy context.",
                 "reason": "ETF monitor context.",

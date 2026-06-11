@@ -193,7 +193,7 @@ def test_purpose_evaluation_drilldown_prioritizes_active_rows_and_separates_peer
     assert drilldown.iloc[0]["peer_trend_status"] == "peer trend possible"
     assert drilldown.iloc[0]["peer_valuation_status"] == "peer valuation blocked"
     assert "Supported analysis:" in drilldown.iloc[0]["supported_analysis"]
-    assert "Unsupported analysis:" in drilldown.iloc[0]["unsupported_analysis"]
+    assert "Currently withheld:" in drilldown.iloc[0]["unsupported_analysis"]
     assert "source-backed peers" in drilldown.iloc[0]["next_research_question"]
     assert "Risk watchpoint:" in drilldown.iloc[0]["risk_watchpoint"]
     assert "Invalidate" in drilldown.iloc[0]["invalidation_condition"]

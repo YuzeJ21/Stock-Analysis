@@ -4799,7 +4799,7 @@ def stock_report_methodology_frame(report_payload: dict[str, object]) -> pd.Data
             {
                 "Step": "5. Report explanation",
                 "Method": "Explain ready, blocked, excluded, and optional-context states in plain language.",
-                "Plain Meaning": "Unsupported analysis is explained instead of filled.",
+                "Plain Meaning": "Currently withheld analysis is named clearly instead of filled.",
             },
         ]
     )
@@ -10576,6 +10576,9 @@ def _active_brief_existing_or(row: pd.Series, column: str, fallback: str) -> str
     if existing and existing.lower() != "not available":
         if column == "confidence_explanation":
             existing = existing.replace("Confidence is ", "Data confidence is ")
+        if column == "unsupported_analysis":
+            existing = existing.replace("Unsupported analysis:", "Currently withheld:")
+            existing = existing.replace("Unsupported analysis remains withheld", "Currently withheld analysis remains unavailable")
         return existing
     return fallback
 
@@ -10637,8 +10640,8 @@ def _active_brief_supported_analysis(row: pd.Series) -> str:
 def _active_brief_unsupported_analysis(row: pd.Series) -> str:
     unsupported = first_meaningful_text(row.get("missing_data"), row.get("blocked_features"), row.get("excluded_features"), fallback="")
     if unsupported:
-        return f"Unsupported analysis: {unsupported}."
-    return "Unsupported analysis: any missing fundamentals, peers, earnings, or analyst estimates remain withheld rather than inferred."
+        return f"Currently withheld: {unsupported}."
+    return "Currently withheld: any missing fundamentals, peers, earnings, or analyst estimates remain withheld rather than inferred."
 
 
 def _active_brief_risk_watchpoint(row: pd.Series) -> str:
@@ -10706,7 +10709,7 @@ def _active_brief_evaluation_summary(row: pd.Series) -> str:
         )
     blocker = first_meaningful_text(row.get("primary_blocker"), row.get("missing_data"), fallback="none")
     unsupported = compact_reason(
-        first_meaningful_text(row.get("unsupported_analysis"), row.get("valuation_evaluation"), fallback="Unsupported analysis remains withheld when inputs are missing."),
+        first_meaningful_text(row.get("unsupported_analysis"), row.get("valuation_evaluation"), fallback="Currently withheld analysis remains unavailable when inputs are missing."),
         max_sentences=1,
         max_chars=150,
     )
@@ -10940,7 +10943,7 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
         {
             "kicker": "ACTIVE BRIEFS",
             "title": f"{len(frame)} active ticker(s)",
-            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs include a research review summary plus purpose, setup, valuation, supported and unsupported analysis, risk, invalidation, and next question.",
+            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs include a research review summary plus purpose, setup, valuation, supported analysis, currently withheld analysis, risk, invalidation, and next question.",
             "badges": ["analysis layer", "row-limited"],
             "command": top_command,
         },
@@ -11098,7 +11101,7 @@ def active_evaluation_validation_sequence(row: pd.Series) -> str:
         return f"make focus-price TICKER={ticker} -> run capped refresh or stage OHLCV -> make imports-validate -> make imports-preview -> make imports-apply"
     if "optional" in lane:
         return "make templates -> fill trusted earnings or analyst estimates CSV -> make imports-validate -> make imports-preview -> make imports-apply"
-    return f"{stock_report_md_command(ticker)} -> compare purpose, supported analysis, unsupported analysis, and source readiness notes"
+    return f"{stock_report_md_command(ticker)} -> compare purpose, supported analysis, currently withheld analysis, and source readiness notes"
 
 
 def active_evaluation_withheld_conclusion(row: pd.Series) -> str:

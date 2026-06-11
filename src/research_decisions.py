@@ -488,8 +488,8 @@ def _unsupported_analysis(asset_type: str, watch_row: pd.Series, blocked: list[s
     if family == "speculative" and "price" in blocked:
         unsupported.append("speculative setup and volatility read")
     if not unsupported:
-        return "Unsupported analysis: no major blocked analysis areas are listed, but conclusions still depend on source readiness and assumptions."
-    return f"Unsupported analysis: {', '.join(dict.fromkeys(unsupported))}."
+        return "Currently withheld: no major locked analysis areas are listed, but conclusions still depend on source readiness and assumptions."
+    return f"Currently withheld: {', '.join(dict.fromkeys(unsupported))}."
 
 
 def _risk_watchpoint(asset_type: str, watch_row: pd.Series, ready: list[str], blocked: list[str]) -> str:

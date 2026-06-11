@@ -210,6 +210,15 @@ def _first_row_text(row: pd.Series, *columns: str, fallback: str = "") -> str:
     return fallback
 
 
+def _withheld_text(text: object) -> str:
+    cleaned = text_value(text)
+    if not cleaned:
+        return ""
+    cleaned = cleaned.replace("Unsupported analysis:", "Currently withheld:")
+    cleaned = cleaned.replace("Unsupported analysis remains withheld", "Currently withheld analysis remains unavailable")
+    return cleaned
+
+
 def _sample_tickers(values: pd.Series, limit: int = 8) -> str:
     tickers = [text_value(value).upper() for value in values if text_value(value)]
     return ", ".join(list(dict.fromkeys(tickers).keys())[:limit])
@@ -253,11 +262,14 @@ def _drilldown_supported_analysis(row: pd.Series) -> str:
 
 def _drilldown_unsupported_analysis(row: pd.Series) -> str:
     if _drilldown_is_monitor(row):
-        return "Unsupported analysis: operating-company DCF and peer valuation are excluded for ETF/index/fund monitor context."
+        return "Currently withheld: operating-company DCF and peer valuation are excluded for ETF/index/fund monitor context."
     unsupported = _first_row_text(row, "unsupported_analysis", "missing_data", "blocked_features", "excluded_features")
     if unsupported:
-        return f"Unsupported analysis: {unsupported}."
-    return "Unsupported analysis remains withheld when fundamentals, peers, earnings, or analyst estimates are unavailable."
+        normalized = _withheld_text(unsupported)
+        if normalized.lower().startswith("currently withheld"):
+            return normalized
+        return f"Currently withheld: {normalized}."
+    return "Currently withheld analysis remains unavailable when fundamentals, peers, earnings, or analyst estimates are unavailable."
 
 
 def _drilldown_next_question(row: pd.Series) -> str:
@@ -486,6 +498,7 @@ def build_purpose_evaluation_drilldown(
     _fill_drilldown_text(frame, "purpose_alignment", lambda row: f"{text_value(row.get('purpose_status'), 'Purpose status')} for current local data.")
     _fill_drilldown_text(frame, "supported_analysis", _drilldown_supported_analysis)
     _fill_drilldown_text(frame, "unsupported_analysis", _drilldown_unsupported_analysis)
+    frame["unsupported_analysis"] = frame["unsupported_analysis"].apply(_withheld_text)
     _fill_drilldown_text(frame, "next_research_question", _drilldown_next_question)
     _fill_drilldown_text(frame, "risk_watchpoint", _drilldown_risk_watchpoint)
     _fill_drilldown_text(frame, "invalidation_condition", _drilldown_invalidation_condition)
