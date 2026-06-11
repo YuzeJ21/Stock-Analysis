@@ -4028,7 +4028,7 @@ def build_active_universe_unlock_frame(
                 "rejected_status": format_missing(import_row.get("rejected_status"), "Not available"),
                 "rejected_row_count": int(import_row.get("rejected_row_count") or 0),
                 "source_freshness_note": source_freshness_note,
-                "copy_only_note": "Copy-only command; the dashboard does not execute imports or refreshes.",
+                "copy_only_note": "Copy-only command; the dashboard does not run imports or refreshes.",
             }
         )
 
@@ -4112,7 +4112,7 @@ def build_active_universe_drilldown_frame(
                     f"Readiness updated {format_missing(readiness_row.get('updated_at'), 'not available')}; "
                     f"rejected-row status from {format_missing(import_row.get('rejected_report'), 'dataset report')}."
                 ),
-                "copy_only_note": "Copy-only drilldown; the dashboard does not execute imports or refreshes.",
+                "copy_only_note": "Copy-only drilldown; the dashboard does not run imports or refreshes.",
             }
         )
 
@@ -20646,7 +20646,7 @@ def render_market_command_center(
         st.info("No peer review rows match the current filter. Try All peer-blocked or run make readiness.")
     else:
         st.caption(
-            f"Showing {len(peer_studio)} peer review row(s). Use make peer-mapping-queue TOP_N=25 or focus commands before editing peer import files."
+            f"Showing {len(peer_studio)} peer review row(s). Use make peer-mapping-queue TOP_N=25 or ticker-specific review commands before editing peer import files."
         )
         peer_columns = peer_mapping_studio_table_columns(peer_studio)
         st.dataframe(clean_display_frame(peer_studio[peer_columns]), width="stretch", hide_index=True)
