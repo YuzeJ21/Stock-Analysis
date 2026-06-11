@@ -26,6 +26,12 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Next proof: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 - Stop rule: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Proof Checklist
+- Current mode proof: `Monitor-only context` because asset-type gate marks this as monitor context, so company DCF and peer valuation are excluded.
+- Next unlock proof: `make stock-report-md TICKER=QQQ` after any local data changes.
+- Withhold until proven: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- Manual check: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
+
 ## Best Review Path
 - First read: Start with monitor context. Operating-company DCF and peer-relative company valuation are excluded, so review market, theme, liquidity, and risk context only.
 - Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.
@@ -120,8 +126,8 @@ QQQ overall readiness: partial because monitor context is usable while company v
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: ETF / Defensive / Hedge. Evaluate as market, theme, liquidity, or risk context; operating-company valuation remains excluded.
 - Alignment: ETF / Defensive / Hedge is evaluated as market/risk context when price, liquidity, and correlation data are ready; operating-company valuation is not applicable.
-- Research review summary: Monitor context; Monitor - ETF Market Proxy. Withheld: operating-company DCF and peer valuation are excluded. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
-- Setup: Setup Forming; final state: Setup Forming. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Research review summary: Monitor context; Monitor - ETF Market Proxy. Withheld: operating-company DCF and peer valuation are excluded. Review the readiness sections below before drawing conclusions.
+- Setup: Setup Forming; final state: Setup Forming. Review the readiness sections below before drawing conclusions.
 - Valuation boundary: Operating-company DCF is excluded for this asset type; use market/risk context instead of valuation conclusions.
 
 ## Supported Analysis
@@ -131,7 +137,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Currently withheld: fundamental quality and operating-company valuation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, operating-company DCF conclusions.
 
 ## Setup / Momentum
-- Setup Forming; final state: Setup Forming. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Setup Forming; final state: Setup Forming. Review the readiness sections below before drawing conclusions.
 - 1M performance: 8.4%
 - 3M performance: Not available
 - 1Y performance: Not available

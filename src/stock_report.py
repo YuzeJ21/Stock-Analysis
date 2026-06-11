@@ -1727,6 +1727,46 @@ def _stock_report_evaluation_snapshot_lines(
     ]
 
 
+def _stock_report_proof_checklist_lines(
+    *,
+    ticker: str,
+    report_mode: str,
+    dcf_status_text: str,
+    monitor_context: bool,
+    price_ready: bool,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+    next_action: str,
+    locked_now: str,
+) -> list[str]:
+    if not price_ready:
+        evidence = "trusted local price history is not ready, so this report is an unlock checklist."
+        next_proof = f"`make focus-price TICKER={ticker}` followed by readiness rebuild."
+    elif monitor_context:
+        evidence = "asset-type gate marks this as monitor context, so company DCF and peer valuation are excluded."
+        next_proof = f"`make stock-report-md TICKER={ticker}` after any local data changes."
+    elif dcf_status_text == "ready" and bool(peer_ready):
+        evidence = "price, fundamentals, DCF, and source-backed peer inputs passed local readiness."
+        if bool(earnings_ready) and bool(estimates_ready):
+            next_proof = f"`make stock-report-md TICKER={ticker}` after source-readiness review."
+        else:
+            next_proof = f"`make optional-context-worklist TICKERS={ticker} TOP_N=10` only if trusted optional rows exist."
+    elif dcf_status_text == "ready":
+        evidence = "standalone DCF passed local readiness, while peer-relative valuation remains locked."
+        next_proof = f"`make focus-peers TICKER={ticker}` with source-backed peer mappings and peer inputs."
+    else:
+        evidence = "price/setup may be usable, but fundamentals or DCF inputs have not passed readiness."
+        next_proof = f"`make focus-fundamentals TICKER={ticker}` before reviewing company valuation."
+
+    return [
+        f"- Current mode proof: `{report_mode}` because {evidence}",
+        f"- Next unlock proof: {next_proof}",
+        f"- Withhold until proven: {_sentence_value(locked_now)}.",
+        f"- Manual check: {_sentence_value(_humanize_schema_terms(next_action), 'No next local action is available')}.",
+    ]
+
+
 def _stock_report_best_review_path_lines(
     *,
     ticker: str,
@@ -2532,6 +2572,18 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         next_action=one_minute_next,
         valuation_snapshot=payload.get("valuation_snapshot", {}),
     )
+    proof_checklist_lines = _stock_report_proof_checklist_lines(
+        ticker=report.ticker,
+        report_mode=report_mode,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        next_action=one_minute_next,
+        locked_now=locked_now,
+    )
     mode_guide_lines = _stock_report_mode_guide_lines(report_mode)
     reader_guide_lines = _stock_report_reader_guide_lines(
         dcf_status_text=dcf_status_text,
@@ -2608,6 +2660,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         "",
         "## Evaluation Snapshot",
         *evaluation_snapshot_lines,
+        "",
+        "## Proof Checklist",
+        *proof_checklist_lines,
         "",
         "## Best Review Path",
         *best_review_path_lines,
@@ -2952,6 +3007,18 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         next_action=next_action,
         valuation_snapshot=valuation_snapshot_for_report,
     )
+    proof_checklist_lines = _stock_report_proof_checklist_lines(
+        ticker=symbol,
+        report_mode=report_mode,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        next_action=next_action,
+        locked_now=locked_now,
+    )
     mode_guide_lines = _stock_report_mode_guide_lines(report_mode)
     reader_guide_lines = _stock_report_reader_guide_lines(
         dcf_status_text=dcf_status_text,
@@ -3018,6 +3085,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "## Evaluation Snapshot",
         *evaluation_snapshot_lines,
+        "",
+        "## Proof Checklist",
+        *proof_checklist_lines,
         "",
         "## How To Read This Report",
         *reader_guide_lines,

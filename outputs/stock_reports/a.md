@@ -26,6 +26,12 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Next proof: Add trusted price history for mapped peers: DHR, TMO, WAT.
 - Stop rule: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Proof Checklist
+- Current mode proof: `Standalone DCF review` because standalone DCF passed local readiness, while peer-relative valuation remains locked.
+- Next unlock proof: `make focus-peers TICKER=A` with source-backed peer mappings and peer inputs.
+- Withhold until proven: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- Manual check: Add trusted price history for mapped peers: DHR, TMO, WAT.
+
 ## Best Review Path
 - First read: Start with DCF Calculation Path and Valuation Boundary Checklist. Peer-relative valuation stays locked until source-backed peer inputs pass readiness.
 - Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.
@@ -120,8 +126,8 @@ A overall readiness: partial because optional earnings/estimate context is locke
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is Setup Forming.
 - Alignment: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below.
-- Research review summary: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below; Research Candidate - DCF Ready But Peer Blocked. Next blocker: peers. Withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
-- Setup: Compounder setup: Setup Forming; final state: Setup Forming. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Research review summary: Purpose alignment appears consistent with current setup `Setup Forming` for Core Compounder, subject to the missing-data limits below; Research Candidate - DCF Ready But Peer Blocked. Next blocker: peers. Withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context. Review the readiness sections below before drawing conclusions.
+- Setup: Compounder setup: Setup Forming; final state: Setup Forming. Review the readiness sections below before drawing conclusions.
 - Valuation boundary: DCF inputs are ready, but valuation interpretation is constrained by Insufficient Data and peer status `Insufficient Peer Data`.
 
 ## Supported Analysis
@@ -131,7 +137,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 - Currently withheld: peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context.
 
 ## Setup / Momentum
-- Compounder setup: Setup Forming; final state: Setup Forming. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Compounder setup: Setup Forming; final state: Setup Forming. Review the readiness sections below before drawing conclusions.
 - 1M performance: -0.3%
 - 3M performance: -7.5%
 - 1Y performance: Not available

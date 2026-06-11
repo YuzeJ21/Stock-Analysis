@@ -26,6 +26,12 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Next proof: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 - Stop rule: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Proof Checklist
+- Current mode proof: `DCF-ready review` because price, fundamentals, DCF, and source-backed peer inputs passed local readiness.
+- Next unlock proof: `make optional-context-worklist TICKERS=NVDA TOP_N=10` only if trusted optional rows exist.
+- Withhold until proven: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
+- Manual check: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
+
 ## Best Review Path
 - First read: Start with DCF Calculation Path, then Peer Workflow, then Source Readiness. This is the richest company-review path, but it remains research context.
 - Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.

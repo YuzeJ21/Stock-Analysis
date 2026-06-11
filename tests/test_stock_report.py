@@ -952,6 +952,10 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "- Trusted input: No company DCF input is required for monitor context." in markdown
     assert "- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=QQQ`" in markdown
     assert "## Next Layer To Unlock" in markdown
+    assert "## Proof Checklist" in markdown
+    assert "Current mode proof: `Monitor-only context` because asset-type gate marks this as monitor context" in markdown
+    assert "Next unlock proof: `make stock-report-md TICKER=QQQ` after any local data changes" in markdown
+    assert "Withhold until proven: Blocked features: none. Excluded features: DCF" in markdown
     assert "Current supported layer: Monitor-only context; market, theme, liquidity, or risk review can be read when local inputs are ready." in markdown
     assert "Next trusted input: No operating-company DCF or peer-valuation input is required for this monitor role." in markdown
     assert "Proof command: `make stock-report-md TICKER=QQQ` before treating the next layer as unlocked." in markdown
@@ -1102,6 +1106,9 @@ def test_stock_report_markdown_prioritizes_peer_action_when_primary_blocker_is_p
     assert "Withheld:" in markdown
     assert "Purpose status unavailable" not in markdown
     assert "Which source-backed peers should be added for COHR" in markdown
+    assert "## Proof Checklist" in markdown
+    assert "Current mode proof: `Standalone DCF review` because standalone DCF passed local readiness" in markdown
+    assert "Next unlock proof: `make focus-peers TICKER=COHR` with source-backed peer mappings and peer inputs" in markdown
     assert "What this means: standalone DCF can be reviewed, but peer-relative valuation is locked by peer valuation blocked" in markdown
     assert "peer trend comparison can be reviewed from mapped peer price history" in markdown
     assert "but peer-relative valuation, premium/discount, and peer DCF comparison stay withheld" in markdown
@@ -1202,6 +1209,10 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Valuation boundary: Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness." in markdown
     assert "- Confidence cue: low: price history is still the first required unlock." in markdown
     assert "- Stop rule: Blocked features: price, momentum, DCF." in markdown
+    assert "## Proof Checklist" in markdown
+    assert "Current mode proof: `Data-unlock only` because trusted local price history is not ready" in markdown
+    assert "Next unlock proof: `make focus-price TICKER=APLD` followed by readiness rebuild" in markdown
+    assert "Withhold until proven: Blocked features: price, momentum, DCF" in markdown
     assert "Data-unlock only until trusted price, fundamentals, DCF, and peer inputs are ready" in markdown
     assert "Read top-down: readiness state first" in markdown
     assert "## Executive Summary" in markdown

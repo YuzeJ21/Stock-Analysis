@@ -26,6 +26,12 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Next proof: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 - Stop rule: Blocked features: fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Proof Checklist
+- Current mode proof: `Price/setup review only` because price/setup may be usable, but fundamentals or DCF inputs have not passed readiness.
+- Next unlock proof: `make focus-fundamentals TICKER=APLD` before reviewing company valuation.
+- Withhold until proven: Blocked features: fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
+- Manual check: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
+
 ## Best Review Path
 - First read: Start with DCF Input Triage and Data Unlock Summary. Company valuation stays blocked until trusted fundamentals and DCF inputs are ready.
 - Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check.
@@ -120,7 +126,7 @@ APLD overall readiness: partial; review ready inputs first and treat locked inpu
 Research-only purpose brief. It separates what local data supports from what remains locked or excluded.
 - Thesis: Core Compounder. Test whether trend, fundamentals, and DCF support the long-duration thesis; current state is not prioritized.
 - Alignment: Purpose alignment appears consistent with current setup `No Setup` for Core Compounder, subject to the missing-data limits below.
-- Research review summary: Purpose alignment appears consistent with current setup `No Setup` for Core Compounder, subject to the missing-data limits below; Blocked by Data - Missing Fundamentals. Next blocker: fundamentals. Withheld: fundamental quality and operating-company valuation, DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Additional diagnostics are summarized in Data Readiness, Valuation Readiness, Missing Data, and Source Readiness below.
+- Research review summary: Purpose alignment appears consistent with current setup `No Setup` for Core Compounder, subject to the missing-data limits below; Blocked by Data - Missing Fundamentals. Next blocker: fundamentals. Withheld: fundamental quality and operating-company valuation, DCF interpretation, peer-relative valuation or opportunity-cost comparison, earnings timing or surprise context, analyst estimate trend context, compounder thesis confirmation. Review the readiness sections below before drawing conclusions.
 - Setup: Compounder setup: No Setup; final state: Not Prioritized. Track trend quality alongside fundamentals and DCF before treating the long-duration thesis as well supported. Not-prioritized names are left unranked.
 - Valuation boundary: Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete.
 
