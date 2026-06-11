@@ -7256,10 +7256,35 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
                     or "make imports-apply" not in normalized_action
                 ):
                     action = staged_follow_through
-        body = action if not reason or reason == "Not available" else f"{reason} {action}".strip()
+        body = data_health_fix_first_body(reason, action, command, target_file)
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         cards.append((title, body, command, tone))
     return cards
+
+
+def data_health_fix_first_body(reason: object, action: object, command: object, target_file: object) -> str:
+    """Keep default Data Health fix cards readable while preserving proof commands."""
+
+    reason_text = compact_reason(reason, max_sentences=1, max_chars=95)
+    action_text = compact_reason(action, max_sentences=1, max_chars=130)
+    command_text = format_missing(command, "").lower()
+    target_text = format_missing(target_file, "").lower()
+
+    if target_text == "data/imports/prices.csv":
+        proof = (
+            "Proof path: make price-refresh-loop DRY_RUN=1 before broad refreshes; "
+            "staged rows use make price-validate -> make price-preview -> make price-apply."
+        )
+    elif target_text in {"data/imports/fundamentals.csv", "data/imports/peers.csv"} or command_text == "make imports-validate":
+        proof = "Proof path: make imports-validate -> make imports-preview -> make imports-apply."
+    elif "runbook-" in command_text or "bundle-" in command_text:
+        proof = action_text
+    else:
+        proof = action_text
+
+    if reason_text and reason_text != "Not available":
+        return f"{reason_text} {proof}".strip()
+    return proof
 
 
 def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[str, object]]:
