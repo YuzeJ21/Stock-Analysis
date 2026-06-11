@@ -445,6 +445,18 @@ def pilot_proof_story_lines(candidate: PilotCandidate | None = None) -> list[str
     ]
 
 
+def pilot_outcome_checklist_lines(candidate: PilotCandidate | None = None) -> list[str]:
+    """Explain how to read the result after the proof loop without overclaiming."""
+
+    ticker = candidate.ticker if candidate else "<ticker>"
+    primary_input = pilot_primary_missing_input(candidate) if candidate else "the primary lane input"
+    return [
+        f"Supported: {ticker} moves forward only if rebuilt readiness and the regenerated report show the lane is ready.",
+        f"Still blocked: keep {primary_input} visible when validation fails, rejected rows appear, or the report remains locked.",
+        "Skip: if source proof is unavailable, do not apply placeholder rows; move to the next shortlisted company.",
+    ]
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -613,6 +625,9 @@ def render_trusted_data_pilot_candidates(
             "What the proof loop proves:",
             *[f"- {line}" for line in pilot_proof_story_lines(candidates[0])],
             "",
+            "How to read the outcome:",
+            *[f"- {line}" for line in pilot_outcome_checklist_lines(candidates[0])],
+            "",
             "Compact review board:",
             *[f"- {pilot_compact_board_row(candidate)}" for candidate in candidates[: min(top_n, len(candidates))]],
             "",
@@ -723,6 +738,8 @@ def render_trusted_data_pilot_packet(
             "One-company evidence packet:",
             "What this proves before any conclusion changes:",
             *[f"- {line}" for line in pilot_proof_story_lines(candidate)],
+            "How to read the outcome:",
+            *[f"- {line}" for line in pilot_outcome_checklist_lines(candidate)],
             "1. Baseline readiness: make readiness-snapshot",
             f"2. Before report: make stock-report-md TICKER={candidate.ticker}",
             f"3. Focused blocker check: {candidate.next_command}",

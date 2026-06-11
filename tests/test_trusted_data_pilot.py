@@ -4,6 +4,7 @@ from src.trusted_data_pilot import (
     pilot_lane_label,
     pilot_local_file_status,
     pilot_operator_decision,
+    pilot_outcome_checklist_lines,
     pilot_primary_missing_input,
     pilot_proof_story_lines,
     pilot_public_shortlist,
@@ -574,6 +575,33 @@ def test_pilot_proof_story_lines_explain_loop_without_claiming_data_changed():
     assert "recommend" not in story.lower()
 
 
+def test_pilot_outcome_checklist_keeps_supported_blocked_and_skip_states_clear():
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )[0]
+
+    rendered = "\n".join(pilot_outcome_checklist_lines(candidate)).lower()
+
+    assert "supported: crdo moves forward only if rebuilt readiness and the regenerated report show the lane is ready" in rendered
+    assert "still blocked: keep revenue visible" in rendered
+    assert "skip: if source proof is unavailable" in rendered
+    assert "placeholder rows" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "recommend" not in rendered
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -606,7 +634,11 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Baseline: snapshot current readiness and generate a before report so the starting mode is visible." in rendered
     assert "Source proof: review META in the Fundamentals / DCF proof path and add rows only when the source evidence is trusted." in rendered
     assert "Rebuild: rerun readiness and the stock report; only the rebuilt report can prove the lane changed." in rendered
-    assert rendered.index("Quick path:") < rendered.index("What the proof loop proves:") < rendered.index("Compact review board:")
+    assert "How to read the outcome:" in rendered
+    assert "Supported: META moves forward only if rebuilt readiness and the regenerated report show the lane is ready." in rendered
+    assert "Still blocked: keep shares outstanding visible when validation fails, rejected rows appear, or the report remains locked." in rendered
+    assert "Skip: if source proof is unavailable, do not apply placeholder rows; move to the next shortlisted company." in rendered
+    assert rendered.index("Quick path:") < rendered.index("What the proof loop proves:") < rendered.index("How to read the outcome:") < rendered.index("Compact review board:")
     assert rendered.index("Quick path:") < rendered.index("Compact review board:")
     assert "Compact review board:" in rendered
     assert "Detailed review board:" not in rendered
@@ -792,6 +824,10 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "Source proof: review CRDO in the Fundamentals / DCF proof path and add rows only when the source evidence is trusted." in rendered
     assert "Validation: validate, preview, and check rejected rows before applying any local CSV change." in rendered
     assert "Rebuild: rerun readiness and the stock report; only the rebuilt report can prove the lane changed." in rendered
+    assert "How to read the outcome:" in rendered
+    assert "Supported: CRDO moves forward only if rebuilt readiness and the regenerated report show the lane is ready." in rendered
+    assert "Still blocked: keep revenue, free-cash-flow margin visible when validation fails, rejected rows appear, or the report remains locked." in rendered
+    assert "Skip: if source proof is unavailable, do not apply placeholder rows; move to the next shortlisted company." in rendered
     assert "1. Baseline readiness: make readiness-snapshot" in rendered
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered
