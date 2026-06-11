@@ -159,7 +159,7 @@ demo:
 	@echo "   make diff-hygiene-files  # optional for large dirty trees"
 	@echo "   make staged-hygiene-check # after staging, before commit"
 	@echo ""
-	@echo "This demo is read-only except for local report files under outputs/stock_reports/."
+	@echo "This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/."
 
 trusted-data-pilot:
 	@echo "Trusted Data Pilot"

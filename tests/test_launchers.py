@@ -1673,6 +1673,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make diff-hygiene\"" in makefile
     assert "@echo \"   make diff-hygiene-files  # optional for large dirty trees\"" in makefile
     assert "@echo \"   make staged-hygiene-check # after staging, before commit\"" in makefile
+    assert 'This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/.' in makefile
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
     assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile
     assert "public-check:" in makefile
