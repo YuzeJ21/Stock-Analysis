@@ -538,7 +538,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
         "Data needed before analysis",
     ):
         assert f"`{mode}`" in markdown
-    assert "Ready inputs:" in markdown
+    assert "Local inputs present:" in markdown
+    assert "Ready inputs:" not in markdown
     assert "Supported now:" in markdown
     assert "Still locked or excluded:" in markdown
     assert "## Next Layer To Prove" in markdown
@@ -818,6 +819,7 @@ def test_build_stock_report_surfaces_missing_data_risks(tmp_path: Path):
     assert "Current supported layer: Price/setup review only; company valuation stays locked until fundamentals and DCF inputs pass readiness." in markdown
     assert "Next trusted input: Trusted fundamentals, free-cash-flow or margin inputs, share count, and DCF fields." in markdown
     assert "Proof command: `make focus-fundamentals TICKER=TSLA` before treating the next layer as available." in markdown
+    assert "Held-back context: peer rows may be locally present" not in markdown
 
 
 def test_stock_report_json_export_is_serializable_and_contains_freshness_metadata(tmp_path: Path):
@@ -1227,7 +1229,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Read top-down: readiness state first" in markdown
     assert "## Executive Summary" in markdown
     assert "Bottom line: APLD is in `Data needed before analysis` mode" in markdown
-    assert "Ready inputs: none yet." in markdown
+    assert "Local inputs present: none yet." in markdown
+    assert "Ready inputs: none yet." not in markdown
     assert "Next step: Add or refresh trusted local price history for APLD" in markdown
     assert "## Next Layer To Prove" in markdown
     assert "Current supported layer: Data needed before analysis; conclusions stay withheld until trusted local price history exists." in markdown
@@ -1280,6 +1283,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Peer-relative boundary: withheld until trusted fundamentals and DCF readiness pass first" in markdown
     assert "Conclusion boundary: missing or excluded inputs do not become intrinsic value, peer-relative value, undervalued, or overvalued conclusions" in markdown
     assert "## Risk Notes" in markdown
+
     assert "## Next Research Step" in markdown
     assert "allocation instructions" in markdown
     assert "trade instruction" not in markdown.lower()
@@ -1342,6 +1346,61 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Peer-relative valuation should wait until trusted price, fundamentals, and DCF inputs are ready" in markdown
     assert "Add source-backed peer mappings after price data exists" not in markdown
     assert "No local price rows were found for APLD" in markdown
+    assert "buy" not in markdown.lower()
+    assert "sell" not in markdown.lower()
+
+
+def test_stock_report_distinguishes_local_inputs_from_allowed_analysis_when_dcf_blocks_peers():
+    markdown = build_readiness_only_markdown(
+        "CRDO",
+        {
+            "readiness": {
+                "overall_readiness_state": "partial",
+                "asset_type": "company",
+                "price_ready": True,
+                "ready_features": "price, momentum, peer",
+                "blocked_features": "dcf, earnings, analyst_estimates",
+                "excluded_features": "portfolio",
+                "missing_data": "revenue, fcf_margin",
+                "next_action": "Complete trusted fundamentals for CRDO.",
+            },
+            "decision": {
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Fundamentals",
+                "primary_blocker": "fundamentals",
+                "main_reason": "Company research is blocked by missing DCF data.",
+                "next_best_action": "Complete trusted fundamentals for CRDO; missing fields: revenue, fcf_margin.",
+                "supported_analysis": "Supported analysis: price history, setup and momentum context, peer rows exist locally.",
+                "unsupported_analysis": "Unsupported analysis: DCF interpretation, peer-relative valuation.",
+                "confidence_explanation": "Data confidence is low: primary blocker is fundamentals.",
+            },
+            "dcf": {
+                "reason_not_ready": "revenue, fcf_margin",
+                "missing_dcf_fields": "revenue, fcf_margin",
+            },
+            "peer": {
+                "peer_ready": True,
+                "peer_blocker_type": "peer_valuation_blocked",
+                "mapping_status": "mapped",
+                "peer_count": 2,
+                "next_peer_action": "Peer rows are present, but wait for DCF readiness.",
+            },
+        },
+        "Trusted fundamentals are missing for CRDO.",
+    )
+
+    assert "## What We Can Analyze Now" in markdown
+    assert "- Local inputs present: price, momentum, peer." in markdown
+    assert "Ready inputs:" not in markdown
+    assert "Use available price or setup context only" in markdown
+    assert (
+        "Held-back context: peer rows may be locally present, but peer valuation stays withheld until fundamentals and the company DCF gate pass."
+        in markdown
+    )
+    assert "Peer context: Held back until trusted fundamentals and DCF inputs are ready." in markdown
+    assert "Peer context: Ready for source-backed peer review." not in markdown
+    assert "peer rows exist locally" in markdown
+    assert "peer-relative valuation" in markdown
     assert "buy" not in markdown.lower()
     assert "sell" not in markdown.lower()
 

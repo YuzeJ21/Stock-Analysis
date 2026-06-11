@@ -63,7 +63,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 A overall readiness: partial because optional earnings/estimate context is locked; standalone DCF inputs are ready. Decision: Research Candidate - DCF Ready But Peer Blocked. DCF: ready. Primary blocker: peers. Peer workflow: peer price missing. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Add trusted price history for mapped peers: DHR, TMO, WAT.
 
 ## What We Can Analyze Now
-- Ready inputs: price, momentum, market direction, liquidity, correlation, fundamentals, DCF.
+- Local inputs present: price, momentum, market direction, liquidity, correlation, fundamentals, DCF.
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 

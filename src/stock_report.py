@@ -1661,6 +1661,28 @@ def _stock_report_next_layer_lines(
     ]
 
 
+def _stock_report_held_back_input_lines(
+    *,
+    ready_features: str,
+    dcf_status_text: str,
+    monitor_context: bool,
+    peer_ready: Any,
+) -> list[str]:
+    """Explain when present local inputs are intentionally not analysis permission."""
+
+    ready_text = str(ready_features or "").lower()
+    lines: list[str] = []
+    if "peer" in ready_text and not monitor_context and dcf_status_text == "blocked":
+        lines.append(
+            "- Held-back context: peer rows may be locally present, but peer valuation stays withheld until fundamentals and the company DCF gate pass."
+        )
+    if "peer" in ready_text and not monitor_context and dcf_status_text == "ready" and not bool(peer_ready):
+        lines.append(
+            "- Held-back context: standalone DCF is reviewable, but peer-relative valuation stays withheld until source-backed peer inputs pass readiness."
+        )
+    return lines
+
+
 def _stock_report_pilot_packet_line(
     *,
     ticker: str,
@@ -2586,6 +2608,12 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"Blocked features: {blocked_features}. Excluded features: {excluded_features}. "
         "Unavailable sections are intentionally locked; missing data is not inferred."
     )
+    held_back_input_lines = _stock_report_held_back_input_lines(
+        ready_features=ready_features,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer_ready,
+    )
     analysis_quality_lines = _stock_report_analysis_quality_lines(
         readiness=readiness,
         dcf_status_text=dcf_status_text,
@@ -2750,8 +2778,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         one_minute_summary,
         "",
         "## What We Can Analyze Now",
-        f"- Ready inputs: {ready_features}.",
+        f"- Local inputs present: {ready_features}.",
         f"- Supported now: {supported_now}",
+        *held_back_input_lines,
         f"- Still locked or excluded: {locked_now}",
         "",
         "## Next Layer To Prove",
@@ -3022,6 +3051,12 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"Blocked features: {blocked_features}. Excluded features: {excluded_features}. "
         "Unavailable sections are intentionally locked; missing data is not inferred."
     )
+    held_back_input_lines = _stock_report_held_back_input_lines(
+        ready_features=ready_features,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+    )
     analysis_quality_lines = _stock_report_analysis_quality_lines(
         readiness=readiness,
         dcf_status_text=dcf_status_text,
@@ -3176,8 +3211,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         one_minute_summary,
         "",
         "## What We Can Analyze Now",
-        f"- Ready inputs: {ready_features}.",
+        f"- Local inputs present: {ready_features}.",
         f"- Supported now: {supported_now}",
+        *held_back_input_lines,
         f"- Still locked or excluded: {locked_now}",
         "",
         "## Next Layer To Prove",

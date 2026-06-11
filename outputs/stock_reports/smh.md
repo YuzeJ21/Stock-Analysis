@@ -62,7 +62,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 SMH overall readiness: partial because monitor context is usable while company valuation is excluded. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor context: operating-company DCF and peer valuation are excluded. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
 ## What We Can Analyze Now
-- Ready inputs: price, momentum, market direction, liquidity, correlation.
+- Local inputs present: price, momentum, market direction, liquidity, correlation.
 - Supported now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Still locked or excluded: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 

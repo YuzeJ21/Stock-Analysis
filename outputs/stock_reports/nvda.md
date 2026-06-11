@@ -62,7 +62,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 NVDA overall readiness: partial because optional earnings/estimate context is locked; core DCF and peer inputs are ready. Decision: Research Candidate - Core Data Ready. DCF: ready. Primary blocker: earnings. Peer workflow: ready for source-backed peer context. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## What We Can Analyze Now
-- Ready inputs: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, portfolio.
+- Local inputs present: price, momentum, market direction, liquidity, correlation, fundamentals, DCF, peer, portfolio.
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 

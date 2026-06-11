@@ -63,7 +63,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 APLD overall readiness: partial; review ready inputs first and treat locked inputs as missing-data review work. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import trusted fundamentals for APLD. If SEC_USER_AGENT is configured, use SEC staging; otherwise use the manual fundamentals import workflow.
 
 ## What We Can Analyze Now
-- Ready inputs: price, momentum, market direction, liquidity, correlation.
+- Local inputs present: price, momentum, market direction, liquidity, correlation.
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked or excluded: Blocked features: fundamentals, DCF, peer, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 

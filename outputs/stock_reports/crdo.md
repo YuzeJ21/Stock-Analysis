@@ -63,8 +63,9 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 CRDO overall readiness: partial; review ready inputs first and treat locked inputs as missing-data review work. Decision: Blocked by Data - Missing Fundamentals. DCF: blocked. Primary blocker: fundamentals. Peer workflow: waits for trusted price, fundamentals, and DCF inputs first. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Complete trusted fundamentals for CRDO; missing fields: revenue, FCF margin. Run `make focus-fundamentals TICKER=CRDO`, then use SEC staging or the manual fundamentals import workflow.
 
 ## What We Can Analyze Now
-- Ready inputs: price, momentum, market direction, liquidity, correlation, peer.
+- Local inputs present: price, momentum, market direction, liquidity, correlation, peer.
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
+- Held-back context: peer rows may be locally present, but peer valuation stays withheld until fundamentals and the company DCF gate pass.
 - Still locked or excluded: Blocked features: DCF, earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
 ## Next Layer To Prove
