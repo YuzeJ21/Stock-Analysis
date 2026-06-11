@@ -6078,7 +6078,7 @@ def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> l
         )
     return [
         {
-            "kicker": "PRICE UNLOCK",
+            "kicker": "PRICE PROOF",
             "title": f"{price_ready} price-ready",
             "body": (
                 "Function status: usable for setup, trend, liquidity, and market-context review when local history is ready. "
@@ -6089,21 +6089,21 @@ def data_health_analysis_unlock_cards(readiness_summary: dict[str, object]) -> l
             "command": "make price-refresh-loop DRY_RUN=1",
         },
         {
-            "kicker": "DCF UNLOCK",
+            "kicker": "DCF PROOF",
             "title": f"{dcf_ready} DCF-ready",
             "body": (
-                "Function status: good for DCF-ready companies only. Trusted fundamentals plus required DCF fields unlock "
-                "company-level assumptions and sensitivity review, not automatic valuation conclusions."
+                "Function status: good for DCF-ready companies only. Trusted fundamentals plus required DCF fields make "
+                "company-level assumptions and sensitivity review available, not automatic valuation conclusions."
             ),
             "badges": ["fundamentals", "assumptions"],
             "command": "make sec-stage-queue TOP_N=25",
         },
         {
-            "kicker": "PEER UNLOCK",
+            "kicker": "PEER PROOF",
             "title": f"{peer_ready} peer-ready",
             "body": (
-                "Function status: ready when peer data exists. Source-backed peer mappings and peer metrics unlock "
-                "peer-relative context; missing peers stay blocked instead of guessed."
+                "Function status: ready when peer data exists. Source-backed peer mappings and peer metrics make "
+                "peer-relative context available; missing peers stay blocked instead of guessed."
             ),
             "badges": ["manual peers", "no guessed mappings"],
             "command": "make peer-mapping-queue TOP_N=10",
@@ -9256,9 +9256,9 @@ def fundamentals_peer_unlock_story_cards(
     return [
         {
             "kicker": "WHAT THIS MEANS",
-            "title": "Fundamentals unlock DCF; peers unlock relative context",
+            "title": "Fundamentals prove DCF readiness; peers prove relative context",
             "body": (
-                "Price-ready companies need trusted fundamentals before standalone DCF. "
+                "Price-ready companies need trusted fundamentals before standalone DCF becomes available. "
                 "DCF-ready companies still need source-backed peers before peer-relative valuation appears."
             ),
             "badges": ["sequence visible", "data-honest"],

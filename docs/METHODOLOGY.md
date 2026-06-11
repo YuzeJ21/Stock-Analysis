@@ -43,13 +43,13 @@ The readiness gate runs before valuation or report conclusions.
 
 | Area | Minimum rule | Output behavior |
 | --- | --- | --- |
-| Price | Enough valid local price rows with positive close values. | Unlocks setup and trend context. |
-| Momentum | More local price history than the basic price gate. | Unlocks momentum and market-direction context. |
-| Liquidity / correlation | Longer local price history. | Unlocks risk-context review. |
-| Fundamentals | Trusted local row with required numeric fields and source. | Unlocks company fundamentals review. |
-| DCF | Company ticker plus price, revenue, free cash flow or FCF margin, and shares outstanding. | Unlocks standalone DCF review. |
-| Peers | Source-backed peer mappings plus peer price/fundamental inputs. | Unlocks peer trend or peer valuation context depending on input depth. |
-| Earnings / estimates | Trusted local optional-context rows. | Unlocks optional context only. |
+| Price | Enough valid local price rows with positive close values. | Makes setup and trend context available. |
+| Momentum | More local price history than the basic price gate. | Makes momentum and market-direction context available. |
+| Liquidity / correlation | Longer local price history. | Makes risk-context review available. |
+| Fundamentals | Trusted local row with required numeric fields and source. | Makes company fundamentals review available. |
+| DCF | Company ticker plus price, revenue, free cash flow or FCF margin, and shares outstanding. | Makes standalone DCF review available. |
+| Peers | Source-backed peer mappings plus peer price/fundamental inputs. | Makes peer trend or peer valuation context available depending on input depth. |
+| Earnings / estimates | Trusted local optional-context rows. | Makes optional context available only when trusted rows pass readiness. |
 
 The app labels each feature as `ready`, `partial`, `blocked`, or `excluded`. ETFs, index proxies, and funds are excluded from operating-company DCF because that valuation method does not fit their monitor role.
 

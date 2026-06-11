@@ -9644,7 +9644,7 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["PRICE UNLOCK", "DCF UNLOCK", "PEER UNLOCK", "OPTIONAL CONTEXT"]
+    assert [card["kicker"] for card in cards] == ["PRICE PROOF", "DCF PROOF", "PEER PROOF", "OPTIONAL CONTEXT"]
     assert "240 price-ready" in rendered
     assert "function status: usable" in rendered
     assert "setup, trend, liquidity, and market-context review" in rendered
@@ -9656,10 +9656,12 @@ def test_data_health_analysis_unlock_cards_map_data_lanes_to_supported_analysis(
     assert "23 dcf-ready" in rendered
     assert "function status: good for dcf-ready companies only" in rendered
     assert "company-level assumptions and sensitivity review" in rendered
+    assert "make company-level assumptions and sensitivity review available" in rendered
     assert "not automatic valuation conclusions" in rendered
     assert "3 peer-ready" in rendered
     assert "function status: ready when peer data exists" in rendered
     assert "peer-relative context" in rendered
+    assert "make peer-relative context available" in rendered
     assert "missing peers stay blocked instead of guessed" in rendered
     assert "0 earnings / 0 estimates" in rendered
     assert "function status: intentionally locked until trusted rows exist" in rendered
@@ -15224,7 +15226,8 @@ def test_fundamentals_peer_unlock_story_cards_bridge_dcf_and_peer_workflow():
         "PEER VALUATION STILL LOCKED",
         "OPTIONAL CONTEXT",
     ]
-    assert "fundamentals unlock dcf; peers unlock relative context" in rendered
+    assert "fundamentals prove dcf readiness; peers prove relative context" in rendered
+    assert "standalone dcf becomes available" in rendered
     assert "1 dcf + peer-ready company row(s)" in rendered
     assert "examples: nvda" in rendered
     assert "1 price-ready company row(s)" in rendered
