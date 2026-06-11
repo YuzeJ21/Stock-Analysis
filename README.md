@@ -101,7 +101,7 @@ When you want to rebuild local outputs after changing data, use the deeper [Loca
 ## Try This Demo Path
 
 ```bash
-make demo                       # prints the visitor proof trail
+make demo                       # prints the visitor demo path
 make dashboard                  # open Home and follow the three public paths
 make stock-report-md TICKER=NVDA # company report with DCF assumptions
 make stock-report-md TICKER=META # price/setup report with valuation still gated

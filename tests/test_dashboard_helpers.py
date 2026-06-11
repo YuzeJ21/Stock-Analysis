@@ -876,7 +876,7 @@ def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaimi
     assert "sell" not in rendered
 
 
-def test_home_first_run_path_cards_make_visitor_proof_trail_explicit():
+def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
     cards = dashboard._plain_home_first_run_path_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
@@ -887,7 +887,7 @@ def test_home_first_run_path_cards_make_visitor_proof_trail_explicit():
         "VISITOR STEP 4",
         "VISITOR STEP 5",
     ]
-    assert "print the guided proof trail" in rendered
+    assert "print the demo walkthrough" in rendered
     assert "home -> nvda -> meta -> qqq -> mu -> crdo -> trusted-data pilot walkthrough" in rendered
     assert "without changing local files" in rendered
     assert "open the clean product view" in rendered
@@ -966,14 +966,14 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     details_gate_index = source.index("if show_details:")
-    proof_trail_index = source.index('"First-Run Proof Trail"')
+    demo_walkthrough_index = source.index('"Demo Walkthrough"')
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
     next_step_index = source.index('render_section_header("What To Do Next"')
 
-    assert proof_trail_index < next_step_index < details_gate_index < coverage_expander_index < coverage_index
+    assert demo_walkthrough_index < next_step_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
     assert "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
@@ -10559,7 +10559,7 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
     at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
     reader_guide_header_index = source.index('"Reader Guide",\n        "Plain-English report path before detailed tabs')
     summary_cards_index = source.index("stock_report_summary_cards(report_payload)")
-    evaluation_snapshot_header_index = source.index('"Evaluation Snapshot",\n        "Supported evaluation, confidence, valuation boundary')
+    evaluation_snapshot_header_index = source.index('"Evaluation Snapshot",\n        "Supported evaluation, data-confidence cue, valuation boundary')
     evaluation_cards_index = source.index("stock_report_evaluation_summary_cards(report_payload)")
     best_path_header_index = source.index('"Best Review Path",\n        "The shortest safe reading path for this ticker before detailed review."')
     best_path_cards_index = source.index("stock_report_best_review_path_cards(report_payload")
@@ -10594,6 +10594,8 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
     assert 'st.expander("More report interpretation and methodology", expanded=False)' in source
     assert 'st.expander("Detailed readiness status", expanded=False)' in source
     assert 'st.expander("Detailed function status", expanded=False)' not in source
+    assert 'metric("Data Confidence"' in source
+    assert 'metric("Confidence"' not in source
 
 
 def test_stock_report_source_frame_hides_raw_missing_values():

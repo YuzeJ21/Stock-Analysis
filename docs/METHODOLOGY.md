@@ -163,7 +163,7 @@ The product does not infer valuation conclusions for blocked rows.
 
 Data confidence follows the same principle: complete trusted inputs can raise data confidence for the supported section, while missing fundamentals, stale prices, missing peers, or unavailable optional context reduce data confidence or keep a section locked. Data confidence is never used to override a blocker.
 
-## 8. Confidence And Decision Scores
+## 8. Data Confidence And Decision Scores
 
 Data confidence is a data-quality and review-routing signal, not investment conviction.
 

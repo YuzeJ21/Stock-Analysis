@@ -56,7 +56,7 @@ Checked pages and docs:
 
 - Sidebar: confirmed the main navigation control reads `Choose your path` and exposes `Review one stock`, `Improve data coverage`, and `Explore ready names` before the `More pages` section.
 - Sidebar: confirmed detailed pages remain available under `More pages`, so deep research views are not removed.
-- Home: confirmed the first-run proof trail shows copyable commands for the dashboard, NVDA ready proof, META blocked proof, QQQ excluded proof, MU peer-limited proof, CRDO fundamentals-gated proof, and the trusted-data pilot.
+- Home: confirmed the demo walkthrough shows copyable commands for the dashboard, NVDA ready proof, META blocked proof, QQQ excluded proof, MU peer-limited proof, CRDO fundamentals-gated proof, and the trusted-data pilot.
 - Data Strategy: confirmed the Automation Boundary table separates repeatable checks from human-reviewed source judgment.
 
 Boundary checked:
@@ -68,7 +68,7 @@ Boundary checked:
 
 Checked pages and docs:
 
-- Home: confirmed the first-run proof trail now points visitors to `make trusted-data-pilot-candidates TOP_N=10` before the ticker-scoped trusted-data pilot checklist.
+- Home: confirmed the demo walkthrough now points visitors to `make trusted-data-pilot-candidates TOP_N=10` before the ticker-scoped trusted-data pilot checklist.
 - Home: confirmed the next-step cards describe the candidate list as read-only and keep the ticker-scoped pilot as the follow-up proof loop.
 - Portfolio Review: confirmed the page renders plain-language capability and limit cards after Streamlit finishes loading, with review-only wording and no portfolio action instruction.
 - Public docs: confirmed the release checklist and LinkedIn brief explain candidate ranking first, then the selected-company evidence loop.

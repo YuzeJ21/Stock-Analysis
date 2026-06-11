@@ -19503,7 +19503,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
     return [
         {
             "kicker": "VISITOR STEP 1",
-            "title": "Print the guided proof trail",
+            "title": "Print the demo walkthrough",
             "body": (
                 "Use the demo command when sharing the repo: it prints the exact Home -> NVDA -> META -> QQQ -> MU -> CRDO -> trusted-data pilot walkthrough without changing local files."
             ),
@@ -20103,7 +20103,7 @@ def render_home_page(
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
     render_section_header(
-        "First-Run Proof Trail",
+        "Demo Walkthrough",
         "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot.",
     )
     render_signal_cards(_plain_home_first_run_path_cards())
@@ -20483,7 +20483,7 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     render_signal_cards(stock_report_summary_cards(report_payload))
     render_section_header(
         "Evaluation Snapshot",
-        "Supported evaluation, confidence, valuation boundary, and next proof before deeper methodology.",
+        "Supported evaluation, data-confidence cue, valuation boundary, and next proof before deeper methodology.",
     )
     render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
     render_section_header(
@@ -21306,7 +21306,7 @@ def render_market_command_center(
     metric_cols[1].metric("State", public_status_label(snapshot.get("status")))
     metric_cols[2].metric("Decision", format_missing(snapshot.get("decision_bucket")))
     metric_cols[3].metric("DCF", public_status_label(snapshot.get("dcf_status")))
-    metric_cols[4].metric("Confidence", format_missing(snapshot.get("confidence")))
+    metric_cols[4].metric("Data Confidence", format_missing(snapshot.get("confidence")))
     render_signal_cards(single_stock_status_cards(snapshot))
     render_section_header("Single-Stock Quick Read", "The first interpretation path before tables: what this page can support, what stays locked, and the next copy-only command.")
     render_signal_cards(single_stock_quick_read_cards(snapshot))

@@ -1231,7 +1231,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`Review one stock`, `Improve data coverage`, and `Explore ready names`",
         "detailed pages remain available under `More pages`",
         "Automation Boundary table separates repeatable checks from human-reviewed source judgment",
-        "first-run proof trail now points visitors to `make trusted-data-pilot-candidates TOP_N=10`",
+        "demo walkthrough now points visitors to `make trusted-data-pilot-candidates TOP_N=10`",
         "candidate list as read-only",
         "Portfolio Review: confirmed the page renders plain-language capability and limit cards",
         "checklist/review-path language before advanced command detail",
@@ -1805,7 +1805,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert '@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."' in makefile
-    assert "@echo \"Visitor proof trail:\"" in makefile
+    assert "@echo \"Visitor demo path:\"" in makefile
     assert "@echo \"   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot\"" in makefile
     assert "@echo \"What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
     assert "@echo \"Data-confidence note: report confidence describes readiness and review routing, not investment conviction.\"" in makefile

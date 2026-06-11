@@ -151,7 +151,7 @@ demo:
 	@echo "Read-only guide: this target prints the visitor path only. It does not refresh data, import rows, or rewrite reports."
 	@echo "Run these from the repository root so make can find the project targets."
 	@echo ""
-	@echo "Visitor proof trail:"
+	@echo "Visitor demo path:"
 	@echo "   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot"
 	@echo "What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced."
 	@echo "Data-confidence note: report confidence describes readiness and review routing, not investment conviction."
