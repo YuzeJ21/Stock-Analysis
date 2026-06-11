@@ -847,6 +847,36 @@ def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaimi
     assert "sell" not in rendered
 
 
+def test_home_first_run_path_cards_make_visitor_proof_trail_explicit():
+    cards = dashboard._plain_home_first_run_path_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "VISITOR STEP 1",
+        "VISITOR STEP 2",
+        "VISITOR STEP 3",
+        "VISITOR STEP 4",
+    ]
+    assert "open the clean product view" in rendered
+    assert "three clear paths" in rendered
+    assert "read one proof report" in rendered
+    assert "ready dcf assumptions" in rendered
+    assert "compare a blocked or excluded case" in rendered
+    assert "blocked company valuation stays blocked" in rendered
+    assert "etf/index dcf is excluded rather than failed" in rendered
+    assert "trusted-data pilot" in rendered
+    assert "without importing rows" in rendered
+    assert "make dashboard" in rendered
+    assert "make stock-report-md ticker=nvda" in rendered
+    assert "make stock-report-md ticker=qqq" in rendered
+    assert "make trusted-data-pilot top_n=10" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_home_current_data_coverage_cards_show_public_snapshot_and_unlock_paths():
     cards = dashboard._plain_home_current_data_coverage_cards(
         {
@@ -898,15 +928,17 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     details_gate_index = source.index("if show_details:")
+    proof_trail_index = source.index('render_section_header("First-Run Proof Trail"')
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
     workflow_index = source.index('render_section_header("How Evaluation Works"')
     next_step_index = source.index('render_section_header("What To Do Next"')
 
-    assert next_step_index < details_gate_index < coverage_expander_index < coverage_index
+    assert proof_trail_index < next_step_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_first_run_path_cards())" in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
 

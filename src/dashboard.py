@@ -18993,6 +18993,47 @@ def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
     ]
 
 
+def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "VISITOR STEP 1",
+            "title": "Open the clean product view",
+            "body": (
+                "Start on Home for the coverage snapshot and three clear paths: review one stock, improve data coverage, or explore ready names."
+            ),
+            "badges": ["start here", "plain English"],
+            "command": "make dashboard",
+        },
+        {
+            "kicker": "VISITOR STEP 2",
+            "title": "Read one proof report",
+            "body": (
+                "Use the NVDA Markdown report as the strongest demo because it shows ready DCF assumptions, peer context, locked optional context, and source notes."
+            ),
+            "badges": ["one ticker", "proof report"],
+            "command": "make stock-report-md TICKER=NVDA",
+        },
+        {
+            "kicker": "VISITOR STEP 3",
+            "title": "Compare a blocked or excluded case",
+            "body": (
+                "Open META or QQQ next to see the honest boundaries: blocked company valuation stays blocked, and ETF/index DCF is excluded rather than failed."
+            ),
+            "badges": ["blocked is useful", "excluded is not failed"],
+            "command": "make stock-report-md TICKER=QQQ",
+        },
+        {
+            "kicker": "VISITOR STEP 4",
+            "title": "Show the data unlock proof path",
+            "body": (
+                "When a visitor asks how coverage improves, show the read-only trusted-data pilot. It prints the exact evidence loop without importing rows."
+            ),
+            "badges": ["read-only", "trusted data"],
+            "command": "make trusted-data-pilot TOP_N=10",
+        },
+    ]
+
+
 def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, object]]:
     price_ready = int(summary.get("price_ready") or 0)
     master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
@@ -19479,6 +19520,9 @@ def render_home_page(
     )
     render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
+
+    render_section_header("First-Run Proof Trail", "A short path for GitHub or LinkedIn visitors to understand the product without reading raw tables.")
+    render_signal_cards(_plain_home_first_run_path_cards())
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)

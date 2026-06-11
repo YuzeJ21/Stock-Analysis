@@ -93,7 +93,8 @@ make dashboard
 ## Try This Demo Path
 
 ```bash
-make demo                       # prints the clean visitor path
+make demo                       # prints the visitor proof trail
+make dashboard                  # open Home and follow the three public paths
 make stock-report-md TICKER=NVDA # company report with DCF assumptions
 make stock-report-md TICKER=A    # standalone DCF report with peer review still locked
 make stock-report-md TICKER=META # price/setup report with valuation still gated
@@ -102,6 +103,8 @@ make stock-report-md TICKER=SMH  # sector ETF monitor report
 make stock-report-md TICKER=APLD # price/setup report with fundamentals still locked
 make dashboard
 ```
+
+The shortest public walkthrough is: Home -> one proof report -> one blocked or excluded example -> trusted-data pilot. That shows the core idea quickly: the product can analyze ready data, explain blocked data, exclude methods that do not apply, and print the trusted-data path without pretending missing rows exist.
 
 Example map:
 
