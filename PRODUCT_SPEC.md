@@ -91,7 +91,7 @@ The per-feature subset of tickers with enough data for a specific module, such a
 The product is now organized around a few research-facing surfaces:
 
 - `Home`: plain-language readiness cards and next-action cards first, with methodology ladder and example report comparisons in collapsed sections.
-- `Single-Stock Report`: ticker-level visitor scan cue, At A Glance status, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, confidence cue, methodology cue, analysis quality, valuation state, source readiness check, and copyable local proof commands.
+- `Single-Stock Report`: ticker-level visitor scan cue, At A Glance status, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, data-confidence cue, methodology cue, analysis quality, valuation state, source readiness check, and copyable local proof commands.
 - `Data Health`: trusted local data paths, import validation, rejected-row reports, and proof review paths.
 - `Value / Re-rating`: DCF-ready, peer-limited, blocked, and ETF/index/fund excluded valuation states.
 - Markdown reports under `outputs/stock_reports/`: small visitor-readable examples of richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data modes.
@@ -116,7 +116,7 @@ The MVP is successful when:
 The public-facing project is shareable only when:
 
 - the README has a short demo path and dashboard preview;
-- sample reports show a visitor scan cue, `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, confidence cues, methodology, evaluation function checks, source readiness, and copyable local proof commands;
+- sample reports show a visitor scan cue, `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, data-confidence cues, methodology, evaluation function checks, source readiness, and copyable local proof commands;
 - public docs explain that project code provides readiness gates, DCF math, peer boundaries, and report wording;
 - `make public-check` passes;
 - generated CSV/JSON churn is reviewed before staging and is not committed by default;

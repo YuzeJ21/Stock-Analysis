@@ -1377,7 +1377,8 @@ def _stock_report_analysis_quality_lines(
     )
     return [
         f"- Analysis mode: {quality_title}.",
-        f"- Confidence: {confidence_line}",
+        f"- Data confidence: {confidence_line}",
+        "- Confidence boundary: data confidence is a readiness and review-routing signal, not investment conviction.",
         f"- Why: {quality_reason}",
         f"- Optional context: {optional_context}",
     ]
@@ -1774,8 +1775,8 @@ def _stock_report_evaluation_snapshot_lines(
 ) -> list[str]:
     confidence = "Use only the ready sections; locked sections remain unavailable."
     for line in analysis_quality_lines:
-        if line.startswith("- Confidence:"):
-            confidence = _brief_value(line, "- Confidence:").rstrip(".")
+        if line.startswith("- Data confidence:"):
+            confidence = _brief_value(line, "- Data confidence:").rstrip(".")
             break
 
     if monitor_context:
@@ -1798,7 +1799,7 @@ def _stock_report_evaluation_snapshot_lines(
     return [
         f"- Supported evaluation: {_sentence_value(supported_now)}.",
         f"- Valuation boundary: {valuation_boundary}",
-        f"- Confidence cue: {confidence}.",
+        f"- Data-confidence cue: {confidence}.",
         f"- Next proof: {_sentence_value(next_action, 'No next local proof step is available')}.",
         f"- Stop rule: {_sentence_value(locked_now)}.",
     ]

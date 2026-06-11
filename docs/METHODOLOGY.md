@@ -225,7 +225,7 @@ Single-stock reports are assembled from the same gates and calculations:
 
 - At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step.
 - Reader Guide: answers what can be analyzed now, what is still locked or excluded, what trusted input matters next, and the next copy-only command.
-- Evaluation Snapshot: summarizes supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before the detailed sections.
+- Evaluation Snapshot: summarizes supported evaluation, valuation boundary, data-confidence cue, next proof step, and stop rule before the detailed sections.
 - Best Review Path: tells the reader whether to review DCF and peers, prove fundamentals are available, use monitor context, or start with price coverage.
 - What can be analyzed now.
 - Which mode applies: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data needed before analysis.
@@ -240,7 +240,7 @@ The report should be read top-down: visitor scan cue first, At A Glance second, 
 When a company ticker has the full trusted local input stack, the single-stock report can show:
 
 - At A Glance mode, method cue, and next local step.
-- Evaluation Snapshot for supported evaluation, valuation boundary, confidence cue, next proof, and stop rule.
+- Evaluation Snapshot for supported evaluation, valuation boundary, data-confidence cue, next proof, and stop rule.
 - Best Review Path for the safest reading order and proof step.
 - Analysis Quality and Evaluation Function Check summaries.
 - Price, momentum, liquidity, and market-context review.

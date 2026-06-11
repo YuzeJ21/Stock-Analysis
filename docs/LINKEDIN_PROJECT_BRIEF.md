@@ -4,7 +4,7 @@
 
 I built a local, CSV-first stock research command center that focuses on data readiness before analysis. Instead of jumping straight to stock picks, it checks whether each ticker has enough trusted local data for price, momentum, liquidity, correlation, fundamentals, DCF, peer comparison, earnings, and analyst-estimate context.
 
-The system generates readiness-aware research decisions, single-stock reports, source readiness checks, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports open with a visitor scan cue, then `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, and `Best Review Path` before deeper methodology sections, so readers can quickly see the report mode, valuation boundary, which confidence cue applies, which local method is being used, what to read first, which command proves the next trusted input, current proof, and next trusted input.
+The system generates readiness-aware research decisions, single-stock reports, source readiness checks, and a Streamlit dashboard for deciding what can be researched now and what data should be imported next. Single-stock reports open with a visitor scan cue, then `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, and `Best Review Path` before deeper methodology sections, so readers can quickly see the report mode, valuation boundary, which data-confidence cue applies, which local method is being used, what to read first, which command proves the next trusted input, current proof, and next trusted input.
 
 The scan path covers `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data needed before analysis` modes, with the valuation boundary and DCF method path visible before detailed report tables.
 
@@ -25,10 +25,10 @@ Current features:
 - Streamlit command center dashboard.
 - Single-stock Markdown reports.
 - At A Glance summaries that put mode, decision view, DCF state, peer context, optional context, method cue, and next local step at the top.
-- Evaluation Snapshot summaries that state supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before detailed sections.
+- Evaluation Snapshot summaries that state supported evaluation, valuation boundary, data-confidence cue, next proof step, and stop rule before detailed sections.
 - Proof Checklist sections that show why the current mode is allowed and what must stay withheld until trusted rows exist.
 - Best Review Path cards that tell readers whether to review DCF and peers, prove fundamentals readiness, use monitor context, or start with price coverage.
-- Analysis Quality labels and confidence cues that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and the data-needed-before-analysis mode.
+- Analysis Quality labels and data-confidence cues that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and the data-needed-before-analysis mode.
 - Methodology sections that show the DCF formula path, readiness gates, peer boundaries, and why missing fields are not inferred.
 - Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Copyable Proof Commands that keep next steps local, capped, and research-only.

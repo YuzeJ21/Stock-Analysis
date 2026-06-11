@@ -23,7 +23,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 ## Evaluation Snapshot
 - Supported evaluation: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Valuation boundary: Operating-company DCF and peer valuation are excluded for this monitor role; use market, theme, liquidity, and risk context only.
-- Confidence cue: medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded.
+- Data-confidence cue: medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded.
 - Next proof: Review SMH as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 - Stop rule: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
@@ -82,7 +82,8 @@ SMH overall readiness: partial because monitor context is usable while company v
 
 ## Analysis Quality
 - Analysis mode: Monitor-only context.
-- Confidence: medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded.
+- Data confidence: medium: market, theme, liquidity, or risk context may be reviewable, while company valuation is excluded.
+- Confidence boundary: data confidence is a readiness and review-routing signal, not investment conviction.
 - Why: Use market, theme, liquidity, or risk context. Operating-company DCF and peer valuation are excluded, not failed.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 

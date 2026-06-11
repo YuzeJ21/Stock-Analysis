@@ -23,7 +23,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 ## Evaluation Snapshot
 - Supported evaluation: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Valuation boundary: Standalone DCF assumptions and source-backed peer context can be reviewed; optional context may still be locked.
-- Confidence cue: medium: core price, fundamentals, DCF, and peer inputs are ready, but optional context is still locked.
+- Data-confidence cue: medium: core price, fundamentals, DCF, and peer inputs are ready, but optional context is still locked.
 - Next proof: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 - Stop rule: Blocked features: earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
@@ -82,7 +82,8 @@ NVDA overall readiness: partial because optional earnings/estimate context is lo
 
 ## Analysis Quality
 - Analysis mode: DCF-ready review.
-- Confidence: medium: core price, fundamentals, DCF, and peer inputs are ready, but optional context is still locked.
+- Data confidence: medium: core price, fundamentals, DCF, and peer inputs are ready, but optional context is still locked.
+- Confidence boundary: data confidence is a readiness and review-routing signal, not investment conviction.
 - Why: Price, fundamentals, standalone DCF, and peer context are ready for a fuller research pass.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 

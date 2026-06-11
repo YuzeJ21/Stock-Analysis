@@ -501,7 +501,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Copy next:" not in markdown
     assert "## Executive Summary" in markdown
     assert "Bottom line: MSFT is in `Standalone DCF review` mode" in markdown
-    assert "- Confidence: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked." in markdown
+    assert "- Data confidence: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked." in markdown
+    assert "- Confidence boundary: data confidence is a readiness and review-routing signal, not investment conviction." in markdown
     assert "## Data And App Method" in markdown
     assert "## Data Vs Product Logic" not in markdown
     assert "Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates" in markdown
@@ -521,7 +522,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Next step:" in markdown
     assert "- Supported evaluation: Company-level review can use local price context, fundamentals, and standalone DCF assumptions" in markdown
     assert "- Valuation boundary: Standalone DCF assumptions can be reviewed, but peer-relative valuation stays locked until source-backed peer inputs exist." in markdown
-    assert "- Confidence cue: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked." in markdown
+    assert "- Data-confidence cue: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked." in markdown
     assert "- Next proof: Not available." in markdown
     assert "- Stop rule: Blocked features:" in markdown
     assert "## Analysis Mode Guide" in markdown
@@ -1220,7 +1221,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as available" in markdown
     assert "- Supported evaluation: Use available price or setup context only." in markdown
     assert "- Valuation boundary: Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness." in markdown
-    assert "- Confidence cue: low: price history is still the first required input." in markdown
+    assert "- Data-confidence cue: low: price history is still the first required input." in markdown
     assert "- Stop rule: Blocked features: price, momentum, DCF." in markdown
     assert "## Proof Checklist" in markdown
     assert "Current mode proof: `Data needed before analysis` because trusted local price history is not ready" in markdown

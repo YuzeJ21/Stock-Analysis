@@ -24,7 +24,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 ## Evaluation Snapshot
 - Supported evaluation: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Valuation boundary: Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness.
-- Confidence cue: low: price/setup context is available, but company valuation inputs are blocked.
+- Data-confidence cue: low: price/setup context is available, but company valuation inputs are blocked.
 - Next proof: Complete trusted fundamentals for META; missing fields: shares outstanding. Run `make focus-fundamentals TICKER=META`, then use SEC staging or the manual fundamentals import workflow.
 - Stop rule: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
@@ -83,7 +83,8 @@ META overall readiness: partial; review local inputs that are present and treat 
 
 ## Analysis Quality
 - Analysis mode: Price/setup review only.
-- Confidence: low: price/setup context is available, but company valuation inputs are blocked.
+- Data confidence: low: price/setup context is available, but company valuation inputs are blocked.
+- Confidence boundary: data confidence is a readiness and review-routing signal, not investment conviction.
 - Why: Use price and setup context only. Company valuation stays blocked until trusted fundamentals and DCF inputs exist.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 

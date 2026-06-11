@@ -8,7 +8,7 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 
 ## What It Does
 
-This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, source readiness notes, and copyable local proof commands.
+This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and copyable local proof commands.
 
 ```mermaid
 flowchart LR
@@ -30,7 +30,7 @@ When trusted local data is available, the product can produce:
 - DCF readiness and conservative scenario valuation.
 - Peer-context readiness without pretending missing peer valuation exists.
 - ETF/index monitor reports where operating-company DCF is excluded.
-- Single-stock reports with At A Glance status, a Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, methodology, risks, blockers, copyable local proof commands, and source readiness notes.
+- Single-stock reports with At A Glance status, a Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, methodology, risks, blockers, copyable local proof commands, and source readiness notes.
 
 Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
@@ -130,7 +130,7 @@ Example map:
 | [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |
 | [APLD](outputs/stock_reports/apld.md) / [CRDO](outputs/stock_reports/crdo.md) | Price/setup review with valuation still locked, plus fundamentals-gated proof workflow. | Reader Guide, supported setup context, one-company pilot packet, and the next trusted fundamentals proof step. |
 
-In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what confidence cue applies, what evidence proves the current mode, what to read first, what trusted input matters next, and which copy-only command or proof step to run. They only show `Copyable Proof Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional local report data for inspection.
+In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what data-confidence cue applies, what evidence proves the current mode, what to read first, what trusted input matters next, and which copy-only command or proof step to run. They only show `Copyable Proof Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional local report data for inspection.
 
 For deeper local missing-data details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md). Those guides cover targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
 

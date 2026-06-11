@@ -24,7 +24,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 ## Evaluation Snapshot
 - Supported evaluation: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Valuation boundary: Standalone DCF assumptions can be reviewed, but peer-relative valuation stays locked until source-backed peer inputs exist.
-- Confidence cue: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked.
+- Data-confidence cue: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked.
 - Next proof: Add trusted price history for mapped peers: SNDK, WDC.
 - Stop rule: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
@@ -83,7 +83,8 @@ MU overall readiness: partial because optional earnings/estimate context is lock
 
 ## Analysis Quality
 - Analysis mode: Standalone DCF review.
-- Confidence: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked.
+- Data confidence: medium: standalone DCF inputs are ready, but peer-relative valuation remains locked.
+- Confidence boundary: data confidence is a readiness and review-routing signal, not investment conviction.
 - Why: DCF assumptions can be reviewed, but peer-relative valuation remains limited until trusted peer inputs are ready.
 - Optional context: Earnings and analyst estimates stay locked until trusted local rows exist.
 
