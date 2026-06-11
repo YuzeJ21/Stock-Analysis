@@ -2089,6 +2089,7 @@ def _stock_report_unlock_command_lines(
     elif not fundamentals_ready or dcf_status_text != "ready":
         lines.extend(
             [
+                f"- One-company proof packet: `make trusted-data-pilot-packet TICKER={ticker}`.",
                 f"- Fundamentals / DCF: `make focus-fundamentals TICKER={ticker}`.",
                 f"- SEC/manual import checklist: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
                 "- Fundamentals import safety: `make imports-validate && make imports-preview && make imports-apply`.",
@@ -2103,6 +2104,7 @@ def _stock_report_unlock_command_lines(
     elif not peer_is_ready:
         lines.extend(
             [
+                f"- One-company proof packet: `make trusted-data-pilot-packet TICKER={ticker}`.",
                 f"- Peer mapping: `make focus-peers TICKER={ticker}`.",
                 f"- Peer mapping checklist: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
                 "- Peer import safety: `make templates && make imports-validate && make imports-preview && make imports-apply`.",
