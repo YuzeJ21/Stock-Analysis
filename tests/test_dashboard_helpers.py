@@ -1027,6 +1027,62 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "sell" not in rendered
 
 
+def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
+    cards = dashboard._plain_home_route_choice_cards(
+        {
+            "master_universe": 3538,
+            "price_ready": 265,
+            "dcf_ready": 23,
+            "peer_ready": 9,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card).lower()
+
+    assert [card[0] for card in cards] == ["Review one stock", "Improve data coverage", "Explore ready names"]
+    assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Home / Monthly Picks"]
+    assert cards[1][3] == "warning"
+    assert "23 ticker(s) have dcf-ready local inputs" in rendered
+    assert "without opening raw tables" in rendered
+    assert "best next for coverage" in rendered
+    assert "3,273 ticker(s) still need price coverage" in rendered
+    assert "trusted fundamentals, source-backed peers, earnings, and estimates remain intentionally gated" in rendered
+    assert "readiness protection, not failure" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
+    cards = dashboard._plain_home_route_choice_cards(
+        {
+            "master_universe": 25,
+            "price_ready": 0,
+            "dcf_ready": 0,
+            "peer_ready": 0,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card).lower()
+
+    assert cards[0][0] == "Review one stock"
+    assert cards[1][0] == "Improve data coverage"
+    assert cards[1][3] == "warning"
+    assert "one ticker-level report shows what is ready, blocked, excluded, and calculated locally" in rendered
+    assert "skip this until price coverage exists" in rendered
+    assert "candidate pages should stay empty when local data cannot support them" in rendered
+    assert "25 ticker(s) still need price coverage" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_home_page_renders_evaluation_workflow_before_next_steps():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -1051,6 +1107,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert '"Review one stock"' in source
     assert '"Explore ready names"' in source
     assert '"Improve data coverage"' in source
+    assert "render_action_cards(_plain_home_route_choice_cards(summary))" in source
     assert '"Review current ideas"' not in source
     assert '"Improve missing data"' not in source
     assert 'st.expander("Optional: coverage details", expanded=False)' in source

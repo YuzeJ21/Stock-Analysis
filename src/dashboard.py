@@ -19276,6 +19276,71 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
     ]
 
 
+def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str, str, str, str]]:
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    earnings_ready = int(summary.get("earnings_ready") or 0)
+    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
+
+    has_price_gap = bool(master and price_ready < master)
+    has_depth_gap = price_ready > dcf_ready or dcf_ready > peer_ready or earnings_ready == 0 or estimates_ready == 0
+    data_gap_count = max(master - price_ready, 0) if master else 0
+
+    review_body = (
+        "Start here for the public demo: one ticker-level report shows what is ready, blocked, excluded, and calculated locally."
+    )
+    if dcf_ready > 0:
+        review_body = (
+            f"Start here: {dcf_ready} ticker(s) have DCF-ready local inputs, so a single report can prove valuation boundaries without opening raw tables."
+        )
+    elif price_ready > 0:
+        review_body = (
+            f"Start here for a ticker-level proof: {price_ready} ticker(s) can support setup review while deeper valuation stays gated."
+        )
+
+    explore_body = (
+        "Use this after Home when you want to browse names the current local data can already support. Treat empty lists as readiness protection, not failure."
+    )
+    if price_ready <= 0:
+        explore_body = "Skip this until price coverage exists; candidate pages should stay empty when local data cannot support them."
+    elif dcf_ready <= 0:
+        explore_body = "Use this for price/setup-ready names only; valuation-style lists should stay locked until trusted company inputs exist."
+
+    improve_body = (
+        "Use this when the product says a section is locked. It shows the next trusted input, copy-only command, validation path, and proof step."
+    )
+    improve_tone = "neutral"
+    if has_price_gap or has_depth_gap:
+        improve_tone = "warning"
+        gap_note = f"{data_gap_count:,} ticker(s) still need price coverage. " if data_gap_count else ""
+        improve_body = (
+            f"Best next for coverage: {gap_note}trusted fundamentals, source-backed peers, earnings, and estimates remain intentionally gated until local rows exist."
+        )
+
+    return [
+        (
+            "Review one stock",
+            review_body,
+            "Single-Stock Report",
+            "neutral",
+        ),
+        (
+            "Improve data coverage",
+            improve_body,
+            "Data Health",
+            improve_tone,
+        ),
+        (
+            "Explore ready names",
+            explore_body,
+            "Home / Monthly Picks",
+            "neutral",
+        ),
+    ]
+
+
 def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
     summary = summary or {}
     master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
@@ -19681,28 +19746,7 @@ def render_home_page(
     render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)
 
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
-    render_action_cards(
-        [
-            (
-                "Review one stock",
-                "Open a ticker-level report with price, valuation readiness, missing data, and source readiness.",
-                "Single-Stock Report",
-                "neutral",
-            ),
-            (
-                "Explore ready names",
-                "Open candidate lists only after the data behind them has enough trusted local coverage.",
-                "Monthly Picks",
-                "neutral",
-            ),
-            (
-                "Improve data coverage",
-                "Open the data page when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
-                "Data Health",
-                "warning",
-            ),
-        ]
-    )
+    render_action_cards(_plain_home_route_choice_cards(summary))
 
     if show_details:
         render_context_note(
