@@ -32,8 +32,10 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Single-stock report mode with readiness, methodology, source readiness check, DCF/peer gating, and ETF/index DCF exclusion.
 - [x] Public-facing methodology documentation that explains readiness gates, fundamentals review, DCF formula path, peer boundaries, score limits, and report explanation.
 - [x] Public README/dashboard polish for visitor-friendly demo paths, screenshot preview, generated-data hygiene, deep links, and research-only guardrails.
-- [x] Visitor-first dashboard navigation with three main paths: review one stock, improve data coverage, and explore ready names, while detailed pages remain available behind advanced navigation.
+- [x] Visitor-first dashboard navigation with three main paths: review one stock, improve data coverage, and explore ready names, while detailed pages remain available under `More pages`.
 - [x] Public data-strategy guidance that separates safe automation from human-reviewed source judgment.
+- [x] Data Health freshness routine promoted into the beginner flow with read-only checks, capped price dry-run guidance, and review-required lanes.
+- [x] Blocked single-stock reports hold peer-relative valuation behind fundamentals/DCF readiness so peer rows cannot bypass core company gates.
 
 ## 2. Current Product State
 
@@ -251,7 +253,7 @@ Public-share rules for this stage:
 
 - Keep the README demo path and sample reports short enough for GitHub/LinkedIn visitors.
 - Keep dashboard pages plain-language first, with commands and file paths behind focused help or tables.
-- Keep the sidebar focused on the three main visitor paths, with advanced pages still reachable for deeper local review.
+- Keep the sidebar focused on the three main visitor paths, with `More pages` still reachable for deeper local review.
 - Do not publish broad generated CSV churn unless it is the reviewed artifact for that release.
 - Do not add workflows that run imports, refreshes, account actions, direct recommendations, fabricated data, or valuation labels without ready inputs.
 
@@ -269,7 +271,7 @@ The next roadmap milestone is complete when:
 - [x] Decision buckets remain more informative than generic monitor rows.
 - [x] `ARKF` and risk warnings are resolved or clearly classified.
 - [x] Single-stock research mode can generate a data-honest report.
-- [x] Dashboard navigation defaults to public visitor paths while preserving advanced pages and deep links.
+- [x] Dashboard navigation defaults to public visitor paths while preserving `More pages` and deep links.
 - [x] Public data-strategy docs explain what can be automated and what still requires trusted source judgment.
 - [x] `make pipeline` passes in the latest full data-output verification run.
 - [x] `make onboarding` passes in the latest full data-output verification run.
