@@ -3060,7 +3060,7 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
 
 
 def _print_ticker_unlock_ladder(payload: dict[str, Any], *, top_n: int | None = None) -> None:
-    print("Ticker unlock ladder:")
+    print("Ticker proof ladder:")
     for row in _limited_rows(payload["ticker_unlock_ladder"], top_n=top_n, default=30):
         print(
             f"- {row['ticker']}: stage={row['current_unlock_stage']} "
@@ -3071,7 +3071,7 @@ def _print_ticker_unlock_ladder(payload: dict[str, Any], *, top_n: int | None = 
         print(f"  suggested check: {row.get('focus_command') or '-'}")
         print(f"  next local command: {row.get('example_command') or '-'}")
         _print_command_safety(row)
-    print(f"Ticker unlock ladder rows: {len(payload['ticker_unlock_ladder'])}")
+    print(f"Ticker proof ladder rows: {len(payload['ticker_unlock_ladder'])}")
 
 
 def _print_unlock_priority_summary(payload: dict[str, Any], *, top_n: int | None = None) -> None:
@@ -3230,12 +3230,12 @@ def main() -> None:
     parser.add_argument(
         "--unlock-ladder",
         action="store_true",
-        help="Print one row per ticker showing the next core local data unlock stage.",
+        help="Print one row per ticker showing the next core local data proof stage.",
     )
     parser.add_argument(
         "--unlock-summary",
         action="store_true",
-        help="Print grouped unlock priorities by holdings, theme, and sector ETF.",
+        help="Print grouped proof priorities by holdings, theme, and sector ETF.",
     )
     parser.add_argument(
         "--command-bundles",

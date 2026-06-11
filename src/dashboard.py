@@ -435,7 +435,7 @@ ACTIVE_UNLOCK_DRILLDOWN_COLUMNS = [
 DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
-    "data_coverage_wizard.csv": "Data Coverage Unlock Guide",
+    "data_coverage_wizard.csv": "Data Coverage Proof Guide",
     "price_import_worklist.csv": "Price Import Worklist",
     "fundamentals_peer_worklist.csv": "Fundamentals Peer Worklist",
     "optional_context_worklist.csv": "Optional Context Worklist",
@@ -449,7 +449,7 @@ DATA_ONBOARDING_FILES = {
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
-    "data_quality_wizard.csv": "Data Quality Unlock Guide",
+    "data_quality_wizard.csv": "Data Quality Proof Guide",
     "liquidity_risk.csv": "Liquidity Risk",
     "correlation_risk.csv": "Correlation Risk",
 }
@@ -3946,11 +3946,11 @@ def active_unlock_queue_group(row: pd.Series, dataset: str) -> str:
     if dataset == "fundamentals":
         if bool(row.get("price_ready", False)) and not bool(row.get("fundamentals_ready", False)):
             return "Price-ready but fundamentals missing"
-        return "Fundamentals / DCF unlock"
+        return "Fundamentals / DCF proof"
     if dataset == "peers":
         if bool(row.get("dcf_ready", False)) and not bool(row.get("peer_ready", False)):
             return "DCF-ready but peer-blocked"
-        return "Trusted peer mapping unlock"
+        return "Trusted peer mapping proof"
     if dataset in {"earnings", "analyst_estimates"}:
         return "Optional context locked"
     return "Review current readiness"
@@ -5676,7 +5676,7 @@ def single_stock_demo_ticker_cards() -> list[dict[str, object]]:
             "kicker": "BLOCKED EXAMPLE",
             "title": "META or APLD",
             "body": "Use this when you want to show how the product withholds valuation until trusted fundamentals, DCF fields, or peers are ready.",
-            "badges": ["blocked is useful", "data unlock"],
+            "badges": ["blocked is useful", "proof path"],
             "command": "make stock-report-md TICKER=META",
         },
         {
@@ -6450,12 +6450,12 @@ def data_health_trusted_pilot_preview_frame(
             "Scope": "Active universe" if candidate.active_universe else "Master universe",
             "Rank Reason": plain_dashboard_input_copy(pilot_rank_reason(candidate)),
             "Missing Input": plain_dashboard_input_copy(candidate.missing_input),
-            "Operator Decision": pilot_operator_decision(candidate),
+            "Review Decision": pilot_operator_decision(candidate),
             "Review Path": pilot_review_path(candidate.validation_path),
             "Trusted Row Target": pilot_trusted_row_path(candidate),
             "Packet Command": f"make trusted-data-pilot-packet TICKER={candidate.ticker}",
             "Next Command": candidate.next_command,
-            "Proof After Unlock": candidate.proof_after_unlock,
+            "Proof After Data Changes": candidate.proof_after_unlock,
             "Evidence Expectation": pilot_evidence_expectation(candidate),
         }
         for candidate in candidates[: max(limit, 0)]
@@ -6490,14 +6490,14 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
     cards: list[dict[str, object]] = []
     for _, row in preview_frame.head(max(limit, 0)).iterrows():
         ticker = format_missing(row.get("Ticker"), "Ticker")
-        lane = format_missing(row.get("Pilot Lane"), "Trusted-data unlock")
+        lane = format_missing(row.get("Pilot Lane"), "Trusted-data proof path")
         scope = format_missing(row.get("Scope"), "Current queue")
         rank_reason = compact_card_fragment(row.get("Rank Reason"), max_chars=170)
         missing_input = compact_card_fragment(plain_dashboard_input_copy(row.get("Missing Input")), max_chars=190)
-        operator_decision = compact_card_fragment(row.get("Operator Decision"), max_chars=170)
+        review_decision = compact_card_fragment(row.get("Review Decision") or row.get("Operator Decision"), max_chars=170)
         review_path = compact_card_fragment(row.get("Review Path"), max_chars=165)
         proof = compact_card_fragment(
-            row.get("Proof After Unlock"),
+            row.get("Proof After Data Changes") or row.get("Proof After Unlock"),
             "make readiness && make stock-report-md TICKER=<ticker>",
             max_chars=175,
         )
@@ -6510,7 +6510,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                 "body": (
                     f"{card_sentence('Why this is next', rank_reason)} "
                     f"{card_sentence('Missing input', missing_input)} "
-                    f"{card_sentence('Decision', operator_decision)} "
+                    f"{card_sentence('Decision', review_decision)} "
                     f"Check first: {review_path}; then run {lane_command}. "
                     f"{card_sentence('Proof after data changes', proof)}"
                 ),
@@ -11462,7 +11462,7 @@ def active_evaluation_reason(row: pd.Series) -> str:
     if "monitor etf" in lane:
         return f"Priority rationale: {family} monitor context; review market, theme, liquidity, and risk signals while operating-company DCF and peer valuation stay excluded."
     if "fundamentals" in lane or "dcf" in lane:
-        return f"Priority rationale: {bucket} / {subtype}; {blocker} is the first trusted-data unlock before valuation interpretation."
+        return f"Priority rationale: {bucket} / {subtype}; {blocker} is the first trusted-data proof step before valuation interpretation."
     if "price" in lane:
         return f"Priority rationale: {bucket} / {subtype}; price coverage must be repaired before setup, momentum, liquidity, or risk interpretation."
     if "peer" in lane:
@@ -12407,11 +12407,11 @@ def safe_action_console_command(category: str, command: object = "") -> str:
         if "price-refresh-loop" in lowered or "tickers=" in lowered:
             return command_text
         return "make price-refresh-loop DRY_RUN=1"
-    if category_key == "fundamentals / dcf unlock":
+    if category_key in {"fundamentals / dcf proof", "fundamentals / dcf unlock"}:
         if "top_n=" in lowered or "tickers=" in lowered or lowered == "make imports-validate":
             return command_text
         return "make sec-stage-queue TOP_N=25"
-    if category_key == "peer mapping unlock":
+    if category_key in {"peer mapping proof", "peer mapping unlock"}:
         if "top_n=" in lowered or "ticker=" in lowered or lowered == "make imports-validate":
             return command_text
         return "make peer-mapping-queue TOP_N=25"
@@ -12431,8 +12431,8 @@ def safe_action_console_command(category: str, command: object = "") -> str:
 def next_action_console_when_to_use(category: str) -> str:
     guidance = {
         "Price Coverage Batch": "Use when many tickers are blocked before momentum, liquidity, or market-context review; dry-run the loop instead of repeating 25-ticker refreshes manually.",
-        "Fundamentals / DCF Unlock": "Use after prices exist and company-level valuation is blocked by missing fundamentals or DCF fields.",
-        "Peer Mapping Unlock": "Use when DCF-ready companies still need source-backed peers before relative valuation is shown.",
+        "Fundamentals / DCF Proof": "Use after prices exist and company-level valuation is blocked by missing fundamentals or DCF fields.",
+        "Peer Mapping Proof": "Use when DCF-ready companies still need source-backed peers before relative valuation is shown.",
         "Earnings Import Setup": "Use only when trusted earnings rows are available locally; otherwise leave the section locked.",
         "Analyst Estimates Import Setup": "Use only when trusted estimate rows are available locally; consensus is context, not a conclusion.",
         "Import Validation / Rejected Rows": "Use before trusting any staged local CSV rows or after a preview shows rejected records.",
@@ -12444,8 +12444,8 @@ def next_action_console_when_to_use(category: str) -> str:
 def next_action_console_output_to_check(category: str) -> str:
     outputs = {
         "Price Coverage Batch": "Check price coverage, readiness, and Data Health after the capped run.",
-        "Fundamentals / DCF Unlock": "Check DCF readiness, fundamentals coverage, and a single-stock report for the target ticker.",
-        "Peer Mapping Unlock": "Check peer readiness, peer unlock worklist, and the Peer Mapping Studio table.",
+        "Fundamentals / DCF Proof": "Check DCF readiness, fundamentals coverage, and a single-stock report for the target ticker.",
+        "Peer Mapping Proof": "Check peer readiness, peer unlock worklist, and the Peer Mapping Studio table.",
         "Earnings Import Setup": "Check earnings readiness and rejected-row reports after validate/preview/apply.",
         "Analyst Estimates Import Setup": "Check analyst-estimate readiness and rejected-row reports after validate/preview/apply.",
         "Import Validation / Rejected Rows": "Check rejected-row reports before applying any staged local rows.",
@@ -12457,8 +12457,8 @@ def next_action_console_output_to_check(category: str) -> str:
 def next_action_console_source_note(category: str) -> str:
     notes = {
         "Price Coverage Batch": "Uses local prices first, then dry-run-first capped Yahoo refresh loops or staged manual OHLCV CSVs with preview/apply safeguards.",
-        "Fundamentals / DCF Unlock": "Uses SEC Companyfacts staging workflow when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
-        "Peer Mapping Unlock": "Uses source-backed manual peer mappings or clearly labeled fallback context; no peer relationship is inferred as trusted.",
+        "Fundamentals / DCF Proof": "Uses SEC Companyfacts staging workflow when configured, or trusted manual fundamentals CSV rows with validate/preview/apply.",
+        "Peer Mapping Proof": "Uses source-backed manual peer mappings or clearly labeled fallback context; no peer relationship is inferred as trusted.",
         "Earnings Import Setup": "Manual trusted local CSV only; feature stays unavailable until rows validate.",
         "Analyst Estimates Import Setup": "Manual trusted local CSV only; consensus context stays unavailable until rows validate.",
         "Import Validation / Rejected Rows": "Uses staged local CSV validation, preview/apply, and rejected-row reports before any local dataset is trusted.",
@@ -12474,12 +12474,12 @@ def next_action_console_plain_english_state(category: str) -> dict[str, str]:
             "locked": "tickers missing trusted OHLCV stay out of those views until local price rows exist.",
             "copy_next": "start with the dry run so the broad refresh plan is visible before local CSVs change.",
         },
-        "Fundamentals / DCF Unlock": {
+        "Fundamentals / DCF Proof": {
             "can_analyze": "price-ready companies can be queued for SEC or trusted manual fundamentals review.",
             "locked": "company quality and DCF interpretation stay locked until required fundamentals and DCF fields validate.",
             "copy_next": "inspect the capped fundamentals review queue or targeted ticker workflow before importing rows.",
         },
-        "Peer Mapping Unlock": {
+        "Peer Mapping Proof": {
             "can_analyze": "standalone DCF-ready companies can be reviewed without forcing peer conclusions.",
             "locked": "peer trend needs mapped peer price history; peer valuation needs trusted peer mappings and peer metrics.",
             "copy_next": "open the peer review queue and add only source-backed peer rows.",
@@ -12562,7 +12562,7 @@ def build_next_action_console_frame(
             ),
             (
                 2,
-                "Fundamentals / DCF Unlock",
+                "Fundamentals / DCF Proof",
                 "fundamentals_ready, dcf_ready",
                 fundamentals_missing,
                 "Price-ready company tickers are the highest-leverage DCF unlock targets because price context already exists.",
@@ -12570,7 +12570,7 @@ def build_next_action_console_frame(
             ),
             (
                 3,
-                "Peer Mapping Unlock",
+                "Peer Mapping Proof",
                 "peer_ready",
                 dcf_peer_blocked,
                 "DCF-ready names without peer context need source-backed mappings before peer-relative conclusions are useful.",
@@ -12655,10 +12655,10 @@ def build_next_action_console_frame(
             category = "Price Coverage Batch"
             feature = "price_ready"
         elif "sec-stage" in lowered or "fundamental" in lowered:
-            category = "Fundamentals / DCF Unlock"
+            category = "Fundamentals / DCF Proof"
             feature = "fundamentals_ready, dcf_ready"
         elif "peer" in lowered:
-            category = "Peer Mapping Unlock"
+            category = "Peer Mapping Proof"
             feature = "peer_ready"
         elif "earnings" in lowered:
             category = "Earnings Import Setup"
@@ -12704,7 +12704,7 @@ def build_next_action_console_frame(
         for signal in top_priority_signals(action_queue_frame, limit=2):
             command = format_missing(signal.get("command"), "")
             lowered = command.lower()
-            category = "Price Coverage Batch" if "price" in lowered else "Fundamentals / DCF Unlock" if "fundamental" in lowered or "sec-stage" in lowered else "Peer Mapping Unlock" if "peer" in lowered else "Single-Stock Review"
+            category = "Price Coverage Batch" if "price" in lowered else "Fundamentals / DCF Proof" if "fundamental" in lowered or "sec-stage" in lowered else "Peer Mapping Proof" if "peer" in lowered else "Single-Stock Review"
             command = safe_action_console_command(category, command)
             rows.append(
                 {
@@ -16493,15 +16493,15 @@ def overview_market_context_cards(
 
 
 ONBOARDING_NOTICE_DEFAULTS: dict[str, str] = {
-    "coverage_wizard": "Build the local coverage guide to see the next best coverage unlocks.",
-    "command_bundles": "Build holdings-first coverage plans before reviewing grouped unlock work.",
+    "coverage_wizard": "Build the local coverage guide to see the next best coverage proof steps.",
+    "command_bundles": "Build holdings-first coverage plans before reviewing grouped proof steps.",
     "command_bundle_details": "Build ticker-level coverage steps before reviewing the guided worklist.",
     "command_bundle_runbook": "Build ordered coverage steps before using the guided runbook.",
     "price_worklist": "Build the local coverage view to see exact price-history gaps plus the safe manual-import path.",
     "fundamentals_peer_worklist": "Build the local coverage view to see which tickers still need SEC fundamentals or manual peer mappings.",
     "optional_context_worklist": "Build the local coverage view to see which tickers still have optional earnings or analyst-estimate gaps.",
-    "ticker_unlock_ladder": "Build the local coverage view to see the next per-ticker data unlock stage.",
-    "unlock_priority_summary": "Build grouped unlock priorities by holdings, theme, and sector ETF before choosing the next coverage task.",
+    "ticker_unlock_ladder": "Build the local coverage view to see the next per-ticker data proof stage.",
+    "unlock_priority_summary": "Build grouped proof priorities by holdings, theme, and sector ETF before choosing the next coverage task.",
 }
 
 
@@ -19070,7 +19070,7 @@ def render_overview(
                 action_queue_frame,
             )
         )
-        render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
+        render_section_header("Holdings First", "Blocked portfolio names and the next local proof stage before broader universe work.")
         render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
         render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
         render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
@@ -19125,14 +19125,14 @@ def render_overview(
                 ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
                 ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
                 ("Research Ready", health_summary["research_ready"], "Coverage guide rows"),
-                ("Urgent Unlock Steps", queue_summary["critical"], "Highest-priority data fixes"),
+                ("Urgent Proof Steps", queue_summary["critical"], "Highest-priority data fixes"),
             ]
         )
 
     render_section_header("Next Deeper Tabs", "Where to go next after the high-level workflow read, depending on whether you need blocker triage, single-name depth, or broader candidate comparison.")
     render_signal_cards(overview_handoff_cards())
 
-    with st.expander("More status, unlock worklists, and local files", expanded=False):
+    with st.expander("More status, proof worklists, and local files", expanded=False):
         st.markdown(
             (
                 "<div class='subtle-panel'>"
@@ -19163,7 +19163,7 @@ def render_overview(
             )
             st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
 
-        render_section_header("Next Data Unlocks", "The next local data unlocks for richer research output.")
+        render_section_header("Next Data Proof Steps", "The next local data proof steps for richer research output.")
         render_signal_cards(data_coverage_wizard_cards(wizard_frame))
 
         priority_signals = top_priority_signals(action_queue_frame, limit=3)
@@ -19836,7 +19836,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
                 "Copy Command": "make dashboard-smoke",
             },
             {
-                "Roadmap Area": "Fundamentals / DCF data unlock",
+                "Roadmap Area": "Fundamentals / DCF data proof",
                 "Current Status": "Waiting on trusted data",
                 "Evidence": f"{_count_text(fundamentals_ready, 'fundamentals-ready')} and {_count_text(dcf_ready, 'DCF-ready')}; counts should improve only after SEC staging workflow or trusted manual CSV imports.",
                 "Next Safe Step": "Inspect the top fundamentals blocker, then stage SEC or trusted manual fundamentals rows.",
@@ -20719,7 +20719,7 @@ def render_market_command_center(
         st.caption("Full methodology: docs/METHODOLOGY.md")
     render_section_header(
         "Roadmap Milestone Status",
-        "Completed product workflow items versus trusted-data unlocks that must remain honest until real rows exist.",
+        "Completed product workflow items versus trusted-data proof steps that must remain honest until real rows exist.",
     )
     render_signal_cards(roadmap_milestone_status_cards(summary))
     with st.expander("Roadmap milestone table", expanded=False):
@@ -20975,11 +20975,11 @@ def render_market_command_center(
         with st.expander("Peer input ladder table", expanded=False):
             st.dataframe(clean_display_frame(peer_input_ladder), width="stretch", hide_index=True)
     render_section_header(
-        "First Trusted Peer Mapping Unlock",
+        "First Trusted Peer Mapping Proof",
         "The shortest safe path from missing peers to a source-backed peer readiness change.",
     )
     render_signal_cards(first_peer_mapping_unlock_cards(peer_unlock_worklist_frame))
-    with st.expander("First peer mapping unlock steps", expanded=False):
+    with st.expander("First peer mapping proof steps", expanded=False):
         st.dataframe(
             clean_display_frame(first_peer_mapping_unlock_frame(peer_unlock_worklist_frame)),
             width="stretch",
@@ -21047,7 +21047,7 @@ def render_market_command_center(
     )
     render_signal_cards(fundamentals_peer_unlock_story_cards(ticker_readiness_frame, peer_readiness_frame))
     render_section_header(
-        "Fundamentals / DCF Unlock Guide",
+        "Fundamentals / DCF Proof Guide",
         "Price-ready companies that still need trusted fundamentals, missing DCF fields, and DCF-ready names waiting on peer context.",
     )
     render_signal_cards(fundamentals_dcf_payload_cards)
@@ -21079,7 +21079,7 @@ def render_market_command_center(
         "Small, safe review entry points for turning known tickers into analysis-ready tickers.",
     )
     render_signal_cards(blocker_summary_cards)
-    render_section_header("Next Best Actions", "Practical command cards for the next local data unlock. These are copyable commands only; the dashboard does not run them.")
+    render_section_header("Next Best Actions", "Practical command cards for the next local data proof step. These are copyable commands only; the dashboard does not run them.")
     render_signal_cards(next_best_action_cards)
 
     if ticker_readiness_frame is None or ticker_readiness_frame.empty:
@@ -21401,15 +21401,15 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "make pipeline",
             tone="warning",
         )
-    with st.expander("More readiness summaries and unlock lists", expanded=False):
+    with st.expander("More readiness summaries and proof lists", expanded=False):
         render_signal_cards(readiness_panel_cards(readiness_summary))
         render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
-        render_section_header("Next Data Unlocks", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
+        render_section_header("Next Data Proof Steps", "What to prove next for Monthly Picks, track record, DCF, and peer-relative research.")
         render_signal_cards(data_coverage_wizard_cards(wizard_frame))
         if wizard_frame is None:
             wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
             render_notice_card(
-                "Coverage unlock guide not ready yet",
+                "Coverage proof guide not ready yet",
                 wizard_notice_body,
                 wizard_notice_command,
             )
@@ -22231,8 +22231,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             )
         if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
             render_context_note(
-                "Ticker unlock ladder.",
-                "This single table combines prices, DCF, peer-relative, and optional context into one next-step ladder per ticker.",
+                "Ticker proof ladder.",
+                "This single table combines prices, DCF, peer-relative, and optional context into one next proof step per ticker.",
             )
             ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=False)
             st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15)), width="stretch", hide_index=True)
@@ -22241,7 +22241,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
                 "ticker_unlock_ladder", ticker_unlock_ladder_message
             )
             render_notice_card(
-                "Ticker unlock ladder not ready yet",
+                "Ticker proof ladder not ready yet",
                 ticker_unlock_notice_body,
                 ticker_unlock_notice_command,
                 tone="warning",

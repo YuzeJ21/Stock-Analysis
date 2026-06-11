@@ -682,7 +682,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     market_expander_index = source.index('st.expander("Detailed market-wide review"', market_details_gate_index)
     detailed_map_index = source.index('render_section_header(\n                "Detailed Unlock Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
-    summary_expander_index = source.index('st.expander("More readiness summaries and unlock lists"')
+    summary_expander_index = source.index('st.expander("More readiness summaries and proof lists"')
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
     hidden_tables_note_index = source.index('render_context_note(\n            "Detailed tables are hidden."')
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])')
@@ -705,9 +705,9 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'st.expander("Ticker Unlock Ladder", expanded=False)' not in source
     assert 'st.expander("Data Gap List", expanded=False)' in source
     assert 'st.expander("Data Gap Report", expanded=False)' not in source
-    assert 'st.expander("More readiness summaries and unlock lists", expanded=False)' in source
+    assert 'st.expander("More readiness summaries and proof lists", expanded=False)' in source
     assert 'st.expander("Guided coverage plan details", expanded=False)' in source
-    assert summary_expander_index < source.index('render_section_header("Next Data Unlocks"', summary_expander_index)
+    assert summary_expander_index < source.index('render_section_header("Next Data Proof Steps"', summary_expander_index)
     assert 'render_section_header("Priority Fixes"' not in source
 
 
@@ -771,9 +771,9 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     overview_queue_index = source.index('st.expander("More overview worklists"')
     local_path_index = source.index('render_section_header("Today\'s Best Local Research Path"')
     next_tabs_index = source.index('render_section_header("Next Deeper Tabs"')
-    status_unlock_index = source.index('st.expander("More status, unlock worklists, and local files"')
+    status_unlock_index = source.index('st.expander("More status, proof worklists, and local files"')
     project_status_index = source.index('render_section_header(\n                "Project Status"', status_unlock_index)
-    next_data_unlocks_index = source.index('render_section_header("Next Data Unlocks"', status_unlock_index)
+    next_data_unlocks_index = source.index('render_section_header("Next Data Proof Steps"', status_unlock_index)
 
     assert overview_index < changed_index < best_paths_index < readiness_expander_index < overview_queue_index < local_path_index
     assert local_path_index < next_tabs_index < status_unlock_index
@@ -785,7 +785,7 @@ def test_overview_default_view_keeps_best_path_before_detailed_queues():
     assert source.count("show_commands=False") >= 8
     assert 'st.expander("Readiness and data-quality details", expanded=False)' in source
     assert 'st.expander("More overview worklists", expanded=False)' in source
-    assert 'st.expander("More status, unlock worklists, and local files", expanded=False)' in source
+    assert 'st.expander("More status, proof worklists, and local files", expanded=False)' in source
     assert 'st.expander("More overview queues"' not in source
     assert 'st.expander("More status, unlock queues, and generated outputs"' not in source
     assert "if project_status_payload:\n        st.markdown(project_status_cockpit_html" in source
@@ -6602,7 +6602,7 @@ def test_onboarding_notice_copy_uses_onboarding_front_door_for_generated_artifac
     assert price_command == "make onboarding"
     assert "safe manual-import path" in price_body.lower()
     assert unlock_command == "make onboarding"
-    assert "grouped unlock priorities by holdings, theme, and sector etf" in unlock_body.lower()
+    assert "grouped proof priorities by holdings, theme, and sector etf" in unlock_body.lower()
 
 
 def test_artifact_notice_copy_uses_narrow_front_doors_for_specific_artifacts():
@@ -9462,19 +9462,19 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
         "Scope",
         "Rank Reason",
         "Missing Input",
-        "Operator Decision",
+        "Review Decision",
         "Review Path",
         "Trusted Row Target",
         "Packet Command",
         "Next Command",
-        "Proof After Unlock",
+        "Proof After Data Changes",
         "Evidence Expectation",
     ]
     assert list(frame["Ticker"]) == ["MU", "META"]
     assert len(frame) == 2
     assert "active-universe" in rendered
-    assert "peer mapping unlock" in rendered
-    assert "fundamentals / dcf unlock" in rendered
+    assert "peer mapping proof path" in rendered
+    assert "fundamentals / dcf proof path" in rendered
     assert "choose this company only if you can document source-backed peer relationships" in rendered
     assert "choose this company only if you can review trusted sec or manual fundamentals rows" in rendered
     assert "make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
@@ -9526,8 +9526,8 @@ def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
 
     assert "choose 5-10 operating companies only when you can review source proof" in rendered
     assert "2 active-universe candidate(s)" in rendered
-    assert "fundamentals / dcf unlock: 1" in rendered
-    assert "peer mapping unlock: 1" in rendered
+    assert "fundamentals / dcf proof path: 1" in rendered
+    assert "peer mapping proof path: 1" in rendered
     assert "make trusted-data-pilot tickers=mu,meta top_n=2" in rendered
     assert "useful pilot win: before report, lane review, trusted source row" in rendered
     assert "rather than filling placeholder data" in rendered
@@ -9550,30 +9550,30 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
         [
             {
                 "Ticker": "MU",
-                "Pilot Lane": "Peer mapping unlock",
+                "Pilot Lane": "Peer mapping proof",
                 "Scope": "Active universe",
-                "Rank Reason": "active-universe public-demo name; peer mapping unlock; priority 2; missing needs source-backed peers.",
+                "Rank Reason": "active-universe public-demo name; peer mapping proof; priority 2; missing needs source-backed peers.",
                 "Missing Input": "needs source-backed peer mappings; analyst_estimates: trusted local CSV input",
-                "Operator Decision": "Choose this company only if you can document source-backed peer relationships.",
+                "Review Decision": "Choose this company only if you can document source-backed peer relationships.",
                 "Review Path": "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU",
                 "Trusted Row Target": "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed",
                 "Packet Command": "make trusted-data-pilot-packet TICKER=MU",
                 "Next Command": "make focus-peers TICKER=MU",
-                "Proof After Unlock": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
+                "Proof After Data Changes": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
                 "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
             },
             {
                 "Ticker": "META",
-                "Pilot Lane": "Fundamentals / DCF unlock",
+                "Pilot Lane": "Fundamentals / DCF proof",
                 "Scope": "Active universe",
-                "Rank Reason": "active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares_outstanding.",
+                "Rank Reason": "active-universe public-demo name; fundamentals / dcf proof; priority 1; missing shares_outstanding.",
                 "Missing Input": "shares_outstanding",
-                "Operator Decision": "Choose this company only if you can review trusted SEC or manual fundamentals rows.",
+                "Review Decision": "Choose this company only if you can review trusted SEC or manual fundamentals rows.",
                 "Review Path": "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META",
                 "Trusted Row Target": "data/staged/fundamentals/ or data/imports/fundamentals.csv",
                 "Packet Command": "make trusted-data-pilot-packet TICKER=META",
                 "Next Command": "make focus-fundamentals TICKER=META",
-                "Proof After Unlock": "make readiness && make dcf-readiness && make stock-report-md TICKER=META",
+                "Proof After Data Changes": "make readiness && make dcf-readiness && make stock-report-md TICKER=META",
                 "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
             },
         ]
@@ -9584,7 +9584,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
 
     assert len(cards) == 1
     assert cards[0]["kicker"] == "PILOT CANDIDATE"
-    assert cards[0]["title"] == "MU: Peer mapping unlock"
+    assert cards[0]["title"] == "MU: Peer mapping proof"
     assert cards[0]["command"] == "make trusted-data-pilot-packet TICKER=MU"
     assert cards[0]["badges"] == ["Active universe", "read-only"]
     assert "why this is next:" in rendered
@@ -12653,10 +12653,10 @@ def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     for phrase in (
-        "Data Coverage Unlock Guide",
-        "Data Quality Unlock Guide",
+        "Data Coverage Proof Guide",
+        "Data Quality Proof Guide",
         "Coverage guide rows",
-        "Coverage unlock guide not ready yet",
+        "Coverage proof guide not ready yet",
         "Coverage Guide Rows",
         "Top Data Actions",
         "Peer Review Queue",
@@ -12669,12 +12669,12 @@ def test_dashboard_uses_unlock_guide_labels_for_user_visible_wizard_outputs():
         "Peer unlock worklist has not been generated",
         "Peer readiness report has not been generated",
         "Research decisions have not been generated",
-        "Coverage unlock guide has not been generated",
-        "Data Quality Unlock Guide rows",
+        "Coverage proof guide has not been generated",
+        "Data Quality Proof Guide rows",
         "Data source status is not generated yet",
         '"data_quality_wizard.csv": "Data Quality Wizard"',
         "Data Coverage Wizard Rows",
-        "Data Coverage Unlock Guide Rows",
+        "Data Coverage Proof Guide Rows",
         "Top Onboarding Actions",
         "Peer Mapping Queue",
         "Coverage wizard has not been generated",
@@ -13332,7 +13332,7 @@ def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
 
     assert frame["Roadmap Area"].tolist() == [
         "Product workflow",
-        "Fundamentals / DCF data unlock",
+        "Fundamentals / DCF data proof",
         "Peer readiness",
         "Decision clarity",
         "Verification",
@@ -13619,8 +13619,8 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert set(console["action_category"]).issuperset(
         {
             "Price Coverage Batch",
-            "Fundamentals / DCF Unlock",
-            "Peer Mapping Unlock",
+            "Fundamentals / DCF Proof",
+            "Peer Mapping Proof",
             "Earnings Import Setup",
             "Analyst Estimates Import Setup",
             "Import Validation / Rejected Rows",
@@ -13630,8 +13630,8 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert card_kickers.issuperset(
         {
             "Price Coverage Batch",
-            "Fundamentals / Dcf Unlock",
-            "Peer Mapping Unlock",
+            "Fundamentals / Dcf Proof",
+            "Peer Mapping Proof",
             "Earnings Import Setup",
             "Analyst Estimates Import Setup",
             "Import Validation / Rejected Rows",
@@ -13678,8 +13678,8 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
 
 def test_next_action_console_plain_english_states_cover_unlock_lanes():
     price_state = dashboard.next_action_console_plain_english_state("Price Coverage Batch")
-    fundamentals_state = dashboard.next_action_console_plain_english_state("Fundamentals / DCF Unlock")
-    peer_state = dashboard.next_action_console_plain_english_state("Peer Mapping Unlock")
+    fundamentals_state = dashboard.next_action_console_plain_english_state("Fundamentals / DCF Proof")
+    peer_state = dashboard.next_action_console_plain_english_state("Peer Mapping Proof")
     earnings_state = dashboard.next_action_console_plain_english_state("Earnings Import Setup")
     estimates_state = dashboard.next_action_console_plain_english_state("Analyst Estimates Import Setup")
     single_state = dashboard.next_action_console_plain_english_state("Single-Stock Review")
@@ -13722,8 +13722,8 @@ def test_next_action_console_prioritizes_active_samples_without_hiding_broad_cou
 
     console = dashboard.build_next_action_console_frame(readiness, None, None, limit=8)
     rendered = " ".join(str(value) for value in console.to_numpy().ravel()).lower()
-    peer_row = console.loc[console["action_category"].eq("Peer Mapping Unlock")].iloc[0]
-    fundamentals_row = console.loc[console["action_category"].eq("Fundamentals / DCF Unlock")].iloc[0]
+    peer_row = console.loc[console["action_category"].eq("Peer Mapping Proof")].iloc[0]
+    fundamentals_row = console.loc[console["action_category"].eq("Fundamentals / DCF Proof")].iloc[0]
     single_row = console.loc[console["action_category"].eq("Single-Stock Review")].iloc[0]
 
     assert peer_row["ticker_count"] == 3
@@ -13747,8 +13747,8 @@ def test_next_action_console_sanitizes_uncapped_batch_commands():
     assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh") == "make price-refresh-loop DRY_RUN=1"
     assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh-loop DRY_RUN=1") == "make price-refresh-loop DRY_RUN=1"
     assert dashboard.safe_action_console_command("Price Coverage Batch", "make price-refresh TICKERS=NVDA") == "make price-refresh TICKERS=NVDA"
-    assert dashboard.safe_action_console_command("Fundamentals / DCF Unlock", "make sec-stage") == "make sec-stage-queue TOP_N=25"
-    assert dashboard.safe_action_console_command("Peer Mapping Unlock", "make templates") == "make peer-mapping-queue TOP_N=25"
+    assert dashboard.safe_action_console_command("Fundamentals / DCF Proof", "make sec-stage") == "make sec-stage-queue TOP_N=25"
+    assert dashboard.safe_action_console_command("Peer Mapping Proof", "make templates") == "make peer-mapping-queue TOP_N=25"
     assert dashboard.safe_action_console_command("Import Validation / Rejected Rows", "make imports-apply") == "make imports-apply"
     assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report") == "make stock-report-md TICKER=META"
     assert dashboard.safe_action_console_command("Single-Stock Review", "make stock-report TICKER=NVDA") == "make stock-report-md TICKER=NVDA"
@@ -14202,7 +14202,7 @@ def test_active_unlock_queue_group_labels_dcf_ready_peer_blocked_rows():
     )
 
     assert dashboard.active_unlock_queue_group(row, "peers") == "DCF-ready but peer-blocked"
-    assert dashboard.active_unlock_queue_group(row, "fundamentals") == "Fundamentals / DCF unlock"
+    assert dashboard.active_unlock_queue_group(row, "fundamentals") == "Fundamentals / DCF proof"
 
 
 def test_feature_readiness_cards_show_feature_level_product_status():
@@ -15760,10 +15760,10 @@ def test_fundamentals_dcf_function_quality_frame_explains_scope_and_provenance()
 def test_fundamentals_dcf_unlock_copy_uses_guide_language_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert "Fundamentals / DCF Unlock Guide" in source
+    assert "Fundamentals / DCF Proof Guide" in source
     assert "waiting on peer context" in source
     assert "Run make readiness before reviewing the fundamentals and DCF unlock guide." in source
-    assert "Fundamentals / DCF Unlock Diagnostics" not in source
+    assert "Fundamentals / DCF Proof Diagnostics" not in source
     assert "fundamentals and DCF unlock diagnostics" not in source
 
 

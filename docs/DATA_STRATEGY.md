@@ -12,7 +12,7 @@ Use this section when someone asks whether the product is doing the analysis or 
 - Local or provider-assisted rows supply inputs; they do not decide valuation status, confidence, peer readiness, or research state.
 - Prices are the safest lane to refresh at scale because they are repeatable time-series rows; dry-run and capped loops still come first.
 - Fundamentals, peer mappings, earnings, and analyst estimates are judgment-required lanes; they should move through trusted source review, validation, preview, and readiness proof.
-- Missing trusted rows are a product signal. They keep analysis locked so a visitor can see what is real, what is excluded, and what would unlock the next layer.
+- Missing trusted rows are a product signal. They keep analysis locked so a visitor can see what is real, what is excluded, and what would prove the next layer is available.
 
 ## Quick Decision Guide
 
@@ -82,7 +82,7 @@ Do not run unattended jobs that apply fundamentals, peer mappings, earnings, ana
 
 Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.
 
-If you want to choose the next pilot from current local blockers, run `make trusted-data-pilot-candidates TOP_N=10`. It ranks operating-company candidates and excludes ETF/index monitor examples from the company DCF pilot queue. If you want a one-company packet after choosing a name, run `make trusted-data-pilot-packet TICKER=CRDO`; it prints the before report, focused blocker check, lane review path, validate/apply step, rejected-row report path, rebuild proof, and evidence row to record. If you want the copyable read-only checklist after choosing several names, run `make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10`. The broader checklist remains available as `make trusted-data-pilot TOP_N=10`. Each command does not refresh, import, or edit local CSV files.
+If you want to choose the next pilot from current local blockers, run `make trusted-data-pilot-candidates TOP_N=10`. It ranks operating-company candidates and excludes ETF/index monitor examples from the company DCF pilot list. If you want a one-company packet after choosing a name, run `make trusted-data-pilot-packet TICKER=CRDO`; it prints the before report, focused blocker check, lane review path, validate/apply step, rejected-row report path, rebuild proof, and evidence row to record. If you want the copyable read-only checklist after choosing several names, run `make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10`. The broader checklist remains available as `make trusted-data-pilot TOP_N=10`. Each command does not refresh, import, or edit local CSV files.
 
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
 

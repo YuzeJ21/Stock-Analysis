@@ -117,7 +117,7 @@ make stock-report-md TICKER=SMH  # sector ETF monitor report
 make stock-report-md TICKER=APLD # price/setup report with fundamentals still locked
 ```
 
-The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> trusted-data pilot. That shows the core idea quickly: the product can analyze ready data, explain blocked data, exclude methods that do not apply, and print the trusted-data path without pretending missing rows exist.
+The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> trusted-data pilot. That shows the core idea quickly: the product can analyze ready data, explain blocked data, exclude methods that do not apply, and print the trusted-data proof path without pretending missing rows exist.
 
 Example map:
 

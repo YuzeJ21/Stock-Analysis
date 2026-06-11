@@ -253,11 +253,11 @@ When a company ticker has the full trusted local input stack, the single-stock r
 
 When any part of that stack is missing, only the supported sections appear. The report keeps the blocked section visible and explains the exact local input needed next, plus the local command path for inspecting or proving that input.
 
-## 11. Data Unlock Ladder
+## 11. Readiness Proof Ladder
 
-The product uses the same unlock ladder in the dashboard, single-stock reports, and Data Health review lists:
+The product uses the same readiness proof ladder in the dashboard, single-stock reports, and Data Health review lists:
 
-| Step | What unlocks | What can be analyzed | What stays unavailable |
+| Step | What becomes available | What can be analyzed | What stays unavailable |
 | --- | --- | --- | --- |
 | 1. Prices | Trusted local price rows. | Price/setup review, trend context, basic risk context when enough history exists. | Fundamentals, DCF, peers, earnings, and estimates. |
 | 2. Fundamentals / DCF inputs | Trusted company fundamentals with revenue, free cash flow or FCF margin, shares outstanding, and source metadata. | Fundamental field review and standalone DCF assumptions, scenarios, sensitivity, and fair value/share math. | Peer-relative valuation and optional earnings/estimate context. |
@@ -273,7 +273,7 @@ The safe local sequence is:
 1. Inspect the focused review list or report, such as `make focus-fundamentals TICKER=NVDA` or `make focus-peers TICKER=A`.
 2. Stage trusted rows only in the matching local CSV path, such as `data/imports/fundamentals.csv`, `data/imports/peers.csv`, `data/staged/earnings/`, or `data/staged/analyst_estimates/`.
 3. Run validation and preview before apply: `make imports-validate`, then `make imports-preview`, then `make imports-apply`.
-4. Regenerate readiness, then read the report again before interpreting the newly unlocked section.
+4. Regenerate readiness, then read the report again before interpreting the newly available section.
 
 This ladder is why empty or partial outputs are useful: they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion.
 

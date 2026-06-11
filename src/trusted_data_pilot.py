@@ -109,11 +109,11 @@ def pilot_lane_label(lane: str) -> str:
     """Return a visitor-facing lane name for internal pilot lane codes."""
 
     return {
-        "fundamentals_dcf": "Fundamentals / DCF unlock",
-        "peer_mapping": "Peer mapping unlock",
-        "peer_valuation_inputs": "Peer valuation inputs unlock",
-        "optional_context_locked": "Optional context unlock",
-    }.get(str(lane or "").strip(), "Trusted-data unlock")
+        "fundamentals_dcf": "Fundamentals / DCF proof path",
+        "peer_mapping": "Peer mapping proof path",
+        "peer_valuation_inputs": "Peer valuation inputs proof path",
+        "optional_context_locked": "Optional context proof path",
+    }.get(str(lane or "").strip(), "Trusted-data proof path")
 
 
 def pilot_review_path(validation_path: str) -> str:
@@ -212,12 +212,12 @@ def pilot_operator_decision(candidate: PilotCandidate) -> str:
 
 
 def pilot_evidence_expectation(candidate: PilotCandidate) -> str:
-    """Return the evidence that should exist before claiming a pilot unlock."""
+    """Return the evidence that should exist before claiming a pilot lane is available."""
 
     return (
         "Evidence required: before report, lane review output, trusted source row or source note, "
         "validate/preview/apply result if rows are applied, rebuilt readiness, after report, and still-blocked reason if unchanged. "
-        f"Do not call {candidate.ticker} unlocked until the rebuilt report proves the lane changed."
+        f"Do not call {candidate.ticker} available until the rebuilt report proves the lane changed."
     )
 
 
@@ -331,7 +331,7 @@ def build_trusted_data_pilot_candidates(
             ticker=ticker,
             lane="fundamentals_dcf",
             priority=_int_value(row.get("priority")),
-            why_it_matters="Unlocks company fundamentals review and the DCF readiness gate.",
+            why_it_matters="Proves whether company fundamentals review and the DCF readiness gate can become available.",
             missing_input=missing_dcf,
             next_command=_clean(row.get("focus_command"), f"make focus-fundamentals TICKER={ticker}"),
             validation_path=(
@@ -368,7 +368,7 @@ def build_trusted_data_pilot_candidates(
             priority=_int_value(row.get("priority")),
             why_it_matters=_clean(
                 row.get("next_action_summary"),
-                "Unlocks peer context without implying peer valuation is ready.",
+                "Proves whether peer context can become available without implying peer valuation is ready.",
             ),
             missing_input=missing_input,
             next_command=next_command,
@@ -397,7 +397,7 @@ def build_trusted_data_pilot_candidates(
             ticker=ticker,
             lane="peer_mapping",
             priority=2 if _truthy(row.get("in_active_universe")) else 3,
-            why_it_matters="Unlocks source-backed peer trend or peer valuation context for a visible company report.",
+            why_it_matters="Proves whether source-backed peer trend or peer valuation context can become available for a visible company report.",
             missing_input=missing_data or "peer inputs",
             next_command=f"make focus-peers TICKER={ticker}",
             validation_path=(

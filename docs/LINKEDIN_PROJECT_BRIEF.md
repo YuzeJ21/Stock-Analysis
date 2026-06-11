@@ -34,13 +34,13 @@ Current features:
 - Copyable Proof Commands that keep next steps local, capped, and research-only.
 - Source-readiness sections.
 - A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of a fabricated full-universe unlock.
-- A read-only `make trusted-data-pilot-candidates TOP_N=10` command that ranks current company blockers, states the operator decision for each lane, and keeps the coverage-improvement path focused without importing rows or fabricating data.
+- A read-only `make trusted-data-pilot-candidates TOP_N=10` command that ranks current company blockers, states the review decision for each lane, and keeps the coverage-improvement path focused without importing rows or fabricating data.
 - A plain selection rule for the pilot: choose 5-10 operating companies only when source proof exists, review the lane mix, and treat a useful pilot win as before/after report evidence plus rebuilt readiness, not just a new CSV row.
-- A read-only `make trusted-data-pilot-packet TICKER=CRDO` command that prints the before report, focused blocker check, lane review path, operator decision, evidence expectation, validate/apply step, rejected-row report, rebuild proof, and evidence row for one company.
+- A read-only `make trusted-data-pilot-packet TICKER=CRDO` command that prints the before report, focused blocker check, lane review path, review decision, evidence expectation, validate/apply step, rejected-row report, rebuild proof, and evidence row for one company.
 - A follow-up `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` command that prints the evidence loop for selected pilot companies.
 - A suggested starter company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`, with `QQQ` and `SMH` kept as ETF/index monitor demos rather than operating-company DCF targets.
 - A pilot evidence bundle: before/after readiness counts, one regenerated Markdown report per company, and the validation commands that changed the state.
-- A one-company evidence packet: baseline readiness, before report, focused blocker check, lane review path, operator decision, evidence expectation, validate/preview/apply, rejected-row check, rebuild proof, and still-blocked evidence row.
+- A one-company evidence packet: baseline readiness, before report, focused blocker check, lane review path, review decision, evidence expectation, validate/preview/apply, rejected-row check, rebuild proof, and still-blocked evidence row.
 - CSV-first, preview-first local import workflows.
 - Original local analysis rules for readiness gates, DCF boundaries, peer readiness, decision buckets, and report wording; Python libraries and optional provider adapters support data handling and UI.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.

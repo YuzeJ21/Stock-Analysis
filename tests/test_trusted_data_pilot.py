@@ -117,11 +117,11 @@ def test_trusted_data_pilot_candidates_honor_ticker_filter():
 
 
 def test_pilot_lane_label_translates_internal_codes_for_visitors():
-    assert pilot_lane_label("fundamentals_dcf") == "Fundamentals / DCF unlock"
-    assert pilot_lane_label("peer_mapping") == "Peer mapping unlock"
-    assert pilot_lane_label("peer_valuation_inputs") == "Peer valuation inputs unlock"
-    assert pilot_lane_label("optional_context_locked") == "Optional context unlock"
-    assert pilot_lane_label("unexpected") == "Trusted-data unlock"
+    assert pilot_lane_label("fundamentals_dcf") == "Fundamentals / DCF proof path"
+    assert pilot_lane_label("peer_mapping") == "Peer mapping proof path"
+    assert pilot_lane_label("peer_valuation_inputs") == "Peer valuation inputs proof path"
+    assert pilot_lane_label("optional_context_locked") == "Optional context proof path"
+    assert pilot_lane_label("unexpected") == "Trusted-data proof path"
 
 
 def test_pilot_review_path_separates_review_from_validate_apply_steps():
@@ -188,7 +188,7 @@ def test_pilot_rank_reason_explains_queue_position_without_new_data():
 
     reason = pilot_rank_reason(candidate)
 
-    assert reason == "active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, free-cash-flow margin."
+    assert reason == "active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing revenue, free-cash-flow margin."
     assert "price target" not in reason.lower()
     assert "recommend" not in reason.lower()
 
@@ -306,8 +306,8 @@ def test_pilot_selection_brief_explains_how_to_choose_small_pilot():
 
     assert "choose 5-10 operating companies only when you can review source proof" in brief
     assert "2 active-universe candidate(s)" in brief
-    assert "Fundamentals / DCF unlock: 1" in brief
-    assert "Peer mapping unlock: 1" in brief
+    assert "Fundamentals / DCF proof path: 1" in brief
+    assert "Peer mapping proof path: 1" in brief
     assert "make trusted-data-pilot TICKERS=MU,META TOP_N=2" in brief
     assert "after choosing active/demo names" in brief
     assert "No broad-universe overflow is needed for the first pilot shortlist." in brief
@@ -397,8 +397,8 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "Suggested pilot command after choosing active/demo names: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "No broad-universe overflow is needed for the first pilot shortlist." in rendered
     assert "Useful pilot win: before report, lane review, trusted source row" in rendered
-    assert "1. META - Fundamentals / DCF unlock" in rendered
-    assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares outstanding." in rendered
+    assert "1. META - Fundamentals / DCF proof path" in rendered
+    assert "Rank reason: active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing shares outstanding." in rendered
     assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
     assert (
         "Decision gate: continue only if you have trusted SEC or manual fundamentals rows for the missing DCF fields"
@@ -420,7 +420,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "7. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
     assert "Evidence expectation: Evidence required: before report, lane review output" in rendered
-    assert "Do not call META unlocked until the rebuilt report proves the lane changed." in rendered
+    assert "Do not call META available until the rebuilt report proves the lane changed." in rendered
     assert "8. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "8. make stock-report-md" not in rendered
     assert "QQQ and SMH are excluded from this company pilot list" in rendered
@@ -446,7 +446,7 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
 
     rendered = render_trusted_data_pilot_candidates(candidates)
 
-    assert "1. MU - Peer mapping unlock" in rendered
+    assert "1. MU - Peer mapping proof path" in rendered
     assert "peer_mapping" not in rendered
     assert "Packet command: make trusted-data-pilot-packet TICKER=MU" in rendered
     assert "Lane check: make focus-peers TICKER=MU" in rendered
@@ -508,9 +508,9 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "Trusted Data Pilot Evidence Packet" in rendered
     assert "Read-only: this command prints a one-company proof loop" in rendered
     assert "Ticker: CRDO" in rendered
-    assert "Pilot lane: Fundamentals / DCF unlock" in rendered
+    assert "Pilot lane: Fundamentals / DCF proof path" in rendered
     assert "fundamentals_dcf" not in rendered
-    assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, free-cash-flow margin." in rendered
+    assert "Rank reason: active-universe public-demo name; fundamentals / dcf proof path; priority 1; missing revenue, free-cash-flow margin." in rendered
     assert "Missing trusted input: revenue, free-cash-flow margin" in rendered
     assert "fcf_margin" not in rendered
     assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
@@ -533,7 +533,7 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "8. After report:" not in rendered
     assert "8. Record the evidence row and keep any remaining blocker visible." in rendered
     assert "Evidence required: before report, lane review output, trusted source row or source note" in rendered
-    assert "Do not call CRDO unlocked until the rebuilt report proves the lane changed." in rendered
+    assert "Do not call CRDO available until the rebuilt report proves the lane changed." in rendered
     assert "Evidence table row to record:" in rendered
     assert "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason" in rendered
     assert "CRDO | before: run report | after: rerun report | revenue, free-cash-flow margin" in rendered
