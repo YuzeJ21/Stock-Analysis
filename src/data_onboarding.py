@@ -1057,7 +1057,7 @@ def _price_onboarding_reason(row: TickerCoverage) -> str:
     if not row.has_prices:
         return "No verified local price history is present for this ticker yet."
     return (
-        f"Only {row.price_history_days} verified local price rows are present; "
+        f"This ticker has only {row.price_history_days} verified local price rows; "
         "at least 21 are needed for stable momentum and monthly-picks context."
     )
 

@@ -540,7 +540,10 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "guidance: use make" in output
     assert "command: make price-normalize" not in output
     assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
-    assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
+    assert (
+        "no verified local price history is present for this ticker yet." in output
+        or "this ticker has only" in output
+    )
     assert "source:" in output
     assert "source readiness:" in output
     assert "open price coverage guided data batch: make runbook-prices" in output
@@ -623,6 +626,7 @@ def test_project_status_fast_check_normalizes_stale_generated_price_actions(tmp_
 
     assert payload is not None
     action = payload["top_onboarding_actions"][0]
+    assert action["reason"] == "This ticker has only 2 verified local price rows."
     assert "make price-refresh-loop DRY_RUN=1" in action["recommended_action"]
     assert "if you choose to refresh this ticker, run make price-refresh TICKERS=AMD" in action["recommended_action"]
     assert "or run make price-refresh" not in action["recommended_action"]

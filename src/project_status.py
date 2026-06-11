@@ -97,6 +97,24 @@ def _first_non_empty(*values: object) -> str:
     return ""
 
 
+def _normalize_price_reason_text(text: object) -> str:
+    """Clarify ticker-level price-history blockers in public status output."""
+    value = str(text or "").strip()
+    if not value:
+        return ""
+    value = re.sub(
+        r"^Only (\d+) verified local price rows are present;",
+        r"This ticker has only \1 verified local price rows;",
+        value,
+    )
+    value = re.sub(
+        r"^Only (\d+) verified local price rows are present\.$",
+        r"This ticker has only \1 verified local price rows.",
+        value,
+    )
+    return value
+
+
 def _price_recommended_action(ticker: str) -> str:
     ticker = str(ticker or "").strip().upper()
     if not ticker:
@@ -117,6 +135,7 @@ def _normalize_price_action_row(row: dict[str, Any]) -> dict[str, Any]:
     if str(row.get("dataset") or "").strip().lower() != "prices":
         return row
     ticker = str(row.get("ticker") or "").strip().upper()
+    row["reason"] = _normalize_price_reason_text(row.get("reason"))
     text = str(row.get("recommended_action") or "").strip().lower()
     if (
         "make price-refresh-loop dry_run=1" not in text
@@ -142,7 +161,8 @@ def _normalize_command_row(row: dict[str, Any]) -> dict[str, Any]:
         step = str(row.get("Step") or "")
     if reason:
         row["Reason"] = (
-            reason.replace("manual import draft fallback", "manual import file fallback")
+            _normalize_price_reason_text(reason)
+            .replace("manual import draft fallback", "manual import file fallback")
             .replace("Manual import draft fallback", "Manual import file fallback")
             .replace("import draft workflow", "import file workflow")
             .replace("import drafts", "import files")

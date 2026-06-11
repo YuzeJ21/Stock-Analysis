@@ -6215,7 +6215,7 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
                 "action_type": "prices",
                 "ticker": "AIAI",
                 "title": "Repair prices",
-                "reason": "Only 9 verified local price rows are present.",
+                "reason": "This ticker has only 9 verified local price rows; at least 21 are needed for stable momentum and monthly-picks context.",
                 "example_command": "make focus-price TICKER=AIAI",
             }
         ]
@@ -11027,7 +11027,7 @@ def test_data_health_fix_first_cards_keep_price_focus_command_before_staged_vali
                 "priority": 1,
                 "dataset": "prices",
                 "ticker": "AIAI",
-                "reason": "Only 9 verified local price rows are present.",
+                "reason": "This ticker has only 9 verified local price rows; at least 21 are needed for stable momentum and monthly-picks context.",
                 "recommended_action": "Run make focus-price TICKER=AIAI first. For batch planning, preview make price-refresh-loop DRY_RUN=1.",
                 "focus_command": "make focus-price TICKER=AIAI",
                 "example_command": "make price-normalize INPUT=data/raw/prices/AIAI.csv TICKER=AIAI SOURCE=yahoo_manual",
