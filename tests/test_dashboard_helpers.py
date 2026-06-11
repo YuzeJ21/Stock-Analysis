@@ -1058,7 +1058,8 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Monthly Picks"]
     assert cards[1][3] == "warning"
     assert "23 ticker(s) have dcf-ready local inputs" in rendered
-    assert "without opening raw tables" in rendered
+    assert "one report can show the valuation boundary, assumptions, and next proof step" in rendered
+    assert "raw tables" not in rendered
     assert "best next for coverage" in rendered
     assert "3,273 ticker(s) still need price coverage" in rendered
     assert "trusted fundamentals, source-backed peers, earnings, and estimates remain intentionally gated" in rendered
@@ -9606,6 +9607,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert 'render_context_note(\n        "How to choose the pilot."' in source
     assert "render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))" in source
     assert "`make trusted-data-pilot-candidates TOP_N=10`" in source
+    assert "broad universe dump" in source
+    assert "broad raw table" not in source
     assert 'st.expander("Capped pilot candidate table", expanded=False)' in source
     assert "st.dataframe(clean_display_frame(pilot_preview), width=\"stretch\", hide_index=True)" in source
 

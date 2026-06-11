@@ -19505,7 +19505,7 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
     )
     if dcf_ready > 0:
         review_body = (
-            f"Start here: {dcf_ready} ticker(s) have DCF-ready local inputs, so a single report can prove valuation boundaries without opening raw tables."
+            f"Start here: {dcf_ready} ticker(s) have DCF-ready local inputs, so one report can show the valuation boundary, assumptions, and next proof step."
         )
     elif price_ready > 0:
         review_body = (
@@ -21277,7 +21277,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     else:
         render_context_note(
             "Top ranked company blockers.",
-            "This read-only preview mirrors `make trusted-data-pilot-candidates TOP_N=10` and stays capped so Data Health does not become a broad raw table.",
+            "This read-only preview mirrors `make trusted-data-pilot-candidates TOP_N=10` and stays capped so Data Health does not become a broad universe dump.",
         )
         render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))
         with st.expander("Capped pilot candidate table", expanded=False):
