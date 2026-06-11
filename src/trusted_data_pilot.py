@@ -209,6 +209,18 @@ def pilot_evidence_expectation(candidate: PilotCandidate) -> str:
     )
 
 
+def pilot_evidence_row_template(candidate: PilotCandidate) -> str:
+    """Return a copyable evidence row template for the selected pilot ticker."""
+
+    report_path = f"outputs/stock_reports/{candidate.ticker.lower()}.md"
+    return (
+        f"{candidate.ticker} | before: run report | after: rerun report | "
+        f"{plain_pilot_input_copy(candidate.missing_input)} | "
+        "make imports-validate && make imports-preview && make imports-apply | "
+        f"{report_path} | keep visible if source proof is unavailable or readiness remains blocked"
+    )
+
+
 def pilot_decision_gate(candidate: PilotCandidate) -> str:
     """Return the plain-language go/no-go gate for a one-company pilot packet."""
 
@@ -503,6 +515,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             "",
             "Evidence table row to record:",
             "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason",
+            pilot_evidence_row_template(candidate),
             "",
             "Stop condition: if trusted source rows are unavailable, keep this ticker data-blocked and move to the next candidate.",
         ]

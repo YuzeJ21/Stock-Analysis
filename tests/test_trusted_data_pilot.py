@@ -1,5 +1,6 @@
 from src.trusted_data_pilot import (
     build_trusted_data_pilot_candidates,
+    pilot_evidence_row_template,
     pilot_lane_label,
     pilot_operator_decision,
     pilot_rank_reason,
@@ -244,6 +245,32 @@ def test_pilot_operator_decision_keeps_each_lane_data_honest():
     assert "sell" not in rendered
 
 
+def test_pilot_evidence_row_template_is_copyable_and_data_honest():
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue, fcf_margin",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+
+    row = pilot_evidence_row_template(candidate)
+
+    assert row.startswith("CRDO | before: run report | after: rerun report | revenue, free-cash-flow margin |")
+    assert "make imports-validate && make imports-preview && make imports-apply" in row
+    assert "outputs/stock_reports/crdo.md" in row
+    assert "keep visible if source proof is unavailable or readiness remains blocked" in row
+    assert "fcf_margin" not in row
+    assert "buy" not in row.lower()
+    assert "sell" not in row.lower()
+
+
 def test_pilot_selection_brief_explains_how_to_choose_small_pilot():
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -450,6 +477,11 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "7. Record the evidence row and keep any remaining blocker visible." in rendered
     assert "Evidence required: before report, lane review output, trusted source row or source note" in rendered
     assert "Do not call CRDO unlocked until the rebuilt report proves the lane changed." in rendered
+    assert "Evidence table row to record:" in rendered
+    assert "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason" in rendered
+    assert "CRDO | before: run report | after: rerun report | revenue, free-cash-flow margin" in rendered
+    assert "outputs/stock_reports/crdo.md" in rendered
+    assert "keep visible if source proof is unavailable or readiness remains blocked" in rendered
     assert "still_blocked_reason" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
 
