@@ -758,6 +758,45 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
     assert "sector or industry fallback" in verbose.lower()
 
 
+def test_render_trusted_data_pilot_candidates_names_first_fundamentals_demo_when_peer_first():
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue, fcf_margin",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "peer_valuation_inputs",
+                "missing_peer_reason": "peer fundamentals or peer price/market-cap context",
+                "focus_command": "make focus-peers TICKER=MU",
+                "validation_sequence": "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU -> make focus-fundamentals TICKER=SNDK",
+            }
+        ],
+        [
+            {"ticker": "MU", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"},
+        ],
+        top_n=10,
+    )
+
+    rendered = render_trusted_data_pilot_candidates(candidates).lower()
+
+    assert "shortlist: mu, crdo." in rendered
+    assert "start with one packet: make trusted-data-pilot-packet ticker=mu" in rendered
+    assert "for a fundamentals/dcf proof demo, use make trusted-data-pilot-packet ticker=crdo" in rendered
+    assert "review its lane: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu -> make focus-fundamentals ticker=sndk" in rendered
+    assert "do not apply placeholder rows" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_trusted_data_pilot_uses_peer_valuation_lane_for_mapped_dcf_ready_rows():
     candidates = build_trusted_data_pilot_candidates(
         [

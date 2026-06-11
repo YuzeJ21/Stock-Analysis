@@ -444,13 +444,23 @@ def pilot_quick_path_lines(candidates: list[PilotCandidate]) -> list[str]:
         ]
     shortlist = pilot_public_shortlist(candidates, limit=10)
     first = shortlist[0]
-    return [
+    fundamentals_first = next(
+        (candidate for candidate in shortlist if candidate.lane == "fundamentals_dcf"),
+        None,
+    )
+    lines = [
         f"Shortlist: {', '.join(candidate.ticker for candidate in shortlist)}.",
         f"Start with one packet: make trusted-data-pilot-packet TICKER={first.ticker}",
         f"Review its lane: {pilot_review_path(first.validation_path)}",
         f"Trusted input target: {pilot_trusted_row_path(first)}",
         f"Stop if source proof is unavailable: keep {first.ticker} visibly blocked and move to the next shortlisted company.",
     ]
+    if fundamentals_first and fundamentals_first.ticker != first.ticker:
+        lines.insert(
+            2,
+            f"For a fundamentals/DCF proof demo, use make trusted-data-pilot-packet TICKER={fundamentals_first.ticker}",
+        )
+    return lines
 
 
 def pilot_proof_story_lines(candidate: PilotCandidate | None = None) -> list[str]:
