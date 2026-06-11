@@ -49,6 +49,22 @@ The product can automate repeatable checks, but it should not automate source ju
 
 If a workflow depends on source credibility, issuer judgment, fiscal-period choice, peer selection, or optional provider licensing, treat it as reviewed input rather than background automation.
 
+## Background Automation Map
+
+Use this split when deciding what can run on a schedule and what should stay review-required.
+
+| Workflow | Can run unattended? | Safe default | Review gate before analysis changes |
+| --- | --- | --- | --- |
+| Status and readiness checks | Yes. | `make status-check TOP_N=5`, `make readiness`, `make dashboard-smoke`. | None; these commands read or rebuild deterministic local status. |
+| Price planning | Yes, as a dry run. | `make price-refresh-loop DRY_RUN=1`. | Review the planned tickers and source notes before any real refresh. |
+| Price refresh | Only capped and intentionally. | Use capped loops after a dry run, then inspect local CSV diffs. | Run readiness, check source freshness, and avoid committing broad CSV churn by default. |
+| Fundamentals / DCF | No broad unattended apply. | Stage or inspect a 5-10 company pilot. | Validate, preview, confirm trusted source rows, then rebuild DCF readiness. |
+| Peers | No broad unattended apply. | Use peer queues to choose source-backed mappings. | Confirm the peer relationship and peer inputs before peer valuation appears. |
+| Earnings / estimates | No. | Keep locked until trusted local rows exist. | Validate, preview, apply, then confirm optional-context readiness. |
+| Public repo cleanup | Yes for checks, no for staging decisions. | `make public-check`, `make diff-hygiene`, `make staged-hygiene-check`. | Human review decides which docs, tests, sample reports, or data artifacts are published. |
+
+The practical rule is simple: automate repeatable checks and capped previews; require human/source review before anything changes valuation, peer context, earnings context, estimates context, or public committed data.
+
 ## Recommended Pilot
 
 Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.
