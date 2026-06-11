@@ -267,6 +267,11 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "1. META - Fundamentals / DCF unlock" in rendered
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares outstanding." in rendered
     assert "Operator decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
+    assert (
+        "Decision gate: continue only if you have trusted SEC or manual fundamentals rows for the missing DCF fields"
+        in rendered
+    )
+    assert "do not apply placeholder rows just to make the report look complete" in rendered
     assert "fundamentals_dcf" not in rendered
     assert "Packet command: make trusted-data-pilot-packet TICKER=META" in rendered
     assert "Lane check: make focus-fundamentals TICKER=META" in rendered
@@ -311,6 +316,11 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
     assert "Lane check: make focus-peers TICKER=MU" in rendered
     assert "3. Review the lane blocker: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
     assert "Trusted row target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert (
+        "Decision gate: continue only if you have source-backed peer relationships, not sector or industry similarity alone"
+        in rendered
+    )
+    assert "leave peer valuation blocked and show peer context only when supported" in rendered
     assert "6. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
     assert "7. make readiness && make dcf-readiness" not in rendered
     assert "sector or industry fallback" in rendered.lower()
@@ -366,6 +376,12 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "Missing trusted input: revenue, free-cash-flow margin" in rendered
     assert "fcf_margin" not in rendered
     assert "Operator decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
+    assert (
+        "Decision gate: continue only if you have trusted SEC or manual fundamentals rows for the missing DCF fields"
+        in rendered
+    )
+    assert "If not, leave fundamentals and DCF blocked" in rendered
+    assert "do not apply placeholder rows just to make the report look complete" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "One-company evidence packet:" in rendered
     assert "1. Baseline readiness: make readiness-snapshot" in rendered

@@ -209,6 +209,30 @@ def pilot_evidence_expectation(candidate: PilotCandidate) -> str:
     )
 
 
+def pilot_decision_gate(candidate: PilotCandidate) -> str:
+    """Return the plain-language go/no-go gate for a one-company pilot packet."""
+
+    if candidate.lane == "fundamentals_dcf":
+        proof = "trusted SEC or manual fundamentals rows for the missing DCF fields"
+        stop = "leave fundamentals and DCF blocked"
+    elif candidate.lane == "peer_mapping":
+        proof = "source-backed peer relationships, not sector or industry similarity alone"
+        stop = "leave peer valuation blocked and show peer context only when supported"
+    elif candidate.lane == "peer_valuation_inputs":
+        proof = "mapped peers plus trusted peer valuation inputs"
+        stop = "show peer trend only and leave peer valuation blocked"
+    elif candidate.lane == "optional_context_locked":
+        proof = "trusted earnings or analyst-estimate rows"
+        stop = "leave optional context intentionally locked"
+    else:
+        proof = "trusted source rows for the missing input"
+        stop = "keep the ticker data-blocked"
+    return (
+        f"Decision gate: continue only if you have {proof}. "
+        f"If not, {stop}; do not apply placeholder rows just to make the report look complete."
+    )
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -373,6 +397,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Rank reason: {pilot_rank_reason(candidate)}",
                 f"   Missing input: {plain_pilot_input_copy(candidate.missing_input)}",
                 f"   Operator decision: {pilot_operator_decision(candidate)}",
+                f"   Decision gate: {pilot_decision_gate(candidate)}",
                 f"   Packet command: make trusted-data-pilot-packet TICKER={candidate.ticker}",
                 f"   Lane check: {candidate.next_command}",
                 f"   Review path: {pilot_review_path(candidate.validation_path)}",
@@ -432,6 +457,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             f"Why this candidate matters: {candidate.why_it_matters}",
             f"Missing trusted input: {plain_pilot_input_copy(candidate.missing_input)}",
             f"Operator decision: {pilot_operator_decision(candidate)}",
+            pilot_decision_gate(candidate),
             f"Source boundary: {candidate.source_boundary}",
             f"Trusted row target: {pilot_trusted_row_path(candidate)}",
             "",
