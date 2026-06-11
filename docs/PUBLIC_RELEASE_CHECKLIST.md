@@ -17,7 +17,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
 - Keep `docs/METHODOLOGY.md` linked from the README so visitors can see the readiness gates, DCF formula path, peer boundaries, and report-explanation rules.
-- Confirm sample stock reports include `At A Glance`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands` sections before sharing.
+- Confirm sample stock reports include `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands` sections before sharing.
 - Review `docs/DIFF_HYGIENE_AUDIT.md` before staging so broad local CSV churn stays out of the public branch.
 - Treat new `docs/`, `scripts/`, and `tests/` files from public-product polish as reviewable product candidates, not generated data, when `make diff-hygiene` lists them.
 - Avoid committing huge timestamp-only generated CSV churn.

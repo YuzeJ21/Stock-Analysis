@@ -26,7 +26,7 @@ Boundary checked:
 Checked pages:
 
 - Home: confirmed the visitor route shows `Review one stock`, `Explore ready names`, and `Improve data coverage`, plus a trusted-data pilot path for improving 5-10 companies first.
-- Single-Stock Report: confirmed a local `NVDA` preview renders `At A Glance` followed by `Best Review Path` before detailed tabs.
+- Single-Stock Report: confirmed a local `NVDA` preview renders `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, then `Best Review Path` before detailed tabs.
 
 Boundary checked:
 

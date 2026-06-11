@@ -172,10 +172,10 @@ Current status:
 - `make stock-report-md TICKER=...` generates clean Markdown reports for visitor demos.
 - `make stock-report TICKER=...` remains available when optional report data is useful for inspection.
 - The dashboard includes a Single-Stock Report page and local deep links such as `?page=single-stock-report`.
-- Reports show readiness, Best Review Path, analysis quality, methodology, evaluation function checks, valuation status, research decision, source readiness check, blocked inputs, and next research steps.
+- Reports show readiness, Evaluation Snapshot, Best Review Path, analysis quality, methodology, evaluation function checks, valuation status, research decision, source readiness check, blocked inputs, and next research steps.
 - ETF/index/fund reports show operating-company DCF as excluded, not failed.
 - Reports now open with an `At A Glance` block so first-time visitors see mode, decision view, DCF state, peer context, optional context, and next local step before methodology detail.
-- The dashboard Single-Stock Report page includes At A Glance and Best Review Path cards explaining project readiness gates, the safest reading order, and the DCF formula path before detailed tables.
+- The dashboard Single-Stock Report page includes At A Glance and Best Review Path cards, while Markdown reports include an Evaluation Snapshot explaining supported evaluation, valuation boundary, confidence cue, next proof, and stop rule before detailed sections.
 - Reports include a mode guide comparing `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
 - Blocked and partial reports include `Copyable Unlock Commands` with capped, local, research-only commands for price, fundamentals/DCF, peer mapping, optional-context imports, and the one-company trusted-data pilot packet.
 
