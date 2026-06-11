@@ -65,7 +65,7 @@ Useful with limits: price/momentum, fundamentals/DCF, peer review, and final dec
 
 ## Product Tour
 
-Start with three paths:
+Start with the three paths the dashboard is built around:
 
 | Path | Use it when | First place to open |
 | --- | --- | --- |
@@ -74,6 +74,12 @@ Start with three paths:
 | Explore ready names | You want to browse what the current local data can already support. | `Home`, then focused review pages |
 
 The dashboard keeps methodology, file paths, and update commands in collapsed sections so visitors can read the product first. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+
+Two-minute visitor tour:
+
+1. Open `Home` to see what is ready, blocked, and intentionally locked.
+2. Run one proof report, usually `make stock-report-md TICKER=NVDA`.
+3. Open one blocked or excluded example, then run `make trusted-data-pilot-candidates TOP_N=10` to see how the next trusted-data unlock would be chosen.
 
 ## Quick Start
 
