@@ -102,7 +102,7 @@ def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations
     frame = dashboard._plain_home_demo_example_frame()
     rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
 
-    assert list(frame["Example"]) == ["NVDA", "A", "META", "QQQ / SMH", "APLD"]
+    assert list(frame["Example"]) == ["NVDA", "MU / A", "META", "QQQ / SMH", "CRDO / APLD"]
     assert list(frame["Comparison Role"]) == [
         "Richer company example",
         "Standalone DCF but peer-locked",
@@ -113,14 +113,14 @@ def test_plain_home_demo_example_frame_maps_report_modes_without_recommendations
     assert "standalone dcf review" in rendered
     assert "price/setup review only" in rendered
     assert "monitor-only context" in rendered
-    assert "data needed before analysis" in rendered
+    assert "one-company pilot packet" in rendered
     assert "trusted local dcf inputs, input path, assumptions, and sensitivity" in rendered
     assert "peer-relative valuation stays locked" in rendered
     assert "operating-company dcf is excluded, not failed" in rendered
     assert "no valuation conclusion appears" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
-    assert "make stock-report-md ticker=a" in rendered
-    assert "make stock-report-md ticker=apld" in rendered
+    assert "make stock-report-md ticker=mu" in rendered
+    assert "make stock-report-md ticker=crdo" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
@@ -879,26 +879,26 @@ def test_home_first_run_path_cards_make_visitor_proof_trail_explicit():
         "VISITOR STEP 5",
     ]
     assert "print the guided proof trail" in rendered
-    assert "home -> nvda -> meta -> qqq -> trusted-data pilot walkthrough" in rendered
+    assert "home -> nvda -> meta -> qqq -> mu -> crdo -> trusted-data pilot walkthrough" in rendered
     assert "without changing local files" in rendered
     assert "open the clean product view" in rendered
     assert "three clear paths" in rendered
     assert "read the nvda proof report" in rendered
     assert "ready-data demo" in rendered
     assert "dcf assumptions" in rendered
-    assert "compare meta blocked and qqq excluded" in rendered
+    assert "compare blocked, excluded, and peer-limited states" in rendered
     assert "open meta next" in rendered
-    assert "open qqq" in rendered
-    assert "company valuation stays blocked until trusted fundamentals are ready" in rendered
+    assert "qqq to see etf/index dcf excluded rather than failed" in rendered
+    assert "mu to see standalone dcf with peer valuation still locked" in rendered
     assert "etf/index dcf excluded rather than failed" in rendered
-    assert "trusted-data pilot" in rendered
-    assert "rank current company blockers first" in rendered
+    assert "trusted-data proof path" in rendered
+    assert "local file status, rejected-row checks, and the proof path" in rendered
     assert "without importing rows" in rendered
     assert "make demo" in rendered
     assert "make dashboard" in rendered
     assert "make stock-report-md ticker=nvda" in rendered
     assert "make stock-report-md ticker=meta" in rendered
-    assert "make trusted-data-pilot-candidates top_n=10" in rendered
+    assert "make trusted-data-pilot-packet ticker=crdo" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -957,7 +957,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     details_gate_index = source.index("if show_details:")
-    proof_trail_index = source.index('render_section_header("First-Run Proof Trail"')
+    proof_trail_index = source.index('"First-Run Proof Trail"')
     coverage_expander_index = source.index('st.expander("Optional: coverage details", expanded=False)')
     coverage_index = source.index('render_section_header("Current Data Coverage"')
     workflow_expander_index = source.index('st.expander("Optional: how evaluation works", expanded=False)')
@@ -966,7 +966,7 @@ def test_home_page_renders_current_data_coverage_before_workflow():
 
     assert proof_trail_index < next_step_index < details_gate_index < coverage_expander_index < coverage_index
     assert coverage_index < workflow_expander_index < workflow_index
-    assert "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, then trusted-data pilot." in source
+    assert "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_first_run_path_cards())" in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
@@ -10430,16 +10430,18 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "next local proof step" in summary_rendered
     assert "copy-only local step" not in summary_rendered
     assert "make stock-report-md ticker=nvda" in rendered
-    assert "make stock-report-md ticker=apld" in rendered
+    assert "make stock-report-md ticker=crdo" in rendered
     assert "make stock-report-md ticker=nvda" not in summary_rendered
     assert dashboard.single_stock_demo_picker_note() == (
         "Pick a demo state.",
         "Use these examples to review each stock-evaluation mode before choosing your own ticker.",
     )
-    assert [card["title"] for card in demo_cards] == ["NVDA", "META", "APLD", "QQQ", "SMH", "A"]
-    assert [card["title"] for card in demo_picker_cards] == ["6 report states", "NVDA", "META", "APLD", "QQQ", "SMH", "A"]
+    assert [card["title"] for card in demo_cards] == ["NVDA", "META", "MU", "CRDO", "APLD", "QQQ", "SMH", "A"]
+    assert [card["title"] for card in demo_picker_cards] == ["8 report states", "NVDA", "META", "MU", "CRDO", "APLD", "QQQ", "SMH", "A"]
     assert "richest company example" in demo_rendered
     assert "company valuation stays blocked until trusted fundamentals and dcf inputs are available" in demo_rendered
+    assert "company dcf review where peer-relative valuation still stays locked" in demo_rendered
+    assert "fundamentals-gated report that points to a read-only one-company trusted-data pilot packet" in demo_rendered
     assert "fundamentals still need proof before dcf or peer-relative valuation" in demo_rendered
     assert "operating-company dcf and peer valuation are excluded rather than failed" in demo_rendered
     assert "sector etf monitor context" in demo_rendered
@@ -10447,6 +10449,8 @@ def test_single_stock_report_intro_cards_explain_output_before_generation():
     assert "each command is copy-only and writes a local markdown report" in demo_picker_rendered
     assert "make stock-report-md ticker=nvda" in demo_rendered
     assert "make stock-report-md ticker=meta" in demo_rendered
+    assert "make stock-report-md ticker=mu" in demo_rendered
+    assert "make stock-report-md ticker=crdo" in demo_rendered
     assert "make stock-report-md ticker=apld" in demo_rendered
     assert "make stock-report-md ticker=qqq" in demo_rendered
     assert "make stock-report-md ticker=smh" in demo_rendered

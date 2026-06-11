@@ -5622,7 +5622,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "title": "Inputs are separated from calculations",
             "body": "Local/provider rows supply prices and fundamentals. This product decides readiness, runs DCF math when inputs are complete, and withholds conclusions when trusted inputs are missing.",
             "badges": ["local inputs", "project rules"],
-            "command": "make stock-report-md TICKER=A",
+            "command": "make stock-report-md TICKER=MU",
         },
         {
             "kicker": "WHAT IS STILL LOCKED",
@@ -5636,7 +5636,7 @@ def single_stock_report_intro_cards() -> list[dict[str, object]]:
             "title": "No hidden final call",
             "body": "The report explains source inputs, product calculations, blocked sections, and the next local research step. It does not convert partial data into a portfolio action.",
             "badges": ["transparent method", "no overclaim"],
-            "command": "make stock-report-md TICKER=APLD",
+            "command": "make stock-report-md TICKER=CRDO",
         },
         {
             "kicker": "COPY NEXT",
@@ -5683,6 +5683,20 @@ def single_stock_demo_ticker_cards() -> list[dict[str, object]]:
             "command": "make stock-report-md TICKER=META",
         },
         {
+            "kicker": "STANDALONE DCF",
+            "title": "MU",
+            "body": "Open this for a company DCF review where peer-relative valuation still stays locked until source-backed peer inputs exist.",
+            "badges": ["company", "peer locked"],
+            "command": "make stock-report-md TICKER=MU",
+        },
+        {
+            "kicker": "PILOT PROOF",
+            "title": "CRDO",
+            "body": "Open this for a fundamentals-gated report that points to a read-only one-company trusted-data pilot packet.",
+            "badges": ["fundamentals gated", "pilot packet"],
+            "command": "make stock-report-md TICKER=CRDO",
+        },
+        {
             "kicker": "EARLY COMPANY REVIEW",
             "title": "APLD",
             "body": "Open this for a price/setup report where fundamentals still need proof before DCF or peer-relative valuation can be reviewed.",
@@ -5706,7 +5720,7 @@ def single_stock_demo_ticker_cards() -> list[dict[str, object]]:
         {
             "kicker": "STANDALONE DCF",
             "title": "A",
-            "body": "Open this for a company DCF review where peer-relative valuation still stays locked until source-backed peer inputs exist.",
+            "body": "Open this for another company DCF review where peer-relative valuation still stays locked until source-backed peer inputs exist.",
             "badges": ["company", "peer locked"],
             "command": "make stock-report-md TICKER=A",
         },
@@ -5727,8 +5741,8 @@ def single_stock_demo_picker_cards() -> list[dict[str, object]]:
             "kicker": "DEMO MAP",
             "title": f"{len(cards)} report states",
             "body": (
-                "Start with NVDA for the ready company case, then compare a blocked company, an ETF/index monitor, "
-                "a sector monitor, and a standalone DCF case. Each command is copy-only and writes a local Markdown report."
+                "Start with NVDA for the ready company case, then compare META blocked, QQQ excluded, MU peer-limited, "
+                "and CRDO fundamentals-gated before optional extra states. Each command is copy-only and writes a local Markdown report."
             ),
             "badges": ["visitor path", "one ticker at a time"],
             "command": "make demo",
@@ -19454,7 +19468,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "kicker": "VISITOR STEP 1",
             "title": "Print the guided proof trail",
             "body": (
-                "Use the demo command when sharing the repo: it prints the exact Home -> NVDA -> META -> QQQ -> trusted-data pilot walkthrough without changing local files."
+                "Use the demo command when sharing the repo: it prints the exact Home -> NVDA -> META -> QQQ -> MU -> CRDO -> trusted-data pilot walkthrough without changing local files."
             ),
             "badges": ["share path", "read-only"],
             "command": "make demo",
@@ -19479,21 +19493,21 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "VISITOR STEP 4",
-            "title": "Compare META blocked and QQQ excluded",
+            "title": "Compare blocked, excluded, and peer-limited states",
             "body": (
-                "Open META next to see company valuation stays blocked until trusted fundamentals are ready; open QQQ to see ETF/index DCF excluded rather than failed."
+                "Open META next to see valuation gated by trusted fundamentals, QQQ to see ETF/index DCF excluded rather than failed, and MU to see standalone DCF with peer valuation still locked."
             ),
-            "badges": ["blocked is useful", "excluded is not failed", "optional: QQQ"],
+            "badges": ["blocked is useful", "excluded is not failed", "peer-limited"],
             "command": "make stock-report-md TICKER=META",
         },
         {
             "kicker": "VISITOR STEP 5",
-            "title": "Show the missing-data proof path",
+            "title": "Show the trusted-data proof path",
             "body": (
-                "When a visitor asks how coverage improves, rank current company blockers first, then run the read-only trusted-data pilot for the chosen names without importing rows."
+                "Open CRDO or the candidate list when a visitor asks how coverage improves. The one-company packet shows local file status, rejected-row checks, and the proof path without importing rows."
             ),
-            "badges": ["read-only", "trusted data"],
-            "command": "make trusted-data-pilot-candidates TOP_N=10",
+            "badges": ["read-only", "trusted data", "CRDO"],
+            "command": "make trusted-data-pilot-packet TICKER=CRDO",
         },
     ]
 
@@ -19764,12 +19778,12 @@ def _plain_home_demo_example_frame() -> pd.DataFrame:
                 "Copy Command": "make stock-report-md TICKER=NVDA",
             },
             {
-                "Example": "A",
+                "Example": "MU / A",
                 "Comparison Role": "Standalone DCF but peer-locked",
                 "What It Shows": "Company report where standalone DCF can be reviewed while peer-relative valuation stays locked.",
                 "Review Mode": "Standalone DCF review",
                 "What To Check": "DCF assumptions versus the exact peer missing-data step.",
-                "Copy Command": "make stock-report-md TICKER=A",
+                "Copy Command": "make stock-report-md TICKER=MU",
             },
             {
                 "Example": "META",
@@ -19788,12 +19802,12 @@ def _plain_home_demo_example_frame() -> pd.DataFrame:
                 "Copy Command": "make stock-report-md TICKER=QQQ",
             },
             {
-                "Example": "APLD",
+                "Example": "CRDO / APLD",
                 "Comparison Role": "Blocked-data example",
-                "What It Shows": "Blocked-data report where missing price history prevents deeper analysis.",
-                "Review Mode": "Data needed before analysis",
-                "What To Check": "No valuation conclusion appears; the next action starts with trusted local price rows.",
-                "Copy Command": "make stock-report-md TICKER=APLD",
+                "What It Shows": "Blocked-data report where company valuation stays locked until trusted inputs are proven.",
+                "Review Mode": "Price/setup review only",
+                "What To Check": "No valuation conclusion appears; the next action starts with a read-only one-company pilot packet.",
+                "Copy Command": "make stock-report-md TICKER=CRDO",
             },
         ]
     )
@@ -20051,7 +20065,10 @@ def render_home_page(
     render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
 
-    render_section_header("First-Run Proof Trail", "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, then trusted-data pilot.")
+    render_section_header(
+        "First-Run Proof Trail",
+        "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot.",
+    )
     render_signal_cards(_plain_home_first_run_path_cards())
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
