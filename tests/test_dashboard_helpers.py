@@ -9318,9 +9318,9 @@ def test_data_health_quick_read_cards_prioritize_first_unlock_lane_without_execu
     assert "217 price-ready row(s) still need trusted fundamentals" in rendered
     assert "not a negative company signal" in rendered
     assert "review the fundamentals list first" in rendered
-    assert "trusted manual rows only when sources are ready" in rendered
-    assert "safe path: make sec-stage-queue top_n=25 -> make focus-fundamentals ticker=<ticker>" in rendered
-    assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" in rendered
+    assert "detailed proof commands only when source rows are ready" in rendered
+    assert "safe path: make sec-stage-queue top_n=25 -> make focus-fundamentals ticker=<ticker>" not in rendered
+    assert "make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness" not in rendered
     assert "240 price / 23 dcf / 3 peer-ready" in rendered
     assert "what you can analyze now" in rendered
     assert "assumption and sensitivity review" in rendered
@@ -9372,12 +9372,12 @@ def test_data_health_quick_read_cards_keep_optional_context_locked_after_core_la
     assert cards[0]["title"] == "Optional context is intentionally locked"
     assert cards[0]["command"] == "make optional-context-worklist TOP_N=10"
     assert "empty optional coverage should not weaken ready price, dcf, or peer analysis" in rendered
-    assert "safe path: make templates -> stage trusted rows in data/staged/earnings/" in rendered
-    assert "data/staged/analyst_estimates/" in rendered
-    assert "make import-earnings or make import-analyst-estimates" in rendered
-    assert "make imports-validate -> make imports-preview -> make imports-apply" in rendered
-    assert "data/rejected/earnings_import_rejected.csv" in rendered
-    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "use the templates and import guide only when trusted rows are available" in rendered
+    assert "rejected-row paths stay in the detailed help" in rendered
+    assert "safe path: make templates -> stage trusted rows in data/staged/earnings/" not in rendered
+    assert "make import-earnings or make import-analyst-estimates" not in rendered
+    assert "make imports-validate -> make imports-preview -> make imports-apply" not in rendered
+    assert "data/rejected/earnings_import_rejected.csv" not in rendered
 
 
 def test_data_health_quick_read_cards_start_with_price_when_no_price_ready_rows():

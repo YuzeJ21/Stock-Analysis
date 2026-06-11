@@ -6012,8 +6012,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_title = "Prove fundamentals before valuation"
         first_body = (
             f"{gap} price-ready row(s) still need trusted fundamentals before company-quality or DCF review can expand. "
-            "Missing fundamentals are an input gap, not a negative company signal. Review the fundamentals list first, then stage SEC or trusted manual rows only when sources are ready. "
-            "Safe path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=<ticker> -> make imports-validate -> make imports-preview -> make imports-apply -> make dcf-readiness."
+            "Missing fundamentals are an input gap, not a negative company signal. Review the fundamentals list first, then use the detailed proof commands only when source rows are ready."
         )
         first_command = "make sec-stage-queue TOP_N=25"
         first_badges = ["fundamentals next", "no valuation inference"]
@@ -6030,10 +6029,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
         first_title = "Optional context is intentionally locked"
         first_body = (
             "Earnings and analyst estimates add context only after trusted local CSV rows pass validation. "
-            "Empty optional coverage should not weaken ready price, DCF, or peer analysis. "
-            "Safe path: make templates -> stage trusted rows in data/staged/earnings/ or data/staged/analyst_estimates/ -> "
-            "make import-earnings or make import-analyst-estimates -> make imports-validate -> make imports-preview -> make imports-apply. "
-            "Rejected rows appear in data/rejected/earnings_import_rejected.csv and data/rejected/analyst_estimates_import_rejected.csv."
+            "Empty optional coverage should not weaken ready price, DCF, or peer analysis. Use the templates and import guide only when trusted rows are available; rejected-row paths stay in the detailed help."
         )
         first_command = "make optional-context-worklist TOP_N=10"
         first_badges = ["optional context", "trusted rows only"]
