@@ -15,6 +15,7 @@ Best visitor path:
 5. Open `outputs/stock_reports/mu.md` for standalone DCF with mapped-peer valuation inputs still locked.
 6. Open `outputs/stock_reports/qqq.md` for ETF/index monitor context where operating-company DCF is excluded.
 7. Run `make trusted-data-pilot-candidates TOP_N=10` to show the next honest coverage-improvement path.
+8. If the shortlist starts with peer inputs, open `make trusted-data-pilot-packet TICKER=MU`; for fundamentals/DCF proof, open `make trusted-data-pilot-packet TICKER=CRDO`.
 
 ## Demo Examples
 
@@ -35,6 +36,8 @@ make stock-report-md TICKER=NVDA
 make stock-report-md TICKER=MU
 make stock-report-md TICKER=QQQ
 make trusted-data-pilot-candidates TOP_N=10
+make trusted-data-pilot-packet TICKER=MU
+make trusted-data-pilot-packet TICKER=CRDO
 make dashboard
 ```
 
@@ -43,6 +46,8 @@ make dashboard
 The current sample is intentionally partial. Prices can be refreshed through capped preview-first workflows. Fundamentals, peer inputs, earnings, and analyst estimates require trusted source review before they can unlock deeper analysis.
 
 Missing data is not a product failure here. It is the product's quality control layer.
+
+Pilot packets are still read-only. Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof that a lane is ready.
 
 When improving real coverage, snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report. If source proof is unavailable, leave the section blocked and move to the next candidate.
 

@@ -449,6 +449,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "[Public Demo Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
     assert "make trusted-data-pilot-candidates TOP_N=10" in public_demo
+    assert "make trusted-data-pilot-packet TICKER=MU" in public_demo
+    assert "make trusted-data-pilot-packet TICKER=CRDO" in public_demo
+    assert "Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof" in public_demo
     assert "mapped-peer valuation inputs" in public_demo
     assert "Missing data is not a product failure here" in public_demo
     assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" not in readme
