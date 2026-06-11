@@ -966,6 +966,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Decision: Monitor - ETF Market Proxy" in markdown
     assert "Monitor - ETF Market Proxy" in markdown
     assert "Research-only local report" in markdown
+    assert "- Method: project readiness gates decide what can appear; monitor reports use local price, market, liquidity, correlation, or theme context and exclude operating-company valuation methods." in markdown
     assert "Monitor-only context when local price, liquidity, correlation, or theme inputs are ready" in markdown
     assert "shipped analysis comes from project code and local data" in markdown
     assert "plugins can help development review" not in markdown
@@ -1202,7 +1203,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Boundary: Missing-data proof state: price blocks evaluation, so conclusions stay withheld." in markdown
     assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
     assert "- Method: project readiness gates decide what can appear" in markdown
-    assert "discounted terminal value, cash/debt adjustment, and fair value per share when ready" in markdown
+    assert "DCF formula output is withheld until trusted price, fundamentals, cash-flow or margin, share-count, and DCF fields pass readiness" in markdown
     assert "## How To Read This Report" in markdown
     assert "- Analyze now: Use available price or setup context only." in markdown
     assert "- Still locked: Blocked features: price, momentum, DCF." in markdown

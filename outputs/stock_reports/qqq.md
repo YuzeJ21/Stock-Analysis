@@ -10,7 +10,7 @@ Visitor scan: read At A Glance, Reader Guide, Evaluation Snapshot, and Proof Che
 - Valuation support: Monitor context only; operating-company DCF and peer valuation are excluded.
 - Peer context: Excluded for monitor context.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
-- Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
+- Method: project readiness gates decide what can appear; monitor reports use local price, market, liquidity, correlation, or theme context and exclude operating-company valuation methods.
 - Next local step: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
 ## Reader Guide

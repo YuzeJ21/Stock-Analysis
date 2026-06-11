@@ -1868,6 +1868,10 @@ def _stock_report_at_a_glance_lines(
     missing_fields = dcf.get("missing_dcf_fields") or dcf.get("reason_not_ready")
     if monitor_context:
         valuation_support = "Monitor context only; operating-company DCF and peer valuation are excluded."
+        method_line = (
+            "project readiness gates decide what can appear; monitor reports use local price, market, liquidity, "
+            "correlation, or theme context and exclude operating-company valuation methods."
+        )
     elif dcf_status_text == "ready":
         fair_value_note = (
             f"; base scenario fair value/share is {_format_money(fair_value)} as scenario math"
@@ -1875,12 +1879,20 @@ def _stock_report_at_a_glance_lines(
             else "; review the DCF section for scenario math"
         )
         valuation_support = f"Standalone DCF assumptions and sensitivity are reviewable{fair_value_note}."
+        method_line = (
+            "project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, "
+            "discounted terminal value, cash/debt adjustment, and fair value per share when ready."
+        )
     else:
         missing_note = _display_field_list(missing_fields)
         valuation_support = (
             f"Blocked until trusted DCF inputs are ready; missing now: {missing_note}."
             if missing_note != "Not available"
             else "Blocked until trusted price, fundamentals, cash-flow or margin, and share-count inputs are ready."
+        )
+        method_line = (
+            "project readiness gates decide what can appear; DCF formula output is withheld until trusted price, "
+            "fundamentals, cash-flow or margin, share-count, and DCF fields pass readiness."
         )
     decision_label = _display_value(
         decision.get("decision_subtype") or decision.get("decision_bucket"),
@@ -1893,7 +1905,7 @@ def _stock_report_at_a_glance_lines(
         f"- Valuation support: {valuation_support}",
         f"- Peer context: {peer_status}.",
         f"- Optional context: {optional_status}.",
-        "- Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.",
+        f"- Method: {method_line}",
         f"- Next local step: {_sentence_value(_humanize_schema_terms(next_action), 'No next local action is available')}.",
     ]
 
