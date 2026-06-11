@@ -20121,7 +20121,7 @@ def render_home_page(
     if show_details:
         render_context_note(
             "Extra review detail is on.",
-            "These sections explain methodology, local commands, and unlock workflows. Turn page tips off for the clean visitor view.",
+            "These sections explain methodology, local commands, and unlock workflows. Turn extra guidance off for the clean visitor view.",
         )
 
     if show_details:
@@ -21403,27 +21403,29 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_context_note(
         "Beginner view.",
-        "Read these next five sections first: quick read, freshness routine, fix first, copy-only next steps, and trusted-data pilot. They show the safest proof path without opening the broader tables.",
+        "Read quick read, fix first, and trusted-data pilot first. Open refresh and command details only when you want the next copy-only proof steps.",
     )
     render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
-    render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
-    render_signal_cards(data_health_freshness_routine_cards(readiness_summary))
     render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
-    render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
-    render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")
     render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))
-    render_context_note(
-        "How to choose the pilot.",
-        data_health_trusted_pilot_selection_note(
-            fundamentals_peer_worklist_frame,
-            peer_unlock_worklist_frame,
-            ticker_readiness_frame,
-            limit=10,
-        ),
-    )
+    with st.expander("Refresh and command details", expanded=False):
+        render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
+        render_signal_cards(data_health_freshness_routine_cards(readiness_summary))
+        render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
+        render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
+    with st.expander("Pilot selection details", expanded=False):
+        render_context_note(
+            "How to choose the pilot.",
+            data_health_trusted_pilot_selection_note(
+                fundamentals_peer_worklist_frame,
+                peer_unlock_worklist_frame,
+                ticker_readiness_frame,
+                limit=10,
+            ),
+        )
     pilot_preview = data_health_trusted_pilot_preview_frame(
         fundamentals_peer_worklist_frame,
         peer_unlock_worklist_frame,
@@ -21630,7 +21632,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Turn on page tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables.",
+            "Turn on extra guidance in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables.",
         )
         return
 

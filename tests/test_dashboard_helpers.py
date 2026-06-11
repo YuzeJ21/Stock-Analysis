@@ -680,6 +680,9 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     beginner_note_index = source.index('render_context_note(\n        "Beginner view."')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     fix_first_index = source.index('render_section_header("Fix First"')
+    pilot_index = source.index('render_section_header("Trusted Data Pilot"')
+    refresh_details_index = source.index('st.expander("Refresh and command details", expanded=False)')
+    freshness_index = source.index('render_section_header("Freshness Routine"', refresh_details_index)
     action_paths_index = source.index('render_section_header("Copy-Only Next Steps"')
     planning_expander_index = source.index('st.expander("Coverage proof planning cards"')
     market_details_gate_index = source.index('if show_details:\n        with st.expander("Detailed market-wide review"')
@@ -690,18 +693,19 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
     hidden_tables_note_index = source.index('render_context_note(\n            "Detailed tables are hidden."')
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])')
-    freshness_index = source.index('render_section_header("Freshness Routine"', quick_read_index)
 
-    assert beginner_note_index < quick_read_index < freshness_index < fix_first_index < action_paths_index < planning_expander_index
+    assert beginner_note_index < quick_read_index < fix_first_index < pilot_index < refresh_details_index
+    assert refresh_details_index < freshness_index < action_paths_index < planning_expander_index
     assert planning_expander_index < market_details_gate_index < market_expander_index < summary_expander_index < bundle_expander_index < hidden_tables_note_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
-    assert "Read these next five sections first: quick read, freshness routine, fix first, copy-only next steps, and trusted-data pilot." in source
-    assert "without opening the broader tables" in source
-    assert "Turn on page tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
+    assert "Read quick read, fix first, and trusted-data pilot first." in source
+    assert "Open refresh and command details only when you want the next copy-only proof steps." in source
+    assert "Turn on extra guidance in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert "render_data_health(provider, project_status_payload, show_reason_details)" in source
     assert 'render_section_header("Action Paths"' not in source
+    assert 'st.expander("Refresh and command details", expanded=False)' in source
     assert 'st.expander("Coverage proof planning cards", expanded=False)' in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
     assert "Advanced Unlock Map" not in source
@@ -9664,14 +9668,16 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    next_steps_index = source.index('render_section_header("Copy-Only Next Steps"')
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
     pilot_preview_index = source.index("pilot_preview = data_health_trusted_pilot_preview_frame", pilot_index)
+    refresh_details_index = source.index('st.expander("Refresh and command details", expanded=False)', pilot_index)
+    next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert next_steps_index < pilot_index < pilot_preview_index < details_index
+    assert pilot_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
-    assert 'render_context_note(\n        "How to choose the pilot."' in source
+    assert 'st.expander("Pilot selection details", expanded=False)' in source
+    assert '"How to choose the pilot."' in source
     assert "render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))" in source
     assert "`make trusted-data-pilot-candidates TOP_N=10`" in source
     assert "broad universe dump" in source
@@ -9875,7 +9881,7 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert 'st.expander("Refresh status note", expanded=False)' in source
     assert "Beginner view." in source
     assert "Data Health Quick Read" in source
-    assert "Read these next five sections first" in source
+    assert "Read quick read, fix first, and trusted-data pilot first." in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
     assert "The shortest safe local path before deeper proof lists." in source
     assert "before opening detailed tables" not in source
