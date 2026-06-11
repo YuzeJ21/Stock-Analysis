@@ -2620,6 +2620,16 @@ def normalize_operator_copy(text: object) -> str:
     normalized = public_status_label(text)
     if normalized == "Not available":
         return normalized
+    normalized = re.sub(
+        r"^Only (\d+) verified local price rows are present;",
+        r"This ticker has only \1 verified local price rows;",
+        normalized,
+    )
+    normalized = re.sub(
+        r"^Only (\d+) verified local price rows are present\.",
+        r"This ticker has only \1 verified local price rows.",
+        normalized,
+    )
     display_labels = {
         "active_universe": "Active universe",
         "master_universe": "Master universe",

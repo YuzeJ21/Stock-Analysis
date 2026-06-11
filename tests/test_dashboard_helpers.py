@@ -11031,7 +11031,7 @@ def test_data_health_fix_first_cards_keep_price_focus_command_before_staged_vali
                 "priority": 1,
                 "dataset": "prices",
                 "ticker": "AIAI",
-                "reason": "This ticker has only 9 verified local price rows; at least 21 are needed for stable momentum and monthly-picks context.",
+                "reason": "Only 9 verified local price rows are present; at least 21 are needed for stable momentum and monthly-picks context.",
                 "recommended_action": "Run make focus-price TICKER=AIAI first. For batch planning, preview make price-refresh-loop DRY_RUN=1.",
                 "focus_command": "make focus-price TICKER=AIAI",
                 "example_command": "make price-normalize INPUT=data/raw/prices/AIAI.csv TICKER=AIAI SOURCE=yahoo_manual",
@@ -11043,6 +11043,8 @@ def test_data_health_fix_first_cards_keep_price_focus_command_before_staged_vali
     cards = dashboard.data_health_fix_first_cards(actions)
 
     assert cards[0][2] == "make focus-price TICKER=AIAI"
+    assert "This ticker has only 9 verified local price rows" in cards[0][1]
+    assert "Only 9 verified local price rows are present" not in cards[0][1]
     assert "make price-refresh-loop dry_run=1" in cards[0][1].lower()
     assert "make price-validate" in cards[0][1].lower()
     assert "make price-preview" in cards[0][1].lower()
@@ -11056,7 +11058,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "priority": 1,
                 "dataset": "prices",
                 "ticker": "NVDA",
-                "reason": "No verified local price history is present yet.",
+                "reason": "Only 4 verified local price rows are present; at least 21 are needed for stable momentum and monthly-picks context.",
                 "recommended_action": "Normalize verified downloaded OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-worklist",
@@ -11107,7 +11109,8 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
     assert "price path" in rendered
     assert "fundamentals path" in rendered
     assert "peer path" in rendered
-    assert "no verified local price history is present yet" in rendered
+    assert "this ticker has only 4 verified local price rows" in rendered
+    assert "only 4 verified local price rows are present" not in rendered
     assert "normalize verified downloaded ohlcv rows" in rendered
     assert "dcf inputs are still incomplete" in rendered
     assert "free cash flow" in rendered
