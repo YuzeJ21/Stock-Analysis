@@ -5947,7 +5947,7 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
     return [
         {
             "kicker": "WHAT THIS MEANS",
-            "title": "Use this page to unlock analysis",
+            "title": "Use this page to prove analysis readiness",
             "body": (
                 "Data Health is not an error page. It shows what you can analyze now, what is still locked, "
                 "which trusted local inputs are ready, and which proof path should be checked next."
@@ -5959,8 +5959,8 @@ def data_health_orientation_cards(readiness_summary: dict[str, object]) -> list[
             "kicker": "WHAT YOU CAN ANALYZE NOW",
             "title": f"{price_ready} price-ready / {fundamentals_ready} fundamentals-ready / {dcf_ready} DCF-ready",
             "body": (
-                "What this means: price coverage unlocks setup review first. Trusted fundamentals unlock company-level "
-                "valuation only after required DCF fields pass readiness."
+                "What this means: price coverage makes setup review available first. Trusted fundamentals make company-level "
+                "valuation available only after required DCF fields pass readiness."
             ),
             "badges": ["price first", "fundamentals next"],
             "command": "make sec-stage-queue TOP_N=25",

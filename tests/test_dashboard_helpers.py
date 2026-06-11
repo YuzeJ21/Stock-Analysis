@@ -9251,7 +9251,7 @@ def test_valuation_method_contract_frame_makes_dcf_formula_auditable_without_ove
     assert "sell" not in rendered
 
 
-def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_language():
+def test_data_health_orientation_cards_frame_proof_workflow_without_execution_language():
     cards = dashboard.data_health_orientation_cards(
         {
             "price_ready": 586,
@@ -9269,15 +9269,16 @@ def test_data_health_orientation_cards_frame_unlock_workflow_without_execution_l
         "WHAT YOU CAN ANALYZE NOW",
         "WHAT IS STILL LOCKED",
     ]
-    assert cards[0]["title"] == "Use this page to unlock analysis"
+    assert cards[0]["title"] == "Use this page to prove analysis readiness"
     assert "not an error page" in rendered
     assert "what you can analyze now" in rendered
     assert "what is still locked" in rendered
     assert "which proof path should be checked next" in rendered
     assert "what this means" in rendered
     assert "586 price-ready / 23 fundamentals-ready / 23 dcf-ready" in rendered
-    assert "price coverage unlocks setup review first" in rendered
-    assert "trusted fundamentals unlock company-level valuation" in rendered
+    assert "price coverage makes setup review available first" in rendered
+    assert "trusted fundamentals make company-level valuation available" in rendered
+    assert "unlock analysis" not in rendered
     assert "3 peer-ready / 0 earnings / 0 estimates" in rendered
     assert "the app does not infer these inputs" in rendered
     assert "make status-check top_n=5" in rendered
