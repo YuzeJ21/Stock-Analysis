@@ -454,6 +454,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Mode: `Standalone DCF review`." in markdown
     assert "- Decision view:" in markdown
     assert "- DCF: Ready for scenario review." in markdown
+    assert "- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base fair value per share is $" in markdown
+    assert "as scenario math" in markdown
     assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
     assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
     assert "- Method: project readiness gates decide what can appear" in markdown
@@ -898,6 +900,7 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "transaction execution" not in markdown.lower()
     assert "execute transactions" not in markdown.lower()
     assert "DCF: excluded" in markdown
+    assert "- Valuation support: Monitor context only; operating-company DCF and peer valuation are excluded." in markdown
     assert "Analysis mode: Monitor-only context" in markdown
     assert "Operating-company DCF and peer valuation are excluded, not failed" in markdown
     assert "Fundamentals / DCF: excluded for ETF/index/fund monitor context, not failed" in markdown
@@ -1107,6 +1110,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert markdown.index("## At A Glance") < markdown.index("## Reader Guide") < markdown.index("## How To Read This Report")
     assert "- Mode: `Data-unlock only`." in markdown
     assert "- DCF: Blocked until trusted fundamentals and DCF inputs are ready." in markdown
+    assert "- Valuation support: Blocked until trusted price, fundamentals, cash-flow or margin, and share-count inputs are ready." in markdown
     assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
     assert "- Boundary: Data-unlock state: price blocks evaluation, so conclusions stay withheld." in markdown
     assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown

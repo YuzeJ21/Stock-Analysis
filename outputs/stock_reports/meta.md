@@ -6,6 +6,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Mode: `Price/setup review only`.
 - Decision view: Blocked by Data - Missing Fundamentals.
 - DCF: Blocked until trusted fundamentals and DCF inputs are ready.
+- Valuation support: Blocked until trusted DCF inputs are ready; missing now: shares outstanding.
 - Peer context: Locked until source-backed peer inputs are ready.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.

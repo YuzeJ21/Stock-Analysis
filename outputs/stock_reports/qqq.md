@@ -6,6 +6,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Mode: `Monitor-only context`.
 - Decision view: Monitor - ETF Market Proxy.
 - DCF: Excluded for ETF/index/fund monitor context.
+- Valuation support: Monitor context only; operating-company DCF and peer valuation are excluded.
 - Peer context: Excluded for monitor context.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.

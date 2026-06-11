@@ -1655,11 +1655,13 @@ def _stock_report_at_a_glance_lines(
     mode: str,
     decision: dict[str, Any],
     dcf_status_text: str,
+    dcf: dict[str, Any],
     readiness: dict[str, Any],
     peer_ready: Any,
     earnings_ready: Any,
     estimates_ready: Any,
     next_action: str,
+    valuation_snapshot: dict[str, Any] | None = None,
 ) -> list[str]:
     asset_type = _display_value(readiness.get("asset_type"), "").lower()
     monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -1682,6 +1684,33 @@ def _stock_report_at_a_glance_lines(
         if dcf_status_text == "ready"
         else "Blocked until trusted fundamentals and DCF inputs are ready"
     )
+    valuation_snapshot = valuation_snapshot or {}
+    nested_dcf_result = dcf.get("dcf_result") if isinstance(dcf.get("dcf_result"), dict) else {}
+    snapshot_dcf_result = (
+        valuation_snapshot.get("dcf_result") if isinstance(valuation_snapshot.get("dcf_result"), dict) else {}
+    )
+    fair_value = _clean_number(
+        dcf.get("fair_value_per_share")
+        or nested_dcf_result.get("fair_value_per_share")
+        or snapshot_dcf_result.get("fair_value_per_share")
+    )
+    missing_fields = dcf.get("missing_dcf_fields") or dcf.get("reason_not_ready")
+    if monitor_context:
+        valuation_support = "Monitor context only; operating-company DCF and peer valuation are excluded."
+    elif dcf_status_text == "ready":
+        fair_value_note = (
+            f"; base fair value per share is {_format_money(fair_value)} as scenario math"
+            if fair_value is not None
+            else "; review the DCF section for scenario math"
+        )
+        valuation_support = f"Standalone DCF assumptions and sensitivity are reviewable{fair_value_note}."
+    else:
+        missing_note = _display_field_list(missing_fields)
+        valuation_support = (
+            f"Blocked until trusted DCF inputs are ready; missing now: {missing_note}."
+            if missing_note != "Not available"
+            else "Blocked until trusted price, fundamentals, cash-flow or margin, and share-count inputs are ready."
+        )
     decision_label = _display_value(
         decision.get("decision_subtype") or decision.get("decision_bucket"),
         "Not classified",
@@ -1690,6 +1719,7 @@ def _stock_report_at_a_glance_lines(
         f"- Mode: `{mode}`.",
         f"- Decision view: {decision_label}.",
         f"- DCF: {dcf_status}.",
+        f"- Valuation support: {valuation_support}",
         f"- Peer context: {peer_status}.",
         f"- Optional context: {optional_status}.",
         "- Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.",
@@ -2349,11 +2379,13 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         mode=report_mode,
         decision=decision,
         dcf_status_text=dcf_status_text,
+        dcf=dcf,
         readiness=readiness,
         peer_ready=peer_ready,
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
         next_action=one_minute_next,
+        valuation_snapshot=payload.get("valuation_snapshot", {}),
     )
     mode_guide_lines = _stock_report_mode_guide_lines(report_mode)
     reader_guide_lines = _stock_report_reader_guide_lines(
@@ -2743,11 +2775,13 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         mode=report_mode,
         decision=decision,
         dcf_status_text=dcf_status_text,
+        dcf=dcf,
         readiness=readiness,
         peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
         next_action=next_action,
+        valuation_snapshot=valuation_snapshot_for_report,
     )
     mode_guide_lines = _stock_report_mode_guide_lines(report_mode)
     reader_guide_lines = _stock_report_reader_guide_lines(
