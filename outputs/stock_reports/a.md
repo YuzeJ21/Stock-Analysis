@@ -52,6 +52,12 @@ A overall readiness: partial because optional earnings/estimate context is locke
 - Supported now: Company-level review can use local price context, fundamentals, and standalone DCF assumptions. Peer-relative valuation is shown only if trusted peer mappings and peer metrics are also ready.
 - Still locked or excluded: Blocked features: earnings, analyst estimates. Excluded features: portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Next Layer To Unlock
+- Current supported layer: Standalone DCF review; assumptions and sensitivity can be read before peer-relative valuation.
+- Next trusted input: Source-backed peer mappings plus peer price, fundamentals, and valuation inputs.
+- Proof command: `make focus-peers TICKER=A` before treating the next layer as unlocked.
+- Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.
+
 ## Data And App Method
 - Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
 - Product checks: project readiness gates decide whether each input is usable before report sections appear.

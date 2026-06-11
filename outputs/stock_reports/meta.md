@@ -52,6 +52,12 @@ META overall readiness: partial; review ready inputs first and treat locked inpu
 - Supported now: Use available price or setup context only. Company-level valuation stays blocked until trusted fundamentals, free cash flow or margin inputs, share count, and DCF fields are ready.
 - Still locked or excluded: Blocked features: DCF, earnings, analyst estimates. Excluded features: none. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Next Layer To Unlock
+- Current supported layer: Price/setup review only; company valuation stays locked until fundamentals and DCF inputs pass readiness.
+- Next trusted input: Trusted fundamentals, free-cash-flow or margin inputs, share count, and DCF fields.
+- Proof command: `make focus-fundamentals TICKER=META` before treating the next layer as unlocked.
+- Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.
+
 ## Data And App Method
 - Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
 - Product checks: project readiness gates decide whether each input is usable before report sections appear.

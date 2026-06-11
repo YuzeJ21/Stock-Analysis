@@ -1553,6 +1553,49 @@ def _stock_report_reader_question_lines(
     ]
 
 
+def _stock_report_next_layer_lines(
+    *,
+    ticker: str,
+    dcf_status_text: str,
+    monitor_context: bool,
+    price_ready: Any,
+    peer_ready: Any,
+    earnings_ready: Any,
+    estimates_ready: Any,
+) -> list[str]:
+    if not bool(price_ready):
+        current_layer = "Data-unlock only; conclusions stay withheld until trusted local price history exists."
+        next_input = "Trusted local price history."
+        proof_command = f"make focus-price TICKER={ticker}"
+    elif monitor_context:
+        current_layer = "Monitor-only context; market, theme, liquidity, or risk review can be read when local inputs are ready."
+        next_input = "No operating-company DCF or peer-valuation input is required for this monitor role."
+        proof_command = f"make stock-report-md TICKER={ticker}"
+    elif dcf_status_text == "blocked":
+        current_layer = "Price/setup review only; company valuation stays locked until fundamentals and DCF inputs pass readiness."
+        next_input = "Trusted fundamentals, free-cash-flow or margin inputs, share count, and DCF fields."
+        proof_command = f"make focus-fundamentals TICKER={ticker}"
+    elif dcf_status_text == "ready" and not bool(peer_ready):
+        current_layer = "Standalone DCF review; assumptions and sensitivity can be read before peer-relative valuation."
+        next_input = "Source-backed peer mappings plus peer price, fundamentals, and valuation inputs."
+        proof_command = f"make focus-peers TICKER={ticker}"
+    elif not bool(earnings_ready) or not bool(estimates_ready):
+        current_layer = "DCF-ready review; core company and peer context can be read while optional context remains locked."
+        next_input = "Trusted earnings or analyst-estimate CSV rows only when a source is available."
+        proof_command = f"make optional-context-worklist TICKERS={ticker} TOP_N=10"
+    else:
+        current_layer = "Full local research review; ready sections still need source/freshness review before interpretation."
+        next_input = "No missing required layer is flagged; review source readiness and rerun the report after data changes."
+        proof_command = f"make stock-report-md TICKER={ticker}"
+
+    return [
+        f"- Current supported layer: {current_layer}",
+        f"- Next trusted input: {next_input}",
+        f"- Proof command: `{proof_command}` before treating the next layer as unlocked.",
+        "- Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.",
+    ]
+
+
 def _stock_report_data_health_handoff_line(
     *,
     ticker: str,
@@ -2429,6 +2472,15 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         earnings_ready=earnings_ready,
         estimates_ready=estimates_ready,
     )
+    next_layer_lines = _stock_report_next_layer_lines(
+        ticker=report.ticker,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
+        peer_ready=peer_ready,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     best_review_path_lines = _stock_report_best_review_path_lines(
         ticker=report.ticker,
         dcf_status_text=dcf_status_text,
@@ -2494,6 +2546,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Ready inputs: {ready_features}.",
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
+        "",
+        "## Next Layer To Unlock",
+        *next_layer_lines,
         "",
         "## Data And App Method",
         *source_logic_lines,
@@ -2825,6 +2880,15 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         earnings_ready=readiness.get("earnings_ready"),
         estimates_ready=readiness.get("analyst_estimates_ready"),
     )
+    next_layer_lines = _stock_report_next_layer_lines(
+        ticker=symbol,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=bool(readiness.get("price_ready")),
+        peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+    )
     data_unlock_lines = _stock_report_data_unlock_lines(
         ticker=symbol,
         readiness=readiness,
@@ -2880,6 +2944,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Ready inputs: {ready_features}.",
         f"- Supported now: {supported_now}",
         f"- Still locked or excluded: {locked_now}",
+        "",
+        "## Next Layer To Unlock",
+        *next_layer_lines,
         "",
         "## Data And App Method",
         *source_logic_lines,

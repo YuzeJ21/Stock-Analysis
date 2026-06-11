@@ -52,6 +52,12 @@ QQQ overall readiness: partial because monitor context is usable while company v
 - Supported now: Monitor context is supported where local price, liquidity, correlation, and theme data are available. Operating-company DCF and peer valuation are excluded rather than treated as failed inputs.
 - Still locked or excluded: Blocked features: fundamentals, peer, earnings, analyst estimates. Excluded features: DCF, portfolio. Unavailable sections are intentionally locked; missing data is not inferred.
 
+## Next Layer To Unlock
+- Current supported layer: Monitor-only context; market, theme, liquidity, or risk review can be read when local inputs are ready.
+- Next trusted input: No operating-company DCF or peer-valuation input is required for this monitor role.
+- Proof command: `make stock-report-md TICKER=QQQ` before treating the next layer as unlocked.
+- Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.
+
 ## Data And App Method
 - Source inputs: local CSV rows or labeled provider-assisted rows supply prices, fundamentals, peers, earnings, and estimates.
 - Product checks: project readiness gates decide whether each input is usable before report sections appear.

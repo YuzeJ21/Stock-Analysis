@@ -529,6 +529,11 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Ready inputs:" in markdown
     assert "Supported now:" in markdown
     assert "Still locked or excluded:" in markdown
+    assert "## Next Layer To Unlock" in markdown
+    assert "Current supported layer: Standalone DCF review; assumptions and sensitivity can be read before peer-relative valuation." in markdown
+    assert "Next trusted input: Source-backed peer mappings plus peer price, fundamentals, and valuation inputs." in markdown
+    assert "Proof command: `make focus-peers TICKER=MSFT` before treating the next layer as unlocked." in markdown
+    assert "Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders." in markdown
     assert "Excluded features: Not available" not in markdown
     assert "Missing price reason: Not available" not in markdown
     assert "Peer blocker type: not available" not in markdown
@@ -771,6 +776,10 @@ def test_build_stock_report_surfaces_missing_data_risks(tmp_path: Path):
     assert "Inspect `make focus-fundamentals TICKER=TSLA`" in markdown
     assert "`make sec-stage TICKERS=TSLA`" in markdown
     assert "trusted manual fundamentals rows before `make imports-validate`, `make imports-preview`, `make imports-apply`, and `make dcf-readiness`" in markdown
+    assert "## Next Layer To Unlock" in markdown
+    assert "Current supported layer: Price/setup review only; company valuation stays locked until fundamentals and DCF inputs pass readiness." in markdown
+    assert "Next trusted input: Trusted fundamentals, free-cash-flow or margin inputs, share count, and DCF fields." in markdown
+    assert "Proof command: `make focus-fundamentals TICKER=TSLA` before treating the next layer as unlocked." in markdown
 
 
 def test_stock_report_json_export_is_serializable_and_contains_freshness_metadata(tmp_path: Path):
@@ -908,6 +917,10 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "- Still locked: Blocked features: none. Excluded features: DCF." in markdown
     assert "- Trusted input: No company DCF input is required for monitor context." in markdown
     assert "- Data Health lane: Single-Stock Review. Suggested local check: `make stock-report-md TICKER=QQQ`" in markdown
+    assert "## Next Layer To Unlock" in markdown
+    assert "Current supported layer: Monitor-only context; market, theme, liquidity, or risk review can be read when local inputs are ready." in markdown
+    assert "Next trusted input: No operating-company DCF or peer-valuation input is required for this monitor role." in markdown
+    assert "Proof command: `make stock-report-md TICKER=QQQ` before treating the next layer as unlocked." in markdown
     assert "Bottom line: QQQ is in `Monitor-only context` mode" in markdown
     assert "`Monitor-only context` (current)" in markdown
     assert "Decision: Monitor - ETF Market Proxy" in markdown
@@ -1151,6 +1164,10 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Bottom line: APLD is in `Data-unlock only` mode" in markdown
     assert "Ready inputs: none yet." in markdown
     assert "Next step: Add or refresh trusted local price history for APLD" in markdown
+    assert "## Next Layer To Unlock" in markdown
+    assert "Current supported layer: Data-unlock only; conclusions stay withheld until trusted local price history exists." in markdown
+    assert "Next trusted input: Trusted local price history." in markdown
+    assert "Proof command: `make focus-price TICKER=APLD` before treating the next layer as unlocked." in markdown
     assert "`Data-unlock only` (current)" in markdown
     assert (
         "`Data-unlock only` (current): Pause analysis for this ticker until the first trusted local input is available."
