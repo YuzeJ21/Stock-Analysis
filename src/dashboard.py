@@ -9388,7 +9388,16 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
             "Trusted Input": "Current readiness and DCF reports",
         },
         {
-            "Step": "2. Choose the trusted input path",
+            "Step": "2. Inspect the one-company packet",
+            "Why It Matters": (
+                "The packet shows the before report, exact missing input, focus command, validation path, and rebuild proof "
+                "before any trusted rows are applied."
+            ),
+            "Copy Command": f"make trusted-data-pilot-packet TICKER={ticker}" if has_ticker else "make trusted-data-pilot-candidates TOP_N=10",
+            "Trusted Input": "Read-only current blockers; no refresh or import runs from this command",
+        },
+        {
+            "Step": "3. Choose the trusted input path",
             "Why It Matters": (
                 f"SEC_USER_AGENT is configured, so SEC staging workflow can prepare rows for review. Check {rejected_rows} after validation."
                 if sec_configured
@@ -9402,7 +9411,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
             ),
         },
         {
-            "Step": "3. Validate before applying",
+            "Step": "4. Validate before applying",
             "Why It Matters": (
                 "Readiness counts should improve only after trusted rows pass validation, preview, and apply. "
                 "Rejected rows must be reviewed before treating fundamentals or DCF as unlocked."
@@ -9411,7 +9420,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
             "Trusted Input": "Rejected rows: data/rejected/fundamentals_import_rejected.csv",
         },
         {
-            "Step": "4. Rebuild readiness",
+            "Step": "5. Rebuild readiness",
             "Why It Matters": "Confirm fundamentals_ready and dcf_ready changed from real imported rows before reading valuation output.",
             "Copy Command": "make readiness && make dcf-readiness",
             "Trusted Input": preferred_path,
@@ -9423,7 +9432,8 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
 def first_fundamentals_unlock_cards(sec_configured: bool, next_ticker: str | None = None) -> list[dict[str, object]]:
     frame = first_fundamentals_unlock_frame(sec_configured, next_ticker)
     first = frame.iloc[0]
-    input_row = frame.iloc[1]
+    packet_row = frame.iloc[1]
+    input_row = frame.iloc[2]
     return [
         {
             "kicker": "FIRST FUNDAMENTALS UNLOCK",
@@ -9431,6 +9441,13 @@ def first_fundamentals_unlock_cards(sec_configured: bool, next_ticker: str | Non
             "body": format_missing(first.get("Why It Matters"), ""),
             "badges": ["one company first", "trusted rows only"],
             "command": format_missing(first.get("Copy Command"), ""),
+        },
+        {
+            "kicker": "ONE-COMPANY PACKET",
+            "title": format_missing(packet_row.get("Step"), "Inspect the one-company packet"),
+            "body": format_missing(packet_row.get("Why It Matters"), ""),
+            "badges": ["before/focus/prove", "read-only"],
+            "command": format_missing(packet_row.get("Copy Command"), ""),
         },
         {
             "kicker": "TRUSTED INPUT PATH",

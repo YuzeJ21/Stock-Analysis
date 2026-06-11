@@ -15151,14 +15151,18 @@ def test_first_fundamentals_unlock_frame_prefers_manual_path_without_sec_user_ag
 
     assert frame["Step"].tolist() == [
         "1. Pick the next company",
-        "2. Choose the trusted input path",
-        "3. Validate before applying",
-        "4. Rebuild readiness",
+        "2. Inspect the one-company packet",
+        "3. Choose the trusted input path",
+        "4. Validate before applying",
+        "5. Rebuild readiness",
     ]
     assert frame.iloc[0]["Copy Command"] == "make focus-fundamentals TICKER=META"
-    assert frame.iloc[1]["Copy Command"] == "make templates"
-    assert frame.iloc[1]["Trusted Input"].startswith("data/imports/fundamentals.csv")
+    assert frame.iloc[1]["Copy Command"] == "make trusted-data-pilot-packet TICKER=META"
+    assert frame.iloc[1]["Trusted Input"] == "Read-only current blockers; no refresh or import runs from this command"
+    assert frame.iloc[2]["Copy Command"] == "make templates"
+    assert frame.iloc[2]["Trusted Input"].startswith("data/imports/fundamentals.csv")
     assert "sec_user_agent is missing" in rendered
+    assert "before report, exact missing input, focus command, validation path, and rebuild proof" in rendered
     assert "data/imports/fundamentals.csv manual rows" in rendered
     assert "minimum dcf fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source" in rendered
     assert "data/rejected/fundamentals_import_rejected.csv" in rendered
@@ -15174,8 +15178,11 @@ def test_first_fundamentals_unlock_cards_use_sec_path_when_configured():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
-    assert cards[1]["command"] == "make sec-stage TICKERS=NVDA"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply"
+    assert cards[1]["command"] == "make trusted-data-pilot-packet TICKER=NVDA"
+    assert cards[2]["command"] == "make sec-stage TICKERS=NVDA"
+    assert cards[3]["command"] == "make imports-validate && make imports-preview && make imports-apply"
+    assert "one-company packet" in rendered
+    assert "before/focus/prove" in rendered
     assert "sec company facts staging rows in data/staged/fundamentals/" in rendered
     assert "canonical reviewed import file is data/imports/fundamentals.csv" in rendered
     assert "minimum dcf fields: ticker, report_date or period, revenue, free_cash_flow or fcf_margin, shares_outstanding, cash, debt, source" in rendered
