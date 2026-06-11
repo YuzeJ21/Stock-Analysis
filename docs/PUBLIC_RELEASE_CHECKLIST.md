@@ -12,6 +12,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep `make trusted-data-pilot-candidates TOP_N=10` visible as the read-only first step for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn.
 - Keep `make trusted-data-pilot-packet TICKER=CRDO` visible as the one-company before report, review path, validate/apply, and rebuild-proof packet after a candidate is chosen.
 - Keep `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` visible as the follow-up evidence loop after candidates are selected.
+- Confirm the pilot output shows the operator decision and evidence expectation: proceed only when source proof exists, otherwise keep the ticker data-blocked and move to the next candidate.
 - Keep the trusted-data pilot company-focused. Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. Treat `QQQ` and `SMH` as ETF/index monitor demos, not operating-company DCF targets.
 - Keep the pilot evidence packet visible: baseline readiness, before report, focused blocker check, lane review path, validate/preview/apply, rebuild proof, and still-blocked evidence row.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
