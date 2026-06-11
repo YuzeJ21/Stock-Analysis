@@ -9340,6 +9340,47 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "sell" not in rendered
 
 
+def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
+    preview = pd.DataFrame(
+        [
+            {
+                "Ticker": "MU",
+                "Pilot Lane": "Peer mapping unlock",
+                "Scope": "Active universe",
+                "Rank Reason": "active-universe public-demo name; peer mapping unlock; priority 2; missing needs source-backed peers.",
+                "Missing Input": "needs source-backed peer mappings",
+                "Next Command": "make focus-peers TICKER=MU",
+                "Proof After Unlock": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
+            },
+            {
+                "Ticker": "META",
+                "Pilot Lane": "Fundamentals / DCF unlock",
+                "Scope": "Active universe",
+                "Rank Reason": "active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares_outstanding.",
+                "Missing Input": "shares_outstanding",
+                "Next Command": "make focus-fundamentals TICKER=META",
+                "Proof After Unlock": "make readiness && make dcf-readiness && make stock-report-md TICKER=META",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_trusted_pilot_preview_cards(preview, limit=1)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert cards[0]["kicker"] == "PILOT CANDIDATE"
+    assert cards[0]["title"] == "MU: Peer mapping unlock"
+    assert cards[0]["command"] == "make focus-peers TICKER=MU"
+    assert cards[0]["badges"] == ["Active universe", "read-only"]
+    assert "rank reason:" in rendered
+    assert "next trusted input: needs source-backed peer mappings" in rendered
+    assert "proof after unlock: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -9350,7 +9391,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
 
     assert next_steps_index < pilot_index < pilot_preview_index < details_index
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
+    assert "render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))" in source
     assert "`make trusted-data-pilot-candidates TOP_N=10`" in source
+    assert 'st.expander("Capped pilot candidate table", expanded=False)' in source
     assert "st.dataframe(clean_display_frame(pilot_preview), width=\"stretch\", hide_index=True)" in source
 
 

@@ -6332,6 +6332,33 @@ def data_health_trusted_pilot_preview_frame(
     return pd.DataFrame(rows)
 
 
+def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
+    if preview_frame is None or preview_frame.empty:
+        return []
+    cards: list[dict[str, object]] = []
+    for _, row in preview_frame.head(max(limit, 0)).iterrows():
+        ticker = format_missing(row.get("Ticker"), "Ticker")
+        lane = format_missing(row.get("Pilot Lane"), "Trusted-data unlock")
+        scope = format_missing(row.get("Scope"), "Current queue")
+        rank_reason = compact_reason(row.get("Rank Reason"), max_sentences=1, max_chars=180)
+        missing_input = compact_reason(row.get("Missing Input"), max_sentences=1, max_chars=140)
+        proof = format_missing(row.get("Proof After Unlock"), "make readiness && make stock-report-md TICKER=<ticker>")
+        command = format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")
+        cards.append(
+            {
+                "kicker": "PILOT CANDIDATE",
+                "title": f"{ticker}: {lane}",
+                "body": (
+                    f"Rank reason: {rank_reason} Next trusted input: {missing_input}. "
+                    f"Proof after unlock: {proof}."
+                ),
+                "badges": [scope, "read-only"],
+                "command": command,
+            }
+        )
+    return cards
+
+
 def data_health_advanced_unlock_map_cards(
     fundamentals_peer_worklist_frame: pd.DataFrame | None,
     peer_unlock_worklist_frame: pd.DataFrame | None,
@@ -20976,7 +21003,9 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "Top ranked company blockers.",
             "This read-only preview mirrors `make trusted-data-pilot-candidates TOP_N=10` and stays capped so Data Health does not become a broad raw table.",
         )
-        st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
+        render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))
+        with st.expander("Capped pilot candidate table", expanded=False):
+            st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
     with st.expander("Unlock planning cards", expanded=False):
         render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
