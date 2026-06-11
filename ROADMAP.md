@@ -177,11 +177,12 @@ Current status:
 - Reports now open with an `At A Glance` block so first-time visitors see mode, decision view, DCF state, peer context, optional context, and next local step before methodology detail.
 - The dashboard Single-Stock Report page includes At A Glance and Best Review Path cards explaining project readiness gates, the safest reading order, and the DCF formula path before detailed tables.
 - Reports include a mode guide comparing `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
-- Blocked and partial reports include `Copyable Unlock Commands` with capped, local, research-only commands for price, fundamentals/DCF, peer mapping, and optional-context imports.
+- Blocked and partial reports include `Copyable Unlock Commands` with capped, local, research-only commands for price, fundamentals/DCF, peer mapping, optional-context imports, and the one-company trusted-data pilot packet.
 
 Next improvements:
 
 - [x] Add more visible examples of richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data reports on the dashboard Home page.
+- [x] Link Data Health and blocked single-stock reports to `make trusted-data-pilot-packet TICKER=<ticker>` so the trusted-data pilot has one consistent before/focus/validate/prove path.
 - Keep methodology and assumptions visible while continuing to reduce engineer-heavy wording.
 
 Rules:
