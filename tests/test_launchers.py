@@ -1033,6 +1033,8 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" in checklist
     assert "read-only first step for ranking current company blockers" in checklist
     assert "choose 5-10 operating companies only when source proof exists" in checklist
+    assert "file presence, row counts, staged-folder counts, or rejected-row report existence are not proof" in checklist
+    assert "source review, validation, preview/apply, readiness rebuild, and the regenerated report prove the lane changed" in checklist
     assert "define a useful pilot win as before report, lane review, trusted source row" in checklist
     assert "Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in checklist
     assert "Treat `QQQ` and `SMH` as ETF/index monitor demos" in checklist
