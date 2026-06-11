@@ -46,6 +46,8 @@ The report is not a black box: local data rows provide inputs, and project rules
 
 The local sample currently tracks a broad universe of 3,538 tickers, with a smaller subset ready for each analysis feature. Exact ready counts can change after local refresh/import work, so use `make status-check TOP_N=5` or the dashboard Home page for the current snapshot.
 
+Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, demo path, and public checks are working. Broad fundamentals, DCF, peers, earnings, and analyst estimates remain intentionally data-blocked until trusted rows exist, so those gaps should be read as source-proof work rather than broken analysis.
+
 ## Data Coverage Strategy
 
 The product separates refreshable data from judgment-required data:

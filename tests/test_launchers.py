@@ -502,6 +502,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Useful with limits",
         "Intentionally locked",
         "Not built to be",
+        "Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, demo path, and public checks are working",
+        "remain intentionally data-blocked until trusted rows exist",
+        "source-proof work rather than broken analysis",
         "`undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context",
         "not automatic undervalued calls",
     ):
