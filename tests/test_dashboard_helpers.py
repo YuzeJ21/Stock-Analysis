@@ -559,9 +559,14 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert 'st.expander("Need help?"' not in source
     assert 'st.header("Explore")' in source
     assert 'st.header("Navigation")' not in source
-    assert '"Choose a page"' in source
+    assert '"Choose your path"' in source
+    assert '"Choose a page"' not in source
+    assert 'st.expander("Advanced pages"' in source
+    assert '"Open a detailed page"' in source
+    assert "Most visitors only need these paths" in source
+    assert "Detailed research views remain available" in source
     assert '"Page to review"' not in source
-    assert "Start with Home, then open one focused page" in source
+    assert "Start with Home, then open one focused page" not in source
     assert "Simple path." in source
     assert "Start with Home for the coverage snapshot." in source
     assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
@@ -17836,6 +17841,14 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.DASHBOARD_TAB_TITLES[7] == "Single-Stock Report"
     assert dashboard.DASHBOARD_TAB_TITLES[8] == "Data Health"
     assert dashboard.USER_PAGE_TITLES[0] == "Home"
+    assert dashboard.PUBLIC_PATH_PAGE_TITLES == ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
+    assert dashboard.public_path_label("Single-Stock Report") == "Review one stock"
+    assert dashboard.public_path_label("Data Health") == "Improve data coverage"
+    assert dashboard.public_path_label("Monthly Picks") == "Explore ready names"
+    assert "Overview" in dashboard.ADVANCED_PAGE_TITLES
+    assert "Portfolio Review" in dashboard.ADVANCED_PAGE_TITLES
+    assert "Universe Manager" in dashboard.ADVANCED_PAGE_TITLES
+    assert "Single-Stock Report" not in dashboard.ADVANCED_PAGE_TITLES
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
     assert "Home page" in navigation

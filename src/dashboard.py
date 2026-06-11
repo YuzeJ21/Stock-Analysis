@@ -58,6 +58,14 @@ DASHBOARD_TAB_TITLES = [
     "Universe Manager",
 ]
 USER_PAGE_TITLES = ["Home"] + DASHBOARD_TAB_TITLES
+PUBLIC_PATH_PAGE_TITLES = ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
+ADVANCED_PAGE_TITLES = [title for title in USER_PAGE_TITLES if title not in PUBLIC_PATH_PAGE_TITLES]
+PUBLIC_PATH_LABELS = {
+    "Home": "Start at Home",
+    "Single-Stock Report": "Review one stock",
+    "Data Health": "Improve data coverage",
+    "Monthly Picks": "Explore ready names",
+}
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
@@ -14539,6 +14547,10 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     ]
 
 
+def public_path_label(page_title: str) -> str:
+    return PUBLIC_PATH_LABELS.get(page_title, page_title)
+
+
 def sidebar_quick_help_lines() -> list[str]:
     return [
         "Start with Home for the coverage snapshot.",
@@ -21905,11 +21917,23 @@ def main() -> None:
         st.header("Explore")
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
         selected_page = st.radio(
-            "Choose a page",
-            USER_PAGE_TITLES,
-            index=USER_PAGE_TITLES.index(initial_page) if initial_page in USER_PAGE_TITLES else 0,
-            help="Start with Home, then open one focused page when you know what you want to review.",
+            "Choose your path",
+            PUBLIC_PATH_PAGE_TITLES,
+            index=PUBLIC_PATH_PAGE_TITLES.index(initial_page) if initial_page in PUBLIC_PATH_PAGE_TITLES else 0,
+            format_func=public_path_label,
+            help="Most visitors only need these paths: review one stock, improve data coverage, or explore ready names.",
         )
+        with st.expander("Advanced pages", expanded=initial_page in ADVANCED_PAGE_TITLES):
+            advanced_page = st.selectbox(
+                "Open a detailed page",
+                ["Keep current path"] + ADVANCED_PAGE_TITLES,
+                index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
+                if initial_page in ADVANCED_PAGE_TITLES
+                else 0,
+                help="Detailed research views remain available, but first-time visitors can stay with the three main paths.",
+            )
+            if advanced_page != "Keep current path":
+                selected_page = advanced_page
         show_reason_details = st.checkbox(
             "Show page tips",
             value=False,
