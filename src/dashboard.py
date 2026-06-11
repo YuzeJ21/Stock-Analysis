@@ -2988,6 +2988,25 @@ def compact_reason(value: object, max_sentences: int = 2, max_chars: int = 260) 
     return compact
 
 
+def plain_dashboard_input_copy(value: object) -> str:
+    """Make raw readiness blocker text easier to read on product cards."""
+
+    text = format_missing(value, "").strip()
+    if not text:
+        return "trusted local input"
+    replacements = {
+        "analyst_estimates": "analyst estimates",
+        "shares_outstanding": "shares outstanding",
+        "fcf_margin": "free-cash-flow margin",
+        "free_cash_flow": "free cash flow",
+        "peer_valuation_ready": "peer valuation readiness",
+    }
+    for raw, label in replacements.items():
+        text = re.sub(rf"\b{re.escape(raw)}\b", label, text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def validation_sequence_summary(value: object, *, fallback: str = "Follow the proof path in the detail table.") -> str:
     """Turn long command chains into plain dashboard guidance."""
     text = format_missing(value, "").strip()
@@ -6347,7 +6366,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
         lane = format_missing(row.get("Pilot Lane"), "Trusted-data unlock")
         scope = format_missing(row.get("Scope"), "Current queue")
         rank_reason = compact_reason(row.get("Rank Reason"), max_sentences=1, max_chars=180)
-        missing_input = compact_reason(row.get("Missing Input"), max_sentences=1, max_chars=140)
+        missing_input = compact_reason(plain_dashboard_input_copy(row.get("Missing Input")), max_sentences=1, max_chars=220)
         operator_decision = compact_reason(row.get("Operator Decision"), max_sentences=1, max_chars=180)
         proof = format_missing(row.get("Proof After Unlock"), "make readiness && make stock-report-md TICKER=<ticker>")
         command = format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")

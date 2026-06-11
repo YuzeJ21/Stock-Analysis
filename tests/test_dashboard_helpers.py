@@ -9408,7 +9408,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Pilot Lane": "Peer mapping unlock",
                 "Scope": "Active universe",
                 "Rank Reason": "active-universe public-demo name; peer mapping unlock; priority 2; missing needs source-backed peers.",
-                "Missing Input": "needs source-backed peer mappings",
+                "Missing Input": "needs source-backed peer mappings; analyst_estimates: trusted local CSV input",
                 "Operator Decision": "Choose this company only if you can document source-backed peer relationships.",
                 "Next Command": "make focus-peers TICKER=MU",
                 "Proof After Unlock": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
@@ -9435,7 +9435,8 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert cards[0]["command"] == "make focus-peers TICKER=MU"
     assert cards[0]["badges"] == ["Active universe", "read-only"]
     assert "rank reason:" in rendered
-    assert "next trusted input: needs source-backed peer mappings" in rendered
+    assert "next trusted input: needs source-backed peer mappings; analyst estimates: trusted local csv input" in rendered
+    assert "analyst_estimates" not in rendered
     assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
     assert "proof after unlock: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "broker" not in rendered
