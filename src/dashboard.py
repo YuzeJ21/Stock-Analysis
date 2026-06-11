@@ -1698,7 +1698,6 @@ def apply_dashboard_theme() -> None:
           font-size: 0.78rem;
           font-weight: 850;
           letter-spacing: 0.14em;
-          text-transform: uppercase;
         }
         .hero-title {
           color: #ffffff;
@@ -2933,7 +2932,7 @@ def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool =
 
 def monthly_ideas_hero_label(monthly_count: int) -> str:
     if monthly_count <= 0:
-        return "Monthly ideas need data"
+        return "Monthly ideas waiting on data"
     if monthly_count == 1:
         return "1 monthly idea ready"
     return f"{monthly_count} monthly ideas ready"

@@ -184,8 +184,8 @@ def test_plain_home_readiness_cards_include_copyable_next_commands():
 
 
 def test_monthly_ideas_hero_label_explains_locked_zero_state():
-    assert dashboard.monthly_ideas_hero_label(0) == "Monthly ideas need data"
-    assert dashboard.monthly_ideas_hero_label(-1) == "Monthly ideas need data"
+    assert dashboard.monthly_ideas_hero_label(0) == "Monthly ideas waiting on data"
+    assert dashboard.monthly_ideas_hero_label(-1) == "Monthly ideas waiting on data"
     assert dashboard.monthly_ideas_hero_label(1) == "1 monthly idea ready"
     assert dashboard.monthly_ideas_hero_label(3) == "3 monthly ideas ready"
 
@@ -195,6 +195,8 @@ def test_dashboard_hero_uses_public_product_language():
 
     assert "A local, explainable research dashboard" in source
     assert "Research-only review; no external account actions." in source
+    assert ".hero-kicker {\n          color: #b8f5e8;" in source
+    assert ".hero-kicker {\n          color: #b8f5e8;\n          font-size: 0.78rem;\n          font-weight: 850;\n          letter-spacing: 0.14em;\n        }" in source
     assert "A local, explainable workflow" not in source
     assert "Research workflow only." not in source
 
