@@ -43,7 +43,7 @@ If a workflow depends on source credibility, issuer judgment, fiscal-period choi
 
 Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.
 
-If you want to choose the next pilot from current local blockers, run `make trusted-data-pilot-candidates TOP_N=10`. It ranks operating-company candidates and excludes ETF/index monitor examples from the company DCF pilot queue. If you want a one-company packet after choosing a name, run `make trusted-data-pilot-packet TICKER=CRDO`; it prints the before report, focused blocker check, validation path, rebuild proof, and after report sequence. If you want the copyable read-only checklist after choosing several names, run `make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10`. The broader checklist remains available as `make trusted-data-pilot TOP_N=10`. Each command does not refresh, import, or edit local CSV files.
+If you want to choose the next pilot from current local blockers, run `make trusted-data-pilot-candidates TOP_N=10`. It ranks operating-company candidates and excludes ETF/index monitor examples from the company DCF pilot queue. If you want a one-company packet after choosing a name, run `make trusted-data-pilot-packet TICKER=CRDO`; it prints the before report, focused blocker check, lane review path, validate/apply step, rebuild proof, and evidence row to record. If you want the copyable read-only checklist after choosing several names, run `make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10`. The broader checklist remains available as `make trusted-data-pilot TOP_N=10`. Each command does not refresh, import, or edit local CSV files.
 
 Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`. ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos, but they are not operating-company DCF targets.
 
@@ -59,7 +59,6 @@ make focus-peers TICKER=<ticker>         # peer lane
 make imports-validate && make imports-preview && make imports-apply
 make readiness && make dcf-readiness                 # fundamentals lane proof
 make readiness && make peer-mapping-queue TOP_N=25   # peer lane proof
-make stock-report-md TICKER=<ticker>
 ```
 
 1. Save the baseline with `make readiness-snapshot`.
@@ -77,13 +76,13 @@ A company is a useful pilot win only when the evidence is reviewable, not just w
 
 - Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`.
 - Keep one regenerated Markdown report per pilot company so readers can see whether the mode changed or stayed data-blocked.
-- Keep the exact validation path that changed the state: `make imports-validate`, `make imports-preview`, `make imports-apply`, then the relevant readiness command.
+- Keep the exact review and validation path that changed the state: lane review command, `make imports-validate`, `make imports-preview`, `make imports-apply`, then the relevant readiness proof command.
 - The single-stock report opens with the correct mode: DCF-ready review, standalone DCF review, price/setup review only, monitor-only context, or data-unlock only.
 - DCF-ready companies show assumptions, sensitivity, source readiness, and any locked optional context before interpretation.
 - Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next.
 - Fundamentals-limited companies show the missing fields and whether SEC staging or manual fundamentals imports are the next trusted path.
 - Optional earnings or analyst-estimate context stays locked unless trusted local rows pass validation, preview, and apply.
-- The final proof is a regenerated report plus refreshed readiness counts; broad generated CSV churn should still stay out of the public branch unless intentionally reviewed.
+- The final proof is a regenerated report plus refreshed readiness counts, recorded alongside any still-blocked reason; broad generated CSV churn should still stay out of the public branch unless intentionally reviewed.
 
 ## What Not To Automate Yet
 

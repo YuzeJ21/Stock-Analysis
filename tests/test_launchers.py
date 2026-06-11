@@ -144,7 +144,7 @@ def test_makefile_help_documents_key_workflows():
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
         "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot",
-        "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before/focus/validate/prove evidence packet",
+        "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before/focus/review/validate/rebuild evidence packet",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -937,7 +937,8 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "Suggested starter set: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in checklist
     assert "Treat `QQQ` and `SMH` as ETF/index monitor demos" in checklist
     assert "Keep the pilot evidence packet visible" in checklist
-    assert "baseline readiness, before report, focused fundamentals check, focused peer check" in checklist
+    assert "before/focus/review/validate/rebuild packet" in checklist
+    assert "baseline readiness, before report, focused blocker check, lane review path" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
     assert "`At A Glance`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
     assert "small pilot" in checklist
@@ -1071,6 +1072,8 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "ranks current company blockers",
         "suggested starter company pilot",
         "one-company evidence packet",
+        "lane review path",
+        "validate/apply step",
         "before/after proof",
         "NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META",
         "QQQ` and `SMH` kept as ETF/index monitor demos",
@@ -1387,6 +1390,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "make imports-validate && make imports-preview && make imports-apply" in data_strategy
     assert "make readiness && make dcf-readiness                 # fundamentals lane proof" in data_strategy
     assert "make readiness && make peer-mapping-queue TOP_N=25   # peer lane proof" in data_strategy
+    assert "lane review path, validate/apply step, rebuild proof, and evidence row to record" in data_strategy
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
     assert "Provider-assisted does not mean provider-decided" in data_strategy
@@ -1402,9 +1406,9 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists." in data_strategy
     assert "Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`." in data_strategy
     assert "Keep one regenerated Markdown report per pilot company" in data_strategy
-    assert "Keep the exact validation path that changed the state" in data_strategy
+    assert "Keep the exact review and validation path that changed the state" in data_strategy
     assert "Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next." in data_strategy
-    assert "The final proof is a regenerated report plus refreshed readiness counts" in data_strategy
+    assert "The final proof is a regenerated report plus refreshed readiness counts, recorded alongside any still-blocked reason" in data_strategy
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy
     assert "Applying SEC/manual fundamentals rows without validation and preview" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
@@ -1600,12 +1604,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Company-by-company loop: open one report, inspect fundamentals, inspect peers, then validate trusted rows before reading any new valuation." in makefile
     assert "Starter loop example: make stock-report-md TICKER=NVDA -> make focus-fundamentals TICKER=NVDA -> make focus-peers TICKER=NVDA" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
-    assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, and the exact validation commands that changed the state." in makefile
+    assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, and the exact review, validate/apply, and proof commands that changed the state." in makefile
     assert "SEC credential state: SEC_USER_AGENT is configured for local staging checks." in makefile
     assert "SEC credential state: SEC_USER_AGENT is not configured; use manual trusted fundamentals or stop at diagnostics." in makefile
-    assert "Evidence table columns to record: ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path." in makefile
+    assert "Evidence table columns to record: ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason." in makefile
     assert "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker data-blocked and record the missing input." in makefile
-    assert "Pilot evidence packet: baseline readiness, before report, focused fundamentals check, focused peer check, import validation path, after readiness, after report." in makefile
+    assert "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview/apply, rebuild proof, and still-blocked evidence row." in makefile
     assert "One-company packet example:" in makefile
     assert "make trusted-data-pilot-candidates TOP_N=10" in makefile
     assert "make trusted-data-pilot-packet TICKER=<ticker>" in makefile
