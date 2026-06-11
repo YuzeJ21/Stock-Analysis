@@ -20800,34 +20800,35 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             "Plain-English valuation worklists before the broader market-wide tables.",
         )
         render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
-    with st.expander("Detailed market-wide review", expanded=False):
-        render_section_header(
-            "Detailed Unlock Map",
-            "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context.",
-        )
-        render_signal_cards(
-            data_health_advanced_unlock_map_cards(
-                fundamentals_peer_worklist_frame,
-                peer_unlock_worklist_frame,
-                optional_context_worklist_frame,
+    if show_details:
+        with st.expander("Detailed market-wide review", expanded=False):
+            render_section_header(
+                "Detailed Unlock Map",
+                "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context.",
             )
-        )
-        render_market_command_center(
-            ticker_readiness_frame,
-            coverage_frame,
-            decisions_frame,
-            action_queue_frame,
-            project_status_payload,
-            feature_summary_frame,
-            peer_readiness_frame,
-            peer_mapping_queue_frame,
-            peer_unlock_worklist_frame,
-            dcf_readiness_frame,
-            earnings_readiness_frame,
-            analyst_readiness_frame,
-            purpose_evaluation_summary_frame,
-            purpose_classification_frame,
-        )
+            render_signal_cards(
+                data_health_advanced_unlock_map_cards(
+                    fundamentals_peer_worklist_frame,
+                    peer_unlock_worklist_frame,
+                    optional_context_worklist_frame,
+                )
+            )
+            render_market_command_center(
+                ticker_readiness_frame,
+                coverage_frame,
+                decisions_frame,
+                action_queue_frame,
+                project_status_payload,
+                feature_summary_frame,
+                peer_readiness_frame,
+                peer_mapping_queue_frame,
+                peer_unlock_worklist_frame,
+                dcf_readiness_frame,
+                earnings_readiness_frame,
+                analyst_readiness_frame,
+                purpose_evaluation_summary_frame,
+                purpose_classification_frame,
+            )
     if feature_summary_frame is None and feature_summary_message:
         render_notice_card(
             "Feature readiness summary not ready yet",

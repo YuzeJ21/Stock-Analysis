@@ -658,8 +658,9 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     fix_first_index = source.index('render_section_header("Fix First"')
     action_paths_index = source.index('render_section_header("Copy-Only Next Steps"')
     planning_expander_index = source.index('st.expander("Unlock planning cards"')
-    market_expander_index = source.index('st.expander("Detailed market-wide review"')
-    detailed_map_index = source.index('render_section_header(\n            "Detailed Unlock Map"', market_expander_index)
+    market_details_gate_index = source.index('if show_details:\n        with st.expander("Detailed market-wide review"')
+    market_expander_index = source.index('st.expander("Detailed market-wide review"', market_details_gate_index)
+    detailed_map_index = source.index('render_section_header(\n                "Detailed Unlock Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
     summary_expander_index = source.index('st.expander("More readiness summaries and unlock lists"')
     bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
@@ -667,12 +668,13 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])')
 
     assert beginner_note_index < quick_read_index < fix_first_index < action_paths_index < planning_expander_index
-    assert planning_expander_index < market_expander_index < summary_expander_index < bundle_expander_index < hidden_tables_note_index < tabs_index
+    assert planning_expander_index < market_details_gate_index < market_expander_index < summary_expander_index < bundle_expander_index < hidden_tables_note_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Read these next three sections first." in source
     assert "without opening the broader tables" in source
     assert "Turn on page tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
+    assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert "render_data_health(provider, project_status_payload, show_reason_details)" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Unlock planning cards", expanded=False)' in source
