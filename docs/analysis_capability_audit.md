@@ -76,7 +76,7 @@ The analysis method is implemented in this repository under `src/`. The shipped 
 - `src/momentum_engine.py`: rule-based setup classification.
 - `src/value_engine.py`: fundamentals quality, valuation context, value-trap flags, and peer-relative context.
 - `src/valuation.py`: DCF assumptions, scenarios, sensitivity, and relative-valuation calculations.
-- `src/readiness_engine.py`: ticker/feature readiness gates and peer unlock worklists.
+- `src/readiness_engine.py`: ticker/feature readiness gates and peer proof worklists.
 - `src/research_decisions.py`: readiness-aware research buckets, blockers, confidence, and next actions.
 - `src/stock_report.py`: single-stock report assembly and Markdown output.
 
@@ -105,4 +105,4 @@ Any external review or research input still has to be translated into determinis
 
 The current functions are strong enough for a transparent local research prototype, single-stock review, market/ETF monitoring, and DCF-ready company analysis when trusted data exists. They are not yet a full-market data platform because fundamentals, peer data, earnings, and analyst estimates are intentionally sparse until trusted rows are imported.
 
-The next quality unlock is not more indicators. It is better data coverage, better source readiness visibility, more trusted fundamentals/peer rows, and continued UI polish so blocked analysis feels intentional rather than broken.
+The next quality improvement is not more indicators. It is better data coverage, better source readiness visibility, more trusted fundamentals/peer rows, and continued UI polish so blocked analysis feels intentional rather than broken.

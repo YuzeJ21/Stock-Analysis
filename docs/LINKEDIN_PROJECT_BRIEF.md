@@ -16,7 +16,7 @@ Data readiness first. Analysis second. Research decision last.
 
 The project tracks a broad market universe, separates it from an active research list, and makes every analysis feature explicit: price, momentum, liquidity, correlation, fundamentals, DCF, peer data, earnings, and analyst estimates.
 
-What I like most about the design is that missing data does not disappear. If a ticker is not ready, the app shows the exact blocker and the next local CSV workflow to unlock it. If an analysis does not apply, such as operating-company DCF for ETF/index proxies, the output labels it as excluded instead of failed.
+What I like most about the design is that missing data does not disappear. If a ticker is not ready, the app shows the exact blocker and the next local CSV workflow that would prove the analysis is ready. If an analysis does not apply, such as operating-company DCF for ETF/index proxies, the output labels it as excluded instead of failed.
 
 Current features:
 
@@ -27,13 +27,13 @@ Current features:
 - At A Glance summaries that put mode, decision view, DCF state, peer context, optional context, method cue, and next local step at the top.
 - Evaluation Snapshot summaries that state supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before detailed sections.
 - Proof Checklist sections that show why the current mode is allowed and what must stay withheld until trusted rows exist.
-- Best Review Path cards that tell readers whether to review DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
+- Best Review Path cards that tell readers whether to review DCF and peers, prove fundamentals readiness, use monitor context, or start with price coverage.
 - Analysis Quality labels and confidence cues that separate DCF-ready companies, standalone DCF review, price/setup-only reviews, ETF/index monitor context, and the data-needed-before-analysis mode.
 - Methodology sections that show the DCF formula path, readiness gates, peer boundaries, and why missing fields are not inferred.
 - Evaluation Function Check tables that show which functions are ready, blocked, excluded, or optional for a selected ticker.
 - Copyable Proof Commands that keep next steps local, capped, and research-only.
 - Source-readiness sections.
-- A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of a fabricated full-universe unlock.
+- A public Data Strategy guide for what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a 5-10 company pilot instead of fabricated full-universe readiness.
 - A read-only `make trusted-data-pilot-candidates TOP_N=10` command that ranks current company blockers, states the review decision for each lane, and keeps the coverage-improvement path focused without importing rows or fabricating data.
 - A plain selection rule for the pilot: choose 5-10 operating companies only when source proof exists, review the lane mix, and treat a useful pilot win as before/after report evidence plus rebuilt readiness, not just a new CSV row.
 - A read-only `make trusted-data-pilot-packet TICKER=CRDO` command that prints the before report, focused blocker check, lane review path, review decision, evidence expectation, validate/apply step, rejected-row report, rebuild proof, and evidence row for one company.

@@ -59,7 +59,7 @@ For public demos, prefer `make stock-report-md TICKER=NVDA`. Use `make stock-rep
 - `QQQ` and `SMH` demonstrate ETF/index monitor context where operating-company DCF is excluded, not failed.
 - `APLD` demonstrates partial-data handling where valuation stays blocked instead of being invented.
 
-Read the visitor scan cue first, then `At A Glance`. Those lines give the mode, decision view, DCF state, peer context, optional context, method cue, and next local step before the detailed tables. Then read `Reader Guide` and `Evaluation Snapshot` to see what evaluation is supported, what valuation boundary applies, the confidence cue, the next proof step, and the stop rule. Then read `Proof Checklist` to see what evidence proves the current mode, what unlock proof comes next, and what must stay withheld. Then read `Best Review Path` to see whether to inspect DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
+Read the visitor scan cue first, then `At A Glance`. Those lines give the mode, decision view, DCF state, peer context, optional context, method cue, and next local step before the detailed tables. Then read `Reader Guide` and `Evaluation Snapshot` to see what evaluation is supported, what valuation boundary applies, the confidence cue, the next proof step, and the stop rule. Then read `Proof Checklist` to see what evidence proves the current mode, what readiness proof comes next, and what must stay withheld. Then read `Best Review Path` to see whether to inspect DCF and peers, prove fundamentals readiness, use monitor context, or start with price coverage.
 
 Then read `Analysis Quality`, `Methodology`, and `Evaluation Function Check`. They explain which functions are ready, blocked, excluded, or optional. The At A Glance method cue and the `Methodology` section show the DCF formula path so the valuation workflow is not a black box.
 
@@ -75,7 +75,7 @@ The dashboard and single-stock report use plain modes before showing detailed ta
 - `Monitor-only context`: ETF/index/fund rows can support market, theme, liquidity, or risk monitoring; operating-company DCF is excluded.
 - `Data needed before analysis`: the ticker needs trusted local inputs before analysis should be interpreted.
 
-## Data Unlock Workflows
+## Data Proof Workflows
 
 Use targeted proof commands instead of broad refreshes by default:
 

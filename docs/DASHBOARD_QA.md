@@ -9,7 +9,7 @@ Checked pages:
 - Home: confirmed the Current Data Coverage section renders with the latest local readiness snapshot and copy-only proof commands.
 - Single-Stock Report: confirmed the page renders with ready, blocked, excluded, and copy-only guidance.
 - Value / Re-rating: confirmed the page renders valuation readiness language without overclaims.
-- Data Health: confirmed the page renders unlock workflow guidance and keeps missing context locked.
+- Data Health: confirmed the page renders proof workflow guidance and keeps missing context locked.
 
 Screenshots:
 
