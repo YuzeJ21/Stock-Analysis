@@ -222,9 +222,11 @@ def test_pilot_local_file_status_surfaces_reviewable_file_state(tmp_path):
     assert "fundamentals import 2 data row(s)" in fundamentals_status
     assert "staged fundamentals 1 file(s)" in fundamentals_status
     assert "rejected-row report present" in fundamentals_status
+    assert "file presence is not proof" in fundamentals_status
     assert "rows still require source review" in fundamentals_status
     assert "peer import 1 data row(s)" in peer_status
     assert "rejected-row report missing" in peer_status
+    assert "file presence is not proof" in peer_status
     assert "source-backed relationship review" in peer_status
     assert "buy" not in fundamentals_status + peer_status
     assert "sell" not in fundamentals_status + peer_status
@@ -696,7 +698,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Packet command: make trusted-data-pilot-packet TICKER=META" in verbose
     assert "Lane check: make focus-fundamentals TICKER=META" in verbose
     assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in verbose
-    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." in verbose
+    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present. File presence is not proof." in verbose
     assert "Rejected-row report to review: data/rejected/fundamentals_import_rejected.csv" in verbose
     assert "Evidence expectation: Evidence required: before report, lane review output" in verbose
     assert "Evidence row: META | before: run report | after: rerun report" in verbose
@@ -856,7 +858,7 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "If not, leave fundamentals and DCF blocked" in rendered
     assert "do not apply placeholder rows just to make the report look complete" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
-    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present." in rendered
+    assert "Local file status: fundamentals import 1 data row(s); staged fundamentals missing; rejected-row report present. File presence is not proof." in rendered
     assert "One-company evidence packet:" in rendered
     assert "What this proves before any conclusion changes:" in rendered
     assert "Baseline: snapshot current readiness and generate a before report so the starting mode is visible." in rendered

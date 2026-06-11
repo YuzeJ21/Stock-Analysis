@@ -196,7 +196,7 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             f"{'missing' if import_rows is None else f'{import_rows} data row(s)'}; "
             f"staged fundamentals {'missing' if staged_files is None else f'{staged_files} file(s)'}; "
             f"rejected-row report {'present' if rejected_exists else 'missing'}. "
-            "Rows still require source review, validate, preview, apply, and readiness proof."
+            "File presence is not proof. Rows still require source review, validate, preview, apply, and readiness proof."
         )
     if candidate.lane == "peer_mapping":
         import_rows = _csv_data_row_count(root / "data" / "imports" / "peers.csv")
@@ -205,7 +205,7 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             "Local file status: peer import "
             f"{'missing' if import_rows is None else f'{import_rows} data row(s)'}; "
             f"rejected-row report {'present' if rejected_exists else 'missing'}. "
-            "Peer rows still require source-backed relationship review and readiness proof."
+            "File presence is not proof. Peer rows still require source-backed relationship review and readiness proof."
         )
     if candidate.lane == "peer_valuation_inputs":
         peer_rows = _csv_data_row_count(root / "data" / "imports" / "peers.csv")
@@ -220,7 +220,7 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             "rejected-row reports "
             f"fundamentals {'present' if fundamentals_rejected else 'missing'}, "
             f"price {'present' if price_rejected else 'missing'}. "
-            "Mapped peers still require trusted fundamentals or verified price-history proof before peer valuation appears."
+            "File presence is not proof. Mapped peers still require trusted fundamentals or verified price-history proof before peer valuation appears."
         )
     if candidate.lane == "optional_context_locked":
         earnings_rows = _csv_data_row_count(root / "data" / "imports" / "earnings.csv")
@@ -234,7 +234,7 @@ def pilot_local_file_status(candidate: PilotCandidate, *, root: Path) -> str:
             "analyst-estimates import "
             f"{'missing' if estimate_rows is None else f'{estimate_rows} data row(s)'}; "
             f"staged optional files {staged_total}. "
-            "Optional rows remain locked until trusted local rows validate and readiness proves availability."
+            "File presence is not proof. Optional rows remain locked until trusted local rows validate and readiness proves availability."
         )
     return "Local file status: not checked for this trusted-data lane."
 
