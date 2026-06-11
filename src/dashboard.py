@@ -22536,7 +22536,7 @@ def main() -> None:
             if advanced_page != "Keep current path":
                 selected_page = advanced_page
         show_reason_details = st.checkbox(
-            "Show page tips",
+            "Show extra guidance",
             value=False,
             help="Adds extra explanation and review sections. Most visitors can leave this off.",
         )
@@ -22553,7 +22553,7 @@ def main() -> None:
         with st.expander("Best beginner path", expanded=False):
             render_context_note(
                 "Start simple.",
-                "Home -> Single-Stock Report -> Data Health. Turn on page tips only when you want extra review context.",
+                "Home -> Single-Stock Report -> Data Health. Turn on extra guidance only when you want more review context.",
             )
             render_sidebar_route_steps(dashboard_navigation_cards())
         with st.expander("Local commands to copy", expanded=False):

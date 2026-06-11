@@ -543,7 +543,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds source and freshness troubleshooting under Sources & Gaps" not in source
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
-    assert "Show page tips" in source
+    assert "Show extra guidance" in source
+    assert "Show page tips" not in source
     assert "Adds extra explanation and review sections" in source
     assert "Most visitors can leave this off" in source
     assert "Show guided help" not in source
@@ -553,7 +554,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Show more explanation" not in source
     assert "#### Best path" not in source
     assert "Home -> Single-Stock Report -> Data Health" in source
-    assert "Turn on page tips only when you want extra review context" in source
+    assert "Turn on extra guidance only when you want more review context" in source
+    assert "Turn on page tips only when you want extra review context" not in source
     assert "Turn on guided help only when you want extra review routes" not in source
     assert 'st.expander("Best beginner path", expanded=False)' in source
     assert 'render_context_note(\n                "Start simple."' in source
