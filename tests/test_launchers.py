@@ -464,7 +464,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "what the product calculated",
         "what stayed withheld",
         "next local proof step",
-        "Markdown reports start with `At A Glance`, then a `Reader Guide`, then an `Evaluation Snapshot`, then a `Proof Checklist`, then `Best Review Path`",
+        "Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path`",
         "what evidence proves the current mode",
         "what valuation is supported or blocked",
         "what to read first",
