@@ -414,7 +414,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Price/setup review",
         "Monitor-only context",
         "Data needed before analysis",
-        "Method: project DCF",
+        "Data-confidence cue",
         "project DCF method notes",
         "DCF path: cash flows, terminal value, cash/debt, fair value/share",
         "copy-only proof commands",
