@@ -182,7 +182,7 @@ def test_pilot_rank_reason_explains_queue_position_without_new_data():
 
     reason = pilot_rank_reason(candidate)
 
-    assert reason == "active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, fcf_margin."
+    assert reason == "active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, free-cash-flow margin."
     assert "price target" not in reason.lower()
     assert "recommend" not in reason.lower()
 
@@ -265,7 +265,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "does not refresh, import, edit CSVs, or change readiness outputs" in rendered
     assert "Pilot lanes are plain-English unlock paths" in rendered
     assert "1. META - Fundamentals / DCF unlock" in rendered
-    assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares_outstanding." in rendered
+    assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares outstanding." in rendered
     assert "Operator decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
     assert "fundamentals_dcf" not in rendered
     assert "make focus-fundamentals TICKER=META" in rendered
@@ -313,6 +313,29 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
     assert "sector or industry fallback" in rendered.lower()
 
 
+def test_render_trusted_data_pilot_candidates_uses_specific_peer_review_path_by_default():
+    candidates = build_trusted_data_pilot_candidates(
+        [],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs at least 2 source-backed peer mappings",
+                "focus_command": "make focus-peers TICKER=MU",
+            }
+        ],
+        [{"ticker": "MU", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )
+
+    rendered = render_trusted_data_pilot_candidates(candidates)
+
+    assert "Review path: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
+    assert "3. Review the lane blocker: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
+    assert "make templates -> fill source-backed peers" not in rendered
+
+
 def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -336,8 +359,9 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "Ticker: CRDO" in rendered
     assert "Pilot lane: Fundamentals / DCF unlock" in rendered
     assert "fundamentals_dcf" not in rendered
-    assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, fcf_margin." in rendered
-    assert "Missing trusted input: revenue, fcf_margin" in rendered
+    assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, free-cash-flow margin." in rendered
+    assert "Missing trusted input: revenue, free-cash-flow margin" in rendered
+    assert "fcf_margin" not in rendered
     assert "Operator decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "One-company evidence packet:" in rendered

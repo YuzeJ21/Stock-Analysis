@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -152,8 +153,24 @@ def pilot_rank_reason(candidate: PilotCandidate) -> str:
     lane = pilot_lane_label(candidate.lane).lower()
     return (
         f"{scope} {demo_note}; {lane}; priority {candidate.priority}; "
-        f"missing {candidate.missing_input}."
+        f"missing {plain_pilot_input_copy(candidate.missing_input)}."
     )
+
+
+def plain_pilot_input_copy(value: object) -> str:
+    """Translate raw readiness field names into visitor-facing blocker copy."""
+
+    text = _clean(value, "trusted local input")
+    replacements = {
+        "analyst_estimates": "analyst estimates",
+        "shares_outstanding": "shares outstanding",
+        "fcf_margin": "free-cash-flow margin",
+        "free_cash_flow": "free cash flow",
+        "peer_valuation_ready": "peer valuation readiness",
+    }
+    for raw, label in replacements.items():
+        text = re.sub(rf"\b{re.escape(raw)}\b", label, text, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def pilot_operator_decision(candidate: PilotCandidate) -> str:
@@ -253,7 +270,7 @@ def build_trusted_data_pilot_candidates(
         next_command = _clean(row.get("focus_command"), f"make focus-peers TICKER={ticker}")
         validation_path = _clean(
             row.get("validation_sequence"),
-            "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply",
+            f"make peer-mapping-queue TOP_N=25 -> {next_command} -> make imports-validate -> make imports-preview -> make imports-apply",
         )
         candidate = PilotCandidate(
             ticker=ticker,
@@ -354,7 +371,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"{index}. {candidate.ticker} - {pilot_lane_label(candidate.lane)} ({scope}, priority {candidate.priority})",
                 f"   Why it matters: {candidate.why_it_matters}",
                 f"   Rank reason: {pilot_rank_reason(candidate)}",
-                f"   Missing input: {candidate.missing_input}",
+                f"   Missing input: {plain_pilot_input_copy(candidate.missing_input)}",
                 f"   Operator decision: {pilot_operator_decision(candidate)}",
                 f"   Next command: {candidate.next_command}",
                 f"   Review path: {pilot_review_path(candidate.validation_path)}",
@@ -412,7 +429,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             f"Priority: {candidate.priority}",
             f"Rank reason: {pilot_rank_reason(candidate)}",
             f"Why this candidate matters: {candidate.why_it_matters}",
-            f"Missing trusted input: {candidate.missing_input}",
+            f"Missing trusted input: {plain_pilot_input_copy(candidate.missing_input)}",
             f"Operator decision: {pilot_operator_decision(candidate)}",
             f"Source boundary: {candidate.source_boundary}",
             f"Trusted row target: {pilot_trusted_row_path(candidate)}",

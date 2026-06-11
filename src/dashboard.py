@@ -26,9 +26,12 @@ from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_repor
 from src.track_record import calculate_monthly_track_record
 from src.trusted_data_pilot import (
     build_trusted_data_pilot_candidates,
+    pilot_evidence_expectation,
     pilot_lane_label,
     pilot_operator_decision,
     pilot_rank_reason,
+    pilot_review_path,
+    pilot_trusted_row_path,
 )
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
@@ -6346,11 +6349,14 @@ def data_health_trusted_pilot_preview_frame(
             "Ticker": candidate.ticker,
             "Pilot Lane": pilot_lane_label(candidate.lane),
             "Scope": "Active universe" if candidate.active_universe else "Master universe",
-            "Rank Reason": pilot_rank_reason(candidate),
-            "Missing Input": candidate.missing_input,
+            "Rank Reason": plain_dashboard_input_copy(pilot_rank_reason(candidate)),
+            "Missing Input": plain_dashboard_input_copy(candidate.missing_input),
             "Operator Decision": pilot_operator_decision(candidate),
+            "Review Path": pilot_review_path(candidate.validation_path),
+            "Trusted Row Target": pilot_trusted_row_path(candidate),
             "Next Command": candidate.next_command,
             "Proof After Unlock": candidate.proof_after_unlock,
+            "Evidence Expectation": pilot_evidence_expectation(candidate),
         }
         for candidate in candidates[: max(limit, 0)]
     ]
@@ -6368,6 +6374,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
         rank_reason = compact_reason(row.get("Rank Reason"), max_sentences=1, max_chars=180)
         missing_input = compact_reason(plain_dashboard_input_copy(row.get("Missing Input")), max_sentences=1, max_chars=220)
         operator_decision = compact_reason(row.get("Operator Decision"), max_sentences=1, max_chars=180)
+        review_path = compact_reason(row.get("Review Path"), max_sentences=1, max_chars=180)
         proof = format_missing(row.get("Proof After Unlock"), "make readiness && make stock-report-md TICKER=<ticker>")
         command = format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")
         cards.append(
@@ -6377,6 +6384,7 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                 "body": (
                     f"Rank reason: {rank_reason} Next trusted input: {missing_input}. "
                     f"Decision: {operator_decision} "
+                    f"Review path: {review_path}. "
                     f"Proof after unlock: {proof}."
                 ),
                 "badges": [scope, "read-only"],

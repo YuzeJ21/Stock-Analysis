@@ -9345,7 +9345,7 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
                 "ticker": "META",
                 "priority": "1",
                 "dcf_ready": "False",
-                "missing_required_for_dcf": "shares_outstanding",
+                "missing_required_for_dcf": "shares_outstanding, fcf_margin",
                 "focus_command": "make focus-fundamentals TICKER=META",
             },
             {
@@ -9386,8 +9386,11 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
         "Rank Reason",
         "Missing Input",
         "Operator Decision",
+        "Review Path",
+        "Trusted Row Target",
         "Next Command",
         "Proof After Unlock",
+        "Evidence Expectation",
     ]
     assert list(frame["Ticker"]) == ["MU", "META"]
     assert len(frame) == 2
@@ -9396,8 +9399,13 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "fundamentals / dcf unlock" in rendered
     assert "choose this company only if you can document source-backed peer relationships" in rendered
     assert "choose this company only if you can review trusted sec or manual fundamentals rows" in rendered
+    assert "make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
+    assert "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "shares outstanding, free-cash-flow margin" in rendered
+    assert "fcf_margin" not in rendered
     assert "make focus-peers ticker=mu" in rendered
     assert "make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
+    assert "evidence required: before report, lane review output" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -9414,8 +9422,11 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Rank Reason": "active-universe public-demo name; peer mapping unlock; priority 2; missing needs source-backed peers.",
                 "Missing Input": "needs source-backed peer mappings; analyst_estimates: trusted local CSV input",
                 "Operator Decision": "Choose this company only if you can document source-backed peer relationships.",
+                "Review Path": "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU",
+                "Trusted Row Target": "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed",
                 "Next Command": "make focus-peers TICKER=MU",
                 "Proof After Unlock": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
+                "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
             },
             {
                 "Ticker": "META",
@@ -9424,8 +9435,11 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Rank Reason": "active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares_outstanding.",
                 "Missing Input": "shares_outstanding",
                 "Operator Decision": "Choose this company only if you can review trusted SEC or manual fundamentals rows.",
+                "Review Path": "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META",
+                "Trusted Row Target": "data/staged/fundamentals/ or data/imports/fundamentals.csv",
                 "Next Command": "make focus-fundamentals TICKER=META",
                 "Proof After Unlock": "make readiness && make dcf-readiness && make stock-report-md TICKER=META",
+                "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
             },
         ]
     )
@@ -9442,6 +9456,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert "next trusted input: needs source-backed peer mappings; analyst estimates: trusted local csv input" in rendered
     assert "analyst_estimates" not in rendered
     assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
+    assert "review path: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
     assert "proof after unlock: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
