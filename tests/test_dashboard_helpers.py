@@ -10310,23 +10310,40 @@ def test_single_stock_page_collapses_secondary_interpretation_after_at_a_glance(
 
     report_header_index = source.index('"At A Glance",\n        "Start here: mode, valuation state')
     at_glance_index = source.index("stock_report_at_a_glance_cards(report_payload")
+    reader_guide_header_index = source.index('"Reader Guide",\n        "Plain-English report path before detailed tabs')
+    summary_cards_index = source.index("stock_report_summary_cards(report_payload)")
+    evaluation_snapshot_header_index = source.index('"Evaluation Snapshot",\n        "Supported evaluation, confidence, valuation boundary')
+    evaluation_cards_index = source.index("stock_report_evaluation_summary_cards(report_payload)")
     best_path_header_index = source.index('"Best Review Path",\n        "The shortest safe reading path for this ticker before detailed review."')
     best_path_cards_index = source.index("stock_report_best_review_path_cards(report_payload")
     quick_read_expander_index = source.index('st.expander("More quick-read cards"')
-    summary_cards_index = source.index("stock_report_summary_cards(report_payload)")
     quality_cards_index = source.index("stock_report_analysis_quality_cards(report_payload)")
     next_step_cards_index = source.index("stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None")
     interpretation_expander_index = source.index('st.expander("More report interpretation and methodology"')
-    evaluation_index = source.index('st.markdown("#### Evaluation Summary"')
+    mode_guide_index = source.index('st.markdown("#### Analysis Mode Guide"')
     function_quality_index = source.index('st.markdown("#### What This Report Can Evaluate"')
     brief_index = source.index("stock_report_brief_html(report_payload)")
     tabs_index = source.index('st.tabs(\n        ["Snapshot", "Valuation", "Earnings / Estimates", "Sources & Gaps"]')
 
-    assert report_header_index < at_glance_index < best_path_header_index < best_path_cards_index < quick_read_expander_index < interpretation_expander_index < tabs_index
-    assert quick_read_expander_index < summary_cards_index < quality_cards_index < next_step_cards_index
-    assert interpretation_expander_index < evaluation_index < function_quality_index < brief_index < tabs_index
+    assert (
+        report_header_index
+        < at_glance_index
+        < reader_guide_header_index
+        < summary_cards_index
+        < evaluation_snapshot_header_index
+        < evaluation_cards_index
+        < best_path_header_index
+        < best_path_cards_index
+        < quick_read_expander_index
+        < interpretation_expander_index
+        < tabs_index
+    )
+    assert quick_read_expander_index < quality_cards_index < next_step_cards_index
+    assert summary_cards_index < quick_read_expander_index
+    assert evaluation_cards_index < interpretation_expander_index
+    assert interpretation_expander_index < mode_guide_index < function_quality_index < brief_index < tabs_index
     assert 'st.expander("More quick-read cards", expanded=False)' in source
-    assert "Open this only when you want price, performance, data-quality, and next-step cards" in source
+    assert "Open this only when you want performance, data-quality, and next-step cards" in source
     assert 'st.expander("More report interpretation and methodology", expanded=False)' in source
     assert 'st.expander("Detailed readiness status", expanded=False)' in source
     assert 'st.expander("Detailed function status", expanded=False)' not in source
@@ -17882,7 +17899,7 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "without first unlocking more data" in rendered
     assert "valuation-style analysis" in rendered
     assert "make runbook-prices-broader" in rendered
-    assert "use this first" in nav_rendered
+    assert len(navigation_cards) == 3
     assert "review one stock" in nav_rendered
     assert "ready, blocked, excluded, or monitor-only" in nav_rendered
     assert "explore ready names" in nav_rendered
@@ -18116,10 +18133,21 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Overview" in dashboard.ADVANCED_PAGE_TITLES
     assert "Portfolio Review" in dashboard.ADVANCED_PAGE_TITLES
     assert "Universe Manager" in dashboard.ADVANCED_PAGE_TITLES
+    assert [card[0] for card in dashboard.dashboard_navigation_cards()] == [
+        "Review one stock",
+        "Improve data coverage",
+        "Explore ready names",
+    ]
+    assert [card[2] for card in dashboard.dashboard_navigation_cards()] == [
+        "Single-Stock Report",
+        "Data Health",
+        "Monthly Picks",
+    ]
     assert "Single-Stock Report" not in dashboard.ADVANCED_PAGE_TITLES
 
     navigation = " ".join(str(item) for card in dashboard.dashboard_navigation_cards() for item in card)
-    assert "Start at Home" in navigation
+    assert dashboard.public_path_label("Home") == "Start at Home"
+    assert "Start at Home" not in navigation
     assert "Review one stock" in navigation
     assert "Explore ready names" in navigation
     assert "Improve data coverage" in navigation

@@ -14695,21 +14695,9 @@ def sidebar_guide_cards_html(rows: list[dict[str, str]], label_key: str, body_ke
 def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
     return [
         (
-            "Start at Home",
-            "Use this first for the current coverage snapshot, ready sections, locked sections, and next safe step.",
-            "Start at Home",
-            "neutral",
-        ),
-        (
             "Review one stock",
             "Open a ticker-level report with ready, blocked, excluded, or monitor-only analysis.",
             "Single-Stock Report",
-            "neutral",
-        ),
-        (
-            "Explore ready names",
-            "Open candidate lists only after the data behind them has enough trusted local coverage.",
-            "Monthly Picks",
             "neutral",
         ),
         (
@@ -14717,6 +14705,12 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
             "Use Data Health when prices, fundamentals, peers, earnings, or estimates are blocking analysis.",
             "Data Health",
             "warning",
+        ),
+        (
+            "Explore ready names",
+            "Open candidate lists only after the data behind them has enough trusted local coverage.",
+            "Monthly Picks",
+            "neutral",
         ),
     ]
 
@@ -20142,6 +20136,16 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     )
     render_signal_cards(stock_report_at_a_glance_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     render_section_header(
+        "Reader Guide",
+        "Plain-English report path before detailed tabs: what can be analyzed, what stays locked, and which boundary matters.",
+    )
+    render_signal_cards(stock_report_summary_cards(report_payload))
+    render_section_header(
+        "Evaluation Snapshot",
+        "Supported evaluation, confidence, valuation boundary, and next proof before deeper methodology.",
+    )
+    render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
+    render_section_header(
         "Best Review Path",
         "The shortest safe reading path for this ticker before detailed review.",
     )
@@ -20149,9 +20153,8 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
     with st.expander("More quick-read cards", expanded=False):
         render_context_note(
             "Extra context.",
-            "Open this only when you want price, performance, data-quality, and next-step cards before using the detailed tabs.",
+            "Open this only when you want performance, data-quality, and next-step cards before using the detailed tabs.",
         )
-        render_signal_cards(stock_report_summary_cards(report_payload))
         render_signal_cards(stock_report_analysis_quality_cards(report_payload))
         render_signal_cards(stock_report_next_step_cards(report_payload, coverage if provider is not None and ticker else None, peer_summary if provider is not None and ticker else None))
     st.markdown(
@@ -20161,13 +20164,12 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         unsafe_allow_html=True,
     )
     with st.expander("More report interpretation and methodology", expanded=False):
-        st.markdown("#### Evaluation Summary")
+        st.markdown("#### Analysis Mode Guide")
         render_context_note(
             "Analysis mode guide.",
             "The current mode controls what the report can support. Other modes are shown as reference so missing inputs do not look like conclusions.",
         )
         render_signal_cards(stock_report_mode_guide_cards(report_payload))
-        render_signal_cards(stock_report_evaluation_summary_cards(report_payload))
         st.dataframe(
             clean_display_frame(stock_report_evaluation_summary_frame(report_payload)),
             width="stretch",
