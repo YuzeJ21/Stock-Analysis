@@ -1,6 +1,7 @@
 # SMH Single-Stock Research Report
 
 Research-only local report. It summarizes readiness and does not provide allocation instructions.
+Visitor scan: read At A Glance, Evaluation Snapshot, and Proof Checklist first; deeper sections only explain the evidence behind those gates.
 
 ## At A Glance
 - Mode: `Monitor-only context`.

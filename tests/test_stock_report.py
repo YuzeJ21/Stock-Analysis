@@ -465,10 +465,12 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "retrieved 20" not in markdown
     assert "research context only" in markdown
     assert "account actions" in markdown
+    assert "Visitor scan: read At A Glance, Evaluation Snapshot, and Proof Checklist first" in markdown
     assert "## At A Glance" in markdown
     assert "## Reader Guide" in markdown
     assert "## Evaluation Snapshot" in markdown
     assert "## Best Review Path" in markdown
+    assert markdown.index("Visitor scan:") < markdown.index("## At A Glance")
     assert markdown.index("## At A Glance") < markdown.index("## How To Read This Report")
     assert (
         markdown.index("## At A Glance")
@@ -1181,9 +1183,11 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Provider blocker" not in markdown
     assert "could not assemble price-backed analysis" not in markdown
     assert "# APLD Single-Stock Research Report" in markdown
+    assert "Visitor scan: read At A Glance, Evaluation Snapshot, and Proof Checklist first" in markdown
     assert "## At A Glance" in markdown
     assert "## Reader Guide" in markdown
     assert "## Evaluation Snapshot" in markdown
+    assert markdown.index("Visitor scan:") < markdown.index("## At A Glance")
     assert markdown.index("## At A Glance") < markdown.index("## How To Read This Report")
     assert (
         markdown.index("## At A Glance")
