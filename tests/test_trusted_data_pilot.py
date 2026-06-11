@@ -2,6 +2,7 @@ from src.trusted_data_pilot import (
     build_trusted_data_pilot_candidates,
     pilot_lane_label,
     pilot_review_path,
+    pilot_trusted_row_path,
     render_trusted_data_pilot_candidates,
     render_trusted_data_pilot_packet,
 )
@@ -130,6 +131,38 @@ def test_pilot_review_path_separates_review_from_validate_apply_steps():
     assert pilot_review_path("") == "make trusted-data-pilot-candidates TOP_N=10"
 
 
+def test_pilot_trusted_row_path_points_to_lane_specific_local_inputs():
+    fundamentals = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+    peers = build_trusted_data_pilot_candidates(
+        [],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs source-backed peer mappings",
+                "focus_command": "make focus-peers TICKER=MU",
+            }
+        ],
+        [{"ticker": "MU", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+
+    assert pilot_trusted_row_path(fundamentals) == "data/staged/fundamentals/ or data/imports/fundamentals.csv"
+    assert pilot_trusted_row_path(peers) == "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed"
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -155,11 +188,12 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "fundamentals_dcf" not in rendered
     assert "make focus-fundamentals TICKER=META" in rendered
     assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
+    assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
-    assert "3. make focus-fundamentals TICKER=META" in rendered
-    assert "4. Prepare trusted rows only if the source review passes:" in rendered
+    assert "3. Review the lane blocker: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
+    assert "4. Prepare trusted rows only if the source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "6. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
     assert "7. If still blocked, keep the blocker visible and move to the next candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "8. make stock-report-md" not in rendered
@@ -188,7 +222,8 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
 
     assert "1. MU - Peer mapping unlock" in rendered
     assert "peer_mapping" not in rendered
-    assert "3. make focus-peers TICKER=MU" in rendered
+    assert "3. Review the lane blocker: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
+    assert "Trusted row target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
     assert "6. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
     assert "7. make readiness && make dcf-readiness" not in rendered
     assert "sector or industry fallback" in rendered.lower()
@@ -218,11 +253,12 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "Pilot lane: Fundamentals / DCF unlock" in rendered
     assert "fundamentals_dcf" not in rendered
     assert "Missing trusted input: revenue, fcf_margin" in rendered
+    assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "One-company evidence packet:" in rendered
     assert "1. Baseline readiness: make readiness-snapshot" in rendered
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered
-    assert "4. Prepare or stage trusted rows only if source review passes:" in rendered
+    assert "4. Prepare or stage trusted rows only if source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "make readiness && make dcf-readiness && make stock-report-md TICKER=CRDO" in rendered
     assert "6. Rebuild proof and after report:" in rendered
