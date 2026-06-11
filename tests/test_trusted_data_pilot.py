@@ -399,7 +399,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "Useful pilot win: before report, lane review, trusted source row" in rendered
     assert "1. META - Fundamentals / DCF unlock" in rendered
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares outstanding." in rendered
-    assert "Operator decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
+    assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
     assert (
         "Decision gate: continue only if you have trusted SEC or manual fundamentals rows for the missing DCF fields"
         in rendered
@@ -423,7 +423,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "Do not call META unlocked until the rebuilt report proves the lane changed." in rendered
     assert "8. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "8. make stock-report-md" not in rendered
-    assert "QQQ and SMH are excluded from this company pilot queue" in rendered
+    assert "QQQ and SMH are excluded from this company pilot list" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
 
 
@@ -513,7 +513,7 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, free-cash-flow margin." in rendered
     assert "Missing trusted input: revenue, free-cash-flow margin" in rendered
     assert "fcf_margin" not in rendered
-    assert "Operator decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
+    assert "Next decision: Choose this company only if you can review trusted SEC or manual fundamentals rows" in rendered
     assert (
         "Decision gate: continue only if you have trusted SEC or manual fundamentals rows for the missing DCF fields"
         in rendered

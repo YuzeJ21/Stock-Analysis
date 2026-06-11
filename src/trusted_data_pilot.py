@@ -1,4 +1,4 @@
-"""Read-only trusted-data pilot candidate queue.
+"""Read-only trusted-data pilot candidate list.
 
 This module ranks current local blockers for a small company-focused pilot.
 It does not refresh providers, import rows, write CSVs, or change readiness
@@ -158,7 +158,7 @@ def pilot_rejected_report_path(candidate: PilotCandidate) -> str:
 
 
 def pilot_rank_reason(candidate: PilotCandidate) -> str:
-    """Explain why a candidate appears in the ranked pilot queue."""
+    """Explain why a candidate appears in the ranked pilot list."""
 
     scope = "active-universe" if candidate.active_universe else "master-universe"
     demo_note = "public-demo name" if candidate.demo_rank < 999 else "current local blocker"
@@ -208,7 +208,7 @@ def pilot_operator_decision(candidate: PilotCandidate) -> str:
             "Choose this company only if trusted earnings or analyst-estimate rows are available; "
             "otherwise keep optional context intentionally locked."
         )
-    return "Choose this candidate only when trusted source rows can be reviewed; otherwise keep it data-blocked."
+    return "Choose this candidate only when trusted source rows can be reviewed; otherwise keep it visibly blocked by missing data."
 
 
 def pilot_evidence_expectation(candidate: PilotCandidate) -> str:
@@ -258,7 +258,7 @@ def pilot_decision_gate(candidate: PilotCandidate) -> str:
         stop = "leave optional context intentionally locked"
     else:
         proof = "trusted source rows for the missing input"
-        stop = "keep the ticker data-blocked"
+        stop = "keep the ticker visibly blocked by missing data"
     return (
         f"Decision gate: continue only if you have {proof}. "
         f"If not, {stop}; do not apply placeholder rows just to make the report look complete."
@@ -449,7 +449,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
     lines.extend(
         [
             f"Top {min(top_n, len(candidates))} operating-company candidates:",
-            "ETF/index monitor examples such as QQQ and SMH are excluded from this company pilot queue.",
+            "ETF/index monitor examples such as QQQ and SMH are excluded from this company pilot list.",
             "Pilot lanes are plain-English unlock paths; they do not mean the missing data is available yet.",
             "",
             "How to choose the pilot:",
@@ -465,7 +465,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Why it matters: {candidate.why_it_matters}",
                 f"   Rank reason: {pilot_rank_reason(candidate)}",
                 f"   Missing input: {plain_pilot_input_copy(candidate.missing_input)}",
-                f"   Operator decision: {pilot_operator_decision(candidate)}",
+                f"   Next decision: {pilot_operator_decision(candidate)}",
                 f"   {pilot_decision_gate(candidate)}",
                 f"   Packet command: make trusted-data-pilot-packet TICKER={candidate.ticker}",
                 f"   Lane check: {candidate.next_command}",
@@ -495,7 +495,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             f"7. Rebuild lane proof: {candidates[0].proof_after_unlock}",
             f"8. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS={ticker_list} TOP_N={len(safe_loop_candidates)}",
             "",
-            "Stop condition: if trusted source rows are unavailable, keep the ticker data-blocked and move to the next candidate.",
+            "Stop condition: if trusted source rows are unavailable, keep the ticker visibly blocked by missing data and move to the next candidate.",
         ]
     )
     return "\n".join(lines)
@@ -528,7 +528,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             f"Rank reason: {pilot_rank_reason(candidate)}",
             f"Why this candidate matters: {candidate.why_it_matters}",
             f"Missing trusted input: {plain_pilot_input_copy(candidate.missing_input)}",
-            f"Operator decision: {pilot_operator_decision(candidate)}",
+            f"Next decision: {pilot_operator_decision(candidate)}",
             pilot_decision_gate(candidate),
             f"Source boundary: {candidate.source_boundary}",
             f"Trusted row target: {pilot_trusted_row_path(candidate)}",
@@ -549,7 +549,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason",
             pilot_evidence_row_template(candidate),
             "",
-            "Stop condition: if trusted source rows are unavailable, keep this ticker data-blocked and move to the next candidate.",
+            "Stop condition: if trusted source rows are unavailable, keep this ticker visibly blocked by missing data and move to the next candidate.",
         ]
     )
     return "\n".join(lines)

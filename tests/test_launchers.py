@@ -1676,7 +1676,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Suggested company pilot: $(if $(TICKERS),$(TICKERS),NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META)" in makefile
     assert "ETF/index examples such as QQQ and SMH are monitor-context demos, not operating-company DCF targets." in makefile
     assert "Ticker-scoped example: make trusted-data-pilot TICKERS=NVDA,AVGO,AMD,MU,CRDO TOP_N=10" in makefile
-    assert "Candidate queue: make trusted-data-pilot-candidates TOP_N=10" in makefile
+    assert "Candidate list: make trusted-data-pilot-candidates TOP_N=10" in makefile
     assert "Company-by-company loop: open one report, choose the matching lane, then validate trusted rows before reading any new valuation." in makefile
     assert "Starter loop example: make stock-report-md TICKER=CRDO -> make trusted-data-pilot-packet TICKER=CRDO -> run the packet's lane-specific review command" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
@@ -1684,7 +1684,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "SEC credential state: SEC_USER_AGENT is configured for local staging checks." in makefile
     assert "SEC credential state: SEC_USER_AGENT is not configured; use manual trusted fundamentals or stop at diagnostics." in makefile
     assert "Evidence table columns to record: ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason." in makefile
-    assert "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker data-blocked and record the missing input." in makefile
+    assert "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker visibly blocked by missing data and record the missing input." in makefile
     assert "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview/apply, rejected-row check, rebuild proof, and still-blocked evidence row." in makefile
     assert "One-company packet example:" in makefile
     assert "make trusted-data-pilot-candidates TOP_N=10" in makefile
@@ -1698,7 +1698,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Run the matching rebuild proof:" in makefile
     assert "fundamentals lane: make readiness && make dcf-readiness" in makefile
     assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in makefile
-    assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker data-blocked." in makefile
+    assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker visibly blocked by missing data." in makefile
     assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
     assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile
     assert "make price-worklist $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)" in makefile
