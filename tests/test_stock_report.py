@@ -614,7 +614,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "Report command: `make stock-report-md TICKER=MSFT`. Research-only Markdown output; copyable command only." in markdown
     assert "Report command: `make stock-report TICKER=MSFT`" not in markdown
     assert "`make trusted-data-pilot-packet TICKER=MSFT`" in markdown
-    assert markdown.count("`make trusted-data-pilot-packet TICKER=MSFT`") == 1
+    assert markdown.count("`make trusted-data-pilot-packet TICKER=MSFT`") == 2
+    assert "One-company pilot packet: `make trusted-data-pilot-packet TICKER=MSFT` is read-only" in markdown
+    assert "local file status, rejected-row checks, and the validate/preview/apply proof path" in markdown
     assert "`make focus-fundamentals TICKER=MSFT`" in markdown
     assert "`make focus-peers TICKER=MSFT`" in markdown
     assert "`make optional-context-worklist TICKERS=MSFT TOP_N=10`" in markdown
@@ -961,6 +963,8 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Current supported layer: Monitor-only context; market, theme, liquidity, or risk review can be read when local inputs are ready." in markdown
     assert "Next trusted input: No operating-company DCF or peer-valuation input is required for this monitor role." in markdown
     assert "Proof command: `make stock-report-md TICKER=QQQ` before treating the next layer as available." in markdown
+    assert "trusted-data-pilot-packet TICKER=QQQ" not in markdown
+    assert "One-company pilot packet" not in markdown
     assert "Bottom line: QQQ is in `Monitor-only context` mode" in markdown
     assert "`Monitor-only context` (current)" in markdown
     assert "Decision: Monitor - ETF Market Proxy" in markdown
@@ -1263,6 +1267,7 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "DCF input triage: blocked inputs are repair steps, not negative company signals" in markdown
     assert "Safe sequence: `make focus-fundamentals TICKER=APLD` -> stage SEC or trusted manual fundamentals rows -> `make imports-validate` -> `make imports-preview` -> `make imports-apply` -> `make dcf-readiness`" in markdown
     assert "`make trusted-data-pilot-packet TICKER=APLD`" in markdown
+    assert "One-company pilot packet: `make trusted-data-pilot-packet TICKER=APLD` is read-only" in markdown
     assert "Relative valuation: withheld until trusted fundamentals and DCF readiness pass" in markdown
     assert "available peer context is held back until the company DCF gate is ready" in markdown
     assert "background relative-multiple calculation" not in markdown

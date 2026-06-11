@@ -1566,6 +1566,13 @@ def _stock_report_reader_question_lines(
     earnings_ready: Any = None,
     estimates_ready: Any = None,
 ) -> list[str]:
+    pilot_packet = _stock_report_pilot_packet_line(
+        ticker=ticker,
+        dcf_status_text=dcf_status_text,
+        monitor_context=monitor_context,
+        price_ready=price_ready,
+        peer_ready=peer_ready,
+    )
     if not price_ready:
         next_input = "Trusted local price history."
         command = f"make focus-price TICKER={ticker}"
@@ -1597,6 +1604,7 @@ def _stock_report_reader_question_lines(
         f"- Analyze now: {_sentence_value(supported_now)}.",
         f"- Still locked: {_sentence_value(locked_now)}.",
         f"- Trusted input: {_sentence_value(next_input)}.",
+        *([pilot_packet] if pilot_packet else []),
         lane,
         f"- Next research step: {_sentence_value(_humanize_schema_terms(next_action), 'No next local action is available')}.",
     ]
@@ -1643,6 +1651,24 @@ def _stock_report_next_layer_lines(
         f"- Proof command: `{proof_command}` before treating the next layer as available.",
         "- Stop rule: if trusted rows are unavailable, leave the section locked; do not infer, backfill, or use placeholders.",
     ]
+
+
+def _stock_report_pilot_packet_line(
+    *,
+    ticker: str,
+    dcf_status_text: str,
+    monitor_context: bool,
+    price_ready: Any,
+    peer_ready: Any,
+) -> str:
+    if monitor_context:
+        return ""
+    if bool(price_ready) and dcf_status_text == "ready" and bool(peer_ready):
+        return ""
+    return (
+        f"- One-company pilot packet: `make trusted-data-pilot-packet TICKER={ticker}` is read-only; "
+        "use it to inspect local file status, rejected-row checks, and the validate/preview/apply proof path before changing readiness."
+    )
 
 
 def _stock_report_data_health_handoff_line(

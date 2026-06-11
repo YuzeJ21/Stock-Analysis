@@ -45,25 +45,27 @@ These examples show the main states without needing a full-market refresh:
 ```bash
 make stock-report-md TICKER=NVDA
 make stock-report-md TICKER=A
+make stock-report-md TICKER=MU
 make stock-report-md TICKER=META
 make stock-report-md TICKER=QQQ
 make stock-report-md TICKER=SMH
 make stock-report-md TICKER=APLD
+make stock-report-md TICKER=CRDO
 ```
 
 For public demos, prefer `make stock-report-md TICKER=NVDA`. Use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
 - `NVDA` demonstrates company-level DCF assumptions and source-backed peer context when trusted local inputs are ready.
-- `A` demonstrates standalone DCF review where peer-relative valuation is still waiting on source-backed peers.
+- `A` and `MU` demonstrate standalone DCF review where peer-relative valuation is still waiting on source-backed peers.
 - `META` demonstrates price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - `QQQ` and `SMH` demonstrate ETF/index monitor context where operating-company DCF is excluded, not failed.
-- `APLD` demonstrates partial-data handling where valuation stays blocked instead of being invented.
+- `APLD` and `CRDO` demonstrate partial-data handling where valuation stays blocked instead of being invented; `CRDO` also shows the one-company trusted-data pilot packet path.
 
 Read the visitor scan cue first, then `At A Glance`. Those lines give the mode, decision view, DCF state, peer context, optional context, method cue, and next local step before the detailed tables. Then read `Reader Guide` and `Evaluation Snapshot` to see what evaluation is supported, what valuation boundary applies, the confidence cue, the next proof step, and the stop rule. Then read `Proof Checklist` to see what evidence proves the current mode, what readiness proof comes next, and what must stay withheld. Then read `Best Review Path` to see whether to inspect DCF and peers, prove fundamentals readiness, use monitor context, or start with price coverage.
 
 Then read `Analysis Quality`, `Methodology`, and `Evaluation Function Check`. They explain which functions are ready, blocked, excluded, or optional. The At A Glance method cue and the `Methodology` section show the DCF formula path so the valuation workflow is not a black box.
 
-When a ticker is blocked or partial, use `Copyable Proof Commands` next. Those are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
+When a ticker is blocked or partial, use the Reader Guide's one-company pilot packet line and then `Copyable Proof Commands`. Those are local research commands to copy when you choose; the report does not run imports or refreshes and does not connect to external accounts.
 
 ## Analysis Modes
 
