@@ -194,7 +194,7 @@ def test_dashboard_hero_uses_public_product_language():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "A local, explainable research dashboard" in source
-    assert "Research-only review, no trading actions." in source
+    assert "Research-only review; no external account actions." in source
     assert "A local, explainable workflow" not in source
     assert "Research workflow only." not in source
 
