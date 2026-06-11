@@ -1241,6 +1241,14 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "does not claim new fundamentals, peer, earnings, or analyst-estimate coverage",
         "Commands remain copy-only",
         "No generated CSV/JSON churn was published with the UI copy pass",
+        "2026-06-11 Trusted Pilot Compact Output Pass",
+        "`make trusted-data-pilot-candidates TOP_N=10` prints a compact visitor-friendly shortlist",
+        "`make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` remains available for local operator detail",
+        "file status, decision gates, rejected-row paths, and evidence expectations",
+        "README, Data Strategy, Public Release Checklist, LinkedIn brief, and `make demo`",
+        "compact default points to one-company evidence packets before validate/preview/apply and rebuild proof",
+        "The compact candidate command is read-only",
+        "`VERBOSE=1` exposes local proof detail only",
     ):
         assert phrase in qa
 

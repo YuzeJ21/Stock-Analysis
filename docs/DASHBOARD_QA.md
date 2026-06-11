@@ -132,3 +132,17 @@ Boundary checked:
 
 - Collapsing details is a UI/readability change only; commands remain copy-only and no data refresh, import, or account action is triggered from the dashboard.
 - This pass documents workflow clarity only; it does not claim new fundamentals, peer, earnings, or analyst-estimate coverage.
+
+## 2026-06-11 Trusted Pilot Compact Output Pass
+
+Checked commands and docs:
+
+- Trusted Data Pilot CLI: confirmed `make trusted-data-pilot-candidates TOP_N=10` prints a compact visitor-friendly shortlist, quick path, and short review board instead of a full row-by-row diagnostics wall.
+- Trusted Data Pilot CLI: confirmed `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` remains available for local operator detail, including file status, decision gates, rejected-row paths, and evidence expectations.
+- Public docs: confirmed README, Data Strategy, Public Release Checklist, LinkedIn brief, and `make demo` present compact candidate ranking first, then verbose detail only as an optional follow-up.
+- Public release flow: confirmed the compact default points to one-company evidence packets before validate/preview/apply and rebuild proof, so visitors see the workflow without needing to import data.
+
+Boundary checked:
+
+- The compact candidate command is read-only; it does not refresh prices, import fundamentals, add peers, or change readiness outputs.
+- `VERBOSE=1` exposes local proof detail only; it does not lower data gates or convert missing trusted rows into analysis.
