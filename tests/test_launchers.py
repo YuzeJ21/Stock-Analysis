@@ -416,6 +416,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Monitor-only context",
         "Data needed before analysis",
         "Data-confidence cue",
+        "Public Demo Walkthrough",
+        "mapped-peer valuation inputs stay locked until verified rows exist",
         "project DCF method notes",
         "DCF path: cash flows, terminal value, cash/debt, fair value/share",
         "copy-only proof commands",
