@@ -3025,6 +3025,24 @@ def compact_reason(value: object, max_sentences: int = 2, max_chars: int = 260) 
     return compact
 
 
+def compact_card_fragment(value: object, fallback: str = "Not available", *, max_sentences: int = 1, max_chars: int = 180) -> str:
+    """Return a scan-friendly phrase for embedding inside dashboard card sentences."""
+
+    compact = compact_reason(format_missing(value, fallback), max_sentences=max_sentences, max_chars=max_chars)
+    if compact.endswith("..."):
+        return compact
+    return compact.rstrip(" .;:")
+
+
+def card_sentence(label: str, fragment: str) -> str:
+    """Build a labeled card sentence without adding punctuation after ellipses."""
+
+    clean_label = label.strip().rstrip(":")
+    clean_fragment = format_missing(fragment, "Not available").strip()
+    terminal = "" if clean_fragment.endswith((".", "?", "!", "...")) else "."
+    return f"{clean_label}: {clean_fragment}{terminal}"
+
+
 def plain_dashboard_input_copy(value: object) -> str:
     """Make raw readiness blocker text easier to read on product cards."""
 
@@ -6475,11 +6493,15 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
         ticker = format_missing(row.get("Ticker"), "Ticker")
         lane = format_missing(row.get("Pilot Lane"), "Trusted-data unlock")
         scope = format_missing(row.get("Scope"), "Current queue")
-        rank_reason = compact_reason(row.get("Rank Reason"), max_sentences=1, max_chars=180)
-        missing_input = compact_reason(plain_dashboard_input_copy(row.get("Missing Input")), max_sentences=1, max_chars=220)
-        operator_decision = compact_reason(row.get("Operator Decision"), max_sentences=1, max_chars=180)
-        review_path = compact_reason(row.get("Review Path"), max_sentences=1, max_chars=180)
-        proof = format_missing(row.get("Proof After Unlock"), "make readiness && make stock-report-md TICKER=<ticker>")
+        rank_reason = compact_card_fragment(row.get("Rank Reason"), max_chars=170)
+        missing_input = compact_card_fragment(plain_dashboard_input_copy(row.get("Missing Input")), max_chars=190)
+        operator_decision = compact_card_fragment(row.get("Operator Decision"), max_chars=170)
+        review_path = compact_card_fragment(row.get("Review Path"), max_chars=165)
+        proof = compact_card_fragment(
+            row.get("Proof After Unlock"),
+            "make readiness && make stock-report-md TICKER=<ticker>",
+            max_chars=175,
+        )
         lane_command = format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")
         command = format_missing(row.get("Packet Command"), f"make trusted-data-pilot-packet TICKER={ticker}")
         cards.append(
@@ -6487,10 +6509,11 @@ def data_health_trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, 
                 "kicker": "PILOT CANDIDATE",
                 "title": f"{ticker}: {lane}",
                 "body": (
-                    f"Rank reason: {rank_reason} Next trusted input: {missing_input}. "
-                    f"Decision: {operator_decision} "
-                    f"Review path: {review_path}. Lane check: {lane_command}. "
-                    f"Proof after unlock: {proof}."
+                    f"{card_sentence('Why this is next', rank_reason)} "
+                    f"{card_sentence('Missing input', missing_input)} "
+                    f"{card_sentence('Decision', operator_decision)} "
+                    f"Check first: {review_path}; then run {lane_command}. "
+                    f"{card_sentence('Proof after unlock', proof)}"
                 ),
                 "badges": [scope, "read-only"],
                 "command": command,

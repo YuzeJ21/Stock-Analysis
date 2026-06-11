@@ -9585,13 +9585,14 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert cards[0]["title"] == "MU: Peer mapping unlock"
     assert cards[0]["command"] == "make trusted-data-pilot-packet TICKER=MU"
     assert cards[0]["badges"] == ["Active universe", "read-only"]
-    assert "rank reason:" in rendered
-    assert "next trusted input: needs source-backed peer mappings; analyst estimates: trusted local csv input" in rendered
+    assert "why this is next:" in rendered
+    assert "missing input: needs source-backed peer mappings; analyst estimates: trusted local csv input" in rendered
     assert "analyst_estimates" not in rendered
     assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
-    assert "review path: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
-    assert "lane check: make focus-peers ticker=mu" in rendered
+    assert "check first: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
+    assert "then run make focus-peers ticker=mu" in rendered
     assert "proof after unlock: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
+    assert "...." not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
