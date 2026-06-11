@@ -74,13 +74,13 @@ DASHBOARD_TAB_TITLES = [
 USER_PAGE_TITLES = ["Home"] + DASHBOARD_TAB_TITLES
 PUBLIC_PATH_PAGE_TITLES = ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
 ADVANCED_PAGE_TITLES = [title for title in USER_PAGE_TITLES if title not in PUBLIC_PATH_PAGE_TITLES]
-DETAILED_PAGE_PATH_TITLE = "Detailed page"
+DETAILED_PAGE_PATH_TITLE = "More research views"
 PUBLIC_PATH_LABELS = {
     "Home": "Start at Home",
     "Single-Stock Report": "Review one stock",
     "Data Health": "Improve data coverage",
     "Monthly Picks": "Explore ready names",
-    DETAILED_PAGE_PATH_TITLE: "Detailed page",
+    DETAILED_PAGE_PATH_TITLE: "More research views",
 }
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
@@ -22522,14 +22522,14 @@ def main() -> None:
             help="Most visitors only need these paths: review one stock, improve data coverage, or explore ready names.",
         )
         selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection
-        with st.expander("More pages", expanded=initial_page in ADVANCED_PAGE_TITLES):
+        with st.expander("Optional research views", expanded=initial_page in ADVANCED_PAGE_TITLES):
             advanced_page = st.selectbox(
-                "Open a detailed page",
+                "Open an optional view",
                 ["Keep current path"] + ADVANCED_PAGE_TITLES,
                 index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
                 if initial_page in ADVANCED_PAGE_TITLES
                 else 0,
-                help="Detailed research views remain available, but first-time visitors can stay with the three main paths.",
+                help="Extra research views remain available, but first-time visitors can stay with the three main paths.",
             )
             if advanced_page != "Keep current path":
                 selected_page = advanced_page

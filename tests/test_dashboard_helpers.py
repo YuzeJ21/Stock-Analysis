@@ -572,11 +572,14 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert 'st.header("Navigation")' not in source
     assert '"Choose your path"' in source
     assert '"Choose a page"' not in source
-    assert 'st.expander("More pages"' in source
+    assert 'st.expander("Optional research views"' in source
+    assert 'st.expander("More pages"' not in source
     assert 'st.expander("Advanced pages"' not in source
-    assert '"Open a detailed page"' in source
+    assert '"Open an optional view"' in source
+    assert '"Open a detailed page"' not in source
     assert "Most visitors only need these paths" in source
-    assert "Detailed research views remain available" in source
+    assert "Extra research views remain available" in source
+    assert "Detailed research views remain available" not in source
     assert '"Page to review"' not in source
     assert "Start with Home, then open one focused page" not in source
     assert "Copy only." in source
@@ -18410,14 +18413,14 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
         "Single-Stock Report",
         "Data Health",
         "Monthly Picks",
-        "Detailed page",
+        "More research views",
     ]
     assert dashboard.sidebar_path_index("Value / Re-rating", dashboard.sidebar_path_options("Value / Re-rating")) == 4
     assert dashboard.sidebar_path_index("Single-Stock Report", dashboard.sidebar_path_options("Single-Stock Report")) == 1
     assert dashboard.public_path_label("Single-Stock Report") == "Review one stock"
     assert dashboard.public_path_label("Data Health") == "Improve data coverage"
     assert dashboard.public_path_label("Monthly Picks") == "Explore ready names"
-    assert dashboard.public_path_label("Detailed page") == "Detailed page"
+    assert dashboard.public_path_label("More research views") == "More research views"
     assert "Overview" in dashboard.ADVANCED_PAGE_TITLES
     assert "Portfolio Review" in dashboard.ADVANCED_PAGE_TITLES
     assert "Universe Manager" in dashboard.ADVANCED_PAGE_TITLES
