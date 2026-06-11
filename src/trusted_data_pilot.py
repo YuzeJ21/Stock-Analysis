@@ -145,6 +145,18 @@ def pilot_trusted_row_path(candidate: PilotCandidate) -> str:
     return "trusted local CSV import files"
 
 
+def pilot_rejected_report_path(candidate: PilotCandidate) -> str:
+    """Return the rejected-row report that must be checked for a pilot lane."""
+
+    if candidate.lane == "fundamentals_dcf":
+        return "data/rejected/fundamentals_import_rejected.csv"
+    if candidate.lane in {"peer_mapping", "peer_valuation_inputs"}:
+        return "data/rejected/peers_import_rejected.csv"
+    if candidate.lane == "optional_context_locked":
+        return "data/rejected/earnings_import_rejected.csv and data/rejected/analyst_estimates_import_rejected.csv"
+    return "data/rejected/<dataset>_import_rejected.csv"
+
+
 def pilot_rank_reason(candidate: PilotCandidate) -> str:
     """Explain why a candidate appears in the ranked pilot queue."""
 
@@ -460,6 +472,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Review path: {pilot_review_path(candidate.validation_path)}",
                 f"   Trusted row target: {pilot_trusted_row_path(candidate)}",
                 "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
+                f"   Rejected-row report to review: {pilot_rejected_report_path(candidate)}",
                 f"   Proof after unlock: {candidate.proof_after_unlock}",
                 f"   Evidence expectation: {pilot_evidence_expectation(candidate)}",
                 f"   Source boundary: {candidate.source_boundary}",
@@ -478,8 +491,9 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             f"3. Review the lane blocker: {pilot_review_path(candidates[0].validation_path)}",
             f"4. Prepare trusted rows only if the source review passes: {pilot_trusted_row_path(candidates[0])}",
             "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
-            f"6. Rebuild lane proof: {candidates[0].proof_after_unlock}",
-            f"7. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS={ticker_list} TOP_N={len(safe_loop_candidates)}",
+            f"6. Check rejected-row report: {pilot_rejected_report_path(candidates[0])}",
+            f"7. Rebuild lane proof: {candidates[0].proof_after_unlock}",
+            f"8. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS={ticker_list} TOP_N={len(safe_loop_candidates)}",
             "",
             "Stop condition: if trusted source rows are unavailable, keep the ticker data-blocked and move to the next candidate.",
         ]
@@ -525,8 +539,9 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             f"3. Focused blocker check: {candidate.next_command}",
             f"4. Prepare or stage trusted rows only if source review passes: {pilot_trusted_row_path(candidate)}",
             "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
-            f"6. Rebuild proof and after report: {candidate.proof_after_unlock}",
-            "7. Record the evidence row and keep any remaining blocker visible.",
+            f"6. Check rejected-row report: {pilot_rejected_report_path(candidate)}",
+            f"7. Rebuild proof and after report: {candidate.proof_after_unlock}",
+            "8. Record the evidence row and keep any remaining blocker visible.",
             "",
             pilot_evidence_expectation(candidate),
             "",

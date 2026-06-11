@@ -1443,6 +1443,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "make trusted-data-pilot-candidates TOP_N=10" in data_strategy
     assert "make trusted-data-pilot-packet TICKER=CRDO" in data_strategy
     assert "make trusted-data-pilot TOP_N=10" in data_strategy
+    assert "rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
     assert "Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in data_strategy
     assert "ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos" in data_strategy
     assert "One-company evidence packet:" in data_strategy
@@ -1452,10 +1453,12 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in data_strategy
     assert "peer lane: make focus-peers TICKER=<ticker>" in data_strategy
     assert "make imports-validate && make imports-preview && make imports-apply" in data_strategy
+    assert "Check the rejected-row report printed by the packet before treating the lane as unlocked." in data_strategy
     assert "Run the matching rebuild proof:" in data_strategy
     assert "fundamentals lane: make readiness && make dcf-readiness" in data_strategy
     assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in data_strategy
-    assert "lane review path, validate/apply step, rebuild proof, and evidence row to record" in data_strategy
+    assert "lane review path, validate/apply step, rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
+    assert "rejected-row report path, then the relevant readiness proof command" in data_strategy
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
     assert "Provider-assisted does not mean provider-decided" in data_strategy
@@ -1669,12 +1672,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Company-by-company loop: open one report, choose the matching lane, then validate trusted rows before reading any new valuation." in makefile
     assert "Starter loop example: make stock-report-md TICKER=CRDO -> make trusted-data-pilot-packet TICKER=CRDO -> run the packet's lane-specific review command" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
-    assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, and the exact review, validate/apply, and proof commands that changed the state." in makefile
+    assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, the exact review, validate/apply, rejected-row report, and proof commands that changed the state." in makefile
     assert "SEC credential state: SEC_USER_AGENT is configured for local staging checks." in makefile
     assert "SEC credential state: SEC_USER_AGENT is not configured; use manual trusted fundamentals or stop at diagnostics." in makefile
     assert "Evidence table columns to record: ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason." in makefile
     assert "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker data-blocked and record the missing input." in makefile
-    assert "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview/apply, rebuild proof, and still-blocked evidence row." in makefile
+    assert "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview/apply, rejected-row check, rebuild proof, and still-blocked evidence row." in makefile
     assert "One-company packet example:" in makefile
     assert "make trusted-data-pilot-candidates TOP_N=10" in makefile
     assert "make trusted-data-pilot-packet TICKER=<ticker>" in makefile
@@ -1683,6 +1686,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in makefile
     assert "peer lane: make focus-peers TICKER=<ticker>" in makefile
     assert "make imports-validate && make imports-preview && make imports-apply" in makefile
+    assert "Check the rejected-row report printed by the packet before treating the lane as unlocked." in makefile
     assert "Run the matching rebuild proof:" in makefile
     assert "fundamentals lane: make readiness && make dcf-readiness" in makefile
     assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in makefile

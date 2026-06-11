@@ -5,6 +5,7 @@ from src.trusted_data_pilot import (
     pilot_operator_decision,
     pilot_public_shortlist,
     pilot_rank_reason,
+    pilot_rejected_report_path,
     pilot_review_path,
     pilot_selection_brief,
     pilot_trusted_row_path,
@@ -166,6 +167,8 @@ def test_pilot_trusted_row_path_points_to_lane_specific_local_inputs():
 
     assert pilot_trusted_row_path(fundamentals) == "data/staged/fundamentals/ or data/imports/fundamentals.csv"
     assert pilot_trusted_row_path(peers) == "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed"
+    assert pilot_rejected_report_path(fundamentals) == "data/rejected/fundamentals_import_rejected.csv"
+    assert pilot_rejected_report_path(peers) == "data/rejected/peers_import_rejected.csv"
 
 
 def test_pilot_rank_reason_explains_queue_position_without_new_data():
@@ -409,14 +412,16 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "Rejected-row report to review: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "make imports-validate && make imports-preview && make imports-apply" in rendered
     assert "2. make trusted-data-pilot-packet TICKER=META" in rendered
     assert "3. Review the lane blocker: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
     assert "4. Prepare trusted rows only if the source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
-    assert "6. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
+    assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
+    assert "7. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
     assert "Evidence expectation: Evidence required: before report, lane review output" in rendered
     assert "Do not call META unlocked until the rebuilt report proves the lane changed." in rendered
-    assert "7. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
+    assert "8. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "8. make stock-report-md" not in rendered
     assert "QQQ and SMH are excluded from this company pilot queue" in rendered
     assert "Stop condition: if trusted source rows are unavailable" in rendered
@@ -447,14 +452,15 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
     assert "Lane check: make focus-peers TICKER=MU" in rendered
     assert "3. Review the lane blocker: make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU" in rendered
     assert "Trusted row target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "Rejected-row report to review: data/rejected/peers_import_rejected.csv" in rendered
     assert (
         "Decision gate: continue only if you have source-backed peer relationships, not sector or industry similarity alone"
         in rendered
     )
     assert "Decision gate: Decision gate:" not in rendered
     assert "leave peer valuation blocked and show peer context only when supported" in rendered
-    assert "6. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
-    assert "7. make readiness && make dcf-readiness" not in rendered
+    assert "7. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
+    assert "8. make readiness && make dcf-readiness" not in rendered
     assert "sector or industry fallback" in rendered.lower()
 
 
@@ -521,10 +527,11 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered
     assert "4. Prepare or stage trusted rows only if source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "5. Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply" in rendered
+    assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "make readiness && make dcf-readiness && make stock-report-md TICKER=CRDO" in rendered
-    assert "6. Rebuild proof and after report:" in rendered
-    assert "7. After report:" not in rendered
-    assert "7. Record the evidence row and keep any remaining blocker visible." in rendered
+    assert "7. Rebuild proof and after report:" in rendered
+    assert "8. After report:" not in rendered
+    assert "8. Record the evidence row and keep any remaining blocker visible." in rendered
     assert "Evidence required: before report, lane review output, trusted source row or source note" in rendered
     assert "Do not call CRDO unlocked until the rebuilt report proves the lane changed." in rendered
     assert "Evidence table row to record:" in rendered
