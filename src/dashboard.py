@@ -20117,7 +20117,7 @@ def render_home_page(
     if show_details:
         render_context_note(
             "Extra review detail is on.",
-            "These sections explain methodology, local commands, and unlock workflows. Turn extra guidance off for the clean visitor view.",
+            "These sections explain methodology, local commands, and unlock workflows. Turn reader tips off for the clean visitor view.",
         )
 
     if show_details:
@@ -21628,7 +21628,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Turn on extra guidance in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables.",
+            "Turn on reader tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables.",
         )
         return
 
@@ -22534,7 +22534,7 @@ def main() -> None:
             if advanced_page != "Keep current path":
                 selected_page = advanced_page
         show_reason_details = st.checkbox(
-            "Show extra guidance",
+            "Show reader tips",
             value=False,
             help="Adds extra explanation and review sections. Most visitors can leave this off.",
         )
@@ -22551,7 +22551,7 @@ def main() -> None:
         with st.expander("Best beginner path", expanded=False):
             render_context_note(
                 "Start simple.",
-                "Home -> Single-Stock Report -> Data Health. Turn on extra guidance only when you want more review context.",
+                "Home -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
             )
             render_sidebar_route_steps(dashboard_navigation_cards())
         with st.expander("Local commands to copy", expanded=False):

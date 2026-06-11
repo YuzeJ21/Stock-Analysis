@@ -126,7 +126,7 @@ Checked pages and docs:
 - Data Health: confirmed the default page keeps `Data Health Quick Read`, `Fix First`, and `Trusted Data Pilot` visible before broad tables.
 - Data Health: confirmed `Refresh and command details` is collapsed by default, so `Freshness Routine` and `Copy-Only Next Steps` do not crowd the first scan.
 - Data Health: confirmed `Pilot selection details` is collapsed by default, while top pilot candidates remain visible.
-- Sidebar: confirmed the control reads `Show extra guidance`, not `Show page tips`.
+- Sidebar: confirmed the control reads `Show reader tips`, not `Show page tips`.
 
 Boundary checked:
 

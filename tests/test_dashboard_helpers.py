@@ -543,7 +543,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds source and freshness troubleshooting under Sources & Gaps" not in source
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
-    assert "Show extra guidance" in source
+    assert "Show reader tips" in source
     assert "Show page tips" not in source
     assert "Adds extra explanation and review sections" in source
     assert "Most visitors can leave this off" in source
@@ -554,7 +554,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Show more explanation" not in source
     assert "#### Best path" not in source
     assert "Home -> Single-Stock Report -> Data Health" in source
-    assert "Turn on extra guidance only when you want more review context" in source
+    assert "Turn on reader tips only when you want more review context" in source
     assert "Turn on page tips only when you want extra review context" not in source
     assert "Turn on guided help only when you want extra review routes" not in source
     assert 'st.expander("Best beginner path", expanded=False)' in source
@@ -701,7 +701,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
     assert "Read quick read, fix first, and trusted-data pilot first." in source
     assert "Open refresh and command details only when you want the next copy-only proof steps." in source
-    assert "Turn on extra guidance in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
+    assert "Turn on reader tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert "render_data_health(provider, project_status_payload, show_reason_details)" in source
     assert 'render_section_header("Action Paths"' not in source
