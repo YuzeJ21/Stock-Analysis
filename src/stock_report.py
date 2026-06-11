@@ -1215,6 +1215,28 @@ def _stock_report_next_action(
     return _display_value(decision.get("next_best_action") or decision.get("next_action") or readiness.get("next_action"))
 
 
+def _stock_report_one_minute_state_phrase(
+    *,
+    ticker: str,
+    readiness: dict[str, Any],
+    dcf_status_text: str,
+    peer_ready: Any,
+    optional_locked: bool,
+    monitor_context: bool,
+) -> str:
+    state = _display_value(readiness.get("overall_readiness_state"))
+    state_text = state.lower()
+    if state_text == "partial" and monitor_context:
+        return f"{ticker} overall readiness: partial because monitor context is usable while company valuation is excluded."
+    if state_text == "partial" and dcf_status_text == "ready" and bool(peer_ready) and optional_locked:
+        return f"{ticker} overall readiness: partial because optional earnings/estimate context is locked; core DCF and peer inputs are ready."
+    if state_text == "partial" and dcf_status_text == "ready" and optional_locked:
+        return f"{ticker} overall readiness: partial because optional earnings/estimate context is locked; standalone DCF inputs are ready."
+    if state_text == "partial":
+        return f"{ticker} overall readiness: partial; review ready inputs first and treat locked inputs as data-unlock work."
+    return f"{ticker} overall readiness: {state}."
+
+
 def _stock_report_analysis_quality_lines(
     *,
     readiness: dict[str, Any],
@@ -2125,7 +2147,14 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
     monitor_context = _stock_report_is_monitor_context(readiness=readiness, decision=decision, dcf_status_text=dcf_status_text)
     missing_lines = _stock_report_missing_data_lines(payload, monitor_context=monitor_context)
     one_minute_parts = [
-        f"{report.ticker} state: {_display_value(readiness.get('overall_readiness_state'))}.",
+        _stock_report_one_minute_state_phrase(
+            ticker=report.ticker,
+            readiness=readiness,
+            dcf_status_text=dcf_status_text,
+            peer_ready=peer_ready,
+            optional_locked=optional_locked,
+            monitor_context=monitor_context,
+        ),
         f"Decision: {_display_value(decision.get('decision_subtype') or decision.get('decision_bucket'))}.",
         f"DCF: {dcf_status_text}.",
     ]
@@ -2564,7 +2593,14 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
     one_minute_summary = " ".join(
         part
         for part in [
-            f"{symbol} state: {_display_value(readiness.get('overall_readiness_state'))}.",
+            _stock_report_one_minute_state_phrase(
+                ticker=symbol,
+                readiness=readiness,
+                dcf_status_text=dcf_status_text,
+                peer_ready=peer.get("peer_ready") or readiness.get("peer_ready"),
+                optional_locked=True,
+                monitor_context=monitor_context,
+            ),
             f"Decision: {_display_value(decision.get('decision_subtype') or decision.get('decision_bucket'))}.",
             "Monitor context: operating-company DCF and peer valuation are excluded." if monitor_context else f"Primary blocker: {_display_report_status(decision.get('primary_blocker'))}.",
             f"DCF: {dcf_status_text}.",

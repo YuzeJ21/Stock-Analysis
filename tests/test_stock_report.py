@@ -23,6 +23,7 @@ from src.stock_report import (
     _stock_report_dcf_input_triage_lines,
     _stock_report_best_review_path_lines,
     _stock_report_optional_context_ladder_lines,
+    _stock_report_one_minute_state_phrase,
     _stock_report_peer_evidence_ladder_lines,
     _stock_report_peer_unlock_lines,
     _stock_report_reader_guide_lines,
@@ -52,6 +53,37 @@ def test_stock_report_formats_bare_make_commands_as_copyable_inline_commands():
     assert "make the comparison" in text
     assert "`make the`" not in text
     assert "Run make focus-fundamentals" not in text
+
+
+def test_stock_report_one_minute_state_phrase_explains_partial_readiness():
+    core_ready = _stock_report_one_minute_state_phrase(
+        ticker="NVDA",
+        readiness={"overall_readiness_state": "partial"},
+        dcf_status_text="ready",
+        peer_ready=True,
+        optional_locked=True,
+        monitor_context=False,
+    )
+    monitor = _stock_report_one_minute_state_phrase(
+        ticker="QQQ",
+        readiness={"overall_readiness_state": "partial"},
+        dcf_status_text="excluded",
+        peer_ready=False,
+        optional_locked=True,
+        monitor_context=True,
+    )
+    data_unlock = _stock_report_one_minute_state_phrase(
+        ticker="APLD",
+        readiness={"overall_readiness_state": "partial"},
+        dcf_status_text="blocked",
+        peer_ready=False,
+        optional_locked=True,
+        monitor_context=False,
+    )
+
+    assert "optional earnings/estimate context is locked; core DCF and peer inputs are ready" in core_ready
+    assert "monitor context is usable while company valuation is excluded" in monitor
+    assert "review ready inputs first and treat locked inputs as data-unlock work" in data_unlock
 
 
 def test_stock_report_humanized_terms_preserve_copyable_dcf_commands():

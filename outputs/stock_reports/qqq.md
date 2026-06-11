@@ -44,7 +44,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - `Data-unlock only` (other): Reference state for tickers with no trusted local inputs yet; add the first missing input before drawing conclusions.
 
 ## One-Minute Status
-QQQ state: partial. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor context: operating-company DCF and peer valuation are excluded. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
+QQQ overall readiness: partial because monitor context is usable while company valuation is excluded. Decision: Monitor - ETF Market Proxy. DCF: excluded. Monitor context: operating-company DCF and peer valuation are excluded. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Review QQQ as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded.
 
 ## What We Can Analyze Now
 - Ready inputs: price, momentum, market direction.
