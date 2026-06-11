@@ -19679,7 +19679,7 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
         improve_tone = "warning"
         gap_note = f"{data_gap_count:,} ticker(s) still need price coverage. " if data_gap_count else ""
         improve_body = (
-            f"Best next for coverage: {gap_note}open Data Health for the trusted-data pilot path; fundamentals, source-backed peers, earnings, and estimates remain gated until local rows exist."
+            f"Best next for coverage: {gap_note}Open Data Health for the trusted-data pilot path; fundamentals, source-backed peers, earnings, and estimates remain gated until local rows exist."
         )
 
     return [
