@@ -6,7 +6,7 @@ Research-only local report. It summarizes readiness and does not provide allocat
 - Mode: `DCF-ready review`.
 - Decision view: Research Candidate - Core Data Ready.
 - DCF: Ready for scenario review.
-- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base fair value per share is $143.42 as scenario math.
+- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base scenario fair value/share is $143.42 as scenario math.
 - Peer context: Ready for source-backed peer review.
 - Optional context: Locked until trusted earnings and analyst-estimate rows exist.
 - Method: project readiness gates decide what can appear; DCF uses local free-cash-flow inputs, discounted cash flows, discounted terminal value, cash/debt adjustment, and fair value per share when ready.
@@ -168,7 +168,7 @@ Research-only purpose brief. It separates what local data supports from what rem
 
 ## Valuation Readiness
 - DCF status: calculated.
-- Base DCF fair value per share: $143.42.
+- Base DCF scenario fair value/share: $143.42.
 - DCF input trace: base revenue=$215.9B; base FCF=$96.7B; FCF margin=44.8%; shares outstanding=24.2B; balance-sheet adjustment uses cash=$13.2B; debt=$8.5B.
 - Base DCF assumptions: input path=direct free cash flow, revenue growth=40.0%, FCF margin=44.8%, WACC=9.0%, terminal growth=3.0%, forecast years=5.
 - Scenario coverage: bear, base, bull.

@@ -482,7 +482,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Mode: `Standalone DCF review`." in markdown
     assert "- Decision view:" in markdown
     assert "- DCF: Ready for scenario review." in markdown
-    assert "- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base fair value per share is $" in markdown
+    assert "- Valuation support: Standalone DCF assumptions and sensitivity are reviewable; base scenario fair value/share is $" in markdown
     assert "as scenario math" in markdown
     assert "- Peer context: Locked until source-backed peer inputs are ready." in markdown
     assert "- Optional context: Locked until trusted earnings and analyst-estimate rows exist." in markdown
@@ -572,7 +572,7 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "shipped analysis comes from project code and local data" in markdown
     assert "plugins can help development review" not in markdown
     assert "no open source was used" not in markdown.lower()
-    assert "Base DCF fair value per share" in markdown
+    assert "Base DCF scenario fair value/share" in markdown
     assert "DCF input trace: base revenue=$250.0B; base FCF=$90.0B; FCF margin=36.0%; shares outstanding=7.4B" in markdown
     assert "balance-sheet adjustment uses cash=$90.0B; debt=$40.0B" in markdown
     assert "Base DCF assumptions" in markdown

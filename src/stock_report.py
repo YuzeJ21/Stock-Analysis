@@ -751,7 +751,7 @@ def _stock_report_valuation_lines(
     if dcf_is_ready_calculated:
         lines.extend(
             [
-                f"- Base DCF fair value per share: {_format_money(fair_value)}.",
+                f"- Base DCF scenario fair value/share: {_format_money(fair_value)}.",
                 _dcf_input_trace_line(assumptions),
                 (
                     "- Base DCF assumptions: "
@@ -1802,7 +1802,7 @@ def _stock_report_at_a_glance_lines(
         valuation_support = "Monitor context only; operating-company DCF and peer valuation are excluded."
     elif dcf_status_text == "ready":
         fair_value_note = (
-            f"; base fair value per share is {_format_money(fair_value)} as scenario math"
+            f"; base scenario fair value/share is {_format_money(fair_value)} as scenario math"
             if fair_value is not None
             else "; review the DCF section for scenario math"
         )
