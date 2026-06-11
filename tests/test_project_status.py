@@ -676,6 +676,7 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     pilot_row = payload["recommended_next_command_rows"][1]
     assert pilot_row["Step"] == "Rank trusted data pilot candidates"
     assert "Rank current operating-company blockers first" in pilot_row["Reason"]
+    assert "make trusted-data-pilot-packet TICKER=<ticker>" in pilot_row["Reason"]
     assert pilot_row["FreshnessContext"] == "read-only ranking; run before importing trusted fundamentals or peer rows"
     import_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
     assert import_row["Step"] == "Review import files"

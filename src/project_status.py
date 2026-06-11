@@ -618,8 +618,9 @@ def _trusted_data_pilot_command_row() -> dict[str, str]:
         "Rank trusted data pilot candidates",
         TRUSTED_DATA_PILOT_CANDIDATES_COMMAND,
         (
-            "Rank current operating-company blockers first, then use the selected names for the trusted-data "
-            "pilot evidence loop instead of trying to unlock the full universe at once."
+            "Rank current operating-company blockers first, inspect one company with "
+            "make trusted-data-pilot-packet TICKER=<ticker>, then use selected names for the trusted-data "
+            "evidence loop instead of trying to unlock the full universe at once."
         ),
         source_context="trusted local CSVs plus SEC/manual review paths",
         freshness_context="read-only ranking; run before importing trusted fundamentals or peer rows",
