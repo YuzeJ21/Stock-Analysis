@@ -110,6 +110,7 @@ Boundary checked:
 Checked pages and docs:
 
 - Data Health: confirmed the `Freshness Routine` section explains a read-only daily/opening routine before any refresh or import step.
+- Data Health: confirmed the beginner path now reads `quick read, freshness routine, fix first, copy-only next steps, and trusted-data pilot`.
 - Data Health: confirmed price freshness guidance starts with a capped dry-run command and tells users to inspect generated CSV diffs before a real capped loop.
 - Data Health: confirmed fundamentals, peer mappings, earnings, and analyst estimates remain review-required lanes instead of unattended automation targets.
 - Public checklist: confirmed the release flow points visitors to Data Health for safe freshness guidance without suggesting daily manual full-universe refreshes.

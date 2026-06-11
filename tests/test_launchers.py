@@ -1210,6 +1210,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "Monthly candidate guidance stays a research queue, not a recommendation list.",
         "2026-06-11 Data Health Freshness Routine Pass",
         "Data Health: confirmed the `Freshness Routine` section explains a read-only daily/opening routine",
+        "quick read, freshness routine, fix first, copy-only next steps, and trusted-data pilot",
         "price freshness guidance starts with a capped dry-run command",
         "fundamentals, peer mappings, earnings, and analyst estimates remain review-required lanes",
         "does not claim new fundamentals, peer, earnings, or analyst-estimate coverage",

@@ -21401,10 +21401,12 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_orientation_cards(readiness_summary))
     render_context_note(
         "Beginner view.",
-        "Read these next four sections first: quick read, fix first, copy-only next steps, and trusted-data pilot. They show the safest proof path without opening the broader tables.",
+        "Read these next five sections first: quick read, freshness routine, fix first, copy-only next steps, and trusted-data pilot. They show the safest proof path without opening the broader tables.",
     )
     render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
+    render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
+    render_signal_cards(data_health_freshness_routine_cards(readiness_summary))
     render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
@@ -21439,8 +21441,6 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))
         with st.expander("Capped pilot candidate table", expanded=False):
             st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
-    render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
-    render_signal_cards(data_health_freshness_routine_cards(readiness_summary))
     with st.expander("Coverage proof planning cards", expanded=False):
         render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
         render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
