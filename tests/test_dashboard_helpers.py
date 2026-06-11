@@ -1017,7 +1017,7 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[4]["command"] == "make readiness && make status-check TOP_N=5"
     assert price_gap_cards[5]["command"] == "make trusted-data-pilot-candidates TOP_N=10"
     assert price_gap_cards[5]["title"] == "Improve 5-10 companies first"
-    assert "read-only candidate queue" in price_gap_cards[5]["body"]
+    assert "read-only candidate list" in price_gap_cards[5]["body"]
     assert "Inspect one company packet before applying rows" in price_gap_cards[5]["body"]
     assert "keep the ticker visibly blocked" in price_gap_cards[5]["body"]
     assert "make trusted-data-pilot-candidates TOP_N=10" not in price_gap_cards[5]["body"]
@@ -1025,7 +1025,7 @@ def test_home_next_step_cards_are_copyable_and_readiness_gated():
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" not in price_gap_cards[5]["body"]
     assert "scalable dry run" in rendered
     assert "instead of repeating 25-ticker refreshes manually" in rendered
-    assert "blocked rows are useful, but they are a data-unlock list, not a conclusion list" in rendered
+    assert "blocked rows are useful, but they are a missing-data list, not a conclusion list" in rendered
     assert "no data, no conclusion" in rendered
     assert "earnings and analyst estimates are not broken" in rendered
     assert "optional context is available" in rendered

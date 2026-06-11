@@ -19440,7 +19440,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
         },
         {
             "kicker": "VISITOR STEP 5",
-            "title": "Show the data unlock proof path",
+            "title": "Show the missing-data proof path",
             "body": (
                 "When a visitor asks how coverage improves, rank current company blockers first, then run the read-only trusted-data pilot for the chosen names without importing rows."
             ),
@@ -19497,7 +19497,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
         {
             "kicker": "START HERE",
             "title": "Read the ready sections first",
-            "body": "Start with names that have enough local data for the view you opened. Blocked rows are useful, but they are a data-unlock list, not a conclusion list.",
+            "body": "Start with names that have enough local data for the view you opened. Blocked rows are useful, but they are a missing-data list, not a conclusion list.",
             "badges": ["visitor friendly"],
             "command": "make stock-report-md TICKER=NVDA",
         },
@@ -19529,7 +19529,7 @@ def _plain_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
             "kicker": "PILOT PATH",
             "title": "Improve 5-10 companies first",
             "body": (
-                "Do not try to unlock the full universe at once. Start with the read-only candidate queue for a small "
+                "Do not try to unlock the full universe at once. Start with the read-only candidate list for a small "
                 "trusted-data pilot, then improve prices, fundamentals, DCF fields, and peers only where source proof exists. "
                 "Inspect one company packet before applying rows; if source proof is missing, keep the ticker visibly blocked "
                 "and move to the next candidate."
@@ -19937,7 +19937,7 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
             {
                 "Function Area": "Peer comparison",
                 "Quality Verdict": "Ready when peer data exists",
-                "Best Use Today": "Use as a peer data-unlock list until source-backed peer mappings and metrics are ready.",
+                "Best Use Today": "Use as a peer missing-data list until source-backed peer mappings and metrics are ready.",
                 "Current Status": peer_status,
                 "Supported Today": "Peer context after source-backed peer rows and peer metrics exist.",
                 "Needs Trusted Data": "Manual peer mappings plus peer fundamentals or peer market context.",
