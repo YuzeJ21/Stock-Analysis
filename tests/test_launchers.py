@@ -1738,13 +1738,17 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"      Shows: DCF-ready company review with assumptions and source readiness.\"" in makefile
     assert "@echo \"      Shows: price/setup review where valuation remains gated by trusted fundamentals.\"" in makefile
     assert "@echo \"      Shows: ETF/index monitor context where operating-company DCF is excluded, not failed.\"" in makefile
+    assert "@echo \"      Shows: fundamentals/DCF proof workflow with a one-company pilot packet.\"" in makefile
     assert "@echo \"   Optional extra states:\"" in makefile
     assert "@echo \"      Shows: standalone DCF review with peer-relative valuation still locked.\"" in makefile
+    assert "@echo \"      Shows: another standalone DCF review with peer-relative valuation still locked.\"" in makefile
     assert "@echo \"      Shows: sector ETF monitor context.\"" in makefile
     assert "@echo \"      Shows: price/setup review with fundamentals still locked.\"" in makefile
     assert makefile.index('@echo "   make stock-report-md TICKER=NVDA"') < makefile.index('@echo "   make stock-report-md TICKER=META"')
     assert makefile.index('@echo "   make stock-report-md TICKER=META"') < makefile.index('@echo "   make stock-report-md TICKER=QQQ"')
-    assert makefile.index('@echo "   make stock-report-md TICKER=QQQ"') < makefile.index('@echo "   Optional extra states:"')
+    assert makefile.index('@echo "   make stock-report-md TICKER=QQQ"') < makefile.index('@echo "   make stock-report-md TICKER=MU"')
+    assert makefile.index('@echo "   make stock-report-md TICKER=MU"') < makefile.index('@echo "   make stock-report-md TICKER=CRDO"')
+    assert makefile.index('@echo "   make stock-report-md TICKER=CRDO"') < makefile.index('@echo "   Optional extra states:"')
     assert makefile.index('@echo "   Optional extra states:"') < makefile.index('@echo "   make stock-report-md TICKER=A"')
     assert "@echo \"4. Smoke-test the dashboard:\"" in makefile
     assert "@echo \"   Proves: the Streamlit app can boot and answer its local health check.\"" in makefile
@@ -1760,7 +1764,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make diff-hygiene-files  # optional for large dirty trees\"" in makefile
     assert "@echo \"   make staged-hygiene-check # after staging, before commit\"" in makefile
     assert 'This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/.' in makefile
-    assert "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, then the trusted-data pilot as the honest proof path." in makefile
+    assert "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, MU as peer-limited, CRDO as fundamentals-gated, then the trusted-data pilot as the honest proof path." in makefile
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
     assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile
     assert "public-check:" in makefile

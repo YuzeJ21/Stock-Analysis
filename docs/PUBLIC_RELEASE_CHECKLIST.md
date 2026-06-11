@@ -98,9 +98,11 @@ make trusted-data-pilot-candidates TOP_N=10
 make trusted-data-pilot-packet TICKER=CRDO
 make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10
 make stock-report-md TICKER=NVDA
-make stock-report-md TICKER=A
 make stock-report-md TICKER=META
 make stock-report-md TICKER=QQQ
+make stock-report-md TICKER=MU
+make stock-report-md TICKER=CRDO
+make stock-report-md TICKER=A
 make stock-report-md TICKER=SMH
 make stock-report-md TICKER=APLD
 make test
