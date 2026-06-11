@@ -34,6 +34,15 @@ def test_streamlit_toolbar_uses_viewer_mode_for_public_dashboard():
     assert 'toolbarMode = "viewer"' in config
 
 
+def test_dashboard_launchers_force_viewer_mode_for_public_demo():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    launcher = Path("scripts/dashboard.sh").read_text(encoding="utf-8")
+
+    assert "streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true" in makefile
+    assert "--client.toolbarMode viewer" in launcher
+    assert "--server.headless true" in launcher
+
+
 def test_makefile_contains_convenience_targets():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 

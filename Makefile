@@ -518,7 +518,7 @@ daily:
 	python3 -m src.project_status --write-output
 
 dashboard:
-	streamlit run src/dashboard.py
+	streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
 
 dashboard-smoke:
 	scripts/smoke_dashboard.sh
