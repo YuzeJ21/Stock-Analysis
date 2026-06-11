@@ -439,6 +439,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## What Works Today" in readme
     assert "## Try This Demo Path" in readme
     assert "Optional extra report states:" in readme
+    assert "| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
     assert "| Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |" in readme
     assert "`Home`, then focused review pages" not in readme
     assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> MU peer-limited example -> CRDO fundamentals-gated example -> trusted-data pilot." in readme
@@ -783,7 +784,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "These warnings are part of the model audit trail",
         "not that the product guessed missing data or changed source inputs",
         "Data confidence follows the same principle",
-        "Confidence And Decision Scores",
+        "Data Confidence And Decision Scores",
         "Data confidence is a data-quality and review-routing signal, not investment conviction",
         "Data readiness score =",
         "(ready features + 0.45 * partial features) / ready-or-partial-or-blocked features",
@@ -1338,7 +1339,7 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "local or provider-assisted data supplies rows",
         "does not import a third-party analyst opinion",
         "Validate whether each feature is `ready`, `partial`, `blocked`, or `excluded`",
-        "Reduce confidence or withhold sections when required inputs are missing",
+        "Reduce data confidence or withhold sections when required inputs are missing",
         "full-data company can show fundamentals, DCF assumptions, sensitivity, and peer context",
         "not yet a full-market data platform",
     ):
@@ -1512,7 +1513,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "docs/DATA_STRATEGY.md" in operator_guide
     assert "Public Visitor FAQ" in data_strategy
     assert "The product analysis comes from this repository's readiness gates, DCF calculations, peer gates, decision buckets, and report wording." in data_strategy
-    assert "Local or provider-assisted rows supply inputs; they do not decide valuation status, confidence, peer readiness, or research state." in data_strategy
+    assert "Local or provider-assisted rows supply inputs; they do not decide valuation status, data confidence, peer readiness, or research state." in data_strategy
     assert "Prices are the safest lane to refresh at scale because they are repeatable time-series rows" in data_strategy
     assert "Fundamentals, peer mappings, earnings, and analyst estimates are judgment-required lanes" in data_strategy
     assert "Missing trusted rows are a product signal." in data_strategy

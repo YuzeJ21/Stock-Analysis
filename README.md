@@ -80,7 +80,7 @@ Start with the three paths the dashboard is built around:
 
 | Path | Use it when | First place to open |
 | --- | --- | --- |
-| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and confidence states. | `Single-Stock Report` |
+| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
 | Improve data coverage | You want to understand what trusted input is missing and how to add it safely. | `Data Health` |
 | Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |
 

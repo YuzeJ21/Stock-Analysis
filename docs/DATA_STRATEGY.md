@@ -9,7 +9,7 @@ Provider-assisted does not mean provider-decided. A provider can help populate l
 Use this section when someone asks whether the product is doing the analysis or copying a third-party answer:
 
 - The product analysis comes from this repository's readiness gates, DCF calculations, peer gates, decision buckets, and report wording.
-- Local or provider-assisted rows supply inputs; they do not decide valuation status, confidence, peer readiness, or research state.
+- Local or provider-assisted rows supply inputs; they do not decide valuation status, data confidence, peer readiness, or research state.
 - Prices are the safest lane to refresh at scale because they are repeatable time-series rows; dry-run and capped loops still come first.
 - Fundamentals, peer mappings, earnings, and analyst estimates are judgment-required lanes; they should move through trusted source review, validation, preview, and readiness proof.
 - Missing trusted rows are a product signal. They keep analysis locked so a visitor can see what is real, what is excluded, and what would prove the next layer is available.

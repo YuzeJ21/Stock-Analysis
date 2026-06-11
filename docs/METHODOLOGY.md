@@ -211,7 +211,7 @@ Scores are not:
 - Allocation instructions.
 - Buy/sell/hold recommendations.
 
-Blocked data reduces confidence or keeps a section unavailable. It must not be
+Blocked data reduces data confidence or keeps a section unavailable. It must not be
 converted into a weak score-based conclusion.
 
 Some compatibility output files keep legacy names, including
