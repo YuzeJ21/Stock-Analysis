@@ -59,7 +59,7 @@ For public demos, prefer `make stock-report-md TICKER=NVDA`. Use `make stock-rep
 - `QQQ` and `SMH` demonstrate ETF/index monitor context where operating-company DCF is excluded, not failed.
 - `APLD` demonstrates partial-data handling where valuation stays blocked instead of being invented.
 
-Read `At A Glance` first. It gives the mode, decision view, DCF state, peer context, optional context, method cue, and next local step before the detailed tables. Then read `Reader Guide` and `Evaluation Snapshot` to see what evaluation is supported, what valuation boundary applies, the confidence cue, the next proof step, and the stop rule. Then read `Best Review Path` to see whether to inspect DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
+Read `At A Glance` first. It gives the mode, decision view, DCF state, peer context, optional context, method cue, and next local step before the detailed tables. Then read `Reader Guide` and `Evaluation Snapshot` to see what evaluation is supported, what valuation boundary applies, the confidence cue, the next proof step, and the stop rule. Then read `Proof Checklist` to see what evidence proves the current mode, what unlock proof comes next, and what must stay withheld. Then read `Best Review Path` to see whether to inspect DCF and peers, unlock fundamentals, use monitor context, or start with price coverage.
 
 Then read `Analysis Quality`, `Methodology`, and `Evaluation Function Check`. They explain which functions are ready, blocked, excluded, or optional. The At A Glance method cue and the `Methodology` section show the DCF formula path so the valuation workflow is not a black box.
 

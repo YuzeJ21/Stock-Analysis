@@ -386,7 +386,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "At A Glance single-stock status",
         "Evaluation Snapshot",
         "Best Review Path",
-        "At A Glance + Evaluation Snapshot before tables",
+        "At A Glance + Proof Checklist before tables",
         "Explore ready names: Monthly Picks and sample reports",
         "Mode + decision",
         "DCF + peers",
@@ -450,8 +450,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Operating-company DCF is excluded, not failed",
         "Price/setup review with valuation still locked",
         "next trusted fundamentals unlock step",
-        "At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, Best Review Path, confidence cues, source readiness notes, and copyable local unlock commands",
-        "At A Glance status, a Reader Guide, an Evaluation Snapshot, Best Review Path, confidence cues, methodology, risks, blockers, copyable local unlock commands",
+        "At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, source readiness notes, and copyable local unlock commands",
+        "At A Glance status, a Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, methodology, risks, blockers, copyable local unlock commands",
         "The report is not a black box",
         "project rules decide what can be analyzed",
         "Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears",
@@ -464,7 +464,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "what the product calculated",
         "what stayed withheld",
         "next local proof step",
-        "Markdown reports start with `At A Glance`, then a `Reader Guide`, then an `Evaluation Snapshot`, then `Best Review Path`",
+        "Markdown reports start with `At A Glance`, then a `Reader Guide`, then an `Evaluation Snapshot`, then a `Proof Checklist`, then `Best Review Path`",
+        "what evidence proves the current mode",
         "what valuation is supported or blocked",
         "what to read first",
         "Copyable Unlock Commands",
@@ -757,7 +758,7 @@ def test_methodology_doc_explains_formulas_limits_and_code_paths():
         "At A Glance status: mode, decision view, DCF state, peer context, optional context, method cue, and next local step",
         "Best Review Path: tells the reader whether to review DCF and peers",
         "Evaluation Snapshot: summarizes supported evaluation, valuation boundary, confidence cue, next proof step, and stop rule before the detailed sections",
-        "The report should be read top-down: At A Glance first, Reader Guide second, Evaluation Snapshot third, Best Review Path fourth",
+        "The report should be read top-down: At A Glance first, Reader Guide second, Evaluation Snapshot third, Proof Checklist fourth, Best Review Path fifth",
         "copyable local unlock commands next",
         "the report does not run imports or refreshes and does not connect to external accounts",
         "At A Glance mode, method cue, and next local step",
@@ -803,7 +804,7 @@ def test_roadmap_treats_single_stock_report_as_implemented_and_next_stage_as_v2(
         "### B. Single-Stock Research Mode V2",
         "`make stock-report-md TICKER=...` generates clean Markdown reports for visitor demos",
         "`make stock-report TICKER=...` remains available when optional report data is useful for inspection",
-        "Reports show readiness, Evaluation Snapshot, Best Review Path, analysis quality, methodology, evaluation function checks",
+        "Reports show readiness, Evaluation Snapshot, Proof Checklist, Best Review Path, analysis quality, methodology, evaluation function checks",
         "ETF/index/fund reports show operating-company DCF as excluded, not failed",
         "`Blocked by Data - Missing Peer Mapping`",
         "## 8. Next Public Roadmap Stage",
@@ -838,7 +839,7 @@ def test_product_spec_keeps_execution_features_permanently_out_of_scope():
     for phrase in (
         "## Current Product Surfaces",
         "`Home`: plain-language readiness cards and next-action cards first, with methodology ladder and example report comparisons in collapsed sections",
-        "`Single-Stock Report`: ticker-level At A Glance status, Evaluation Snapshot, Best Review Path, confidence cue, methodology cue, analysis quality, valuation state, source readiness check, and copyable local unlock commands",
+        "`Single-Stock Report`: ticker-level At A Glance status, Evaluation Snapshot, Proof Checklist, Best Review Path, confidence cue, methodology cue, analysis quality, valuation state, source readiness check, and copyable local unlock commands",
         "`Data Health`: trusted local data paths, import validation, rejected-row reports, and unlock review paths",
         "`Value / Re-rating`: DCF-ready, peer-limited, blocked, and ETF/index/fund excluded valuation states",
         "Markdown reports under `outputs/stock_reports/`",
@@ -846,7 +847,7 @@ def test_product_spec_keeps_execution_features_permanently_out_of_scope():
         "Broad-universe tables should stay filtered and row-limited by default",
         "## Public Share Definition",
         "the README has a short demo path and dashboard preview",
-        "sample reports show `At A Glance`, `Evaluation Snapshot`, `Best Review Path`, confidence cues, methodology, evaluation function checks, source readiness, and copyable local unlock commands",
+        "sample reports show `At A Glance`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, confidence cues, methodology, evaluation function checks, source readiness, and copyable local unlock commands",
         "project code provides readiness gates, DCF math, peer boundaries, and report wording",
         "`make public-check` passes",
         "generated CSV/JSON churn is reviewed before staging and is not committed by default",
@@ -976,7 +977,7 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "before report, review path, validate/apply, and rebuild-proof packet" in checklist
     assert "baseline readiness, before report, focused blocker check, lane review path" in checklist
     assert "prefer `make stock-report-md` for LinkedIn/GitHub visitors" in checklist
-    assert "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
+    assert "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, `Best Review Path`, `Analysis Quality`, `Methodology`, `Evaluation Function Check`, and `Copyable Unlock Commands`" in checklist
     assert "small pilot" in checklist
     assert "After it passes, run `make diff-hygiene`" in checklist
     assert "make diff-hygiene-files" in checklist
@@ -1078,6 +1079,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     for phrase in (
         "At A Glance",
         "Evaluation Snapshot",
+        "Proof Checklist",
         "Best Review Path",
         "Analysis Quality",
         "Methodology",
@@ -1088,7 +1090,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
         "which local method is being used",
         "what to read first",
         "with the valuation boundary and DCF method path visible before detailed report tables",
-        "At A Glance status, Evaluation Snapshot, Best Review Path, method cue, DCF assumptions",
+        "At A Glance status, Evaluation Snapshot, Proof Checklist, Best Review Path, method cue, DCF assumptions",
         "what command would unlock the next trusted input",
         "DCF-ready review",
         "DCF-ready review",
@@ -1161,7 +1163,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "2026-06-07 Public Product Flow Pass",
         "`Review one stock`, `Improve data coverage`, and `Explore ready names`",
         "trusted-data pilot path for improving 5-10 companies first",
-        "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, then `Best Review Path`",
+        "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, then `Best Review Path`",
         "routes the DCF/peer-ready `NVDA` example to review DCF, peers, and source readiness",
         "2026-06-07 Follow-Up Product Copy Pass",
         "2026-06-10 Public Navigation And Data Strategy Pass",
@@ -1210,7 +1212,7 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Evaluation Snapshot",
         "Best Review Path",
         "copyable local unlock commands",
-        "Evaluation Snapshot near the top",
+        "Evaluation Snapshot near the top, Proof Checklist next",
         "copyable local data-unlock commands",
         "Supported-Today Assessment",
         "Methodology visibility",

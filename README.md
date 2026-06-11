@@ -14,7 +14,7 @@ This project turns a broad stock universe into a readiness-first research dashbo
 - Separates `Research Now`, `Monitor`, and `Blocked by Data` review states.
 - Explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates.
 - Builds transparent local research views for market direction, momentum, portfolio review, valuation context, watchlists, and research decisions.
-- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, Best Review Path, confidence cues, source readiness notes, and copyable local unlock commands.
+- Provides a Streamlit dashboard plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, source readiness notes, and copyable local unlock commands.
 
 ## Why It Matters
 
@@ -29,7 +29,7 @@ When trusted local data is available, the product can produce:
 - DCF readiness and conservative scenario valuation.
 - Peer-context readiness without pretending missing peer valuation exists.
 - ETF/index monitor reports where operating-company DCF is excluded.
-- Single-stock reports with At A Glance status, a Reader Guide, an Evaluation Snapshot, Best Review Path, confidence cues, methodology, risks, blockers, copyable local unlock commands, and source readiness notes.
+- Single-stock reports with At A Glance status, a Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, confidence cues, methodology, risks, blockers, copyable local unlock commands, and source readiness notes.
 
 Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
 
@@ -129,7 +129,7 @@ Example map:
 | [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |
 | [APLD](outputs/stock_reports/apld.md) | Price/setup review with valuation still locked. | Reader Guide, supported setup context, and the next trusted fundamentals unlock step. |
 
-In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then a `Reader Guide`, then an `Evaluation Snapshot`, then `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what confidence cue applies, what to read first, what trusted input matters next, and which copy-only command or proof step to run. They only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
+In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with `At A Glance`, then a `Reader Guide`, then an `Evaluation Snapshot`, then a `Proof Checklist`, then `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what confidence cue applies, what evidence proves the current mode, what to read first, what trusted input matters next, and which copy-only command or proof step to run. They only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
 For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md). Those guides cover targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
 

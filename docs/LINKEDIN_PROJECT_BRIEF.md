@@ -51,7 +51,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Built a Python and Streamlit stock research command center that evaluates market-wide ticker readiness before generating research decisions.
 - Designed a CSV-first data pipeline covering price, momentum, liquidity, correlation, fundamentals, DCF, peer mapping, earnings, and analyst-estimate readiness.
 - Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
-- Added single-stock At A Glance, Reader Guide, Evaluation Snapshot, Best Review Path, Analysis Quality, Methodology, Evaluation Function Check, and Copyable Unlock Commands sections to explain whether each report supports DCF-ready review, standalone DCF review, monitor-only context, price/setup review, or data-unlock work, with the valuation boundary and DCF method path visible before detailed report tables.
+- Added single-stock At A Glance, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, Analysis Quality, Methodology, Evaluation Function Check, and Copyable Unlock Commands sections to explain whether each report supports DCF-ready review, standalone DCF review, monitor-only context, price/setup review, or data-unlock work, with the valuation boundary and DCF method path visible before detailed report tables.
 - Added source readiness checks, preview-first local import validation, rejected-row reporting, and research-only guardrails to prevent overclaims.
 - Documented which parts are original analysis rules, which parts are support libraries, and which actions remain permanently out of scope.
 - Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
@@ -60,7 +60,7 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 
 - In GitHub, start with the README example map and click the tracked sample reports under `outputs/stock_reports/`.
 - Start with `make status-check TOP_N=5` to show the read-only command-center summary without refreshing local artifacts.
-- Open `outputs/stock_reports/nvda.md` to show a company report with At A Glance status, Evaluation Snapshot, Best Review Path, method cue, DCF assumptions, DCF formula path, Analysis Quality notes, Methodology, Evaluation Function Check, and Copyable Unlock Commands.
+- Open `outputs/stock_reports/nvda.md` to show a company report with At A Glance status, Evaluation Snapshot, Proof Checklist, Best Review Path, method cue, DCF assumptions, DCF formula path, Analysis Quality notes, Methodology, Evaluation Function Check, and Copyable Unlock Commands.
 - Open `outputs/stock_reports/a.md` to show standalone DCF review where peer-relative valuation is still locked.
 - Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
