@@ -10451,6 +10451,30 @@ def test_stock_report_missing_data_text_stays_friendly():
     assert "Needs SEC enrichment" in text
     assert "Needs peers.csv" in text
     assert "Not enough price history" in text
+    assert text.startswith("- ")
+
+
+def test_stock_report_missing_data_text_caps_noisy_valuation_warnings():
+    text = dashboard.stock_report_missing_data_text(
+        [
+            "Needs analyst_estimates.csv",
+            "Needs earnings.csv",
+            "Normalized growth target was reduced to keep it conservatively below WACC.",
+            "Observed FCF margin 47.8% exceeded the conservative margin cap of 45.0% and was normalized before projection.",
+            "Observed revenue growth 61.5% exceeded the conservative start-growth cap of 40.0% and was normalized before projection.",
+            "Valuation missing field: EBITDA",
+            "1M performance is unavailable from the current local price history.",
+            "3M performance is unavailable from the current local price history.",
+            "No local price rows were found.",
+        ]
+    )
+
+    assert "DCF assumptions normalized before projection" in text
+    assert "Conservative growth target applied" in text
+    assert "Valuation needs EBITDA" in text
+    assert "Observed FCF margin" not in text
+    assert "Observed revenue growth" not in text
+    assert "+1 more visible warning" in text
 
 
 def test_data_health_overview_cards_prioritize_price_and_actions():

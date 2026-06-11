@@ -2944,6 +2944,12 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
 
 def _translated_missing_item(item: str) -> str:
     lowered = item.lower()
+    if "observed fcf margin" in lowered or "observed revenue growth" in lowered:
+        return "DCF assumptions normalized before projection"
+    if "normalized growth target" in lowered:
+        return "Conservative growth target applied"
+    if lowered.startswith("valuation missing field"):
+        return item.replace("Valuation missing field:", "Valuation needs").strip()
     if "fundamentals unavailable" in lowered:
         return "Needs SEC enrichment"
     if "peer" in lowered:
@@ -5636,7 +5642,22 @@ def stock_report_technical_context_frame(report_payload: dict[str, object]) -> p
 def stock_report_missing_data_text(warnings: list[object]) -> str:
     if not warnings:
         return "No explicit missing-data warnings were assembled from the current inputs."
-    return "; ".join(summarize_missing_fields(warning, max_items=4) for warning in warnings)
+    items: list[str] = []
+    for warning in warnings:
+        for item in summarize_missing_fields(warning, max_items=4).split(", "):
+            clean_item = item.strip()
+            if clean_item and clean_item != "No explicit missing-data warnings":
+                items.append(clean_item)
+    unique_items = list(dict.fromkeys(items))
+    if not unique_items:
+        return "No explicit missing-data warnings were assembled from the current inputs."
+    max_visible = 6
+    shown = unique_items[:max_visible]
+    remaining = len(unique_items) - len(shown)
+    summary = "\n".join(f"- {item}" for item in shown)
+    if remaining > 0:
+        summary += f"\n- +{remaining} more visible warning{'s' if remaining != 1 else ''}; open the detailed notes before using the valuation view."
+    return summary
 
 
 def stock_report_source_frame(source_rows: list[dict[str, object]]) -> pd.DataFrame:
