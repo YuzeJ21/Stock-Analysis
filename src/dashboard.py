@@ -10487,7 +10487,7 @@ def final_decision_quality_cards(decisions_frame: pd.DataFrame | None) -> list[d
         {
             "kicker": "BLOCKED BY DATA",
             "title": f"{blocked} row(s)",
-            "body": "Blocked rows are data-unlock work, not weak-company conclusions. Open Data Health or the next-action columns before interpreting them.",
+            "body": "Blocked rows are missing-data work, not weak-company conclusions. Open Data Health or the next-action columns before interpreting them.",
             "badges": ["missing data", "no inference"],
             "command": "make onboarding TOP_N=10",
         },
@@ -10507,7 +10507,7 @@ def decision_interpretation_ladder_frame() -> pd.DataFrame:
             {
                 "Step": "1. Read the bucket",
                 "What It Means": "Research Now, Monitor, and Blocked by Data are review states, not direct actions.",
-                "What To Check Next": "Confirm whether the row is deeper research, monitor context, or data-unlock work.",
+                "What To Check Next": "Confirm whether the row is deeper research, monitor context, or missing-data work.",
                 "Safe Command": "make project-status",
             },
             {
@@ -10617,7 +10617,7 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
         {
             "kicker": "BUCKET",
             "title": "Review state, not a call",
-            "body": "Read decision_bucket as where the ticker belongs in the research review: deeper review, monitor context, or data-unlock work.",
+            "body": "Read decision_bucket as where the ticker belongs in the research review: deeper review, monitor context, or missing-data work.",
             "badges": ["review label", "not advice"],
         },
         {
@@ -11585,7 +11585,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
         {
             "kicker": "QUEUE MIX",
             "title": lane_title,
-            "body": "Research Now rows stay separated from monitor rows and data-unlock rows so missing inputs do not look like conclusions.",
+            "body": "Research Now rows stay separated from monitor rows and missing-data rows so missing inputs do not look like conclusions.",
             "badges": ["readiness gated", "data-honest"],
             "command": "make readiness",
         },
@@ -11665,7 +11665,7 @@ def active_evaluation_lane_detail_cards(detail_frame: pd.DataFrame | None) -> li
         {
             "kicker": "QUEUE DETAILS",
             "title": f"{len(frame)} review route(s), {total_tickers} ticker(s)",
-            "body": "Review steps group the active queue into supported review, monitor, and data-unlock routes so the next action is clear without reading every ticker row.",
+            "body": "Review steps group the active queue into supported review, monitor, and missing-data routes so the next action is clear without reading every ticker row.",
             "badges": ["grouped review", "row-limited"],
             "command": "make project-status",
         },
@@ -11739,7 +11739,7 @@ def product_page_logic_audit_frame(
             "check": "Research Now gating",
             "status": "pass" if research_now_conflicts == 0 else "review",
             "evidence": f"{research_now_conflicts} Research Now row(s) still show critical price/fundamentals/DCF blockers.",
-            "operator_action": "Keep Research Now limited to rows with supported core evidence; otherwise show a data-unlock state.",
+            "operator_action": "Keep Research Now limited to rows with supported core evidence; otherwise show a missing-data state.",
             "source": "outputs/research_decisions.csv",
         }
     )
@@ -18726,7 +18726,7 @@ def render_value_readiness_tab(frame: pd.DataFrame) -> None:
         render_section_header("Valuation Method Path", "How source rows become DCF context without becoming a hidden conclusion.")
         render_signal_cards(valuation_method_path_cards())
         st.write(
-            "This view separates DCF-ready company analysis, data-unlock work, ETF/index monitor context, "
+            "This view separates DCF-ready company analysis, missing-data work, ETF/index monitor context, "
             "peer-relative valuation, and support dependencies so missing inputs do not look like conclusions. "
             "Operating-company valuation context is shown only for DCF-ready companies."
         )
@@ -18816,7 +18816,7 @@ def render_final_decision_tab(frame: pd.DataFrame, show_reason_details: bool) ->
             st.dataframe(clean_display_frame(decision_interpretation_ladder_frame()), width="stretch", hide_index=True)
         render_signal_cards(final_decision_quality_cards(decisions), show_commands=False)
         with st.expander("More decision detail: review states, proof queue, and table guide", expanded=False):
-            render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in data-unlock states.")
+            render_section_header("Research Decisions", "Readiness-aware decision buckets. Blocked tickers are kept in missing-data states.")
             render_signal_cards(decision_workflow_summary_cards(decisions))
             bucket_counts = decisions.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
             render_metric_cards([(bucket, int(count), "Ticker-level decision bucket") for bucket, count in bucket_counts.items()])
@@ -19720,7 +19720,7 @@ def _plain_home_demo_example_frame() -> pd.DataFrame:
                 "Comparison Role": "Standalone DCF but peer-locked",
                 "What It Shows": "Company report where standalone DCF can be reviewed while peer-relative valuation stays locked.",
                 "Review Mode": "Standalone DCF review",
-                "What To Check": "DCF assumptions versus the exact peer data-unlock step.",
+                "What To Check": "DCF assumptions versus the exact peer missing-data step.",
                 "Copy Command": "make stock-report-md TICKER=A",
             },
             {
@@ -19728,7 +19728,7 @@ def _plain_home_demo_example_frame() -> pd.DataFrame:
                 "Comparison Role": "Price/setup gated company",
                 "What It Shows": "Company report where price/setup context is useful but valuation remains gated.",
                 "Review Mode": "Price/setup review only",
-                "What To Check": "Supported company analysis, peer blocker, and next data-unlock command.",
+                "What To Check": "Supported company analysis, peer blocker, and next proof command.",
                 "Copy Command": "make stock-report-md TICKER=META",
             },
             {
@@ -20782,7 +20782,7 @@ def render_market_command_center(
         st.dataframe(clean_display_frame(active_briefs), width="stretch", hide_index=True)
     render_section_header(
         "Active Evaluation Queue",
-        "Ranked active-universe next steps that separate supported review, monitoring, and data-unlock work.",
+        "Ranked active-universe next steps that separate supported review, monitoring, and missing-data work.",
     )
     active_evaluation_queue = build_active_evaluation_queue_frame(active_briefs, ticker_readiness_frame)
     active_queue_detail = pd.DataFrame()

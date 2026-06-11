@@ -16254,7 +16254,7 @@ def test_final_decision_quality_cards_explain_bucket_boundaries_without_recommen
     assert "market, theme, etf/index, liquidity, or risk context" in rendered
     assert "where company valuation may be excluded" in rendered
     assert "dcf may be excluded" not in rendered
-    assert "blocked rows are data-unlock work" in rendered
+    assert "blocked rows are missing-data work" in rendered
     assert "not weak-company conclusions" in rendered
     assert "project readiness gates" in rendered
     assert "local readiness, blocker, and source readiness outputs in project code" in rendered
@@ -16317,7 +16317,7 @@ def test_final_decision_table_guide_cards_explain_columns_before_rows():
     assert [card["kicker"] for card in cards] == ["BUCKET", "DATA CONFIDENCE", "BLOCKER", "NEXT ACTION"]
     assert "review state, not a call" in rendered
     assert "workflow state, not a call" not in rendered
-    assert "deeper review, monitor context, or data-unlock work" in rendered
+    assert "deeper review, monitor context, or missing-data work" in rendered
     assert "2 low-data-confidence row(s)" in rendered
     assert "data confidence is input coverage, not conviction or recommendation strength" in rendered
     assert "it falls when core inputs, peer context" in rendered

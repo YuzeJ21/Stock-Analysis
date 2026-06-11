@@ -418,7 +418,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "validate/apply step, rejected-row report, and rebuild-proof packet" in readme
     assert readme.index("make stock-report-md TICKER=NVDA # company report with DCF assumptions") < readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated")
     assert readme.index("make stock-report-md TICKER=META # price/setup report with valuation still gated") < readme.index("make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded")
-    assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage unlock queue") < readme.index("Optional extra report states:")
+    assert readme.index("make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list") < readme.index("Optional extra report states:")
     assert "## Local Data Hygiene" in readme
     assert "## License" in readme
     assert "## Analysis Methodology" in readme
@@ -1219,7 +1219,7 @@ def test_analysis_capability_audit_is_public_and_data_honest():
         "Best Review Path",
         "copyable local unlock commands",
         "Reader Guide near the top, Evaluation Snapshot near the top, Proof Checklist next",
-        "copyable local data-unlock commands",
+        "copyable local missing-data proof commands",
         "Supported-Today Assessment",
         "Methodology visibility",
         "Methodology and explanation",

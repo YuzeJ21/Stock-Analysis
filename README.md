@@ -18,7 +18,7 @@ This project turns a broad stock universe into a readiness-first research dashbo
 
 ## Why It Matters
 
-Many stock tools jump straight to rankings. This product treats missing data as a first-class signal: if a ticker is not ready for a specific analysis, it says why and shows the next local data-unlock step. That makes the output more trustworthy, not weaker.
+Many stock tools jump straight to rankings. This product treats missing data as a first-class signal: if a ticker is not ready for a specific analysis, it says why and shows the next local proof step. That makes the output more trustworthy, not weaker.
 
 ## What You Can Analyze
 
@@ -106,7 +106,7 @@ make dashboard                  # open Home and follow the three public paths
 make stock-report-md TICKER=NVDA # company report with DCF assumptions
 make stock-report-md TICKER=META # price/setup report with valuation still gated
 make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded
-make trusted-data-pilot-candidates TOP_N=10 # read-only coverage unlock queue
+make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list
 ```
 
 Optional extra report states:
@@ -124,14 +124,14 @@ Example map:
 | Example | What it demonstrates | What to check |
 | --- | --- | --- |
 | [NVDA](outputs/stock_reports/nvda.md) | Company DCF assumptions and source-backed peer context from trusted local inputs. | Reader Guide, assumptions, sensitivity, peer caveats, source readiness notes. |
-| [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | Reader Guide, DCF assumptions, and the next peer data-unlock step. |
+| [A](outputs/stock_reports/a.md) | Standalone DCF review where peer-relative valuation is still locked. | Reader Guide, DCF assumptions, and the next peer missing-data step. |
 | [META](outputs/stock_reports/meta.md) | Price/setup review where valuation remains gated until trusted fundamentals/DCF inputs are ready. | Reader Guide, supported setup analysis, valuation blockers, and caveats. |
 | [QQQ](outputs/stock_reports/qqq.md) / [SMH](outputs/stock_reports/smh.md) | ETF/index or sector monitor context. | Reader Guide plus Operating-company DCF is excluded, not failed. |
 | [APLD](outputs/stock_reports/apld.md) | Price/setup review with valuation still locked. | Reader Guide, supported setup context, and the next trusted fundamentals unlock step. |
 
 In the dashboard, start on `Home`, then open `Single-Stock Report` for one ticker or `Data Health` when the Home page says analysis is blocked. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what confidence cue applies, what evidence proves the current mode, what to read first, what trusted input matters next, and which copy-only command or proof step to run. They only show `Copyable Unlock Commands` when local data gaps block analysis. File paths and update commands stay inside collapsed help sections so visitors can read the product first. For public demos, prefer `make stock-report-md TICKER=NVDA`; use `make stock-report TICKER=NVDA` only when you want the optional machine-readable report data for local inspection.
 
-For deeper local data-unlock details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md). Those guides cover targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
+For deeper local missing-data details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md). Those guides cover targeted worklists, preview-first imports, capped price refresh loops, readiness snapshots, and diff hygiene without making the README feel like an operations runbook.
 
 When you are ready to improve real coverage, start with `make trusted-data-pilot-candidates TOP_N=10`. It ranks current operating-company blockers from local readiness outputs without importing or fabricating data. Then run `make trusted-data-pilot-packet TICKER=CRDO` for a one-company before report, review path, validate/apply step, rejected-row report, and rebuild-proof packet, or `make trusted-data-pilot TICKERS=<comma-separated candidates> TOP_N=10` for the broader copyable evidence loop.
 

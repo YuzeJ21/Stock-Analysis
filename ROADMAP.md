@@ -176,7 +176,7 @@ Current status:
 - ETF/index/fund reports show operating-company DCF as excluded, not failed.
 - Reports now open with a visitor scan cue, then `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, and `Best Review Path` so first-time visitors see mode, decision view, DCF state, peer context, optional context, confidence cue, proof step, and next local step before methodology detail.
 - The dashboard Single-Stock Report page includes At A Glance and Best Review Path cards, while Markdown reports include an Evaluation Snapshot explaining supported evaluation, valuation boundary, confidence cue, next proof, and stop rule before detailed sections.
-- Reports include a mode guide comparing `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data-unlock only`.
+- Reports include a mode guide comparing `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data needed before analysis`.
 - Blocked and partial reports include `Copyable Unlock Commands` with capped, local, research-only commands for price, fundamentals/DCF, peer mapping, optional-context imports, and the one-company trusted-data pilot packet.
 
 Next improvements:
