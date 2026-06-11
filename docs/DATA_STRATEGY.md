@@ -90,6 +90,16 @@ Decision rule: choose one company only when the matching trusted input can be re
 
 Each one-company packet now has a decision gate: continue only when the required source proof exists; otherwise leave the section blocked and do not apply placeholder rows so the report appears complete. This is the product boundary that keeps valuation useful rather than decorative.
 
+The candidate command also prints a compact review board. Read it as:
+
+| Step | Meaning |
+| --- | --- |
+| Continue | Use the company only when the named source proof exists for the missing lane. |
+| Skip | Move to the next candidate when source proof is unavailable or not reviewable. |
+| Prove | Record the evidence row, rerun readiness, and regenerate the stock report before describing the lane as available. |
+
+This keeps the pilot practical: a useful result can be either "this ticker became supported after trusted rows were validated" or "this ticker stayed blocked for a specific missing input."
+
 One-company evidence packet:
 
 ```bash

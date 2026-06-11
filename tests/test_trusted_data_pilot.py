@@ -7,7 +7,9 @@ from src.trusted_data_pilot import (
     pilot_rank_reason,
     pilot_rejected_report_path,
     pilot_review_path,
+    pilot_review_board_row,
     pilot_selection_brief,
+    pilot_skip_condition,
     pilot_trusted_row_path,
     render_trusted_data_pilot_candidates,
     render_trusted_data_pilot_packet,
@@ -275,6 +277,67 @@ def test_pilot_evidence_row_template_is_copyable_and_data_honest():
     assert "sell" not in row.lower()
 
 
+def test_pilot_review_board_row_makes_continue_skip_and_evidence_explicit():
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            }
+        ],
+        [],
+        [{"ticker": "META", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )[0]
+
+    row = pilot_review_board_row(candidate)
+    rendered = row.lower()
+
+    assert "meta: continue if source proof exists" in rendered
+    assert "skip for now if trusted sec or manual fundamentals rows are not reviewable" in rendered
+    assert "make trusted-data-pilot-packet ticker=meta" in rendered
+    assert "evidence row:" in rendered
+    assert "outputs/stock_reports/meta.md" in rendered
+    assert "placeholder" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_pilot_skip_condition_is_lane_specific():
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+            }
+        ],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs source-backed peer mappings",
+            },
+        ],
+        [
+            {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "MU", "asset_type": "company", "in_active_universe": "True"},
+        ],
+        top_n=10,
+    )
+
+    rendered = " ".join(pilot_skip_condition(candidate) for candidate in candidates).lower()
+
+    assert "trusted sec or manual fundamentals rows are not reviewable" in rendered
+    assert "peer relationships cannot be supported by a source note" in rendered
+    assert "placeholder" not in rendered
+
+
 def test_pilot_selection_brief_explains_how_to_choose_small_pilot():
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -393,6 +456,10 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "does not refresh, import, edit CSVs, or change readiness outputs" in rendered
     assert "Pilot lanes are plain-English proof paths" in rendered
     assert "How to choose the pilot:" in rendered
+    assert "Pilot review board:" in rendered
+    assert "META: continue if source proof exists" in rendered
+    assert "Skip for now if trusted SEC or manual fundamentals rows are not reviewable." in rendered
+    assert "evidence row: META | before: run report | after: rerun report" in rendered
     assert "Pilot selection rule: choose 5-10 operating companies only when you can review source proof" in rendered
     assert "Suggested pilot command after choosing active/demo names: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
     assert "No broad-universe overflow is needed for the first pilot shortlist." in rendered

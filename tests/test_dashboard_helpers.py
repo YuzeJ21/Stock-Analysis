@@ -9465,10 +9465,12 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
         "Review Decision",
         "Review Path",
         "Trusted Row Target",
+        "Skip If",
         "Packet Command",
         "Next Command",
         "Proof After Data Changes",
         "Evidence Expectation",
+        "Evidence Row",
     ]
     assert list(frame["Ticker"]) == ["MU", "META"]
     assert len(frame) == 2
@@ -9479,12 +9481,14 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "choose this company only if you can review trusted sec or manual fundamentals rows" in rendered
     assert "make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
     assert "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "skip for now if peer relationships cannot be supported by a source note" in rendered
     assert "shares outstanding, free-cash-flow margin" in rendered
     assert "fcf_margin" not in rendered
     assert "make trusted-data-pilot-packet ticker=mu" in rendered
     assert "make focus-peers ticker=mu" in rendered
     assert "make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "evidence required: before report, lane review output" in rendered
+    assert "mu | before: run report | after: rerun report" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -9557,10 +9561,12 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Review Decision": "Choose this company only if you can document source-backed peer relationships.",
                 "Review Path": "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER=MU",
                 "Trusted Row Target": "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed",
+                "Skip If": "Skip for now if peer relationships cannot be supported by a source note.",
                 "Packet Command": "make trusted-data-pilot-packet TICKER=MU",
                 "Next Command": "make focus-peers TICKER=MU",
                 "Proof After Data Changes": "make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU",
                 "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
+                "Evidence Row": "MU | before: run report | after: rerun report | needs source-backed peer mappings | make imports-validate && make imports-preview && make imports-apply | outputs/stock_reports/mu.md | keep visible if source proof is unavailable or readiness remains blocked",
             },
             {
                 "Ticker": "META",
@@ -9571,10 +9577,12 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
                 "Review Decision": "Choose this company only if you can review trusted SEC or manual fundamentals rows.",
                 "Review Path": "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META",
                 "Trusted Row Target": "data/staged/fundamentals/ or data/imports/fundamentals.csv",
+                "Skip If": "Skip for now if trusted SEC or manual fundamentals rows are not reviewable.",
                 "Packet Command": "make trusted-data-pilot-packet TICKER=META",
                 "Next Command": "make focus-fundamentals TICKER=META",
                 "Proof After Data Changes": "make readiness && make dcf-readiness && make stock-report-md TICKER=META",
                 "Evidence Expectation": "Evidence required: before report, lane review output, trusted source row or source note.",
+                "Evidence Row": "META | before: run report | after: rerun report | shares outstanding | make imports-validate && make imports-preview && make imports-apply | outputs/stock_reports/meta.md | keep visible if source proof is unavailable or readiness remains blocked",
             },
         ]
     )
@@ -9591,9 +9599,11 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert "missing input: needs source-backed peer mappings; analyst estimates: trusted local csv input" in rendered
     assert "analyst_estimates" not in rendered
     assert "decision: choose this company only if you can document source-backed peer relationships" in rendered
+    assert "skip if: skip for now if peer relationships cannot be supported by a source note" in rendered
     assert "check first: make peer-mapping-queue top_n=25 -> make focus-peers ticker=mu" in rendered
     assert "then run make focus-peers ticker=mu" in rendered
     assert "proof after data changes: make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
+    assert "evidence row: mu | before: run report | after: rerun report" in rendered
     assert "...." not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

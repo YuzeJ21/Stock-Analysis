@@ -221,6 +221,20 @@ def pilot_evidence_expectation(candidate: PilotCandidate) -> str:
     )
 
 
+def pilot_skip_condition(candidate: PilotCandidate) -> str:
+    """Return the condition that should stop work on this candidate."""
+
+    if candidate.lane == "fundamentals_dcf":
+        return "Skip for now if trusted SEC or manual fundamentals rows are not reviewable."
+    if candidate.lane == "peer_mapping":
+        return "Skip for now if peer relationships cannot be supported by a source note."
+    if candidate.lane == "peer_valuation_inputs":
+        return "Skip for now if mapped peers do not have trusted valuation inputs."
+    if candidate.lane == "optional_context_locked":
+        return "Skip for now if trusted earnings or analyst-estimate rows are unavailable."
+    return "Skip for now if the trusted source proof is not available."
+
+
 def pilot_evidence_row_template(candidate: PilotCandidate) -> str:
     """Return a copyable evidence row template for the selected pilot ticker."""
 
@@ -230,6 +244,16 @@ def pilot_evidence_row_template(candidate: PilotCandidate) -> str:
         f"{plain_pilot_input_copy(candidate.missing_input)} | "
         "make imports-validate && make imports-preview && make imports-apply | "
         f"{report_path} | keep visible if source proof is unavailable or readiness remains blocked"
+    )
+
+
+def pilot_review_board_row(candidate: PilotCandidate) -> str:
+    """Return a compact choose/skip/prove line for CLI review boards."""
+
+    return (
+        f"{candidate.ticker}: continue if source proof exists; {pilot_skip_condition(candidate)} "
+        f"Packet: make trusted-data-pilot-packet TICKER={candidate.ticker}; "
+        f"evidence row: {pilot_evidence_row_template(candidate)}"
     )
 
 
@@ -455,6 +479,9 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             "How to choose the pilot:",
             *[f"- {line}" for line in pilot_selection_brief(candidates)],
             "",
+            "Pilot review board:",
+            *[f"- {pilot_review_board_row(candidate)}" for candidate in candidates[: min(top_n, len(candidates))]],
+            "",
         ]
     )
     for index, candidate in enumerate(candidates, start=1):
@@ -471,6 +498,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
                 f"   Lane check: {candidate.next_command}",
                 f"   Review path: {pilot_review_path(candidate.validation_path)}",
                 f"   Trusted row target: {pilot_trusted_row_path(candidate)}",
+                f"   Skip if: {pilot_skip_condition(candidate)}",
                 "   Validate/apply only reviewed rows: make imports-validate && make imports-preview && make imports-apply",
                 f"   Rejected-row report to review: {pilot_rejected_report_path(candidate)}",
                 f"   Proof after data changes: {candidate.proof_after_unlock}",
@@ -532,6 +560,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             pilot_decision_gate(candidate),
             f"Source boundary: {candidate.source_boundary}",
             f"Trusted row target: {pilot_trusted_row_path(candidate)}",
+            f"Skip if: {pilot_skip_condition(candidate)}",
             "",
             "One-company evidence packet:",
             "1. Baseline readiness: make readiness-snapshot",
