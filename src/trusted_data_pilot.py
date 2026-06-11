@@ -144,6 +144,18 @@ def pilot_trusted_row_path(candidate: PilotCandidate) -> str:
     return "trusted local CSV import files"
 
 
+def pilot_rank_reason(candidate: PilotCandidate) -> str:
+    """Explain why a candidate appears in the ranked pilot queue."""
+
+    scope = "active-universe" if candidate.active_universe else "master-universe"
+    demo_note = "public-demo name" if candidate.demo_rank < 999 else "current local blocker"
+    lane = pilot_lane_label(candidate.lane).lower()
+    return (
+        f"{scope} {demo_note}; {lane}; priority {candidate.priority}; "
+        f"missing {candidate.missing_input}."
+    )
+
+
 def build_trusted_data_pilot_candidates(
     fundamentals_rows: Iterable[dict[str, str]],
     peer_rows: Iterable[dict[str, str]],
@@ -305,6 +317,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             [
                 f"{index}. {candidate.ticker} - {pilot_lane_label(candidate.lane)} ({scope}, priority {candidate.priority})",
                 f"   Why it matters: {candidate.why_it_matters}",
+                f"   Rank reason: {pilot_rank_reason(candidate)}",
                 f"   Missing input: {candidate.missing_input}",
                 f"   Next command: {candidate.next_command}",
                 f"   Review path: {pilot_review_path(candidate.validation_path)}",
@@ -359,6 +372,7 @@ def render_trusted_data_pilot_packet(candidate: PilotCandidate | None, *, reques
             f"Pilot lane: {pilot_lane_label(candidate.lane)}",
             f"Scope: {scope}",
             f"Priority: {candidate.priority}",
+            f"Rank reason: {pilot_rank_reason(candidate)}",
             f"Why this candidate matters: {candidate.why_it_matters}",
             f"Missing trusted input: {candidate.missing_input}",
             f"Source boundary: {candidate.source_boundary}",

@@ -1,6 +1,7 @@
 from src.trusted_data_pilot import (
     build_trusted_data_pilot_candidates,
     pilot_lane_label,
+    pilot_rank_reason,
     pilot_review_path,
     pilot_trusted_row_path,
     render_trusted_data_pilot_candidates,
@@ -163,6 +164,28 @@ def test_pilot_trusted_row_path_points_to_lane_specific_local_inputs():
     assert pilot_trusted_row_path(peers) == "data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed"
 
 
+def test_pilot_rank_reason_explains_queue_position_without_new_data():
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue, fcf_margin",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+
+    reason = pilot_rank_reason(candidate)
+
+    assert reason == "active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, fcf_margin."
+    assert "price target" not in reason.lower()
+    assert "recommend" not in reason.lower()
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -185,6 +208,7 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable():
     assert "does not refresh, import, edit CSVs, or change readiness outputs" in rendered
     assert "Pilot lanes are plain-English unlock paths" in rendered
     assert "1. META - Fundamentals / DCF unlock" in rendered
+    assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing shares_outstanding." in rendered
     assert "fundamentals_dcf" not in rendered
     assert "make focus-fundamentals TICKER=META" in rendered
     assert "Review path: make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER=META" in rendered
@@ -252,6 +276,7 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop():
     assert "Ticker: CRDO" in rendered
     assert "Pilot lane: Fundamentals / DCF unlock" in rendered
     assert "fundamentals_dcf" not in rendered
+    assert "Rank reason: active-universe public-demo name; fundamentals / dcf unlock; priority 1; missing revenue, fcf_margin." in rendered
     assert "Missing trusted input: revenue, fcf_margin" in rendered
     assert "Trusted row target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "One-company evidence packet:" in rendered
