@@ -1808,10 +1808,12 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"Visitor proof trail:\"" in makefile
     assert "@echo \"   Home -> NVDA ready -> META blocked -> QQQ excluded -> MU peer-limited -> CRDO fundamentals-gated -> trusted-data pilot\"" in makefile
     assert "@echo \"What this proves: ready data is analyzed, blocked data stays visible, and non-applicable methods are excluded instead of forced.\"" in makefile
+    assert "@echo \"Data-confidence note: report confidence describes readiness and review routing, not investment conviction.\"" in makefile
     assert "@echo \"2. Open the clean dashboard path:\"" in makefile
     assert "@echo \"   Proves: current readiness counts and top blockers without changing local files.\"" in makefile
     assert "@echo \"   Proves: the product journey starts with Review one stock, Improve data coverage, and Explore ready names.\"" in makefile
     assert "@echo \"3. Generate the minimum proof reports:\"" in makefile
+    assert "@echo \"   Each report shows a data-confidence cue, valuation boundary, next proof step, and stop rule.\"" in makefile
     assert "@echo \"      Shows: DCF-ready company review with assumptions and source readiness.\"" in makefile
     assert "@echo \"      Shows: price/setup review where valuation remains gated by trusted fundamentals.\"" in makefile
     assert "@echo \"      Shows: ETF/index monitor context where operating-company DCF is excluded, not failed.\"" in makefile
