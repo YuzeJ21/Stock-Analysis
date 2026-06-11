@@ -54,11 +54,13 @@ make readiness-snapshot
 make trusted-data-pilot-candidates TOP_N=10
 make trusted-data-pilot-packet TICKER=<ticker>
 make stock-report-md TICKER=<ticker>
-make focus-fundamentals TICKER=<ticker>  # fundamentals lane
-make focus-peers TICKER=<ticker>         # peer lane
+Run the lane-specific review command printed by the packet:
+  fundamentals lane: make focus-fundamentals TICKER=<ticker>
+  peer lane: make focus-peers TICKER=<ticker>
 make imports-validate && make imports-preview && make imports-apply
-make readiness && make dcf-readiness                 # fundamentals lane proof
-make readiness && make peer-mapping-queue TOP_N=25   # peer lane proof
+Run the matching rebuild proof:
+  fundamentals lane: make readiness && make dcf-readiness
+  peer lane: make readiness && make peer-mapping-queue TOP_N=25
 ```
 
 1. Save the baseline with `make readiness-snapshot`.

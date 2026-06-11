@@ -1385,11 +1385,13 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "One-company evidence packet:" in data_strategy
     assert "make trusted-data-pilot-packet TICKER=<ticker>" in data_strategy
     assert "make stock-report-md TICKER=<ticker>" in data_strategy
-    assert "make focus-fundamentals TICKER=<ticker>  # fundamentals lane" in data_strategy
-    assert "make focus-peers TICKER=<ticker>         # peer lane" in data_strategy
+    assert "Run the lane-specific review command printed by the packet:" in data_strategy
+    assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in data_strategy
+    assert "peer lane: make focus-peers TICKER=<ticker>" in data_strategy
     assert "make imports-validate && make imports-preview && make imports-apply" in data_strategy
-    assert "make readiness && make dcf-readiness                 # fundamentals lane proof" in data_strategy
-    assert "make readiness && make peer-mapping-queue TOP_N=25   # peer lane proof" in data_strategy
+    assert "Run the matching rebuild proof:" in data_strategy
+    assert "fundamentals lane: make readiness && make dcf-readiness" in data_strategy
+    assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in data_strategy
     assert "lane review path, validate/apply step, rebuild proof, and evidence row to record" in data_strategy
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
@@ -1601,8 +1603,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "ETF/index examples such as QQQ and SMH are monitor-context demos, not operating-company DCF targets." in makefile
     assert "Ticker-scoped example: make trusted-data-pilot TICKERS=NVDA,AVGO,AMD,MU,CRDO TOP_N=10" in makefile
     assert "Candidate queue: make trusted-data-pilot-candidates TOP_N=10" in makefile
-    assert "Company-by-company loop: open one report, inspect fundamentals, inspect peers, then validate trusted rows before reading any new valuation." in makefile
-    assert "Starter loop example: make stock-report-md TICKER=NVDA -> make focus-fundamentals TICKER=NVDA -> make focus-peers TICKER=NVDA" in makefile
+    assert "Company-by-company loop: open one report, choose the matching lane, then validate trusted rows before reading any new valuation." in makefile
+    assert "Starter loop example: make stock-report-md TICKER=CRDO -> make trusted-data-pilot-packet TICKER=CRDO -> run the packet's lane-specific review command" in makefile
     assert "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence." in makefile
     assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, and the exact review, validate/apply, and proof commands that changed the state." in makefile
     assert "SEC credential state: SEC_USER_AGENT is configured for local staging checks." in makefile
@@ -1614,11 +1616,13 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "make trusted-data-pilot-candidates TOP_N=10" in makefile
     assert "make trusted-data-pilot-packet TICKER=<ticker>" in makefile
     assert "make stock-report-md TICKER=<ticker>" in makefile
-    assert "make focus-fundamentals TICKER=<ticker>  # fundamentals lane" in makefile
-    assert "make focus-peers TICKER=<ticker>         # peer lane" in makefile
+    assert "Run the lane-specific review command printed by the packet:" in makefile
+    assert "fundamentals lane: make focus-fundamentals TICKER=<ticker>" in makefile
+    assert "peer lane: make focus-peers TICKER=<ticker>" in makefile
     assert "make imports-validate && make imports-preview && make imports-apply" in makefile
-    assert "make readiness && make dcf-readiness                 # fundamentals lane proof" in makefile
-    assert "make readiness && make peer-mapping-queue TOP_N=25   # peer lane proof" in makefile
+    assert "Run the matching rebuild proof:" in makefile
+    assert "fundamentals lane: make readiness && make dcf-readiness" in makefile
+    assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in makefile
     assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker data-blocked." in makefile
     assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
     assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile
