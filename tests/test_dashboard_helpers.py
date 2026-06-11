@@ -1488,6 +1488,8 @@ def test_output_tab_summary_cards_explain_missing_theme_context_without_zero_row
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no populated theme or sector context is available" in rendered
+    assert "2 rows include explanatory notes" in rendered
+    assert "reason text" not in rendered
     assert "local research state" in rendered
     assert "saved local output" not in rendered
     assert "valuation input state" in rendered

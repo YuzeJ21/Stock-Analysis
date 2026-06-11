@@ -14195,10 +14195,10 @@ def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, 
     if theme_count:
         theme_body = (
             f"Most common theme/sector context across {theme_count} row{'s' if theme_count != 1 else ''}. "
-            f"{reason_count} rows include reason text."
+            f"{reason_count} row{'s' if reason_count != 1 else ''} include explanatory notes."
         )
     else:
-        theme_body = f"No populated theme or sector context is available in this output. {reason_count} rows include reason text."
+        theme_body = f"No populated theme or sector context is available in this output. {reason_count} row{'s' if reason_count != 1 else ''} include explanatory notes."
     return [
         {
             "kicker": title.upper(),
