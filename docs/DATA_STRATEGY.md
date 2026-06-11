@@ -51,12 +51,15 @@ One-company evidence packet:
 
 ```bash
 make readiness-snapshot
-make stock-report-md TICKER=NVDA
-make focus-fundamentals TICKER=NVDA
-make focus-peers TICKER=NVDA
+make trusted-data-pilot-candidates TOP_N=10
+make trusted-data-pilot-packet TICKER=<ticker>
+make stock-report-md TICKER=<ticker>
+make focus-fundamentals TICKER=<ticker>  # fundamentals lane
+make focus-peers TICKER=<ticker>         # peer lane
 make imports-validate && make imports-preview && make imports-apply
-make readiness && make dcf-readiness
-make stock-report-md TICKER=NVDA
+make readiness && make dcf-readiness                 # fundamentals lane proof
+make readiness && make peer-mapping-queue TOP_N=25   # peer lane proof
+make stock-report-md TICKER=<ticker>
 ```
 
 1. Save the baseline with `make readiness-snapshot`.

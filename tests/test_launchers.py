@@ -1377,11 +1377,13 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Suggested company pilot: `NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META`" in data_strategy
     assert "ETF/index examples such as `QQQ` and `SMH` are useful monitor-context demos" in data_strategy
     assert "One-company evidence packet:" in data_strategy
-    assert "make stock-report-md TICKER=NVDA" in data_strategy
-    assert "make focus-fundamentals TICKER=NVDA" in data_strategy
-    assert "make focus-peers TICKER=NVDA" in data_strategy
+    assert "make trusted-data-pilot-packet TICKER=<ticker>" in data_strategy
+    assert "make stock-report-md TICKER=<ticker>" in data_strategy
+    assert "make focus-fundamentals TICKER=<ticker>  # fundamentals lane" in data_strategy
+    assert "make focus-peers TICKER=<ticker>         # peer lane" in data_strategy
     assert "make imports-validate && make imports-preview && make imports-apply" in data_strategy
-    assert "make readiness && make dcf-readiness" in data_strategy
+    assert "make readiness && make dcf-readiness                 # fundamentals lane proof" in data_strategy
+    assert "make readiness && make peer-mapping-queue TOP_N=25   # peer lane proof" in data_strategy
     assert "does not refresh, import, or edit local CSV files" in data_strategy
     assert "provider-assisted rows are optional inputs" in data_strategy
     assert "Provider-assisted does not mean provider-decided" in data_strategy
@@ -1602,11 +1604,14 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker data-blocked and record the missing input." in makefile
     assert "Pilot evidence packet: baseline readiness, before report, focused fundamentals check, focused peer check, import validation path, after readiness, after report." in makefile
     assert "One-company packet example:" in makefile
-    assert "make stock-report-md TICKER=NVDA" in makefile
-    assert "make focus-fundamentals TICKER=NVDA" in makefile
-    assert "make focus-peers TICKER=NVDA" in makefile
+    assert "make trusted-data-pilot-candidates TOP_N=10" in makefile
+    assert "make trusted-data-pilot-packet TICKER=<ticker>" in makefile
+    assert "make stock-report-md TICKER=<ticker>" in makefile
+    assert "make focus-fundamentals TICKER=<ticker>  # fundamentals lane" in makefile
+    assert "make focus-peers TICKER=<ticker>         # peer lane" in makefile
     assert "make imports-validate && make imports-preview && make imports-apply" in makefile
-    assert "make readiness && make dcf-readiness" in makefile
+    assert "make readiness && make dcf-readiness                 # fundamentals lane proof" in makefile
+    assert "make readiness && make peer-mapping-queue TOP_N=25   # peer lane proof" in makefile
     assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker data-blocked." in makefile
     assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
     assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile

@@ -284,7 +284,7 @@ def render_trusted_data_pilot_candidates(candidates: list[PilotCandidate], *, to
             f"4. make stock-report-md TICKER={first}",
             f"5. {candidates[0].next_command}",
             "6. make imports-validate && make imports-preview && make imports-apply",
-            "7. make readiness && make dcf-readiness",
+            f"7. Rebuild lane proof: {candidates[0].proof_after_unlock}",
             f"8. make stock-report-md TICKER={first}",
             "",
             "Stop condition: if trusted source rows are unavailable, keep the ticker data-blocked and move to the next candidate.",
