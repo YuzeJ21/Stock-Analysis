@@ -21,6 +21,7 @@ from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.readiness_ops import build_coverage_frontier, build_readiness_ops_lanes
+from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
@@ -6176,6 +6177,7 @@ def data_health_operations_cockpit_cards(
     frontier_frame: pd.DataFrame | None,
     earnings_readiness_frame: pd.DataFrame | None,
     analyst_readiness_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus | None = None,
 ) -> list[dict[str, object]]:
     price_ready = int(readiness_summary.get("price_ready") or 0)
     dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
@@ -6212,8 +6214,23 @@ def data_health_operations_cockpit_cards(
     earnings_total = 0 if earnings_readiness_frame is None else len(earnings_readiness_frame)
     estimate_total = 0 if analyst_readiness_frame is None else len(analyst_readiness_frame)
     optional_locked = max(earnings_total - earnings_ready, 0) + max(estimate_total - estimate_ready, 0)
+    freshness = freshness or readiness_freshness_status(BASE_DIR)
+    freshness_title = public_status_label(freshness.status).title()
+    freshness_body = (
+        f"{freshness.message} "
+        f"Refresh command: {freshness.refresh_command}. "
+        "Treat stale or missing readiness artifacts as a stop sign before relying on final counts."
+    )
+    freshness_badges = [freshness.status, "refresh before counts"] if freshness.status in {"missing", "stale"} else [freshness.status, "counts usable"]
 
     return [
+        {
+            "kicker": "READINESS FRESHNESS",
+            "title": freshness_title,
+            "body": freshness_body,
+            "badges": freshness_badges,
+            "command": freshness.refresh_command,
+        },
         {
             "kicker": "OPS COCKPIT",
             "title": f"{price_ready:,} price / {dcf_ready:,} DCF / {peer_ready:,} peer-ready",
@@ -21902,6 +21919,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
     ops_center = data_health_readiness_ops_center_frame()
     coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
+    readiness_freshness = readiness_freshness_status(BASE_DIR)
     render_section_header("Operations Cockpit", "Compact lane, frontier, optional-context, and proof-hygiene controls before detailed boards.")
     render_signal_cards(
         data_health_operations_cockpit_cards(
@@ -21910,6 +21928,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             coverage_frontier,
             earnings_readiness_frame,
             analyst_readiness_frame,
+            readiness_freshness,
         )
     )
     render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")

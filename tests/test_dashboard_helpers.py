@@ -9427,17 +9427,22 @@ def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overcl
         frontier,
         earnings,
         estimates,
+        dashboard.FreshnessStatus("stale", "Readiness artifacts may be stale because source file(s) changed.", "make readiness"),
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["OPS COCKPIT", "NEXT FRONTIER", "OPTIONAL CONTEXT", "PROOF HYGIENE"]
-    assert cards[0]["title"] == "265 price / 23 DCF / 9 peer-ready"
-    assert cards[0]["command"] == "make readiness-ops-center"
-    assert cards[1]["title"] == "Price coverage"
-    assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
-    assert cards[2]["title"] == "1 earnings / 0 estimates ready"
-    assert cards[2]["command"] == "make optional-context-summary TOP_N=10"
-    assert cards[3]["command"] == "make diff-hygiene"
+    assert [card["kicker"] for card in cards] == ["READINESS FRESHNESS", "OPS COCKPIT", "NEXT FRONTIER", "OPTIONAL CONTEXT", "PROOF HYGIENE"]
+    assert cards[0]["title"] == "Stale"
+    assert cards[0]["command"] == "make readiness"
+    assert cards[1]["title"] == "265 price / 23 DCF / 9 peer-ready"
+    assert cards[1]["command"] == "make readiness-ops-center"
+    assert cards[2]["title"] == "Price coverage"
+    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert cards[3]["title"] == "1 earnings / 0 estimates ready"
+    assert cards[3]["command"] == "make optional-context-summary TOP_N=10"
+    assert cards[4]["command"] == "make diff-hygiene"
+    assert "readiness artifacts may be stale" in rendered
+    assert "treat stale or missing readiness artifacts as a stop sign" in rendered
     assert "3 lane(s) are visible before ticker drilldown" in rendered
     assert "top data-lane opportunity has unlock impact 3273" in rendered
     assert "not a ranking" in rendered
@@ -9927,8 +9932,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert cockpit_index < ops_index < frontier_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
+    assert "readiness_freshness = readiness_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(\n        data_health_operations_cockpit_cards(" in source
     assert "earnings_readiness_frame,\n            analyst_readiness_frame" in source
+    assert "analyst_readiness_frame,\n            readiness_freshness" in source
     assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
     assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))" in source
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
