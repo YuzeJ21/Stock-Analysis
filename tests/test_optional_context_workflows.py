@@ -10,7 +10,9 @@ from src.optional_context_readiness import (
     NOT_AVAILABLE_REASON,
     build_analyst_estimates_readiness_frame,
     build_earnings_readiness_frame,
+    build_optional_context_readiness_frames,
     build_optional_context_readiness_reports,
+    format_optional_context_summary,
     main,
 )
 
@@ -123,6 +125,21 @@ def test_optional_context_readiness_reports_write_data_files(tmp_path: Path):
     assert (tmp_path / "data" / "analyst_estimates_readiness.csv").exists()
     assert len(reports["earnings_readiness"]) == 2
     assert reports["earnings_readiness"]["reason_not_ready"].eq(NOT_AVAILABLE_REASON).all()
+
+
+def test_optional_context_summary_is_read_only(tmp_path: Path):
+    _write_universe(tmp_path)
+
+    reports = build_optional_context_readiness_frames(tmp_path)
+    rendered = format_optional_context_summary(tmp_path, tmp_path / "data", reports, top_n=1).lower()
+
+    assert "read-only: no earnings or analyst-estimate readiness csvs were written" in rendered
+    assert "earnings_readiness: 0/2 ready; locked=2" in rendered
+    assert "analyst_estimates_readiness: 0/2 ready; locked=2" in rendered
+    assert "top locked earnings_readiness rows" in rendered
+    assert "validate/preview/apply gates" in rendered
+    assert not (tmp_path / "data" / "earnings_readiness.csv").exists()
+    assert not (tmp_path / "data" / "analyst_estimates_readiness.csv").exists()
 
 
 def test_optional_context_readiness_cli_prints_unlock_paths(tmp_path: Path, capsys):

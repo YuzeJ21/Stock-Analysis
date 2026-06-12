@@ -254,11 +254,12 @@ Goal: support broader universe management without forcing expensive full-market 
 
 Goal: add trusted optional context workflows after fundamentals/DCF/peer readiness is no longer the main blocker.
 
-- Trusted earnings import.
-- Trusted analyst estimates import.
-- Dashboard unavailable states when no trusted rows exist.
-- Rejected-row reporting.
-- Readiness reports for earnings and analyst estimates.
+- [x] Trusted earnings import.
+- [x] Trusted analyst estimates import.
+- [x] Dashboard unavailable states when no trusted rows exist.
+- [x] Rejected-row reporting.
+- [x] Read-only optional-context summary before writing readiness CSVs.
+- [x] Readiness reports for earnings and analyst estimates.
 
 Rules:
 

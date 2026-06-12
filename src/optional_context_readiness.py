@@ -193,63 +193,126 @@ def build_optional_context_readiness_reports(
 ) -> dict[str, pd.DataFrame]:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
-    universe = _read_csv(data_path / "universe.csv")
-    earnings = _read_csv(data_path / "earnings.csv")
-    estimates = _read_csv(data_path / "analyst_estimates.csv")
+    reports = build_optional_context_readiness_frames(root, data_dir=data_path)
     data_path.mkdir(parents=True, exist_ok=True)
-    reports = {
-        "earnings_readiness": build_earnings_readiness_frame(universe, earnings),
-        "analyst_estimates_readiness": build_analyst_estimates_readiness_frame(universe, estimates),
-    }
     reports["earnings_readiness"].to_csv(data_path / "earnings_readiness.csv", index=False)
     reports["analyst_estimates_readiness"].to_csv(data_path / "analyst_estimates_readiness.csv", index=False)
     return reports
+
+
+def build_optional_context_readiness_frames(
+    base_dir: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+) -> dict[str, pd.DataFrame]:
+    root = resolve_project_root(base_dir)
+    data_path = resolve_data_dir(data_dir, root)
+    universe = _read_csv(data_path / "universe.csv")
+    earnings = _read_csv(data_path / "earnings.csv")
+    estimates = _read_csv(data_path / "analyst_estimates.csv")
+    return {
+        "earnings_readiness": build_earnings_readiness_frame(universe, earnings),
+        "analyst_estimates_readiness": build_analyst_estimates_readiness_frame(universe, estimates),
+    }
+
+
+def optional_context_payload(reports: dict[str, pd.DataFrame], *, top_n: int = 10) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    for name, frame in reports.items():
+        ready_count = int(frame.filter(like="has_trusted").iloc[:, 0].astype(bool).sum()) if not frame.empty else 0
+        locked = frame.loc[frame.get("reason_not_ready", pd.Series(dtype=str)).astype(str).str.strip().ne("")].copy()
+        preview_columns = [
+            column
+            for column in ("ticker", "missing_fields", "reason_not_ready", "row_count", "manual_import_available")
+            if column in locked.columns
+        ]
+        payload[name] = {
+            "row_count": len(frame),
+            "ready_count": ready_count,
+            "locked_count": max(len(frame) - ready_count, 0),
+            "locked_preview": locked[preview_columns].head(top_n).to_dict(orient="records") if preview_columns else [],
+        }
+    return payload
+
+
+def format_optional_context_summary(
+    root: Path,
+    data_path: Path,
+    reports: dict[str, pd.DataFrame],
+    *,
+    top_n: int = 10,
+    wrote_files: bool = False,
+) -> str:
+    payload = optional_context_payload(reports, top_n=top_n)
+    lines = [
+        format_path_context(root, data_path, root / "outputs"),
+        "Optional context readiness:",
+    ]
+    if not wrote_files:
+        lines.append("Read-only: no earnings or analyst-estimate readiness CSVs were written.")
+    for name, summary in payload.items():
+        lines.append(f"- {name}: {summary['ready_count']}/{summary['row_count']} ready; locked={summary['locked_count']}")
+    if wrote_files:
+        lines.append(f"- earnings_readiness: {data_path / 'earnings_readiness.csv'}")
+        lines.append(f"- analyst_estimates_readiness: {data_path / 'analyst_estimates_readiness.csv'}")
+    lines.extend(
+        [
+            (
+                "Interpretation: earnings and analyst estimates are optional context. "
+                "Zero ready rows means the lane is intentionally locked until trusted local CSV rows exist."
+            ),
+            "What stays withheld: earnings timing, surprise context, consensus estimates, revision context, and price-target context.",
+        ]
+    )
+    for name, summary in payload.items():
+        preview = summary["locked_preview"]
+        if preview:
+            lines.append(f"Top locked {name} rows:")
+            for row in preview:
+                lines.append(
+                    f"- {row.get('ticker', '')}: {row.get('missing_fields', '')}; "
+                    f"next proof uses trusted local rows and validate/preview/apply gates."
+                )
+    lines.extend(
+        [
+            "Trusted staging folders:",
+            "- earnings: data/staged/earnings/",
+            "- analyst estimates: data/staged/analyst_estimates/",
+            "Canonical import CSVs:",
+            "- data/imports/earnings.csv",
+            "- data/imports/analyst_estimates.csv",
+            "Copy-only unlock sequence:",
+            "- make templates",
+            "- make import-earnings or make import-analyst-estimates",
+            "- make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness",
+            "Rejected-row reports:",
+            "- data/earnings_import_rejected.csv",
+            "- data/analyst_estimates_import_rejected.csv",
+            "Boundary: do not infer earnings or estimate context from price, DCF, peer, or sector data.",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write earnings and analyst-estimates trusted-local readiness reports.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
+    parser.add_argument("--read-only", action="store_true", help="Print readiness summary without writing readiness CSV files.")
+    parser.add_argument("--top-n", type=int, default=10, help="Maximum locked rows to preview in read-only output.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
-    reports = build_optional_context_readiness_reports(root, data_dir=data_path)
-    payload = {
-        name: {
-            "row_count": len(frame),
-            "ready_count": int(frame.filter(like="has_trusted").iloc[:, 0].astype(bool).sum()) if not frame.empty else 0,
-        }
-        for name, frame in reports.items()
-    }
+    if args.read_only:
+        reports = build_optional_context_readiness_frames(root, data_dir=data_path)
+    else:
+        reports = build_optional_context_readiness_reports(root, data_dir=data_path)
+    payload = optional_context_payload(reports, top_n=args.top_n)
     if args.json:
         print(json.dumps(payload, indent=2))
         return
-    print(format_path_context(root, data_path, root / "outputs"))
-    print("Optional context readiness:")
-    for name, summary in payload.items():
-        print(f"- {name}: {summary['ready_count']}/{summary['row_count']} ready")
-    print(f"- earnings_readiness: {data_path / 'earnings_readiness.csv'}")
-    print(f"- analyst_estimates_readiness: {data_path / 'analyst_estimates_readiness.csv'}")
-    print(
-        "Interpretation: earnings and analyst estimates are optional context. "
-        "Zero ready rows means the lane is intentionally locked until trusted local CSV rows exist."
-    )
-    print("What stays withheld: earnings timing, surprise context, consensus estimates, revision context, and price-target context.")
-    print("Trusted staging folders:")
-    print("- earnings: data/staged/earnings/")
-    print("- analyst estimates: data/staged/analyst_estimates/")
-    print("Canonical import CSVs:")
-    print("- data/imports/earnings.csv")
-    print("- data/imports/analyst_estimates.csv")
-    print("Copy-only unlock sequence:")
-    print("- make templates")
-    print("- make import-earnings or make import-analyst-estimates")
-    print("- make imports-validate -> make imports-preview -> make imports-apply -> make optional-context-readiness")
-    print("Rejected-row reports:")
-    print("- data/earnings_import_rejected.csv")
-    print("- data/analyst_estimates_import_rejected.csv")
-    print("Boundary: do not infer earnings or estimate context from price, DCF, peer, or sector data.")
+    print(format_optional_context_summary(root, data_path, reports, top_n=args.top_n, wrote_files=not args.read_only))
 
 
 if __name__ == "__main__":

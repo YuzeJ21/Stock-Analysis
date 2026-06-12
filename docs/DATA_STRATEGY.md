@@ -60,7 +60,7 @@ Use this split when deciding what can run on a schedule and what should stay rev
 | Price refresh | Only capped and intentionally. | Use capped loops after a dry run, then inspect local CSV diffs. | Run readiness, check source freshness, and avoid committing broad CSV churn by default. |
 | Fundamentals / DCF | No broad unattended apply. | Stage or inspect a 5-10 company pilot. | Validate, preview, confirm trusted source rows, then rebuild DCF readiness. |
 | Peers | No broad unattended apply. | Use peer queues to choose source-backed mappings or mapped-peer input gaps. | Confirm the peer relationship and mapped-peer inputs before peer valuation appears. |
-| Earnings / estimates | No. | Keep locked until trusted local rows exist. | Validate, preview, apply, then confirm optional-context readiness. |
+| Earnings / estimates | No. | Keep locked until trusted local rows exist. | Start with read-only `make optional-context-summary`; after trusted row changes, validate, preview, apply, then confirm optional-context readiness. |
 | Public repo cleanup | Yes for checks, no for staging decisions. | `make public-check`, `make diff-hygiene`, `make staged-hygiene-check`. | Human review decides which docs, tests, sample reports, or data artifacts are published. |
 
 The practical rule is simple: automate repeatable checks and capped previews; require human/source review before anything changes valuation, peer context, earnings context, estimates context, or public committed data.
@@ -168,7 +168,7 @@ A company is a useful pilot win only when the evidence is reviewable, not just w
 - DCF-ready companies show assumptions, sensitivity, source readiness, and any locked optional context before interpretation.
 - Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next.
 - Fundamentals-limited companies show the missing fields and whether SEC staging or manual fundamentals imports are the next trusted path.
-- Optional earnings or analyst-estimate context stays locked unless trusted local rows pass validation, preview, and apply.
+- Optional earnings or analyst-estimate context stays locked unless trusted local rows pass validation, preview, and apply. Use `make optional-context-summary TOP_N=10` when you only need to inspect the locked lane without writing readiness CSVs.
 - The final proof is a regenerated report plus refreshed readiness counts, recorded alongside any still-blocked reason; broad generated CSV churn should still stay out of the public branch unless intentionally reviewed.
 
 ## Reviewed Data Proof V1
