@@ -183,6 +183,22 @@ Use `make price-reviewed-run` after a dry-run plan has been reviewed. It prints 
 
 Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.md` for the small shareable proof set: Home, Data Health lane board, one ready report, one blocked report, and one excluded/monitor example. Data Health also surfaces the latest reviewed proof timeline from the durable ledger so visitors can see what changed, what stayed blocked, and which command proves it.
 
+## Data Readiness Operations Center V1
+
+Use `make readiness-ops-center` before drilling into individual tickers. It prints a read-only lane board for price coverage, fundamentals/DCF proof, peer mapping proof, peer valuation inputs, earnings locked context, analyst-estimates locked context, and excluded/not-applicable rows. Each lane keeps ready, partial, blocked, and excluded counts visible, shows the workflow mode, and names the next safe command without refreshing, importing, applying, or rewriting local files.
+
+Use `make coverage-frontier TOP_N=10` to rank broad batch opportunities by unlock impact. This is an operations queue, not a security ranking: a high-impact lane means many feature states are blocked or partial, not that any ticker is attractive or that source data is already available. The command includes the source lane, workflow mode, possible state move, proof command, and generated-churn policy.
+
+Use `make readiness-ops-evidence` as the compact evidence checklist before packaging work. It restates the proof gate, locked optional lanes, excluded/not-applicable boundary, and broad CSV/JSON churn policy. Data Health surfaces the same operations-center and coverage-frontier views before the trusted-data pilot and detailed tables so the product starts from batch lanes rather than one-name manual loops.
+
+## Reviewed Batch Execution V1
+
+Use `make reviewed-batch LANE=prices TOP_N=10` to convert a frontier lane into a reviewed run packet. The packet is written to `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv`; it is copy-only and does not refresh, import, apply, or rewrite local data. Supported lane aliases are `prices`, `fundamentals`, `peers`, and `optional_context`, with optional `TICKERS=...` for a capped reviewed scope.
+
+The packet includes the pre-run readiness snapshot command, dry-run command, capped execution command, validate/preview/apply gates, post-run verification commands, expected artifacts, rollback notes, proof-row template, research-only guardrails, and "do not proceed if" blockers. If saved readiness artifacts are missing or stale because source CSVs changed after the reports, the packet says to run `make readiness` before relying on final counts.
+
+Use the reviewed batch packet after `make coverage-frontier TOP_N=10` identifies the best lane to inspect. A high-impact lane is still an operations queue, not a security ranking, and every mutating workflow remains validate -> preview -> apply before any supported outcome is recorded.
+
 ## What Not To Automate Yet
 
 - Broad fundamentals claims without trusted source rows.

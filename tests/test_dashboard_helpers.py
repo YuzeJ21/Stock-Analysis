@@ -9693,6 +9693,33 @@ def test_data_health_reviewed_proof_cards_show_latest_proof_and_history(tmp_path
     assert "source-controlled" in rendered
 
 
+def test_data_health_readiness_ops_center_frame_groups_broad_lanes():
+    frame = dashboard.data_health_readiness_ops_center_frame()
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert "price coverage" in rendered
+    assert "fundamentals / dcf proof" in rendered
+    assert "peer mapping proof" in rendered
+    assert "peer valuation inputs proof" in rendered
+    assert "earnings locked lane" in rendered
+    assert "analyst estimates locked lane" in rendered
+    assert "excluded / not applicable" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "trusted local rows" in rendered
+
+
+def test_data_health_coverage_frontier_cards_rank_operations_not_securities():
+    frontier = dashboard.data_health_coverage_frontier_frame(top_n=4)
+    cards = dashboard.data_health_coverage_frontier_cards(frontier)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert not frontier.empty
+    assert cards[0]["kicker"].startswith("FRONTIER #")
+    assert "operations queue" in rendered
+    assert "not a security recommendation" in rendered
+    assert "batch lane" in rendered
+
+
 def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
     fundamentals = pd.DataFrame(
         [
@@ -9825,6 +9852,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
+    ops_index = source.index('render_section_header("Readiness Operations Center"')
+    frontier_index = source.index('render_section_header("Coverage Frontier"', ops_index)
+    fix_first_index = source.index('render_section_header("Fix First"', frontier_index)
     lane_board_index = source.index('render_section_header("Lane-Group Board"', pilot_index)
     proof_timeline_index = source.index('render_section_header("Reviewed Proof Timeline"', lane_board_index)
     pilot_preview_index = source.index("pilot_preview = data_health_trusted_pilot_preview_frame", pilot_index)
@@ -9832,7 +9862,11 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert ops_index < frontier_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert "ops_center = data_health_readiness_ops_center_frame()" in source
+    assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
+    assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
+    assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))" in source
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
     assert "lane_board = data_health_trusted_pilot_lane_board_frame" in source
     assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))" in source

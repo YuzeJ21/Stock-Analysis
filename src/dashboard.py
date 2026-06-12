@@ -20,6 +20,7 @@ from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
+from src.readiness_ops import build_coverage_frontier, build_readiness_ops_lanes
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
@@ -6643,6 +6644,130 @@ def data_health_trusted_pilot_lane_cards(lane_frame: pd.DataFrame | None, *, lim
                 "title": lane,
                 "body": body,
                 "badges": [status, "copy-only"],
+                "command": command,
+            }
+        )
+    return cards
+
+
+def data_health_readiness_ops_center_frame(root: Path | None = None) -> pd.DataFrame:
+    """Return broad lane-level readiness operations for Data Health."""
+
+    lanes = build_readiness_ops_lanes(root or BASE_DIR)
+    rows = [
+        {
+            "Lane": lane.label,
+            "State": lane.readiness_state,
+            "Workflow Mode": lane.workflow_mode,
+            "Ready": lane.ready_count,
+            "Partial": lane.partial_count,
+            "Blocked": lane.blocked_count,
+            "Excluded": lane.excluded_count,
+            "Total": lane.total_count,
+            "Unlock Impact": lane.unlock_impact,
+            "Source Lane": lane.source_lane,
+            "Source Readiness": lane.source_readiness,
+            "Next Safe Command": lane.next_safe_command,
+            "Proof Command": lane.proof_command,
+            "Generated Churn Policy": lane.generated_churn_policy,
+            "Proof Freshness": lane.stale_proof_warning,
+            "Notes": lane.notes,
+        }
+        for lane in lanes
+    ]
+    return pd.DataFrame(rows)
+
+
+def data_health_coverage_frontier_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
+    lanes = build_readiness_ops_lanes(root or BASE_DIR)
+    frontier = build_coverage_frontier(lanes, top_n=top_n)
+    rows = [
+        {
+            "Rank": row.rank,
+            "Lane": row.label,
+            "Unlock Impact": row.unlock_impact,
+            "Possible State Move": row.possible_state_move,
+            "Source Lane": row.source_lane,
+            "Workflow Mode": row.workflow_mode,
+            "Next Safe Command": row.next_safe_command,
+            "Proof Command": row.proof_command,
+            "Generated Churn Policy": row.generated_churn_policy,
+            "Guardrail": row.guardrail,
+        }
+        for row in frontier
+    ]
+    return pd.DataFrame(rows)
+
+
+def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
+    if ops_frame is None or ops_frame.empty:
+        return [
+            {
+                "kicker": "OPS CENTER",
+                "title": "Lane operations need readiness reports",
+                "body": "Run make readiness first, then use the read-only operations center to choose a batch lane before drilling into individual tickers.",
+                "badges": ["read-only", "lane-level"],
+                "command": "make readiness-ops-center",
+            }
+        ]
+    sorted_frame = ops_frame.copy()
+    sorted_frame["_impact"] = pd.to_numeric(sorted_frame["Unlock Impact"], errors="coerce").fillna(0).astype(int)
+    sorted_frame = sorted_frame.sort_values(["_impact", "Lane"], ascending=[False, True])
+    cards: list[dict[str, object]] = []
+    for _, row in sorted_frame.head(max(limit, 0)).iterrows():
+        lane = format_missing(row.get("Lane"), "Data readiness lane")
+        state = public_status_label(row.get("State"))
+        workflow = format_missing(row.get("Workflow Mode"), "review")
+        impact = format_missing(row.get("Unlock Impact"), "0")
+        source = compact_card_fragment(row.get("Source Readiness"), max_chars=170)
+        churn = compact_card_fragment(row.get("Generated Churn Policy"), max_chars=160)
+        command = format_missing(row.get("Next Safe Command"), "make readiness-ops-center")
+        body = (
+            f"{impact} row(s) or feature states could be improved by this lane. "
+            f"{card_sentence('Source readiness', source)} "
+            f"{card_sentence('Churn policy', churn)} "
+            f"Next safe command: {command}."
+        )
+        cards.append(
+            {
+                "kicker": "READINESS OPS",
+                "title": lane,
+                "body": body,
+                "badges": [state, workflow],
+                "command": command,
+            }
+        )
+    return cards
+
+
+def data_health_coverage_frontier_cards(frontier_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
+    if frontier_frame is None or frontier_frame.empty:
+        return [
+            {
+                "kicker": "COVERAGE FRONTIER",
+                "title": "No batch frontier rows yet",
+                "body": "Run make coverage-frontier TOP_N=10 after readiness outputs exist. The frontier ranks data operations, not securities.",
+                "badges": ["read-only", "not a ranking"],
+                "command": "make coverage-frontier TOP_N=10",
+            }
+        ]
+    cards: list[dict[str, object]] = []
+    for _, row in frontier_frame.head(max(limit, 0)).iterrows():
+        lane = format_missing(row.get("Lane"), "Coverage lane")
+        impact = format_missing(row.get("Unlock Impact"), "0")
+        move = compact_card_fragment(row.get("Possible State Move"), max_chars=180)
+        guardrail = compact_card_fragment(row.get("Guardrail"), max_chars=170)
+        command = format_missing(row.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
+        cards.append(
+            {
+                "kicker": f"FRONTIER #{format_missing(row.get('Rank'), '-')}",
+                "title": lane,
+                "body": (
+                    f"Unlock impact: {impact}. "
+                    f"{card_sentence('Possible state move', move)} "
+                    f"{card_sentence('Guardrail', guardrail)}"
+                ),
+                "badges": [format_missing(row.get("Workflow Mode"), "review"), "batch lane"],
                 "command": command,
             }
         )
@@ -21564,6 +21689,16 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     )
     render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
+    ops_center = data_health_readiness_ops_center_frame()
+    coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
+    render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
+    render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
+    with st.expander("Lane operations board", expanded=False):
+        st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
+    render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
+    render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))
+    with st.expander("Coverage frontier table", expanded=False):
+        st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
     render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")

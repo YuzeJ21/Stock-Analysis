@@ -12,6 +12,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep the dashboard `Data Health` page visible as the safe freshness guide: read-only routine first, capped price dry-run before real refreshes, and review-required lanes for fundamentals, peers, earnings, and analyst estimates.
 - Confirm visitors are not told to manually refresh all 3,538 tickers every day; the public workflow should explain lane-specific freshness and generated-data hygiene instead.
 - Keep `make trusted-data-pilot-candidates TOP_N=10` visible as the read-only first step for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn.
+- Keep `make readiness-ops-center`, `make coverage-frontier TOP_N=10`, and `make reviewed-batch LANE=prices TOP_N=10` visible as the batch-planning path after the visitor understands the trusted-data pilot. These commands should remain copy-only planning/proof workflows, not automatic refresh/apply steps.
 - Confirm the default candidate output stays compact for visitors; use `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` only when local proof file status, decision gates, rejected-row paths, and evidence expectations are needed.
 - Keep `make trusted-data-pilot-packet TICKER=CRDO` visible as the one-company before report, review path, validate/apply, rejected-row, and rebuild-proof packet after a candidate is chosen.
 - Keep `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` visible as the follow-up evidence loop after candidates are selected.
@@ -27,6 +28,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Review `docs/DIFF_HYGIENE_AUDIT.md` before staging so broad local CSV churn stays out of the public branch.
 - Treat new `docs/`, `scripts/`, and `tests/` files from public-product polish as reviewable product candidates, not generated data, when `make diff-hygiene` lists them.
 - Avoid committing huge timestamp-only generated CSV churn.
+- If `make readiness` or `make pipeline` was run during verification, clean or exclude the broad generated CSV/JSON churn before the public release commit. Keep only intentionally reviewed artifacts such as `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv` when they demonstrate the reviewed-batch workflow.
 
 ## Open-Source And Attribution Hygiene
 

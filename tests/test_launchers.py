@@ -57,6 +57,10 @@ def test_makefile_contains_convenience_targets():
         "lane-outcome-history",
         "price-reviewed-run",
         "public-demo-readiness-pack",
+        "readiness-ops-center",
+        "coverage-frontier",
+        "readiness-ops-evidence",
+        "reviewed-batch",
         "diff-hygiene-summary",
         "diff-hygiene-files",
         "staged-hygiene-check",
@@ -166,6 +170,14 @@ def test_makefile_help_documents_key_workflows():
         "Print the controlled reviewed capped price run workflow",
         "make public-demo-readiness-pack",
         "Print the small shareable public demo proof set",
+        "make readiness-ops-center",
+        "Print the broad lane-level readiness operations center",
+        "make coverage-frontier",
+        "Rank batch coverage opportunities by unlock impact",
+        "make readiness-ops-evidence",
+        "Print the broad lane operations evidence checklist",
+        "make reviewed-batch",
+        "Write a reviewed batch run packet for a selected lane",
         "make public-check     Run before sharing the GitHub link",
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
@@ -177,6 +189,10 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record an intentional reviewed proof row",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan",
         "make public-demo-readiness-pack Print the small shareable public demo proof set",
+        "make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data",
+        "make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command",
+        "make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations",
+        "make reviewed-batch [LANE=prices] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -1623,6 +1639,10 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Use `make price-reviewed-run` after a dry-run plan has been reviewed." in data_strategy
     assert "Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.md`" in data_strategy
     assert "Data Health also surfaces the latest reviewed proof timeline" in data_strategy
+    assert "Reviewed Batch Execution V1" in data_strategy
+    assert "Use `make reviewed-batch LANE=prices TOP_N=10` to convert a frontier lane into a reviewed run packet." in data_strategy
+    assert "The packet includes the pre-run readiness snapshot command, dry-run command, capped execution command, validate/preview/apply gates" in data_strategy
+    assert "the packet says to run `make readiness` before relying on final counts." in data_strategy
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy
     assert "Applying SEC/manual fundamentals rows without validation and preview" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
@@ -1818,6 +1838,10 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "lane-outcome-history:\n\t@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --history" in makefile
     assert "price-reviewed-run:\n\t@python3 -m src.reviewed_data_proof --price-reviewed-run --max-candidates $(or $(MAX_CANDIDATES),3500) --top-n $(or $(TOP_N),100) --provider $(or $(PROVIDER),yahoo) --sleep-seconds $(or $(SLEEP_SECONDS),30)" in makefile
     assert "public-demo-readiness-pack:\n\t@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --public-demo-pack" in makefile
+    assert "readiness-ops-center:\n\t@python3 -m src.readiness_ops --root ." in makefile
+    assert "coverage-frontier:\n\t@python3 -m src.readiness_ops --root . --coverage-frontier --top-n $(or $(TOP_N),10)" in makefile
+    assert "readiness-ops-evidence:\n\t@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)" in makefile
+    assert "reviewed-batch:\n\t@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10)" in makefile
     assert "reviewed-data-proof-record:\nifndef LANE" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile

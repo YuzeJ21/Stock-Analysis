@@ -1,0 +1,494 @@
+"""Generate reviewed batch run packets for data-readiness lanes.
+
+This module writes copy-only batch packets. It does not refresh providers,
+import rows, apply staged data, route orders, or produce investment advice.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable
+
+from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
+
+
+DEFAULT_PACKET_MD = Path("outputs/reviewed_batch_packet.md")
+DEFAULT_PACKET_CSV = Path("outputs/reviewed_batch_packet.csv")
+REQUIRED_READINESS_REPORTS = (
+    "data/reports/ticker_readiness_report.csv",
+    "data/reports/feature_readiness_summary.csv",
+)
+SOURCE_FILES_FOR_FRESHNESS = (
+    "data/prices.csv",
+    "data/fundamentals.csv",
+    "data/peers.csv",
+    "data/earnings.csv",
+    "data/analyst_estimates.csv",
+)
+PROOF_TEMPLATE_FIELDS = (
+    "batch_id",
+    "lane",
+    "tickers",
+    "pre_run_readiness_snapshot",
+    "command_run",
+    "validation_result",
+    "preview_result",
+    "apply_result",
+    "post_run_readiness_snapshot",
+    "reviewer",
+    "review_date",
+    "source_files",
+    "notes",
+)
+ACTION_COLUMNS = (
+    "batch_id",
+    "lane",
+    "lane_label",
+    "ticker_scope",
+    "proposed_ticker",
+    "workflow_mode",
+    "source_context",
+    "freshness_status",
+    "dry_run_command",
+    "capped_execution_command",
+    "validation_command",
+    "preview_command",
+    "apply_command",
+    "post_run_verification",
+    "expected_artifacts",
+    "rollback",
+    "do_not_proceed_if",
+)
+
+
+@dataclass(frozen=True)
+class FreshnessStatus:
+    status: str
+    message: str
+    refresh_command: str = "make readiness"
+
+
+@dataclass(frozen=True)
+class ReviewedBatchAction:
+    batch_id: str
+    lane: str
+    lane_label: str
+    ticker_scope: str
+    proposed_ticker: str
+    workflow_mode: str
+    source_context: str
+    freshness_status: str
+    dry_run_command: str
+    capped_execution_command: str
+    validation_command: str
+    preview_command: str
+    apply_command: str
+    post_run_verification: str
+    expected_artifacts: str
+    rollback: str
+    do_not_proceed_if: str
+
+
+@dataclass(frozen=True)
+class ReviewedBatchPacket:
+    batch_id: str
+    selected_lane: str
+    selected_scope: str
+    top_n: int
+    tickers: tuple[str, ...]
+    freshness: FreshnessStatus
+    lanes: tuple[ReadinessLane, ...]
+    actions: tuple[ReviewedBatchAction, ...]
+
+
+LANE_ALIASES = {
+    "price": ("price_coverage",),
+    "prices": ("price_coverage",),
+    "price_coverage": ("price_coverage",),
+    "fundamental": ("fundamentals_dcf",),
+    "fundamentals": ("fundamentals_dcf",),
+    "dcf": ("fundamentals_dcf",),
+    "fundamentals_dcf": ("fundamentals_dcf",),
+    "peer": ("peer_mapping", "peer_valuation_inputs"),
+    "peers": ("peer_mapping", "peer_valuation_inputs"),
+    "peer_mapping": ("peer_mapping",),
+    "peer_valuation": ("peer_valuation_inputs",),
+    "peer_valuation_inputs": ("peer_valuation_inputs",),
+    "optional": ("earnings_locked", "analyst_estimates_locked"),
+    "optional_context": ("earnings_locked", "analyst_estimates_locked"),
+    "earnings": ("earnings_locked",),
+    "analyst_estimates": ("analyst_estimates_locked",),
+}
+
+
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as handle:
+        return [dict(row) for row in csv.DictReader(handle)]
+
+
+def _write_csv(path: Path, rows: Iterable[ReviewedBatchAction]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=ACTION_COLUMNS)
+        writer.writeheader()
+        for action in rows:
+            writer.writerow({column: getattr(action, column) for column in ACTION_COLUMNS})
+
+
+def _truthy(value: object) -> bool:
+    return str(value or "").strip().lower() in {"true", "1", "yes", "y"}
+
+
+def _clean(value: object, fallback: str = "-") -> str:
+    text = str(value or "").strip()
+    if not text or text.lower() == "nan":
+        return fallback
+    return text
+
+
+def _split_tickers(value: str | Iterable[str] | None) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        raw_values = value.split(",")
+    else:
+        raw_values = list(value)
+    return tuple(dict.fromkeys(str(item).strip().upper() for item in raw_values if str(item).strip()))
+
+
+def normalize_batch_lane(value: str) -> tuple[str, ...]:
+    key = str(value or "").strip().lower().replace("-", "_")
+    if key in LANE_ALIASES:
+        return LANE_ALIASES[key]
+    raise ValueError("Unknown reviewed batch lane. Use prices, fundamentals, peers, or optional_context.")
+
+
+def _mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except FileNotFoundError:
+        return 0.0
+
+
+def readiness_freshness_status(root: Path) -> FreshnessStatus:
+    missing = [path for path in REQUIRED_READINESS_REPORTS if not (root / path).exists()]
+    if missing:
+        return FreshnessStatus(
+            "missing",
+            "Missing readiness artifact(s): "
+            + ", ".join(missing)
+            + ". Run make readiness before using this packet for execution.",
+        )
+    readiness_time = min(_mtime(root / path) for path in REQUIRED_READINESS_REPORTS)
+    newer_sources = [path for path in SOURCE_FILES_FOR_FRESHNESS if _mtime(root / path) > readiness_time]
+    if newer_sources:
+        return FreshnessStatus(
+            "stale",
+            "Readiness artifacts may be stale because source file(s) changed after the saved reports: "
+            + ", ".join(newer_sources)
+            + ". Run make readiness before relying on final counts.",
+        )
+    return FreshnessStatus("current", "Readiness artifacts are current relative to watched source files.")
+
+
+def _ticker_from_rows(rows: list[dict[str, str]], field: str = "ticker") -> list[str]:
+    values: list[str] = []
+    for row in rows:
+        ticker = str(row.get(field) or "").strip().upper()
+        if ticker and ticker not in values:
+            values.append(ticker)
+    return values
+
+
+def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tuple[str, ...]) -> tuple[str, ...]:
+    if selected_tickers:
+        return selected_tickers[: max(top_n, 0)]
+    reports = root / "data" / "reports"
+    rows: list[dict[str, str]]
+    if lane == "price_coverage":
+        rows = [
+            row
+            for row in _read_csv(reports / "price_coverage_report.csv")
+            if not _truthy(row.get("price_ready"))
+        ]
+    elif lane == "fundamentals_dcf":
+        rows = [
+            row
+            for row in _read_csv(reports / "fundamentals_coverage_report.csv")
+            if not _truthy(row.get("fundamentals_ready"))
+        ]
+    elif lane in {"peer_mapping", "peer_valuation_inputs"}:
+        rows = _read_csv(reports / "peer_unlock_worklist.csv")
+    elif lane == "earnings_locked":
+        rows = [
+            row
+            for row in _read_csv(reports / "earnings_readiness_report.csv")
+            if not _truthy(row.get("has_trusted_earnings"))
+        ]
+    elif lane == "analyst_estimates_locked":
+        rows = [
+            row
+            for row in _read_csv(reports / "analyst_estimates_readiness_report.csv")
+            if not _truthy(row.get("has_trusted_analyst_estimates"))
+        ]
+    else:
+        rows = []
+    if not rows:
+        rows = _read_csv(reports / "ticker_readiness_report.csv")
+    return tuple(_ticker_from_rows(rows)[: max(top_n, 0)])
+
+
+def _join_ticker_arg(tickers: tuple[str, ...]) -> str:
+    return ",".join(tickers) if tickers else "<reviewed_scope>"
+
+
+def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str, str]:
+    ticker_arg = _join_ticker_arg(tickers)
+    if lane == "price_coverage":
+        return {
+            "dry_run": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=yahoo",
+            "execute": f"make price-refresh-loop MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=yahoo SLEEP_SECONDS=30",
+            "validate": "make price-validate",
+            "preview": "make price-preview",
+            "apply": "make price-apply only for reviewed trusted rows",
+            "post": f"make readiness && make price-coverage TOP_N={top_n} && make status-check TOP_N=5",
+            "artifacts": "data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv",
+            "rollback": "If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.",
+        }
+    if lane == "fundamentals_dcf":
+        return {
+            "dry_run": f"make sec-stage-queue TOP_N={top_n}",
+            "execute": f"make sec-stage TICKERS={ticker_arg} or place trusted rows in data/imports/fundamentals.csv",
+            "validate": "make imports-validate",
+            "preview": "make imports-preview",
+            "apply": "make imports-apply only after reviewed trusted fundamentals rows pass preview",
+            "post": "make readiness && make dcf-readiness",
+            "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/reports/dcf_readiness_report.csv",
+            "rollback": "If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun make readiness.",
+        }
+    if lane in {"peer_mapping", "peer_valuation_inputs"}:
+        return {
+            "dry_run": f"make peer-mapping-queue TOP_N={top_n}",
+            "execute": f"make focus-peers TICKER={tickers[0] if tickers else '<ticker>'} or add reviewed peer rows/mapped-peer inputs",
+            "validate": "make imports-validate",
+            "preview": "make imports-preview",
+            "apply": "make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed",
+            "post": f"make readiness && make peer-mapping-queue TOP_N={top_n}",
+            "artifacts": "data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
+            "rollback": "If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.",
+        }
+    return {
+        "dry_run": f"make optional-context-worklist TOP_N={top_n}",
+        "execute": f"make templates, then prepare trusted local optional rows for {ticker_arg}",
+        "validate": "make imports-validate",
+        "preview": "make imports-preview",
+        "apply": "make imports-apply only after trusted local earnings/estimate rows pass preview",
+        "post": "make optional-context-readiness && make readiness",
+        "artifacts": "data/imports/earnings.csv; data/imports/analyst_estimates.csv; data/reports/earnings_readiness_report.csv; data/reports/analyst_estimates_readiness_report.csv",
+        "rollback": "If optional rows are wrong, do not apply. If applied rows are wrong, restore earnings/analyst-estimates CSVs and rerun optional-context readiness.",
+    }
+
+
+def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
+    blockers = [
+        "readiness artifacts are missing or stale",
+        "source proof is unavailable",
+        "validation fails",
+        "preview shows unexpected rows",
+        "rejected-row reports contain unresolved rows",
+        "the operator cannot identify changed source files",
+    ]
+    if lane.workflow_mode == "locked_manual":
+        blockers.append("trusted local optional-context rows do not exist")
+    if freshness.status in {"missing", "stale"}:
+        blockers.insert(0, f"{freshness.status}: run {freshness.refresh_command}")
+    return "; ".join(blockers)
+
+
+def build_reviewed_batch_packet(
+    root: Path | str = ".",
+    *,
+    lane: str = "prices",
+    top_n: int = 10,
+    tickers: str | Iterable[str] | None = None,
+) -> ReviewedBatchPacket:
+    root = Path(root)
+    selected_lane_codes = normalize_batch_lane(lane)
+    selected_tickers = _split_tickers(tickers)
+    freshness = readiness_freshness_status(root)
+    lanes = [lane_row for lane_row in build_readiness_ops_lanes(root) if lane_row.lane in selected_lane_codes]
+    lane_lookup = {lane_row.lane: lane_row for lane_row in lanes}
+    batch_id = datetime.now(timezone.utc).strftime("RB-%Y%m%dT%H%M%SZ")
+    actions: list[ReviewedBatchAction] = []
+    for lane_code in selected_lane_codes:
+        lane_row = lane_lookup.get(lane_code)
+        if lane_row is None:
+            continue
+        action_tickers = _candidate_tickers(root, lane_code, top_n, selected_tickers)
+        commands = _lane_commands(lane_code, action_tickers, top_n)
+        action_scope = _join_ticker_arg(action_tickers)
+        for proposed in action_tickers or ("<lane_scope>",):
+            actions.append(
+                ReviewedBatchAction(
+                    batch_id=batch_id,
+                    lane=lane_code,
+                    lane_label=lane_row.label,
+                    ticker_scope=action_scope,
+                    proposed_ticker=proposed,
+                    workflow_mode=lane_row.workflow_mode,
+                    source_context=lane_row.source_readiness,
+                    freshness_status=f"{freshness.status}: {freshness.message}",
+                    dry_run_command=commands["dry_run"],
+                    capped_execution_command=commands["execute"],
+                    validation_command=commands["validate"],
+                    preview_command=commands["preview"],
+                    apply_command=commands["apply"],
+                    post_run_verification=commands["post"],
+                    expected_artifacts=commands["artifacts"],
+                    rollback=commands["rollback"],
+                    do_not_proceed_if=_do_not_proceed(lane_row, freshness),
+                )
+            )
+    return ReviewedBatchPacket(
+        batch_id=batch_id,
+        selected_lane=lane,
+        selected_scope=", ".join(selected_lane_codes),
+        top_n=top_n,
+        tickers=selected_tickers,
+        freshness=freshness,
+        lanes=tuple(lanes),
+        actions=tuple(actions),
+    )
+
+
+def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
+    tickers = ", ".join(packet.tickers) if packet.tickers else f"top {packet.top_n}"
+    lines = [
+        "# Reviewed Batch Run Packet",
+        "",
+        "Research-only: this packet plans data-readiness work. It is not investment advice, does not connect to brokers, does not route orders, and does not provide direct buy/sell instructions.",
+        "",
+        f"- Batch ID: `{packet.batch_id}`",
+        f"- Selected lane: `{packet.selected_lane}`",
+        f"- Lane scope: `{packet.selected_scope}`",
+        f"- Ticker scope: `{tickers}`",
+        f"- Freshness status: `{packet.freshness.status}`",
+        f"- Freshness note: {packet.freshness.message}",
+        f"- Refresh command if blocked: `{packet.freshness.refresh_command}`",
+        "",
+        "## Readiness Snapshot",
+        "",
+        "- Pre-run snapshot command: `make readiness-snapshot`",
+        "- Refresh saved readiness reports before relying on final counts: `make readiness`",
+        "- Current operations view: `make readiness-ops-center`",
+        "- Current frontier view: `make coverage-frontier TOP_N=10`",
+        "",
+        "## Proposed Actions",
+        "",
+    ]
+    if not packet.actions:
+        lines.extend(
+            [
+                "No proposed actions were created. Run `make readiness` and choose one of `prices`, `fundamentals`, `peers`, or `optional_context`.",
+                "",
+            ]
+        )
+    for action in packet.actions:
+        lines.extend(
+            [
+                f"### {action.lane_label}: {action.proposed_ticker}",
+                "",
+                f"- Workflow mode: `{action.workflow_mode}`",
+                f"- Source/freshness context: {action.source_context} Freshness: {action.freshness_status}",
+                f"- Dry-run command: `{action.dry_run_command}`",
+                f"- Capped execution command: `{action.capped_execution_command}`",
+                f"- Validate: `{action.validation_command}`",
+                f"- Preview: `{action.preview_command}`",
+                f"- Apply gate: `{action.apply_command}`",
+                f"- Post-run verification: `{action.post_run_verification}`",
+                f"- Expected artifacts: {action.expected_artifacts}",
+                f"- Rollback checklist: {action.rollback}",
+                f"- Do not proceed if: {action.do_not_proceed_if}",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Review Checklist",
+            "",
+            "- Confirm readiness artifacts are current or run `make readiness`.",
+            "- Confirm the dry run matches the intended lane and capped scope.",
+            "- Confirm source files are trusted and local.",
+            "- For mutating workflows, run validate -> preview -> apply only after review.",
+            "- Check rejected-row reports before treating any lane as supported.",
+            "- Run post-run readiness verification and record supported, still_blocked, skipped, or excluded honestly.",
+            "",
+            "## Proof Row Template",
+            "",
+        ]
+    )
+    for field in PROOF_TEMPLATE_FIELDS:
+        lines.append(f"- {field}:")
+    lines.extend(
+        [
+            "",
+            "## Guardrails",
+            "",
+            "- Do not fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations.",
+            "- Do not treat a high unlock-impact lane as a security ranking.",
+            "- Do not stage broad generated CSV/JSON churn unless it is intentionally reviewed evidence.",
+            "- Do not proceed when source proof, validation, preview, rejected-row checks, or rollback path is unclear.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def write_reviewed_batch_packet(
+    packet: ReviewedBatchPacket,
+    *,
+    md_output: Path = DEFAULT_PACKET_MD,
+    csv_output: Path = DEFAULT_PACKET_CSV,
+) -> None:
+    md_output.parent.mkdir(parents=True, exist_ok=True)
+    md_output.write_text(render_packet_markdown(packet), encoding="utf-8")
+    _write_csv(csv_output, packet.actions)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Write a reviewed batch run packet.")
+    parser.add_argument("--root", default=".", help="Project root.")
+    parser.add_argument("--lane", default="prices", help="prices, fundamentals, peers, optional_context.")
+    parser.add_argument("--top-n", type=int, default=10)
+    parser.add_argument("--tickers", default="", help="Optional comma-separated ticker scope.")
+    parser.add_argument("--md-output", default=str(DEFAULT_PACKET_MD))
+    parser.add_argument("--csv-output", default=str(DEFAULT_PACKET_CSV))
+    parser.add_argument("--print", action="store_true", help="Print packet markdown after writing outputs.")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    packet = build_reviewed_batch_packet(
+        args.root,
+        lane=args.lane,
+        top_n=args.top_n,
+        tickers=args.tickers,
+    )
+    write_reviewed_batch_packet(packet, md_output=Path(args.md_output), csv_output=Path(args.csv_output))
+    if args.print:
+        print(render_packet_markdown(packet))
+    else:
+        print(f"Wrote {args.md_output}")
+        print(f"Wrote {args.csv_output}")
+        print(f"Freshness status: {packet.freshness.status} - {packet.freshness.message}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

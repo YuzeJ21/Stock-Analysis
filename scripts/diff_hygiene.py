@@ -27,6 +27,8 @@ ROOT_PRODUCT_FILES = {
     "Makefile",
     "pyproject.toml",
     "data/reviewed_data_proofs.csv",
+    "outputs/reviewed_batch_packet.csv",
+    "outputs/reviewed_batch_packet.md",
 }
 
 
@@ -52,7 +54,7 @@ def parse_name_status_line(line: str) -> StatusEntry:
 def is_generated_churn(path: str) -> bool:
     if path.startswith("outputs/stock_reports/") and path.endswith(".md"):
         return False
-    if path == "data/reviewed_data_proofs.csv":
+    if path in {"data/reviewed_data_proofs.csv", "outputs/reviewed_batch_packet.csv", "outputs/reviewed_batch_packet.md"}:
         return False
     if path.startswith("data/") and path.endswith((".csv", ".json")):
         return True

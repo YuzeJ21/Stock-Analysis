@@ -8,6 +8,8 @@ The dashboard and single-stock reports show what can be reviewed now, what is bl
 
 Best demos: `NVDA` for DCF-ready company review, `META` for valuation still gated by trusted fundamentals, `QQQ` for ETF/index monitor context, `MU` for standalone DCF with peer valuation still locked, and `CRDO` for a fundamentals-gated proof workflow.
 
+The latest product layer adds a readiness operations center and reviewed batch packet: instead of improving tickers one by one, the app can pick a data-readiness lane, generate a dry-run-first reviewed packet, show validation/preview/apply gates, and document rollback/proof steps before local data changes.
+
 ## Suggested LinkedIn Post
 
 I built a local Python and Streamlit stock research command center around one principle:
@@ -25,6 +27,7 @@ What it includes:
 - Single-stock Markdown reports with At A Glance, Reader Guide, Evaluation Snapshot, Proof Checklist, and Best Review Path sections.
 - DCF-ready, standalone DCF, price/setup-only, monitor-only, and data-needed-before-analysis report modes.
 - Source readiness notes and copyable local proof commands.
+- Lane-level readiness operations and reviewed batch packets for capped, proof-first data work.
 - CSV-first import, validation, preview, rejected-row, and readiness workflows.
 - Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
 
@@ -53,6 +56,8 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
 - Open `outputs/stock_reports/apld.md` or `outputs/stock_reports/crdo.md` to show how the product handles blocked data without inventing valuation conclusions, including the exact copyable local commands for the next proof step and one-company pilot packet.
 - Run `make trusted-data-pilot-candidates TOP_N=10` to show which company blockers the current local data suggests improving next; use `VERBOSE=1` only when you want local proof detail.
+- Run `make readiness-ops-center` and `make coverage-frontier TOP_N=10` to show the lane-level operator view before drilling into one ticker.
+- Run `make reviewed-batch LANE=prices TOP_N=10` to show a copy-only reviewed batch packet with dry-run, capped execution, validation, rollback, and proof fields.
 - Run `make trusted-data-pilot-packet TICKER=CRDO` to show the one-company evidence packet without importing or applying rows.
 - Then run `make trusted-data-pilot TICKERS=<chosen names> TOP_N=10` to show the safe company-focused path for trusted fundamentals, DCF, and peer inputs.
 - Use the one-company evidence packet to explain that a useful coverage win needs before/after proof, source evidence, and a rebuilt report, not just a new CSV row.

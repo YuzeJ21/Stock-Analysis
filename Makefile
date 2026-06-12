@@ -1,4 +1,4 @@
-.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record lane-outcome-history price-reviewed-run public-demo-readiness-pack diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record lane-outcome-history price-reviewed-run public-demo-readiness-pack readiness-ops-center coverage-frontier readiness-ops-evidence reviewed-batch diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -13,14 +13,6 @@ help:
 	@echo "  make dashboard                  Open the dashboard"
 	@echo "  make trusted-data-pilot-candidates TOP_N=10"
 	@echo "                                  Rank the next source-backed data pilot"
-	@echo "  make trusted-data-pilot-packet TICKER=CRDO"
-	@echo "                                  Print one company's read-only proof packet"
-	@echo "  make trusted-data-pilot-lane LANE=fundamentals_dcf"
-	@echo "                                  Print a read-only lane-group runbook"
-	@echo "  make trusted-data-pilot-board TICKERS=MU,CRDO,HOOD"
-	@echo "                                  Print a read-only multi-ticker pilot board"
-	@echo "  make trusted-data-pilot-evidence TICKERS=MU,CRDO"
-	@echo "                                  Write a read-only before-state evidence ledger"
 	@echo "  make reviewed-data-proof        Show durable reviewed proof ledger"
 	@echo "  make lane-outcome-history       Show lane outcome history without generated churn"
 	@echo "  make public-demo-readiness-pack Print the shareable demo proof set"
@@ -28,7 +20,7 @@ help:
 	@echo ""
 	@echo "Useful next paths:"
 	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
-	@echo "  Improve data coverage:   make trusted-data-pilot-candidates TOP_N=10"
+	@echo "  Improve data coverage:   make readiness-ops-center"
 	@echo "  Check price freshness:   make price-refresh-loop DRY_RUN=1"
 	@echo "  Verify public hygiene:   make diff-hygiene && make staged-hygiene-check"
 	@echo ""
@@ -55,6 +47,14 @@ help-full:
 	@echo "                        Print the controlled reviewed capped price run workflow"
 	@echo "  make public-demo-readiness-pack"
 	@echo "                        Print the small shareable public demo proof set"
+	@echo "  make readiness-ops-center"
+	@echo "                        Print the broad lane-level readiness operations center"
+	@echo "  make coverage-frontier"
+	@echo "                        Rank batch coverage opportunities by unlock impact"
+	@echo "  make readiness-ops-evidence"
+	@echo "                        Print the broad lane operations evidence checklist"
+	@echo "  make reviewed-batch"
+	@echo "                        Write a reviewed batch run packet for a selected lane"
 	@echo "  make status-check TOP_N=5"
 	@echo "  make stock-report-md TICKER=NVDA"
 	@echo "  make dashboard-smoke"
@@ -74,6 +74,10 @@ help-full:
 	@echo "  make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record an intentional reviewed proof row"
 	@echo "  make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan"
 	@echo "  make public-demo-readiness-pack Print the small shareable public demo proof set"
+	@echo "  make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data"
+	@echo "  make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command"
+	@echo "  make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations"
+	@echo "  make reviewed-batch [LANE=prices] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
@@ -340,6 +344,18 @@ price-reviewed-run:
 
 public-demo-readiness-pack:
 	@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --public-demo-pack
+
+readiness-ops-center:
+	@python3 -m src.readiness_ops --root .
+
+coverage-frontier:
+	@python3 -m src.readiness_ops --root . --coverage-frontier --top-n $(or $(TOP_N),10)
+
+readiness-ops-evidence:
+	@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)
+
+reviewed-batch:
+	@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/reviewed_batch_packet.md) --csv-output $(or $(CSV_OUTPUT),outputs/reviewed_batch_packet.csv)
 
 reviewed-data-proof-record:
 ifndef LANE

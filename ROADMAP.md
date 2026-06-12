@@ -76,6 +76,26 @@ Goal: turn the Streamlit page into a research command center instead of a collec
 - [x] Add source readiness context to `project_status_next_steps.csv`, `make project-status`, and dashboard next-action cards.
 - Make active-universe vs master-universe language visible wherever counts differ.
 
+### Data Readiness Operations Center V1
+
+Goal: choose broad data-readiness lanes before drilling into individual tickers.
+
+- [x] Add a read-only lane operations command with `make readiness-ops-center`.
+- [x] Add a coverage frontier command with `make coverage-frontier TOP_N=10`.
+- [x] Keep price coverage, fundamentals/DCF, peer mapping, peer valuation inputs, locked earnings, locked analyst estimates, and excluded/not-applicable states separate.
+- [x] Show batch next actions and generated-churn policies in Data Health before detailed ticker tables.
+- Keep frontier ranks framed as data operations impact, not security attractiveness or investment recommendation.
+
+### Reviewed Batch Execution V1
+
+Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
+
+- [x] Add `make reviewed-batch LANE=prices TOP_N=10`.
+- [x] Write `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv`.
+- [x] Include snapshot, dry-run, capped execution, validate/preview/apply gates, post-run proof, expected artifacts, rollback, and proof-row template.
+- [x] Warn when saved readiness artifacts are missing or stale before relying on counts.
+- Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
+
 ## 4. Trusted Data Proof Roadmap
 
 ### A. Trusted Fundamentals Ingestion

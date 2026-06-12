@@ -71,6 +71,8 @@ The product separates refreshable data from judgment-required data:
 | Peers | Use the ranked pilot packet first when a peer-input lane leads, such as `make trusted-data-pilot-packet TICKER=MU`, then add source-backed mappings or mapped-peer price/fundamental inputs only when source proof exists. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
+For batch planning, start with `make readiness-ops-center` and `make coverage-frontier TOP_N=10`. When a lane is worth reviewing, `make reviewed-batch LANE=prices TOP_N=10` writes a copy-only packet with snapshot, dry-run, capped execution, validate/preview/apply gates, rollback notes, and proof fields.
+
 ## What Works Today
 
 This is a working local research prototype with deterministic outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data needed before analysis`.
@@ -116,6 +118,7 @@ make stock-report-md TICKER=CRDO # fundamentals/DCF proof packet example
 make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list
 make trusted-data-pilot-packet TICKER=MU   # first ranked peer-input proof packet
 make trusted-data-pilot-packet TICKER=CRDO # fundamentals/DCF proof packet
+make reviewed-batch LANE=prices TOP_N=10   # copy-only reviewed batch packet
 ```
 
 Optional extra report states:
