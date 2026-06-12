@@ -20388,6 +20388,8 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
     fundamentals_ready = int(summary.get("fundamentals_ready") or 0)
     dcf_ready = int(summary.get("dcf_ready") or 0)
     peer_ready = int(summary.get("peer_ready") or 0)
+    earnings_ready = int(summary.get("earnings_ready") or 0)
+    estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
 
     def _count_text(count: int, label: str) -> str:
         return f"{count:,}/{master:,} {label}" if master else f"{count:,} {label}"
@@ -20398,8 +20400,15 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
                 "Roadmap Area": "Product workflow",
                 "Current Status": "Implemented",
                 "Evidence": "Universe Layers, grouped Next Steps, source readiness notes, row limits, and copy-only commands are visible in the dashboard.",
-                "Next Safe Step": "Use Home or Overview to choose a capped or ticker-targeted command.",
+                "Next Safe Step": "Use Home, Single-Stock Report, or Data Health to choose a capped or ticker-targeted command.",
                 "Copy Command": "make dashboard-smoke",
+            },
+            {
+                "Roadmap Area": "Batch operations workflow",
+                "Current Status": "Implemented, proof-first",
+                "Evidence": "Data Health now opens with an operations cockpit, lane operations board, coverage frontier, reviewed proof timeline, and reviewed-batch packet path.",
+                "Next Safe Step": "Inspect the lane frontier, then create a copy-only reviewed batch packet before any capped execution.",
+                "Copy Command": "make reviewed-batch LANE=prices TOP_N=10",
             },
             {
                 "Roadmap Area": "Fundamentals / DCF data proof",
@@ -20414,6 +20423,13 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
                 "Evidence": f"{_count_text(peer_ready, 'peer-ready')}; missing peer mappings and peer inputs stay explicit instead of inferred.",
                 "Next Safe Step": "Open the Peer Mapping Studio and add only source-backed peer rows.",
                 "Copy Command": "make peer-mapping-queue TOP_N=25",
+            },
+            {
+                "Roadmap Area": "Optional context",
+                "Current Status": "Locked until trusted rows exist",
+                "Evidence": f"{_count_text(earnings_ready, 'earnings-ready')} and {_count_text(estimates_ready, 'analyst-estimate-ready')}; empty optional context is intentional, not inferred analysis.",
+                "Next Safe Step": "Use the read-only optional-context summary first; validate, preview, and apply only after trusted local rows exist.",
+                "Copy Command": "make optional-context-summary TOP_N=10",
             },
             {
                 "Roadmap Area": "Decision clarity",

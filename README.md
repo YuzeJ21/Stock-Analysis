@@ -176,4 +176,4 @@ The app is organized around dashboard, readiness, decision, report, provider, lo
 
 ## Roadmap Snapshot
 
-The next product stage is not more indicators. It is a clearer research review path: readiness history, trusted fundamentals/DCF proof paths, source-backed peer mappings, optional earnings/estimate imports, and sharper source readiness explanations.
+The next product stage is not more indicators. It is a clearer research operations path: Data Health starts with a lane cockpit and reviewed-batch planning, while fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.

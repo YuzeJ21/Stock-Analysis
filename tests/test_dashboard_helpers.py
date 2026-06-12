@@ -13681,6 +13681,8 @@ def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
         "fundamentals_ready": 23,
         "dcf_ready": 23,
         "peer_ready": 3,
+        "earnings_ready": 0,
+        "analyst_estimates_ready": 0,
     }
 
     frame = dashboard.roadmap_milestone_status_frame(summary)
@@ -13688,17 +13690,27 @@ def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
 
     assert frame["Roadmap Area"].tolist() == [
         "Product workflow",
+        "Batch operations workflow",
         "Fundamentals / DCF data proof",
         "Peer readiness",
+        "Optional context",
         "Decision clarity",
         "Verification",
     ]
     assert "Implemented" in rendered
+    assert "Implemented, proof-first" in rendered
     assert "Waiting on trusted data" in rendered
     assert "23/3,538 fundamentals-ready" in rendered
     assert "23/3,538 DCF-ready" in rendered
     assert "3/3,538 peer-ready" in rendered
+    assert "0/3,538 earnings-ready" in rendered
+    assert "0/3,538 analyst-estimate-ready" in rendered
+    assert "operations cockpit" in rendered.lower()
+    assert "reviewed-batch packet path" in rendered
     assert "counts should improve only after SEC staging workflow or trusted manual CSV imports" in rendered
+    assert "empty optional context is intentional" in rendered
+    assert "make reviewed-batch LANE=prices TOP_N=10" in rendered
+    assert "make optional-context-summary TOP_N=10" in rendered
     assert "make sec-stage-queue TOP_N=25" in rendered
     assert "make peer-mapping-queue TOP_N=25" in rendered
     assert "buy" not in rendered.lower()
@@ -13712,16 +13724,21 @@ def test_roadmap_milestone_status_cards_surface_safe_commands():
             "fundamentals_ready": 23,
             "dcf_ready": 23,
             "peer_ready": 3,
+            "earnings_ready": 0,
+            "analyst_estimates_ready": 0,
         }
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert len(cards) == 5
+    assert len(cards) == 7
     assert cards[0]["command"] == "make dashboard-smoke"
+    assert any(card["command"] == "make reviewed-batch LANE=prices TOP_N=10" for card in cards)
+    assert any(card["command"] == "make optional-context-summary TOP_N=10" for card in cards)
     assert any(card["command"] == "make verify" for card in cards)
     assert "data-honest" in rendered
     assert "waiting on trusted data" in rendered
     assert "source-backed peer rows" in rendered
+    assert "locked until trusted rows exist" in rendered
     assert "unsupported" not in rendered
 
 
