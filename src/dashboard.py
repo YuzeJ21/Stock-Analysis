@@ -5819,6 +5819,52 @@ def stock_report_review_metrics_frame(report_payload: dict[str, object]) -> pd.D
     return pd.DataFrame(rows)
 
 
+def stock_report_review_metric_summary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    frame = stock_report_review_metrics_frame(report_payload)
+    if frame.empty:
+        return [
+            {
+                "kicker": "METRIC READINESS",
+                "title": "Blocked",
+                "body": "Benchmark, risk, fundamentals, valuation, and peer review metrics are not assembled for this report yet.",
+                "badges": ["no inferred metrics"],
+            }
+        ]
+    state_counts = frame["State"].astype(str).str.lower().value_counts().to_dict()
+    ready = int(state_counts.get("ready", 0))
+    partial = int(state_counts.get("partial", 0))
+    blocked = int(state_counts.get("blocked", 0))
+    benchmark_rows = frame.loc[frame["Group"].astype(str).str.contains("benchmark/risk", case=False, na=False)]
+    benchmark_states = ", ".join(
+        dict.fromkeys(benchmark_rows["State"].dropna().astype(str).str.lower().tolist())
+    ) or "not available"
+    missing_rows = frame.loc[frame["Missing Inputs"].astype(str).str.lower().ne("none")]
+    first_missing = "none"
+    if not missing_rows.empty:
+        first = missing_rows.iloc[0]
+        first_missing = f"{first['Metric']}: {first['Missing Inputs']}"
+    return [
+        {
+            "kicker": "METRIC READINESS",
+            "title": f"{ready} ready / {partial} partial / {blocked} blocked",
+            "body": "Review metrics are gated one by one, so partial benchmark or peer inputs stay visible instead of becoming hidden scores.",
+            "badges": ["ready", "partial", "blocked"],
+        },
+        {
+            "kicker": "BENCHMARK GATES",
+            "title": benchmark_states.title(),
+            "body": "SPY and QQQ comparisons require aligned local price history before relative return or beta can be treated as ready.",
+            "badges": ["SPY", "QQQ", "aligned rows"],
+        },
+        {
+            "kicker": "NEXT BLOCKER",
+            "title": "Exact input shown",
+            "body": first_missing,
+            "badges": ["no guessing", "source first"],
+        },
+    ]
+
+
 def stock_report_missing_data_text(warnings: list[object]) -> str:
     if not warnings:
         return "No explicit missing-data warnings were assembled from the current inputs."
@@ -20900,16 +20946,18 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
 
         review_metrics_frame = stock_report_review_metrics_frame(report_payload)
         if not review_metrics_frame.empty:
-            st.markdown("#### Benchmark And Risk Review Metrics")
+            st.markdown("#### Readiness-Gated Review Metrics")
             render_context_note(
                 "Historical review only.",
                 "Benchmark-relative return, drawdown, volatility, beta, Sharpe, Sortino, fundamentals trend, valuation multiples, and peer dispersion appear only when their local inputs pass readiness checks.",
             )
-            st.dataframe(
-                clean_display_frame(review_metrics_frame),
-                width="stretch",
-                hide_index=True,
-            )
+            render_signal_cards(stock_report_review_metric_summary_cards(report_payload), show_commands=False)
+            with st.expander("Metric readiness details", expanded=False):
+                st.dataframe(
+                    clean_display_frame(review_metrics_frame),
+                    width="stretch",
+                    hide_index=True,
+                )
 
         st.markdown("#### Setup And Trend Context")
         render_context_note(

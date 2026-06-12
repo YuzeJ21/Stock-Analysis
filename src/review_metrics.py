@@ -11,6 +11,7 @@ import pandas as pd
 from src.paths import resolve_data_dir, resolve_project_root
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.market_data import FinancialSnapshot, MarketDataProvider
+from src.reviewed_batch import readiness_freshness_status
 
 
 READY = "ready"
@@ -58,6 +59,21 @@ class ReviewMetricsSnapshot:
             "peer_metrics": [metric.to_dict() for metric in self.peer_metrics],
             "guardrails": list(self.guardrails),
         }
+
+
+@dataclass
+class MetricReadinessRow:
+    ticker: str
+    benchmark: str
+    overall_state: str
+    ready_metrics: int
+    partial_metrics: int
+    blocked_metrics: int
+    top_blocker: str
+    next_action: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 def _clean_price_history(history: pd.DataFrame) -> pd.Series:
@@ -540,6 +556,119 @@ def build_review_metrics(
     )
 
 
+def _all_metrics(snapshot: ReviewMetricsSnapshot) -> list[ReviewMetric]:
+    return [
+        *snapshot.price_metrics,
+        *snapshot.fundamentals_metrics,
+        *snapshot.valuation_metrics,
+        *snapshot.peer_metrics,
+    ]
+
+
+def _top_metric_blocker(metrics: list[ReviewMetric]) -> str:
+    for metric in metrics:
+        if metric.state in {BLOCKED, PARTIAL} and metric.missing_inputs:
+            return f"{metric.name}: {', '.join(metric.missing_inputs)}"
+    return "none"
+
+
+def _metric_next_action(row: MetricReadinessRow) -> str:
+    blocker = row.top_blocker.lower()
+    if "benchmark" in blocker or "aligned" in blocker or "price" in blocker:
+        return f"make focus-price TICKER={row.ticker}"
+    if "fundamentals" in blocker or "revenue" in blocker or "free cash flow" in blocker:
+        return f"make focus-fundamentals TICKER={row.ticker}"
+    if "peer" in blocker:
+        return f"make focus-peers TICKER={row.ticker}"
+    return f"make stock-report-md TICKER={row.ticker}"
+
+
+def summarize_review_metrics(snapshot: ReviewMetricsSnapshot) -> MetricReadinessRow:
+    metrics = _all_metrics(snapshot)
+    ready = sum(1 for metric in metrics if metric.state == READY)
+    partial = sum(1 for metric in metrics if metric.state == PARTIAL)
+    blocked = sum(1 for metric in metrics if metric.state == BLOCKED)
+    if blocked:
+        state = BLOCKED
+    elif partial:
+        state = PARTIAL
+    else:
+        state = READY
+    row = MetricReadinessRow(
+        ticker=snapshot.ticker,
+        benchmark=snapshot.benchmark,
+        overall_state=state,
+        ready_metrics=ready,
+        partial_metrics=partial,
+        blocked_metrics=blocked,
+        top_blocker=_top_metric_blocker(metrics),
+        next_action="",
+    )
+    row.next_action = _metric_next_action(row)
+    return row
+
+
+def _read_ticker_csv(path: Path) -> list[str]:
+    if not path.exists():
+        return []
+    try:
+        frame = pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        return []
+    columns = {column.lower(): column for column in frame.columns}
+    ticker_column = columns.get("ticker")
+    if ticker_column is None:
+        return []
+    values = frame[ticker_column].dropna().astype(str).str.upper().str.strip().tolist()
+    return [ticker for ticker in dict.fromkeys(values) if ticker]
+
+
+def discover_metric_summary_tickers(
+    root: Path,
+    provider: LocalCSVMarketDataProvider,
+    *,
+    tickers: list[str] | None = None,
+    top_n: int = 10,
+) -> list[str]:
+    if tickers:
+        return list(dict.fromkeys(ticker.upper().strip() for ticker in tickers if ticker.strip()))[:top_n]
+    data_dir = provider.data_dir
+    for filename in ("universe_active.csv", "holdings.csv", "universe.csv"):
+        candidates = _read_ticker_csv(data_dir / filename)
+        if candidates:
+            return candidates[:top_n]
+    return provider.list_local_tickers()[:top_n]
+
+
+def build_metric_readiness_summary(
+    root: Path,
+    provider: LocalCSVMarketDataProvider,
+    *,
+    benchmark: str = "SPY",
+    annual_risk_free_rate: float = 0.0,
+    tickers: list[str] | None = None,
+    top_n: int = 10,
+) -> tuple[list[MetricReadinessRow], dict[str, str]]:
+    selected = discover_metric_summary_tickers(root, provider, tickers=tickers, top_n=top_n)
+    freshness = readiness_freshness_status(root)
+    rows = [
+        summarize_review_metrics(
+            build_review_metrics(
+                ticker,
+                provider,
+                benchmark=benchmark,
+                annual_risk_free_rate=annual_risk_free_rate,
+            )
+        )
+        for ticker in selected
+    ]
+    return rows, {
+        "status": freshness.status,
+        "message": freshness.message,
+        "refresh_command": freshness.refresh_command,
+    }
+
+
 def format_review_metrics_text(snapshot: ReviewMetricsSnapshot) -> str:
     lines = [
         f"Review metrics for {snapshot.ticker} vs {snapshot.benchmark}",
@@ -566,19 +695,75 @@ def format_review_metrics_text(snapshot: ReviewMetricsSnapshot) -> str:
     return "\n".join(lines)
 
 
+def format_metric_readiness_summary_text(rows: list[MetricReadinessRow], freshness: dict[str, str]) -> str:
+    lines = [
+        "Metric readiness summary",
+        "Research-only; this is a readiness queue, not a ranking or recommendation.",
+        f"Freshness: {freshness.get('status', 'unknown')} - {freshness.get('message', 'No freshness context available.')}",
+    ]
+    if freshness.get("status") in {"missing", "stale"}:
+        lines.append(f"Refresh before relying on final counts: {freshness.get('refresh_command', 'make readiness')}")
+    if not rows:
+        lines.append("No tickers were available for metric-readiness review.")
+        return "\n".join(lines)
+    lines.append("")
+    lines.append("Ticker | Benchmark | State | Ready | Partial | Blocked | Top blocker | Next check")
+    lines.append("--- | --- | --- | ---: | ---: | ---: | --- | ---")
+    for row in rows:
+        lines.append(
+            " | ".join(
+                [
+                    row.ticker,
+                    row.benchmark,
+                    row.overall_state,
+                    str(row.ready_metrics),
+                    str(row.partial_metrics),
+                    str(row.blocked_metrics),
+                    row.top_blocker,
+                    row.next_action,
+                ]
+            )
+        )
+    return "\n".join(lines)
+
+
+def _split_cli_tickers(value: str | None) -> list[str] | None:
+    if not value:
+        return None
+    return [item.strip().upper() for item in value.split(",") if item.strip()]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Print readiness-gated benchmark, risk, fundamentals, and peer review metrics.")
-    parser.add_argument("--ticker", required=True)
+    parser.add_argument("--ticker")
+    parser.add_argument("--tickers", help="Comma-separated tickers for summary mode.")
     parser.add_argument("--benchmark", default="SPY", choices=["SPY", "QQQ"])
+    parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--risk-free-rate", type=float, default=0.0)
     parser.add_argument("--project-root")
     parser.add_argument("--data-dir")
+    parser.add_argument("--summary", action="store_true", help="Print a capped multi-ticker metric-readiness summary.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
     root = resolve_project_root(Path(args.project_root) if args.project_root else None)
     data_dir = resolve_data_dir(Path(args.data_dir) if args.data_dir else None, root)
     provider = LocalCSVMarketDataProvider(base_dir=root, data_dir=data_dir)
+    if args.summary or not args.ticker:
+        rows, freshness = build_metric_readiness_summary(
+            root,
+            provider,
+            benchmark=args.benchmark,
+            annual_risk_free_rate=args.risk_free_rate,
+            tickers=_split_cli_tickers(args.tickers or args.ticker),
+            top_n=args.top_n,
+        )
+        if args.json:
+            print(json.dumps({"freshness": freshness, "rows": [row.to_dict() for row in rows]}, indent=2))
+        else:
+            print(format_metric_readiness_summary_text(rows, freshness))
+        return
+
     snapshot = build_review_metrics(
         args.ticker,
         provider,

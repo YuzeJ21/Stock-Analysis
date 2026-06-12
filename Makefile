@@ -10,8 +10,7 @@ help:
 	@echo "  make demo                       Print the clean visitor walkthrough"
 	@echo "  make status-check TOP_N=5       Show current readiness and top blockers"
 	@echo "  make stock-report-md TICKER=NVDA Generate the clearest sample stock report"
-	@echo "  make benchmark-risk-review TICKER=NVDA BENCHMARK=SPY"
-	@echo "                                  Print readiness-gated benchmark/risk review metrics"
+	@echo "  make metric-readiness TOP_N=10  Print capped benchmark/risk metric readiness queue"
 	@echo "  make dashboard                  Open the dashboard"
 	@echo "  make trusted-data-pilot-candidates TOP_N=10"
 	@echo "                                  Rank the next source-backed data pilot"
@@ -80,8 +79,8 @@ help-full:
 	@echo "  make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command"
 	@echo "  make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations"
 	@echo "  make reviewed-batch [LANE=prices] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv"
-	@echo "  make benchmark-risk-review TICKER=NVDA [BENCHMARK=SPY] Print readiness-gated benchmark, risk, fundamentals, valuation, and peer review metrics"
-	@echo "  make metric-readiness TICKER=NVDA [BENCHMARK=SPY] Alias for benchmark-risk-review"
+	@echo "  make benchmark-risk-review TICKER=NVDA [BENCHMARK=SPY] Print one ticker's readiness-gated benchmark, risk, fundamentals, valuation, and peer review metrics"
+	@echo "  make metric-readiness [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARK=SPY] Print the capped metric-readiness queue with freshness context"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
@@ -437,7 +436,8 @@ ifndef TICKER
 endif
 	@python3 -m src.review_metrics --ticker $(TICKER) --benchmark $(or $(BENCHMARK),SPY) $(if $(RISK_FREE_RATE),--risk-free-rate $(RISK_FREE_RATE),)
 
-metric-readiness: benchmark-risk-review
+metric-readiness:
+	@python3 -m src.review_metrics --summary --benchmark $(or $(BENCHMARK),SPY) --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) $(if $(TICKER),--ticker $(TICKER),) $(if $(RISK_FREE_RATE),--risk-free-rate $(RISK_FREE_RATE),)
 
 local-tickers:
 	python3 -m src.stock_report --list-local-tickers

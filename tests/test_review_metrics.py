@@ -15,7 +15,9 @@ from src.review_metrics import (
     PARTIAL,
     READY,
     beta_vs_benchmark,
+    build_metric_readiness_summary,
     build_review_metrics,
+    format_metric_readiness_summary_text,
     format_review_metrics_text,
     max_drawdown,
     rolling_volatility,
@@ -179,5 +181,42 @@ def test_cli_text_preserves_research_only_review_wording():
 
     assert "research-only" in rendered
     assert "historical review metrics are not recommendations" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_metric_readiness_summary_uses_selected_tickers_and_freshness_context(tmp_path):
+    data_dir = tmp_path / "data"
+    reports_dir = data_dir / "reports"
+    reports_dir.mkdir(parents=True)
+    (data_dir / "prices.csv").write_text("date,ticker,close\n2025-01-01,AAA,100\n", encoding="utf-8")
+    (data_dir / "fundamentals.csv").write_text("ticker,revenue\nAAA,100\n", encoding="utf-8")
+    (data_dir / "peers.csv").write_text("ticker,peer_ticker\n", encoding="utf-8")
+    (data_dir / "earnings.csv").write_text("ticker\n", encoding="utf-8")
+    (data_dir / "analyst_estimates.csv").write_text("ticker\n", encoding="utf-8")
+    (reports_dir / "ticker_readiness_report.csv").write_text("ticker\nAAA\n", encoding="utf-8")
+    (reports_dir / "feature_readiness_summary.csv").write_text("feature\nreview_metrics\n", encoding="utf-8")
+    provider = FakeMetricsProvider(
+        prices={"AAA": _price_frame("AAA", 90), "SPY": _price_frame("SPY", 25)},
+        fundamentals_rows=pd.DataFrame([{"ticker": "AAA", "revenue_growth": 0.2, "fcf_margin": 0.2}]),
+    )
+    provider.data_dir = data_dir
+
+    rows, freshness = build_metric_readiness_summary(
+        tmp_path,
+        provider,  # type: ignore[arg-type]
+        benchmark="SPY",
+        tickers=["AAA"],
+        top_n=10,
+    )
+    rendered = format_metric_readiness_summary_text(rows, freshness).lower()
+
+    assert freshness["status"] in {"current", "stale"}
+    assert rows[0].ticker == "AAA"
+    assert rows[0].partial_metrics >= 1
+    assert "metric readiness summary" in rendered
+    assert "freshness:" in rendered
+    assert "aaa | spy" in rendered
+    assert "ranking or recommendation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

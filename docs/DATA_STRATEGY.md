@@ -201,7 +201,7 @@ Use the reviewed batch packet after `make coverage-frontier TOP_N=10` identifies
 
 ## Readiness-Gated Review Metrics
 
-Use `make benchmark-risk-review TICKER=<ticker> BENCHMARK=SPY` or `make metric-readiness TICKER=<ticker> BENCHMARK=QQQ` to inspect benchmark, risk, fundamentals, valuation, and peer review metrics without refreshing or importing data. The command reads local CSV-backed provider data and prints ready, partial, blocked, or excluded states for each metric.
+Use `make metric-readiness TOP_N=10 BENCHMARK=SPY` to inspect the capped metric-readiness queue without refreshing or importing data. Use `make benchmark-risk-review TICKER=<ticker> BENCHMARK=SPY` for one ticker. Both commands read local CSV-backed provider data and print ready, partial, blocked, or excluded states for each metric, with freshness context before the summary.
 
 Price-derived metrics can become ready from trusted local price history: benchmark-relative return, max drawdown, rolling volatility, beta, Sharpe, and Sortino. Benchmark-relative return and beta require enough aligned ticker and benchmark rows; if SPY or QQQ history is missing or too short, those metrics remain partial or blocked.
 

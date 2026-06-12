@@ -21220,3 +21220,42 @@ def test_stock_report_review_metrics_frame_preserves_states_and_blockers():
     assert "peer valuation dispersion" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_stock_report_review_metric_summary_cards_are_product_first():
+    payload = {
+        "review_metrics": {
+            "SPY": {
+                "price_metrics": [
+                    {
+                        "name": "beta_vs_benchmark",
+                        "state": "partial",
+                        "value": None,
+                        "unit": "ratio",
+                        "missing_inputs": ["at least 60 aligned ticker/SPY price rows"],
+                    },
+                    {
+                        "name": "max_drawdown",
+                        "state": "ready",
+                        "value": -0.25,
+                        "unit": "percent",
+                        "missing_inputs": [],
+                    },
+                ],
+                "fundamentals_metrics": [],
+                "valuation_metrics": [],
+                "peer_metrics": [],
+            }
+        }
+    }
+
+    cards = dashboard.stock_report_review_metric_summary_cards(payload)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "METRIC READINESS"
+    assert "ready / 1 partial" in rendered
+    assert "benchmark gates" in rendered
+    assert "exact input shown" in rendered
+    assert "at least 60 aligned ticker/spy price rows" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered

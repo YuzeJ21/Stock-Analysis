@@ -111,10 +111,11 @@ Goal: add useful benchmark, risk, fundamentals, valuation, and peer context with
 - [x] Keep valuation multiples blocked unless trusted fundamentals plus market-cap or price/share-count context exist.
 - [x] Keep peer valuation dispersion blocked unless mapped peers have trusted valuation inputs.
 - [x] Surface the metrics in single-stock Markdown reports and the dashboard Snapshot tab.
+- [x] Add a central `make metric-readiness TOP_N=10` summary with explicit readiness freshness context.
+- [x] Refine the dashboard metrics section from raw table-first output into summary cards plus an optional details table.
 
 Next improvements:
 
-- Add a central metric-readiness universe summary only after stale-readiness handling is explicit.
 - Consider configurable risk-free-rate defaults in project config while keeping the assumption visible in report output.
 - Add richer multi-period fundamentals trend only when trusted historical rows are available.
 

@@ -118,7 +118,7 @@ make stock-report-md TICKER=CRDO # fundamentals/DCF proof packet example
 make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list
 make trusted-data-pilot-packet TICKER=MU   # first ranked peer-input proof packet
 make trusted-data-pilot-packet TICKER=CRDO # fundamentals/DCF proof packet
-make benchmark-risk-review TICKER=NVDA BENCHMARK=SPY # readiness-gated review metrics
+make metric-readiness TOP_N=5 BENCHMARK=SPY # capped readiness-gated metric queue
 ```
 
 Optional extra report states:
