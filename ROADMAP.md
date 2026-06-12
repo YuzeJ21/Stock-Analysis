@@ -313,8 +313,9 @@ The next roadmap milestone is complete when:
 - [x] The product page includes a grouped next-action console with safe capped or ticker-targeted commands.
 - [x] Next-action rows include source readiness context and clearly state that dashboard commands are copyable only.
 - [x] `SEC_USER_AGENT` is detected locally, and manual fundamentals imports validate/preview through the trusted CSV workflow.
-- [ ] `fundamentals_ready` improves beyond 23/3,538 with trusted data only.
-- [ ] `dcf_ready` improves beyond 23/3,538 with trusted data only.
+- [x] `fundamentals_ready` improves beyond 23/3,538 with trusted data only.
+- [x] `dcf_ready` improves beyond 23/3,538 with trusted data only.
+- Evidence: a reviewed SEC Companyfacts import updated META from an old 2017-period fundamentals row to a 2025-period row filed in 2026; regenerated proof showed fundamentals-ready at 27/3,538 and DCF-ready at 24/3,538.
 - [x] Peer readiness improves beyond 3/3,538 or peer blockers become more specific and actionable.
 - [x] Decision buckets remain more informative than generic monitor rows.
 - [x] `ARKF` and risk warnings are resolved or clearly classified.
