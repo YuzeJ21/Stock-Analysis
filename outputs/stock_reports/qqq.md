@@ -145,6 +145,16 @@ Research-only purpose brief. It separates what local data supports from what rem
 - 1Y performance: Not available
 - ATR / volatility: Not available; missing values stay visible instead of guessed.
 
+## Benchmark And Risk Review Metrics
+- Guardrail: these are historical review metrics only; they are not forecasts, rankings, allocation guidance, or account-action instructions.
+- Risk-free-rate assumption: 0.0%; explicit assumption, not fetched or inferred.
+- SPY benchmark/risk review: benchmark relative return=partial (4.4%; missing: at least 60 aligned ticker/spy price rows); max drawdown=partial (-0.2%; missing: at least 60 ticker price rows); rolling volatility=ready (2.7%; missing: none); beta vs benchmark=partial (Not available; missing: at least 60 aligned ticker/spy price rows); sharpe ratio=partial (Not available; missing: at least 60 daily return observations); sortino ratio=partial (Not available; missing: at least 60 daily return observations with downside observations).
+- QQQ benchmark/risk review: benchmark relative return=partial (0.0%; missing: at least 60 aligned ticker/qqq price rows); max drawdown=partial (-0.2%; missing: at least 60 ticker price rows); rolling volatility=ready (2.7%; missing: none); beta vs benchmark=partial (Not available; missing: at least 60 aligned ticker/qqq price rows); sharpe ratio=partial (Not available; missing: at least 60 daily return observations); sortino ratio=partial (Not available; missing: at least 60 daily return observations with downside observations).
+- Fundamentals trend: excluded; value=Not available; missing: none. Source context: asset_type=etf; local universe metadata. Notes: Asset type=etf; operating-company fundamentals, valuation multiples, and peer valuation dispersion are excluded rather than treated as failed data coverage.
+- Valuation multiples: excluded; value=Not available; missing: none. Source context: asset_type=etf; local universe metadata. Notes: Asset type=etf; operating-company fundamentals, valuation multiples, and peer valuation dispersion are excluded rather than treated as failed data coverage.
+- Peer valuation dispersion: excluded; value=Not available; missing: none. Source context: asset_type=etf; local universe metadata. Notes: Asset type=etf; operating-company fundamentals, valuation multiples, and peer valuation dispersion are excluded rather than treated as failed data coverage.
+- Blocked, partial, and excluded metric states are preserved; missing benchmark, fundamentals, market-cap, or peer inputs are not fabricated.
+
 ## Risk Notes
 - Risk watchpoint: monitor liquidity, correlation, and theme exposure; company-specific DCF does not apply.
 - Invalidation condition: Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.

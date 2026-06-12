@@ -71,6 +71,7 @@ class MetricReadinessRow:
     ready_metrics: int
     partial_metrics: int
     blocked_metrics: int
+    excluded_metrics: int
     top_blocker: str
     next_action: str
 
@@ -143,6 +144,26 @@ def _metric_partial(
         benchmark=benchmark,
         required_inputs=required_inputs,
         missing_inputs=missing_inputs,
+        source_context=source_context,
+        notes=notes or [],
+    )
+
+
+def _metric_excluded(
+    name: str,
+    *,
+    required_inputs: list[str],
+    missing_inputs: list[str] | None = None,
+    benchmark: str | None = None,
+    notes: list[str] | None = None,
+    source_context: str = "",
+) -> ReviewMetric:
+    return ReviewMetric(
+        name=name,
+        state=EXCLUDED,
+        benchmark=benchmark,
+        required_inputs=required_inputs,
+        missing_inputs=missing_inputs or [],
         source_context=source_context,
         notes=notes or [],
     )
@@ -361,6 +382,87 @@ def _fundamentals_rows(provider: MarketDataProvider, ticker: str) -> pd.DataFram
             rows = frame.loc[frame["ticker"].astype(str).str.upper().str.strip() == ticker.upper()].copy()
             return rows
     return pd.DataFrame()
+
+
+def _provider_data_dir(provider: MarketDataProvider) -> Path | None:
+    data_dir = getattr(provider, "data_dir", None)
+    if data_dir is None:
+        return None
+    return Path(data_dir)
+
+
+def _load_ticker_metadata_frame(data_dir: Path | None) -> pd.DataFrame:
+    if data_dir is None:
+        return pd.DataFrame()
+    for filename in ("universe_master.csv", "universe.csv"):
+        path = data_dir / filename
+        if not path.exists():
+            continue
+        try:
+            frame = pd.read_csv(path)
+        except Exception:
+            continue
+        if not frame.empty and "ticker" in frame.columns:
+            return frame.copy()
+    return pd.DataFrame()
+
+
+def _asset_type_for_ticker(provider: MarketDataProvider, ticker: str) -> str:
+    frame = _load_ticker_metadata_frame(_provider_data_dir(provider))
+    if frame.empty or "ticker" not in frame.columns:
+        return "unknown"
+    ticker_values = frame["ticker"].astype(str).str.upper().str.strip()
+    matches = frame.loc[ticker_values == ticker.upper().strip()]
+    if matches.empty:
+        return "unknown"
+    row = matches.iloc[-1]
+    for column in ("asset_type", "security_type"):
+        if column in row and pd.notna(row[column]):
+            value = str(row[column]).strip().lower()
+            if value and value != "nan":
+                return value
+    if "is_etf" in row and str(row["is_etf"]).strip().lower() in {"true", "1", "yes", "y"}:
+        return "etf"
+    return "company"
+
+
+def _is_operating_company_asset(asset_type: str) -> bool:
+    normalized = str(asset_type or "").strip().lower()
+    if not normalized or normalized == "unknown":
+        return True
+    return normalized not in {"etf", "index", "fund", "mutual_fund", "closed_end_fund", "proxy"}
+
+
+def _excluded_operating_company_metrics(asset_type: str, source_context: str) -> tuple[list[ReviewMetric], list[ReviewMetric], list[ReviewMetric]]:
+    note = (
+        f"Asset type={asset_type}; operating-company fundamentals, valuation multiples, and peer valuation "
+        "dispersion are excluded rather than treated as failed data coverage."
+    )
+    fundamentals = [
+        _metric_excluded(
+            "revenue_growth_and_fcf_margin_trend",
+            required_inputs=["operating-company fundamentals"],
+            source_context=source_context,
+            notes=[note],
+        )
+    ]
+    valuation = [
+        _metric_excluded(
+            "valuation_multiples",
+            required_inputs=["operating-company fundamentals", "market-cap or price/share-count context"],
+            source_context=source_context,
+            notes=[note],
+        )
+    ]
+    peers = [
+        _metric_excluded(
+            "peer_valuation_dispersion",
+            required_inputs=["operating-company peer valuation inputs"],
+            source_context=source_context,
+            notes=[note],
+        )
+    ]
+    return fundamentals, valuation, peers
 
 
 def _safe_float(value: Any) -> float | None:
@@ -627,6 +729,7 @@ def build_review_metrics(
 ) -> ReviewMetricsSnapshot:
     ticker = ticker.upper().strip()
     benchmark = benchmark.upper().strip()
+    asset_type = _asset_type_for_ticker(provider, ticker)
     financials = provider.get_financials(ticker)
     try:
         quote = provider.get_quote(ticker)
@@ -642,20 +745,31 @@ def build_review_metrics(
     except (KeyError, LookupError):
         benchmark_history = pd.DataFrame(columns=["date", "close"])
     peer_inputs = provider.get_peer_valuation_inputs(ticker)
+    price_metrics = _build_price_metrics(
+        ticker,
+        benchmark,
+        stock_history,
+        benchmark_history,
+        annual_risk_free_rate=annual_risk_free_rate,
+    )
+    if not _is_operating_company_asset(asset_type):
+        source_context = f"asset_type={asset_type}; local universe metadata"
+        fundamentals_metrics, valuation_metrics, peer_metrics = _excluded_operating_company_metrics(
+            asset_type,
+            source_context,
+        )
+    else:
+        fundamentals_metrics = _build_fundamentals_metrics(ticker, financials, provider)
+        valuation_metrics = _build_valuation_metrics(quote_price, financials)
+        peer_metrics = _build_peer_metrics(peer_inputs, financials)
     return ReviewMetricsSnapshot(
         ticker=ticker,
         benchmark=benchmark,
         risk_free_rate=annual_risk_free_rate,
-        price_metrics=_build_price_metrics(
-            ticker,
-            benchmark,
-            stock_history,
-            benchmark_history,
-            annual_risk_free_rate=annual_risk_free_rate,
-        ),
-        fundamentals_metrics=_build_fundamentals_metrics(ticker, financials, provider),
-        valuation_metrics=_build_valuation_metrics(quote_price, financials),
-        peer_metrics=_build_peer_metrics(peer_inputs, financials),
+        price_metrics=price_metrics,
+        fundamentals_metrics=fundamentals_metrics,
+        valuation_metrics=valuation_metrics,
+        peer_metrics=peer_metrics,
         guardrails=[
             "Research-only review metrics; not investment advice.",
             "No broker integration, auto-trading, order routing, or direct buy/sell instructions.",
@@ -696,6 +810,7 @@ def summarize_review_metrics(snapshot: ReviewMetricsSnapshot) -> MetricReadiness
     ready = sum(1 for metric in metrics if metric.state == READY)
     partial = sum(1 for metric in metrics if metric.state == PARTIAL)
     blocked = sum(1 for metric in metrics if metric.state == BLOCKED)
+    excluded = sum(1 for metric in metrics if metric.state == EXCLUDED)
     if blocked:
         state = BLOCKED
     elif partial:
@@ -709,6 +824,7 @@ def summarize_review_metrics(snapshot: ReviewMetricsSnapshot) -> MetricReadiness
         ready_metrics=ready,
         partial_metrics=partial,
         blocked_metrics=blocked,
+        excluded_metrics=excluded,
         top_blocker=_top_metric_blocker(metrics),
         next_action="",
     )
@@ -815,8 +931,8 @@ def format_metric_readiness_summary_text(rows: list[MetricReadinessRow], freshne
         lines.append("No tickers were available for metric-readiness review.")
         return "\n".join(lines)
     lines.append("")
-    lines.append("Ticker | Benchmark | State | Ready | Partial | Blocked | Top blocker | Next check")
-    lines.append("--- | --- | --- | ---: | ---: | ---: | --- | ---")
+    lines.append("Ticker | Benchmark | State | Ready | Partial | Blocked | Excluded | Top blocker | Next check")
+    lines.append("--- | --- | --- | ---: | ---: | ---: | ---: | --- | ---")
     for row in rows:
         lines.append(
             " | ".join(
@@ -827,6 +943,7 @@ def format_metric_readiness_summary_text(rows: list[MetricReadinessRow], freshne
                     str(row.ready_metrics),
                     str(row.partial_metrics),
                     str(row.blocked_metrics),
+                    str(row.excluded_metrics),
                     row.top_blocker,
                     row.next_action,
                 ]

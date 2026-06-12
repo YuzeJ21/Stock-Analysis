@@ -201,6 +201,44 @@ def test_peer_dispersion_requires_peer_valuation_inputs():
     assert metric.value == 0.0
 
 
+def test_etf_proxy_excludes_operating_company_metrics(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "universe_master.csv").write_text(
+        "ticker,asset_type\nQQQ,etf\n",
+        encoding="utf-8",
+    )
+    provider = FakeMetricsProvider(
+        prices={"QQQ": _price_frame("QQQ", 90), "SPY": _price_frame("SPY", 90)},
+        fundamentals_rows=pd.DataFrame(
+            [
+                {"ticker": "QQQ", "period": "2024", "revenue": 100.0, "free_cash_flow": 20.0},
+                {"ticker": "QQQ", "period": "2025", "revenue": 110.0, "free_cash_flow": 22.0},
+            ]
+        ),
+        peer_inputs=[{"ticker": "SPY", "trailing_pe": 20.0}, {"ticker": "SMH", "trailing_pe": 25.0}],
+    )
+    provider.data_dir = data_dir
+
+    snapshot = build_review_metrics("QQQ", provider, benchmark="SPY")
+    row = build_metric_readiness_summary(
+        tmp_path,
+        provider,  # type: ignore[arg-type]
+        benchmark="SPY",
+        tickers=["QQQ"],
+        top_n=1,
+    )[0][0]
+
+    assert any(metric.state == READY for metric in snapshot.price_metrics)
+    assert snapshot.fundamentals_metrics[0].state == "excluded"
+    assert snapshot.valuation_metrics[0].state == "excluded"
+    assert snapshot.peer_metrics[0].state == "excluded"
+    assert snapshot.fundamentals_metrics[0].missing_inputs == []
+    assert "operating-company fundamentals" in snapshot.fundamentals_metrics[0].required_inputs
+    assert any("excluded rather than treated as failed data coverage" in note for note in snapshot.peer_metrics[0].notes)
+    assert row.excluded_metrics == 3
+
+
 def test_cli_text_preserves_research_only_review_wording():
     provider = FakeMetricsProvider(
         prices={"AAA": _price_frame("AAA", 90), "SPY": _price_frame("SPY", 90)},
@@ -244,9 +282,11 @@ def test_metric_readiness_summary_uses_selected_tickers_and_freshness_context(tm
     assert freshness["status"] in {"current", "stale"}
     assert rows[0].ticker == "AAA"
     assert rows[0].partial_metrics >= 1
+    assert rows[0].excluded_metrics == 0
     assert "metric readiness summary" in rendered
     assert "freshness:" in rendered
     assert "aaa | spy" in rendered
+    assert "excluded" in rendered
     assert "ranking or recommendation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
