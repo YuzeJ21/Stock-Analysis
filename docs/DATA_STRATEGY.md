@@ -205,7 +205,7 @@ Use `make metric-readiness TOP_N=10 BENCHMARK=SPY` to inspect the capped metric-
 
 Price-derived metrics can become ready from trusted local price history: benchmark-relative return, max drawdown, rolling volatility, beta, Sharpe, and Sortino. Benchmark-relative return and beta require enough aligned ticker and benchmark rows; if SPY or QQQ history is missing or too short, those metrics remain partial or blocked.
 
-Fundamentals, valuation, and peer metrics keep stricter gates. Revenue growth and FCF margin can show current trusted-row context, but trend stays partial until multiple trusted periods exist. Valuation multiples require trusted fundamentals plus market-cap or trusted price/share-count context. Peer valuation dispersion requires mapped peers plus trusted peer valuation inputs. None of these metrics should be filled from placeholder rows.
+Fundamentals, valuation, and peer metrics keep stricter gates. Revenue growth and FCF margin can show current trusted-row context, and multi-period trend detail appears only when at least two period-labeled trusted fundamentals rows support row-derived revenue growth and FCF margin change. Valuation multiples require trusted fundamentals plus market-cap or trusted price/share-count context. Peer valuation dispersion requires mapped peers plus trusted peer valuation inputs. None of these metrics should be filled from placeholder rows.
 
 Sharpe and Sortino are historical review metrics only. Keep the risk-free-rate assumption explicit; the default lives in `config.yaml` under `risk_rules.annual_risk_free_rate_pct`, and command-line review can override it with `RISK_FREE_RATE=...`. Do not use benchmark or risk metrics as rankings, forecasts, allocation guidance, or account-action instructions.
 

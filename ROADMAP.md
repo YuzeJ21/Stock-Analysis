@@ -117,7 +117,7 @@ Goal: add useful benchmark, risk, fundamentals, valuation, and peer context with
 
 Next improvements:
 
-- Add richer multi-period fundamentals trend only when trusted historical rows are available.
+- [x] Add richer multi-period fundamentals trend only when trusted historical rows are available.
 
 ## 4. Trusted Data Proof Roadmap
 

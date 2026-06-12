@@ -135,7 +135,36 @@ def test_fundamentals_trend_stays_partial_with_only_one_trusted_period():
     metric = snapshot.fundamentals_metrics[0]
 
     assert metric.state == PARTIAL
-    assert "at least two trusted fundamentals rows for trend" in metric.missing_inputs
+    assert "at least two dated trusted fundamentals rows for trend" in metric.missing_inputs
+
+
+def test_fundamentals_trend_becomes_ready_with_two_dated_trusted_periods():
+    provider = FakeMetricsProvider(
+        prices={"AAA": _price_frame("AAA", 90), "SPY": _price_frame("SPY", 90)},
+        financials=FinancialSnapshot(
+            ticker="AAA",
+            revenue=125.0,
+            free_cash_flow=25.0,
+            shares_outstanding=10.0,
+            source=make_source_metadata("local:fundamentals.csv", "test rows", False),
+        ),
+        fundamentals_rows=pd.DataFrame(
+            [
+                {"ticker": "AAA", "period": "2024", "revenue": 100.0, "free_cash_flow": 15.0},
+                {"ticker": "AAA", "period": "2025", "revenue": 125.0, "free_cash_flow": 25.0},
+            ]
+        ),
+    )
+
+    snapshot = build_review_metrics("AAA", provider, benchmark="SPY")
+    metric = snapshot.fundamentals_metrics[0]
+
+    assert metric.state == READY
+    assert metric.missing_inputs == []
+    assert metric.value == 0.225
+    assert any("2024 -> 2025" in note for note in metric.notes)
+    assert any("Row-derived revenue growth=25.00%" in note for note in metric.notes)
+    assert any("FCF margin change=5.00%" in note for note in metric.notes)
 
 
 def test_valuation_multiples_require_trusted_market_context():

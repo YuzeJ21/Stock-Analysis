@@ -368,6 +368,96 @@ def _safe_float(value: Any) -> float | None:
     return float(numeric) if pd.notna(numeric) else None
 
 
+def _first_present_column(frame: pd.DataFrame, candidates: list[str]) -> str | None:
+    lower_to_original = {str(column).lower(): str(column) for column in frame.columns}
+    for candidate in candidates:
+        column = lower_to_original.get(candidate.lower())
+        if column is not None and frame[column].notna().any():
+            return column
+    return None
+
+
+def _period_ordered_fundamentals(rows: pd.DataFrame) -> tuple[pd.DataFrame, str | None]:
+    period_column = _first_present_column(
+        rows,
+        ["period", "fiscal_period", "report_date", "as_of_date", "sec_filed_date", "updated_at"],
+    )
+    if period_column is None:
+        return rows.copy(), None
+    ordered = rows.copy()
+    ordered["_period_label"] = ordered[period_column].astype(str).str.strip()
+    ordered = ordered.loc[ordered["_period_label"].ne("") & ordered["_period_label"].str.lower().ne("nan")].copy()
+    if ordered.empty:
+        return ordered, period_column
+    ordered["_period_date"] = pd.to_datetime(ordered["_period_label"], errors="coerce")
+    if ordered["_period_date"].notna().any():
+        ordered = ordered.sort_values(["_period_date", "_period_label"])
+    else:
+        ordered = ordered.sort_values("_period_label")
+    return ordered, period_column
+
+
+def _row_value(row: pd.Series, *columns: str) -> float | None:
+    lower_to_original = {str(column).lower(): str(column) for column in row.index}
+    for column in columns:
+        original = lower_to_original.get(column.lower())
+        if original is None:
+            continue
+        value = _safe_float(row.get(original))
+        if value is not None:
+            return value
+    return None
+
+
+def _row_fcf_margin(row: pd.Series) -> float | None:
+    margin = _row_value(row, "fcf_margin")
+    if margin is not None:
+        return margin
+    revenue = _row_value(row, "revenue")
+    free_cash_flow = _row_value(row, "free_cash_flow", "fcf")
+    if revenue not in (None, 0) and free_cash_flow is not None:
+        return free_cash_flow / revenue
+    return None
+
+
+def _fundamentals_trend_from_rows(rows: pd.DataFrame) -> tuple[dict[str, float | str], list[str], list[str]]:
+    ordered, period_column = _period_ordered_fundamentals(rows)
+    missing: list[str] = []
+    notes: list[str] = []
+    values: dict[str, float | str] = {}
+    if period_column is None or len(ordered) < 2:
+        missing.append("at least two dated trusted fundamentals rows for trend")
+        return values, missing, notes
+
+    prior = ordered.iloc[-2]
+    latest = ordered.iloc[-1]
+    prior_label = str(prior.get("_period_label", "prior"))
+    latest_label = str(latest.get("_period_label", "latest"))
+    values["prior_period"] = prior_label
+    values["latest_period"] = latest_label
+    notes.append(f"Trend window uses trusted rows for {prior_label} -> {latest_label}.")
+
+    prior_revenue = _row_value(prior, "revenue")
+    latest_revenue = _row_value(latest, "revenue")
+    if prior_revenue not in (None, 0) and latest_revenue is not None:
+        values["revenue_growth"] = latest_revenue / abs(prior_revenue) - 1.0
+        notes.append(f"Row-derived revenue growth={values['revenue_growth']:.2%}.")
+    else:
+        missing.append("revenue values in two trusted periods")
+
+    prior_margin = _row_fcf_margin(prior)
+    latest_margin = _row_fcf_margin(latest)
+    if latest_margin is not None:
+        values["latest_fcf_margin"] = latest_margin
+        notes.append(f"Latest FCF margin={latest_margin:.2%}.")
+    if prior_margin is not None and latest_margin is not None:
+        values["fcf_margin_change"] = latest_margin - prior_margin
+        notes.append(f"FCF margin change={values['fcf_margin_change']:.2%}.")
+    else:
+        missing.append("FCF margin or free cash flow/revenue in two trusted periods")
+    return values, missing, notes
+
+
 def _build_fundamentals_metrics(ticker: str, financials: FinancialSnapshot, provider: MarketDataProvider) -> list[ReviewMetric]:
     rows = _fundamentals_rows(provider, ticker)
     source_context = (
@@ -383,19 +473,27 @@ def _build_fundamentals_metrics(ticker: str, financials: FinancialSnapshot, prov
             )
         ]
 
-    has_revenue_growth = financials.revenue_growth is not None
-    has_fcf_margin = financials.fcf_margin is not None
+    trend_values, trend_missing, trend_notes = _fundamentals_trend_from_rows(rows)
+    row_revenue_growth = trend_values.get("revenue_growth")
+    row_fcf_margin = trend_values.get("latest_fcf_margin")
+    has_revenue_growth = financials.revenue_growth is not None or isinstance(row_revenue_growth, float)
+    has_fcf_margin = financials.fcf_margin is not None or isinstance(row_fcf_margin, float)
     missing = []
     if not has_revenue_growth:
         missing.append("revenue growth")
     if not has_fcf_margin:
         missing.append("FCF margin")
-    if len(rows) < 2:
-        missing.append("at least two trusted fundamentals rows for trend")
+    missing.extend(item for item in trend_missing if item not in missing)
     state = READY if not missing else PARTIAL if has_revenue_growth or has_fcf_margin else BLOCKED
     metric_value = None
     if has_revenue_growth and has_fcf_margin:
-        metric_value = float((financials.revenue_growth + financials.fcf_margin) / 2.0)
+        revenue_growth = financials.revenue_growth if financials.revenue_growth is not None else row_revenue_growth
+        fcf_margin = financials.fcf_margin if financials.fcf_margin is not None else row_fcf_margin
+        metric_value = float((float(revenue_growth) + float(fcf_margin)) / 2.0)
+    notes = ["Current trusted row can be reviewed when present; trend stays partial until multiple trusted periods exist."]
+    if state == READY:
+        notes = ["Multi-period trend is based on period-labeled trusted fundamentals rows."]
+    notes.extend(trend_notes)
     return [
         ReviewMetric(
             "revenue_growth_and_fcf_margin_trend",
@@ -406,7 +504,7 @@ def _build_fundamentals_metrics(ticker: str, financials: FinancialSnapshot, prov
             ["trusted fundamentals rows", "revenue growth", "FCF margin", "at least two dated rows for trend"],
             missing,
             source_context,
-            ["Current trusted row can be reviewed when present; trend stays partial until multiple trusted periods exist."],
+            notes,
         )
     ]
 
