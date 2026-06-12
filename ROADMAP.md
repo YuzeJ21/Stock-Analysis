@@ -75,7 +75,7 @@ Goal: turn the Streamlit page into a research command center instead of a collec
 - Keep broad-universe tables row-limited by default.
 - Add source readiness notes wherever an action depends on local CSVs, staged import files, Yahoo price refresh, SEC staging, or manual trusted inputs.
 - [x] Add source readiness context to `project_status_next_steps.csv`, `make project-status`, and dashboard next-action cards.
-- Make active-universe vs master-universe language visible wherever counts differ.
+- [x] Make active-universe vs master-universe language visible wherever counts differ.
 
 ### Data Readiness Operations Center V1
 
