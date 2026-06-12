@@ -9965,6 +9965,8 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
+    scope_legend_index = source.index('render_section_header("Universe Scope Legend"', quick_read_index)
     cockpit_index = source.index('render_section_header("Operations Cockpit"')
     risk_context_index = source.index('render_section_header("Risk Context Readiness"', cockpit_index)
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
@@ -9979,7 +9981,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert cockpit_index < risk_context_index < ops_index < frontier_index < batch_ladder_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert quick_read_index < scope_legend_index < cockpit_index < risk_context_index < ops_index < frontier_index < batch_ladder_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = readiness_freshness_status(BASE_DIR)" in source
@@ -13679,6 +13681,18 @@ def test_universe_layer_cards_separate_scope_from_analysis_readiness():
     assert "research-only" in rendered
     assert "buy" not in rendered.lower()
     assert "sell" not in rendered.lower()
+
+
+def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
+    scope_index = source.index('render_section_header("Universe Scope Legend"', quick_read_index)
+    ops_index = source.index('render_section_header("Operations Cockpit"', scope_index)
+
+    assert quick_read_index < scope_index < ops_index
+    assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame))" in source
+    assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
 
 
 def test_universe_layer_frame_gives_plain_language_next_steps():

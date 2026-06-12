@@ -22051,6 +22051,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     )
     render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
+    render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
+    render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame))
     ops_center = data_health_readiness_ops_center_frame()
     coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
     readiness_freshness = readiness_freshness_status(BASE_DIR)
