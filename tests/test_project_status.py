@@ -736,6 +736,37 @@ def test_project_status_fast_check_warns_when_source_csv_is_newer(tmp_path: Path
     assert "data/peers.csv" in payload["warnings"][0]
 
 
+def test_project_status_cli_check_labels_stale_generated_snapshot_before_counts(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    readiness_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
+    source_path = tmp_path / "data" / "fundamentals.csv"
+    source_path.write_text("ticker,revenue,source\nMETA,1,fixture\n", encoding="utf-8")
+    old_time = 1_700_000_000
+    new_time = old_time + 60
+    os.utime(readiness_path, (old_time, old_time))
+    os.utime(source_path, (new_time, new_time))
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--top-n", "2"]
+    try:
+        main()
+        output = capsys.readouterr().out
+    finally:
+        sys.argv = argv_before
+
+    freshness_index = output.index("Snapshot freshness: generated snapshot may be stale")
+    warning_index = output.index("Warning: Generated status artifacts may be stale")
+    summary_index = output.index("Project status summary (stale generated snapshot):")
+    ready_index = output.index("Ready in saved snapshot: 1 price-ready, 1 DCF-ready, 0 peer-ready.")
+
+    assert freshness_index < warning_index < summary_index < ready_index
+    assert "Ready now: 1 price-ready" not in output
+    assert "Refresh needed: run make readiness or make status before using exact readiness counts." in output
+
+
 def test_project_status_human_write_output_reports_written_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     _write_minimal_local_data(tmp_path)
 

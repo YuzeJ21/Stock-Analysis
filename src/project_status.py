@@ -925,9 +925,21 @@ def write_project_status_output(
 
 def _print_human(payload: dict[str, Any]) -> None:
     summary = payload["summary"]
+    warnings = list(payload.get("warnings", []))
+    has_stale_snapshot_warning = any(
+        "generated status artifacts may be stale" in str(warning).strip().lower()
+        for warning in warnings
+    )
     print("Read-only project snapshot.")
     print("Commands below are copy-only local research helpers; this status view does not run them.")
-    print("Project status summary:")
+    if has_stale_snapshot_warning:
+        print("Snapshot freshness: generated snapshot may be stale; refresh before relying on exact counts.")
+    for warning in warnings:
+        print(f"Warning: {warning}")
+    summary_label = "Project status summary"
+    if has_stale_snapshot_warning:
+        summary_label = f"{summary_label} (stale generated snapshot)"
+    print(f"{summary_label}:")
     print(f"- Data sources: {summary['data_sources_available']}/{summary['data_sources_total']} available")
     print(f"- Required data sources needing attention: {summary['data_sources_needing_attention']}")
     print(f"- Optional/manual lanes locked: {summary.get('data_sources_optional_locked', 0)}")
@@ -939,10 +951,15 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- Missing-data steps: {summary['onboarding_actions']} ({summary['critical_actions']} urgent)")
     print(f"- Research-purpose groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
     print("First read:")
+    ready_label = "Ready now"
+    if has_stale_snapshot_warning:
+        ready_label = "Ready in saved snapshot"
     print(
-        f"- Ready now: {summary['tickers_with_prices']} price-ready, "
+        f"- {ready_label}: {summary['tickers_with_prices']} price-ready, "
         f"{summary['tickers_dcf_ready']} DCF-ready, {summary['tickers_peer_ready']} peer-ready."
     )
+    if has_stale_snapshot_warning:
+        print("- Refresh needed: run make readiness or make status before using exact readiness counts.")
     print(
         "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
         "stay locked where source-backed rows are missing."
@@ -952,8 +969,6 @@ def _print_human(payload: dict[str, Any]) -> None:
         "or make price-refresh-loop DRY_RUN=1 for price coverage planning."
     )
     print("- Details below are capped and copy-only.")
-    for warning in payload.get("warnings", []):
-        print(f"Warning: {warning}")
     print("Top locked inputs to review:")
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
