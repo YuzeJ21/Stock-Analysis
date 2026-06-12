@@ -199,6 +199,16 @@ The packet includes the pre-run readiness snapshot command, dry-run command, cap
 
 Use the reviewed batch packet after `make coverage-frontier TOP_N=10` identifies the best lane to inspect. A high-impact lane is still an operations queue, not a security ranking, and every mutating workflow remains validate -> preview -> apply before any supported outcome is recorded.
 
+## Readiness-Gated Review Metrics
+
+Use `make benchmark-risk-review TICKER=<ticker> BENCHMARK=SPY` or `make metric-readiness TICKER=<ticker> BENCHMARK=QQQ` to inspect benchmark, risk, fundamentals, valuation, and peer review metrics without refreshing or importing data. The command reads local CSV-backed provider data and prints ready, partial, blocked, or excluded states for each metric.
+
+Price-derived metrics can become ready from trusted local price history: benchmark-relative return, max drawdown, rolling volatility, beta, Sharpe, and Sortino. Benchmark-relative return and beta require enough aligned ticker and benchmark rows; if SPY or QQQ history is missing or too short, those metrics remain partial or blocked.
+
+Fundamentals, valuation, and peer metrics keep stricter gates. Revenue growth and FCF margin can show current trusted-row context, but trend stays partial until multiple trusted periods exist. Valuation multiples require trusted fundamentals plus market-cap or trusted price/share-count context. Peer valuation dispersion requires mapped peers plus trusted peer valuation inputs. None of these metrics should be filled from placeholder rows.
+
+Sharpe and Sortino are historical review metrics only. Keep the risk-free-rate assumption explicit, and do not use benchmark or risk metrics as rankings, forecasts, allocation guidance, or account-action instructions.
+
 ## What Not To Automate Yet
 
 - Broad fundamentals claims without trusted source rows.

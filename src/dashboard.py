@@ -5776,6 +5776,49 @@ def stock_report_technical_context_frame(report_payload: dict[str, object]) -> p
     return pd.DataFrame(rows)
 
 
+def stock_report_review_metrics_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    review_metrics = report_payload.get("review_metrics", {}) or {}
+    rows: list[dict[str, object]] = []
+    for benchmark in ("SPY", "QQQ"):
+        snapshot = review_metrics.get(benchmark) if isinstance(review_metrics, dict) else None
+        if not isinstance(snapshot, dict):
+            continue
+        for metric in snapshot.get("price_metrics", []) or []:
+            if not isinstance(metric, dict):
+                continue
+            rows.append(
+                {
+                    "Group": f"{benchmark} benchmark/risk",
+                    "Metric": str(metric.get("name", "")).replace("_", " ").title(),
+                    "State": format_missing(metric.get("state")),
+                    "Value": report_display_value(metric.get("value"), "percent" if metric.get("unit") == "percent" else "number"),
+                    "Missing Inputs": joined_notes(metric.get("missing_inputs", [])) or "none",
+                }
+            )
+    preferred_snapshot = review_metrics.get("SPY") if isinstance(review_metrics, dict) else None
+    if not isinstance(preferred_snapshot, dict) and isinstance(review_metrics, dict) and review_metrics:
+        preferred_snapshot = next((value for value in review_metrics.values() if isinstance(value, dict)), {})
+    if isinstance(preferred_snapshot, dict):
+        for group, key in (
+            ("Fundamentals trend", "fundamentals_metrics"),
+            ("Valuation multiples", "valuation_metrics"),
+            ("Peer valuation dispersion", "peer_metrics"),
+        ):
+            for metric in preferred_snapshot.get(key, []) or []:
+                if not isinstance(metric, dict):
+                    continue
+                rows.append(
+                    {
+                        "Group": group,
+                        "Metric": str(metric.get("name", "")).replace("_", " ").title(),
+                        "State": format_missing(metric.get("state")),
+                        "Value": report_display_value(metric.get("value"), "percent" if metric.get("unit") == "percent" else "number"),
+                        "Missing Inputs": joined_notes(metric.get("missing_inputs", [])) or "none",
+                    }
+                )
+    return pd.DataFrame(rows)
+
+
 def stock_report_missing_data_text(warnings: list[object]) -> str:
     if not warnings:
         return "No explicit missing-data warnings were assembled from the current inputs."
@@ -20854,6 +20897,19 @@ def render_single_stock_report(provider, show_source_details: bool) -> None:
         performance_columns[0].metric("1M Return", report_display_value(performance.get("one_month"), "percent"))
         performance_columns[1].metric("3M Return", report_display_value(performance.get("three_month"), "percent"))
         performance_columns[2].metric("1Y Return", report_display_value(performance.get("one_year"), "percent"))
+
+        review_metrics_frame = stock_report_review_metrics_frame(report_payload)
+        if not review_metrics_frame.empty:
+            st.markdown("#### Benchmark And Risk Review Metrics")
+            render_context_note(
+                "Historical review only.",
+                "Benchmark-relative return, drawdown, volatility, beta, Sharpe, Sortino, fundamentals trend, valuation multiples, and peer dispersion appear only when their local inputs pass readiness checks.",
+            )
+            st.dataframe(
+                clean_display_frame(review_metrics_frame),
+                width="stretch",
+                hide_index=True,
+            )
 
         st.markdown("#### Setup And Trend Context")
         render_context_note(

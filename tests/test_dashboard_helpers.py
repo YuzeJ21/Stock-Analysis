@@ -21154,3 +21154,69 @@ def test_purpose_evaluation_drilldown_cards_surface_next_row_without_execution_l
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_stock_report_review_metrics_frame_preserves_states_and_blockers():
+    frame = dashboard.stock_report_review_metrics_frame(
+        {
+            "review_metrics": {
+                "SPY": {
+                    "price_metrics": [
+                        {
+                            "name": "beta_vs_benchmark",
+                            "state": "partial",
+                            "value": None,
+                            "unit": "ratio",
+                            "missing_inputs": ["at least 60 aligned ticker/SPY price rows"],
+                        },
+                        {
+                            "name": "max_drawdown",
+                            "state": "ready",
+                            "value": -0.25,
+                            "unit": "percent",
+                            "missing_inputs": [],
+                        },
+                    ],
+                    "fundamentals_metrics": [
+                        {
+                            "name": "revenue_growth_and_fcf_margin_trend",
+                            "state": "partial",
+                            "value": 0.2,
+                            "unit": "percent",
+                            "missing_inputs": ["at least two trusted fundamentals rows for trend"],
+                        }
+                    ],
+                    "valuation_metrics": [
+                        {
+                            "name": "valuation_multiples",
+                            "state": "blocked",
+                            "value": None,
+                            "unit": "mixed",
+                            "missing_inputs": ["market cap or trusted price plus shares outstanding"],
+                        }
+                    ],
+                    "peer_metrics": [
+                        {
+                            "name": "peer_valuation_dispersion",
+                            "state": "blocked",
+                            "value": None,
+                            "unit": "percent",
+                            "missing_inputs": ["mapped peers"],
+                        }
+                    ],
+                }
+            }
+        }
+    )
+
+    rendered = " ".join(frame.astype(str).stack().tolist()).lower()
+
+    assert "spy benchmark/risk" in rendered
+    assert "beta vs benchmark" in rendered
+    assert "partial" in rendered
+    assert "at least 60 aligned ticker/spy price rows" in rendered
+    assert "fundamentals trend" in rendered
+    assert "valuation multiples" in rendered
+    assert "peer valuation dispersion" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered

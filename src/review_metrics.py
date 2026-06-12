@@ -1,0 +1,595 @@
+from __future__ import annotations
+
+import argparse
+import json
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+from src.paths import resolve_data_dir, resolve_project_root
+from src.providers.local_market_data import LocalCSVMarketDataProvider
+from src.providers.market_data import FinancialSnapshot, MarketDataProvider
+
+
+READY = "ready"
+PARTIAL = "partial"
+BLOCKED = "blocked"
+EXCLUDED = "excluded"
+TRADING_DAYS = 252
+
+
+@dataclass
+class ReviewMetric:
+    name: str
+    state: str
+    value: float | None = None
+    unit: str = ""
+    benchmark: str | None = None
+    required_inputs: list[str] = field(default_factory=list)
+    missing_inputs: list[str] = field(default_factory=list)
+    source_context: str = ""
+    notes: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ReviewMetricsSnapshot:
+    ticker: str
+    benchmark: str
+    risk_free_rate: float
+    price_metrics: list[ReviewMetric]
+    fundamentals_metrics: list[ReviewMetric]
+    valuation_metrics: list[ReviewMetric]
+    peer_metrics: list[ReviewMetric]
+    guardrails: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ticker": self.ticker,
+            "benchmark": self.benchmark,
+            "risk_free_rate": self.risk_free_rate,
+            "price_metrics": [metric.to_dict() for metric in self.price_metrics],
+            "fundamentals_metrics": [metric.to_dict() for metric in self.fundamentals_metrics],
+            "valuation_metrics": [metric.to_dict() for metric in self.valuation_metrics],
+            "peer_metrics": [metric.to_dict() for metric in self.peer_metrics],
+            "guardrails": list(self.guardrails),
+        }
+
+
+def _clean_price_history(history: pd.DataFrame) -> pd.Series:
+    if history.empty or "date" not in history.columns or "close" not in history.columns:
+        return pd.Series(dtype=float)
+    frame = history[["date", "close"]].copy()
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    frame["close"] = pd.to_numeric(frame["close"], errors="coerce")
+    frame = frame.loc[frame["date"].notna() & frame["close"].notna() & frame["close"].gt(0)]
+    if frame.empty:
+        return pd.Series(dtype=float)
+    return frame.sort_values("date").drop_duplicates("date", keep="last").set_index("date")["close"]
+
+
+def _returns(prices: pd.Series) -> pd.Series:
+    return prices.pct_change().replace([float("inf"), float("-inf")], pd.NA).dropna()
+
+
+def _state_for_min_rows(count: int, minimum: int) -> str:
+    if count >= minimum:
+        return READY
+    if count > 1:
+        return PARTIAL
+    return BLOCKED
+
+
+def _metric_blocked(
+    name: str,
+    *,
+    required_inputs: list[str],
+    missing_inputs: list[str],
+    benchmark: str | None = None,
+    notes: list[str] | None = None,
+) -> ReviewMetric:
+    return ReviewMetric(
+        name=name,
+        state=BLOCKED,
+        benchmark=benchmark,
+        required_inputs=required_inputs,
+        missing_inputs=missing_inputs,
+        notes=notes or [],
+    )
+
+
+def _metric_partial(
+    name: str,
+    *,
+    required_inputs: list[str],
+    missing_inputs: list[str],
+    benchmark: str | None = None,
+    notes: list[str] | None = None,
+    source_context: str = "",
+) -> ReviewMetric:
+    return ReviewMetric(
+        name=name,
+        state=PARTIAL,
+        benchmark=benchmark,
+        required_inputs=required_inputs,
+        missing_inputs=missing_inputs,
+        source_context=source_context,
+        notes=notes or [],
+    )
+
+
+def _total_return(prices: pd.Series) -> float | None:
+    if len(prices) < 2:
+        return None
+    start = float(prices.iloc[0])
+    end = float(prices.iloc[-1])
+    if start <= 0:
+        return None
+    return end / start - 1.0
+
+
+def benchmark_relative_return(stock_prices: pd.Series, benchmark_prices: pd.Series) -> float | None:
+    aligned = pd.concat([stock_prices.rename("stock"), benchmark_prices.rename("benchmark")], axis=1, join="inner").dropna()
+    if len(aligned) < 2:
+        return None
+    stock_return = _total_return(aligned["stock"])
+    benchmark_return = _total_return(aligned["benchmark"])
+    if stock_return is None or benchmark_return is None:
+        return None
+    return stock_return - benchmark_return
+
+
+def max_drawdown(prices: pd.Series) -> float | None:
+    if len(prices) < 2:
+        return None
+    running_high = prices.cummax()
+    drawdowns = prices / running_high - 1.0
+    return float(drawdowns.min())
+
+
+def rolling_volatility(prices: pd.Series, *, window: int = 21) -> float | None:
+    daily_returns = _returns(prices)
+    if len(daily_returns) < window:
+        return None
+    return float(daily_returns.tail(window).std(ddof=0) * (TRADING_DAYS**0.5))
+
+
+def beta_vs_benchmark(stock_prices: pd.Series, benchmark_prices: pd.Series, *, min_observations: int = 60) -> float | None:
+    aligned = pd.concat(
+        [_returns(stock_prices).rename("stock"), _returns(benchmark_prices).rename("benchmark")],
+        axis=1,
+        join="inner",
+    ).dropna()
+    if len(aligned) < min_observations:
+        return None
+    benchmark_variance = aligned["benchmark"].var(ddof=0)
+    if pd.isna(benchmark_variance) or benchmark_variance == 0:
+        return None
+    covariance = aligned["stock"].cov(aligned["benchmark"], ddof=0)
+    return float(covariance / benchmark_variance)
+
+
+def sharpe_ratio(prices: pd.Series, *, annual_risk_free_rate: float = 0.0, min_observations: int = 60) -> float | None:
+    daily_returns = _returns(prices)
+    if len(daily_returns) < min_observations:
+        return None
+    daily_rf = annual_risk_free_rate / TRADING_DAYS
+    excess = daily_returns - daily_rf
+    std = excess.std(ddof=0)
+    if pd.isna(std) or std == 0:
+        return None
+    return float(excess.mean() / std * (TRADING_DAYS**0.5))
+
+
+def sortino_ratio(prices: pd.Series, *, annual_risk_free_rate: float = 0.0, min_observations: int = 60) -> float | None:
+    daily_returns = _returns(prices)
+    if len(daily_returns) < min_observations:
+        return None
+    daily_rf = annual_risk_free_rate / TRADING_DAYS
+    downside = daily_returns.loc[daily_returns < daily_rf] - daily_rf
+    downside_std = downside.std(ddof=0)
+    if downside.empty or pd.isna(downside_std) or downside_std == 0:
+        return None
+    excess = daily_returns - daily_rf
+    return float(excess.mean() / downside_std * (TRADING_DAYS**0.5))
+
+
+def _build_price_metrics(
+    ticker: str,
+    benchmark: str,
+    stock_history: pd.DataFrame,
+    benchmark_history: pd.DataFrame,
+    *,
+    annual_risk_free_rate: float,
+) -> list[ReviewMetric]:
+    stock_prices = _clean_price_history(stock_history)
+    benchmark_prices = _clean_price_history(benchmark_history)
+    aligned = pd.concat([stock_prices.rename("stock"), benchmark_prices.rename("benchmark")], axis=1, join="inner").dropna()
+    required = ["ticker price history", f"{benchmark} price history", "aligned daily closes"]
+    source_context = (
+        f"{ticker} rows={len(stock_prices)}; {benchmark} rows={len(benchmark_prices)}; "
+        f"aligned rows={len(aligned)}; local daily close history"
+    )
+    if stock_prices.empty:
+        return [
+            _metric_blocked(
+                "benchmark_relative_return",
+                required_inputs=required,
+                missing_inputs=["ticker price history"],
+                benchmark=benchmark,
+            ),
+            _metric_blocked("max_drawdown", required_inputs=["ticker price history"], missing_inputs=["ticker price history"]),
+            _metric_blocked("rolling_volatility", required_inputs=["ticker price history"], missing_inputs=["ticker price history"]),
+            _metric_blocked("beta_vs_benchmark", required_inputs=required, missing_inputs=["ticker price history"], benchmark=benchmark),
+            _metric_blocked("sharpe_ratio", required_inputs=["ticker price history", "explicit risk-free-rate assumption"], missing_inputs=["ticker price history"]),
+            _metric_blocked("sortino_ratio", required_inputs=["ticker price history", "explicit risk-free-rate assumption"], missing_inputs=["ticker price history"]),
+        ]
+    if benchmark_prices.empty:
+        missing = [f"{benchmark} price history"]
+    elif len(aligned) < 60:
+        missing = [f"at least 60 aligned ticker/{benchmark} price rows"]
+    else:
+        missing = []
+
+    metrics: list[ReviewMetric] = []
+    relative = benchmark_relative_return(stock_prices, benchmark_prices)
+    metrics.append(
+        ReviewMetric(
+            "benchmark_relative_return",
+            READY if relative is not None and len(aligned) >= 60 else _state_for_min_rows(len(aligned), 60),
+            relative,
+            "percent",
+            benchmark,
+            required,
+            [] if relative is not None and len(aligned) >= 60 else missing,
+            source_context,
+            ["Historical relative return over the aligned local price window; not a forward-looking recommendation."],
+        )
+    )
+
+    drawdown = max_drawdown(stock_prices)
+    metrics.append(
+        ReviewMetric(
+            "max_drawdown",
+            READY if drawdown is not None and len(stock_prices) >= 60 else _state_for_min_rows(len(stock_prices), 60),
+            drawdown,
+            "percent",
+            None,
+            ["ticker price history"],
+            [] if drawdown is not None and len(stock_prices) >= 60 else ["at least 60 ticker price rows"],
+            source_context,
+            ["Historical worst peak-to-trough decline in the local window."],
+        )
+    )
+
+    vol = rolling_volatility(stock_prices)
+    metrics.append(
+        ReviewMetric(
+            "rolling_volatility",
+            READY if vol is not None else _state_for_min_rows(len(_returns(stock_prices)), 21),
+            vol,
+            "percent",
+            None,
+            ["ticker daily returns", "21 return observations"],
+            [] if vol is not None else ["at least 21 daily return observations"],
+            source_context,
+            ["Annualized 21-trading-day realized volatility from local closes."],
+        )
+    )
+
+    beta = beta_vs_benchmark(stock_prices, benchmark_prices)
+    metrics.append(
+        ReviewMetric(
+            "beta_vs_benchmark",
+            READY if beta is not None else _state_for_min_rows(len(aligned), 60),
+            beta,
+            "ratio",
+            benchmark,
+            required,
+            [] if beta is not None else missing or [f"at least 60 aligned ticker/{benchmark} return rows"],
+            source_context,
+            ["Historical beta from aligned local daily returns; review metric only."],
+        )
+    )
+
+    sharpe = sharpe_ratio(stock_prices, annual_risk_free_rate=annual_risk_free_rate)
+    metrics.append(
+        ReviewMetric(
+            "sharpe_ratio",
+            READY if sharpe is not None else _state_for_min_rows(len(_returns(stock_prices)), 60),
+            sharpe,
+            "ratio",
+            None,
+            ["ticker daily returns", "explicit risk-free-rate assumption"],
+            [] if sharpe is not None else ["at least 60 daily return observations"],
+            source_context,
+            [f"Historical review metric only; annual risk-free-rate assumption={annual_risk_free_rate:.2%}."],
+        )
+    )
+
+    sortino = sortino_ratio(stock_prices, annual_risk_free_rate=annual_risk_free_rate)
+    metrics.append(
+        ReviewMetric(
+            "sortino_ratio",
+            READY if sortino is not None else _state_for_min_rows(len(_returns(stock_prices)), 60),
+            sortino,
+            "ratio",
+            None,
+            ["ticker daily returns", "downside return observations", "explicit risk-free-rate assumption"],
+            [] if sortino is not None else ["at least 60 daily return observations with downside observations"],
+            source_context,
+            [f"Historical downside-risk review metric only; annual risk-free-rate assumption={annual_risk_free_rate:.2%}."],
+        )
+    )
+    return metrics
+
+
+def _fundamentals_rows(provider: MarketDataProvider, ticker: str) -> pd.DataFrame:
+    if hasattr(provider, "_load_fundamentals"):
+        frame = provider._load_fundamentals()  # type: ignore[attr-defined]  # local provider hook
+        if not frame.empty and "ticker" in frame.columns:
+            rows = frame.loc[frame["ticker"].astype(str).str.upper().str.strip() == ticker.upper()].copy()
+            return rows
+    return pd.DataFrame()
+
+
+def _safe_float(value: Any) -> float | None:
+    numeric = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    return float(numeric) if pd.notna(numeric) else None
+
+
+def _build_fundamentals_metrics(ticker: str, financials: FinancialSnapshot, provider: MarketDataProvider) -> list[ReviewMetric]:
+    rows = _fundamentals_rows(provider, ticker)
+    source_context = (
+        f"trusted fundamentals rows={len(rows)}; source={financials.source.provider if financials.source else 'not available'}; "
+        f"freshness={financials.source.freshness if financials.source else 'not available'}"
+    )
+    if rows.empty:
+        return [
+            _metric_blocked(
+                "revenue_growth_and_fcf_margin_trend",
+                required_inputs=["trusted fundamentals rows", "revenue growth", "FCF margin", "at least two dated rows for trend"],
+                missing_inputs=["trusted fundamentals rows"],
+            )
+        ]
+
+    has_revenue_growth = financials.revenue_growth is not None
+    has_fcf_margin = financials.fcf_margin is not None
+    missing = []
+    if not has_revenue_growth:
+        missing.append("revenue growth")
+    if not has_fcf_margin:
+        missing.append("FCF margin")
+    if len(rows) < 2:
+        missing.append("at least two trusted fundamentals rows for trend")
+    state = READY if not missing else PARTIAL if has_revenue_growth or has_fcf_margin else BLOCKED
+    metric_value = None
+    if has_revenue_growth and has_fcf_margin:
+        metric_value = float((financials.revenue_growth + financials.fcf_margin) / 2.0)
+    return [
+        ReviewMetric(
+            "revenue_growth_and_fcf_margin_trend",
+            state,
+            metric_value,
+            "percent",
+            None,
+            ["trusted fundamentals rows", "revenue growth", "FCF margin", "at least two dated rows for trend"],
+            missing,
+            source_context,
+            ["Current trusted row can be reviewed when present; trend stays partial until multiple trusted periods exist."],
+        )
+    ]
+
+
+def _build_valuation_metrics(quote_price: float | None, financials: FinancialSnapshot) -> list[ReviewMetric]:
+    required = ["trusted fundamentals", "trusted price or market cap", "shares outstanding when deriving market cap"]
+    source_context = f"fundamentals source={financials.source.provider if financials.source else 'not available'}"
+    if financials.revenue is None and financials.free_cash_flow is None and financials.market_cap is None:
+        return [
+            _metric_blocked(
+                "valuation_multiples",
+                required_inputs=required,
+                missing_inputs=["trusted fundamentals"],
+            )
+        ]
+    market_cap = financials.market_cap
+    if market_cap is None and quote_price is not None and financials.shares_outstanding is not None:
+        market_cap = quote_price * financials.shares_outstanding
+    missing = []
+    if market_cap is None:
+        missing.append("market cap or trusted price plus shares outstanding")
+    if financials.revenue is None:
+        missing.append("revenue")
+    if financials.free_cash_flow is None:
+        missing.append("free cash flow")
+    values: dict[str, float] = {}
+    if market_cap is not None and financials.revenue not in (None, 0):
+        values["price_to_sales"] = market_cap / financials.revenue
+    if market_cap is not None and financials.free_cash_flow not in (None, 0):
+        values["price_to_fcf"] = market_cap / financials.free_cash_flow
+    if financials.trailing_pe is not None:
+        values["trailing_pe"] = financials.trailing_pe
+    elif financials.eps not in (None, 0) and quote_price is not None:
+        values["trailing_pe"] = quote_price / financials.eps
+    state = READY if values and not missing else PARTIAL if values else BLOCKED
+    return [
+        ReviewMetric(
+            "valuation_multiples",
+            state,
+            None,
+            "mixed",
+            None,
+            required,
+            missing,
+            source_context,
+            [f"{key}={value:.2f}" for key, value in values.items()]
+            or ["Multiples stay blocked until trusted fundamentals plus market-cap or price/share-count context exist."],
+        )
+    ]
+
+
+def _peer_multiple_values(peer_inputs: list[dict[str, Any]], field: str) -> list[float]:
+    values: list[float] = []
+    for item in peer_inputs:
+        value = _safe_float(item.get(field))
+        if value is not None and value > 0:
+            values.append(value)
+    return values
+
+
+def _build_peer_metrics(peer_inputs: list[dict[str, Any]], financials: FinancialSnapshot) -> list[ReviewMetric]:
+    required = ["mapped peers", "trusted peer valuation inputs", "standalone valuation multiple"]
+    if not peer_inputs:
+        return [_metric_blocked("peer_valuation_dispersion", required_inputs=required, missing_inputs=["mapped peers"])]
+
+    standalone: dict[str, float] = {}
+    if financials.trailing_pe is not None and financials.trailing_pe > 0:
+        standalone["trailing_pe"] = financials.trailing_pe
+    if financials.forward_pe is not None and financials.forward_pe > 0:
+        standalone["forward_pe"] = financials.forward_pe
+    peer_sets = {
+        "trailing_pe": _peer_multiple_values(peer_inputs, "trailing_pe"),
+        "forward_pe": _peer_multiple_values(peer_inputs, "forward_pe"),
+    }
+    usable = {field: values for field, values in peer_sets.items() if field in standalone and len(values) >= 2}
+    if not usable:
+        missing = []
+        if not standalone:
+            missing.append("standalone valuation multiple")
+        missing.append("at least two peers with trusted valuation multiples")
+        return [
+            _metric_partial(
+                "peer_valuation_dispersion",
+                required_inputs=required,
+                missing_inputs=missing,
+                source_context=f"mapped peer rows={len(peer_inputs)}",
+                notes=["Peer rows exist, but valuation dispersion stays locked until comparable peer multiples exist."],
+            )
+        ]
+
+    dispersions = []
+    notes = []
+    for field, values in usable.items():
+        median = float(pd.Series(values).median())
+        if median:
+            dispersion = standalone[field] / median - 1.0
+            dispersions.append(dispersion)
+            notes.append(f"{field} dispersion vs peer median={dispersion:.2%}")
+    return [
+        ReviewMetric(
+            "peer_valuation_dispersion",
+            READY,
+            float(sum(dispersions) / len(dispersions)) if dispersions else None,
+            "percent",
+            None,
+            required,
+            [],
+            f"mapped peer rows={len(peer_inputs)}; usable multiple sets={len(usable)}",
+            notes + ["Historical peer valuation context only; not a conclusion list."],
+        )
+    ]
+
+
+def build_review_metrics(
+    ticker: str,
+    provider: MarketDataProvider,
+    *,
+    benchmark: str = "SPY",
+    annual_risk_free_rate: float = 0.0,
+) -> ReviewMetricsSnapshot:
+    ticker = ticker.upper().strip()
+    benchmark = benchmark.upper().strip()
+    financials = provider.get_financials(ticker)
+    try:
+        quote = provider.get_quote(ticker)
+        quote_price = quote.price
+    except LookupError:
+        quote_price = None
+    try:
+        stock_history = provider.get_price_history(ticker, period="1y", interval="1d")
+    except (KeyError, LookupError):
+        stock_history = pd.DataFrame(columns=["date", "close"])
+    try:
+        benchmark_history = provider.get_price_history(benchmark, period="1y", interval="1d")
+    except (KeyError, LookupError):
+        benchmark_history = pd.DataFrame(columns=["date", "close"])
+    peer_inputs = provider.get_peer_valuation_inputs(ticker)
+    return ReviewMetricsSnapshot(
+        ticker=ticker,
+        benchmark=benchmark,
+        risk_free_rate=annual_risk_free_rate,
+        price_metrics=_build_price_metrics(
+            ticker,
+            benchmark,
+            stock_history,
+            benchmark_history,
+            annual_risk_free_rate=annual_risk_free_rate,
+        ),
+        fundamentals_metrics=_build_fundamentals_metrics(ticker, financials, provider),
+        valuation_metrics=_build_valuation_metrics(quote_price, financials),
+        peer_metrics=_build_peer_metrics(peer_inputs, financials),
+        guardrails=[
+            "Research-only review metrics; not investment advice.",
+            "No broker integration, auto-trading, order routing, or direct buy/sell instructions.",
+            "Missing inputs stay blocked, partial, or excluded instead of being inferred.",
+        ],
+    )
+
+
+def format_review_metrics_text(snapshot: ReviewMetricsSnapshot) -> str:
+    lines = [
+        f"Review metrics for {snapshot.ticker} vs {snapshot.benchmark}",
+        "Research-only; historical review metrics are not recommendations.",
+        f"Risk-free-rate assumption: {snapshot.risk_free_rate:.2%}",
+    ]
+    for section_name, metrics in (
+        ("Price / benchmark risk", snapshot.price_metrics),
+        ("Fundamentals trend", snapshot.fundamentals_metrics),
+        ("Valuation multiples", snapshot.valuation_metrics),
+        ("Peer valuation dispersion", snapshot.peer_metrics),
+    ):
+        lines.append("")
+        lines.append(section_name + ":")
+        for metric in metrics:
+            value = "not available" if metric.value is None else f"{metric.value:.4f}"
+            missing = ", ".join(metric.missing_inputs) if metric.missing_inputs else "none"
+            benchmark = f" vs {metric.benchmark}" if metric.benchmark else ""
+            lines.append(f"- {metric.name}{benchmark}: {metric.state}; value={value}; missing={missing}")
+            if metric.source_context:
+                lines.append(f"  source: {metric.source_context}")
+            if metric.notes:
+                lines.append("  notes: " + " ".join(metric.notes))
+    return "\n".join(lines)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Print readiness-gated benchmark, risk, fundamentals, and peer review metrics.")
+    parser.add_argument("--ticker", required=True)
+    parser.add_argument("--benchmark", default="SPY", choices=["SPY", "QQQ"])
+    parser.add_argument("--risk-free-rate", type=float, default=0.0)
+    parser.add_argument("--project-root")
+    parser.add_argument("--data-dir")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+
+    root = resolve_project_root(Path(args.project_root) if args.project_root else None)
+    data_dir = resolve_data_dir(Path(args.data_dir) if args.data_dir else None, root)
+    provider = LocalCSVMarketDataProvider(base_dir=root, data_dir=data_dir)
+    snapshot = build_review_metrics(
+        args.ticker,
+        provider,
+        benchmark=args.benchmark,
+        annual_risk_free_rate=args.risk_free_rate,
+    )
+    if args.json:
+        print(json.dumps(snapshot.to_dict(), indent=2))
+    else:
+        print(format_review_metrics_text(snapshot))
+
+
+if __name__ == "__main__":
+    main()

@@ -28,7 +28,7 @@ flowchart LR
 
 When trusted local data is available, the product can produce:
 
-- Price, momentum, liquidity, and market-direction context.
+- Price, momentum, benchmark-relative return, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, and market-direction context.
 - Portfolio purpose checks and thesis-review flags.
 - DCF readiness and conservative scenario valuation.
 - Peer-context readiness without pretending missing peer valuation exists.
@@ -42,7 +42,7 @@ Most blocked rows are not errors. They are data gaps the command center exposes 
 The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed.
 
 1. Readiness gate: checks prices, fundamentals, DCF fields, peers, earnings, and estimates before deeper analysis appears.
-2. Supported analysis: price-ready rows can support setup/risk context, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context.
+2. Supported analysis: price-ready rows can support setup/risk context and benchmark/risk review metrics, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context.
 3. Locked or excluded boundaries: missing fundamentals, peer inputs, earnings, or estimates stay locked; company valuation is excluded for ETF/index/fund monitor rows, not failed.
 4. Report explanation: single-stock reports show what came from source rows, what the product calculated, what stayed withheld, and the next local proof step.
 
@@ -118,7 +118,7 @@ make stock-report-md TICKER=CRDO # fundamentals/DCF proof packet example
 make trusted-data-pilot-candidates TOP_N=10 # read-only coverage candidate list
 make trusted-data-pilot-packet TICKER=MU   # first ranked peer-input proof packet
 make trusted-data-pilot-packet TICKER=CRDO # fundamentals/DCF proof packet
-make reviewed-batch LANE=prices TOP_N=10   # copy-only reviewed batch packet
+make benchmark-risk-review TICKER=NVDA BENCHMARK=SPY # readiness-gated review metrics
 ```
 
 Optional extra report states:

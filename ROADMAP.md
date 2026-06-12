@@ -36,6 +36,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Public data-strategy guidance that separates safe automation from human-reviewed source judgment.
 - [x] Data Health freshness routine promoted into the beginner flow with read-only checks, capped price dry-run guidance, and review-required lanes.
 - [x] Blocked single-stock reports hold peer-relative valuation behind fundamentals/DCF readiness so peer rows cannot bypass core company gates.
+- [x] Readiness-gated benchmark and risk review metrics for single-stock reports and dashboard review.
 
 ## 2. Current Product State
 
@@ -95,6 +96,27 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Include snapshot, dry-run, capped execution, validate/preview/apply gates, post-run proof, expected artifacts, rollback, and proof-row template.
 - [x] Warn when saved readiness artifacts are missing or stale before relying on counts.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
+
+### Readiness-Gated Review Metrics V1
+
+Goal: add useful benchmark, risk, fundamentals, valuation, and peer context without turning missing inputs into conclusions.
+
+- [x] Add `make benchmark-risk-review TICKER=<ticker> BENCHMARK=SPY`.
+- [x] Add `make metric-readiness` as an alias for the same read-only review path.
+- [x] Calculate benchmark-relative return, max drawdown, rolling volatility, beta, Sharpe, and Sortino only from local price history.
+- [x] Support SPY and QQQ benchmark choices when local benchmark rows exist.
+- [x] Show partial/blocked states when benchmark history is missing or too short.
+- [x] Label Sharpe and Sortino as historical review metrics, not recommendations.
+- [x] Keep fundamentals trend partial unless multiple trusted fundamentals periods exist.
+- [x] Keep valuation multiples blocked unless trusted fundamentals plus market-cap or price/share-count context exist.
+- [x] Keep peer valuation dispersion blocked unless mapped peers have trusted valuation inputs.
+- [x] Surface the metrics in single-stock Markdown reports and the dashboard Snapshot tab.
+
+Next improvements:
+
+- Add a central metric-readiness universe summary only after stale-readiness handling is explicit.
+- Consider configurable risk-free-rate defaults in project config while keeping the assumption visible in report output.
+- Add richer multi-period fundamentals trend only when trusted historical rows are available.
 
 ## 4. Trusted Data Proof Roadmap
 

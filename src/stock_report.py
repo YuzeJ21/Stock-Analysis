@@ -25,6 +25,7 @@ from src.providers.local_templates import write_import_staging_files, write_loca
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.providers.sec_companyfacts import build_sec_fundamentals_rows, write_sec_fundamentals_import
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.review_metrics import build_review_metrics
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
 
@@ -65,6 +66,7 @@ class StockReport:
     missing_data_warnings: list[str]
     data_freshness: list[DataFreshnessNote]
     valuation_readiness: dict[str, Any] = field(default_factory=dict)
+    review_metrics: dict[str, Any] = field(default_factory=dict)
     dataset_coverage: list[dict[str, Any]] = field(default_factory=list)
     local_data_validation: list[dict[str, Any]] = field(default_factory=list)
     screener_context: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -84,6 +86,7 @@ class StockReport:
             "missing_data_warnings": self.missing_data_warnings,
             "data_freshness": [note.to_dict() for note in self.data_freshness],
             "valuation_readiness": self.valuation_readiness,
+            "review_metrics": self.review_metrics,
             "dataset_coverage": self.dataset_coverage,
             "local_data_validation": self.local_data_validation,
             "screener_context": self.screener_context,
@@ -453,6 +456,10 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
             screener_context=screener_context,
         )
     )
+    review_metrics = {
+        benchmark: build_review_metrics(ticker, provider, benchmark=benchmark).to_dict()
+        for benchmark in ("SPY", "QQQ")
+    }
     missing_data_warnings = _build_missing_data_warnings(
         performance,
         financials,
@@ -476,6 +483,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         missing_data_warnings=missing_data_warnings,
         data_freshness=data_freshness,
         valuation_readiness=_valuation_readiness_dict(valuation, earnings, estimates, peer_summary),
+        review_metrics=review_metrics,
         dataset_coverage=dataset_coverage,
         local_data_validation=local_data_validation,
         screener_context=screener_context,
@@ -705,6 +713,80 @@ def _format_compact_number(value: Any) -> str:
 def _format_compact_money(value: Any) -> str:
     formatted = _format_compact_number(value)
     return formatted if formatted == "Not available" or formatted.startswith("$") else f"${formatted}"
+
+
+def _format_review_metric_value(metric: dict[str, Any]) -> str:
+    value = metric.get("value")
+    if value is None:
+        return "Not available"
+    unit = _display_value(metric.get("unit"), "")
+    if unit == "percent":
+        return _format_pct(value)
+    try:
+        if pd.isna(value):
+            return "Not available"
+        return f"{float(value):.2f}"
+    except (TypeError, ValueError):
+        return _display_value(value)
+
+
+def _stock_report_review_metric_lines(review_metrics: dict[str, Any]) -> list[str]:
+    if not review_metrics:
+        return [
+            "- State: blocked; benchmark, risk, fundamentals, valuation, and peer review metrics were not assembled.",
+            "- Guardrail: missing review metrics are not inferred and do not change the research-only decision boundary.",
+        ]
+    lines = [
+        "- Guardrail: these are historical review metrics only; they are not forecasts, rankings, allocation guidance, or account-action instructions.",
+    ]
+    preferred_snapshot = review_metrics.get("SPY") or next(iter(review_metrics.values()))
+    if isinstance(preferred_snapshot, dict):
+        lines.append(f"- Risk-free-rate assumption: {_format_pct(preferred_snapshot.get('risk_free_rate'))}; explicit assumption, not fetched or inferred.")
+    for benchmark in ("SPY", "QQQ"):
+        snapshot = review_metrics.get(benchmark)
+        if not isinstance(snapshot, dict):
+            continue
+        metrics = list(snapshot.get("price_metrics") or [])
+        if not metrics:
+            lines.append(f"- {benchmark} benchmark metrics: blocked; local benchmark price history is unavailable.")
+            continue
+        status_parts = []
+        for metric in metrics:
+            if not isinstance(metric, dict):
+                continue
+            name = _display_field_name(metric.get("name"))
+            state = _display_report_status(metric.get("state"))
+            value = _format_review_metric_value(metric)
+            missing = _display_field_list(metric.get("missing_inputs"), "none")
+            status_parts.append(f"{name}={state} ({value}; missing: {missing})")
+        if status_parts:
+            lines.append(f"- {benchmark} benchmark/risk review: " + "; ".join(status_parts) + ".")
+    for section_label, key in (
+        ("Fundamentals trend", "fundamentals_metrics"),
+        ("Valuation multiples", "valuation_metrics"),
+        ("Peer valuation dispersion", "peer_metrics"),
+    ):
+        snapshot = preferred_snapshot if isinstance(preferred_snapshot, dict) else {}
+        metrics = list(snapshot.get(key) or [])
+        if not metrics:
+            lines.append(f"- {section_label}: blocked; no metric readiness row is available.")
+            continue
+        for metric in metrics:
+            if not isinstance(metric, dict):
+                continue
+            state = _display_report_status(metric.get("state"))
+            value = _format_review_metric_value(metric)
+            missing = _display_field_list(metric.get("missing_inputs"), "none")
+            notes = " ".join(str(note) for note in metric.get("notes", []) if str(note).strip())
+            source = _display_value(metric.get("source_context"), "")
+            detail = f"- {section_label}: {state}; value={value}; missing: {missing}."
+            if source:
+                detail += f" Source context: {source}."
+            if notes:
+                detail += f" Notes: {notes}"
+            lines.append(detail)
+    lines.append("- Blocked, partial, and excluded metric states are preserved; missing benchmark, fundamentals, market-cap, or peer inputs are not fabricated.")
+    return lines
 
 
 def _has_report_value(value: Any) -> bool:
@@ -2932,6 +3014,9 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- 3M performance: {_format_pct(payload.get('performance', {}).get('three_month'))}",
         f"- 1Y performance: {_format_pct(payload.get('performance', {}).get('one_year'))}",
         *_stock_report_volatility_lines(payload),
+        "",
+        "## Benchmark And Risk Review Metrics",
+        *_stock_report_review_metric_lines(payload.get("review_metrics", {})),
         "",
         "## Risk Notes",
         f"- Risk watchpoint: {_public_report_brief(purpose_fields.get('risk_watchpoint'), 'Risk watchpoint:')}",

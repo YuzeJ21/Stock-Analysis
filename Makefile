@@ -1,4 +1,4 @@
-.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record lane-outcome-history price-reviewed-run public-demo-readiness-pack readiness-ops-center coverage-frontier readiness-ops-evidence reviewed-batch diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record lane-outcome-history price-reviewed-run public-demo-readiness-pack readiness-ops-center coverage-frontier readiness-ops-evidence reviewed-batch metric-readiness benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -10,6 +10,8 @@ help:
 	@echo "  make demo                       Print the clean visitor walkthrough"
 	@echo "  make status-check TOP_N=5       Show current readiness and top blockers"
 	@echo "  make stock-report-md TICKER=NVDA Generate the clearest sample stock report"
+	@echo "  make benchmark-risk-review TICKER=NVDA BENCHMARK=SPY"
+	@echo "                                  Print readiness-gated benchmark/risk review metrics"
 	@echo "  make dashboard                  Open the dashboard"
 	@echo "  make trusted-data-pilot-candidates TOP_N=10"
 	@echo "                                  Rank the next source-backed data pilot"
@@ -78,6 +80,8 @@ help-full:
 	@echo "  make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command"
 	@echo "  make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations"
 	@echo "  make reviewed-batch [LANE=prices] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv"
+	@echo "  make benchmark-risk-review TICKER=NVDA [BENCHMARK=SPY] Print readiness-gated benchmark, risk, fundamentals, valuation, and peer review metrics"
+	@echo "  make metric-readiness TICKER=NVDA [BENCHMARK=SPY] Alias for benchmark-risk-review"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
@@ -426,6 +430,14 @@ ifndef TICKER
 	$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)
 endif
 	@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)
+
+benchmark-risk-review:
+ifndef TICKER
+	$(error TICKER is required, for example: make benchmark-risk-review TICKER=NVDA BENCHMARK=SPY)
+endif
+	@python3 -m src.review_metrics --ticker $(TICKER) --benchmark $(or $(BENCHMARK),SPY) $(if $(RISK_FREE_RATE),--risk-free-rate $(RISK_FREE_RATE),)
+
+metric-readiness: benchmark-risk-review
 
 local-tickers:
 	python3 -m src.stock_report --list-local-tickers
