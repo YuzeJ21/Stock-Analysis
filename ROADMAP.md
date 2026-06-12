@@ -207,6 +207,7 @@ Goal: clarify risk readiness and reduce avoidable warnings.
 - [x] Classify missing sector/theme ETF OHLCV, such as `ARKF`, as optional benchmark/proxy context rather than a core ticker price blocker.
 - Improve liquidity/correlation readiness from the current broad baseline of 232/3,538 where appropriate.
 - [x] Add ATR versus volatility-proxy provenance to momentum outputs, dashboard cards, monthly-pick reasons, and stock-report Markdown.
+- [x] Surface liquidity, correlation, and proxy-risk readiness cards in Data Health before detailed tables.
 - Keep proxy-based risk notes clearly labeled as approximations in generated outputs after the next pipeline/report refresh.
 
 ### B. Single-Stock Research Mode V2
