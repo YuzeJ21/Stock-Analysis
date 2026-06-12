@@ -6971,6 +6971,82 @@ def data_health_coverage_frontier_cards(frontier_frame: pd.DataFrame | None, *, 
     return cards
 
 
+def data_health_reviewed_batch_ladder_cards(
+    frontier_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus | None = None,
+) -> list[dict[str, object]]:
+    freshness = freshness or readiness_freshness_status(BASE_DIR)
+    if frontier_frame is None or frontier_frame.empty:
+        return [
+            {
+                "kicker": "BATCH LADDER",
+                "title": "Build the frontier first",
+                "body": (
+                    "Run the read-only coverage frontier before creating a reviewed batch packet. "
+                    "Batch lanes are operations queues, not security rankings."
+                ),
+                "badges": ["read-only", "frontier first"],
+                "command": "make coverage-frontier TOP_N=10",
+            }
+        ]
+
+    top = frontier_frame.iloc[0]
+    lane = format_missing(top.get("Lane"), "Coverage lane")
+    next_safe_command = format_missing(top.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
+    proof_command = format_missing(top.get("Proof Command"), "make readiness")
+    workflow = format_missing(top.get("Workflow Mode"), "review")
+    reviewed_batch_command = "make reviewed-batch LANE=prices TOP_N=10"
+    if "fundamental" in lane.lower() or "dcf" in lane.lower():
+        reviewed_batch_command = "make reviewed-batch LANE=fundamentals TOP_N=10"
+    elif "peer" in lane.lower():
+        reviewed_batch_command = "make reviewed-batch LANE=peers TOP_N=10"
+    elif "earning" in lane.lower() or "estimate" in lane.lower() or "optional" in lane.lower():
+        reviewed_batch_command = "make reviewed-batch LANE=optional_context TOP_N=10"
+
+    freshness_badges = [freshness.status, "stop if stale"] if freshness.status in {"missing", "stale"} else [freshness.status, "snapshot checked"]
+    return [
+        {
+            "kicker": "BATCH STEP 1",
+            "title": "Confirm readiness snapshot",
+            "body": (
+                f"{freshness.message} Run {freshness.refresh_command} before relying on final counts when artifacts are missing or stale."
+            ),
+            "badges": freshness_badges,
+            "command": freshness.refresh_command,
+        },
+        {
+            "kicker": "BATCH STEP 2",
+            "title": f"Packet for {lane}",
+            "body": (
+                f"Create a copy-only reviewed packet before any data-changing workflow. "
+                f"Workflow mode: {workflow}. The packet records scope, source context, rollback, and proof fields."
+            ),
+            "badges": ["copy-only packet", "review first"],
+            "command": reviewed_batch_command,
+        },
+        {
+            "kicker": "BATCH STEP 3",
+            "title": "Dry-run before execution",
+            "body": (
+                f"Start with the lane command and inspect planned rows, provider/source notes, and expected artifacts. "
+                f"Do not proceed if source proof, validation, or preview review is missing."
+            ),
+            "badges": ["dry-run first", "capped scope"],
+            "command": next_safe_command,
+        },
+        {
+            "kicker": "BATCH STEP 4",
+            "title": "Verify and keep churn reviewed",
+            "body": (
+                "After any reviewed data change, rebuild readiness, run the lane proof command, inspect rejected-row reports, "
+                "and keep generated CSV/JSON churn out unless intentionally selected as evidence."
+            ),
+            "badges": ["prove after", "clean diff"],
+            "command": f"{proof_command} && make diff-hygiene",
+        },
+    ]
+
+
 def data_health_reviewed_proof_timeline_frame(ledger_path: Path | None = None) -> pd.DataFrame:
     """Return durable reviewed proof rows for Data Health."""
 
@@ -21999,6 +22075,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))
     with st.expander("Coverage frontier table", expanded=False):
         st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
+    render_section_header("Reviewed Batch Ladder", "Copy-only packet, dry-run, capped execution, and proof steps for the selected data lane.")
+    render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))
     render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")

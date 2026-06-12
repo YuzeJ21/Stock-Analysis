@@ -9786,6 +9786,54 @@ def test_data_health_coverage_frontier_cards_rank_operations_not_securities():
     assert "batch lane" in rendered
 
 
+def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps():
+    frontier = pd.DataFrame(
+        [
+            {
+                "Lane": "Price Coverage",
+                "Workflow Mode": "dry_run_first",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                "Proof Command": "make readiness && make price-coverage TOP_N=100",
+            }
+        ]
+    )
+    cards = dashboard.data_health_reviewed_batch_ladder_cards(
+        frontier,
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["BATCH STEP 1", "BATCH STEP 2", "BATCH STEP 3", "BATCH STEP 4"]
+    assert cards[0]["command"] == "make readiness"
+    assert cards[1]["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert cards[3]["command"] == "make readiness && make price-coverage TOP_N=100 && make diff-hygiene"
+    assert "copy-only reviewed packet" in rendered
+    assert "workflow mode: dry_run_first" in rendered
+    assert "dry-run before execution" in rendered
+    assert "do not proceed if source proof, validation, or preview review is missing" in rendered
+    assert "generated csv/json churn" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+
+
+def test_data_health_reviewed_batch_ladder_cards_warn_when_frontier_missing():
+    cards = dashboard.data_health_reviewed_batch_ladder_cards(
+        pd.DataFrame(),
+        dashboard.FreshnessStatus("missing", "Readiness artifacts are missing.", "make readiness"),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert cards[0]["kicker"] == "BATCH LADDER"
+    assert cards[0]["command"] == "make coverage-frontier TOP_N=10"
+    assert "frontier first" in rendered
+    assert "operations queues, not security rankings" in rendered
+
+
 def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
     fundamentals = pd.DataFrame(
         [
@@ -9922,7 +9970,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
     ops_index = source.index('render_section_header("Readiness Operations Center"')
     frontier_index = source.index('render_section_header("Coverage Frontier"', ops_index)
-    fix_first_index = source.index('render_section_header("Fix First"', frontier_index)
+    batch_ladder_index = source.index('render_section_header("Reviewed Batch Ladder"', frontier_index)
+    fix_first_index = source.index('render_section_header("Fix First"', batch_ladder_index)
     lane_board_index = source.index('render_section_header("Lane-Group Board"', pilot_index)
     proof_timeline_index = source.index('render_section_header("Reviewed Proof Timeline"', lane_board_index)
     pilot_preview_index = source.index("pilot_preview = data_health_trusted_pilot_preview_frame", pilot_index)
@@ -9930,7 +9979,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert cockpit_index < risk_context_index < ops_index < frontier_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert cockpit_index < risk_context_index < ops_index < frontier_index < batch_ladder_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = readiness_freshness_status(BASE_DIR)" in source
@@ -9940,6 +9989,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "analyst_readiness_frame,\n            readiness_freshness" in source
     assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
     assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))" in source
+    assert "render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))" in source
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
     assert "lane_board = data_health_trusted_pilot_lane_board_frame" in source
     assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))" in source
