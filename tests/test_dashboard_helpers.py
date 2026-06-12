@@ -9380,7 +9380,7 @@ def test_data_health_quick_read_cards_keep_optional_context_locked_after_core_la
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Optional context is intentionally locked"
-    assert cards[0]["command"] == "make optional-context-worklist TOP_N=10"
+    assert cards[0]["command"] == "make optional-context-summary TOP_N=10"
     assert "empty optional coverage should not weaken ready price, dcf, or peer analysis" in rendered
     assert "use the templates and import guide only when trusted rows are available" in rendered
     assert "rejected-row paths stay in the detailed help" in rendered
@@ -9388,6 +9388,67 @@ def test_data_health_quick_read_cards_keep_optional_context_locked_after_core_la
     assert "make import-earnings or make import-analyst-estimates" not in rendered
     assert "make imports-validate -> make imports-preview -> make imports-apply" not in rendered
     assert "data/rejected/earnings_import_rejected.csv" not in rendered
+
+
+def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overclaiming():
+    ops = pd.DataFrame(
+        [
+            {"Lane": "Price coverage", "Workflow Mode": "safe_to_batch_dry_run"},
+            {"Lane": "Fundamentals / DCF proof", "Workflow Mode": "review_only"},
+            {"Lane": "Earnings locked lane", "Workflow Mode": "locked_manual"},
+        ]
+    )
+    frontier = pd.DataFrame(
+        [
+            {
+                "Lane": "Price coverage",
+                "Unlock Impact": 3273,
+                "Possible State Move": "blocked -> partial after verified local price rows",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+            }
+        ]
+    )
+    earnings = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "has_trusted_earnings": False},
+            {"ticker": "A", "has_trusted_earnings": True},
+        ]
+    )
+    estimates = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "has_trusted_analyst_estimates": False},
+            {"ticker": "A", "has_trusted_analyst_estimates": False},
+        ]
+    )
+
+    cards = dashboard.data_health_operations_cockpit_cards(
+        {"price_ready": 265, "dcf_ready": 23, "peer_ready": 9},
+        ops,
+        frontier,
+        earnings,
+        estimates,
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["OPS COCKPIT", "NEXT FRONTIER", "OPTIONAL CONTEXT", "PROOF HYGIENE"]
+    assert cards[0]["title"] == "265 price / 23 DCF / 9 peer-ready"
+    assert cards[0]["command"] == "make readiness-ops-center"
+    assert cards[1]["title"] == "Price coverage"
+    assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert cards[2]["title"] == "1 earnings / 0 estimates ready"
+    assert cards[2]["command"] == "make optional-context-summary TOP_N=10"
+    assert cards[3]["command"] == "make diff-hygiene"
+    assert "3 lane(s) are visible before ticker drilldown" in rendered
+    assert "top data-lane opportunity has unlock impact 3273" in rendered
+    assert "not a ranking" in rendered
+    assert "3 optional-context row(s) remain locked" in rendered
+    assert "read-only summary first" in rendered
+    assert "validate, preview, apply" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_data_health_quick_read_cards_start_with_price_when_no_price_ready_rows():
@@ -9851,6 +9912,7 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
+    cockpit_index = source.index('render_section_header("Operations Cockpit"')
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
     ops_index = source.index('render_section_header("Readiness Operations Center"')
     frontier_index = source.index('render_section_header("Coverage Frontier"', ops_index)
@@ -9862,9 +9924,11 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert ops_index < frontier_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert cockpit_index < ops_index < frontier_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
+    assert "render_signal_cards(\n        data_health_operations_cockpit_cards(" in source
+    assert "earnings_readiness_frame,\n            analyst_readiness_frame" in source
     assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
     assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))" in source
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source

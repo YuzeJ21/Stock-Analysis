@@ -6124,7 +6124,7 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
             "Earnings and analyst estimates add context only after trusted local CSV rows pass validation. "
             "Empty optional coverage should not weaken ready price, DCF, or peer analysis. Use the templates and import guide only when trusted rows are available; rejected-row paths stay in the detailed help."
         )
-        first_command = "make optional-context-worklist TOP_N=10"
+        first_command = "make optional-context-summary TOP_N=10"
         first_badges = ["optional context", "trusted rows only"]
     else:
         first_title = "Review single-stock reports"
@@ -6160,6 +6160,97 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
             ),
             "badges": ["no inference", "optional context"],
             "command": "make templates",
+        },
+    ]
+
+
+def _trusted_ready_count(frame: pd.DataFrame | None, column: str) -> int:
+    if frame is None or frame.empty or column not in frame.columns:
+        return 0
+    return int(frame[column].astype(bool).sum())
+
+
+def data_health_operations_cockpit_cards(
+    readiness_summary: dict[str, object],
+    ops_frame: pd.DataFrame | None,
+    frontier_frame: pd.DataFrame | None,
+    earnings_readiness_frame: pd.DataFrame | None,
+    analyst_readiness_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    lane_count = 0 if ops_frame is None else len(ops_frame)
+    review_lanes = 0
+    dry_run_lanes = 0
+    locked_lanes = 0
+    if ops_frame is not None and not ops_frame.empty and "Workflow Mode" in ops_frame.columns:
+        modes = ops_frame["Workflow Mode"].astype(str).str.lower()
+        review_lanes = int(modes.str.contains("review", na=False).sum())
+        dry_run_lanes = int(modes.str.contains("dry", na=False).sum())
+        locked_lanes = int(modes.str.contains("locked|manual", regex=True, na=False).sum())
+
+    frontier_title = "No frontier row yet"
+    frontier_body = (
+        "Run the read-only frontier view after readiness outputs exist; frontier rows describe data-lane impact, "
+        "not security attractiveness."
+    )
+    frontier_command = "make coverage-frontier TOP_N=10"
+    if frontier_frame is not None and not frontier_frame.empty:
+        top = frontier_frame.iloc[0]
+        frontier_title = format_missing(top.get("Lane"), "Coverage frontier")
+        impact = format_missing(top.get("Unlock Impact"), "0")
+        move = compact_card_fragment(top.get("Possible State Move"), max_chars=150)
+        frontier_body = (
+            f"Top data-lane opportunity has unlock impact {impact}. "
+            f"{card_sentence('State move', move)} Use this as a proof queue, not a ranking."
+        )
+        frontier_command = format_missing(top.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
+
+    earnings_ready = _trusted_ready_count(earnings_readiness_frame, "has_trusted_earnings")
+    estimate_ready = _trusted_ready_count(analyst_readiness_frame, "has_trusted_analyst_estimates")
+    earnings_total = 0 if earnings_readiness_frame is None else len(earnings_readiness_frame)
+    estimate_total = 0 if analyst_readiness_frame is None else len(analyst_readiness_frame)
+    optional_locked = max(earnings_total - earnings_ready, 0) + max(estimate_total - estimate_ready, 0)
+
+    return [
+        {
+            "kicker": "OPS COCKPIT",
+            "title": f"{price_ready:,} price / {dcf_ready:,} DCF / {peer_ready:,} peer-ready",
+            "body": (
+                f"{lane_count} lane(s) are visible before ticker drilldown: {review_lanes} review lane(s), "
+                f"{dry_run_lanes} dry-run lane(s), and {locked_lanes} locked/manual lane(s). "
+                "Choose the data lane first, then inspect one capped proof path."
+            ),
+            "badges": ["lane-first", "copy-only"],
+            "command": "make readiness-ops-center",
+        },
+        {
+            "kicker": "NEXT FRONTIER",
+            "title": frontier_title,
+            "body": frontier_body,
+            "badges": ["data-lane impact", "not a ranking"],
+            "command": frontier_command,
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"{earnings_ready:,} earnings / {estimate_ready:,} estimates ready",
+            "body": (
+                f"{optional_locked:,} optional-context row(s) remain locked until trusted local rows exist. "
+                "Inspect the read-only summary first; write readiness CSVs only after trusted optional rows change."
+            ),
+            "badges": ["read-only first", "trusted local rows"],
+            "command": "make optional-context-summary TOP_N=10",
+        },
+        {
+            "kicker": "PROOF HYGIENE",
+            "title": "Preview, then prove",
+            "body": (
+                "Mutating workflows still go through validate, preview, apply, rejected-row review, and rebuilt readiness. "
+                "Keep broad generated CSV churn out unless it is reviewed evidence."
+            ),
+            "badges": ["validate", "preview", "apply"],
+            "command": "make diff-hygiene",
         },
     ]
 
@@ -21795,6 +21886,16 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_quick_read_cards(readiness_summary))
     ops_center = data_health_readiness_ops_center_frame()
     coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
+    render_section_header("Operations Cockpit", "Compact lane, frontier, optional-context, and proof-hygiene controls before detailed boards.")
+    render_signal_cards(
+        data_health_operations_cockpit_cards(
+            readiness_summary,
+            ops_center,
+            coverage_frontier,
+            earnings_readiness_frame,
+            analyst_readiness_frame,
+        )
+    )
     render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
     render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
     with st.expander("Lane operations board", expanded=False):
