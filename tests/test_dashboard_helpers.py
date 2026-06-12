@@ -9918,6 +9918,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     cockpit_index = source.index('render_section_header("Operations Cockpit"')
+    risk_context_index = source.index('render_section_header("Risk Context Readiness"', cockpit_index)
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
     ops_index = source.index('render_section_header("Readiness Operations Center"')
     frontier_index = source.index('render_section_header("Coverage Frontier"', ops_index)
@@ -9929,11 +9930,12 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert cockpit_index < ops_index < frontier_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert cockpit_index < risk_context_index < ops_index < frontier_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = readiness_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(\n        data_health_operations_cockpit_cards(" in source
+    assert "render_signal_cards(data_health_risk_context_cards(liquidity_frame, correlation_frame))" in source
     assert "earnings_readiness_frame,\n            analyst_readiness_frame" in source
     assert "analyst_readiness_frame,\n            readiness_freshness" in source
     assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
@@ -18252,6 +18254,56 @@ def test_dashboard_splits_risk_context_by_price_ready_status():
 
     assert ready["Ticker"].tolist() == ["NVDA"]
     assert unavailable["Ticker"].tolist() == ["AMD"]
+
+
+def test_data_health_risk_context_cards_surface_readiness_without_recommendations():
+    liquidity = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD", "QQQ"],
+            "LiquidityStatus": ["Liquid", "Insufficient Price Data", "Liquid"],
+            "LiquidityInputsUsed": ["ATR inputs", "", "close-to-close volatility proxy approximation"],
+            "Reason": ["Supported by local rows.", "Need volume rows.", "Proxy remains approximate."],
+        }
+    )
+    correlation = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD", "QQQ"],
+            "CorrelationStatus": ["Ready", "Insufficient Overlap", "Insufficient Data"],
+            "Reason": ["Supported.", "Need overlap.", "Need local returns."],
+        }
+    )
+
+    cards = dashboard.data_health_risk_context_cards(liquidity, correlation)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "LIQUIDITY READINESS",
+        "CORRELATION READINESS",
+        "PROXY RISK NOTES",
+    ]
+    assert cards[0]["title"] == "2 ready / 3 rows"
+    assert cards[1]["title"] == "1 ready / 3 rows"
+    assert cards[2]["title"] == "1 approximation row(s)"
+    assert cards[0]["command"] == "make price-worklist TOP_N=25"
+    assert cards[1]["command"] == "make research-health-check TOP_N=10"
+    assert "review context only" in rendered
+    assert "concentration review signal, not a research conclusion" in rendered
+    assert "approximation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+
+
+def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    risk_cards_index = source.index("render_signal_cards(data_health_risk_context_cards(liquidity_frame, correlation_frame))")
+    liquidity_expander_index = source.index('st.expander("Liquidity Context", expanded=False)')
+    correlation_expander_index = source.index('st.expander("Correlation Concentration Context", expanded=False)')
+
+    assert risk_cards_index < liquidity_expander_index < correlation_expander_index
 
 
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
