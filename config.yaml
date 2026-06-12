@@ -45,6 +45,7 @@ volume_rules:
   weak_volume_ratio_max: 0.8
 
 risk_rules:
+  annual_risk_free_rate_pct: 0
   max_single_position_pct_default: 15
   max_speculative_position_pct: 5
   max_theme_exposure_pct: 40

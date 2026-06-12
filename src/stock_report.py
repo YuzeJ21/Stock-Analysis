@@ -25,7 +25,7 @@ from src.providers.local_templates import write_import_staging_files, write_loca
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.providers.sec_companyfacts import build_sec_fundamentals_rows, write_sec_fundamentals_import
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
-from src.review_metrics import build_review_metrics
+from src.review_metrics import build_review_metrics, configured_risk_free_rate
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
 
@@ -456,8 +456,10 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
             screener_context=screener_context,
         )
     )
+    provider_root = getattr(provider, "base_dir", None)
+    risk_free_rate = configured_risk_free_rate(Path(provider_root)) if provider_root is not None else 0.0
     review_metrics = {
-        benchmark: build_review_metrics(ticker, provider, benchmark=benchmark).to_dict()
+        benchmark: build_review_metrics(ticker, provider, benchmark=benchmark, annual_risk_free_rate=risk_free_rate).to_dict()
         for benchmark in ("SPY", "QQQ")
     }
     missing_data_warnings = _build_missing_data_warnings(

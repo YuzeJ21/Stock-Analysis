@@ -113,10 +113,10 @@ Goal: add useful benchmark, risk, fundamentals, valuation, and peer context with
 - [x] Surface the metrics in single-stock Markdown reports and the dashboard Snapshot tab.
 - [x] Add a central `make metric-readiness TOP_N=10` summary with explicit readiness freshness context.
 - [x] Refine the dashboard metrics section from raw table-first output into summary cards plus an optional details table.
+- [x] Add configurable risk-free-rate defaults in project config while keeping the assumption visible in report output.
 
 Next improvements:
 
-- Consider configurable risk-free-rate defaults in project config while keeping the assumption visible in report output.
 - Add richer multi-period fundamentals trend only when trusted historical rows are available.
 
 ## 4. Trusted Data Proof Roadmap

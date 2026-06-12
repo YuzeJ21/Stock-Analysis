@@ -25,6 +25,7 @@ ROOT_PRODUCT_FILES = {
     "READINESS_MODEL.md",
     "DECISION_OUTPUT_MODEL.md",
     "Makefile",
+    "config.yaml",
     "pyproject.toml",
     "data/reviewed_data_proofs.csv",
     "outputs/reviewed_batch_packet.csv",

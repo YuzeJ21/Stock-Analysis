@@ -8,6 +8,7 @@ from typing import Any
 
 import pandas as pd
 
+from src.config import AppConfig
 from src.paths import resolve_data_dir, resolve_project_root
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.market_data import FinancialSnapshot, MarketDataProvider
@@ -19,6 +20,7 @@ PARTIAL = "partial"
 BLOCKED = "blocked"
 EXCLUDED = "excluded"
 TRADING_DAYS = 252
+DEFAULT_RISK_FREE_RATE = 0.0
 
 
 @dataclass
@@ -86,6 +88,14 @@ def _clean_price_history(history: pd.DataFrame) -> pd.Series:
     if frame.empty:
         return pd.Series(dtype=float)
     return frame.sort_values("date").drop_duplicates("date", keep="last").set_index("date")["close"]
+
+
+def configured_risk_free_rate(root: Path) -> float:
+    try:
+        config = AppConfig.load(root / "config.yaml")
+    except FileNotFoundError:
+        return DEFAULT_RISK_FREE_RATE
+    return config.get_pct("risk_rules", "annual_risk_free_rate_pct", DEFAULT_RISK_FREE_RATE)
 
 
 def _returns(prices: pd.Series) -> pd.Series:
@@ -739,7 +749,7 @@ def main() -> None:
     parser.add_argument("--tickers", help="Comma-separated tickers for summary mode.")
     parser.add_argument("--benchmark", default="SPY", choices=["SPY", "QQQ"])
     parser.add_argument("--top-n", type=int, default=10)
-    parser.add_argument("--risk-free-rate", type=float, default=0.0)
+    parser.add_argument("--risk-free-rate", type=float)
     parser.add_argument("--project-root")
     parser.add_argument("--data-dir")
     parser.add_argument("--summary", action="store_true", help="Print a capped multi-ticker metric-readiness summary.")
@@ -749,12 +759,13 @@ def main() -> None:
     root = resolve_project_root(Path(args.project_root) if args.project_root else None)
     data_dir = resolve_data_dir(Path(args.data_dir) if args.data_dir else None, root)
     provider = LocalCSVMarketDataProvider(base_dir=root, data_dir=data_dir)
+    risk_free_rate = args.risk_free_rate if args.risk_free_rate is not None else configured_risk_free_rate(root)
     if args.summary or not args.ticker:
         rows, freshness = build_metric_readiness_summary(
             root,
             provider,
             benchmark=args.benchmark,
-            annual_risk_free_rate=args.risk_free_rate,
+            annual_risk_free_rate=risk_free_rate,
             tickers=_split_cli_tickers(args.tickers or args.ticker),
             top_n=args.top_n,
         )
@@ -768,7 +779,7 @@ def main() -> None:
         args.ticker,
         provider,
         benchmark=args.benchmark,
-        annual_risk_free_rate=args.risk_free_rate,
+        annual_risk_free_rate=risk_free_rate,
     )
     if args.json:
         print(json.dumps(snapshot.to_dict(), indent=2))

@@ -17,6 +17,7 @@ from src.review_metrics import (
     beta_vs_benchmark,
     build_metric_readiness_summary,
     build_review_metrics,
+    configured_risk_free_rate,
     format_metric_readiness_summary_text,
     format_review_metrics_text,
     max_drawdown,
@@ -220,3 +221,12 @@ def test_metric_readiness_summary_uses_selected_tickers_and_freshness_context(tm
     assert "ranking or recommendation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_configured_risk_free_rate_reads_project_config(tmp_path):
+    (tmp_path / "config.yaml").write_text(
+        "risk_rules:\n  annual_risk_free_rate_pct: 4\n",
+        encoding="utf-8",
+    )
+
+    assert configured_risk_free_rate(tmp_path) == 0.04
