@@ -1,4 +1,4 @@
-.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record lane-outcome-history price-reviewed-run public-demo-readiness-pack diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -21,6 +21,9 @@ help:
 	@echo "                                  Print a read-only multi-ticker pilot board"
 	@echo "  make trusted-data-pilot-evidence TICKERS=MU,CRDO"
 	@echo "                                  Write a read-only before-state evidence ledger"
+	@echo "  make reviewed-data-proof        Show durable reviewed proof ledger"
+	@echo "  make lane-outcome-history       Show lane outcome history without generated churn"
+	@echo "  make public-demo-readiness-pack Print the shareable demo proof set"
 	@echo "  make public-check               Run before sharing the GitHub link"
 	@echo ""
 	@echo "Useful next paths:"
@@ -44,6 +47,14 @@ help-full:
 	@echo "                        Print one company's read-only evidence packet"
 	@echo "  make trusted-data-pilot-lane LANE=fundamentals_dcf"
 	@echo "                        Print one lane group's ordered proof steps and evidence summary"
+	@echo "  make reviewed-data-proof"
+	@echo "                        Print the durable reviewed data proof ledger"
+	@echo "  make lane-outcome-history"
+	@echo "                        Summarize lane outcomes from the durable proof ledger"
+	@echo "  make price-reviewed-run"
+	@echo "                        Print the controlled reviewed capped price run workflow"
+	@echo "  make public-demo-readiness-pack"
+	@echo "                        Print the small shareable public demo proof set"
 	@echo "  make status-check TOP_N=5"
 	@echo "  make stock-report-md TICKER=NVDA"
 	@echo "  make dashboard-smoke"
@@ -58,6 +69,11 @@ help-full:
 	@echo "  make trusted-data-pilot-lane LANE=fundamentals_dcf [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only lane-group runbook and evidence summary"
 	@echo "  make trusted-data-pilot-board [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only multi-ticker outcome board without writing CSVs"
 	@echo "  make trusted-data-pilot-evidence [TICKERS=MU,CRDO] [OUTPUT=outputs/trusted_data_pilot_evidence.csv] Write current before-state proof paths"
+	@echo "  make reviewed-data-proof [LEDGER=data/reviewed_data_proofs.csv] Print the durable reviewed data proof ledger"
+	@echo "  make lane-outcome-history [LEDGER=data/reviewed_data_proofs.csv] Print lane outcome history from reviewed proof rows"
+	@echo "  make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record an intentional reviewed proof row"
+	@echo "  make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan"
+	@echo "  make public-demo-readiness-pack Print the small shareable public demo proof set"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
@@ -312,6 +328,33 @@ trusted-data-pilot-board:
 
 trusted-data-pilot-evidence:
 	@python3 -m src.trusted_data_pilot --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS)) --top-n $(or $(TOP_N),10) --write-evidence $(or $(OUTPUT),outputs/trusted_data_pilot_evidence.csv)
+
+reviewed-data-proof:
+	@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv)
+
+lane-outcome-history:
+	@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --history
+
+price-reviewed-run:
+	@python3 -m src.reviewed_data_proof --price-reviewed-run --max-candidates $(or $(MAX_CANDIDATES),3500) --top-n $(or $(TOP_N),100) --provider $(or $(PROVIDER),yahoo) --sleep-seconds $(or $(SLEEP_SECONDS),30)
+
+public-demo-readiness-pack:
+	@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --public-demo-pack
+
+reviewed-data-proof-record:
+ifndef LANE
+	$(error LANE is required, for example: make reviewed-data-proof-record LANE=peer_valuation_inputs PROOF_ID=RDP-YYYY-MM-DD-001 PROOF_DATE=YYYY-MM-DD FINAL_OUTCOME=still_blocked)
+endif
+ifndef PROOF_ID
+	$(error PROOF_ID is required)
+endif
+ifndef PROOF_DATE
+	$(error PROOF_DATE is required)
+endif
+ifndef FINAL_OUTCOME
+	$(error FINAL_OUTCOME is required: supported, still_blocked, skipped, or excluded)
+endif
+	@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --record --proof-id "$(PROOF_ID)" --proof-date "$(PROOF_DATE)" --lane "$(LANE)" --lane-label "$(or $(LANE_LABEL),$(LANE))" --scope "$(or $(SCOPE),reviewed lane proof)" --tickers-or-dependencies "$(or $(TICKERS_OR_DEPENDENCIES),-)" --source-proof-status "$(or $(SOURCE_PROOF_STATUS),reviewed)" --reviewer-outcome "$(or $(REVIEWER_OUTCOME),reviewed)" --validate-result "$(or $(VALIDATE_RESULT),not recorded)" --preview-result "$(or $(PREVIEW_RESULT),not recorded)" --apply-result "$(or $(APPLY_RESULT),not recorded)" --rejected-row-status "$(or $(REJECTED_ROW_STATUS),not recorded)" --readiness-before "$(or $(READINESS_BEFORE),not recorded)" --readiness-after "$(or $(READINESS_AFTER),not recorded)" --final-outcome "$(FINAL_OUTCOME)" --changed-inputs "$(or $(CHANGED_INPUTS),-)" --what-changed "$(or $(WHAT_CHANGED),-)" --still-blocked "$(or $(STILL_BLOCKED),-)" --review-command "$(or $(REVIEW_COMMAND),-)" --proof-command "$(or $(PROOF_COMMAND),-)" --artifact-paths "$(or $(ARTIFACT_PATHS),-)" --generated-churn-policy "$(or $(GENERATED_CHURN_POLICY),keep broad generated CSV/JSON churn out of commits unless intentionally reviewed evidence)"
 
 diff-hygiene:
 	@python3 scripts/diff_hygiene.py

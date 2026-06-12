@@ -20,6 +20,7 @@ def test_diff_hygiene_classifies_generated_csv_churn_separately():
     module = load_diff_hygiene_module()
 
     assert module.classify_path("data/reports/ticker_readiness_report.csv") == "generated_csv_churn"
+    assert module.classify_path("data/fundamentals.csv") == "generated_csv_churn"
     assert module.classify_path("data/outputs/research_decisions.csv") == "generated_csv_churn"
     assert module.classify_path("outputs/research_decisions.csv") == "generated_csv_churn"
 
@@ -44,6 +45,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "tests/test_launchers.py",
         "scripts/diff_hygiene.py",
         "stock_analysis/pipeline.py",
+        "data/reviewed_data_proofs.csv",
     ):
         assert module.classify_path(path) == "product_candidate"
 

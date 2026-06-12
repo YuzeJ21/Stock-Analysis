@@ -20,6 +20,7 @@ from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
+from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
@@ -6646,6 +6647,73 @@ def data_health_trusted_pilot_lane_cards(lane_frame: pd.DataFrame | None, *, lim
             }
         )
     return cards
+
+
+def data_health_reviewed_proof_timeline_frame(ledger_path: Path | None = None) -> pd.DataFrame:
+    """Return durable reviewed proof rows for Data Health."""
+
+    proofs = load_reviewed_proofs(ledger_path or BASE_DIR / DEFAULT_LEDGER_PATH)
+    rows = [
+        {
+            "Proof ID": proof.proof_id,
+            "Proof Date": proof.proof_date,
+            "Lane": proof.lane_label,
+            "Scope": proof.scope,
+            "Source Proof Status": proof.source_proof_status,
+            "Reviewer Outcome": proof.reviewer_outcome,
+            "Validate Result": proof.validate_result,
+            "Preview Result": proof.preview_result,
+            "Apply Result": proof.apply_result,
+            "Rejected-Row Status": proof.rejected_row_status,
+            "Readiness Before": proof.readiness_before,
+            "Readiness After": proof.readiness_after,
+            "Final Outcome": proof.final_outcome,
+            "What Changed": proof.what_changed,
+            "Still Blocked": proof.still_blocked,
+            "Proof Command": proof.proof_command,
+            "Artifacts": proof.artifact_paths,
+        }
+        for proof in sorted(proofs, key=lambda item: (item.proof_date, item.proof_id), reverse=True)
+    ]
+    return pd.DataFrame(rows)
+
+
+def data_health_reviewed_proof_cards(ledger_path: Path | None = None) -> list[dict[str, object]]:
+    proofs = load_reviewed_proofs(ledger_path or BASE_DIR / DEFAULT_LEDGER_PATH)
+    latest = latest_reviewed_proof(proofs)
+    if latest is None:
+        return [
+            {
+                "kicker": "PROOF TIMELINE",
+                "title": "No reviewed proof recorded yet",
+                "body": "Record reviewed lane proof only after source proof, validation, preview, rejected-row review, apply, and readiness proof are complete.",
+                "badges": ["durable ledger", "review required"],
+                "command": "make reviewed-data-proof",
+            }
+        ]
+    return [
+        {
+            "kicker": "LATEST PROOF",
+            "title": f"{latest.lane_label}: {latest.final_outcome}",
+            "body": (
+                f"{card_sentence('What changed', compact_card_fragment(latest.what_changed, max_chars=190))} "
+                f"{card_sentence('Still blocked', compact_card_fragment(latest.still_blocked, max_chars=180))} "
+                f"Proof command: {latest.proof_command}."
+            ),
+            "badges": [latest.proof_date, latest.source_proof_status],
+            "command": "make reviewed-data-proof",
+        },
+        {
+            "kicker": "LANE HISTORY",
+            "title": f"{len(lane_history_rows(proofs))} lane(s) with durable history",
+            "body": (
+                "The history is read from data/reviewed_data_proofs.csv, not generated readiness CSV churn. "
+                "Use it to see supported, still blocked, skipped, and excluded outcomes over time."
+            ),
+            "badges": ["source-controlled", "no generated churn"],
+            "command": "make lane-outcome-history",
+        },
+    ]
 
 
 def data_health_trusted_pilot_selection_note(
@@ -21510,6 +21578,14 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))
     with st.expander("Lane-group evidence summary", expanded=False):
         st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
+    render_section_header("Reviewed Proof Timeline", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
+    render_signal_cards(data_health_reviewed_proof_cards())
+    proof_timeline = data_health_reviewed_proof_timeline_frame()
+    with st.expander("Reviewed proof ledger", expanded=False):
+        if proof_timeline.empty:
+            st.caption("No reviewed proof rows are recorded yet.")
+        else:
+            st.dataframe(clean_display_frame(proof_timeline), width="stretch", hide_index=True)
     with st.expander("Refresh and command details", expanded=False):
         render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
         render_signal_cards(data_health_freshness_routine_cards(readiness_summary))

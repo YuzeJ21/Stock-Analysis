@@ -52,6 +52,11 @@ def test_makefile_contains_convenience_targets():
         "diff-hygiene",
         "trusted-data-pilot-candidates",
         "trusted-data-pilot-packet",
+        "reviewed-data-proof",
+        "reviewed-data-proof-record",
+        "lane-outcome-history",
+        "price-reviewed-run",
+        "public-demo-readiness-pack",
         "diff-hygiene-summary",
         "diff-hygiene-files",
         "staged-hygiene-check",
@@ -153,12 +158,25 @@ def test_makefile_help_documents_key_workflows():
         "Print one company's read-only evidence packet",
         "make trusted-data-pilot-lane LANE=fundamentals_dcf",
         "Print one lane group's ordered proof steps and evidence summary",
+        "make reviewed-data-proof",
+        "Print the durable reviewed data proof ledger",
+        "make lane-outcome-history",
+        "Summarize lane outcomes from the durable proof ledger",
+        "make price-reviewed-run",
+        "Print the controlled reviewed capped price run workflow",
+        "make public-demo-readiness-pack",
+        "Print the small shareable public demo proof set",
         "make public-check     Run before sharing the GitHub link",
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
         "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot",
         "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before-report/review/validate/rejected-row/rebuild evidence packet",
         "make trusted-data-pilot-lane LANE=fundamentals_dcf [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only lane-group runbook and evidence summary",
+        "make reviewed-data-proof [LEDGER=data/reviewed_data_proofs.csv] Print the durable reviewed data proof ledger",
+        "make lane-outcome-history [LEDGER=data/reviewed_data_proofs.csv] Print lane outcome history from reviewed proof rows",
+        "make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record an intentional reviewed proof row",
+        "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan",
+        "make public-demo-readiness-pack Print the small shareable public demo proof set",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -1597,6 +1615,14 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Record local file status from the pilot output, but do not treat row counts or file existence as proof by themselves." in data_strategy
     assert "Peer-limited companies show the mapped peer blocker and the exact source-backed peer input needed next." in data_strategy
     assert "The final proof is a regenerated report plus refreshed readiness counts, recorded alongside any still-blocked reason" in data_strategy
+    assert "Reviewed Data Proof V1" in data_strategy
+    assert "Use `make reviewed-data-proof` to show the durable lane-level proof ledger" in data_strategy
+    assert "source proof status, reviewer outcome, validate/preview/apply result, rejected-row status, readiness before/after" in data_strategy
+    assert "Use `make lane-outcome-history` to summarize lane outcomes over time from the reviewed proof ledger." in data_strategy
+    assert "Use `make reviewed-data-proof-record` only after the source proof, validation, preview, rejected-row review, apply step, and readiness proof have been reviewed." in data_strategy
+    assert "Use `make price-reviewed-run` after a dry-run plan has been reviewed." in data_strategy
+    assert "Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.md`" in data_strategy
+    assert "Data Health also surfaces the latest reviewed proof timeline" in data_strategy
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy
     assert "Applying SEC/manual fundamentals rows without validation and preview" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
@@ -1788,6 +1814,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "trusted-data-pilot-lane:\nifndef LANE\n\t$(error LANE is required, for example: make trusted-data-pilot-lane LANE=fundamentals_dcf)\nendif\n\t@python3 -m src.trusted_data_pilot --lane $(LANE) --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_TICKERS)) --top-n $(or $(TOP_N),10)" in makefile
     assert "trusted-data-pilot-board:\n\t@python3 -m src.trusted_data_pilot --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_TICKERS)) --top-n $(or $(TOP_N),10) --board" in makefile
     assert "trusted-data-pilot-evidence:\n\t@python3 -m src.trusted_data_pilot --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS)) --top-n $(or $(TOP_N),10) --write-evidence $(or $(OUTPUT),outputs/trusted_data_pilot_evidence.csv)" in makefile
+    assert "reviewed-data-proof:\n\t@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv)" in makefile
+    assert "lane-outcome-history:\n\t@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --history" in makefile
+    assert "price-reviewed-run:\n\t@python3 -m src.reviewed_data_proof --price-reviewed-run --max-candidates $(or $(MAX_CANDIDATES),3500) --top-n $(or $(TOP_N),100) --provider $(or $(PROVIDER),yahoo) --sleep-seconds $(or $(SLEEP_SECONDS),30)" in makefile
+    assert "public-demo-readiness-pack:\n\t@python3 -m src.reviewed_data_proof --ledger $(or $(LEDGER),data/reviewed_data_proofs.csv) --public-demo-pack" in makefile
+    assert "reviewed-data-proof-record:\nifndef LANE" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile
     assert "Suggested company pilot: $(if $(TICKERS),$(TICKERS),NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META)" in makefile

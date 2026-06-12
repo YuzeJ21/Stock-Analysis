@@ -9656,6 +9656,43 @@ def test_data_health_trusted_pilot_lane_cards_show_next_safe_command_and_locked_
     assert "sell" not in rendered
 
 
+def test_data_health_reviewed_proof_timeline_frame_reads_durable_ledger(tmp_path):
+    ledger = tmp_path / "reviewed_data_proofs.csv"
+    ledger.write_text(
+        "proof_id,proof_date,lane,lane_label,scope,tickers_or_dependencies,source_proof_status,reviewer_outcome,validate_result,preview_result,apply_result,rejected_row_status,readiness_before,readiness_after,final_outcome,changed_inputs,what_changed,still_blocked,review_command,proof_command,artifact_paths,generated_churn_policy\n"
+        "RDP-1,2026-06-12,peer_valuation_inputs,Peer valuation inputs proof path,active lane proof,SNDK/F,SEC rows reviewed,approved,validate passed,preview passed,apply passed,rejected reports clean,before blocked,after still blocked,still_blocked,SEC fundamentals,Added peer dependency fundamentals,Peer price history still missing,make sec-stage,make readiness && make peer-mapping-queue,data/fundamentals.csv,keep generated churn out\n",
+        encoding="utf-8",
+    )
+
+    frame = dashboard.data_health_reviewed_proof_timeline_frame(ledger)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert frame.iloc[0]["Proof ID"] == "RDP-1"
+    assert "sec rows reviewed" in rendered
+    assert "after still blocked" in rendered
+    assert "make readiness && make peer-mapping-queue" in rendered
+
+
+def test_data_health_reviewed_proof_cards_show_latest_proof_and_history(tmp_path):
+    ledger = tmp_path / "reviewed_data_proofs.csv"
+    ledger.write_text(
+        "proof_id,proof_date,lane,lane_label,scope,tickers_or_dependencies,source_proof_status,reviewer_outcome,validate_result,preview_result,apply_result,rejected_row_status,readiness_before,readiness_after,final_outcome,changed_inputs,what_changed,still_blocked,review_command,proof_command,artifact_paths,generated_churn_policy\n"
+        "RDP-1,2026-06-12,peer_valuation_inputs,Peer valuation inputs proof path,active lane proof,SNDK/F,SEC rows reviewed,approved,validate passed,preview passed,apply passed,rejected reports clean,before blocked,after still blocked,still_blocked,SEC fundamentals,Added peer dependency fundamentals,Peer price history still missing,make sec-stage,make readiness && make peer-mapping-queue,data/fundamentals.csv,keep generated churn out\n",
+        encoding="utf-8",
+    )
+
+    cards = dashboard.data_health_reviewed_proof_cards(ledger)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "LATEST PROOF"
+    assert cards[0]["title"] == "Peer valuation inputs proof path: still_blocked"
+    assert cards[0]["command"] == "make reviewed-data-proof"
+    assert cards[1]["command"] == "make lane-outcome-history"
+    assert "what changed: added peer dependency fundamentals" in rendered
+    assert "still blocked: peer price history still missing" in rendered
+    assert "source-controlled" in rendered
+
+
 def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
     fundamentals = pd.DataFrame(
         [
@@ -9789,16 +9826,19 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
 
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
     lane_board_index = source.index('render_section_header("Lane-Group Board"', pilot_index)
+    proof_timeline_index = source.index('render_section_header("Reviewed Proof Timeline"', lane_board_index)
     pilot_preview_index = source.index("pilot_preview = data_health_trusted_pilot_preview_frame", pilot_index)
     refresh_details_index = source.index('st.expander("Refresh and command details", expanded=False)', pilot_index)
     next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert pilot_index < lane_board_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
     assert "lane_board = data_health_trusted_pilot_lane_board_frame" in source
     assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))" in source
     assert 'st.expander("Lane-group evidence summary", expanded=False)' in source
+    assert "render_signal_cards(data_health_reviewed_proof_cards())" in source
+    assert 'st.expander("Reviewed proof ledger", expanded=False)' in source
     assert 'st.expander("Pilot selection details", expanded=False)' in source
     assert '"How to choose the pilot."' in source
     assert "render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))" in source

@@ -171,6 +171,18 @@ A company is a useful pilot win only when the evidence is reviewable, not just w
 - Optional earnings or analyst-estimate context stays locked unless trusted local rows pass validation, preview, and apply.
 - The final proof is a regenerated report plus refreshed readiness counts, recorded alongside any still-blocked reason; broad generated CSV churn should still stay out of the public branch unless intentionally reviewed.
 
+## Reviewed Data Proof V1
+
+Use `make reviewed-data-proof` to show the durable lane-level proof ledger in `data/reviewed_data_proofs.csv`. This ledger is intentionally small and source-controlled: it records source proof status, reviewer outcome, validate/preview/apply result, rejected-row status, readiness before/after, final `supported`, `still_blocked`, `skipped`, or `excluded` outcome, the proof command, and the artifact/churn policy. It is not a generated readiness CSV and should not be refreshed broadly.
+
+Use `make lane-outcome-history` to summarize lane outcomes over time from the reviewed proof ledger. This keeps lane history durable without relying on generated CSV churn from `make readiness`, onboarding, or report refreshes.
+
+Use `make reviewed-data-proof-record` only after the source proof, validation, preview, rejected-row review, apply step, and readiness proof have been reviewed. The target requires an explicit lane, proof id, proof date, and final outcome so vague or accidental proof rows are not appended.
+
+Use `make price-reviewed-run` after a dry-run plan has been reviewed. It prints the controlled capped price execution workflow: status check, readiness snapshot, dry run, reviewed capped run command, post-run price coverage/readiness/status checks, diff hygiene, and rollback notes. Price coverage remains separate from fundamentals and peers; price rows can improve coverage only, not valuation inputs or conclusions.
+
+Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.md` for the small shareable proof set: Home, Data Health lane board, one ready report, one blocked report, and one excluded/monitor example. Data Health also surfaces the latest reviewed proof timeline from the durable ledger so visitors can see what changed, what stayed blocked, and which command proves it.
+
 ## What Not To Automate Yet
 
 - Broad fundamentals claims without trusted source rows.
