@@ -1,4 +1,7 @@
-.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+
+DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
+DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
 
 help:
 	@echo "Stock Research Command Center"
@@ -12,6 +15,12 @@ help:
 	@echo "                                  Rank the next source-backed data pilot"
 	@echo "  make trusted-data-pilot-packet TICKER=CRDO"
 	@echo "                                  Print one company's read-only proof packet"
+	@echo "  make trusted-data-pilot-lane LANE=fundamentals_dcf"
+	@echo "                                  Print a read-only lane-group runbook"
+	@echo "  make trusted-data-pilot-board TICKERS=MU,CRDO,HOOD"
+	@echo "                                  Print a read-only multi-ticker pilot board"
+	@echo "  make trusted-data-pilot-evidence TICKERS=MU,CRDO"
+	@echo "                                  Write a read-only before-state evidence ledger"
 	@echo "  make public-check               Run before sharing the GitHub link"
 	@echo ""
 	@echo "Useful next paths:"
@@ -33,6 +42,8 @@ help-full:
 	@echo "                        Rank current company candidates for the next trusted-data pilot"
 	@echo "  make trusted-data-pilot-packet TICKER=CRDO"
 	@echo "                        Print one company's read-only evidence packet"
+	@echo "  make trusted-data-pilot-lane LANE=fundamentals_dcf"
+	@echo "                        Print one lane group's ordered proof steps and evidence summary"
 	@echo "  make status-check TOP_N=5"
 	@echo "  make stock-report-md TICKER=NVDA"
 	@echo "  make dashboard-smoke"
@@ -44,6 +55,9 @@ help-full:
 	@echo "  make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan"
 	@echo "  make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot"
 	@echo "  make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before-report/review/validate/rejected-row/rebuild evidence packet"
+	@echo "  make trusted-data-pilot-lane LANE=fundamentals_dcf [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only lane-group runbook and evidence summary"
+	@echo "  make trusted-data-pilot-board [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only multi-ticker outcome board without writing CSVs"
+	@echo "  make trusted-data-pilot-evidence [TICKERS=MU,CRDO] [OUTPUT=outputs/trusted_data_pilot_evidence.csv] Write current before-state proof paths"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
@@ -221,7 +235,7 @@ trusted-data-pilot:
 	@echo "Pilot proof target: each company should end with a regenerated report showing ready, locked, or excluded sections from current local evidence."
 	@echo "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, the exact review, validate/apply, rejected-row report, and proof commands that changed the state."
 	@if [ -n "$$SEC_USER_AGENT" ]; then echo "SEC credential state: SEC_USER_AGENT is configured for local staging checks."; else echo "SEC credential state: SEC_USER_AGENT is not configured; use manual trusted fundamentals or stop at diagnostics."; fi
-	@echo "Evidence table columns to record: ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason."
+	@echo "Evidence table columns to record: ticker | before_mode | after_mode | outcome_state | changed_inputs | validation_commands | report_path | still_blocked_reason."
 	@echo "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker visibly blocked by missing data and record the missing input."
 	@echo "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview/apply, rejected-row check, rebuild proof, and still-blocked evidence row."
 	@echo "One-company packet example:"
@@ -286,6 +300,18 @@ ifndef TICKER
 	$(error TICKER is required, for example: make trusted-data-pilot-packet TICKER=CRDO)
 endif
 	@python3 -m src.trusted_data_pilot --packet $(TICKER)
+
+trusted-data-pilot-lane:
+ifndef LANE
+	$(error LANE is required, for example: make trusted-data-pilot-lane LANE=fundamentals_dcf)
+endif
+	@python3 -m src.trusted_data_pilot --lane $(LANE) --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_TICKERS)) --top-n $(or $(TOP_N),10)
+
+trusted-data-pilot-board:
+	@python3 -m src.trusted_data_pilot --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_TICKERS)) --top-n $(or $(TOP_N),10) --board
+
+trusted-data-pilot-evidence:
+	@python3 -m src.trusted_data_pilot --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS)) --top-n $(or $(TOP_N),10) --write-evidence $(or $(OUTPUT),outputs/trusted_data_pilot_evidence.csv)
 
 diff-hygiene:
 	@python3 scripts/diff_hygiene.py

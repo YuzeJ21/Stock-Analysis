@@ -151,11 +151,14 @@ def test_makefile_help_documents_key_workflows():
         "Rank current company candidates for the next trusted-data pilot",
         "make trusted-data-pilot-packet TICKER=CRDO",
         "Print one company's read-only evidence packet",
+        "make trusted-data-pilot-lane LANE=fundamentals_dcf",
+        "Print one lane group's ordered proof steps and evidence summary",
         "make public-check     Run before sharing the GitHub link",
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
         "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot",
         "make trusted-data-pilot-packet TICKER=CRDO Print one company's read-only before-report/review/validate/rejected-row/rebuild evidence packet",
+        "make trusted-data-pilot-lane LANE=fundamentals_dcf [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only lane-group runbook and evidence summary",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -1558,7 +1561,8 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "snapshot the baseline, generate the before report, review the source proof for the missing lane" in data_strategy
     assert "Only the rebuilt report can prove a lane changed" in data_strategy
     assert "keep the blocker visible and move to the next candidate" in data_strategy
-    assert "Read each pilot outcome in three states:" in data_strategy
+    assert "Read each pilot outcome in durable states:" in data_strategy
+    assert "`supported`, `still_blocked`, `skipped`, or `excluded`" in data_strategy
     assert "| Supported | Rebuilt readiness and the regenerated report show the lane is ready. |" in data_strategy
     assert "| Still blocked | Validation failed, rejected rows appeared, or the report stayed locked; keep the named blocker visible. |" in data_strategy
     assert "| Skip | Source proof is unavailable or not reviewable; do not apply placeholder rows, and move to the next shortlisted company. |" in data_strategy
@@ -1779,6 +1783,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
     assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(filter 1 true TRUE yes YES,$(VERBOSE)),--verbose,)" in makefile
     assert "trusted-data-pilot-packet:\nifndef TICKER\n\t$(error TICKER is required, for example: make trusted-data-pilot-packet TICKER=CRDO)\nendif\n\t@python3 -m src.trusted_data_pilot --packet $(TICKER)" in makefile
+    assert "DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD" in makefile
+    assert "DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO" in makefile
+    assert "trusted-data-pilot-lane:\nifndef LANE\n\t$(error LANE is required, for example: make trusted-data-pilot-lane LANE=fundamentals_dcf)\nendif\n\t@python3 -m src.trusted_data_pilot --lane $(LANE) --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_TICKERS)) --top-n $(or $(TOP_N),10)" in makefile
+    assert "trusted-data-pilot-board:\n\t@python3 -m src.trusted_data_pilot --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_TICKERS)) --top-n $(or $(TOP_N),10) --board" in makefile
+    assert "trusted-data-pilot-evidence:\n\t@python3 -m src.trusted_data_pilot --tickers $(if $(TICKERS),$(TICKERS),$(DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS)) --top-n $(or $(TOP_N),10) --write-evidence $(or $(OUTPUT),outputs/trusted_data_pilot_evidence.csv)" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile
     assert "Check whether price coverage can be improved safely" in makefile
     assert "Suggested company pilot: $(if $(TICKERS),$(TICKERS),NVDA,AVGO,AMD,MU,CRDO,COHR,LITE,HOOD,TSLA,META)" in makefile
@@ -1791,7 +1800,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Evidence bundle: keep the before/after readiness count, one regenerated Markdown report, the exact review, validate/apply, rejected-row report, and proof commands that changed the state." in makefile
     assert "SEC credential state: SEC_USER_AGENT is configured for local staging checks." in makefile
     assert "SEC credential state: SEC_USER_AGENT is not configured; use manual trusted fundamentals or stop at diagnostics." in makefile
-    assert "Evidence table columns to record: ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason." in makefile
+    assert "Evidence table columns to record: ticker | before_mode | after_mode | outcome_state | changed_inputs | validation_commands | report_path | still_blocked_reason." in makefile
     assert "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker visibly blocked by missing data and record the missing input." in makefile
     assert "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview/apply, rejected-row check, rebuild proof, and still-blocked evidence row." in makefile
     assert "One-company packet example:" in makefile
@@ -1815,6 +1824,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "Use trusted fundamentals, peer, earnings, or estimate rows only, then validate before apply" in makefile
     assert "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan" in makefile
     assert "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot" in makefile
+    assert "make trusted-data-pilot-lane LANE=fundamentals_dcf [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only lane-group runbook and evidence summary" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "stock-report-md:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)\nendif\n\t@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile

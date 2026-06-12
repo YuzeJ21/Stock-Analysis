@@ -295,6 +295,7 @@ def extract_fundamentals_from_companyfacts(companyfacts_json: dict[str, Any]) ->
     warnings: list[str] = []
     revenue_concepts = [
         ("us-gaap", "Revenues"),
+        ("us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax"),
         ("us-gaap", "SalesRevenueNet"),
         ("us-gaap", "SalesRevenueGoodsNet"),
     ]

@@ -28,6 +28,27 @@ TRUSTED_DATA_PILOT_CANDIDATES_COMMAND = "make trusted-data-pilot-candidates TOP_
 LEGACY_TRUSTED_DATA_PILOT_COMMAND = "make trusted-data-pilot TOP_N=10"
 
 
+def _truthy_value(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value or "").strip().lower()
+    return text in {"true", "1", "yes"}
+
+
+def _source_needs_required_attention(row: dict[str, Any]) -> bool:
+    status = str(row.get("availability_status") or "").strip()
+    if status not in PROBLEM_SOURCE_STATUSES:
+        return False
+    return _truthy_value(row.get("is_required"))
+
+
+def _source_is_optional_locked(row: dict[str, Any]) -> bool:
+    status = str(row.get("availability_status") or "").strip()
+    if status not in PROBLEM_SOURCE_STATUSES:
+        return False
+    return not _source_needs_required_attention(row)
+
+
 def _friendly_cli_guidance(text: object) -> str:
     """Make generated action text easier to scan in terminal output."""
     value = str(text or "").strip()
@@ -329,6 +350,8 @@ def _fast_status_payload_from_outputs(
     normalized_actions = [_normalize_price_action_row(dict(row)) for row in actions]
     sorted_actions = sorted(normalized_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
+    required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
+    optional_locked_sources = [row for row in problem_sources if _source_is_optional_locked(row)]
     purpose_evaluation_rows = [] if allowed else _load_purpose_evaluation_summary(output_path, top_n)
 
     def readiness_count(field: str) -> int:
@@ -339,7 +362,8 @@ def _fast_status_payload_from_outputs(
     summary = {
         "data_sources_total": len(sources),
         "data_sources_available": sum(1 for row in sources if row.get("availability_status") == "available"),
-        "data_sources_needing_attention": len(problem_sources),
+        "data_sources_needing_attention": len(required_problem_sources),
+        "data_sources_optional_locked": len(optional_locked_sources),
         "data_gaps": len(gaps),
         "tickers_total": len(readiness),
         "tickers_with_prices": readiness_count("price_ready"),
@@ -370,7 +394,8 @@ def _fast_status_payload_from_outputs(
         "data_dir": str(data_path),
         "outputs_dir": str(output_path),
         "summary": summary,
-        "data_sources_needing_attention": problem_sources[:top_n],
+        "data_sources_needing_attention": required_problem_sources[:top_n],
+        "data_sources_optional_locked": optional_locked_sources[:top_n],
         "top_data_gaps": gaps[:top_n],
         "top_onboarding_actions": sorted_actions[:top_n],
         "recommended_next_command_rows": command_rows,
@@ -811,13 +836,16 @@ def build_project_status_payload(
         enriched_actions = [row for row in enriched_actions if str(row.get("ticker", "")).upper().strip() in allowed]
     actions = sorted(enriched_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
+    required_problem_sources = [row for row in problem_sources if _source_needs_required_attention(row)]
+    optional_locked_sources = [row for row in problem_sources if _source_is_optional_locked(row)]
     command_problem_sources = [] if tickers else problem_sources
     readiness_dcf_ready = None if tickers else _count_readiness_true(data_path, "dcf_ready")
     purpose_evaluation_rows = [] if tickers else _load_purpose_evaluation_summary(output_path, top_n)
     summary = {
         "data_sources_total": len(sources),
         "data_sources_available": sum(1 for row in sources if row.get("availability_status") == "available"),
-        "data_sources_needing_attention": len(problem_sources),
+        "data_sources_needing_attention": len(required_problem_sources),
+        "data_sources_optional_locked": len(optional_locked_sources),
         "data_gaps": len(gaps),
         "tickers_total": len(coverage),
         "tickers_with_prices": _count_true(coverage, "has_prices"),
@@ -841,7 +869,8 @@ def build_project_status_payload(
         "data_dir": str(data_path),
         "outputs_dir": str(output_path),
         "summary": summary,
-        "data_sources_needing_attention": problem_sources[:top_n],
+        "data_sources_needing_attention": required_problem_sources[:top_n],
+        "data_sources_optional_locked": optional_locked_sources[:top_n],
         "top_data_gaps": gaps[:top_n],
         "top_onboarding_actions": actions[:top_n],
         "recommended_next_command_rows": command_rows,
@@ -900,7 +929,8 @@ def _print_human(payload: dict[str, Any]) -> None:
     print("Commands below are copy-only local research helpers; this status view does not run them.")
     print("Project status summary:")
     print(f"- Data sources: {summary['data_sources_available']}/{summary['data_sources_total']} available")
-    print(f"- Data sources needing attention: {summary['data_sources_needing_attention']}")
+    print(f"- Required data sources needing attention: {summary['data_sources_needing_attention']}")
+    print(f"- Optional/manual lanes locked: {summary.get('data_sources_optional_locked', 0)}")
     print(f"- Locked input rows: {summary['data_gaps']}")
     print(f"- Tickers with prices: {summary['tickers_with_prices']}/{summary['tickers_total']}")
     print(f"- Tickers usable for momentum: {summary['tickers_usable_for_momentum']}/{summary['tickers_total']}")

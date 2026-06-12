@@ -1,10 +1,16 @@
 from src.trusted_data_pilot import (
+    build_trusted_data_pilot_evidence_rows,
     build_trusted_data_pilot_candidates,
+    load_trusted_data_pilot_evidence_candidates,
+    normalize_pilot_lane,
     pilot_evidence_row_template,
     pilot_lane_label,
+    pilot_lane_runbook,
+    pilot_lane_summary_rows,
     pilot_local_file_status,
     pilot_operator_decision,
     pilot_outcome_checklist_lines,
+    pilot_outcome_state_guide,
     pilot_primary_missing_input,
     pilot_proof_story_lines,
     pilot_public_shortlist,
@@ -17,8 +23,11 @@ from src.trusted_data_pilot import (
     pilot_selection_brief,
     pilot_skip_condition,
     pilot_trusted_row_path,
+    render_trusted_data_pilot_board,
     render_trusted_data_pilot_candidates,
+    render_trusted_data_pilot_lane,
     render_trusted_data_pilot_packet,
+    write_trusted_data_pilot_evidence,
 )
 
 
@@ -134,7 +143,28 @@ def test_pilot_lane_label_translates_internal_codes_for_visitors():
     assert pilot_lane_label("peer_mapping") == "Peer mapping proof path"
     assert pilot_lane_label("peer_valuation_inputs") == "Peer valuation inputs proof path"
     assert pilot_lane_label("optional_context_locked") == "Optional context proof path"
+    assert pilot_lane_label("price_coverage") == "Price coverage dry-run path"
     assert pilot_lane_label("unexpected") == "Trusted-data proof path"
+
+
+def test_normalize_pilot_lane_accepts_group_aliases():
+    assert normalize_pilot_lane("dcf") == "fundamentals_dcf"
+    assert normalize_pilot_lane("peers") == "peer_mapping"
+    assert normalize_pilot_lane("peer-valuation") == "peer_valuation_inputs"
+    assert normalize_pilot_lane("optional") == "optional_context_locked"
+    assert normalize_pilot_lane("prices") == "price_coverage"
+
+
+def test_pilot_lane_runbook_keeps_price_dry_run_separate_from_trusted_rows():
+    price = pilot_lane_runbook("price")
+    optional = pilot_lane_runbook("earnings")
+
+    assert price.status == "safe_to_batch_dry_run"
+    assert price.next_safe_command == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert "Run make price-refresh-loop DRY_RUN=1" in " ".join(price.ordered_steps)
+    assert "imports-apply" not in price.next_safe_command
+    assert optional.status == "locked"
+    assert "Manual/optional lane" in optional.locked_manual_note
 
 
 def test_pilot_review_path_separates_review_from_validate_apply_steps():
@@ -232,6 +262,283 @@ def test_pilot_local_file_status_surfaces_reviewable_file_state(tmp_path):
     assert "sell" not in fundamentals_status + peer_status
 
 
+def test_trusted_data_pilot_evidence_rows_record_before_state_without_claiming_unlock(tmp_path):
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue, fcf_margin",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+    _write_text(
+        tmp_path / "outputs" / "stock_reports" / "crdo.md",
+        "# CRDO\n\n## At A Glance\n- Mode: `Price/setup review only`.\n",
+    )
+
+    rows = build_trusted_data_pilot_evidence_rows([candidate], root=tmp_path)
+
+    assert rows[0]["ticker"] == "CRDO"
+    assert rows[0]["pilot_lane"] == "Fundamentals / DCF proof path"
+    assert rows[0]["before_mode"] == "Price/setup review only"
+    assert rows[0]["after_mode"] == "pending rebuilt report after trusted rows"
+    assert rows[0]["outcome_state"] == "still_blocked"
+    assert rows[0]["current_outcome"] == "still blocked or unproven until rebuilt readiness changes"
+    assert rows[0]["changed_inputs"] == "revenue, free-cash-flow margin"
+    assert rows[0]["review_command"] == "make focus-fundamentals TICKER=CRDO"
+    assert rows[0]["proof_command"] == "make readiness && make dcf-readiness && make stock-report-md TICKER=CRDO"
+    assert rows[0]["report_path"] == "outputs/stock_reports/crdo.md"
+    rendered = " ".join(rows[0].values()).lower()
+    assert "placeholder" not in rendered
+    assert "price target" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_trusted_data_pilot_evidence_records_supported_fundamentals_rebuild(tmp_path):
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue, fcf_margin",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.previous.csv",
+        "ticker,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready\n"
+        "CRDO,True,True,False,False,False\n",
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready\n"
+        "CRDO,True,True,True,True,False\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "stock_reports" / "crdo.md",
+        "# CRDO\n\n## At A Glance\n- Mode: `DCF-ready review`.\n",
+    )
+
+    rows = build_trusted_data_pilot_evidence_rows([candidate], root=tmp_path)
+
+    assert rows[0]["before_mode"] == "Price/setup review only"
+    assert rows[0]["after_mode"] == "DCF-ready review"
+    assert rows[0]["outcome_state"] == "supported"
+    assert rows[0]["current_outcome"] == "supported by rebuilt readiness and regenerated report"
+    assert rows[0]["changed_inputs"] == "revenue, free-cash-flow margin"
+    assert rows[0]["still_blocked_reason"] == "Resolved by source-backed rebuild: revenue, free-cash-flow margin"
+    rendered = " ".join(rows[0].values()).lower()
+    assert "price target" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_trusted_data_pilot_evidence_records_supported_peer_rebuild(tmp_path):
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "dcf_ready": "True",
+                "has_peer_mapping": "True",
+                "peer_ready": "False",
+                "missing_required_for_peer_relative": "peer fundamentals or peer price/market-cap context",
+                "focus_command": "make focus-fundamentals TICKER=SNDK",
+            }
+        ],
+        [],
+        [{"ticker": "MU", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.previous.csv",
+        "ticker,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready\n"
+        "MU,True,True,True,True,False\n",
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready\n"
+        "MU,True,True,True,True,True\n",
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "peer_readiness_report.csv",
+        "ticker,peer_valuation_ready,peer_valuation_comparison_ready\n"
+        "MU,True,True\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "stock_reports" / "mu.md",
+        "# MU\n\n## At A Glance\n- Mode: `DCF-ready review`.\n",
+    )
+
+    rows = build_trusted_data_pilot_evidence_rows([candidate], root=tmp_path)
+
+    assert rows[0]["before_mode"] == "Standalone DCF review"
+    assert rows[0]["after_mode"] == "DCF-ready review"
+    assert rows[0]["outcome_state"] == "supported"
+    assert rows[0]["current_outcome"] == "supported by rebuilt readiness and regenerated report"
+    assert rows[0]["changed_inputs"] == "peer fundamentals or peer price/market-cap context"
+    assert rows[0]["still_blocked_reason"] == "Resolved by source-backed rebuild: peer fundamentals or peer price/market-cap context"
+    rendered = " ".join(rows[0].values()).lower()
+    assert "price target" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_peer_valuation_input_evidence_requires_peer_valuation_readiness(tmp_path):
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "2",
+                "dcf_ready": "True",
+                "has_peer_mapping": "True",
+                "peer_ready": "False",
+                "missing_required_for_peer_relative": "peer trend comparison ready; peer valuation still requires peer_valuation_ready",
+                "focus_command": "make focus-fundamentals TICKER=ALAB",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready\n"
+        "CRDO,True,True,True,True,True\n",
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "peer_readiness_report.csv",
+        "ticker,peer_ready,peer_trend_comparison_ready,peer_valuation_ready,peer_valuation_comparison_ready\n"
+        "CRDO,True,True,False,False\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "stock_reports" / "crdo.md",
+        "# CRDO\n\n## At A Glance\n- Mode: `DCF-ready review`.\n",
+    )
+
+    rows = build_trusted_data_pilot_evidence_rows([candidate], root=tmp_path)
+
+    assert rows[0]["pilot_lane"] == "Peer valuation inputs proof path"
+    assert rows[0]["after_mode"] == "pending rebuilt report after trusted rows"
+    assert rows[0]["outcome_state"] == "still_blocked"
+    assert rows[0]["changed_inputs"] == "peer valuation readiness"
+    assert "peer valuation readiness" in rows[0]["still_blocked_reason"]
+
+
+def test_evidence_loader_preserves_completed_fundamentals_pilot_for_selected_ticker(tmp_path):
+    _write_text(
+        tmp_path / "outputs" / "fundamentals_peer_worklist.csv",
+        "priority,ticker,has_prices,has_fundamentals,dcf_ready,peer_ready,missing_required_for_dcf,missing_required_for_peer_relative,recommended_action,target_file,focus_command,example_command,import_guidance,credential_env,credential_present,fallback_command,fallback_guidance\n"
+        "4,CRDO,True,True,True,False,,peer trend comparison ready,Add peer inputs.,data/imports/fundamentals.csv,make focus-fundamentals TICKER=ALAB,make sec-stage TICKERS=ALAB,Review rows.,SEC_USER_AGENT,True,make templates,Manual fallback.\n",
+    )
+    _write_text(tmp_path / "outputs" / "peer_unlock_worklist.csv", "ticker,peer_blocker_type,missing_peer_reason,focus_command\n")
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.previous.csv",
+        "ticker,asset_type,in_active_universe,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready,missing_data\n"
+        'CRDO,company,True,True,True,False,False,False,"dcf: revenue, fcf_margin; earnings: trusted local CSV input"\n',
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,asset_type,in_active_universe,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready,missing_data\n"
+        'CRDO,company,True,True,True,True,True,False,"peers: peer trend comparison ready; peer valuation still requires peer_valuation_ready"\n',
+    )
+    _write_text(
+        tmp_path / "outputs" / "stock_reports" / "crdo.md",
+        "# CRDO\n\n## At A Glance\n- Mode: `DCF-ready review`.\n",
+    )
+
+    candidates = load_trusted_data_pilot_evidence_candidates(root=tmp_path, tickers="CRDO")
+    rows = build_trusted_data_pilot_evidence_rows(candidates, root=tmp_path)
+
+    assert len(candidates) == 1
+    assert candidates[0].lane == "fundamentals_dcf"
+    assert candidates[0].missing_input == "revenue, fcf_margin"
+    assert rows[0]["pilot_lane"] == "Fundamentals / DCF proof path"
+    assert rows[0]["before_mode"] == "Price/setup review only"
+    assert rows[0]["after_mode"] == "DCF-ready review"
+    assert rows[0]["outcome_state"] == "supported"
+    assert rows[0]["current_outcome"] == "supported by rebuilt readiness and regenerated report"
+
+
+def test_evidence_loader_preserves_completed_peer_pilot_for_selected_ticker(tmp_path):
+    _write_text(
+        tmp_path / "outputs" / "fundamentals_peer_worklist.csv",
+        "priority,ticker,has_prices,has_fundamentals,dcf_ready,peer_ready,missing_required_for_dcf,missing_required_for_peer_relative,recommended_action,target_file,focus_command,example_command,import_guidance,credential_env,credential_present,fallback_command,fallback_guidance\n",
+    )
+    _write_text(tmp_path / "outputs" / "peer_unlock_worklist.csv", "ticker,peer_blocker_type,missing_peer_reason,focus_command\n")
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.previous.csv",
+        "ticker,asset_type,in_active_universe,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready,missing_data\n"
+        'MU,company,True,True,True,True,True,False,"peers: peer fundamentals or peer price/market-cap context; earnings: trusted local CSV input"\n',
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,asset_type,in_active_universe,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready,missing_data\n"
+        'MU,company,True,True,True,True,True,True,"earnings: trusted local CSV input; analyst_estimates: trusted local CSV input"\n',
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "peer_readiness_report.csv",
+        "ticker,sample_peers,peer_ready,peer_valuation_ready,peer_valuation_comparison_ready\n"
+        "MU,\"SNDK, WDC\",True,True,True\n",
+    )
+    _write_text(
+        tmp_path / "outputs" / "stock_reports" / "mu.md",
+        "# MU\n\n## At A Glance\n- Mode: `DCF-ready review`.\n",
+    )
+
+    candidates = load_trusted_data_pilot_evidence_candidates(root=tmp_path, tickers="MU")
+    rows = build_trusted_data_pilot_evidence_rows(candidates, root=tmp_path)
+
+    assert len(candidates) == 1
+    assert candidates[0].lane == "peer_valuation_inputs"
+    assert candidates[0].missing_input == "verified mapped-peer price history and SEC fundamentals for SNDK, WDC"
+    assert rows[0]["pilot_lane"] == "Peer valuation inputs proof path"
+    assert rows[0]["before_mode"] == "Standalone DCF review"
+    assert rows[0]["after_mode"] == "DCF-ready review"
+    assert rows[0]["outcome_state"] == "supported"
+    assert rows[0]["current_outcome"] == "supported by rebuilt readiness and regenerated report"
+
+
+def test_write_trusted_data_pilot_evidence_writes_csv_ledger(tmp_path):
+    candidate = build_trusted_data_pilot_candidates(
+        [],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "peer_price_missing",
+                "missing_peer_reason": "peer price missing",
+                "focus_command": "make focus-peers TICKER=MU",
+            }
+        ],
+        [{"ticker": "MU", "asset_type": "company", "in_active_universe": "True"}],
+    )[0]
+    _write_text(
+        tmp_path / "outputs" / "stock_reports" / "mu.md",
+        "# MU\n\n## At A Glance\n- Mode: `Standalone DCF review`\n",
+    )
+
+    output_path = write_trusted_data_pilot_evidence(
+        [candidate],
+        root=tmp_path,
+        output_path=tmp_path / "outputs" / "trusted_data_pilot_evidence.csv",
+    )
+
+    written = output_path.read_text(encoding="utf-8")
+    assert output_path.exists()
+    assert "ticker,pilot_lane,scope,before_mode,after_mode,outcome_state" in written
+    assert "MU,Peer valuation inputs proof path,active universe,Standalone DCF review,pending rebuilt report after trusted rows,still_blocked" in written
+    assert "pending rebuilt report after trusted rows" in written
+
+
 def test_pilot_rank_reason_explains_queue_position_without_new_data():
     candidate = build_trusted_data_pilot_candidates(
         [
@@ -327,7 +634,10 @@ def test_pilot_evidence_row_template_is_copyable_and_data_honest():
 
     row = pilot_evidence_row_template(candidate)
 
-    assert row.startswith("CRDO | before: run report | after: rerun report | revenue, free-cash-flow margin |")
+    assert row.startswith(
+        "CRDO | before: run report | after: rerun report | "
+        "outcome_state: supported/still_blocked/skipped/excluded | revenue, free-cash-flow margin |"
+    )
     assert "make imports-validate && make imports-preview && make imports-apply" in row
     assert "outputs/stock_reports/crdo.md" in row
     assert "keep visible if source proof is unavailable or readiness remains blocked" in row
@@ -359,8 +669,30 @@ def test_pilot_primary_missing_input_separates_secondary_optional_context():
         "missing peers: needs at least 2 peers with momentum-ready price history."
     )
     assert pilot_evidence_row_template(candidate).startswith(
-        "MU | before: run report | after: rerun report | peers: needs at least 2 peers with momentum-ready price history |"
+        "MU | before: run report | after: rerun report | outcome_state: supported/still_blocked/skipped/excluded | "
+        "peers: needs at least 2 peers with momentum-ready price history |"
     )
+
+
+def test_pilot_primary_missing_input_promotes_peer_valuation_blocker_over_ready_trend_context():
+    candidate = build_trusted_data_pilot_candidates(
+        [],
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "2",
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "missing_peer_reason": "peer trend comparison ready; peer valuation still requires peer_valuation_ready",
+                "focus_command": "make focus-peers TICKER=CRDO",
+            }
+        ],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )[0]
+
+    assert pilot_primary_missing_input(candidate) == "peer valuation readiness"
+    assert pilot_secondary_locked_context(candidate) == ""
+    assert "peer trend comparison ready" not in pilot_evidence_row_template(candidate)
 
 
 def test_pilot_review_board_row_makes_continue_skip_and_evidence_explicit():
@@ -604,6 +936,33 @@ def test_pilot_outcome_checklist_keeps_supported_blocked_and_skip_states_clear()
     assert "recommend" not in rendered
 
 
+def test_pilot_outcome_state_guide_names_durable_states_without_unlock_claims():
+    candidate = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "CRDO",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "revenue",
+                "focus_command": "make focus-fundamentals TICKER=CRDO",
+            }
+        ],
+        [],
+        [{"ticker": "CRDO", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )[0]
+
+    guide = pilot_outcome_state_guide(candidate).lower()
+
+    assert "supported means rebuilt readiness and the regenerated report prove the lane changed" in guide
+    assert "still_blocked means validation failed" in guide
+    assert "skipped means source proof was unavailable for crdo" in guide
+    assert "excluded means the ticker is not an operating-company pilot target" in guide
+    assert "buy" not in guide
+    assert "sell" not in guide
+    assert "recommend" not in guide
+
+
 def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_path):
     candidates = build_trusted_data_pilot_candidates(
         [
@@ -640,6 +999,10 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "Supported: META moves forward only if rebuilt readiness and the regenerated report show the lane is ready." in rendered
     assert "Still blocked: keep shares outstanding visible when validation fails, rejected rows appear, or the report remains locked." in rendered
     assert "Skip: if source proof is unavailable, do not apply placeholder rows; move to the next shortlisted company." in rendered
+    assert "Outcome states: supported means rebuilt readiness and the regenerated report prove the lane changed" in rendered
+    assert "still_blocked means validation failed" in rendered
+    assert "skipped means source proof was unavailable for META" in rendered
+    assert "excluded means the ticker is not an operating-company pilot target" in rendered
     assert rendered.index("Quick path:") < rendered.index("What the proof loop proves:") < rendered.index("How to read the outcome:") < rendered.index("Compact review board:")
     assert rendered.index("Quick path:") < rendered.index("Compact review board:")
     assert "Compact review board:" in rendered
@@ -908,6 +1271,9 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "Supported: CRDO moves forward only if rebuilt readiness and the regenerated report show the lane is ready." in rendered
     assert "Still blocked: keep revenue, free-cash-flow margin visible when validation fails, rejected rows appear, or the report remains locked." in rendered
     assert "Skip: if source proof is unavailable, do not apply placeholder rows; move to the next shortlisted company." in rendered
+    assert "Outcome states: supported means rebuilt readiness and the regenerated report prove the lane changed" in rendered
+    assert "still_blocked means validation failed" in rendered
+    assert "skipped means source proof was unavailable for CRDO" in rendered
     assert "1. Baseline readiness: make readiness-snapshot" in rendered
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered
@@ -921,8 +1287,12 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "Evidence required: before report, lane review output, trusted source row or source note" in rendered
     assert "Do not call CRDO available until the rebuilt report proves the lane changed." in rendered
     assert "Evidence table row to record:" in rendered
-    assert "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason" in rendered
-    assert "CRDO | before: run report | after: rerun report | revenue, free-cash-flow margin" in rendered
+    assert "ticker | before_mode | after_mode | outcome_state | changed_inputs | validation_commands | report_path | still_blocked_reason" in rendered
+    assert (
+        "CRDO | before: run report | after: rerun report | "
+        "outcome_state: supported/still_blocked/skipped/excluded | revenue, free-cash-flow margin"
+        in rendered
+    )
     assert "outputs/stock_reports/crdo.md" in rendered
     assert "keep visible if source proof is unavailable or readiness remains blocked" in rendered
     assert "still_blocked_reason" in rendered
@@ -952,7 +1322,11 @@ def test_render_trusted_data_pilot_packet_separates_primary_lane_from_optional_c
     assert "Primary lane input: peers: needs at least 2 peers with momentum-ready price history" in rendered
     assert "Secondary locked context: earnings: trusted local CSV input; analyst estimates: trusted local CSV input" in rendered
     assert "Rank reason: active-universe public-demo name; peer mapping proof path; priority 2; missing peers: needs at least 2 peers with momentum-ready price history." in rendered
-    assert "MU | before: run report | after: rerun report | peers: needs at least 2 peers with momentum-ready price history |" in rendered
+    assert (
+        "MU | before: run report | after: rerun report | outcome_state: supported/still_blocked/skipped/excluded | "
+        "peers: needs at least 2 peers with momentum-ready price history |"
+        in rendered
+    )
     assert "analyst_estimates" not in rendered
     assert "buy" not in rendered.lower()
     assert "sell" not in rendered.lower()
@@ -964,3 +1338,133 @@ def test_render_trusted_data_pilot_packet_handles_non_candidate_without_inventin
     assert "No operating-company pilot candidate matched QQQ." in rendered
     assert "make trusted-data-pilot-candidates TOP_N=10" in rendered
     assert "QQQ and SMH are not operating-company DCF pilot targets" in rendered
+
+
+def test_render_trusted_data_pilot_board_summarizes_batch_without_writing_files(tmp_path):
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            }
+        ],
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs at least 2 source-backed peer mappings",
+                "focus_command": "make focus-peers TICKER=MU",
+            }
+        ],
+        [
+            {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "MU", "asset_type": "company", "in_active_universe": "True"},
+        ],
+        top_n=10,
+    )
+    _write_text(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.csv",
+        "ticker,asset_type,in_active_universe,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready\n"
+        "META,company,True,True,True,False,False,False\n"
+        "MU,company,True,True,True,True,True,False\n",
+    )
+
+    rendered = render_trusted_data_pilot_board(candidates, root=tmp_path)
+
+    assert "Trusted Data Pilot Board" in rendered
+    assert "without refreshing, importing, applying rows, writing CSVs" in rendered
+    assert "Tickers reviewed: MU,META" in rendered
+    assert "Outcome mix: still_blocked: 2" in rendered
+    assert "Fundamentals / DCF proof path: 1" in rendered
+    assert "Peer mapping proof path: 1" in rendered
+    assert "Lane-group workflows:" in rendered
+    assert "- Fundamentals / DCF proof path:" in rendered
+    assert "candidate_count: 1" in rendered
+    assert "tickers: META" in rendered
+    assert "shared_blocker_theme: shares outstanding" in rendered
+    assert "shared_review_command_pattern: make focus-fundamentals TICKER=META" in rendered
+    assert "trusted_row_target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
+    assert "rejected_row_report: data/rejected/fundamentals_import_rejected.csv" in rendered
+    assert "proof_command_pattern: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
+    assert "stop_condition: stop if source proof is unavailable" in rendered
+    assert "batch_status: review_only" in rendered
+    assert "- Peer mapping proof path:" in rendered
+    assert "tickers: MU" in rendered
+    assert "trusted_row_target: data/imports/peers.csv plus reviewed peer price/fundamentals rows when needed" in rendered
+    assert "rejected_row_report: data/rejected/peers_import_rejected.csv" in rendered
+    assert "Batch board:" in rendered
+    assert "MU: still_blocked; Peer mapping proof path" in rendered
+    assert "META: still_blocked; Fundamentals / DCF proof path" in rendered
+    assert "Batch decision rule:" in rendered
+    assert "Apply no rows from this board" in rendered
+    assert "Suggested batch next step:" in rendered
+    assert "Start with lane group: Peer mapping proof path" in rendered
+    assert "Lane tickers: MU" in rendered
+    assert "Review command pattern: make focus-peers TICKER=MU" in rendered
+    assert "First review command:" not in rendered
+    assert "make trusted-data-pilot-evidence TICKERS=MU,META" in rendered
+    assert not (tmp_path / "outputs" / "trusted_data_pilot_evidence.csv").exists()
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
+    assert "recommend" not in rendered.lower()
+
+
+def test_render_trusted_data_pilot_lane_prints_ordered_evidence_summary_without_writing_files(tmp_path):
+    candidates = build_trusted_data_pilot_candidates(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            }
+        ],
+        [],
+        [{"ticker": "META", "asset_type": "company", "in_active_universe": "True"}],
+        top_n=10,
+    )
+
+    rendered = render_trusted_data_pilot_lane("dcf", candidates, root=tmp_path)
+
+    assert "Trusted Data Pilot Lane Runbook" in rendered
+    assert "Read-only: this command prints lane-specific steps" in rendered
+    assert "Lane: Fundamentals / DCF proof path" in rendered
+    assert "Batch status: review_only" in rendered
+    assert "Candidate count in selected scope: 1" in rendered
+    assert "Candidate tickers: META" in rendered
+    assert "Current blocker theme: shares outstanding" in rendered
+    assert "Next safe command: make trusted-data-pilot-lane LANE=fundamentals_dcf" in rendered
+    assert "Ordered lane steps:" in rendered
+    assert "1. Run make trusted-data-pilot-candidates TOP_N=10" in rendered
+    assert "Lane evidence summary:" in rendered
+    assert "What proves the lane: Rebuilt readiness shows fundamentals_ready and dcf_ready" in rendered
+    assert "Rows/files needed: SEC-staged or reviewed manual rows" in rendered
+    assert "Rejected-row reports that matter: data/rejected/fundamentals_import_rejected.csv" in rendered
+    assert "Command that confirms readiness changed: make readiness && make dcf-readiness && make stock-report-md TICKER=<ticker>" in rendered
+    assert "What remains blocked: trusted revenue" in rendered
+    assert "Outcome contract:" in rendered
+    assert "supported: rebuilt readiness and regenerated reports prove the lane changed" in rendered
+    assert "still_blocked: source proof is missing" in rendered
+    assert "Current lane candidates:" in rendered
+    assert "META: missing shares outstanding; review make focus-fundamentals TICKER=META" in rendered
+    assert "Guardrail: do not fabricate prices, fundamentals, peers, earnings, analyst estimates" in rendered
+    assert not (tmp_path / "outputs" / "trusted_data_pilot_evidence.csv").exists()
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
+
+
+def test_pilot_lane_summary_rows_include_locked_and_price_lanes():
+    candidates = build_trusted_data_pilot_candidates([], [], [], top_n=10)
+
+    rows = pilot_lane_summary_rows(candidates)
+    by_lane = {row["lane"]: row for row in rows}
+
+    assert by_lane["optional_context_locked"]["status"] == "locked"
+    assert "earnings and analyst estimates remain locked" in by_lane["optional_context_locked"]["blocker_theme"]
+    assert by_lane["price_coverage"]["status"] == "safe_to_batch_dry_run"
+    assert by_lane["price_coverage"]["next_safe_command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"

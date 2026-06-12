@@ -245,6 +245,19 @@ def test_extract_fundamentals_from_companyfacts_maps_supported_fields():
     assert any("EBITDA" in warning for warning in row["_warnings"])
 
 
+def test_extract_fundamentals_maps_contract_revenue_concept():
+    payload = _sample_companyfacts_payload()
+    revenue_facts = payload["facts"]["us-gaap"].pop("Revenues")
+    payload["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"] = revenue_facts
+
+    row = extract_fundamentals_from_companyfacts(payload)
+
+    assert row["revenue"] == 1000
+    assert row["revenue_growth"] == pytest.approx(0.25)
+    assert row["fcf_margin"] == pytest.approx(0.2)
+    assert not any("Revenue was unavailable" in warning for warning in row["_warnings"])
+
+
 def test_extract_fundamentals_warns_when_missing_facts():
     payload = {"cik": 1, "entityName": "Test", "facts": {"us-gaap": {"Revenues": {"units": {"USD": [{"val": 10, "end": "2025-12-31", "start": "2025-01-01", "fp": "FY", "fy": 2025, "form": "10-K", "filed": "2026-02-20", "accn": "1"}]}}}}}
 

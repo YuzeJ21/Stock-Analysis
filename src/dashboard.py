@@ -29,6 +29,8 @@ from src.trusted_data_pilot import (
     pilot_evidence_expectation,
     pilot_evidence_row_template,
     pilot_lane_label,
+    pilot_lane_runbook,
+    pilot_lane_summary_rows,
     pilot_local_file_status,
     pilot_operator_decision,
     pilot_quick_path_lines,
@@ -6555,6 +6557,95 @@ def data_health_trusted_pilot_preview_frame(
         for candidate in candidates[: max(limit, 0)]
     ]
     return pd.DataFrame(rows)
+
+
+def data_health_trusted_pilot_lane_board_frame(
+    fundamentals_peer_worklist_frame: pd.DataFrame | None,
+    peer_unlock_worklist_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None,
+    *,
+    limit: int = 10,
+) -> pd.DataFrame:
+    """Return the lane-group board shown in Data Health without writing files."""
+
+    fundamentals_rows = [] if fundamentals_peer_worklist_frame is None else fundamentals_peer_worklist_frame.to_dict("records")
+    peer_rows = [] if peer_unlock_worklist_frame is None else peer_unlock_worklist_frame.to_dict("records")
+    readiness_rows = [] if ticker_readiness_frame is None else ticker_readiness_frame.to_dict("records")
+    candidates = build_trusted_data_pilot_candidates(
+        fundamentals_rows,
+        peer_rows,
+        readiness_rows,
+        top_n=max(limit, 0),
+    )
+    rows = []
+    for row in pilot_lane_summary_rows(candidates):
+        lane = str(row.get("lane", ""))
+        runbook = pilot_lane_runbook(lane)
+        rows.append(
+            {
+                "Lane": row["lane_label"],
+                "Candidates": row["candidate_count"],
+                "Tickers": row["tickers"],
+                "Current Blocker Theme": plain_dashboard_input_copy(row["blocker_theme"]),
+                "Status": row["status"],
+                "Next Safe Command": row["next_safe_command"],
+                "What Proves It": row["what_proves_lane"],
+                "Rows / Files Needed": row["needed_rows_files"],
+                "Rejected-Row Reports": row["rejected_row_reports"],
+                "Readiness Proof": row["readiness_proof_command"],
+                "Still Blocked When": row["remains_blocked_when"],
+                "Locked / Manual Note": row["locked_manual_note"],
+                "Ordered Steps": " ".join(f"{index}. {step}" for index, step in enumerate(runbook.ordered_steps, start=1)),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def data_health_trusted_pilot_lane_cards(lane_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
+    if lane_frame is None or lane_frame.empty:
+        return [
+            {
+                "kicker": "LANE BOARD",
+                "title": "Lane groups need current readiness rows",
+                "body": "Run the read-only pilot candidate command after rebuilding readiness outputs; do not force a lane when source proof is unavailable.",
+                "badges": ["read-only", "no fake rows"],
+                "command": "make trusted-data-pilot-candidates TOP_N=10",
+            }
+        ]
+    cards: list[dict[str, object]] = []
+    priority = {"review_only": 0, "safe_to_batch_dry_run": 1, "locked": 2}
+    sorted_frame = lane_frame.copy()
+    sorted_frame["_priority"] = sorted_frame["Status"].map(lambda value: priority.get(str(value), 9))
+    sorted_frame["_count"] = pd.to_numeric(sorted_frame["Candidates"], errors="coerce").fillna(0).astype(int)
+    sorted_frame = sorted_frame.sort_values(["_priority", "_count", "Lane"], ascending=[True, False, True])
+    for _, row in sorted_frame.head(max(limit, 0)).iterrows():
+        lane = format_missing(row.get("Lane"), "Trusted-data lane")
+        status = format_missing(row.get("Status"), "review_only")
+        count = format_missing(row.get("Candidates"), "0")
+        tickers = format_missing(row.get("Tickers"), "-")
+        blocker = compact_card_fragment(row.get("Current Blocker Theme"), max_chars=180)
+        proof = compact_card_fragment(row.get("What Proves It"), max_chars=190)
+        command = format_missing(row.get("Next Safe Command"), "make trusted-data-pilot-candidates TOP_N=10")
+        manual = compact_card_fragment(row.get("Locked / Manual Note"), max_chars=150)
+        body = (
+            f"{count} candidate(s) in this lane; tickers: {tickers}. "
+            f"{card_sentence('Blocker theme', blocker)} "
+            f"{card_sentence('Proof', proof)} "
+            f"Next safe command: {command}. "
+            "Rows are not applied from this board; validate, preview, rejected-row checks, and rebuilt readiness must prove any change."
+        )
+        if manual:
+            body = f"{body} {card_sentence('Locked/manual lane', manual)}"
+        cards.append(
+            {
+                "kicker": "LANE GROUP",
+                "title": lane,
+                "body": body,
+                "badges": [status, "copy-only"],
+                "command": command,
+            }
+        )
+    return cards
 
 
 def data_health_trusted_pilot_selection_note(
@@ -21409,6 +21500,16 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")
     render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))
+    lane_board = data_health_trusted_pilot_lane_board_frame(
+        fundamentals_peer_worklist_frame,
+        peer_unlock_worklist_frame,
+        ticker_readiness_frame,
+        limit=10,
+    )
+    render_section_header("Lane-Group Board", "Choose the proof lane first; prices stay dry-run-first and optional context stays locked/manual.")
+    render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))
+    with st.expander("Lane-group evidence summary", expanded=False):
+        st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
     with st.expander("Refresh and command details", expanded=False):
         render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
         render_signal_cards(data_health_freshness_routine_cards(readiness_summary))

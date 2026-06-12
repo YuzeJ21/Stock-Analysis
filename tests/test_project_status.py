@@ -48,8 +48,9 @@ def _write_fast_status_artifacts(root: Path) -> None:
     ).to_csv(reports_dir / "ticker_readiness_report.csv", index=False)
     pd.DataFrame(
         [
-            {"dataset": "prices", "availability_status": "available", "focus_command": "make status"},
-            {"dataset": "fundamentals", "availability_status": "partial", "focus_command": "make imports-validate"},
+            {"dataset": "prices", "availability_status": "available", "is_required": True, "is_optional": False, "focus_command": "make status"},
+            {"dataset": "fundamentals", "availability_status": "partial", "is_required": False, "is_optional": True, "focus_command": "make imports-validate"},
+            {"dataset": "earnings", "availability_status": "manual_only", "is_required": False, "is_optional": True, "focus_command": "make templates"},
         ]
     ).to_csv(outputs_dir / "data_source_status.csv", index=False)
     pd.DataFrame(
@@ -611,6 +612,8 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert str(tmp_path) not in output
     assert "Tickers with prices: 1/2" in output
     assert "DCF-ready tickers: 1/2" in output
+    assert "Required data sources needing attention: 0" in output
+    assert "Optional/manual lanes locked: 2" in output
     assert "make focus-fundamentals TICKER=AMD" in output
     assert "generated CSV churn" not in output
     assert "Wrote:" not in output

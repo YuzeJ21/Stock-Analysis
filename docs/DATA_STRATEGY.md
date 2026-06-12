@@ -95,7 +95,7 @@ Do not run unattended jobs that apply fundamentals, peer mappings, earnings, ana
 
 Do not try to make all 3,538 tickers fully analysis-ready at once. Start with 5 to 10 companies that matter for the public demo or active research list.
 
-If you want to choose the next pilot from current local blockers, run `make trusted-data-pilot-candidates TOP_N=10`. It ranks operating-company candidates and excludes ETF/index monitor examples from the company DCF pilot list. The default candidate output is compact so visitors can see the shortlist, quick path, compact review board, and safe loop without reading every row-level proof detail; use `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` when you need full per-candidate file status, decision gates, rejected-row paths, and evidence expectations. If you want a one-company packet after choosing a name, run `make trusted-data-pilot-packet TICKER=CRDO`; it prints the before report, focused blocker check, lane review path, validate/apply step, rejected-row report path, rebuild proof, and evidence row to record. If you want the copyable read-only checklist after choosing several names, run `make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10`. The broader checklist remains available as `make trusted-data-pilot TOP_N=10`. Each command does not refresh, import, or edit local CSV files.
+If you want to choose the next pilot from current local blockers, run `make trusted-data-pilot-candidates TOP_N=10`. It ranks operating-company candidates and excludes ETF/index monitor examples from the company DCF pilot list. The default candidate output is compact so visitors can see the shortlist, quick path, compact review board, and safe loop without reading every row-level proof detail; use `make trusted-data-pilot-candidates TOP_N=10 VERBOSE=1` when you need full per-candidate file status, decision gates, rejected-row paths, and evidence expectations. If you want a batch operating view before drilling into individual names, run `make trusted-data-pilot-board TICKERS=MU,CRDO,HOOD,TSLA,META,A,APLD`; it prints the lane mix, outcome mix, lane-group workflows, per-ticker blocker rows, and suggested lane-group next step without writing a CSV. Lane-group workflows show candidate count, tickers, shared blocker theme, review command pattern, trusted row target, rejected-row report, proof command pattern, stop condition, and whether the lane is review-only, locked, or safe for dry-run batching. If you already know the lane group, run `make trusted-data-pilot-lane LANE=fundamentals_dcf`, `make trusted-data-pilot-lane LANE=peer_mapping`, `make trusted-data-pilot-lane LANE=peer_valuation_inputs`, `make trusted-data-pilot-lane LANE=optional_context_locked`, or `make trusted-data-pilot-lane LANE=price_coverage`; the command prints ordered lane-specific steps plus the evidence summary for what proves the lane, which rows/files are needed, which rejected-row reports matter, which readiness command confirms a change, and what remains blocked. Price coverage stays separate as a dry-run-first planning lane; fundamentals, peers, earnings, and analyst estimates remain review-required. If you want a one-company packet after choosing a lane group, run `make trusted-data-pilot-packet TICKER=CRDO`; it prints the before report, focused blocker check, lane review path, validate/apply step, rejected-row report path, rebuild proof, and evidence row to record. If you want a CSV ledger for selected before-state proof paths, run `make trusted-data-pilot-evidence TICKERS=MU,CRDO`; it writes current modes, lane blockers, proof commands, trusted-row targets, rejected-row checks, and still-blocked reasons without changing source rows or readiness. If you want the copyable read-only checklist after choosing several names, run `make trusted-data-pilot TICKERS=NVDA,CRDO,META TOP_N=10`. The broader checklist remains available as `make trusted-data-pilot TOP_N=10`. Each command does not refresh, import, or edit local CSV files.
 
 The candidate list and one-company packet also print local file status, such as import CSV data-row counts, staged-folder file counts, and whether the rejected-row report path exists. Treat that as an inspection cue only. A file with rows is not automatically trusted coverage; it still needs source review, validation, preview, apply when appropriate, and rebuilt readiness before analysis is described as available.
 
@@ -117,20 +117,25 @@ The candidate command also prints a compact review board. Read it as:
 
 This keeps the pilot practical: a useful result can be either "this ticker became supported after trusted rows were validated" or "this ticker stayed blocked for a specific missing input."
 
-Read each pilot outcome in three states:
+Read each pilot outcome in durable states:
 
 | Outcome | Meaning |
 | --- | --- |
 | Supported | Rebuilt readiness and the regenerated report show the lane is ready. |
 | Still blocked | Validation failed, rejected rows appeared, or the report stayed locked; keep the named blocker visible. |
 | Skip | Source proof is unavailable or not reviewable; do not apply placeholder rows, and move to the next shortlisted company. |
+| Excluded | The ticker is not an operating-company pilot target. |
+
+Pilot evidence rows should also carry a durable `outcome_state`: `supported`, `still_blocked`, `skipped`, or `excluded`. Use `supported` only after rebuilt readiness and the regenerated report prove the lane changed. Use `still_blocked` when validation fails, rejected rows appear, or the report remains locked. Use `skipped` when source proof is unavailable. Use `excluded` when the ticker is not an operating-company pilot target.
 
 One-company evidence packet:
 
 ```bash
 make readiness-snapshot
 make trusted-data-pilot-candidates TOP_N=10
+make trusted-data-pilot-lane LANE=fundamentals_dcf
 make trusted-data-pilot-packet TICKER=<ticker>
+make trusted-data-pilot-evidence TICKERS=MU,CRDO
 make stock-report-md TICKER=<ticker>
 Run the lane-specific review command printed by the packet:
   fundamentals lane: make focus-fundamentals TICKER=<ticker>

@@ -9552,6 +9552,110 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "sell" not in rendered
 
 
+def test_data_health_trusted_pilot_lane_board_frame_groups_lanes_without_single_name_pressure():
+    fundamentals = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "priority": "1",
+                "dcf_ready": "False",
+                "missing_required_for_dcf": "shares_outstanding, fcf_margin",
+                "focus_command": "make focus-fundamentals TICKER=META",
+            },
+        ]
+    )
+    peers = pd.DataFrame(
+        [
+            {
+                "ticker": "MU",
+                "priority": "2",
+                "peer_blocker_type": "missing_peer_mapping",
+                "missing_peer_reason": "needs source-backed peer mappings",
+                "focus_command": "make focus-peers TICKER=MU",
+            }
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
+            {"ticker": "MU", "asset_type": "company", "in_active_universe": "True"},
+        ]
+    )
+
+    frame = dashboard.data_health_trusted_pilot_lane_board_frame(fundamentals, peers, readiness, limit=10)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame["Lane"]) == [
+        "Fundamentals / DCF proof path",
+        "Peer mapping proof path",
+        "Peer valuation inputs proof path",
+        "Optional context proof path",
+        "Price coverage dry-run path",
+    ]
+    assert frame.loc[frame["Lane"].eq("Fundamentals / DCF proof path"), "Candidates"].iloc[0] == "1"
+    assert frame.loc[frame["Lane"].eq("Peer mapping proof path"), "Tickers"].iloc[0] == "MU"
+    assert "shares outstanding, free-cash-flow margin" in rendered
+    assert "earnings and analyst estimates remain locked unless trusted local rows exist" in rendered
+    assert "make price-refresh-loop dry_run=1 max_candidates=3500 top_n=100 provider=yahoo" in rendered
+    assert "safe_to_batch_dry_run" in rendered
+    assert "review_only" in rendered
+    assert "locked" in rendered
+    assert "rows are not applied" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_trusted_pilot_lane_cards_show_next_safe_command_and_locked_lanes():
+    frame = pd.DataFrame(
+        [
+            {
+                "Lane": "Optional context proof path",
+                "Candidates": "0",
+                "Tickers": "-",
+                "Current Blocker Theme": "earnings and analyst estimates remain locked unless trusted local rows exist",
+                "Status": "locked",
+                "Next Safe Command": "make trusted-data-pilot-lane LANE=optional_context_locked",
+                "What Proves It": "Only trusted local earnings or analyst-estimate rows can unlock optional context.",
+                "Rows / Files Needed": "trusted optional rows",
+                "Rejected-Row Reports": "data/rejected/earnings_import_rejected.csv",
+                "Readiness Proof": "make optional-context-readiness",
+                "Still Blocked When": "trusted rows do not exist locally",
+                "Locked / Manual Note": "Manual/optional lane: keep earnings and analyst estimates locked unless trusted local rows exist.",
+                "Ordered Steps": "1. Leave the lane locked unless trusted local rows exist.",
+            },
+            {
+                "Lane": "Price coverage dry-run path",
+                "Candidates": "0",
+                "Tickers": "-",
+                "Current Blocker Theme": "missing or stale price coverage; dry-run-first batch planning",
+                "Status": "safe_to_batch_dry_run",
+                "Next Safe Command": "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+                "What Proves It": "Dry-run planning proves which price rows would be attempted.",
+                "Rows / Files Needed": "verified OHLCV rows",
+                "Rejected-Row Reports": "data/rejected/price_import_rejected.csv",
+                "Readiness Proof": "make price-coverage && make readiness",
+                "Still Blocked When": "dry run finds no safe provider path",
+                "Locked / Manual Note": "",
+                "Ordered Steps": "1. Run dry run.",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_trusted_pilot_lane_cards(frame, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["LANE GROUP", "LANE GROUP"]
+    assert cards[0]["title"] == "Price coverage dry-run path"
+    assert cards[0]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    assert cards[1]["title"] == "Optional context proof path"
+    assert cards[1]["command"] == "make trusted-data-pilot-lane LANE=optional_context_locked"
+    assert "next safe command" in rendered
+    assert "rows are not applied from this board" in rendered
+    assert "locked/manual lane: manual/optional lane" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
     fundamentals = pd.DataFrame(
         [
@@ -9684,13 +9788,17 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     pilot_index = source.index('render_section_header("Trusted Data Pilot"')
+    lane_board_index = source.index('render_section_header("Lane-Group Board"', pilot_index)
     pilot_preview_index = source.index("pilot_preview = data_health_trusted_pilot_preview_frame", pilot_index)
     refresh_details_index = source.index('st.expander("Refresh and command details", expanded=False)', pilot_index)
     next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
     details_index = source.index("if show_details:", next_steps_index)
 
-    assert pilot_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert pilot_index < lane_board_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
     assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
+    assert "lane_board = data_health_trusted_pilot_lane_board_frame" in source
+    assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))" in source
+    assert 'st.expander("Lane-group evidence summary", expanded=False)' in source
     assert 'st.expander("Pilot selection details", expanded=False)' in source
     assert '"How to choose the pilot."' in source
     assert "render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))" in source

@@ -41,6 +41,42 @@ class PilotCandidate:
     demo_rank: int = 999
 
 
+@dataclass(frozen=True)
+class PilotLaneRunbook:
+    lane: str
+    label: str
+    status: str
+    what_proves_lane: str
+    needed_rows_files: str
+    rejected_row_reports: str
+    readiness_proof_command: str
+    remains_blocked_when: str
+    ordered_steps: tuple[str, ...]
+    next_safe_command: str
+    locked_manual_note: str = ""
+
+
+PILOT_EVIDENCE_COLUMNS = (
+    "ticker",
+    "pilot_lane",
+    "scope",
+    "before_mode",
+    "after_mode",
+    "outcome_state",
+    "current_outcome",
+    "changed_inputs",
+    "review_command",
+    "validation_commands",
+    "proof_command",
+    "report_path",
+    "trusted_row_target",
+    "rejected_row_report",
+    "still_blocked_reason",
+    "source_boundary",
+    "local_file_status",
+)
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -64,6 +100,67 @@ def _int_value(value: object, fallback: int = 99) -> int:
         return int(float(str(value).strip()))
     except (TypeError, ValueError):
         return fallback
+
+
+def _report_mode(root: Path, ticker: str) -> str:
+    path = root / "outputs" / "stock_reports" / f"{ticker.lower()}.md"
+    if not path.exists():
+        return "before report missing; run make stock-report-md first"
+    for line in path.read_text(encoding="utf-8").splitlines():
+        text = line.strip()
+        if text.startswith("- Mode:"):
+            value = text.replace("- Mode:", "", 1).strip().rstrip(".")
+            return value.strip("`")
+    return "before report generated; mode not found"
+
+
+def _readiness_row(root: Path, ticker: str, *, previous: bool = False) -> dict[str, str] | None:
+    filename = "ticker_readiness_report.previous.csv" if previous else "ticker_readiness_report.csv"
+    rows = _read_csv(root / "data" / "reports" / filename)
+    lookup = _readiness_lookup(rows)
+    return lookup.get(ticker.strip().upper())
+
+
+def _readiness_mode(row: dict[str, str] | None) -> str:
+    if not row:
+        return "baseline snapshot missing; run make readiness-snapshot first"
+    if _truthy(row.get("dcf_ready")) and _truthy(row.get("peer_ready")):
+        return "DCF-ready review"
+    if _truthy(row.get("dcf_ready")):
+        return "Standalone DCF review"
+    if _truthy(row.get("price_ready")) or _truthy(row.get("momentum_ready")):
+        return "Price/setup review only"
+    return "Data needed before analysis"
+
+
+def _prior_dcf_missing_input(row: dict[str, str] | None) -> str:
+    if not row:
+        return "trusted fundamentals / DCF inputs"
+    missing_data = _clean(row.get("missing_data"), "")
+    match = re.search(r"dcf:\s*([^;]+)", missing_data, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return _clean(row.get("blocked_features"), "trusted fundamentals / DCF inputs")
+
+
+def _prior_peer_missing_input(row: dict[str, str] | None) -> str:
+    if not row:
+        return "peer fundamentals or peer price/market-cap context"
+    missing_data = _clean(row.get("missing_data"), "")
+    match = re.search(r"peers:\s*([^;]+)", missing_data, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return "peer fundamentals or peer price/market-cap context"
+
+
+def _completed_peer_input(root: Path, ticker: str, fallback: str) -> str:
+    peer_rows = _read_csv(root / "data" / "reports" / "peer_readiness_report.csv")
+    peer_lookup = _readiness_lookup(peer_rows)
+    peer_row = peer_lookup.get(ticker.strip().upper())
+    sample_peers = _clean((peer_row or {}).get("sample_peers"), "")
+    if sample_peers:
+        return f"verified mapped-peer price history and SEC fundamentals for {sample_peers}"
+    return fallback
 
 
 def _ticker_filter(tickers: str | Iterable[str] | None) -> set[str] | None:
@@ -105,6 +202,44 @@ def _candidate_sort_key(candidate: PilotCandidate) -> tuple[int, int, int, int, 
     return (active_rank, candidate.demo_rank, lane_rank, candidate.priority, candidate.ticker)
 
 
+LANE_ALIASES = {
+    "fundamentals": "fundamentals_dcf",
+    "fundamental": "fundamentals_dcf",
+    "fundamentals_dcf": "fundamentals_dcf",
+    "dcf": "fundamentals_dcf",
+    "peer_mapping": "peer_mapping",
+    "peer_mappings": "peer_mapping",
+    "peers": "peer_mapping",
+    "peer": "peer_mapping",
+    "peer_valuation": "peer_valuation_inputs",
+    "peer_valuation_input": "peer_valuation_inputs",
+    "peer_valuation_inputs": "peer_valuation_inputs",
+    "mapped_peer_inputs": "peer_valuation_inputs",
+    "optional": "optional_context_locked",
+    "optional_context": "optional_context_locked",
+    "optional_context_locked": "optional_context_locked",
+    "earnings": "optional_context_locked",
+    "analyst_estimates": "optional_context_locked",
+    "analyst-estimates": "optional_context_locked",
+    "price": "price_coverage",
+    "prices": "price_coverage",
+    "price_coverage": "price_coverage",
+    "coverage": "price_coverage",
+}
+
+
+def normalize_pilot_lane(value: str) -> str:
+    """Normalize a lane-group alias for CLI and dashboard use."""
+
+    normalized = re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+    if normalized in LANE_ALIASES:
+        return LANE_ALIASES[normalized]
+    raise ValueError(
+        "Unknown trusted-data pilot lane. Use one of: fundamentals_dcf, peer_mapping, "
+        "peer_valuation_inputs, optional_context_locked, price_coverage."
+    )
+
+
 def pilot_lane_label(lane: str) -> str:
     """Return a visitor-facing lane name for internal pilot lane codes."""
 
@@ -113,6 +248,7 @@ def pilot_lane_label(lane: str) -> str:
         "peer_mapping": "Peer mapping proof path",
         "peer_valuation_inputs": "Peer valuation inputs proof path",
         "optional_context_locked": "Optional context proof path",
+        "price_coverage": "Price coverage dry-run path",
     }.get(str(lane or "").strip(), "Trusted-data proof path")
 
 
@@ -270,7 +406,15 @@ def plain_pilot_input_copy(value: object) -> str:
 def pilot_primary_missing_input(candidate: PilotCandidate) -> str:
     """Return the lane-specific blocker before secondary optional-context locks."""
 
-    return plain_pilot_input_copy(candidate.missing_input).split("; ", 1)[0]
+    parts = plain_pilot_input_copy(candidate.missing_input).split("; ")
+    primary = parts[0]
+    if (
+        candidate.lane == "peer_valuation_inputs"
+        and len(parts) > 1
+        and "ready" in primary.lower()
+    ):
+        primary = parts[1]
+    return re.sub(r"^peer valuation still requires\s+", "", primary, flags=re.IGNORECASE)
 
 
 def pilot_secondary_locked_context(candidate: PilotCandidate) -> str:
@@ -279,7 +423,10 @@ def pilot_secondary_locked_context(candidate: PilotCandidate) -> str:
     missing_input = plain_pilot_input_copy(candidate.missing_input)
     if "; " not in missing_input:
         return ""
-    return missing_input.split("; ", 1)[1]
+    secondary = missing_input.split("; ", 1)[1]
+    if re.search(r"\b(earnings|analyst estimates|optional)\b", secondary, flags=re.IGNORECASE):
+        return secondary
+    return ""
 
 
 def pilot_operator_decision(candidate: PilotCandidate) -> str:
@@ -338,6 +485,7 @@ def pilot_evidence_row_template(candidate: PilotCandidate) -> str:
     report_path = f"outputs/stock_reports/{candidate.ticker.lower()}.md"
     return (
         f"{candidate.ticker} | before: run report | after: rerun report | "
+        "outcome_state: supported/still_blocked/skipped/excluded | "
         f"{pilot_primary_missing_input(candidate)} | "
         "make imports-validate && make imports-preview && make imports-apply | "
         f"{report_path} | keep visible if source proof is unavailable or readiness remains blocked"
@@ -357,9 +505,9 @@ def pilot_review_board_row(candidate: PilotCandidate) -> str:
 def pilot_compact_board_row(candidate: PilotCandidate) -> str:
     """Return a short visitor-facing candidate row without row-level diagnostics."""
 
-    missing_input = plain_pilot_input_copy(candidate.missing_input)
-    if "; " in missing_input:
-        missing_input = f"{missing_input.split('; ', 1)[0]}; optional context locked"
+    missing_input = pilot_primary_missing_input(candidate)
+    if pilot_secondary_locked_context(candidate):
+        missing_input = f"{missing_input}; optional context locked"
     return (
         f"{candidate.ticker}: {pilot_lane_label(candidate.lane)}; "
         f"missing input: {missing_input}; "
@@ -487,6 +635,58 @@ def pilot_outcome_checklist_lines(candidate: PilotCandidate | None = None) -> li
         f"Still blocked: keep {primary_input} visible when validation fails, rejected rows appear, or the report remains locked.",
         "Skip: if source proof is unavailable, do not apply placeholder rows; move to the next shortlisted company.",
     ]
+
+
+def pilot_outcome_state_guide(candidate: PilotCandidate | None = None) -> str:
+    """Return the durable outcome-state contract for pilot evidence."""
+
+    ticker = candidate.ticker if candidate else "<ticker>"
+    return (
+        "Outcome states: supported means rebuilt readiness and the regenerated report prove the lane changed; "
+        "still_blocked means validation failed, rejected rows appeared, or readiness/report output stayed locked; "
+        f"skipped means source proof was unavailable for {ticker}; "
+        "excluded means the ticker is not an operating-company pilot target."
+    )
+
+
+def pilot_current_outcome_state(
+    candidate: PilotCandidate,
+    current_readiness: dict[str, str] | None,
+    *,
+    peer_readiness: dict[str, str] | None = None,
+) -> str:
+    """Classify current evidence without implying an unavailable data unlock."""
+
+    current_row = current_readiness or {}
+    asset_type = _clean(current_row.get("asset_type"), "company").lower()
+    if asset_type and asset_type != "company":
+        return "excluded"
+    supported = (
+        (
+            candidate.lane == "fundamentals_dcf"
+            and _truthy(current_row.get("fundamentals_ready"))
+            and _truthy(current_row.get("dcf_ready"))
+        )
+        or (
+            candidate.lane == "peer_mapping"
+            and _truthy(current_row.get("peer_ready"))
+        )
+        or (
+            candidate.lane == "peer_valuation_inputs"
+            and (
+                _truthy((peer_readiness or {}).get("peer_valuation_ready"))
+                or _truthy((peer_readiness or {}).get("peer_valuation_comparison_ready"))
+            )
+        )
+        or (
+            candidate.lane == "optional_context_locked"
+            and (
+                _truthy(current_row.get("earnings_ready"))
+                or _truthy(current_row.get("analyst_estimates_ready"))
+            )
+        )
+    )
+    return "supported" if supported else "still_blocked"
 
 
 def build_trusted_data_pilot_candidates(
@@ -651,6 +851,78 @@ def load_trusted_data_pilot_candidates(
     )
 
 
+def load_trusted_data_pilot_evidence_candidates(
+    *,
+    root: Path,
+    tickers: str | Iterable[str] | None = None,
+    top_n: int = DEFAULT_TOP_N,
+) -> list[PilotCandidate]:
+    """Load candidates for evidence, preserving completed selected DCF pilots."""
+
+    selected = _ticker_filter(tickers)
+    current_candidates = load_trusted_data_pilot_candidates(root=root, tickers=tickers, top_n=top_n)
+    if selected is None:
+        return current_candidates
+
+    current_readiness = _readiness_lookup(_read_csv(root / "data" / "reports" / "ticker_readiness_report.csv"))
+    prior_readiness = _readiness_lookup(_read_csv(root / "data" / "reports" / "ticker_readiness_report.previous.csv"))
+    by_ticker = {candidate.ticker: candidate for candidate in current_candidates}
+
+    for ticker in sorted(selected):
+        current_row = current_readiness.get(ticker)
+        prior_row = prior_readiness.get(ticker)
+        completed_fundamentals = (
+            current_row is not None
+            and prior_row is not None
+            and not _truthy(prior_row.get("dcf_ready"))
+            and _truthy(current_row.get("fundamentals_ready"))
+            and _truthy(current_row.get("dcf_ready"))
+        )
+        completed_peer = (
+            current_row is not None
+            and prior_row is not None
+            and not _truthy(prior_row.get("peer_ready"))
+            and _truthy(current_row.get("peer_ready"))
+        )
+        if not completed_fundamentals:
+            if completed_peer:
+                by_ticker[ticker] = PilotCandidate(
+                    ticker=ticker,
+                    lane="peer_valuation_inputs",
+                    priority=2,
+                    why_it_matters="Records the completed source-backed peer valuation input proof path.",
+                    missing_input=_completed_peer_input(root, ticker, _prior_peer_missing_input(prior_row)),
+                    next_command=f"make focus-peers TICKER={ticker}",
+                    validation_path=(
+                        f"make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER={ticker} "
+                        "-> make imports-validate -> make imports-preview -> make imports-apply"
+                    ),
+                    proof_after_unlock=f"make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
+                    source_boundary="Peer rows must be source-backed; sector or industry fallback is context only.",
+                    active_universe=_truthy((current_row or {}).get("in_active_universe")),
+                    demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
+                )
+            continue
+        by_ticker[ticker] = PilotCandidate(
+            ticker=ticker,
+            lane="fundamentals_dcf",
+            priority=1,
+            why_it_matters="Records the completed source-backed fundamentals and DCF proof path.",
+            missing_input=_prior_dcf_missing_input(prior_row),
+            next_command=f"make focus-fundamentals TICKER={ticker}",
+            validation_path=(
+                f"make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER={ticker} "
+                "-> make imports-validate -> make imports-preview -> make imports-apply"
+            ),
+            proof_after_unlock=f"make readiness && make dcf-readiness && make stock-report-md TICKER={ticker}",
+            source_boundary="Use SEC staging or trusted manual rows only; leave blank fields blocked.",
+            active_universe=_truthy((current_row or {}).get("in_active_universe")),
+            demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
+        )
+
+    return sorted(by_ticker.values(), key=_candidate_sort_key)[: max(top_n, 0)]
+
+
 def render_trusted_data_pilot_candidates(
     candidates: list[PilotCandidate],
     *,
@@ -690,6 +962,7 @@ def render_trusted_data_pilot_candidates(
             "",
             "How to read the outcome:",
             *[f"- {line}" for line in pilot_outcome_checklist_lines(candidates[0])],
+            f"- {pilot_outcome_state_guide(candidates[0])}",
             "",
             "Compact review board:",
             *[f"- {pilot_compact_board_row(candidate)}" for candidate in candidates[: min(top_n, len(candidates))]],
@@ -803,6 +1076,7 @@ def render_trusted_data_pilot_packet(
             *[f"- {line}" for line in pilot_proof_story_lines(candidate)],
             "How to read the outcome:",
             *[f"- {line}" for line in pilot_outcome_checklist_lines(candidate)],
+            f"- {pilot_outcome_state_guide(candidate)}",
             "1. Baseline readiness: make readiness-snapshot",
             f"2. Before report: make stock-report-md TICKER={candidate.ticker}",
             f"3. Focused blocker check: {candidate.next_command}",
@@ -815,10 +1089,429 @@ def render_trusted_data_pilot_packet(
             pilot_evidence_expectation(candidate),
             "",
             "Evidence table row to record:",
-            "ticker | before_mode | after_mode | changed_inputs | validation_commands | report_path | still_blocked_reason",
+            "ticker | before_mode | after_mode | outcome_state | changed_inputs | validation_commands | report_path | still_blocked_reason",
             pilot_evidence_row_template(candidate),
             "",
             "Stop condition: if trusted source rows are unavailable, keep this ticker visibly blocked by missing data and move to the next candidate.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def build_trusted_data_pilot_evidence_rows(
+    candidates: list[PilotCandidate],
+    *,
+    root: Path,
+) -> list[dict[str, str]]:
+    """Build a read-only pilot evidence ledger from current local artifacts."""
+
+    rows: list[dict[str, str]] = []
+    peer_readiness_lookup = _readiness_lookup(_read_csv(root / "data" / "reports" / "peer_readiness_report.csv"))
+    for candidate in candidates:
+        prior_readiness = _readiness_row(root, candidate.ticker, previous=True)
+        current_readiness = _readiness_row(root, candidate.ticker)
+        current_report_mode = _report_mode(root, candidate.ticker)
+        before_mode = _readiness_mode(prior_readiness) if prior_readiness else current_report_mode
+        outcome_state = pilot_current_outcome_state(
+            candidate,
+            current_readiness,
+            peer_readiness=peer_readiness_lookup.get(candidate.ticker),
+        )
+        supported = outcome_state == "supported"
+        excluded = outcome_state == "excluded"
+        after_mode = current_report_mode if supported else "pending rebuilt report after trusted rows"
+        current_outcome = (
+            "supported by rebuilt readiness and regenerated report"
+            if supported
+            else "excluded from the operating-company pilot target list"
+            if excluded
+            else "still blocked or unproven until rebuilt readiness changes"
+        )
+        still_blocked_reason = (
+            f"Resolved by source-backed rebuild: {pilot_primary_missing_input(candidate)}"
+            if supported
+            else "Excluded from this company pilot because the ticker is not an operating-company target."
+            if excluded
+            else (
+                f"Keep visible if source proof is unavailable or readiness remains blocked: "
+                f"{pilot_primary_missing_input(candidate)}"
+            )
+        )
+        report_path = f"outputs/stock_reports/{candidate.ticker.lower()}.md"
+        rows.append(
+            {
+                "ticker": candidate.ticker,
+                "pilot_lane": pilot_lane_label(candidate.lane),
+                "scope": "active universe" if candidate.active_universe else "master universe",
+                "before_mode": before_mode,
+                "after_mode": after_mode,
+                "outcome_state": outcome_state,
+                "current_outcome": current_outcome,
+                "changed_inputs": pilot_primary_missing_input(candidate),
+                "review_command": candidate.next_command,
+                "validation_commands": "make imports-validate && make imports-preview && make imports-apply",
+                "proof_command": candidate.proof_after_unlock,
+                "report_path": report_path,
+                "trusted_row_target": pilot_trusted_row_path(candidate),
+                "rejected_row_report": pilot_rejected_report_path(candidate),
+                "still_blocked_reason": still_blocked_reason,
+                "source_boundary": candidate.source_boundary,
+                "local_file_status": pilot_local_file_status(candidate, root=root),
+            }
+        )
+    return rows
+
+
+def write_trusted_data_pilot_evidence(
+    candidates: list[PilotCandidate],
+    *,
+    root: Path,
+    output_path: Path,
+) -> Path:
+    """Write a CSV evidence ledger without changing source data or readiness."""
+
+    rows = build_trusted_data_pilot_evidence_rows(candidates, root=root)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=PILOT_EVIDENCE_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+    return output_path
+
+
+def render_trusted_data_pilot_board(
+    candidates: list[PilotCandidate],
+    *,
+    root: Path,
+) -> str:
+    """Render a multi-ticker evidence board without writing files."""
+
+    lines = [
+        "Trusted Data Pilot Board",
+        "Read-only: this board summarizes selected pilot candidates without refreshing, importing, applying rows, writing CSVs, or changing readiness outputs.",
+        "",
+    ]
+    if not candidates:
+        lines.extend(
+            [
+                "No operating-company pilot candidates matched the current filters.",
+                "Next command: make trusted-data-pilot-candidates TOP_N=10",
+            ]
+        )
+        return "\n".join(lines)
+
+    rows = build_trusted_data_pilot_evidence_rows(candidates, root=root)
+    state_counts: dict[str, int] = {}
+    lane_counts: dict[str, int] = {}
+    for row in rows:
+        state_counts[row["outcome_state"]] = state_counts.get(row["outcome_state"], 0) + 1
+        lane_counts[row["pilot_lane"]] = lane_counts.get(row["pilot_lane"], 0) + 1
+
+    state_summary = ", ".join(f"{state}: {count}" for state, count in sorted(state_counts.items()))
+    lane_summary = ", ".join(f"{lane}: {count}" for lane, count in sorted(lane_counts.items()))
+    tickers = ",".join(row["ticker"] for row in rows)
+
+    lines.extend(
+        [
+            f"Tickers reviewed: {tickers}",
+            f"Outcome mix: {state_summary}",
+            f"Lane mix: {lane_summary}",
+            "",
+            "Lane-group workflows:",
+        ]
+    )
+    lanes: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        lanes.setdefault(row["pilot_lane"], []).append(row)
+    for lane, lane_rows in sorted(lanes.items()):
+        lane_tickers = ",".join(row["ticker"] for row in lane_rows)
+        blockers = sorted({row["changed_inputs"] for row in lane_rows})
+        review_patterns = sorted({row["review_command"] for row in lane_rows})
+        trusted_targets = sorted({row["trusted_row_target"] for row in lane_rows})
+        rejected_reports = sorted({row["rejected_row_report"] for row in lane_rows})
+        proof_patterns = sorted({row["proof_command"] for row in lane_rows})
+        lines.extend(
+            [
+                f"- {lane}:",
+                f"  candidate_count: {len(lane_rows)}",
+                f"  tickers: {lane_tickers}",
+                f"  shared_blocker_theme: {'; '.join(blockers)}",
+                f"  shared_review_command_pattern: {'; '.join(review_patterns)}",
+                f"  trusted_row_target: {'; '.join(trusted_targets)}",
+                f"  rejected_row_report: {'; '.join(rejected_reports)}",
+                f"  proof_command_pattern: {'; '.join(proof_patterns)}",
+                "  stop_condition: stop if source proof is unavailable, validation fails, rejected rows appear, or rebuilt reports stay locked",
+                f"  batch_status: {pilot_lane_batch_status(lane)}",
+            ]
+        )
+    suggested_lane, suggested_lane_rows = max(
+        lanes.items(),
+        key=lambda item: (len(item[1]), item[0]),
+    )
+    suggested_lane_tickers = ",".join(row["ticker"] for row in suggested_lane_rows)
+    suggested_review_pattern = "; ".join(sorted({row["review_command"] for row in suggested_lane_rows}))
+    lines.extend(
+        [
+            "",
+            "Batch board:",
+        ]
+    )
+    for row in rows:
+        lines.append(
+            "- "
+            f"{row['ticker']}: {row['outcome_state']}; {row['pilot_lane']}; "
+            f"input={row['changed_inputs']}; review={row['review_command']}; proof={row['proof_command']}"
+        )
+
+    lines.extend(
+        [
+            "",
+            "Batch decision rule:",
+            "- Apply no rows from this board. Use it to choose the next lane group, then run validate/preview/apply only after source proof is reviewed.",
+            "- Treat supported as proven only when rebuilt readiness and regenerated reports support the lane.",
+            "- Treat still_blocked as the correct result when source proof is missing, rejected rows appear, or the report remains locked.",
+            "",
+            "Suggested batch next step:",
+            f"- Start with lane group: {suggested_lane}",
+            f"- Lane tickers: {suggested_lane_tickers}",
+            f"- Review command pattern: {suggested_review_pattern}",
+            f"- Evidence ledger command: make trusted-data-pilot-evidence TICKERS={tickers}",
+            "- Keep generated CSV/JSON churn out of commits unless the evidence ledger is intentionally reviewed.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def pilot_lane_batch_status(lane_label: str) -> str:
+    """Classify whether a lane can batch now or needs review."""
+
+    normalized = lane_label.lower()
+    if "price" in normalized:
+        return "safe_to_batch_dry_run"
+    if "optional" in normalized:
+        return "locked"
+    if "fundamentals" in normalized or "peer" in normalized:
+        return "review_only"
+    return "review_only"
+
+
+def pilot_lane_runbook(lane: str) -> PilotLaneRunbook:
+    """Return the read-only lane-group operating contract."""
+
+    normalized = normalize_pilot_lane(lane)
+    specs = {
+        "fundamentals_dcf": PilotLaneRunbook(
+            lane="fundamentals_dcf",
+            label=pilot_lane_label("fundamentals_dcf"),
+            status="review_only",
+            what_proves_lane="Rebuilt readiness shows fundamentals_ready and dcf_ready, then the regenerated stock report exposes DCF review instead of a missing-field gate.",
+            needed_rows_files="SEC-staged or reviewed manual rows in data/staged/fundamentals/ or data/imports/fundamentals.csv with required DCF fields and source.",
+            rejected_row_reports="data/rejected/fundamentals_import_rejected.csv",
+            readiness_proof_command="make readiness && make dcf-readiness && make stock-report-md TICKER=<ticker>",
+            remains_blocked_when="trusted revenue, free-cash-flow margin or free cash flow, shares outstanding, cash, debt, date, or source rows are missing or rejected.",
+            ordered_steps=(
+                "Run make trusted-data-pilot-candidates TOP_N=10 and choose the fundamentals/DCF lane group only if source proof exists.",
+                "Run make trusted-data-pilot-packet TICKER=<ticker> for the selected operating company.",
+                "Run make sec-stage-queue TOP_N=25 or make focus-fundamentals TICKER=<ticker> to inspect missing fields.",
+                "Add or stage fundamentals rows only when SEC or trusted manual source proof is reviewable.",
+                "Run make imports-validate and make imports-preview; inspect rejected-row reports before any apply.",
+                "Run make imports-apply only for reviewed trusted rows.",
+                "Run make readiness, make dcf-readiness, and make stock-report-md TICKER=<ticker> to prove the lane changed or remains blocked.",
+            ),
+            next_safe_command="make trusted-data-pilot-lane LANE=fundamentals_dcf",
+        ),
+        "peer_mapping": PilotLaneRunbook(
+            lane="peer_mapping",
+            label=pilot_lane_label("peer_mapping"),
+            status="review_only",
+            what_proves_lane="Rebuilt readiness and the peer queue show source-backed peer context; sector or industry fallback alone does not prove peer valuation.",
+            needed_rows_files="source-backed peer mappings in data/imports/peers.csv, plus peer price/fundamental inputs only when the queue asks for them.",
+            rejected_row_reports="data/rejected/peers_import_rejected.csv",
+            readiness_proof_command="make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=<ticker>",
+            remains_blocked_when="peer relationships cannot be supported by source notes or mapped peers still lack the required valuation inputs.",
+            ordered_steps=(
+                "Run make trusted-data-pilot-candidates TOP_N=10 and choose the peer mapping lane group only when peer relationship proof exists.",
+                "Run make trusted-data-pilot-packet TICKER=<ticker> for one selected operating company.",
+                "Run make peer-mapping-queue TOP_N=25 and make focus-peers TICKER=<ticker>.",
+                "Add peer rows only with source-backed relationships; do not treat sector or industry fallback as trusted peer data.",
+                "Run make imports-validate and make imports-preview; inspect data/rejected/peers_import_rejected.csv.",
+                "Run make imports-apply only for reviewed trusted peer rows.",
+                "Run make readiness, make peer-mapping-queue TOP_N=25, and make stock-report-md TICKER=<ticker> to prove the lane changed or remains blocked.",
+            ),
+            next_safe_command="make trusted-data-pilot-lane LANE=peer_mapping",
+        ),
+        "peer_valuation_inputs": PilotLaneRunbook(
+            lane="peer_valuation_inputs",
+            label=pilot_lane_label("peer_valuation_inputs"),
+            status="review_only",
+            what_proves_lane="Mapped peers have verified valuation inputs, such as trusted fundamentals or verified peer price/market-cap context, and the rebuilt report no longer withholds peer valuation.",
+            needed_rows_files="reviewed mapped-peer fundamentals in data/imports/fundamentals.csv or verified peer price history; data/imports/peers.csv only if mappings change.",
+            rejected_row_reports="data/rejected/fundamentals_import_rejected.csv and data/rejected/price_import_rejected.csv when peer price rows change",
+            readiness_proof_command="make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=<ticker>",
+            remains_blocked_when="mapped peers lack trusted fundamentals, price history, market-cap context, or the rebuilt peer readiness report still withholds valuation comparison.",
+            ordered_steps=(
+                "Run make trusted-data-pilot-board TICKERS=MU,CRDO,HOOD,TSLA,META,A,APLD and choose the peer valuation inputs lane group, not a single name first.",
+                "Run make focus-peers TICKER=<ticker> to see the mapped-peer dependency printed by the queue.",
+                "Follow the peer dependency with make focus-fundamentals TICKER=<peer> or the printed peer price proof command.",
+                "Add mapped-peer inputs only when source proof is reviewable.",
+                "Run make imports-validate and make imports-preview; inspect fundamentals and price rejected-row reports if those rows changed.",
+                "Run make imports-apply only for reviewed trusted rows.",
+                "Run make readiness, make peer-mapping-queue TOP_N=25, and make stock-report-md TICKER=<ticker> to prove peer valuation changed or remains blocked.",
+            ),
+            next_safe_command="make trusted-data-pilot-lane LANE=peer_valuation_inputs",
+        ),
+        "optional_context_locked": PilotLaneRunbook(
+            lane="optional_context_locked",
+            label=pilot_lane_label("optional_context_locked"),
+            status="locked",
+            what_proves_lane="Only trusted local earnings or analyst-estimate rows can unlock optional context; this lane is optional and must not block core readiness.",
+            needed_rows_files="trusted rows in data/staged/earnings/, data/staged/analyst_estimates/, data/imports/earnings.csv, or data/imports/analyst_estimates.csv.",
+            rejected_row_reports="data/rejected/earnings_import_rejected.csv and data/rejected/analyst_estimates_import_rejected.csv",
+            readiness_proof_command="make optional-context-readiness && make onboarding TOP_N=10 && make stock-report-md TICKER=<ticker>",
+            remains_blocked_when="trusted earnings or analyst-estimate rows do not exist locally, validation rejects them, or optional readiness remains unavailable.",
+            ordered_steps=(
+                "Leave the lane locked unless trusted local earnings or analyst-estimate rows already exist.",
+                "Run make optional-context-worklist TOP_N=10 to inspect optional/manual blockers.",
+                "Add rows only from trusted local sources; do not infer future estimates or earnings values.",
+                "Run make imports-validate and make imports-preview; inspect optional rejected-row reports.",
+                "Run make imports-apply only for reviewed trusted optional rows.",
+                "Run make optional-context-readiness and make stock-report-md TICKER=<ticker> to prove optional context changed or remains locked.",
+            ),
+            next_safe_command="make trusted-data-pilot-lane LANE=optional_context_locked",
+            locked_manual_note="Manual/optional lane: keep earnings and analyst estimates locked unless trusted local rows exist.",
+        ),
+        "price_coverage": PilotLaneRunbook(
+            lane="price_coverage",
+            label=pilot_lane_label("price_coverage"),
+            status="safe_to_batch_dry_run",
+            what_proves_lane="Dry-run planning proves which price rows would be attempted; only reviewed applied price imports and rebuilt readiness prove coverage changed.",
+            needed_rows_files="verified OHLCV rows staged through provider refresh or normalized into data/imports/prices.csv after review.",
+            rejected_row_reports="data/rejected/price_import_rejected.csv",
+            readiness_proof_command="make price-coverage && make readiness && make status-check TOP_N=5",
+            remains_blocked_when="the dry run finds no safe provider path, downloaded rows cannot be verified, rejected rows appear, or readiness still shows missing price coverage.",
+            ordered_steps=(
+                "Run make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo.",
+                "Review the dry-run plan before running any real refresh.",
+                "If a real capped refresh is chosen later, inspect generated CSV diffs before keeping artifacts.",
+                "For downloaded files, normalize verified OHLCV rows, then run make price-validate and make price-preview.",
+                "Run make price-apply only for reviewed trusted price rows.",
+                "Run make price-coverage, make readiness, and make status-check TOP_N=5 to prove coverage changed or remains blocked.",
+            ),
+            next_safe_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+        ),
+    }
+    return specs[normalized]
+
+
+def pilot_lane_summary_rows(candidates: list[PilotCandidate]) -> list[dict[str, str]]:
+    """Return lane-group summary rows for CLI and dashboard views."""
+
+    rows: list[dict[str, str]] = []
+    for lane in (
+        "fundamentals_dcf",
+        "peer_mapping",
+        "peer_valuation_inputs",
+        "optional_context_locked",
+        "price_coverage",
+    ):
+        runbook = pilot_lane_runbook(lane)
+        lane_candidates = [candidate for candidate in candidates if candidate.lane == lane]
+        blocker_themes = sorted({pilot_primary_missing_input(candidate) for candidate in lane_candidates})
+        tickers = ",".join(candidate.ticker for candidate in lane_candidates) or "-"
+        if lane == "price_coverage":
+            blocker_theme = "missing or stale price coverage; dry-run-first batch planning"
+        elif lane == "optional_context_locked" and not blocker_themes:
+            blocker_theme = "earnings and analyst estimates remain locked unless trusted local rows exist"
+        else:
+            blocker_theme = "; ".join(blocker_themes) if blocker_themes else "no current candidate in selected scope"
+        rows.append(
+            {
+                "lane": lane,
+                "lane_label": runbook.label,
+                "candidate_count": str(len(lane_candidates)),
+                "tickers": tickers,
+                "blocker_theme": blocker_theme,
+                "status": runbook.status,
+                "next_safe_command": runbook.next_safe_command,
+                "what_proves_lane": runbook.what_proves_lane,
+                "needed_rows_files": runbook.needed_rows_files,
+                "rejected_row_reports": runbook.rejected_row_reports,
+                "readiness_proof_command": runbook.readiness_proof_command,
+                "remains_blocked_when": runbook.remains_blocked_when,
+                "locked_manual_note": runbook.locked_manual_note,
+            }
+        )
+    return rows
+
+
+def render_trusted_data_pilot_lane(
+    lane: str,
+    candidates: list[PilotCandidate],
+    *,
+    root: Path | None = None,
+) -> str:
+    """Render one lane-group runbook without writing data."""
+
+    runbook = pilot_lane_runbook(lane)
+    normalized = runbook.lane
+    rows = pilot_lane_summary_rows(candidates)
+    summary = next(row for row in rows if row["lane"] == normalized)
+    lane_candidates = [candidate for candidate in candidates if candidate.lane == normalized]
+    lines = [
+        "Trusted Data Pilot Lane Runbook",
+        "Read-only: this command prints lane-specific steps and evidence requirements without refreshing, importing, applying rows, writing CSVs, or changing readiness outputs.",
+        "",
+        f"Lane: {runbook.label}",
+        f"Lane key: {runbook.lane}",
+        f"Batch status: {runbook.status}",
+        f"Candidate count in selected scope: {summary['candidate_count']}",
+        f"Candidate tickers: {summary['tickers']}",
+        f"Current blocker theme: {summary['blocker_theme']}",
+        f"Next safe command: {runbook.next_safe_command}",
+        *([f"Locked/manual note: {runbook.locked_manual_note}"] if runbook.locked_manual_note else []),
+        "",
+        "Ordered lane steps:",
+        *[f"{index}. {step}" for index, step in enumerate(runbook.ordered_steps, start=1)],
+        "",
+        "Lane evidence summary:",
+        f"- What proves the lane: {runbook.what_proves_lane}",
+        f"- Rows/files needed: {runbook.needed_rows_files}",
+        f"- Rejected-row reports that matter: {runbook.rejected_row_reports}",
+        f"- Command that confirms readiness changed: {runbook.readiness_proof_command}",
+        f"- What remains blocked: {runbook.remains_blocked_when}",
+        "",
+        "Outcome contract:",
+        "- supported: rebuilt readiness and regenerated reports prove the lane changed.",
+        "- still_blocked: source proof is missing, validation fails, rejected rows appear, or rebuilt reports stay locked.",
+        "- skipped: the lane is intentionally not advanced because source proof is unavailable.",
+        "- excluded: the row is not an operating-company pilot target.",
+    ]
+    if lane_candidates:
+        lines.extend(
+            [
+                "",
+                "Current lane candidates:",
+                *[
+                    (
+                        f"- {candidate.ticker}: missing {pilot_primary_missing_input(candidate)}; "
+                        f"review {candidate.next_command}; proof {candidate.proof_after_unlock}"
+                    )
+                    for candidate in lane_candidates
+                ],
+            ]
+        )
+    if root is not None and lane_candidates:
+        lines.extend(
+            [
+                "",
+                "Read-only local file status:",
+                *[f"- {candidate.ticker}: {pilot_local_file_status(candidate, root=root)}" for candidate in lane_candidates[:3]],
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "Guardrail: do not fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, recommendations, or unlocks.",
         ]
     )
     return "\n".join(lines)
@@ -830,6 +1523,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tickers", default="")
     parser.add_argument("--packet", default="", help="Print a one-company evidence packet for the requested ticker.")
     parser.add_argument("--verbose", action="store_true", help="Print full per-candidate evidence details.")
+    parser.add_argument("--board", action="store_true", help="Print a read-only multi-ticker pilot evidence board.")
+    parser.add_argument("--lane", default="", help="Print a lane-group runbook for fundamentals, peers, optional context, or price coverage.")
+    parser.add_argument(
+        "--write-evidence",
+        default="",
+        help="Write a read-only pilot evidence ledger CSV for selected candidates.",
+    )
     return parser.parse_args()
 
 
@@ -839,6 +1539,27 @@ def main() -> None:
         ticker = args.packet.strip().upper()
         candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=ticker, top_n=1)
         print(render_trusted_data_pilot_packet(candidates[0] if candidates else None, requested_ticker=ticker, root=Path.cwd()))
+        return
+    if args.lane:
+        try:
+            normalize_pilot_lane(args.lane)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        candidates = load_trusted_data_pilot_evidence_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
+        print(render_trusted_data_pilot_lane(args.lane, candidates, root=Path.cwd()))
+        return
+    if args.write_evidence:
+        candidates = load_trusted_data_pilot_evidence_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
+        output_path = Path(args.write_evidence)
+        written = write_trusted_data_pilot_evidence(candidates, root=Path.cwd(), output_path=output_path)
+        print("Trusted Data Pilot Evidence Ledger")
+        print("Read-only: wrote pilot evidence rows from current reports and readiness snapshots; no source rows or readiness outputs were changed.")
+        print(f"Rows: {len(candidates)}")
+        print(f"Wrote: {written}")
+        return
+    if args.board:
+        candidates = load_trusted_data_pilot_evidence_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
+        print(render_trusted_data_pilot_board(candidates, root=Path.cwd()))
         return
     candidates = load_trusted_data_pilot_candidates(root=Path.cwd(), tickers=args.tickers, top_n=args.top_n)
     print(render_trusted_data_pilot_candidates(candidates, top_n=args.top_n, root=Path.cwd(), verbose=args.verbose))
