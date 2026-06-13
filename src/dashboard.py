@@ -21,6 +21,7 @@ from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.readiness_ops import build_coverage_frontier, build_readiness_ops_lanes
+from src.readiness_comparison import ReadinessComparison, compare_readiness_snapshots
 from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
@@ -7286,6 +7287,57 @@ def data_health_reviewed_batch_proof_cards(ledger_path: Path | None = None) -> l
             ),
             "badges": [latest.review_date, "reviewed batch"],
             "command": "make reviewed-batch-proof",
+        }
+    ]
+
+
+def data_health_readiness_comparison_frame(comparison: ReadinessComparison | None = None) -> pd.DataFrame:
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    return pd.DataFrame(
+        [
+            {
+                "Status": comparison.status,
+                "Before Snapshot": str(comparison.before_path),
+                "After Snapshot": str(comparison.after_path),
+                "Rows Before": comparison.before_rows,
+                "Rows After": comparison.after_rows,
+                "Changed Readiness Counts": comparison.changed_readiness_counts,
+                "Changed Tickers": ", ".join(comparison.changed_tickers) if comparison.changed_tickers else "none",
+                "Changed Ticker Count": comparison.changed_count,
+                "Freshness": f"{comparison.freshness_status}: {comparison.freshness_message}",
+                "Blocking Note": comparison.blocking_message,
+            }
+        ]
+    )
+
+
+def data_health_readiness_comparison_cards(comparison: ReadinessComparison | None = None) -> list[dict[str, object]]:
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    if comparison.status != "ok":
+        return [
+            {
+                "kicker": "BATCH COMPARISON",
+                "title": "Snapshot comparison is blocked",
+                "body": (
+                    f"{comparison.blocking_message} The comparison is read-only and should run before recording "
+                    "changed readiness counts in the proof ledger."
+                ),
+                "badges": [comparison.status, "read-only"],
+                "command": "make readiness-snapshot",
+            }
+        ]
+    changed_tickers = ", ".join(comparison.changed_tickers) if comparison.changed_tickers else "none"
+    return [
+        {
+            "kicker": "BATCH COMPARISON",
+            "title": f"{comparison.changed_count} changed ticker(s)",
+            "body": (
+                f"{card_sentence('Changed counts', compact_card_fragment(comparison.changed_readiness_counts, max_chars=210))} "
+                f"{card_sentence('Changed tickers', changed_tickers if changed_tickers != 'none' else 'no changed tickers')} "
+                "Use this as proof-ledger input after source review; it is not a recommendation signal."
+            ),
+            "badges": [comparison.freshness_status, "proof input"],
+            "command": "make reviewed-batch-compare LANE=prices",
         }
     ]
 
@@ -15232,6 +15284,105 @@ def data_health_risk_context_cards(
     ]
 
 
+def data_health_review_metric_readiness_cards() -> list[dict[str, object]]:
+    """Route operators to readiness-gated review metrics without broad dashboard calculation."""
+
+    return [
+        {
+            "kicker": "BENCHMARK / RISK",
+            "title": "Price-history gated",
+            "body": (
+                "Benchmark-relative return, max drawdown, rolling volatility, beta, Sharpe, and Sortino require "
+                "trusted local ticker and benchmark price history. Treat them as review checks only."
+            ),
+            "badges": ["SPY/QQQ", "review metric"],
+            "command": "make metric-readiness TOP_N=10 BENCHMARK=SPY",
+        },
+        {
+            "kicker": "FUNDAMENTALS TREND",
+            "title": "Trusted rows only",
+            "body": (
+                "Revenue growth and FCF margin trend stay partial or blocked until trusted fundamentals rows exist, "
+                "with multi-period trend only from dated local rows."
+            ),
+            "badges": ["fundamentals", "no placeholders"],
+            "command": "make metric-readiness TOP_N=10 BENCHMARK=SPY",
+        },
+        {
+            "kicker": "VALUATION MULTIPLES",
+            "title": "Market context gated",
+            "body": (
+                "Multiples require trusted fundamentals plus market-cap or trusted price/share-count context. "
+                "Missing inputs stay blocked rather than inferred."
+            ),
+            "badges": ["market cap", "trusted inputs"],
+            "command": "make metric-readiness TOP_N=10 BENCHMARK=SPY",
+        },
+        {
+            "kicker": "PEER DISPERSION",
+            "title": "Peer-input gated",
+            "body": (
+                "Peer valuation dispersion appears only when mapped peers and trusted peer valuation inputs are ready. "
+                "Peer trend and peer valuation remain separate readiness states."
+            ),
+            "badges": ["peers", "dispersion review"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "ETF / INDEX PROXIES",
+            "title": "Company metrics excluded",
+            "body": (
+                "ETF, index, and fund rows can support market or risk context when prices are ready, while "
+                "operating-company fundamentals, multiples, and peer dispersion are excluded."
+            ),
+            "badges": ["excluded", "not failed"],
+            "command": "make benchmark-risk-review TICKER=QQQ BENCHMARK=SPY",
+        },
+    ]
+
+
+def data_health_review_metric_readiness_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Metric Family": "Benchmark / risk",
+                "Metrics": "benchmark-relative return; max drawdown; rolling volatility; beta; Sharpe; Sortino",
+                "Readiness Gate": "trusted ticker and benchmark local price history",
+                "Command": "make metric-readiness TOP_N=10 BENCHMARK=SPY",
+                "Guardrail": "historical review checks only",
+            },
+            {
+                "Metric Family": "Fundamentals trend",
+                "Metrics": "revenue growth; FCF margin trend",
+                "Readiness Gate": "trusted fundamentals rows; dated rows for multi-period trend",
+                "Command": "make focus-fundamentals TICKER=<ticker>",
+                "Guardrail": "no placeholder fundamentals",
+            },
+            {
+                "Metric Family": "Valuation multiples",
+                "Metrics": "price/sales; price/FCF; P/E when trusted inputs exist",
+                "Readiness Gate": "trusted fundamentals plus market cap or trusted price/share-count context",
+                "Command": "make metric-readiness TOP_N=10 BENCHMARK=SPY",
+                "Guardrail": "missing market context remains blocked",
+            },
+            {
+                "Metric Family": "Peer valuation dispersion",
+                "Metrics": "dispersion versus mapped peer valuation inputs",
+                "Readiness Gate": "mapped peers plus trusted peer valuation inputs",
+                "Command": "make peer-mapping-queue TOP_N=25",
+                "Guardrail": "sector fallback is context only",
+            },
+            {
+                "Metric Family": "ETF / index proxy handling",
+                "Metrics": "market/risk context only",
+                "Readiness Gate": "asset type excludes operating-company fundamentals and valuation",
+                "Command": "make benchmark-risk-review TICKER=QQQ BENCHMARK=SPY",
+                "Guardrail": "excluded is not failed coverage",
+            },
+        ]
+    )
+
+
 def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, object]]:
     status_columns = ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "Classification"]
     if title == "Value / Re-rating":
@@ -22245,6 +22396,10 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     )
     render_section_header("Risk Context Readiness", "Liquidity, correlation, and proxy-risk context stay price-history gated and research-only.")
     render_signal_cards(data_health_risk_context_cards(liquidity_frame, correlation_frame))
+    render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
+    render_signal_cards(data_health_review_metric_readiness_cards())
+    with st.expander("Review metric readiness gates", expanded=False):
+        st.dataframe(clean_display_frame(data_health_review_metric_readiness_frame()), width="stretch", hide_index=True)
     render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
     render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
     render_section_header("Peer Readiness V2", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
@@ -22268,6 +22423,11 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
             st.caption("No reviewed batch proof rows are recorded yet.")
         else:
             st.dataframe(clean_display_frame(batch_proof_frame), width="stretch", hide_index=True)
+    render_section_header("Before / After Batch Proof", "Readiness snapshot comparison for proof-ledger changed counts and changed tickers.")
+    readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10)
+    render_signal_cards(data_health_readiness_comparison_cards(readiness_comparison))
+    with st.expander("Readiness comparison proof row", expanded=False):
+        st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
     render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")

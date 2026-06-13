@@ -56,6 +56,7 @@ def test_makefile_contains_convenience_targets():
         "reviewed-data-proof-record",
         "reviewed-batch-proof",
         "reviewed-batch-proof-record",
+        "reviewed-batch-compare",
         "lane-outcome-history",
         "price-reviewed-run",
         "public-demo-readiness-pack",
@@ -168,6 +169,8 @@ def test_makefile_help_documents_key_workflows():
         "Print the durable reviewed data proof ledger",
         "make reviewed-batch-proof",
         "Show durable reviewed batch proof ledger",
+        "make reviewed-batch-compare",
+        "Compare before/after readiness snapshots for proof rows",
         "make lane-outcome-history",
         "Summarize lane outcomes from the durable proof ledger",
         "make price-reviewed-run",
@@ -193,6 +196,7 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record an intentional reviewed proof row",
         "make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows",
         "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record a reviewed batch outcome",
+        "make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan",
         "make public-demo-readiness-pack Print the small shareable public demo proof set",
         "make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data",
@@ -1849,6 +1853,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "readiness-ops-evidence:\n\t@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)" in makefile
     assert "reviewed-batch:\n\t@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10)" in makefile
     assert "reviewed-batch-proof:\n\t@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv)" in makefile
+    assert "reviewed-batch-compare:\n\t@python3 -m src.readiness_comparison --root ." in makefile
     assert "reviewed-batch-proof-record:\nifndef BATCH_ID" in makefile
     assert "reviewed-data-proof-record:\nifndef LANE" in makefile
     assert "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs." in makefile

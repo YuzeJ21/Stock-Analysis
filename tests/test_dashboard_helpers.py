@@ -9919,6 +9919,56 @@ def test_data_health_reviewed_batch_proof_frame_and_cards_read_batch_ledger(tmp_
     assert "no source proof applied" in rendered
 
 
+def test_data_health_readiness_comparison_cards_and_frame_show_proof_inputs():
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=("AAA",),
+        changed_count=1,
+        changed_readiness_counts="price_ready (not_ready: 1->0; ready: 1->2)",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_readiness_comparison_cards(comparison)
+    frame = dashboard.data_health_readiness_comparison_frame(comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "BATCH COMPARISON"
+    assert cards[0]["command"] == "make reviewed-batch-compare LANE=prices"
+    assert "1 changed ticker" in cards[0]["title"]
+    assert "proof-ledger input" in rendered
+    assert "not a recommendation signal" in rendered
+    assert frame.iloc[0]["Changed Tickers"] == "AAA"
+    assert "price_ready" in frame.iloc[0]["Changed Readiness Counts"]
+
+
+def test_data_health_readiness_comparison_cards_warn_when_snapshot_missing():
+    comparison = dashboard.ReadinessComparison(
+        status="missing_before",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=0,
+        after_rows=0,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="not available",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        blocking_message="Missing prior readiness snapshot. Run make readiness-snapshot before a reviewed batch.",
+    )
+
+    cards = dashboard.data_health_readiness_comparison_cards(comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Snapshot comparison is blocked"
+    assert cards[0]["command"] == "make readiness-snapshot"
+    assert "run make readiness-snapshot before a reviewed batch" in rendered
+
+
 def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
     fundamentals = pd.DataFrame(
         [
@@ -18445,14 +18495,44 @@ def test_data_health_risk_context_cards_surface_readiness_without_recommendation
     assert "trading" not in rendered
 
 
+def test_data_health_review_metric_readiness_cards_gate_advanced_metrics():
+    cards = dashboard.data_health_review_metric_readiness_cards()
+    frame = dashboard.data_health_review_metric_readiness_frame()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    frame_rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert [card["kicker"] for card in cards] == [
+        "BENCHMARK / RISK",
+        "FUNDAMENTALS TREND",
+        "VALUATION MULTIPLES",
+        "PEER DISPERSION",
+        "ETF / INDEX PROXIES",
+    ]
+    assert "benchmark-relative return" in rendered
+    assert "sharpe" in rendered
+    assert "sortino" in rendered
+    assert "revenue growth and fcf margin trend" in rendered
+    assert "market-cap or trusted price/share-count context" in rendered
+    assert "mapped peers and trusted peer valuation inputs" in rendered
+    assert "operating-company fundamentals, multiples, and peer dispersion are excluded" in rendered
+    assert "historical review checks only" in frame_rendered
+    assert "excluded is not failed coverage" in frame_rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+
+
 def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     risk_cards_index = source.index("render_signal_cards(data_health_risk_context_cards(liquidity_frame, correlation_frame))")
+    metric_cards_index = source.index("render_signal_cards(data_health_review_metric_readiness_cards())")
     liquidity_expander_index = source.index('st.expander("Liquidity Context", expanded=False)')
     correlation_expander_index = source.index('st.expander("Correlation Concentration Context", expanded=False)')
 
-    assert risk_cards_index < liquidity_expander_index < correlation_expander_index
+    assert risk_cards_index < metric_cards_index < liquidity_expander_index < correlation_expander_index
 
 
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():

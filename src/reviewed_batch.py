@@ -65,6 +65,8 @@ ACTION_COLUMNS = (
     "preview_command",
     "apply_command",
     "post_run_verification",
+    "readiness_comparison_command",
+    "proof_record_command",
     "expected_artifacts",
     "rollback",
     "do_not_proceed_if",
@@ -108,6 +110,8 @@ class ReviewedBatchAction:
     preview_command: str
     apply_command: str
     post_run_verification: str
+    readiness_comparison_command: str
+    proof_record_command: str
     expected_artifacts: str
     rollback: str
     do_not_proceed_if: str
@@ -292,6 +296,7 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "preview": "make price-preview",
             "apply": "make price-apply only for reviewed trusted rows",
             "post": f"make readiness && make price-coverage TOP_N={top_n} && make status-check TOP_N=5",
+            "compare": "make reviewed-batch-compare LANE=prices BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             "artifacts": "data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv",
             "rollback": "If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.",
         }
@@ -303,6 +308,7 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed trusted fundamentals rows pass preview",
             "post": "make readiness && make dcf-readiness",
+            "compare": "make reviewed-batch-compare LANE=fundamentals BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/reports/dcf_readiness_report.csv",
             "rollback": "If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun make readiness.",
         }
@@ -314,6 +320,7 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "preview": "make imports-preview",
             "apply": "make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed",
             "post": f"make readiness && make peer-mapping-queue TOP_N={top_n} && make metric-readiness TICKERS={ticker_arg} BENCHMARK=SPY",
+            "compare": "make reviewed-batch-compare LANE=peers BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             "artifacts": "data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
             "rollback": "If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.",
         }
@@ -324,6 +331,7 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
         "preview": "make imports-preview",
         "apply": "make imports-apply only after trusted local earnings/estimate rows pass preview",
         "post": "make optional-context-readiness && make readiness",
+        "compare": "make reviewed-batch-compare LANE=optional_context BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         "artifacts": "data/imports/earnings.csv; data/imports/analyst_estimates.csv; data/reports/earnings_readiness_report.csv; data/reports/analyst_estimates_readiness_report.csv",
         "rollback": "If optional rows are wrong, do not apply. If applied rows are wrong, restore earnings/analyst-estimates CSVs and rerun optional-context readiness.",
     }
@@ -351,6 +359,7 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
             "Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.",
             "Use dry-run output to cap scope; do not treat provider availability as reviewed data.",
             "After execution, rerun readiness and compare changed readiness counts before keeping artifacts.",
+            "Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.",
         ]
     if lane == "fundamentals_dcf":
         return [
@@ -396,6 +405,22 @@ def _proof_template_csv_row(packet: ReviewedBatchPacket) -> str:
     return ",".join(values[field] for field in PROOF_TEMPLATE_FIELDS)
 
 
+def _proof_record_scaffold(batch_id: str, lane: str) -> str:
+    return (
+        "make reviewed-batch-proof-record "
+        f'BATCH_ID="{batch_id}" '
+        f'LANE="{lane}" '
+        'REVIEW_DATE="<yyyy-mm-dd>" '
+        'FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" '
+        'COMMAND_RUN="<exact reviewed command>" '
+        'VALIDATION_RESULT="<pass/fail/not_run>" '
+        'PREVIEW_RESULT="<reviewed/not_run>" '
+        'APPLY_RESULT="<applied/not_run/skipped>" '
+        'CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" '
+        'CHANGED_TICKERS="<from reviewed-batch-compare>"'
+    )
+
+
 def build_reviewed_batch_packet(
     root: Path | str = ".",
     *,
@@ -435,6 +460,8 @@ def build_reviewed_batch_packet(
                     preview_command=commands["preview"],
                     apply_command=commands["apply"],
                     post_run_verification=commands["post"],
+                    readiness_comparison_command=commands["compare"].replace("<batch_id>", batch_id),
+                    proof_record_command=_proof_record_scaffold(batch_id, lane_code),
                     expected_artifacts=commands["artifacts"],
                     rollback=commands["rollback"],
                     do_not_proceed_if=_do_not_proceed(lane_row, freshness),
@@ -511,6 +538,8 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
                 f"- Preview: `{action.preview_command}`",
                 f"- Apply gate: `{action.apply_command}`",
                 f"- Post-run verification: `{action.post_run_verification}`",
+                f"- Readiness comparison: `{action.readiness_comparison_command}`",
+                f"- Proof ledger record: `{action.proof_record_command}`",
                 f"- Expected artifacts: {action.expected_artifacts}",
                 f"- Rollback checklist: {action.rollback}",
                 f"- Do not proceed if: {action.do_not_proceed_if}",

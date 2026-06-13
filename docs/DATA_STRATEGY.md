@@ -205,6 +205,8 @@ For Trusted Coverage Growth V2, reviewed batches should leave a proof row rather
 
 Use `make reviewed-batch-proof` to read the durable reviewed batch ledger in `data/reviewed_batch_proofs.csv`. Use `make reviewed-batch-proof-record` only after the packet, dry-run or capped reviewed scope, validate/preview/apply decision, readiness proof, and generated-artifact review are complete. This command appends one proof row; it does not refresh data, apply imports, infer missing peer inputs, or create a recommendation.
 
+Use `make reviewed-batch-compare LANE=prices BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-dd>` after `make readiness-snapshot`, a reviewed batch step, and `make readiness`. It compares `data/reports/ticker_readiness_report.previous.csv` with the current readiness report and prints changed readiness counts, changed tickers, and a proof-ledger command scaffold. If the prior or current snapshot is missing, it tells the operator which refresh or snapshot command to run instead of guessing.
+
 ## Readiness-Gated Review Metrics
 
 Use `make metric-readiness TOP_N=10 BENCHMARK=SPY` to inspect the capped metric-readiness queue without refreshing or importing data. Use `make benchmark-risk-review TICKER=<ticker> BENCHMARK=SPY` for one ticker. Both commands read local CSV-backed provider data and print ready, partial, blocked, or excluded states for each metric, with freshness context before the summary.
@@ -214,6 +216,8 @@ Price-derived metrics can become ready from trusted local price history: benchma
 Fundamentals, valuation, and peer metrics keep stricter gates. Revenue growth and FCF margin can show current trusted-row context, and multi-period trend detail appears only when at least two period-labeled trusted fundamentals rows support row-derived revenue growth and FCF margin change. Valuation multiples require trusted fundamentals plus market-cap or trusted price/share-count context. Peer valuation dispersion requires mapped peers plus trusted peer valuation inputs. None of these metrics should be filled from placeholder rows.
 
 Sharpe and Sortino are historical review metrics only. Keep the risk-free-rate assumption explicit; the default lives in `config.yaml` under `risk_rules.annual_risk_free_rate_pct`, and command-line review can override it with `RISK_FREE_RATE=...`. Do not use benchmark or risk metrics as rankings, forecasts, allocation guidance, or account-action instructions.
+
+Data Health surfaces these review metric lanes as readiness gates, not calculations to trust blindly: benchmark/risk metrics require local price history, fundamentals trend requires trusted fundamentals rows, valuation multiples require market-cap or trusted price/share-count context, peer dispersion requires mapped peer valuation inputs, and ETF/index proxies exclude operating-company metrics.
 
 ## What Not To Automate Yet
 

@@ -1,4 +1,4 @@
-.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record lane-outcome-history price-reviewed-run public-demo-readiness-pack readiness-ops-center coverage-frontier readiness-ops-evidence reviewed-batch metric-readiness benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare lane-outcome-history price-reviewed-run public-demo-readiness-pack readiness-ops-center coverage-frontier readiness-ops-evidence reviewed-batch metric-readiness benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -16,6 +16,7 @@ help:
 	@echo "                                  Rank the next source-backed data pilot"
 	@echo "  make reviewed-data-proof        Show durable reviewed proof ledger"
 	@echo "  make reviewed-batch-proof       Show durable reviewed batch proof ledger"
+	@echo "  make reviewed-batch-compare     Compare before/after readiness snapshots for proof rows"
 	@echo "  make lane-outcome-history       Show lane outcome history without generated churn"
 	@echo "  make public-demo-readiness-pack Print the shareable demo proof set"
 	@echo "  make public-check               Run before sharing the GitHub link"
@@ -43,6 +44,7 @@ help-full:
 	@echo "                        Print one lane group's ordered proof steps and evidence summary"
 	@echo "  make reviewed-data-proof"
 	@echo "  make reviewed-batch-proof"
+	@echo "  make reviewed-batch-compare"
 	@echo "                        Print the durable reviewed data proof ledger"
 	@echo "  make lane-outcome-history"
 	@echo "                        Summarize lane outcomes from the durable proof ledger"
@@ -77,6 +79,7 @@ help-full:
 	@echo "  make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record an intentional reviewed proof row"
 	@echo "  make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows"
 	@echo "  make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record a reviewed batch outcome"
+	@echo "  make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields"
 	@echo "  make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan"
 	@echo "  make public-demo-readiness-pack Print the small shareable public demo proof set"
 	@echo "  make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data"
@@ -367,6 +370,9 @@ reviewed-batch:
 
 reviewed-batch-proof:
 	@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv)
+
+reviewed-batch-compare:
+	@python3 -m src.readiness_comparison --root . --top-n $(or $(TOP_N),25) --batch-id "$(or $(BATCH_ID),<batch_id>)" --lane "$(or $(LANE),prices)" --review-date "$(or $(REVIEW_DATE),<yyyy-mm-dd>)"
 
 reviewed-batch-proof-record:
 ifndef BATCH_ID

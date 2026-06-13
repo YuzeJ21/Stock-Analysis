@@ -125,6 +125,10 @@ def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane
     assert "final_outcome" in rendered
     assert "supported, still_blocked, skipped, excluded" in rendered
     assert "data/reviewed_batch_proofs.csv" in rendered
+    assert "make reviewed-batch-compare LANE=peers" in rendered
+    assert "make reviewed-batch-proof-record" in rendered
+    assert "CHANGED_READINESS_COUNTS" in rendered
+    assert "CHANGED_TICKERS" in rendered
     assert "record peer_mapping_ready, peer_price_ready, peer_momentum_ready" in lowered
     assert "peer_valuation_comparison_ready" in rendered
     assert "sector or industry fallback as context only" in lowered
@@ -150,6 +154,8 @@ def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     assert rows
     assert rows[0]["batch_id"] == packet.batch_id
     assert rows[0]["dry_run_command"] == "make peer-mapping-queue TOP_N=2"
+    assert rows[0]["readiness_comparison_command"].startswith("make reviewed-batch-compare LANE=peers")
+    assert rows[0]["proof_record_command"].startswith("make reviewed-batch-proof-record")
     assert rows[0]["pre_run_readiness_snapshot"].startswith("record saved counts")
     assert rows[0]["changed_readiness_counts"] == "<before -> after counts, or none>"
     assert rows[0]["generated_artifacts_reviewed"] == "<kept evidence or excluded local churn>"

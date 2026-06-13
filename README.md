@@ -71,7 +71,7 @@ The product separates refreshable data from judgment-required data:
 | Peers | Use the ranked pilot packet first when a peer-input lane leads, such as `make trusted-data-pilot-packet TICKER=MU`, then add source-backed mappings or mapped-peer price/fundamental inputs only when source proof exists. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
-For batch planning, start with `make readiness-ops-center` and `make coverage-frontier TOP_N=10`. When a lane is worth reviewing, `make reviewed-batch LANE=prices TOP_N=10` writes a copy-only packet with snapshot, dry-run, capped execution, validate/preview/apply gates, rollback notes, and proof fields. After the reviewed scope is finished or intentionally skipped, `make reviewed-batch-proof-record ... FINAL_OUTCOME=<supported|still_blocked|skipped|excluded>` records the durable batch outcome in `data/reviewed_batch_proofs.csv`.
+For batch planning, start with `make readiness-ops-center` and `make coverage-frontier TOP_N=10`. When a lane is worth reviewing, `make reviewed-batch LANE=prices TOP_N=10` writes a copy-only packet with snapshot, dry-run, capped execution, validate/preview/apply gates, rollback notes, and proof fields. After the reviewed scope is finished or intentionally skipped, `make reviewed-batch-compare LANE=prices BATCH_ID=<id> REVIEW_DATE=<date>` compares prior/current readiness snapshots for changed counts and tickers, then `make reviewed-batch-proof-record ... FINAL_OUTCOME=<supported|still_blocked|skipped|excluded>` records the durable batch outcome in `data/reviewed_batch_proofs.csv`.
 
 ## What Works Today
 
@@ -176,4 +176,4 @@ The app is organized around dashboard, readiness, decision, report, provider, lo
 
 ## Roadmap Snapshot
 
-The next product stage is not more indicators. It is a clearer research operations path: Data Health starts with a lane cockpit, peer sub-state drilldown, reviewed-batch planning, and reviewed-batch proof history, while fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.
+The next product stage is not more indicators. It is a clearer research operations path: Data Health starts with a lane cockpit, readiness comparison proof, peer sub-state drilldown, reviewed-batch planning, reviewed-batch proof history, and readiness-gated review metric routing, while fundamentals/DCF, source-backed peers, and optional earnings/estimate context stay locked until trusted rows prove readiness.
