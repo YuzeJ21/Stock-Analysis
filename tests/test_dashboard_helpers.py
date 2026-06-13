@@ -9969,6 +9969,68 @@ def test_data_health_readiness_comparison_cards_warn_when_snapshot_missing():
     assert "run make readiness-snapshot before a reviewed batch" in rendered
 
 
+def test_data_health_reviewed_batch_preflight_cards_warn_before_dry_run_when_snapshot_missing():
+    preflight = dashboard.ReviewedBatchPreflight(
+        lane="prices",
+        lane_scope="Price Coverage",
+        batch_id="RB-TEST",
+        review_date="2026-06-12",
+        status="needs_preflight_fix",
+        current_report_exists=True,
+        prior_snapshot_exists=False,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=prices TOP_N=100",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=100",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
+        do_not_proceed_if=("prior readiness snapshot is missing; run make readiness-snapshot before a reviewed batch",),
+        expected_artifacts=("data/prices.csv",),
+    )
+
+    cards = dashboard.data_health_reviewed_batch_preflight_cards(preflight)
+    frame = dashboard.data_health_reviewed_batch_preflight_frame(preflight)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "BATCH PREFLIGHT"
+    assert cards[0]["command"] == "make reviewed-batch-preflight LANE=prices TOP_N=100"
+    assert "missing gate" in rendered
+    assert "prior readiness snapshot is missing" in rendered
+    assert frame.iloc[0]["Prior Snapshot Exists"] == "No"
+    assert "make readiness-snapshot" in frame.iloc[0]["Snapshot Command"]
+
+
+def test_data_health_reviewed_batch_preflight_cards_ready_state():
+    preflight = dashboard.ReviewedBatchPreflight(
+        lane="prices",
+        lane_scope="Price Coverage",
+        batch_id="RB-TEST",
+        review_date="2026-06-12",
+        status="ready_for_dry_run",
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=prices TOP_N=100",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
+        comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=100",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+        expected_artifacts=("data/prices.csv",),
+    )
+
+    cards = dashboard.data_health_reviewed_batch_preflight_cards(preflight)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["badges"] == ["ready", "dry-run first"]
+    assert "current readiness and prior snapshot are present" in rendered
+    assert "supported, still-blocked, skipped, or excluded" in rendered
+
+
 def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():
     fundamentals = pd.DataFrame(
         [

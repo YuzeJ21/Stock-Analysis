@@ -22,6 +22,7 @@ from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.readiness_ops import build_coverage_frontier, build_readiness_ops_lanes
 from src.readiness_comparison import ReadinessComparison, compare_readiness_snapshots
+from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
 from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
@@ -7340,6 +7341,54 @@ def data_health_readiness_comparison_cards(comparison: ReadinessComparison | Non
             "command": "make reviewed-batch-compare LANE=prices",
         }
     ]
+
+
+def data_health_reviewed_batch_preflight_cards(preflight: ReviewedBatchPreflight | None = None) -> list[dict[str, object]]:
+    preflight = preflight or build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
+    if preflight.status != "ready_for_dry_run":
+        body = (
+            "Preflight found a missing gate before a reviewed batch. "
+            f"{card_sentence('First blocker', compact_card_fragment(preflight.do_not_proceed_if[0], max_chars=180))} "
+            "Fix snapshot/freshness before using changed counts in the proof ledger."
+        )
+        badges = [preflight.status, preflight.freshness_status]
+    else:
+        body = (
+            "Current readiness and prior snapshot are present. Start with the packet and dry-run command, then compare "
+            "readiness before recording a supported, still-blocked, skipped, or excluded proof row."
+        )
+        badges = ["ready", "dry-run first"]
+    return [
+        {
+            "kicker": "BATCH PREFLIGHT",
+            "title": "Snapshot and freshness gate",
+            "body": body,
+            "badges": badges,
+            "command": "make reviewed-batch-preflight LANE=prices TOP_N=100",
+        }
+    ]
+
+
+def data_health_reviewed_batch_preflight_frame(preflight: ReviewedBatchPreflight | None = None) -> pd.DataFrame:
+    preflight = preflight or build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
+    return pd.DataFrame(
+        [
+            {
+                "Status": preflight.status,
+                "Lane": preflight.lane_scope,
+                "Batch ID": preflight.batch_id,
+                "Current Report Exists": "Yes" if preflight.current_report_exists else "No",
+                "Prior Snapshot Exists": "Yes" if preflight.prior_snapshot_exists else "No",
+                "Freshness": f"{preflight.freshness_status}: {preflight.freshness_message}",
+                "Packet Command": preflight.packet_command,
+                "Snapshot Command": preflight.snapshot_command,
+                "Dry Run Command": preflight.dry_run_command,
+                "Comparison Command": preflight.comparison_command,
+                "Proof Record Command": preflight.proof_record_command,
+                "Do Not Proceed If": "; ".join(preflight.do_not_proceed_if),
+            }
+        ]
+    )
 
 
 def data_health_trusted_pilot_selection_note(
@@ -22413,6 +22462,11 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))
     with st.expander("Coverage frontier table", expanded=False):
         st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
+    render_section_header("Reviewed Batch Preflight", "Snapshot and freshness gates before any capped reviewed execution.")
+    batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
+    render_signal_cards(data_health_reviewed_batch_preflight_cards(batch_preflight))
+    with st.expander("Reviewed batch preflight checklist", expanded=False):
+        st.dataframe(clean_display_frame(data_health_reviewed_batch_preflight_frame(batch_preflight)), width="stretch", hide_index=True)
     render_section_header("Reviewed Batch Ladder", "Copy-only packet, dry-run, capped execution, and proof steps for the selected data lane.")
     render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))
     render_section_header("Reviewed Batch Proof Ledger", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
