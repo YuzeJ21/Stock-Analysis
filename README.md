@@ -4,7 +4,7 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 
 > Data readiness first, analysis second, research decision last.
 
-![Dashboard preview](docs/assets/dashboard-preview.svg)
+![Dashboard preview](docs/assets/linkedin-public-dashboard.png)
 
 ## What It Does
 

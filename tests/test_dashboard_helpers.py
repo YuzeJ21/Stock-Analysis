@@ -1000,7 +1000,8 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=not public_mode)" in source
     assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
+    assert "render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)" in source
+    assert "render_public_proof_strip(_public_home_snapshot_items(summary))" in source
 
 
 def test_home_next_step_cards_are_copyable_and_readiness_gated():
@@ -13906,7 +13907,7 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     ops_index = source.index('render_section_header("Operations Cockpit"', scope_index)
 
     assert quick_read_index < scope_index < ops_index
-    assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame))" in source
+    assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=not public_mode)" in source
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
 
 

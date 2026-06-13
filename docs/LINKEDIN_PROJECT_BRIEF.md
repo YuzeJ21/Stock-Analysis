@@ -35,6 +35,8 @@ The most important design choice was refusing to present every ticker as complet
 
 GitHub: https://github.com/YuzeJ21/Stock-Analysis
 
+Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`, a real public-mode screenshot from the local product.
+
 ## Resume Bullet Options
 
 - Built a Python and Streamlit stock research command center that evaluates market-wide ticker readiness before generating research decisions.

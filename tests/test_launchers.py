@@ -449,7 +449,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     public_demo = Path("docs/PUBLIC_DEMO_WALKTHROUGH.md").read_text(encoding="utf-8")
 
     assert len(readme.splitlines()) < 180
-    assert "![Dashboard preview](docs/assets/dashboard-preview.svg)" in readme
+    assert "![Dashboard preview](docs/assets/linkedin-public-dashboard.png)" in readme
     for preview_phrase in (
         "plain-language stock analysis modes",
         "At A Glance single-stock status",

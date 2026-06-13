@@ -1692,22 +1692,24 @@ def apply_dashboard_theme() -> None:
         """
         <style>
         :root {
-          --research-bg: #f4f6f1;
-          --research-panel: #fffefa;
+          --research-bg: #f7f8f5;
+          --research-panel: #ffffff;
           --research-ink: #111827;
           --research-text: #1f2937;
           --research-muted: #667085;
-          --research-border: #d7ddcf;
+          --research-border: #dde3dc;
           --research-accent: #0f766e;
           --research-accent-strong: #0b3b36;
           --research-accent-soft: #d8f3ed;
+          --research-sky: #2563eb;
+          --research-gold: #b7791f;
           --research-warning: #a16207;
           --research-danger: #b42318;
         }
         .stApp {
           background:
-            radial-gradient(circle at top left, rgba(15, 118, 110, 0.15) 0, rgba(244, 246, 241, 0) 32rem),
-            linear-gradient(135deg, #fbfaf4 0%, #f3f7f4 42%, #eef5f2 100%);
+            radial-gradient(circle at top left, rgba(15, 118, 110, 0.10) 0, rgba(247, 248, 245, 0) 30rem),
+            linear-gradient(135deg, #fbfbf8 0%, #f6f8f5 44%, #eef6f4 100%);
           color: var(--research-text) !important;
           font-family: "Avenir Next", "SF Pro Display", "Segoe UI", sans-serif;
         }
@@ -1753,21 +1755,21 @@ def apply_dashboard_theme() -> None:
           color: var(--research-muted);
         }
         .block-container {
-          padding-top: 1.6rem;
-          max-width: 1500px;
+          padding-top: 1.25rem;
+          max-width: 1380px;
           color: var(--research-text) !important;
         }
         .app-hero {
           position: relative;
           overflow: hidden;
-          border-radius: 28px;
-          padding: 1.6rem 1.8rem;
-          margin: 0.2rem 0 1.2rem 0;
+          border-radius: 12px;
+          padding: 1.35rem 1.45rem;
+          margin: 0.1rem 0 0.9rem 0;
           background:
-            linear-gradient(135deg, rgba(15, 59, 54, 0.96), rgba(15, 118, 110, 0.90)),
-            radial-gradient(circle at 78% 8%, rgba(236, 253, 245, 0.34), rgba(236, 253, 245, 0) 18rem);
-          border: 1px solid rgba(255, 255, 255, 0.36);
-          box-shadow: 0 22px 55px rgba(15, 59, 54, 0.18);
+            linear-gradient(135deg, rgba(12, 49, 45, 0.98), rgba(15, 118, 110, 0.88)),
+            radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.22), rgba(236, 253, 245, 0) 18rem);
+          border: 1px solid rgba(255, 255, 255, 0.30);
+          box-shadow: 0 18px 42px rgba(15, 59, 54, 0.14);
         }
         .hero-kicker {
           color: #b8f5e8;
@@ -1777,10 +1779,10 @@ def apply_dashboard_theme() -> None:
         }
         .hero-title {
           color: #ffffff;
-          font-size: clamp(2.0rem, 4vw, 4.1rem);
-          line-height: 0.98;
+          font-size: 2.7rem;
+          line-height: 1.02;
           font-weight: 900;
-          letter-spacing: -0.06em;
+          letter-spacing: 0;
           margin: 0.38rem 0 0.55rem 0;
         }
         .hero-subtitle {
@@ -1805,13 +1807,13 @@ def apply_dashboard_theme() -> None:
           font-weight: 750;
         }
         .section-shell {
-          margin: 1.35rem 0 0.95rem 0;
-          padding: 0.85rem 1rem 0.9rem 1rem;
-          border-radius: 18px;
+          margin: 1.15rem 0 0.72rem 0;
+          padding: 0.72rem 0.92rem 0.78rem 0.92rem;
+          border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.22);
           background:
             linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 251, 247, 0.9));
-          box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
           position: relative;
         }
         .section-shell::before {
@@ -1819,7 +1821,7 @@ def apply_dashboard_theme() -> None:
           position: absolute;
           inset: 0 auto 0 0;
           width: 5px;
-          border-radius: 18px 0 0 18px;
+          border-radius: 12px 0 0 12px;
           background: linear-gradient(180deg, #0f766e, #14b8a6);
         }
         .section-kicker {
@@ -1832,9 +1834,9 @@ def apply_dashboard_theme() -> None:
         }
         .section-title {
           margin: 0.24rem 0 0.25rem 0;
-          font-size: 1.28rem;
+          font-size: 1.18rem;
           font-weight: 900;
-          letter-spacing: -0.035em;
+          letter-spacing: 0;
           color: var(--research-ink);
         }
         .section-caption {
@@ -1854,7 +1856,7 @@ def apply_dashboard_theme() -> None:
         .metric-card {
           background: rgba(255, 254, 250, 0.92);
           border: 1px solid var(--research-border);
-          border-radius: 18px;
+          border-radius: 12px;
           padding: 0.95rem 1rem;
           box-shadow: 0 10px 28px rgba(17, 24, 39, 0.06);
         }
@@ -1869,7 +1871,7 @@ def apply_dashboard_theme() -> None:
           color: var(--research-ink);
           font-size: 1.65rem;
           font-weight: 900;
-          letter-spacing: -0.045em;
+          letter-spacing: 0;
           margin-top: 0.2rem;
         }
         .metric-note {
@@ -1887,7 +1889,7 @@ def apply_dashboard_theme() -> None:
           background: #fffefa;
           border: 1px solid var(--research-border);
           border-left: 6px solid var(--research-accent);
-          border-radius: 18px;
+          border-radius: 12px;
           padding: 0.95rem 1rem;
           box-shadow: 0 12px 32px rgba(17, 24, 39, 0.07);
         }
@@ -1915,12 +1917,12 @@ def apply_dashboard_theme() -> None:
           font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
           font-size: 0.76rem;
           font-weight: 800;
-          letter-spacing: -0.01em;
+          letter-spacing: 0;
         }
         .notice-card {
           margin: 0.75rem 0 1rem 0;
           padding: 1rem 1.05rem;
-          border-radius: 18px;
+          border-radius: 12px;
           border: 1px solid #bfdbfe;
           border-left: 6px solid #2563eb;
           background: linear-gradient(180deg, #eff6ff, #ffffff);
@@ -1949,42 +1951,42 @@ def apply_dashboard_theme() -> None:
         }
         .signal-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 0.85rem;
-          margin: 0.8rem 0 1rem 0;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 0.72rem;
+          margin: 0.7rem 0 0.86rem 0;
         }
         .signal-card {
-          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,246,0.96));
+          background: rgba(255,255,255,0.96);
           border: 1px solid var(--research-border);
-          border-radius: 20px;
-          padding: 1rem 1.05rem;
-          box-shadow: 0 14px 34px rgba(17, 24, 39, 0.07);
+          border-radius: 12px;
+          padding: 0.88rem 0.92rem;
+          box-shadow: 0 9px 24px rgba(17, 24, 39, 0.055);
         }
         .signal-kicker {
           color: #0f766e;
-          font-size: 0.71rem;
-          letter-spacing: 0.11em;
+          font-size: 0.69rem;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
           font-weight: 900;
         }
         .signal-title {
           color: #111827;
-          font-size: 1rem;
+          font-size: 0.98rem;
           font-weight: 900;
-          margin-top: 0.32rem;
+          margin-top: 0.24rem;
         }
         .signal-body {
           color: #475467;
-          font-size: 0.89rem;
-          line-height: 1.45;
-          margin-top: 0.45rem;
+          font-size: 0.86rem;
+          line-height: 1.38;
+          margin-top: 0.38rem;
           white-space: pre-line;
         }
         .signal-footer {
-          margin-top: 0.7rem;
+          margin-top: 0.58rem;
           display: flex;
           flex-wrap: wrap;
-          gap: 0.45rem;
+          gap: 0.36rem;
           align-items: center;
         }
         .pick-grid {
@@ -1998,7 +2000,7 @@ def apply_dashboard_theme() -> None:
           overflow: hidden;
           background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,248,239,0.96));
           border: 1px solid var(--research-border);
-          border-radius: 24px;
+          border-radius: 12px;
           padding: 1rem 1.05rem;
           box-shadow: 0 16px 38px rgba(17, 24, 39, 0.08);
         }
@@ -2026,7 +2028,7 @@ def apply_dashboard_theme() -> None:
           color: #111827;
           font-size: 1.65rem;
           font-weight: 950;
-          letter-spacing: -0.055em;
+          letter-spacing: 0;
           line-height: 1;
           margin-top: 0.18rem;
         }
@@ -2039,7 +2041,7 @@ def apply_dashboard_theme() -> None:
         .pick-score {
           min-width: 74px;
           text-align: center;
-          border-radius: 18px;
+          border-radius: 12px;
           padding: 0.55rem 0.6rem;
           background: #0b3b36;
           color: #ecfdf5;
@@ -2056,7 +2058,7 @@ def apply_dashboard_theme() -> None:
           color: #ffffff;
           font-size: 1.22rem;
           font-weight: 950;
-          letter-spacing: -0.04em;
+          letter-spacing: 0;
         }
         .pick-badges {
           display: flex;
@@ -2085,7 +2087,7 @@ def apply_dashboard_theme() -> None:
           margin: 0.85rem 0 1.05rem 0;
         }
         .report-brief-main {
-          border-radius: 24px;
+          border-radius: 12px;
           padding: 1rem 1.05rem;
           background: linear-gradient(145deg, #172033, #0f766e);
           border: 1px solid rgba(255,255,255,0.22);
@@ -2102,7 +2104,7 @@ def apply_dashboard_theme() -> None:
           color: #ffffff;
           font-size: 1.45rem;
           font-weight: 950;
-          letter-spacing: -0.05em;
+          letter-spacing: 0;
           line-height: 1.05;
           margin-top: 0.4rem;
         }
@@ -2118,7 +2120,7 @@ def apply_dashboard_theme() -> None:
           gap: 0.7rem;
         }
         .report-brief-card {
-          border-radius: 18px;
+          border-radius: 12px;
           padding: 0.85rem 0.9rem;
           background: rgba(255, 254, 250, 0.95);
           border: 1px solid var(--research-border);
@@ -2159,19 +2161,51 @@ def apply_dashboard_theme() -> None:
         }
         .tiny-badge {
           display: inline-block;
-          padding: 0.22rem 0.54rem;
+          padding: 0.18rem 0.48rem;
           border-radius: 999px;
-          font-size: 0.73rem;
+          font-size: 0.7rem;
           font-weight: 900;
           border: 1px solid rgba(15, 59, 54, 0.12);
-          background: linear-gradient(180deg, #f8fafc, #eef4f7);
+          background: #f4f7f7;
           color: #334155;
-          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+        }
+        .public-proof-strip {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 0.72rem;
+          margin: 0.65rem 0 1rem 0;
+        }
+        .public-proof-item {
+          border-radius: 12px;
+          border: 1px solid rgba(15, 118, 110, 0.16);
+          background: rgba(255, 255, 255, 0.92);
+          padding: 0.78rem 0.85rem;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045);
+        }
+        .public-proof-label {
+          color: #526071;
+          font-size: 0.7rem;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+        .public-proof-value {
+          color: #111827;
+          font-size: 1.22rem;
+          font-weight: 950;
+          line-height: 1.08;
+          margin-top: 0.22rem;
+        }
+        .public-proof-note {
+          color: #667085;
+          font-size: 0.79rem;
+          line-height: 1.32;
+          margin-top: 0.24rem;
         }
         .subtle-panel {
           border: 1px solid var(--research-border);
           background: rgba(255, 254, 250, 0.78);
-          border-radius: 18px;
+          border-radius: 12px;
           padding: 0.95rem 1rem;
           margin: 0.85rem 0 1rem 0;
         }
@@ -2180,9 +2214,9 @@ def apply_dashboard_theme() -> None:
         }
         .context-note {
           display: block;
-          margin: 0.55rem 0 0.95rem 0;
-          padding: 0.72rem 0.85rem;
-          border-radius: 14px;
+          margin: 0.48rem 0 0.82rem 0;
+          padding: 0.64rem 0.75rem;
+          border-radius: 10px;
           border: 1px solid #dce5dc;
           background: rgba(255, 254, 250, 0.82);
           color: #526071;
@@ -2208,7 +2242,7 @@ def apply_dashboard_theme() -> None:
         }
         .sidebar-product-card {
           border: 1px solid rgba(15, 118, 110, 0.18);
-          border-radius: 12px;
+          border-radius: 10px;
           padding: 0.82rem 0.85rem;
           margin: 0.2rem 0 0.9rem 0;
           background: linear-gradient(180deg, #ffffff 0%, #f0faf6 100%);
@@ -2306,7 +2340,7 @@ def apply_dashboard_theme() -> None:
           margin: 0.8rem 0 1.05rem 0;
         }
         .cockpit-summary {
-          border-radius: 24px;
+          border-radius: 14px;
           padding: 1.15rem 1.2rem;
           background: linear-gradient(145deg, #102f2c, #0f766e);
           box-shadow: 0 18px 38px rgba(15, 59, 54, 0.18);
@@ -2324,7 +2358,7 @@ def apply_dashboard_theme() -> None:
           font-size: 1.45rem;
           line-height: 1.08;
           font-weight: 950;
-          letter-spacing: -0.045em;
+          letter-spacing: 0;
           margin-top: 0.45rem;
         }
         .cockpit-copy {
@@ -2339,7 +2373,7 @@ def apply_dashboard_theme() -> None:
           gap: 0.75rem;
         }
         .cockpit-lane {
-          border-radius: 20px;
+          border-radius: 12px;
           padding: 0.95rem 1rem;
           background: rgba(255, 254, 250, 0.94);
           border: 1px solid var(--research-border);
@@ -2365,7 +2399,7 @@ def apply_dashboard_theme() -> None:
           color: #111827;
           font-size: 1.55rem;
           font-weight: 950;
-          letter-spacing: -0.045em;
+          letter-spacing: 0;
           margin-top: 0.2rem;
         }
         .cockpit-lane-note {
@@ -2380,6 +2414,17 @@ def apply_dashboard_theme() -> None:
           }
           .cockpit-lanes {
             grid-template-columns: 1fr;
+          }
+        }
+        @media (max-width: 650px) {
+          .hero-title {
+            font-size: 2rem;
+          }
+          .hero-subtitle {
+            font-size: 0.94rem;
+          }
+          .app-hero {
+            padding: 1.05rem 1rem;
           }
         }
         [data-testid="stMetric"] {
@@ -2454,7 +2499,7 @@ def apply_dashboard_theme() -> None:
         [data-testid="stExpander"] {
           background: rgba(255, 254, 250, 0.96) !important;
           border: 1px solid var(--research-border) !important;
-          border-radius: 14px !important;
+          border-radius: 10px !important;
         }
         [data-testid="stExpander"] summary,
         [data-testid="stExpander"] p,
@@ -2902,6 +2947,23 @@ def render_metric_cards(cards: list[tuple[str, object, str]]) -> None:
     )
 
 
+def public_proof_strip_html(items: list[tuple[str, str, str]]) -> str:
+    blocks = []
+    for label, value, note in items:
+        blocks.append(
+            "<div class='public-proof-item'>"
+            f"<div class='public-proof-label'>{html.escape(label)}</div>"
+            f"<div class='public-proof-value'>{html.escape(value)}</div>"
+            f"<div class='public-proof-note'>{html.escape(note)}</div>"
+            "</div>"
+        )
+    return "<div class='public-proof-strip'>" + "".join(blocks) + "</div>"
+
+
+def render_public_proof_strip(items: list[tuple[str, str, str]]) -> None:
+    st.markdown(public_proof_strip_html(items), unsafe_allow_html=True)
+
+
 def action_card_html(title: str, body: str, command: str = "", tone: str = "neutral") -> str:
     tone_class = "warning" if tone == "warning" else "danger" if tone == "danger" else ""
     command_html = f"<div class='command-chip'>{html.escape(command)}</div>" if command else ""
@@ -3254,7 +3316,7 @@ def readable_card(title: str, body: str, footer: str = "") -> None:
     footer_html = f"<div style='margin-top:0.72rem;color:#475467;font-size:0.86rem;'>{footer}</div>" if footer else ""
     st.markdown(
         f"""
-        <div style="border:1px solid #d7ddcf;border-radius:20px;padding:1.05rem 1.1rem;background:rgba(255,254,250,0.94);margin-bottom:0.85rem;box-shadow:0 14px 34px rgba(17,24,39,0.07);">
+        <div style="border:1px solid #d7ddcf;border-radius:12px;padding:1.05rem 1.1rem;background:rgba(255,254,250,0.94);margin-bottom:0.85rem;box-shadow:0 10px 24px rgba(17,24,39,0.06);">
           <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.12em;color:#0f766e;font-weight:900;">{html.escape(title)}</div>
           <div style="margin-top:0.45rem;color:#111827;font-size:1rem;line-height:1.46;">{body}</div>
           {footer_html}
@@ -20482,6 +20544,22 @@ def _plain_home_readiness_cards(summary: dict[str, object], decisions: pd.DataFr
     ]
 
 
+def _public_home_snapshot_items(summary: dict[str, object]) -> list[tuple[str, str, str]]:
+    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
+    active = int(summary.get("active_universe") or 0)
+    price_ready = int(summary.get("price_ready") or 0)
+    dcf_ready = int(summary.get("dcf_ready") or 0)
+    peer_ready = int(summary.get("peer_ready") or 0)
+    blocked = int(summary.get("blocked_by_data") or summary.get("blocked") or 0)
+    return [
+        ("Universe", f"{master:,}", f"{active:,} active names stay prioritized."),
+        ("Price Ready", f"{price_ready:,}", "Setup and risk context starts here."),
+        ("DCF Ready", f"{dcf_ready:,}", "Valuation appears only after inputs pass."),
+        ("Peer Ready", f"{peer_ready:,}", "Source-backed relative context only."),
+        ("Blocked", f"{blocked:,}", "Missing data stays visible, not inferred."),
+    ]
+
+
 def _plain_home_current_data_coverage_cards(summary: dict[str, object]) -> list[dict[str, object]]:
     master = int(summary.get("master_universe") or summary.get("master_count") or summary.get("universe_count") or 0)
     active = int(summary.get("active_universe") or summary.get("active_count") or 0)
@@ -21219,8 +21297,11 @@ def render_home_page(
             "Data readiness first. Analysis second. Research decision last. This view keeps the product story readable and keeps detailed operator commands behind Operator mode.",
             tone="success",
         )
-    render_signal_cards(dashboard_page_reader_summary_cards("Home"))
-    render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
+    if public_mode:
+        render_public_proof_strip(_public_home_snapshot_items(summary))
+    else:
+        render_signal_cards(dashboard_page_reader_summary_cards("Home"))
+        render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
     generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
     if generated_stale_warning:
         render_notice_card(
@@ -21245,7 +21326,7 @@ def render_home_page(
     render_signal_cards(_plain_home_first_run_path_cards(), show_commands=not public_mode)
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
-    render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)
+    render_signal_cards(_plain_home_next_step_cards(summary)[:4] if public_mode else _plain_home_next_step_cards(summary), show_commands=False)
 
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
     render_action_cards(_plain_home_route_choice_cards(summary))
@@ -22561,7 +22642,7 @@ def render_data_health(
         "Data Quality / Readiness",
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
-    render_signal_cards(data_health_orientation_cards(readiness_summary))
+    render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=not public_mode)
     if public_mode:
         render_context_note(
             "Public Data Health summary.",
@@ -22573,9 +22654,9 @@ def render_data_health(
         "Read quick read, fix first, and trusted-data pilot first. Open refresh and command details only when you want the next copy-only proof steps.",
     )
     render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
-    render_signal_cards(data_health_quick_read_cards(readiness_summary))
+    render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=not public_mode)
     render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
-    render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame))
+    render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=not public_mode)
     ops_center = data_health_readiness_ops_center_frame()
     coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
     readiness_freshness = readiness_freshness_status(BASE_DIR)
