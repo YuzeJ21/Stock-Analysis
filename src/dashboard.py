@@ -2146,6 +2146,34 @@ def apply_dashboard_theme() -> None:
           gap: 0.55rem;
           margin: 0.35rem 0 0.8rem 0;
         }
+        .sidebar-product-card {
+          border: 1px solid rgba(15, 118, 110, 0.18);
+          border-radius: 12px;
+          padding: 0.82rem 0.85rem;
+          margin: 0.2rem 0 0.9rem 0;
+          background: linear-gradient(180deg, #ffffff 0%, #f0faf6 100%);
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        }
+        .sidebar-product-label {
+          color: #0f766e;
+          font-size: 0.68rem;
+          font-weight: 900;
+          letter-spacing: 0;
+          text-transform: uppercase;
+        }
+        .sidebar-product-title {
+          color: var(--research-ink);
+          font-size: 0.98rem;
+          font-weight: 900;
+          line-height: 1.2;
+          margin-top: 0.26rem;
+        }
+        .sidebar-product-copy {
+          color: #526071;
+          font-size: 0.78rem;
+          line-height: 1.35;
+          margin-top: 0.35rem;
+        }
         .sidebar-guide-card {
           position: relative;
           border-radius: 14px;
@@ -2852,6 +2880,22 @@ def sidebar_route_steps_html(cards: list[tuple[str, str, str, str]]) -> str:
 
 def render_sidebar_route_steps(cards: list[tuple[str, str, str, str]]) -> None:
     st.markdown(sidebar_route_steps_html(cards), unsafe_allow_html=True)
+
+
+def sidebar_product_intro_html() -> str:
+    return """
+    <div class="sidebar-product-card">
+      <div class="sidebar-product-label">Portfolio demo</div>
+      <div class="sidebar-product-title">Choose a research path, then inspect proof only when needed.</div>
+      <div class="sidebar-product-copy">
+        The dashboard is read-only: it surfaces readiness, blockers, and next proof steps without executing account actions or data imports.
+      </div>
+    </div>
+    """
+
+
+def render_sidebar_product_intro() -> None:
+    st.markdown(sidebar_product_intro_html(), unsafe_allow_html=True)
 
 
 def notice_card_html(title: str, body: str, command: str = "", tone: str = "info") -> str:
@@ -23609,6 +23653,7 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Explore")
+        render_sidebar_product_intro()
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
         path_options = sidebar_path_options(initial_page)
         path_selection = st.radio(
@@ -23651,7 +23696,7 @@ def main() -> None:
                 "Home -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
             )
             render_sidebar_route_steps(dashboard_navigation_cards())
-        with st.expander("Local commands to copy", expanded=False):
+        with st.expander("Copy-only local commands", expanded=False):
             render_context_note(
                 "Copy only.",
                 " ".join(sidebar_quick_help_lines()),

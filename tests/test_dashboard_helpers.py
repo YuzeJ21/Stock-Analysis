@@ -565,7 +565,9 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "render_sidebar_route_steps(dashboard_navigation_cards())" in source
     assert "render_action_cards(dashboard_navigation_cards())" not in source
     assert 'st.expander("Start guide"' not in source
-    assert 'st.expander("Local commands to copy"' in source
+    assert "render_sidebar_product_intro()" in source
+    assert 'st.expander("Copy-only local commands"' in source
+    assert 'st.expander("Local commands to copy"' not in source
     assert 'st.expander("Quick reading guide"' not in source
     assert 'st.expander("Need help?"' not in source
     assert 'st.header("Explore")' in source
@@ -640,6 +642,20 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Buckets are readiness-gated research workflow labels, not execution guidance." not in source
     assert '"review label", "not advice"' in source
     assert '"workflow label", "not advice"' not in source
+
+
+def test_sidebar_product_intro_is_portfolio_safe_and_not_command_first():
+    rendered = dashboard.sidebar_product_intro_html()
+    lowered = rendered.lower()
+
+    assert "Portfolio demo" in rendered
+    assert "Choose a research path" in rendered
+    assert "surfaces readiness, blockers, and next proof steps" in rendered
+    assert "executing account actions or data imports" in rendered
+    assert "make " not in lowered
+    assert "buy" not in lowered
+    assert "sell" not in lowered
+    assert "recommend" not in lowered
 
 
 def test_data_health_bundle_detail_copy_uses_public_product_language():
