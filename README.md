@@ -89,7 +89,7 @@ Start with the three paths the dashboard is built around:
 | Improve data coverage | You want to understand what trusted input is missing and how to add it safely. | `Data Health` |
 | Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |
 
-The dashboard keeps methodology, file paths, and update commands in collapsed sections so visitors can read the product first. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
+The dashboard starts in public demo mode so visitors can read the product first. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public demo mode in the sidebar when you want the internal operator views, detailed boards, and copy-only local commands. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 
 ## Quick Start
 
@@ -109,7 +109,7 @@ When you want to rebuild local outputs after changing data, use the deeper [Loca
 
 ```bash
 make demo                       # prints the visitor demo path
-make dashboard                  # open Home and follow the three public paths
+make dashboard                  # open http://localhost:8501/?mode=public and follow the three public paths
 make stock-report-md TICKER=NVDA # company report with DCF assumptions
 make stock-report-md TICKER=META # price/setup report with valuation still gated
 make stock-report-md TICKER=QQQ  # ETF/index report with DCF excluded

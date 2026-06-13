@@ -30,7 +30,7 @@ from src.reviewed_batch_proof import (
     load_reviewed_batch_proofs,
 )
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
-from src.project_status import build_project_status_payload
+from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
@@ -94,6 +94,12 @@ PUBLIC_PATH_LABELS = {
     "Monthly Picks": "Explore ready names",
     DETAILED_PAGE_PATH_TITLE: "More research views",
 }
+PUBLIC_DEMO_MODE = "public"
+OPERATOR_DEMO_MODE = "operator"
+DEMO_MODE_LABELS = {
+    PUBLIC_DEMO_MODE: "Public demo mode",
+    OPERATOR_DEMO_MODE: "Operator mode",
+}
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
@@ -142,6 +148,60 @@ def dashboard_page_from_query(value: object) -> str:
         if dashboard_page_slug(title) == slug:
             return title
     return "Home"
+
+
+def dashboard_mode_from_query(value: object, initial_page: str = "Home") -> str:
+    raw = value[0] if isinstance(value, list) and value else value
+    slug = dashboard_page_slug(unquote(str(raw or "").strip()))
+    if slug in {"operator", "ops", "internal", "advanced", "full"}:
+        return OPERATOR_DEMO_MODE
+    if slug in {"public", "demo", "visitor", "share"}:
+        return PUBLIC_DEMO_MODE
+    if initial_page in ADVANCED_PAGE_TITLES:
+        return OPERATOR_DEMO_MODE
+    return PUBLIC_DEMO_MODE
+
+
+def dashboard_mode_label(mode: str) -> str:
+    return DEMO_MODE_LABELS.get(mode, DEMO_MODE_LABELS[PUBLIC_DEMO_MODE])
+
+
+def dashboard_generated_artifact_stale_warning(root: Path = BASE_DIR) -> str:
+    data_path = root / "data"
+    output_path = root / "outputs"
+    generated_paths = [
+        data_path / "reports" / "ticker_readiness_report.csv",
+        output_path / "data_onboarding_actions.csv",
+        output_path / PROJECT_STATUS_NEXT_STEPS_CSV,
+    ]
+    existing_generated = [path for path in generated_paths if path.exists()]
+    if not existing_generated:
+        return ""
+    oldest_generated_mtime = min(path.stat().st_mtime for path in existing_generated)
+    source_paths = [
+        data_path / "prices.csv",
+        data_path / "fundamentals.csv",
+        data_path / "peers.csv",
+        data_path / "earnings.csv",
+        data_path / "analyst_estimates.csv",
+        data_path / "universe_master.csv",
+        data_path / "universe_active.csv",
+        data_path / "holdings.csv",
+    ]
+    newer_sources = [
+        path.relative_to(root).as_posix()
+        for path in source_paths
+        if path.exists() and path.stat().st_mtime > oldest_generated_mtime
+    ]
+    if not newer_sources:
+        return ""
+    sample = ", ".join(newer_sources[:4])
+    if len(newer_sources) > 4:
+        sample = f"{sample}, +{len(newer_sources) - 4} more"
+    return (
+        "Generated status artifacts may be stale because source CSVs changed after the last generated report "
+        f"({sample}). Run make readiness or make status to refresh before relying on exact counts."
+    )
 
 
 def sidebar_path_options(initial_page: str) -> list[str]:
@@ -21131,6 +21191,7 @@ def render_home_page(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
     show_details: bool = False,
+    public_mode: bool = True,
 ) -> None:
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     dcf_readiness_frame, _ = load_dcf_readiness()
@@ -21152,20 +21213,51 @@ def render_home_page(
         "Home",
         "A plain-language view of what is ready, what is blocked, and what to review next.",
     )
+    if public_mode:
+        render_context_note(
+            "Public demo mode.",
+            "Data readiness first. Analysis second. Research decision last. This view keeps the product story readable and keeps detailed operator commands behind Operator mode.",
+            tone="success",
+        )
     render_signal_cards(dashboard_page_reader_summary_cards("Home"))
     render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)
+    generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
+    if generated_stale_warning:
+        render_notice_card(
+            "Generated status may be stale",
+            generated_stale_warning,
+            "make readiness",
+            tone="warning",
+        )
+    freshness = readiness_freshness_status(BASE_DIR)
+    if freshness.status in {"missing", "stale"}:
+        render_notice_card(
+            "Readiness snapshot may be stale",
+            freshness.message,
+            freshness.refresh_command,
+            tone="warning",
+        )
 
     render_section_header(
         "Demo Walkthrough",
         "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot.",
     )
-    render_signal_cards(_plain_home_first_run_path_cards())
+    render_signal_cards(_plain_home_first_run_path_cards(), show_commands=not public_mode)
 
     render_section_header("What To Do Next", "The product prioritizes useful research coverage before deeper analysis.")
     render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)
 
     render_section_header("Where To Go", "Choose the page that matches what you want to review.")
     render_action_cards(_plain_home_route_choice_cards(summary))
+
+    if public_mode:
+        render_section_header("Example Reports", "Small examples that show ready, blocked, excluded, peer-limited, and fundamentals-gated states.")
+        st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
+        render_context_note(
+            "Research-only boundary.",
+            "These examples are not recommendations. They show which analysis is supported, locked, or excluded by the current local data.",
+            tone="success",
+        )
 
     if show_details:
         render_context_note(
@@ -22397,7 +22489,12 @@ def render_market_command_center(
     st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)
 
 
-def render_data_health(provider, project_status_payload: dict[str, Any] | None = None, show_details: bool = False) -> None:
+def render_data_health(
+    provider,
+    project_status_payload: dict[str, Any] | None = None,
+    show_details: bool = False,
+    public_mode: bool = True,
+) -> None:
     render_section_header(
         "Data Health",
         "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next.",
@@ -22465,6 +22562,12 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
     )
     render_signal_cards(data_health_orientation_cards(readiness_summary))
+    if public_mode:
+        render_context_note(
+            "Public Data Health summary.",
+            "This mode shows the current readiness story and latest proof evidence. Switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
+            tone="success",
+        )
     render_context_note(
         "Beginner view.",
         "Read quick read, fix first, and trusted-data pilot first. Open refresh and command details only when you want the next copy-only proof steps.",
@@ -22476,6 +22579,36 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     ops_center = data_health_readiness_ops_center_frame()
     coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
     readiness_freshness = readiness_freshness_status(BASE_DIR)
+    if public_mode:
+        generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
+        if generated_stale_warning:
+            render_notice_card(
+                "Generated status may be stale",
+                generated_stale_warning,
+                "make readiness",
+                tone="warning",
+            )
+        render_section_header("Readiness Freshness", "Refresh stale or missing readiness artifacts before relying on exact counts.")
+        freshness_cards = data_health_operations_cockpit_cards(
+            readiness_summary,
+            ops_center,
+            coverage_frontier,
+            earnings_readiness_frame,
+            analyst_readiness_frame,
+            readiness_freshness,
+        )[:1]
+        render_signal_cards(freshness_cards, show_commands=False)
+        render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
+        render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
+        render_section_header("Latest Reviewed Batch Evidence", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
+        render_signal_cards(data_health_reviewed_batch_proof_cards(), show_commands=False)
+        render_section_header("Latest Reviewed Data Proof", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
+        render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)
+        render_context_note(
+            "Operator details are hidden.",
+            "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
+        )
+        return
     render_section_header("Operations Cockpit", "Compact lane, frontier, optional-context, and proof-hygiene controls before detailed boards.")
     render_signal_cards(
         data_health_operations_cockpit_cards(
@@ -23655,33 +23788,44 @@ def main() -> None:
         st.header("Explore")
         render_sidebar_product_intro()
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
-        path_options = sidebar_path_options(initial_page)
+        initial_mode = dashboard_mode_from_query(st.query_params.get("mode"), initial_page)
+        public_demo_mode = st.toggle(
+            "Public demo mode",
+            value=initial_mode == PUBLIC_DEMO_MODE,
+            help="Keeps the dashboard focused on the visitor story. Turn off for operator workflows, detailed boards, and local command runbooks.",
+        )
+        mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
+        st.caption(f"Mode: {dashboard_mode_label(mode)}")
+        path_options = sidebar_path_options("Home" if public_demo_mode else initial_page)
         path_selection = st.radio(
             "Choose your path",
             path_options,
-            index=sidebar_path_index(initial_page, path_options),
+            index=sidebar_path_index("Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page, path_options),
             format_func=public_path_label,
             help="Most visitors only need these paths: review one stock, improve data coverage, or explore ready names.",
         )
         selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection
-        with st.expander("Optional research views", expanded=initial_page in ADVANCED_PAGE_TITLES):
-            advanced_page = st.selectbox(
-                "Open an optional view",
-                ["Keep current path"] + ADVANCED_PAGE_TITLES,
-                index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
-                if initial_page in ADVANCED_PAGE_TITLES
-                else 0,
-                help="Extra research views remain available, but first-time visitors can stay with the three main paths.",
+        if not public_demo_mode:
+            with st.expander("Optional research views", expanded=initial_page in ADVANCED_PAGE_TITLES):
+                advanced_page = st.selectbox(
+                    "Open an optional view",
+                    ["Keep current path"] + ADVANCED_PAGE_TITLES,
+                    index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
+                    if initial_page in ADVANCED_PAGE_TITLES
+                    else 0,
+                    help="Extra research views remain available, but first-time visitors can stay with the three main paths.",
+                )
+                if advanced_page != "Keep current path":
+                    selected_page = advanced_page
+        show_reason_details = False
+        if not public_demo_mode:
+            show_reason_details = st.checkbox(
+                "Show reader tips",
+                value=False,
+                help="Adds extra explanation and review sections. Most visitors can leave this off.",
             )
-            if advanced_page != "Keep current path":
-                selected_page = advanced_page
-        show_reason_details = st.checkbox(
-            "Show reader tips",
-            value=False,
-            help="Adds extra explanation and review sections. Most visitors can leave this off.",
-        )
         show_source_details = False
-        if selected_page == "Single-Stock Report":
+        if selected_page == "Single-Stock Report" and not public_demo_mode:
             show_source_details = st.checkbox(
                 "Show data source details",
                 value=False,
@@ -23690,21 +23834,28 @@ def main() -> None:
         st.divider()
         note_title, note_body = sidebar_navigation_note(selected_page)
         render_context_note(note_title, note_body, tone="success")
-        with st.expander("Best beginner path", expanded=False):
+        if not public_demo_mode:
+            with st.expander("Best beginner path", expanded=False):
+                render_context_note(
+                    "Start simple.",
+                    "Home -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
+                )
+                render_sidebar_route_steps(dashboard_navigation_cards())
+        else:
             render_context_note(
-                "Start simple.",
-                "Home -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
+                "Clean visitor path.",
+                "Home -> Single-Stock Report -> Data Health. Operator mode restores detailed boards and copy-only command sections.",
             )
-            render_sidebar_route_steps(dashboard_navigation_cards())
-        with st.expander("Copy-only local commands", expanded=False):
-            render_context_note(
-                "Copy only.",
-                " ".join(sidebar_quick_help_lines()),
-            )
-            st.code(
-                "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
-                language="bash",
-            )
+        if not public_demo_mode:
+            with st.expander("Copy-only local commands", expanded=False):
+                render_context_note(
+                    "Copy only.",
+                    " ".join(sidebar_quick_help_lines()),
+                )
+                st.code(
+                    "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
+                    language="bash",
+                )
 
     project_status_payload = None
 
@@ -23713,7 +23864,7 @@ def main() -> None:
         universe_summary = summarize_universe_manager(BASE_DIR)
 
     if selected_page == "Home":
-        render_home_page(catalog, output_frames, show_details=show_reason_details)
+        render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)
     elif selected_page == "Overview":
         render_overview(output_frames, catalog, universe_summary or summarize_universe_manager(BASE_DIR), project_status_payload)
     elif selected_page == "Monthly Picks":
@@ -23723,7 +23874,7 @@ def main() -> None:
     elif selected_page == "Single-Stock Report":
         render_single_stock_report(provider, show_source_details)
     elif selected_page == "Data Health":
-        render_data_health(provider, project_status_payload, show_reason_details)
+        render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
     elif selected_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
 

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import src.dashboard as dashboard
@@ -558,7 +559,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Turn on page tips only when you want extra review context" not in source
     assert "Turn on guided help only when you want extra review routes" not in source
     assert 'st.expander("Best beginner path", expanded=False)' in source
-    assert 'render_context_note(\n                "Start simple."' in source
+    assert '"Start simple."' in source
     assert 'render_context_note(\n            "Recommended route."' not in source
     assert 'st.expander("How to use the path", expanded=False)' not in source
     assert 'st.expander("Best path details", expanded=False)' not in source
@@ -595,7 +596,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard"' in source
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
     assert "sidebar_quick_help_lines()" in source
-    assert "path_options = sidebar_path_options(initial_page)" in source
+    assert "path_options = sidebar_path_options(\"Home\" if public_demo_mode else initial_page)" in source
     assert "selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection" in source
     assert 'st.expander("Help for using the app"' not in source
     assert 'st.expander("Help, commands, and paths"' not in source
@@ -722,7 +723,7 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert "Open refresh and command details only when you want the next copy-only proof steps." in source
     assert "Turn on reader tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
-    assert "render_data_health(provider, project_status_payload, show_reason_details)" in source
+    assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Refresh and command details", expanded=False)' in source
     assert 'st.expander("Coverage proof planning cards", expanded=False)' in source
@@ -996,7 +997,8 @@ def test_home_page_renders_current_data_coverage_before_workflow():
     assert coverage_index < workflow_expander_index < workflow_index
     assert "Minimum path for GitHub or LinkedIn visitors: NVDA proof, META blocked, QQQ excluded, MU peer-limited, CRDO fundamentals-gated, then trusted-data pilot." in source
     assert "render_signal_cards(_plain_home_current_data_coverage_cards(summary), show_commands=False)" in source
-    assert "render_signal_cards(_plain_home_first_run_path_cards())" in source
+    assert "render_signal_cards(_plain_home_first_run_path_cards(), show_commands=not public_mode)" in source
+    assert '"Readiness snapshot may be stale"' in source
     assert "render_signal_cards(_plain_home_readiness_cards(summary, decisions_frame), show_commands=False)" in source
     assert "render_signal_cards(_plain_home_next_step_cards(summary), show_commands=False)" in source
 
@@ -1150,7 +1152,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     price_refresh_expander_index = source.index('st.expander("Optional: price update plan", expanded=False)')
     price_refresh_index = source.index('render_section_header("Scalable Price Updates"')
     examples_expander_index = source.index('st.expander("Optional: example reports", expanded=False)')
-    examples_index = source.index('render_section_header("Example Reports"')
+    examples_index = source.index('render_section_header("Example Reports"', examples_expander_index)
     learn_more_index = source.index('st.expander("Optional: methodology, roadmap, and transparency"')
     methodology_index = source.index('render_section_header("Methodology Ladder"', learn_more_index)
     commands_index = source.index('st.expander("Optional: local commands"')
@@ -1177,7 +1179,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert 'st.expander("Optional: methodology, roadmap, and transparency", expanded=False)' in source
     assert "How the product moves from trusted data to supported analysis without overclaiming." in source
     assert "render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)" in source
-    assert "render_home_page(catalog, output_frames, show_details=show_reason_details)" in source
+    assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
 
 
 def test_home_provenance_cards_separate_repo_rules_libraries_and_plugins():
@@ -19087,6 +19089,74 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert "Data Health" in navigation
     assert "Overview page" not in navigation
     assert "Monthly Picks page" not in navigation
+
+
+def test_dashboard_public_demo_mode_query_defaults_to_visitor_view():
+    assert dashboard.dashboard_mode_from_query(None) == dashboard.PUBLIC_DEMO_MODE
+    assert dashboard.dashboard_mode_from_query("public") == dashboard.PUBLIC_DEMO_MODE
+    assert dashboard.dashboard_mode_from_query("demo") == dashboard.PUBLIC_DEMO_MODE
+    assert dashboard.dashboard_mode_from_query(["visitor"]) == dashboard.PUBLIC_DEMO_MODE
+    assert dashboard.dashboard_mode_from_query("operator") == dashboard.OPERATOR_DEMO_MODE
+    assert dashboard.dashboard_mode_from_query("internal") == dashboard.OPERATOR_DEMO_MODE
+    assert dashboard.dashboard_mode_from_query(None, "Value / Re-rating") == dashboard.OPERATOR_DEMO_MODE
+    assert dashboard.dashboard_mode_label(dashboard.PUBLIC_DEMO_MODE) == "Public demo mode"
+    assert dashboard.dashboard_mode_label(dashboard.OPERATOR_DEMO_MODE) == "Operator mode"
+
+
+def test_dashboard_generated_artifact_stale_warning_uses_broad_status_sources(tmp_path):
+    data_dir = tmp_path / "data"
+    reports_dir = data_dir / "reports"
+    outputs_dir = tmp_path / "outputs"
+    reports_dir.mkdir(parents=True)
+    outputs_dir.mkdir()
+    generated = reports_dir / "ticker_readiness_report.csv"
+    generated.write_text("ticker\nNVDA\n", encoding="utf-8")
+    source = data_dir / "prices.csv"
+    source.write_text("ticker,date,close\nNVDA,2026-01-01,1\n", encoding="utf-8")
+
+    os.utime(generated, (100, 100))
+    os.utime(source, (200, 200))
+
+    warning = dashboard.dashboard_generated_artifact_stale_warning(tmp_path)
+
+    assert "Generated status artifacts may be stale" in warning
+    assert "data/prices.csv" in warning
+    assert "make readiness or make status" in warning
+
+
+def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert '"Public demo mode"' in source
+    assert "public_demo_mode = st.toggle" in source
+    assert "path_options = sidebar_path_options(\"Home\" if public_demo_mode else initial_page)" in source
+    assert "show_reason_details = False" in source
+    assert "if not public_demo_mode:" in source
+    assert 'st.expander("Optional research views"' in source
+    assert 'st.expander("Copy-only local commands"' in source
+    assert "Operator mode restores detailed boards and copy-only command sections." in source
+    assert 'if selected_page == "Single-Stock Report" and not public_demo_mode:' in source
+    assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
+    assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
+    assert "dashboard_generated_artifact_stale_warning(BASE_DIR)" in source
+    assert '"Generated status may be stale"' in source
+
+
+def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    public_index = source.index("if public_mode:", source.index("def render_data_health("))
+    freshness_index = source.index('render_section_header("Readiness Freshness"', public_index)
+    batch_index = source.index('render_section_header("Latest Reviewed Batch Evidence"', freshness_index)
+    proof_index = source.index('render_section_header("Latest Reviewed Data Proof"', batch_index)
+    hidden_index = source.index("Operator details are hidden.", proof_index)
+    return_index = source.index("return", hidden_index)
+    ops_index = source.index('render_section_header("Operations Cockpit"', return_index)
+
+    assert public_index < freshness_index < batch_index < proof_index < hidden_index < return_index < ops_index
+    assert "Switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables." in source
+    assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode." in source
+    assert "Research-only boundary." in source
 
 
 def test_dashboard_column_labels_cover_bundle_goal_fields():

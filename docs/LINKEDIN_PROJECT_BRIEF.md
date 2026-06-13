@@ -63,6 +63,6 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 - Use the one-company evidence packet to explain that a useful coverage win needs before/after proof, source evidence, and a rebuilt report, not just a new CSV row.
 - Explain that the pilot is intentionally small: pick 5-10 operating companies where the missing input can be source-reviewed, and leave the rest visibly blocked by missing data until trusted rows exist.
 - Mention that `QQQ` and `SMH` demonstrate monitor context; the company pilot should use operating-company tickers.
-- Run `make dashboard` locally to show readiness cards, next-action cards, and single-stock drilldowns.
+- Run `make dashboard` locally and open `http://localhost:8501/?mode=public` to show the clean visitor path. Turn off Public demo mode only when you want operator boards, coverage frontier details, reviewed batch packets, and validate / preview / apply guidance.
 - Point to `docs/METHODOLOGY.md` when someone asks how the analysis is calculated, to `docs/analysis_capability_audit.md` when someone asks what is strong or intentionally limited today, and to `docs/DATA_STRATEGY.md` when someone asks how coverage can improve without fabricating fundamentals, peers, earnings, or estimates.
 - Mention that the project is intentionally research-only and does not connect to a broker or place trades.

@@ -10,12 +10,13 @@ Best visitor path:
 
 1. Open the README and dashboard preview.
 2. Run `make demo` to print the safe walkthrough.
-3. Run `make status-check TOP_N=5` to show current coverage and blockers.
-4. Open `outputs/stock_reports/nvda.md` for a DCF-ready company example.
-5. Open `outputs/stock_reports/mu.md` for standalone DCF with mapped-peer valuation inputs still locked.
-6. Open `outputs/stock_reports/qqq.md` for ETF/index monitor context where operating-company DCF is excluded.
-7. Run `make trusted-data-pilot-candidates TOP_N=10` to show the next honest coverage-improvement path.
-8. If the shortlist starts with peer inputs, open `make trusted-data-pilot-packet TICKER=MU`; for fundamentals/DCF proof, open `make trusted-data-pilot-packet TICKER=CRDO`.
+3. Run `make dashboard` and open `http://localhost:8501/?mode=public` for the clean visitor view.
+4. Run `make status-check TOP_N=5` to show current coverage and blockers.
+5. Open `outputs/stock_reports/nvda.md` for a DCF-ready company example.
+6. Open `outputs/stock_reports/mu.md` for standalone DCF with mapped-peer valuation inputs still locked.
+7. Open `outputs/stock_reports/qqq.md` for ETF/index monitor context where operating-company DCF is excluded.
+8. Run `make trusted-data-pilot-candidates TOP_N=10` to show the next honest coverage-improvement path.
+9. If the shortlist starts with peer inputs, open `make trusted-data-pilot-packet TICKER=MU`; for fundamentals/DCF proof, open `make trusted-data-pilot-packet TICKER=CRDO`.
 
 ## Demo Examples
 
@@ -40,6 +41,8 @@ make trusted-data-pilot-packet TICKER=MU
 make trusted-data-pilot-packet TICKER=CRDO
 make dashboard
 ```
+
+The dashboard defaults to Public demo mode. Switch it off in the sidebar only when you want operator boards, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
 
 ## What To Say About Data Gaps
 
