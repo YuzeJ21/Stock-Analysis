@@ -46,6 +46,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "scripts/diff_hygiene.py",
         "stock_analysis/pipeline.py",
         "data/reviewed_data_proofs.csv",
+        "data/reviewed_batch_proofs.csv",
         "outputs/reviewed_batch_packet.md",
         "outputs/reviewed_batch_packet.csv",
     ):

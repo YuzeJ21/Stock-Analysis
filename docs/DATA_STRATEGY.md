@@ -203,6 +203,8 @@ Use the reviewed batch packet after `make coverage-frontier TOP_N=10` identifies
 
 For Trusted Coverage Growth V2, reviewed batches should leave a proof row rather than a vague note. Record the batch id, lane, scope, tickers, pre-run readiness snapshot, exact command, validation result, preview result, apply result, post-run readiness snapshot, changed readiness counts, changed tickers, reviewer, review date, source files, generated artifacts reviewed, final outcome, and notes. Valid final outcomes are `supported`, `still_blocked`, `skipped`, and `excluded`.
 
+Use `make reviewed-batch-proof` to read the durable reviewed batch ledger in `data/reviewed_batch_proofs.csv`. Use `make reviewed-batch-proof-record` only after the packet, dry-run or capped reviewed scope, validate/preview/apply decision, readiness proof, and generated-artifact review are complete. This command appends one proof row; it does not refresh data, apply imports, infer missing peer inputs, or create a recommendation.
+
 ## Readiness-Gated Review Metrics
 
 Use `make metric-readiness TOP_N=10 BENCHMARK=SPY` to inspect the capped metric-readiness queue without refreshing or importing data. Use `make benchmark-risk-review TICKER=<ticker> BENCHMARK=SPY` for one ticker. Both commands read local CSV-backed provider data and print ready, partial, blocked, or excluded states for each metric, with freshness context before the summary.

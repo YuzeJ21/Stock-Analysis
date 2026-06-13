@@ -9820,6 +9820,36 @@ def test_data_health_peer_readiness_v2_cards_separate_trend_and_valuation_gates(
     assert "sell" not in rendered
 
 
+def test_data_health_peer_readiness_v2_frame_names_all_sub_states():
+    frame = dashboard.data_health_peer_readiness_v2_frame(
+        pd.DataFrame(
+            [
+                {
+                    "Lane": "Peer Mapping Proof",
+                    "State": "partial",
+                    "Workflow Mode": "reviewed_apply",
+                    "Notes": "Peer trend can be partial while peer valuation remains blocked.",
+                    "Next Safe Command": "make peer-mapping-queue TOP_N=25",
+                    "Proof Command": "make readiness && make peer-mapping-queue TOP_N=25",
+                }
+            ]
+        )
+    )
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert list(frame["Sub-State"]) == [
+        "Peer mapping",
+        "Peer price",
+        "Peer momentum",
+        "Peer fundamentals",
+        "Peer valuation",
+        "Peer valuation comparison",
+    ]
+    assert "trend can be ready before valuation" in rendered
+    assert "sector fallback is context only" in rendered
+    assert "source-backed local rows" in rendered
+
+
 def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps():
     frontier = pd.DataFrame(
         [
@@ -9866,6 +9896,27 @@ def test_data_health_reviewed_batch_ladder_cards_warn_when_frontier_missing():
     assert cards[0]["command"] == "make coverage-frontier TOP_N=10"
     assert "frontier first" in rendered
     assert "operations queues, not security rankings" in rendered
+
+
+def test_data_health_reviewed_batch_proof_frame_and_cards_read_batch_ledger(tmp_path):
+    ledger = tmp_path / "reviewed_batch_proofs.csv"
+    ledger.write_text(
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome,notes\n"
+        "RB-1,2026-06-12,local reviewer,peers,top 10,AAA;BBB,make reviewed-batch LANE=peers TOP_N=10,not_run,not_run,not_run,peer-ready 9/3538,peer-ready 9/3538,none,none,outputs/reviewed_batch_packet.md,broad churn excluded,skipped,no source proof applied\n",
+        encoding="utf-8",
+    )
+
+    frame = dashboard.data_health_reviewed_batch_proof_frame(ledger)
+    cards = dashboard.data_health_reviewed_batch_proof_cards(ledger)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert frame.iloc[0]["Batch ID"] == "RB-1"
+    assert frame.iloc[0]["Final Outcome"] == "skipped"
+    assert cards[0]["kicker"] == "LATEST BATCH PROOF"
+    assert cards[0]["command"] == "make reviewed-batch-proof"
+    assert "command run: make reviewed-batch lane=peers top_n=10" in rendered
+    assert "changed tickers: no changed tickers" in rendered
+    assert "no source proof applied" in rendered
 
 
 def test_data_health_trusted_pilot_selection_note_matches_candidate_queue():

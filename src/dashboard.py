@@ -22,6 +22,11 @@ from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.readiness_ops import build_coverage_frontier, build_readiness_ops_lanes
 from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
+from src.reviewed_batch_proof import (
+    DEFAULT_BATCH_PROOF_LEDGER,
+    latest_reviewed_batch_proof,
+    load_reviewed_batch_proofs,
+)
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.project_status import build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
@@ -6985,6 +6990,62 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
     return cards
 
 
+def data_health_peer_readiness_v2_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
+    """Return explicit peer sub-state rows for the Data Health drilldown."""
+
+    sub_states = [
+        {
+            "Sub-State": "Peer mapping",
+            "Meaning": "Source-backed comparable-company rows exist for the ticker.",
+            "Proof Command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "Sub-State": "Peer price",
+            "Meaning": "Mapped peers have local trusted price history for context.",
+            "Proof Command": "make price-coverage TOP_N=25 && make readiness",
+        },
+        {
+            "Sub-State": "Peer momentum",
+            "Meaning": "Mapped peers have enough price history for trend context.",
+            "Proof Command": "make readiness && make metric-readiness BENCHMARK=SPY",
+        },
+        {
+            "Sub-State": "Peer fundamentals",
+            "Meaning": "Mapped peers have trusted fundamentals rows.",
+            "Proof Command": "make dcf-readiness && make readiness",
+        },
+        {
+            "Sub-State": "Peer valuation",
+            "Meaning": "Mapped peers have trusted valuation inputs such as fundamentals plus market-cap context.",
+            "Proof Command": "make readiness && make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "Sub-State": "Peer valuation comparison",
+            "Meaning": "The ticker and mapped peers all have trusted inputs needed for peer dispersion review.",
+            "Proof Command": "make stock-report-md TICKER=<ticker>",
+        },
+    ]
+    if ops_frame is None or ops_frame.empty:
+        status_note = "needs current readiness rows"
+    else:
+        peer_rows = ops_frame.loc[ops_frame["Lane"].astype(str).str.lower().str.contains("peer", na=False)]
+        status_note = (
+            "peer lanes absent from current operations snapshot"
+            if peer_rows.empty
+            else "see peer operations rows; trend can be ready before valuation"
+        )
+    rows = []
+    for item in sub_states:
+        rows.append(
+            {
+                **item,
+                "Current Evidence": status_note,
+                "Guardrail": "Blocked stays blocked until source-backed local rows prove this sub-state; sector fallback is context only.",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def data_health_coverage_frontier_cards(frontier_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
     if frontier_frame is None or frontier_frame.empty:
         return [
@@ -7159,6 +7220,73 @@ def data_health_reviewed_proof_cards(ledger_path: Path | None = None) -> list[di
             "badges": ["source-controlled", "no generated churn"],
             "command": "make lane-outcome-history",
         },
+    ]
+
+
+def data_health_reviewed_batch_proof_frame(ledger_path: Path | None = None) -> pd.DataFrame:
+    """Return durable reviewed batch proof rows for Data Health."""
+
+    proofs = load_reviewed_batch_proofs(ledger_path or BASE_DIR / DEFAULT_BATCH_PROOF_LEDGER)
+    rows = [
+        {
+            "Batch ID": proof.batch_id,
+            "Review Date": proof.review_date,
+            "Reviewer": proof.reviewer,
+            "Lane": proof.lane,
+            "Scope": proof.scope,
+            "Tickers": proof.tickers,
+            "Command Run": proof.command_run,
+            "Validate Result": proof.validation_result,
+            "Preview Result": proof.preview_result,
+            "Apply Result": proof.apply_result,
+            "Pre-Run Readiness": proof.pre_run_readiness_snapshot,
+            "Post-Run Readiness": proof.post_run_readiness_snapshot,
+            "Changed Readiness Counts": proof.changed_readiness_counts,
+            "Changed Tickers": proof.changed_tickers,
+            "Source Files": proof.source_files,
+            "Generated Artifacts Reviewed": proof.generated_artifacts_reviewed,
+            "Final Outcome": proof.final_outcome,
+            "Notes": proof.notes,
+        }
+        for proof in sorted(proofs, key=lambda item: (item.review_date, item.batch_id), reverse=True)
+    ]
+    return pd.DataFrame(rows)
+
+
+def data_health_reviewed_batch_proof_cards(ledger_path: Path | None = None) -> list[dict[str, object]]:
+    proofs = load_reviewed_batch_proofs(ledger_path or BASE_DIR / DEFAULT_BATCH_PROOF_LEDGER)
+    latest = latest_reviewed_batch_proof(proofs)
+    if latest is None:
+        return [
+            {
+                "kicker": "BATCH PROOF",
+                "title": "No reviewed batch outcome recorded yet",
+                "body": (
+                    "Use the copy-only batch packet first, then record supported, still_blocked, skipped, "
+                    "or excluded only after validation, preview, apply decision, readiness proof, and churn review."
+                ),
+                "badges": ["durable ledger", "batch outcome"],
+                "command": "make reviewed-batch-proof",
+            }
+        ]
+    changed_tickers = str(latest.changed_tickers or "").strip()
+    changed_tickers_copy = (
+        "no changed tickers"
+        if changed_tickers.lower() == "none"
+        else compact_card_fragment(changed_tickers, max_chars=140)
+    )
+    return [
+        {
+            "kicker": "LATEST BATCH PROOF",
+            "title": f"{latest.lane}: {latest.final_outcome}",
+            "body": (
+                f"{card_sentence('Command run', compact_card_fragment(latest.command_run, max_chars=190))} "
+                f"{card_sentence('Changed tickers', changed_tickers_copy)} "
+                f"{card_sentence('Notes', compact_card_fragment(latest.notes, max_chars=190))}"
+            ),
+            "badges": [latest.review_date, "reviewed batch"],
+            "command": "make reviewed-batch-proof",
+        }
     ]
 
 
@@ -22121,6 +22249,9 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
     render_section_header("Peer Readiness V2", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
     render_signal_cards(data_health_peer_readiness_v2_cards(ops_center))
+    peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
+    with st.expander("Peer readiness sub-state matrix", expanded=False):
+        st.dataframe(clean_display_frame(peer_v2_frame), width="stretch", hide_index=True)
     with st.expander("Lane operations board", expanded=False):
         st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
     render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
@@ -22129,6 +22260,14 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
     render_section_header("Reviewed Batch Ladder", "Copy-only packet, dry-run, capped execution, and proof steps for the selected data lane.")
     render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))
+    render_section_header("Reviewed Batch Proof Ledger", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
+    render_signal_cards(data_health_reviewed_batch_proof_cards())
+    batch_proof_frame = data_health_reviewed_batch_proof_frame()
+    with st.expander("Reviewed batch proof rows", expanded=False):
+        if batch_proof_frame.empty:
+            st.caption("No reviewed batch proof rows are recorded yet.")
+        else:
+            st.dataframe(clean_display_frame(batch_proof_frame), width="stretch", hide_index=True)
     render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")
