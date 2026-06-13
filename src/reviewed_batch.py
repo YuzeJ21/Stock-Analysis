@@ -160,6 +160,10 @@ LANE_ALIASES = {
     "optional_context": ("earnings_locked", "analyst_estimates_locked"),
     "earnings": ("earnings_locked",),
     "analyst_estimates": ("analyst_estimates_locked",),
+    "metric": ("metric_readiness_review",),
+    "metrics": ("metric_readiness_review",),
+    "review_metrics": ("metric_readiness_review",),
+    "metric_readiness": ("metric_readiness_review",),
 }
 
 
@@ -204,7 +208,7 @@ def normalize_batch_lane(value: str) -> tuple[str, ...]:
     key = str(value or "").strip().lower().replace("-", "_")
     if key in LANE_ALIASES:
         return LANE_ALIASES[key]
-    raise ValueError("Unknown reviewed batch lane. Use prices, fundamentals, peers, or optional_context.")
+    raise ValueError("Unknown reviewed batch lane. Use prices, fundamentals, peers, metrics, or optional_context.")
 
 
 def _mtime(path: Path) -> float:
@@ -275,6 +279,12 @@ def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tupl
             for row in _read_csv(reports / "analyst_estimates_readiness_report.csv")
             if not _truthy(row.get("has_trusted_analyst_estimates"))
         ]
+    elif lane == "metric_readiness_review":
+        rows = [
+            row
+            for row in _read_csv(reports / "ticker_readiness_report.csv")
+            if str(row.get("overall_readiness_state") or "").strip().lower() != "excluded"
+        ]
     else:
         rows = []
     if not rows:
@@ -324,6 +334,18 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "artifacts": "data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
             "rollback": "If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.",
         }
+    if lane == "metric_readiness_review":
+        return {
+            "dry_run": f"make metric-readiness-board TOP_N={top_n} TICKERS={ticker_arg}",
+            "execute": f"make metric-readiness-board TOP_N={top_n} TICKERS={ticker_arg} BENCHMARKS=SPY,QQQ",
+            "validate": "not_applicable_read_only_metric_review",
+            "preview": "review metric blocker families, source gates, and row-level missing inputs before any data work",
+            "apply": "not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane",
+            "post": f"make readiness && make metric-readiness-board TOP_N={top_n} TICKERS={ticker_arg} BENCHMARKS=SPY,QQQ",
+            "compare": "make reviewed-batch-compare LANE=metrics BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "artifacts": "metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv",
+            "rollback": "No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.",
+        }
     return {
         "dry_run": f"make optional-context-worklist TOP_N={top_n}",
         "execute": f"make templates, then prepare trusted local optional rows for {ticker_arg}",
@@ -348,6 +370,8 @@ def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
     ]
     if lane.workflow_mode == "locked_manual":
         blockers.append("trusted local optional-context rows do not exist")
+    if lane.lane == "metric_readiness_review":
+        blockers.append("the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof")
     if freshness.status in {"missing", "stale"}:
         blockers.insert(0, f"{freshness.status}: run {freshness.refresh_command}")
     return "; ".join(blockers)
@@ -373,6 +397,13 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
             f"Inspect the peer sub-lane with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
             "Treat sector or industry fallback as context only; it is not trusted peer mapping proof.",
             "After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.",
+        ]
+    if lane == "metric_readiness_review":
+        return [
+            "Record the SPY/QQQ blocker-family summary before opening row-level proof.",
+            "Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.",
+            "Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.",
+            "After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.",
         ]
     return [
         "Record pre-run optional context readiness counts.",
@@ -421,6 +452,29 @@ def _proof_record_scaffold(batch_id: str, lane: str) -> str:
     )
 
 
+def _metric_readiness_lane(root: Path, top_n: int, tickers: tuple[str, ...]) -> ReadinessLane:
+    candidate_count = len(_candidate_tickers(root, "metric_readiness_review", top_n, tickers))
+    return ReadinessLane(
+        lane="metric_readiness_review",
+        label="Metric Readiness Review",
+        readiness_state="partial",
+        workflow_mode="read_only_review",
+        total_count=candidate_count,
+        ready_count=0,
+        partial_count=candidate_count,
+        blocked_count=0,
+        excluded_count=0,
+        unlock_impact=candidate_count,
+        source_lane="review_metrics",
+        source_readiness="Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family.",
+        next_safe_command=f"make metric-readiness-board TOP_N={top_n} BENCHMARKS=SPY,QQQ",
+        proof_command=f"make metric-readiness-board TOP_N={top_n} BENCHMARKS=SPY,QQQ",
+        generated_churn_policy="read-only console proof by default; do not stage generated CSV unless intentionally exported as reviewed evidence",
+        stale_proof_warning="Run make readiness first if readiness artifacts are stale before interpreting final counts.",
+        notes="Review metrics are coverage diagnostics only, not rankings or recommendations.",
+    )
+
+
 def build_reviewed_batch_packet(
     root: Path | str = ".",
     *,
@@ -433,6 +487,8 @@ def build_reviewed_batch_packet(
     selected_tickers = _split_tickers(tickers)
     freshness = readiness_freshness_status(root)
     lanes = [lane_row for lane_row in build_readiness_ops_lanes(root) if lane_row.lane in selected_lane_codes]
+    if "metric_readiness_review" in selected_lane_codes and not any(lane_row.lane == "metric_readiness_review" for lane_row in lanes):
+        lanes.append(_metric_readiness_lane(root, top_n, selected_tickers))
     lane_lookup = {lane_row.lane: lane_row for lane_row in lanes}
     batch_id = datetime.now(timezone.utc).strftime("RB-%Y%m%dT%H%M%SZ")
     actions: list[ReviewedBatchAction] = []
@@ -521,7 +577,7 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
     if not packet.actions:
         lines.extend(
             [
-                "No proposed actions were created. Run `make readiness` and choose one of `prices`, `fundamentals`, `peers`, or `optional_context`.",
+                "No proposed actions were created. Run `make readiness` and choose one of `prices`, `fundamentals`, `peers`, `metrics`, or `optional_context`.",
                 "",
             ]
         )
@@ -603,7 +659,7 @@ def write_reviewed_batch_packet(
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Write a reviewed batch run packet.")
     parser.add_argument("--root", default=".", help="Project root.")
-    parser.add_argument("--lane", default="prices", help="prices, fundamentals, peers, optional_context.")
+    parser.add_argument("--lane", default="prices", help="prices, fundamentals, peers, metrics, optional_context.")
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--tickers", default="", help="Optional comma-separated ticker scope.")
     parser.add_argument("--md-output", default=str(DEFAULT_PACKET_MD))

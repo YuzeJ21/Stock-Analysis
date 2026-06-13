@@ -35,7 +35,7 @@ The most important design choice was refusing to present every ticker as complet
 
 GitHub: https://github.com/YuzeJ21/Stock-Analysis
 
-Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`, a real public-mode screenshot from the local product.
+Featured thumbnail: use `docs/assets/public-demo-home-real.jpg`, a real public-mode screenshot from the local product. Use `docs/assets/operator-data-health-metrics-real.jpg` only when you want to show the deeper operator workflow.
 
 ## Resume Bullet Options
 

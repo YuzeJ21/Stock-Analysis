@@ -1834,22 +1834,21 @@ def apply_dashboard_theme() -> None:
           font-weight: 750;
         }
         .section-shell {
-          margin: 1.15rem 0 0.72rem 0;
-          padding: 0.72rem 0.92rem 0.78rem 0.92rem;
-          border-radius: 12px;
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 251, 247, 0.9));
-          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+          margin: 0.95rem 0 0.56rem 0;
+          padding: 0.58rem 0.78rem 0.62rem 0.78rem;
+          border-radius: 8px;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(255, 255, 255, 0.82);
+          box-shadow: none;
           position: relative;
         }
         .section-shell::before {
           content: "";
           position: absolute;
           inset: 0 auto 0 0;
-          width: 5px;
-          border-radius: 12px 0 0 12px;
-          background: linear-gradient(180deg, #0f766e, #14b8a6);
+          width: 3px;
+          border-radius: 8px 0 0 8px;
+          background: #0f766e;
         }
         .section-kicker {
           color: #0f766e;
@@ -1860,8 +1859,8 @@ def apply_dashboard_theme() -> None:
           margin-left: 0.05rem;
         }
         .section-title {
-          margin: 0.24rem 0 0.25rem 0;
-          font-size: 1.18rem;
+          margin: 0.16rem 0 0.18rem 0;
+          font-size: 1.04rem;
           font-weight: 900;
           letter-spacing: 0;
           color: var(--research-ink);
@@ -1870,8 +1869,8 @@ def apply_dashboard_theme() -> None:
           margin-top: 0;
           margin-bottom: 0;
           color: #526071;
-          font-size: 0.93rem;
-          line-height: 1.45;
+          font-size: 0.86rem;
+          line-height: 1.38;
           max-width: 70rem;
         }
         .metric-card-grid {
@@ -1995,10 +1994,11 @@ def apply_dashboard_theme() -> None:
           box-shadow: 0 9px 24px rgba(17, 24, 39, 0.055);
         }
         .signal-grid.queue-grid .signal-card {
+          background: rgba(255, 255, 255, 0.92);
           border-radius: 8px;
-          padding: 0.64rem 0.7rem;
-          box-shadow: 0 5px 14px rgba(15, 23, 42, 0.035);
-          border-color: rgba(148, 163, 184, 0.26);
+          padding: 0.58rem 0.64rem;
+          box-shadow: none;
+          border-color: rgba(148, 163, 184, 0.24);
         }
         .signal-kicker {
           color: #0f766e;
@@ -2014,7 +2014,7 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.24rem;
         }
         .signal-grid.queue-grid .signal-title {
-          font-size: 0.92rem;
+          font-size: 0.88rem;
           margin-top: 0.14rem;
         }
         .signal-body {
@@ -2029,8 +2029,8 @@ def apply_dashboard_theme() -> None:
           -webkit-line-clamp: 3;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          font-size: 0.8rem;
-          line-height: 1.32;
+          font-size: 0.78rem;
+          line-height: 1.3;
           margin-top: 0.26rem;
         }
         .signal-footer {
@@ -2696,33 +2696,36 @@ def apply_dashboard_theme() -> None:
         [data-testid="stTable"],
         .stDataFrame {
           border: 1px solid var(--research-border);
-          border-radius: 12px;
+          border-radius: 8px;
           overflow: hidden;
-          background: #fffefa !important;
+          background: #ffffff !important;
           color: #111827 !important;
+          box-shadow: none;
         }
         div[data-testid="stDataFrame"] *,
         [data-testid="stTable"] *,
         .stDataFrame * {
           color: #111827 !important;
+          font-size: 0.82rem !important;
         }
         [role="gridcell"],
         [role="columnheader"],
         [data-testid="stDataFrame"] [role="gridcell"],
         [data-testid="stDataFrame"] [role="columnheader"] {
-          background-color: #fffefa !important;
+          background-color: #ffffff !important;
           color: #111827 !important;
+          min-height: 1.75rem !important;
         }
         [data-testid="stExpander"] {
           background: rgba(255, 255, 255, 0.97) !important;
-          border: 1px solid rgba(148, 163, 184, 0.28) !important;
+          border: 1px solid rgba(148, 163, 184, 0.22) !important;
           border-radius: 8px !important;
-          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
-          margin-bottom: 0.54rem;
+          box-shadow: none;
+          margin-bottom: 0.42rem;
         }
         [data-testid="stExpander"] summary {
-          min-height: 2.35rem;
-          padding: 0.42rem 0.68rem !important;
+          min-height: 2.15rem;
+          padding: 0.34rem 0.58rem !important;
           font-weight: 850 !important;
           letter-spacing: 0;
           justify-content: flex-start !important;
@@ -2736,7 +2739,7 @@ def apply_dashboard_theme() -> None:
         [data-testid="stExpander"] summary p {
           width: 100%;
           text-align: left !important;
-          font-size: 0.88rem !important;
+          font-size: 0.84rem !important;
           line-height: 1.25 !important;
           margin: 0 !important;
         }
@@ -16219,6 +16222,131 @@ def data_health_metric_readiness_queue_cards(frame: pd.DataFrame | None) -> list
     ]
 
 
+def data_health_metric_readiness_family_summary_frame(frame: pd.DataFrame | None) -> pd.DataFrame:
+    """Summarize metric-readiness blocker families across SPY and QQQ."""
+
+    if frame is None or frame.empty:
+        return pd.DataFrame(
+            columns=[
+                "Blocker Family",
+                "Queue Rows",
+                "Benchmarks",
+                "Ready Rows",
+                "Partial Rows",
+                "Blocked Rows",
+                "Excluded Rows",
+                "First Next Check",
+                "Guardrail",
+            ]
+        )
+    work = frame.copy()
+    work["Blocker Family"] = (
+        work.get("Blocker Family", pd.Series(index=work.index, dtype=object))
+        .fillna("none")
+        .astype(str)
+        .str.strip()
+        .replace("", "none")
+    )
+    state_series = work.get("Overall State", pd.Series(index=work.index, dtype=object)).fillna("").astype(str).str.lower()
+    rows: list[dict[str, object]] = []
+    for family, group in work.groupby("Blocker Family", dropna=False):
+        group_states = state_series.loc[group.index]
+        blockers = group.get("Top Blocker", pd.Series(index=group.index, dtype=object)).fillna("").astype(str)
+        actionable_group = group.loc[blockers.str.lower().ne("none")]
+        first_next_check = "make metric-readiness-board TOP_N=10"
+        if not actionable_group.empty:
+            first_next_check = format_missing(actionable_group.iloc[0].get("Next Check"), first_next_check)
+        rows.append(
+            {
+                "Blocker Family": str(family),
+                "Queue Rows": int(len(group)),
+                "Benchmarks": ", ".join(
+                    dict.fromkeys(
+                        group.get("Benchmark", pd.Series(index=group.index, dtype=object))
+                        .dropna()
+                        .astype(str)
+                        .tolist()
+                    )
+                ),
+                "Ready Rows": int(group_states.eq("ready").sum()),
+                "Partial Rows": int(group_states.eq("partial").sum()),
+                "Blocked Rows": int(group_states.eq("blocked").sum()),
+                "Excluded Rows": int(group_states.eq("excluded").sum()),
+                "First Next Check": first_next_check,
+                "Guardrail": "readiness triage only; not a ranking or recommendation",
+            }
+        )
+    summary = pd.DataFrame(rows)
+    if summary.empty:
+        return summary
+    family_order = {
+        "benchmark / risk": 0,
+        "fundamentals trend": 1,
+        "valuation multiples": 2,
+        "peer dispersion": 3,
+        "other": 4,
+        "none": 5,
+    }
+    summary["_sort_family"] = summary["Blocker Family"].astype(str).map(lambda value: family_order.get(value.lower(), 4))
+    summary = summary.sort_values(["Queue Rows", "_sort_family", "Blocker Family"], ascending=[False, True, True])
+    return summary.drop(columns=["_sort_family"]).reset_index(drop=True)
+
+
+def data_health_metric_readiness_family_summary_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    summary = data_health_metric_readiness_family_summary_frame(frame)
+    if summary.empty:
+        return [
+            {
+                "kicker": "BLOCKER SUMMARY",
+                "title": "No metric blockers",
+                "body": (
+                    "No SPY/QQQ metric-readiness rows are available yet. Run the metric-readiness board after local price "
+                    "and readiness artifacts exist."
+                ),
+                "badges": ["readiness-only", "not ranking"],
+                "command": "make metric-readiness-board TOP_N=10",
+            }
+        ]
+    actionable = summary.loc[summary["Blocker Family"].astype(str).str.lower().ne("none")]
+    top = actionable.iloc[0] if not actionable.empty else summary.iloc[0]
+    partial_blocked = int(top.get("Partial Rows", 0) or 0) + int(top.get("Blocked Rows", 0) or 0)
+    families = summary["Blocker Family"].astype(str).tolist()
+    family_text = ", ".join(families[:4]) + ("..." if len(families) > 4 else "")
+    return [
+        {
+            "kicker": "METRIC BLOCKER SUMMARY",
+            "title": f"{len(summary):,} blocker families",
+            "body": (
+                f"SPY/QQQ metric-readiness rows currently group into: {family_text}. "
+                "Use this as coverage triage before opening row-level proof."
+            ),
+            "badges": ["SPY/QQQ", "family view", "not ranking"],
+            "command": "make metric-readiness-board TOP_N=10",
+        },
+        {
+            "kicker": "TOP FAMILY",
+            "title": str(top.get("Blocker Family", "none")).title(),
+            "body": (
+                f"{int(top.get('Queue Rows', 0) or 0):,} row(s), {partial_blocked:,} partial or blocked, "
+                f"benchmarks: {format_missing(top.get('Benchmarks'), 'SPY, QQQ')}. "
+                "Rows with missing inputs stay blocked instead of inferred."
+            ),
+            "badges": ["blocked visible", "review metric only"],
+            "command": str(top.get("First Next Check") or "make metric-readiness-board TOP_N=10"),
+        },
+        {
+            "kicker": "NEXT REVIEW",
+            "title": "Open row proof only when needed",
+            "body": (
+                "Open the evidence drawer for the first copy-only check and row-level proof. "
+                "Sharpe, Sortino, beta, drawdown, trend, multiples, and peer dispersion remain review metrics only."
+            ),
+            "badges": ["copy-only", "no advice"],
+            "command": str(top.get("First Next Check") or "make metric-readiness-board TOP_N=10"),
+        },
+    ]
+
+
 def data_health_operator_snapshot_cards(
     readiness_summary: dict[str, object],
     ops_frame: pd.DataFrame | None,
@@ -23446,9 +23574,17 @@ def render_data_health(
             st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
     elif selected_lane == "Metrics":
         render_operator_queue_preview(
-            data_health_metric_readiness_queue_cards(metric_queue_frame) + data_health_review_metric_readiness_cards()
+            data_health_metric_readiness_family_summary_cards(metric_queue_frame)
+            + data_health_metric_readiness_queue_cards(metric_queue_frame)
+            + data_health_review_metric_readiness_cards()
         )
         with st.expander("Metrics evidence drawer", expanded=False):
+            render_section_header("Metric Blocker Family Summary", "Compact SPY / QQQ blocker-family triage before row-level proof.")
+            st.dataframe(
+                clean_display_frame(data_health_metric_readiness_family_summary_frame(metric_queue_frame)),
+                width="stretch",
+                hide_index=True,
+            )
             render_section_header("SPY / QQQ Metric-Readiness Queue", "Combined benchmark queue for blocker-family triage.")
             st.dataframe(clean_display_frame(metric_queue_frame), width="stretch", hide_index=True)
             render_section_header("Review Metric Readiness Gates", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")

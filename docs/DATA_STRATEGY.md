@@ -197,11 +197,13 @@ In Operator mode, Data Health is organized as a readiness operations command cen
 
 ## Reviewed Batch Execution V1
 
-Use `make reviewed-batch LANE=prices TOP_N=10` to convert a frontier lane into a reviewed run packet. The packet is written to `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv`; it is copy-only and does not refresh, import, apply, or rewrite local data. Supported lane aliases are `prices`, `fundamentals`, `peers`, and `optional_context`, with optional `TICKERS=...` for a capped reviewed scope.
+Use `make reviewed-batch LANE=prices TOP_N=10` to convert a frontier lane into a reviewed run packet. The packet is written to `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv`; it is copy-only and does not refresh, import, apply, or rewrite local data. Supported lane aliases are `prices`, `fundamentals`, `peers`, `metrics`, and `optional_context`, with optional `TICKERS=...` for a capped reviewed scope.
 
 The packet includes the pre-run readiness snapshot command, dry-run command, capped execution command, validate/preview/apply gates, post-run verification commands, expected artifacts, rollback notes, proof-row template, research-only guardrails, and "do not proceed if" blockers. If saved readiness artifacts are missing or stale because source CSVs changed after the reports, the packet says to run `make readiness` before relying on final counts.
 
 Use the reviewed batch packet after `make coverage-frontier TOP_N=10` identifies the best lane to inspect. A high-impact lane is still an operations queue, not a security ranking, and every mutating workflow remains validate -> preview -> apply before any supported outcome is recorded.
+
+Use `make reviewed-batch LANE=metrics TOP_N=10` when the next work is metric-readiness triage rather than a source-row import. This packet is read-only: it runs the SPY/QQQ metric-readiness board, summarizes blocker families, and tells the operator which underlying source lane needs proof. It does not apply metric rows, infer missing Sharpe/Sortino/beta/drawdown/trend/multiple values, or bypass the price, fundamentals, market-context, or peer-input gates.
 
 Use `make reviewed-batch-preflight LANE=prices TOP_N=100` before a reviewed batch when the next action could mutate local data. It checks whether the current readiness report exists, whether the prior readiness snapshot exists, whether freshness is current, which dry-run and capped command would apply, which artifacts need review, and which conditions should stop the run. The preflight is read-only and is designed to catch missing `make readiness-snapshot` evidence before a proof row needs changed counts.
 

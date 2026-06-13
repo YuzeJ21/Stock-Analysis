@@ -136,6 +136,26 @@ def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane
     assert "validate -> preview -> apply" in rendered
 
 
+def test_reviewed_batch_metrics_lane_is_read_only_and_source_gated(tmp_path: Path):
+    packet = build_reviewed_batch_packet(_sample_root(tmp_path), lane="metrics", top_n=2)
+    rendered = render_packet_markdown(packet)
+    lowered = rendered.lower()
+
+    assert packet.selected_scope == "metric_readiness_review"
+    assert len(packet.actions) == 2
+    assert packet.actions[0].lane_label == "Metric Readiness Review"
+    assert packet.actions[0].workflow_mode == "read_only_review"
+    assert packet.actions[0].dry_run_command == "make metric-readiness-board TOP_N=2 TICKERS=AAA,BBB"
+    assert packet.actions[0].apply_command.startswith("not_applicable")
+    assert "make metric-readiness-board TOP_N=2 TICKERS=AAA,BBB BENCHMARKS=SPY,QQQ" in rendered
+    assert "map each blocked metric to its source lane" in lowered
+    assert "do not apply rows from the metrics packet" in lowered
+    assert "prices, fundamentals, market cap, or peer-input proof" in lowered
+    assert "not investment advice" in lowered
+    assert "does not provide direct buy/sell instructions" in lowered
+    assert "does not connect to brokers" in lowered
+
+
 def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     root = _sample_root(tmp_path)
     packet = build_reviewed_batch_packet(root, lane="peers", top_n=2)

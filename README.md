@@ -4,7 +4,7 @@ A local, CSV-first research dashboard for screening stocks, reviewing portfolio 
 
 > Data readiness first, analysis second, research decision last.
 
-![Dashboard preview](docs/assets/linkedin-public-dashboard.png)
+![Dashboard preview](docs/assets/public-demo-home-real.jpg)
 
 ## What It Does
 
@@ -19,11 +19,10 @@ flowchart LR
 
 ## LinkedIn Visitor Snapshot
 
-- Best first click: open the dashboard preview, then skim the example reports for `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`.
+- Best first click: open the real dashboard preview, then skim the example reports for `NVDA`, `META`, `QQQ`, `MU`, and `CRDO`; the operator metrics screenshot is `docs/assets/operator-data-health-metrics-real.jpg`.
 - Core product idea: missing data is a quality-control signal, not something to hide or guess.
 - Strongest demo: ready data is analyzed, blocked data stays visible, and ETF/index methods are excluded instead of forced.
 - Share-safe boundary: this is research software, not investment advice, broker integration, or an execution system.
-
 ## What You Can Analyze
 
 When trusted local data is available, the product can produce:

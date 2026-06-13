@@ -209,7 +209,7 @@ def test_makefile_help_documents_key_workflows():
         "make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data",
         "make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command",
         "make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations",
-        "make reviewed-batch [LANE=prices] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv",
+        "make reviewed-batch [LANE=prices|fundamentals|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
         "make diff-hygiene-summary",
@@ -460,7 +460,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     public_demo = Path("docs/PUBLIC_DEMO_WALKTHROUGH.md").read_text(encoding="utf-8")
 
     assert len(readme.splitlines()) < 180
-    assert "![Dashboard preview](docs/assets/linkedin-public-dashboard.png)" in readme
+    assert "![Dashboard preview](docs/assets/public-demo-home-real.jpg)" in readme
+    assert "docs/assets/operator-data-health-metrics-real.jpg" in readme
     for preview_phrase in (
         "plain-language stock analysis modes",
         "At A Glance single-stock status",

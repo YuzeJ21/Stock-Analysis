@@ -518,6 +518,9 @@ def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
     assert '[data-testid="stTabs"] [role="tab"][aria-selected="true"]' in css
     assert ".ops-copy.secondary" in css
     assert ".ops-stat.evidence-stat" in css
+    assert "min-height: 1.75rem !important;" in css
+    assert ".signal-grid.queue-grid .signal-card" in css
+    assert "box-shadow: none;" in css
     assert '[data-baseweb="popover"]' in css
     assert "#MainMenu" in css
     assert '[data-testid="stToolbar"]' in css
@@ -18731,6 +18734,73 @@ def test_metric_readiness_queue_cards_summarize_benchmark_blockers_without_ranki
     assert "trading" not in rendered
 
 
+def test_metric_readiness_family_summary_rolls_up_spy_qqq_blockers():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Benchmark": "SPY",
+                "Overall State": "partial",
+                "Ready Metrics": 5,
+                "Partial Metrics": 4,
+                "Blocked Metrics": 0,
+                "Excluded Metrics": 0,
+                "Top Blocker": "benchmark_relative_return: at least 60 aligned ticker/SPY price rows",
+                "Blocker Family": "benchmark / risk",
+                "Next Check": "make focus-price TICKER=NVDA",
+                "Freshness": "current",
+            },
+            {
+                "Ticker": "NVDA",
+                "Benchmark": "QQQ",
+                "Overall State": "blocked",
+                "Ready Metrics": 3,
+                "Partial Metrics": 2,
+                "Blocked Metrics": 1,
+                "Excluded Metrics": 0,
+                "Top Blocker": "peer_valuation_dispersion: at least two peers with trusted valuation multiples",
+                "Blocker Family": "peer dispersion",
+                "Next Check": "make focus-peers TICKER=NVDA",
+                "Freshness": "current",
+            },
+            {
+                "Ticker": "QQQ",
+                "Benchmark": "SPY",
+                "Overall State": "excluded",
+                "Ready Metrics": 2,
+                "Partial Metrics": 0,
+                "Blocked Metrics": 0,
+                "Excluded Metrics": 3,
+                "Top Blocker": "none",
+                "Blocker Family": "none",
+                "Next Check": "make stock-report-md TICKER=QQQ",
+                "Freshness": "current",
+            },
+        ]
+    )
+
+    summary = dashboard.data_health_metric_readiness_family_summary_frame(frame)
+    cards = dashboard.data_health_metric_readiness_family_summary_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert list(summary["Blocker Family"]) == ["benchmark / risk", "peer dispersion", "none"]
+    assert summary.loc[summary["Blocker Family"].eq("benchmark / risk"), "Queue Rows"].iloc[0] == 1
+    assert summary.loc[summary["Blocker Family"].eq("benchmark / risk"), "Benchmarks"].iloc[0] == "SPY"
+    assert summary.loc[summary["Blocker Family"].eq("peer dispersion"), "Blocked Rows"].iloc[0] == 1
+    assert "readiness triage only" in " ".join(summary["Guardrail"].astype(str)).lower()
+    assert cards[0]["kicker"] == "METRIC BLOCKER SUMMARY"
+    assert "3 blocker families" in rendered
+    assert "benchmark / risk" in rendered
+    assert "peer dispersion" in rendered
+    assert "review metrics only" in rendered
+    assert "not ranking" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+
+
 def test_metric_readiness_queue_frame_covers_spy_and_qqq():
     frame = dashboard.data_health_metric_readiness_queue_frame(top_n=1)
 
@@ -18753,12 +18823,14 @@ def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
     risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", lane_selector_index)
     metric_queue_index = source.index("data_health_metric_readiness_queue_cards(metric_queue_frame)", lane_selector_index)
+    metric_summary_index = source.index("data_health_metric_readiness_family_summary_cards(metric_queue_frame)", lane_selector_index)
     metric_cards_index = source.index("data_health_review_metric_readiness_cards()", lane_selector_index)
     metric_queue_expander_index = source.index('st.expander("Metrics evidence drawer", expanded=False)', lane_selector_index)
+    metric_summary_table_index = source.index('render_section_header("Metric Blocker Family Summary"', metric_queue_expander_index)
     liquidity_expander_index = source.index('st.expander("Liquidity Context", expanded=False)')
     correlation_expander_index = source.index('st.expander("Correlation Concentration Context", expanded=False)')
 
-    assert risk_cards_index < metric_queue_index < metric_cards_index < metric_queue_expander_index < liquidity_expander_index < correlation_expander_index
+    assert risk_cards_index < metric_summary_index < metric_queue_index < metric_cards_index < metric_queue_expander_index < metric_summary_table_index < liquidity_expander_index < correlation_expander_index
 
 
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
