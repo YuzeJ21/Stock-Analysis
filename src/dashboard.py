@@ -1706,6 +1706,11 @@ def apply_dashboard_theme() -> None:
           --research-gold: #b7791f;
           --research-warning: #a16207;
           --research-danger: #b42318;
+          --research-radius-sm: 7px;
+          --research-radius: 8px;
+          --research-radius-lg: 12px;
+          --research-shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.055);
+          --research-shadow-panel: 0 18px 44px rgba(15, 23, 42, 0.075);
         }
         .stApp {
           background:
@@ -1722,6 +1727,14 @@ def apply_dashboard_theme() -> None:
           display: none !important;
           visibility: hidden !important;
           height: 0 !important;
+        }
+        [data-testid="stMainBlockContainer"] {
+          max-width: 1180px !important;
+          padding-top: 1.05rem !important;
+          padding-bottom: 2.8rem !important;
+        }
+        [data-testid="stVerticalBlock"] {
+          gap: 0.72rem;
         }
         #MainMenu,
         footer,
@@ -1748,6 +1761,86 @@ def apply_dashboard_theme() -> None:
         }
         [data-testid="stSidebar"] * {
           color: var(--research-text) !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+          gap: 0.42rem;
+        }
+        .sidebar-nav-header {
+          border-radius: 10px;
+          border: 1px solid rgba(15, 118, 110, 0.18);
+          background: linear-gradient(180deg, #ffffff 0%, #f1faf7 100%);
+          padding: 0.78rem 0.82rem;
+          margin: 0.1rem 0 0.56rem 0;
+        }
+        .sidebar-nav-kicker {
+          color: #0f766e !important;
+          font-size: 0.66rem;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .sidebar-nav-title {
+          color: #111827 !important;
+          font-size: 1rem;
+          font-weight: 950;
+          line-height: 1.12;
+          margin-top: 0.22rem;
+        }
+        .sidebar-nav-copy {
+          color: #526071 !important;
+          font-size: 0.76rem;
+          line-height: 1.34;
+          margin-top: 0.32rem;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] > label {
+          color: #526071 !important;
+          font-size: 0.72rem !important;
+          font-weight: 900 !important;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          margin-bottom: 0.2rem;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] {
+          display: grid;
+          gap: 0.28rem;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label {
+          display: flex !important;
+          align-items: center !important;
+          width: 100%;
+          min-height: 2.05rem;
+          border: 1px solid rgba(148, 163, 184, 0.24);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.84);
+          padding: 0.34rem 0.55rem;
+          box-shadow: none;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label:hover {
+          background: #eef8f4;
+          border-color: rgba(15, 118, 110, 0.24);
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+          background: #0b3b36;
+          border-color: #0b3b36;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p,
+        [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) span,
+        [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) div {
+          color: #ecfdf5 !important;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] input {
+          position: absolute;
+          opacity: 0;
+          pointer-events: none;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label[data-baseweb="radio"] > div:first-child {
+          display: none !important;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label p {
+          font-size: 0.82rem !important;
+          font-weight: 850 !important;
+          line-height: 1.15 !important;
+          margin: 0 !important;
         }
         h1, h2, h3, h4, h5, h6, p, label, span, div {
           color: var(--research-text);
@@ -2695,12 +2788,12 @@ def apply_dashboard_theme() -> None:
         div[data-testid="stDataFrame"],
         [data-testid="stTable"],
         .stDataFrame {
-          border: 1px solid var(--research-border);
-          border-radius: 8px;
-          overflow: hidden;
+          border: 1px solid rgba(148, 163, 184, 0.22) !important;
+          border-radius: var(--research-radius) !important;
+          overflow: hidden !important;
           background: #ffffff !important;
           color: #111827 !important;
-          box-shadow: none;
+          box-shadow: none !important;
         }
         div[data-testid="stDataFrame"] *,
         [data-testid="stTable"] *,
@@ -2716,20 +2809,34 @@ def apply_dashboard_theme() -> None:
           color: #111827 !important;
           min-height: 1.75rem !important;
         }
-        [data-testid="stExpander"] {
-          background: rgba(255, 255, 255, 0.97) !important;
-          border: 1px solid rgba(148, 163, 184, 0.22) !important;
-          border-radius: 8px !important;
-          box-shadow: none;
-          margin-bottom: 0.42rem;
+        [data-testid="stDataFrame"] [role="columnheader"],
+        [data-testid="stTable"] thead th {
+          background: #f8faf7 !important;
+          color: #475569 !important;
+          font-weight: 850 !important;
         }
-        [data-testid="stExpander"] summary {
-          min-height: 2.15rem;
-          padding: 0.34rem 0.58rem !important;
+        [data-testid="stExpander"] {
+          background: rgba(255, 255, 255, 0.88) !important;
+          border: 1px solid rgba(148, 163, 184, 0.24) !important;
+          border-radius: var(--research-radius) !important;
+          box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035) !important;
+          margin-bottom: 0.42rem;
+          overflow: hidden;
+        }
+        [data-testid="stExpander"] summary,
+        [data-testid="stExpander"] details > summary {
+          min-height: 2.35rem;
+          padding: 0.34rem 0.7rem !important;
+          background: rgba(248, 250, 247, 0.95) !important;
+          border-radius: var(--research-radius) !important;
           font-weight: 850 !important;
           letter-spacing: 0;
           justify-content: flex-start !important;
           text-align: left !important;
+        }
+        [data-testid="stExpander"] details[open] > summary {
+          border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+          border-radius: var(--research-radius) var(--research-radius) 0 0 !important;
         }
         [data-testid="stExpander"] summary,
         [data-testid="stExpander"] p,
@@ -2739,7 +2846,9 @@ def apply_dashboard_theme() -> None:
         [data-testid="stExpander"] summary p {
           width: 100%;
           text-align: left !important;
+          color: #243142 !important;
           font-size: 0.84rem !important;
+          font-weight: 850 !important;
           line-height: 1.25 !important;
           margin: 0 !important;
         }
@@ -2781,14 +2890,14 @@ def apply_dashboard_theme() -> None:
           margin: 0.08rem 0 0.72rem 0;
           padding: 0.16rem;
           border: 1px solid rgba(148, 163, 184, 0.26);
-          border-radius: 8px;
+          border-radius: var(--research-radius);
           background: rgba(255, 255, 255, 0.92);
-          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
+          box-shadow: var(--research-shadow-soft);
         }
         .ops-lane-link {
           flex: 1 1 8.4rem;
           min-height: 2.05rem;
-          border-radius: 7px !important;
+          border-radius: var(--research-radius-sm) !important;
           border: 1px solid rgba(148, 163, 184, 0.24) !important;
           box-shadow: none !important;
           font-size: 0.82rem;
@@ -2813,6 +2922,175 @@ def apply_dashboard_theme() -> None:
           color: #ecfdf5 !important;
           border-color: #0b3b36 !important;
         }
+        .metric-console {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.92fr) minmax(360px, 1.42fr);
+          gap: 0.72rem;
+          margin: 0.52rem 0 0.72rem 0;
+        }
+        .metric-console-main,
+        .metric-console-board {
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: var(--research-radius);
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: var(--research-shadow-soft);
+        }
+        .metric-console-main {
+          padding: 0.86rem 0.9rem;
+          background: linear-gradient(180deg, #ffffff 0%, #f7fbfa 100%);
+        }
+        .metric-console-kicker {
+          color: #0f766e;
+          font-size: 0.68rem;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .metric-console-title {
+          color: #111827;
+          font-size: 1.06rem;
+          font-weight: 950;
+          letter-spacing: 0;
+          line-height: 1.15;
+          margin-top: 0.2rem;
+        }
+        .metric-console-copy {
+          color: #526071;
+          font-size: 0.82rem;
+          line-height: 1.38;
+          margin-top: 0.38rem;
+        }
+        .metric-console-stats {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.36rem;
+          margin-top: 0.62rem;
+        }
+        .metric-console-stat {
+          border: 1px solid rgba(148, 163, 184, 0.20);
+          border-radius: 7px;
+          background: #ffffff;
+          padding: 0.42rem 0.46rem;
+        }
+        .metric-console-stat-label {
+          color: #64748b;
+          font-size: 0.62rem;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .metric-console-stat-value {
+          color: #111827;
+          font-size: 0.96rem;
+          font-weight: 950;
+          margin-top: 0.12rem;
+        }
+        .metric-next-box {
+          margin-top: 0.62rem;
+          border-radius: var(--research-radius);
+          border: 1px solid rgba(15, 118, 110, 0.20);
+          background: #eef9f5;
+          padding: 0.58rem 0.62rem;
+        }
+        .metric-next-label {
+          color: #0b3b36;
+          font-size: 0.66rem;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .metric-next-title {
+          color: #0f172a;
+          font-size: 0.9rem;
+          font-weight: 950;
+          margin-top: 0.16rem;
+        }
+        .metric-next-copy {
+          color: #475569;
+          font-size: 0.78rem;
+          line-height: 1.34;
+          margin-top: 0.22rem;
+        }
+        .metric-console-board {
+          overflow: hidden;
+        }
+        .metric-board-header {
+          display: grid;
+          grid-template-columns: minmax(120px, 1fr) 74px 78px minmax(155px, 1.15fr);
+          gap: 0.42rem;
+          padding: 0.44rem 0.58rem;
+          background: #f8faf7;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.20);
+          color: #64748b;
+          font-size: 0.64rem;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .metric-board-row {
+          display: grid;
+          grid-template-columns: minmax(120px, 1fr) 74px 78px minmax(155px, 1.15fr);
+          gap: 0.42rem;
+          align-items: center;
+          padding: 0.46rem 0.58rem;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        }
+        .metric-board-row:last-child {
+          border-bottom: 0;
+        }
+        .metric-family-name {
+          color: #111827;
+          font-size: 0.84rem;
+          font-weight: 900;
+          line-height: 1.18;
+        }
+        .metric-family-sub {
+          color: #667085;
+          font-size: 0.72rem;
+          line-height: 1.24;
+          margin-top: 0.1rem;
+        }
+        .metric-board-cell {
+          color: #475569;
+          font-size: 0.78rem;
+          line-height: 1.28;
+        }
+        .state-pill {
+          display: inline-flex;
+          align-items: center;
+          width: fit-content;
+          border-radius: 999px;
+          padding: 0.16rem 0.42rem;
+          font-size: 0.66rem;
+          font-weight: 950;
+          border: 1px solid transparent;
+          white-space: nowrap;
+        }
+        .state-pill.ready {
+          color: #166534;
+          background: #dcfce7;
+          border-color: rgba(22, 101, 52, 0.18);
+        }
+        .state-pill.partial {
+          color: #92400e;
+          background: #fef3c7;
+          border-color: rgba(146, 64, 14, 0.18);
+        }
+        .state-pill.blocked {
+          color: #991b1b;
+          background: #fee2e2;
+          border-color: rgba(153, 27, 27, 0.18);
+        }
+        .state-pill.excluded {
+          color: #475569;
+          background: #f1f5f9;
+          border-color: rgba(71, 85, 105, 0.18);
+        }
+        .state-pill.neutral {
+          color: #0f766e;
+          background: #ccfbf1;
+          border-color: rgba(15, 118, 110, 0.18);
+        }
         @media (max-width: 760px) {
           .ops-lane-nav {
             padding: 0.12rem;
@@ -2822,6 +3100,19 @@ def apply_dashboard_theme() -> None:
             min-height: 1.9rem;
             font-size: 0.76rem;
             padding-inline: 0.35rem;
+          }
+          .metric-console {
+            grid-template-columns: 1fr;
+          }
+          .metric-console-stats {
+            grid-template-columns: 1fr;
+          }
+          .metric-board-header {
+            display: none;
+          }
+          .metric-board-row {
+            grid-template-columns: 1fr;
+            gap: 0.24rem;
           }
         }
         input, textarea, [data-baseweb="select"] > div {
@@ -3274,6 +3565,8 @@ DATA_HEALTH_OPERATOR_LANES = {
 
 
 def data_health_operator_lane_from_query(value: object) -> str:
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else ""
     raw = str(value or "prices").strip().lower().replace("_", "-")
     aliases = {
         "price": "prices",
@@ -3373,6 +3666,20 @@ def sidebar_route_steps_html(cards: list[tuple[str, str, str, str]]) -> str:
 
 def render_sidebar_route_steps(cards: list[tuple[str, str, str, str]]) -> None:
     st.markdown(sidebar_route_steps_html(cards), unsafe_allow_html=True)
+
+
+def sidebar_nav_header_html() -> str:
+    return """
+    <div class="sidebar-nav-header">
+      <div class="sidebar-nav-kicker">Readiness-first</div>
+      <div class="sidebar-nav-title">Research paths</div>
+      <div class="sidebar-nav-copy">Choose one path. Open proof only when a section is locked or needs source review.</div>
+    </div>
+    """
+
+
+def render_sidebar_nav_header() -> None:
+    st.markdown(sidebar_nav_header_html(), unsafe_allow_html=True)
 
 
 def sidebar_product_intro_html() -> str:
@@ -16347,6 +16654,652 @@ def data_health_metric_readiness_family_summary_cards(frame: pd.DataFrame | None
     ]
 
 
+def data_health_lane_operator_console_html(
+    *,
+    kicker: str,
+    title: str,
+    body: str,
+    stats: list[tuple[str, object]],
+    next_title: str,
+    next_body: str,
+    rows: pd.DataFrame,
+    footnote: str,
+) -> str:
+    stat_html = ""
+    for label, value in stats[:3]:
+        stat_html += (
+            "<div class='metric-console-stat'>"
+            f"<div class='metric-console-stat-label'>{html.escape(str(label))}</div>"
+            f"<div class='metric-console-stat-value'>{html.escape(str(value))}</div>"
+            "</div>"
+        )
+    row_html = ""
+    if rows is None or rows.empty:
+        rows = pd.DataFrame(
+            [
+                {
+                    "Family": "Readiness lane",
+                    "State": "blocked",
+                    "Blocked": "0 / 0",
+                    "Next Proof": "Open the evidence drawer after local readiness artifacts exist.",
+                    "Sub": "SPY/QQQ or local lane evidence",
+                }
+            ]
+        )
+    for _, row in rows.head(5).iterrows():
+        state = str(row.get("State", "neutral")).strip().lower()
+        if state not in {"ready", "partial", "blocked", "excluded"}:
+            state = "neutral"
+        family = format_missing(row.get("Family"), "Readiness lane")
+        sub = format_missing(row.get("Sub"), "")
+        sub_html = f"<div class='metric-family-sub'>{html.escape(sub)}</div>" if sub else ""
+        row_html += (
+            "<div class='metric-board-row'>"
+            "<div>"
+            f"<div class='metric-family-name'>{html.escape(family)}</div>"
+            f"{sub_html}"
+            "</div>"
+            f"<div><span class='state-pill {state}'>{html.escape(state)}</span></div>"
+            f"<div class='metric-board-cell'>{html.escape(format_missing(row.get('Blocked'), '0 / 0'))}</div>"
+            f"<div class='metric-board-cell'>{html.escape(format_missing(row.get('Next Proof'), 'Open evidence drawer.'))}</div>"
+            "</div>"
+        )
+    return (
+        "<div class='metric-console'>"
+        "<div class='metric-console-main'>"
+        f"<div class='metric-console-kicker'>{html.escape(kicker)}</div>"
+        f"<div class='metric-console-title'>{html.escape(title)}</div>"
+        f"<div class='metric-console-copy'>{html.escape(body)}</div>"
+        f"<div class='metric-console-stats'>{stat_html}</div>"
+        "<div class='metric-next-box'>"
+        "<div class='metric-next-label'>Next Readiness Action</div>"
+        f"<div class='metric-next-title'>{html.escape(next_title)}</div>"
+        f"<div class='metric-next-copy'>{html.escape(next_body)}</div>"
+        "</div>"
+        f"<div class='metric-console-copy'>{html.escape(footnote)}</div>"
+        "</div>"
+        "<div class='metric-console-board'>"
+        "<div class='metric-board-header'>"
+        "<div>Family</div><div>State</div><div>Blocked</div><div>Next Proof</div>"
+        "</div>"
+        f"{row_html}"
+        "</div>"
+        "</div>"
+    )
+
+
+def data_health_price_operator_console_frame(
+    readiness_summary: dict[str, object],
+    liquidity_frame: pd.DataFrame | None,
+    correlation_frame: pd.DataFrame | None,
+) -> pd.DataFrame:
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    price_blocked = max(master - price_ready, 0) if master else 0
+    liquidity_ready, liquidity_unavailable = split_risk_context_by_price_ready(
+        liquidity_frame,
+        {"Insufficient Price Data"},
+    )
+    correlation_ready, correlation_unavailable = split_risk_context_by_price_ready(
+        correlation_frame,
+        {"Insufficient Data", "Insufficient Overlap"},
+    )
+    liquidity_total = 0 if liquidity_frame is None else len(liquidity_frame)
+    correlation_total = 0 if correlation_frame is None else len(correlation_frame)
+    return pd.DataFrame(
+        [
+            {
+                "Family": "Price coverage",
+                "Sub": "local price history",
+                "State": "ready" if price_blocked == 0 and master else "partial",
+                "Blocked": f"{price_blocked:,} / {master:,}" if master else "0 / 0",
+                "Next Proof": "Review the dry-run plan before any capped local refresh.",
+            },
+            {
+                "Family": "Liquidity context",
+                "Sub": "price and volume history",
+                "State": "ready" if liquidity_total and liquidity_unavailable.empty else "partial",
+                "Blocked": f"{len(liquidity_unavailable):,} / {liquidity_total:,}",
+                "Next Proof": "Add trusted local price and volume rows before liquidity context appears.",
+            },
+            {
+                "Family": "Correlation context",
+                "Sub": "overlapping local return history",
+                "State": "ready" if correlation_total and correlation_unavailable.empty else "partial",
+                "Blocked": f"{len(correlation_unavailable):,} / {correlation_total:,}",
+                "Next Proof": "Prove enough overlapping local return history before correlation context appears.",
+            },
+        ]
+    )
+
+
+def data_health_price_operator_console_html(
+    readiness_summary: dict[str, object],
+    coverage_frontier: pd.DataFrame | None,
+    liquidity_frame: pd.DataFrame | None,
+    correlation_frame: pd.DataFrame | None,
+) -> str:
+    master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    missing_prices = max(master - price_ready, 0) if master else 0
+    next_title = "Price coverage"
+    next_body = "Start with a capped dry run. Apply nothing until local file changes and rejected rows are reviewed."
+    if coverage_frontier is not None and not coverage_frontier.empty:
+        price_rows = coverage_frontier.loc[coverage_frontier.get("Lane", pd.Series(index=coverage_frontier.index, dtype=object)).astype(str).str.lower().str.contains("price", na=False)]
+        top = price_rows.iloc[0] if not price_rows.empty else coverage_frontier.iloc[0]
+        next_title = format_missing(top.get("Lane"), next_title)
+        move = compact_card_fragment(top.get("Possible State Move"), max_chars=126)
+        next_body = f"{card_sentence('Proof path', move)} Use dry-run-first review; evidence and copy-only commands stay in the drawer."
+    return data_health_lane_operator_console_html(
+        kicker="Prices Lane",
+        title="Coverage first, refresh second.",
+        body="Price rows unlock setup, risk, benchmark, and report context. Missing rows stay blocked until trusted local history exists.",
+        stats=[
+            ("Price Ready", f"{price_ready:,}"),
+            ("Needs Price", f"{missing_prices:,}"),
+            ("Universe", f"{master:,}"),
+        ],
+        next_title=next_title,
+        next_body=next_body,
+        rows=data_health_price_operator_console_frame(readiness_summary, liquidity_frame, correlation_frame),
+        footnote="Commands and mutable workflows stay collapsed. The dashboard remains read-only.",
+    )
+
+
+def render_data_health_price_operator_console(
+    readiness_summary: dict[str, object],
+    coverage_frontier: pd.DataFrame | None,
+    liquidity_frame: pd.DataFrame | None,
+    correlation_frame: pd.DataFrame | None,
+) -> None:
+    st.markdown(
+        data_health_price_operator_console_html(readiness_summary, coverage_frontier, liquidity_frame, correlation_frame),
+        unsafe_allow_html=True,
+    )
+
+
+def data_health_fundamentals_operator_console_frame(
+    readiness_summary: dict[str, object],
+    pilot_preview: pd.DataFrame | None,
+    lane_board: pd.DataFrame | None,
+) -> pd.DataFrame:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    rows: list[dict[str, object]] = [
+        {
+            "Family": "Fundamentals / DCF",
+            "Sub": "trusted company rows",
+            "State": "ready" if dcf_ready else "partial",
+            "Blocked": f"{max(price_ready - dcf_ready, 0):,} / {price_ready:,}",
+            "Next Proof": "Use trusted fundamentals rows, then validation, preview, apply, and rebuilt readiness.",
+        },
+        {
+            "Family": "Peer valuation inputs",
+            "Sub": "mapped peers and trusted peer metrics",
+            "State": "ready" if peer_ready else "partial",
+            "Blocked": f"{max(dcf_ready - peer_ready, 0):,} / {dcf_ready:,}",
+            "Next Proof": "Keep standalone DCF separate until source-backed peer inputs are ready.",
+        },
+    ]
+    if pilot_preview is not None and not pilot_preview.empty:
+        for _, row in pilot_preview.head(3).iterrows():
+            rows.append(
+                {
+                    "Family": format_missing(row.get("Pilot Lane"), "Pilot candidate"),
+                    "Sub": format_missing(row.get("Ticker"), "Ticker"),
+                    "State": "partial",
+                    "Blocked": "review",
+                    "Next Proof": compact_card_fragment(row.get("Review Decision"), max_chars=112),
+                }
+            )
+    elif lane_board is not None and not lane_board.empty:
+        for _, row in lane_board.head(2).iterrows():
+            rows.append(
+                {
+                    "Family": format_missing(row.get("Lane"), "Pilot lane"),
+                    "Sub": format_missing(row.get("Status"), "review"),
+                    "State": "partial" if str(row.get("Status", "")).lower() != "locked" else "blocked",
+                    "Blocked": format_missing(row.get("Candidates"), "0"),
+                    "Next Proof": compact_card_fragment(row.get("What Proves It"), max_chars=112),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def data_health_fundamentals_operator_console_html(
+    readiness_summary: dict[str, object],
+    pilot_preview: pd.DataFrame | None,
+    lane_board: pd.DataFrame | None,
+) -> str:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    next_title = "Trusted company proof"
+    next_body = "Choose one candidate lane, verify source rows, then validate, preview, apply, and rebuild readiness before analysis changes."
+    if pilot_preview is not None and not pilot_preview.empty:
+        top = pilot_preview.iloc[0]
+        next_title = f"{format_missing(top.get('Ticker'), 'Ticker')} / {format_missing(top.get('Pilot Lane'), 'pilot lane')}"
+        blocker = compact_card_fragment(top.get("Missing Input"), max_chars=110)
+        next_body = f"{card_sentence('Missing input', blocker)} Open evidence for the packet, source target, and stop rule."
+    return data_health_lane_operator_console_html(
+        kicker="Fundamentals / DCF Lane",
+        title="Source proof first, model review second.",
+        body="Company analysis stays locked until trusted fundamentals, DCF fields, and peer inputs pass their local proof path.",
+        stats=[
+            ("Price Ready", f"{price_ready:,}"),
+            ("DCF Ready", f"{dcf_ready:,}"),
+            ("Peer Ready", f"{peer_ready:,}"),
+        ],
+        next_title=next_title,
+        next_body=next_body,
+        rows=data_health_fundamentals_operator_console_frame(readiness_summary, pilot_preview, lane_board),
+        footnote="Evidence, commands, rejected-row checks, and detailed pilot packets stay in the drawer.",
+    )
+
+
+def render_data_health_fundamentals_operator_console(
+    readiness_summary: dict[str, object],
+    pilot_preview: pd.DataFrame | None,
+    lane_board: pd.DataFrame | None,
+) -> None:
+    st.markdown(
+        data_health_fundamentals_operator_console_html(readiness_summary, pilot_preview, lane_board),
+        unsafe_allow_html=True,
+    )
+
+
+def data_health_peer_operator_console_frame(
+    peer_v2_frame: pd.DataFrame | None,
+    lane_board: pd.DataFrame | None,
+) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    if peer_v2_frame is not None and not peer_v2_frame.empty:
+        for _, row in peer_v2_frame.head(5).iterrows():
+            rows.append(
+                {
+                    "Family": format_missing(row.get("Sub-State"), "Peer sub-state"),
+                    "Sub": "source-backed peer workflow",
+                    "State": "partial",
+                    "Blocked": "review",
+                    "Next Proof": compact_card_fragment(row.get("Meaning"), max_chars=112),
+                }
+            )
+    if lane_board is not None and not lane_board.empty:
+        peer_rows = lane_board.loc[
+            lane_board.get("Lane", pd.Series(index=lane_board.index, dtype=object)).astype(str).str.lower().str.contains("peer", na=False)
+        ]
+        for _, row in peer_rows.head(3).iterrows():
+            rows.append(
+                {
+                    "Family": format_missing(row.get("Lane"), "Peer lane"),
+                    "Sub": format_missing(row.get("Status"), "review"),
+                    "State": "blocked" if str(row.get("Status", "")).lower() == "locked" else "partial",
+                    "Blocked": format_missing(row.get("Candidates"), "0"),
+                    "Next Proof": compact_card_fragment(row.get("What Proves It"), max_chars=112),
+                }
+            )
+    if not rows:
+        rows.append(
+            {
+                "Family": "Peer readiness",
+                "Sub": "mapping, trend, fundamentals, valuation",
+                "State": "blocked",
+                "Blocked": "0 / 0",
+                "Next Proof": "Rebuild readiness before separating peer sub-states.",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def data_health_peer_operator_console_html(
+    readiness_summary: dict[str, object],
+    peer_v2_frame: pd.DataFrame | None,
+    lane_board: pd.DataFrame | None,
+) -> str:
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    peer_gap = max(dcf_ready - peer_ready, 0)
+    next_title = "Peer sub-state proof"
+    next_body = "Separate peer mapping, peer price, peer fundamentals, and peer valuation before reading peer-relative context."
+    if lane_board is not None and not lane_board.empty:
+        peer_rows = lane_board.loc[
+            lane_board.get("Lane", pd.Series(index=lane_board.index, dtype=object)).astype(str).str.lower().str.contains("peer", na=False)
+        ]
+        if not peer_rows.empty:
+            top = peer_rows.iloc[0]
+            next_title = format_missing(top.get("Lane"), next_title)
+            proof = compact_card_fragment(top.get("What Proves It"), max_chars=128)
+            next_body = f"{card_sentence('Proof', proof)} Keep peer valuation withheld until the sub-state is supported."
+    return data_health_lane_operator_console_html(
+        kicker="Peers Lane",
+        title="Map peers first, compare later.",
+        body="Peer trend, peer fundamentals, and peer valuation are separate gates. Sector fallback stays context only.",
+        stats=[
+            ("DCF Ready", f"{dcf_ready:,}"),
+            ("Peer Ready", f"{peer_ready:,}"),
+            ("Peer Gap", f"{peer_gap:,}"),
+        ],
+        next_title=next_title,
+        next_body=next_body,
+        rows=data_health_peer_operator_console_frame(peer_v2_frame, lane_board),
+        footnote="Peer commands and row-level proof stay in the evidence drawer. No guessed peers or inferred peer valuation.",
+    )
+
+
+def render_data_health_peer_operator_console(
+    readiness_summary: dict[str, object],
+    peer_v2_frame: pd.DataFrame | None,
+    lane_board: pd.DataFrame | None,
+) -> None:
+    st.markdown(
+        data_health_peer_operator_console_html(readiness_summary, peer_v2_frame, lane_board),
+        unsafe_allow_html=True,
+    )
+
+
+def data_health_optional_operator_console_frame(
+    readiness_summary: dict[str, object],
+    optional_context_worklist_frame: pd.DataFrame | None,
+) -> pd.DataFrame:
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    optional_rows = 0 if optional_context_worklist_frame is None else len(optional_context_worklist_frame)
+    rows = [
+        {
+            "Family": "Earnings context",
+            "Sub": "trusted local rows only",
+            "State": "ready" if earnings_ready else "blocked",
+            "Blocked": "locked" if not earnings_ready else "0",
+            "Next Proof": "Leave locked unless trusted local earnings rows are reviewable.",
+        },
+        {
+            "Family": "Analyst estimates",
+            "Sub": "trusted local rows only",
+            "State": "ready" if estimates_ready else "blocked",
+            "Blocked": "locked" if not estimates_ready else "0",
+            "Next Proof": "Leave locked unless trusted local analyst-estimate rows are reviewable.",
+        },
+        {
+            "Family": "Optional worklist",
+            "Sub": "lower-priority enrichment",
+            "State": "partial" if optional_rows else "blocked",
+            "Blocked": f"{optional_rows:,}",
+            "Next Proof": "Use validate, preview, apply, and optional-context readiness only after source review.",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def data_health_optional_operator_console_html(
+    readiness_summary: dict[str, object],
+    optional_context_worklist_frame: pd.DataFrame | None,
+) -> str:
+    earnings_ready = int(readiness_summary.get("earnings_ready") or 0)
+    estimates_ready = int(readiness_summary.get("analyst_estimates_ready") or readiness_summary.get("analyst_ready") or 0)
+    optional_rows = 0 if optional_context_worklist_frame is None else len(optional_context_worklist_frame)
+    next_title = "Keep optional context locked"
+    next_body = "Earnings and analyst-estimate context should remain unavailable unless trusted local rows exist and pass review."
+    if optional_rows:
+        next_body = f"{optional_rows:,} optional worklist row(s) are visible. Treat them as enrichment, not a blocker for core ready analysis."
+    return data_health_lane_operator_console_html(
+        kicker="Optional Context Lane",
+        title="Optional means locked until trusted.",
+        body="Earnings and analyst-estimate context can enrich reports, but empty optional rows must not become inferred conclusions.",
+        stats=[
+            ("Earnings", f"{earnings_ready:,}"),
+            ("Estimates", f"{estimates_ready:,}"),
+            ("Worklist", f"{optional_rows:,}"),
+        ],
+        next_title=next_title,
+        next_body=next_body,
+        rows=data_health_optional_operator_console_frame(readiness_summary, optional_context_worklist_frame),
+        footnote="Optional context is manual/trusted-local only. Commands and templates stay in the evidence drawer.",
+    )
+
+
+def render_data_health_optional_operator_console(
+    readiness_summary: dict[str, object],
+    optional_context_worklist_frame: pd.DataFrame | None,
+) -> None:
+    st.markdown(
+        data_health_optional_operator_console_html(readiness_summary, optional_context_worklist_frame),
+        unsafe_allow_html=True,
+    )
+
+
+def data_health_proof_history_operator_console_frame(
+    proof_timeline: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None,
+    comparison: ReadinessComparison | None,
+) -> pd.DataFrame:
+    proof_count = 0 if proof_timeline is None else len(proof_timeline)
+    batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison_next_proof = comparison.blocking_message or "Use changed counts as proof-ledger input after source review."
+    if comparison.status != "ok" and "make readiness-snapshot" in comparison_next_proof:
+        comparison_next_proof = "Capture a prior readiness snapshot before a reviewed batch, then compare real before/after counts."
+    return pd.DataFrame(
+        [
+            {
+                "Family": "Reviewed data proof",
+                "Sub": "durable lane outcomes",
+                "State": "ready" if proof_count else "partial",
+                "Blocked": f"{proof_count:,}",
+                "Next Proof": "Record supported, still-blocked, skipped, or excluded only after source proof and rebuilt readiness.",
+            },
+            {
+                "Family": "Reviewed batch proof",
+                "Sub": "capped run outcomes",
+                "State": "ready" if batch_count else "partial",
+                "Blocked": f"{batch_count:,}",
+                "Next Proof": "Use validate, preview, apply decision, readiness proof, and churn review before recording an outcome.",
+            },
+            {
+                "Family": "Before / after comparison",
+                "Sub": comparison.freshness_status,
+                "State": "ready" if comparison.status == "ok" else "blocked",
+                "Blocked": f"{comparison.changed_count:,}",
+                "Next Proof": comparison_next_proof,
+            },
+        ]
+    )
+
+
+def data_health_proof_history_operator_console_html(
+    proof_timeline: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None,
+    comparison: ReadinessComparison | None,
+) -> str:
+    proof_count = 0 if proof_timeline is None else len(proof_timeline)
+    batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    next_title = "Proof ledger review"
+    next_body = "Open evidence only when you need durable supported, still-blocked, skipped, or excluded outcomes."
+    if comparison.status != "ok":
+        next_title = "Snapshot comparison blocked"
+        next_body = "Capture a prior readiness snapshot before a reviewed batch, then compare real before/after counts."
+    elif comparison.changed_count:
+        next_title = "Changed readiness proof"
+        next_body = f"{comparison.changed_count:,} changed ticker(s) are available for reviewed proof context; use source review before recording outcomes."
+    return data_health_lane_operator_console_html(
+        kicker="Proof History Lane",
+        title="Record proof, not optimism.",
+        body="Proof history shows reviewed lane and batch outcomes. It is evidence for data readiness, not a performance or recommendation signal.",
+        stats=[
+            ("Data Proofs", f"{proof_count:,}"),
+            ("Batch Proofs", f"{batch_count:,}"),
+            ("Changed", f"{comparison.changed_count:,}"),
+        ],
+        next_title=next_title,
+        next_body=next_body,
+        rows=data_health_proof_history_operator_console_frame(proof_timeline, batch_proof_frame, comparison),
+        footnote="Evidence tables stay collapsed. Generated CSV churn is not proof unless reviewed and intentionally selected.",
+    )
+
+
+def render_data_health_proof_history_operator_console(
+    proof_timeline: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None,
+    comparison: ReadinessComparison | None,
+) -> None:
+    st.markdown(
+        data_health_proof_history_operator_console_html(proof_timeline, batch_proof_frame, comparison),
+        unsafe_allow_html=True,
+    )
+
+
+def metric_console_state_label(row: pd.Series) -> str:
+    blocked = int(row.get("Blocked Rows", 0) or 0)
+    partial = int(row.get("Partial Rows", 0) or 0)
+    ready = int(row.get("Ready Rows", 0) or 0)
+    excluded = int(row.get("Excluded Rows", 0) or 0)
+    if blocked:
+        return "blocked"
+    if partial:
+        return "partial"
+    if ready:
+        return "ready"
+    if excluded:
+        return "excluded"
+    return "neutral"
+
+
+def metric_console_next_action(frame: pd.DataFrame | None) -> dict[str, str]:
+    if frame is None or frame.empty:
+        return {
+            "family": "Metric readiness queue",
+            "blocker": "No SPY/QQQ metric-readiness rows are available yet.",
+            "next_proof": "Open the evidence drawer after local readiness artifacts exist.",
+        }
+    blockers = frame.get("Top Blocker", pd.Series(index=frame.index, dtype=object)).fillna("").astype(str)
+    actionable = frame.loc[blockers.str.strip().str.lower().ne("none")]
+    row = actionable.iloc[0] if not actionable.empty else frame.iloc[0]
+    family = format_missing(row.get("Blocker Family"), "metric readiness").title()
+    blocker = compact_card_fragment(format_missing(row.get("Top Blocker"), "No blocker recorded."), max_chars=128)
+    next_check = format_missing(row.get("Next Check"), "Open the evidence drawer for the copy-only check.")
+    proof_hint = operator_queue_preview_copy(next_check)
+    if not proof_hint or proof_hint == "open the evidence drawer":
+        proof_hint = "Open the evidence drawer for the copy-only check."
+    return {
+        "family": family,
+        "blocker": blocker,
+        "next_proof": proof_hint,
+    }
+
+
+def data_health_metric_operator_console_frame(frame: pd.DataFrame | None, *, limit: int = 5) -> pd.DataFrame:
+    summary = data_health_metric_readiness_family_summary_frame(frame)
+    if summary.empty:
+        return pd.DataFrame(
+            [
+                {
+                    "Blocker Family": "metric readiness queue",
+                    "State": "blocked",
+                    "Rows": 0,
+                    "Blocked / Partial": 0,
+                    "Benchmarks": "SPY, QQQ",
+                    "Next Proof": "Open the evidence drawer after local readiness artifacts exist.",
+                }
+            ]
+        )
+    rows: list[dict[str, object]] = []
+    for _, row in summary.head(max(limit, 1)).iterrows():
+        blocked_partial = int(row.get("Blocked Rows", 0) or 0) + int(row.get("Partial Rows", 0) or 0)
+        next_check = operator_queue_preview_copy(row.get("First Next Check"))
+        if not next_check or next_check == "open the evidence drawer":
+            next_check = "Open evidence drawer for copy-only check."
+        rows.append(
+            {
+                "Blocker Family": str(row.get("Blocker Family", "none")),
+                "State": metric_console_state_label(row),
+                "Rows": int(row.get("Queue Rows", 0) or 0),
+                "Blocked / Partial": blocked_partial,
+                "Benchmarks": format_missing(row.get("Benchmarks"), "SPY, QQQ"),
+                "Next Proof": next_check,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def data_health_metric_operator_console_html(frame: pd.DataFrame | None) -> str:
+    rows = 0 if frame is None else len(frame)
+    states = (
+        pd.Series(dtype=object)
+        if frame is None or frame.empty or "Overall State" not in frame.columns
+        else frame["Overall State"].fillna("").astype(str).str.lower()
+    )
+    partial_blocked = int(states.isin({"partial", "blocked"}).sum()) if not states.empty else 0
+    excluded = int(states.eq("excluded").sum()) if not states.empty else 0
+    benchmarks = "SPY, QQQ"
+    freshness = "unknown"
+    if frame is not None and not frame.empty:
+        benchmarks = ", ".join(dict.fromkeys(frame.get("Benchmark", pd.Series(index=frame.index, dtype=object)).dropna().astype(str).tolist())) or benchmarks
+        freshness_values = frame.get("Freshness", pd.Series(index=frame.index, dtype=object)).dropna().astype(str).str.lower()
+        if not freshness_values.empty:
+            freshness = ", ".join(dict.fromkeys(freshness_values.tolist()))
+    next_action = metric_console_next_action(frame)
+    console_frame = data_health_metric_operator_console_frame(frame)
+    row_html = ""
+    for _, row in console_frame.iterrows():
+        state = str(row.get("State", "neutral")).lower()
+        if state not in {"ready", "partial", "blocked", "excluded"}:
+            state = "neutral"
+        row_html += (
+            "<div class='metric-board-row'>"
+            "<div>"
+            f"<div class='metric-family-name'>{html.escape(str(row.get('Blocker Family', 'Metric readiness'))).title()}</div>"
+            f"<div class='metric-family-sub'>{html.escape(format_missing(row.get('Benchmarks'), 'SPY, QQQ'))}</div>"
+            "</div>"
+            f"<div><span class='state-pill {state}'>{html.escape(state)}</span></div>"
+            f"<div class='metric-board-cell'>{html.escape(str(row.get('Blocked / Partial', 0)))} / {html.escape(str(row.get('Rows', 0)))}</div>"
+            f"<div class='metric-board-cell'>{html.escape(format_missing(row.get('Next Proof'), 'Open evidence drawer.'))}</div>"
+            "</div>"
+        )
+    return (
+        "<div class='metric-console'>"
+        "<div class='metric-console-main'>"
+        "<div class='metric-console-kicker'>Metrics Lane</div>"
+        "<div class='metric-console-title'>Readiness first, metric review second.</div>"
+        "<div class='metric-console-copy'>"
+        "SPY/QQQ review metrics stay blocked, partial, ready, or excluded based on trusted local inputs. "
+        "No metric row is a recommendation."
+        "</div>"
+        "<div class='metric-console-stats'>"
+        "<div class='metric-console-stat'>"
+        "<div class='metric-console-stat-label'>Queue Rows</div>"
+        f"<div class='metric-console-stat-value'>{rows:,}</div>"
+        "</div>"
+        "<div class='metric-console-stat'>"
+        "<div class='metric-console-stat-label'>Needs Proof</div>"
+        f"<div class='metric-console-stat-value'>{partial_blocked:,}</div>"
+        "</div>"
+        "<div class='metric-console-stat'>"
+        "<div class='metric-console-stat-label'>Excluded</div>"
+        f"<div class='metric-console-stat-value'>{excluded:,}</div>"
+        "</div>"
+        "</div>"
+        "<div class='metric-next-box'>"
+        "<div class='metric-next-label'>Next Readiness Action</div>"
+        f"<div class='metric-next-title'>{html.escape(next_action['family'])}</div>"
+        f"<div class='metric-next-copy'>{html.escape(next_action['blocker'])} Next proof: {html.escape(next_action['next_proof'])}</div>"
+        "</div>"
+        f"<div class='metric-console-copy'>Benchmarks: {html.escape(benchmarks)}. Freshness: {html.escape(freshness)}. Commands and row proof stay in the evidence drawer.</div>"
+        "</div>"
+        "<div class='metric-console-board'>"
+        "<div class='metric-board-header'>"
+        "<div>Family</div><div>State</div><div>Blocked</div><div>Next Proof</div>"
+        "</div>"
+        f"{row_html}"
+        "</div>"
+        "</div>"
+    )
+
+
+def render_data_health_metric_operator_console(frame: pd.DataFrame | None) -> None:
+    st.markdown(data_health_metric_operator_console_html(frame), unsafe_allow_html=True)
+
+
 def data_health_operator_snapshot_cards(
     readiness_summary: dict[str, object],
     ops_frame: pd.DataFrame | None,
@@ -23524,11 +24477,19 @@ def render_data_health(
     render_data_health_operator_lane_nav(selected_lane_key)
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     if selected_lane == "Prices":
-        render_operator_queue_preview(
-            data_health_coverage_frontier_cards(coverage_frontier, limit=2)
-            + data_health_risk_context_cards(liquidity_frame, correlation_frame)
+        render_data_health_price_operator_console(
+            readiness_summary,
+            coverage_frontier,
+            liquidity_frame,
+            correlation_frame,
         )
         with st.expander("Price evidence drawer", expanded=False):
+            render_section_header("Price Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+            render_signal_cards(
+                data_health_coverage_frontier_cards(coverage_frontier, limit=2)
+                + data_health_risk_context_cards(liquidity_frame, correlation_frame),
+                show_commands=False,
+            )
             render_section_header("Reviewed Batch Preflight", "Snapshot and freshness gates before any capped reviewed execution.")
             render_signal_cards(data_health_reviewed_batch_preflight_cards(batch_preflight))
             st.dataframe(clean_display_frame(data_health_reviewed_batch_preflight_frame(batch_preflight)), width="stretch", hide_index=True)
@@ -23545,8 +24506,10 @@ def render_data_health(
             )
         else:
             fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)
-        render_operator_queue_preview(fundamentals_preview_cards)
+        render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board)
         with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
+            render_section_header("Fundamentals / DCF Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+            render_signal_cards(fundamentals_preview_cards, show_commands=False)
             render_context_note(
                 "Pilot selection rule.",
                 data_health_trusted_pilot_selection_note(
@@ -23563,21 +24526,20 @@ def render_data_health(
             if not pilot_preview.empty:
                 st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
     elif selected_lane == "Peers":
-        render_operator_queue_preview(
-            data_health_peer_readiness_v2_cards(ops_center) + data_health_trusted_pilot_lane_cards(lane_board)
-        )
+        render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)
         with st.expander("Peer evidence drawer", expanded=False):
+            render_section_header("Peer Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+            render_signal_cards(
+                data_health_peer_readiness_v2_cards(ops_center) + data_health_trusted_pilot_lane_cards(lane_board),
+                show_commands=False,
+            )
             render_section_header("Peer Readiness Sub-State Matrix", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
             st.dataframe(clean_display_frame(peer_v2_frame), width="stretch", hide_index=True)
             render_section_header("Lane-Group Evidence Summary", "Choose the proof lane first; prices stay dry-run-first and optional context stays locked/manual.")
             render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))
             st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
     elif selected_lane == "Metrics":
-        render_operator_queue_preview(
-            data_health_metric_readiness_family_summary_cards(metric_queue_frame)
-            + data_health_metric_readiness_queue_cards(metric_queue_frame)
-            + data_health_review_metric_readiness_cards()
-        )
+        render_data_health_metric_operator_console(metric_queue_frame)
         with st.expander("Metrics evidence drawer", expanded=False):
             render_section_header("Metric Blocker Family Summary", "Compact SPY / QQQ blocker-family triage before row-level proof.")
             st.dataframe(
@@ -23585,9 +24547,16 @@ def render_data_health(
                 width="stretch",
                 hide_index=True,
             )
+            render_section_header("Metric Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+            render_signal_cards(
+                data_health_metric_readiness_family_summary_cards(metric_queue_frame)
+                + data_health_metric_readiness_queue_cards(metric_queue_frame),
+                show_commands=False,
+            )
             render_section_header("SPY / QQQ Metric-Readiness Queue", "Combined benchmark queue for blocker-family triage.")
             st.dataframe(clean_display_frame(metric_queue_frame), width="stretch", hide_index=True)
             render_section_header("Review Metric Readiness Gates", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
+            render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
             st.dataframe(clean_display_frame(data_health_review_metric_readiness_frame()), width="stretch", hide_index=True)
     elif selected_lane == "Optional Context":
         optional_cards = data_health_operations_cockpit_cards(
@@ -23598,21 +24567,27 @@ def render_data_health(
             analyst_readiness_frame,
             readiness_freshness,
         )[3:4]
-        render_operator_queue_preview(
-            optional_cards + data_health_advanced_unlock_map_cards(None, None, optional_context_worklist_frame)
-        )
+        render_data_health_optional_operator_console(readiness_summary, optional_context_worklist_frame)
         with st.expander("Optional context evidence drawer", expanded=False):
+            render_section_header("Optional Context Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+            render_signal_cards(
+                optional_cards + data_health_advanced_unlock_map_cards(None, None, optional_context_worklist_frame),
+                show_commands=False,
+            )
             render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
             render_signal_cards(data_health_freshness_routine_cards(readiness_summary))
             render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
             render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     elif selected_lane == "Proof History":
-        render_operator_queue_preview(
-            data_health_reviewed_proof_cards()
-            + data_health_reviewed_batch_proof_cards()
-            + data_health_readiness_comparison_cards(readiness_comparison)
-        )
+        render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)
         with st.expander("Proof history evidence drawer", expanded=False):
+            render_section_header("Proof History Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
+            render_signal_cards(
+                data_health_reviewed_proof_cards()
+                + data_health_reviewed_batch_proof_cards()
+                + data_health_readiness_comparison_cards(readiness_comparison),
+                show_commands=False,
+            )
             render_section_header("Reviewed Data Proof Ledger", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
             render_signal_cards(data_health_reviewed_proof_cards())
             if proof_timeline.empty:
@@ -24691,7 +25666,7 @@ def main() -> None:
     output_frames = load_pipeline_outputs()
 
     with st.sidebar:
-        st.header("Explore")
+        render_sidebar_nav_header()
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
         initial_mode = dashboard_mode_from_query(st.query_params.get("mode"), initial_page)
         public_demo_mode = st.toggle(

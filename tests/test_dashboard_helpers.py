@@ -336,6 +336,8 @@ def test_data_health_operator_lane_query_supports_deep_links():
     assert dashboard.data_health_operator_lane_from_query("dcf") == "fundamentals"
     assert dashboard.data_health_operator_lane_from_query("optional_context") == "optional"
     assert dashboard.data_health_operator_lane_from_query("proof-history") == "proof"
+    assert dashboard.data_health_operator_lane_from_query(["metrics"]) == "metrics"
+    assert dashboard.data_health_operator_lane_from_query(("proof",)) == "proof"
     assert dashboard.data_health_operator_lane_from_query("unknown") == "prices"
     assert set(dashboard.DATA_HEALTH_OPERATOR_LANES) == {
         "prices",
@@ -640,8 +642,18 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert 'st.expander("Local commands to copy"' not in source
     assert 'st.expander("Quick reading guide"' not in source
     assert 'st.expander("Need help?"' not in source
-    assert 'st.header("Explore")' in source
+    assert "render_sidebar_nav_header()" in source
+    assert 'st.header("Explore")' not in source
     assert 'st.header("Navigation")' not in source
+    assert ".sidebar-nav-header" in source
+    assert '[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked)' in source
+    assert '[data-testid="stSidebar"] [role="radiogroup"] label[data-baseweb="radio"] > div:first-child' in source
+    assert "--research-shadow-soft" in source
+    assert '[data-testid="stMainBlockContainer"]' in source
+    assert '[data-testid="stExpander"] details > summary' in source
+    assert '[data-testid="stDataFrame"] [role="columnheader"]' in source
+    assert "var(--research-radius)" in source
+    assert "pointer-events: none;" in source
     assert '"Choose your path"' in source
     assert '"Choose a page"' not in source
     assert 'st.expander("Optional research views"' in source
@@ -741,6 +753,24 @@ def test_sidebar_product_intro_is_portfolio_safe_and_not_command_first():
     assert "make " not in lowered
     assert "buy" not in lowered
     assert "sell" not in lowered
+    assert "recommend" not in lowered
+
+
+def test_sidebar_nav_header_is_readiness_first_and_not_command_first():
+    rendered = dashboard.sidebar_nav_header_html()
+    lowered = rendered.lower()
+
+    assert "sidebar-nav-header" in rendered
+    assert "readiness-first" in lowered
+    assert "research paths" in lowered
+    assert "choose one path" in lowered
+    assert "open proof only" in lowered
+    assert "make " not in lowered
+    assert "buy" not in lowered
+    assert "sell" not in lowered
+    assert "broker" not in lowered
+    assert "order" not in lowered
+    assert "trading" not in lowered
     assert "recommend" not in lowered
 
 
@@ -10258,6 +10288,209 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
     assert "sell" not in rendered
 
 
+def test_price_operator_console_keeps_first_view_actionable_without_commands():
+    summary = {
+        "master_universe": 100,
+        "price_ready": 25,
+    }
+    liquidity = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD"],
+            "LiquidityStatus": ["Liquid", "Insufficient Price Data"],
+        }
+    )
+    correlation = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD"],
+            "CorrelationStatus": ["Ready", "Insufficient Overlap"],
+        }
+    )
+    frontier = pd.DataFrame(
+        [
+            {
+                "Lane": "Price Coverage",
+                "Possible State Move": "75 rows could move after reviewed proof.",
+            }
+        ]
+    )
+
+    frame = dashboard.data_health_price_operator_console_frame(summary, liquidity, correlation)
+    html = dashboard.data_health_price_operator_console_html(summary, frontier, liquidity, correlation).lower()
+
+    assert frame["Family"].tolist() == ["Price coverage", "Liquidity context", "Correlation context"]
+    assert "prices lane" in html
+    assert "coverage first, refresh second" in html
+    assert "next readiness action" in html
+    assert "price coverage" in html
+    assert "commands and mutable workflows stay collapsed" in html
+    assert "make " not in html
+    assert "buy" not in html
+    assert "sell" not in html
+    assert "broker" not in html
+    assert "order" not in html
+    assert "trading" not in html
+
+
+def test_fundamentals_operator_console_keeps_pilot_detail_in_drawer_language():
+    summary = {
+        "price_ready": 25,
+        "dcf_ready": 5,
+        "peer_ready": 2,
+    }
+    preview = pd.DataFrame(
+        [
+            {
+                "Ticker": "MU",
+                "Pilot Lane": "Peer mapping proof",
+                "Missing Input": "needs source-backed peer mappings",
+                "Review Decision": "Choose this company only if source-backed peer relationships can be reviewed.",
+            }
+        ]
+    )
+
+    frame = dashboard.data_health_fundamentals_operator_console_frame(summary, preview, pd.DataFrame())
+    html = dashboard.data_health_fundamentals_operator_console_html(summary, preview, pd.DataFrame()).lower()
+
+    assert "Fundamentals / DCF" in frame["Family"].tolist()
+    assert "Peer valuation inputs" in frame["Family"].tolist()
+    assert "fundamentals / dcf lane" in html
+    assert "source proof first, model review second" in html
+    assert "mu / peer mapping proof" in html
+    assert "open evidence for the packet" in html
+    assert "evidence, commands, rejected-row checks" in html
+    assert "make " not in html
+    assert "buy" not in html
+    assert "sell" not in html
+    assert "broker" not in html
+    assert "order" not in html
+    assert "trading" not in html
+
+
+def test_peer_operator_console_separates_peer_substates_without_commands():
+    summary = {"dcf_ready": 12, "peer_ready": 3}
+    peer_v2 = pd.DataFrame(
+        [
+            {
+                "Sub-State": "Peer mapping",
+                "Meaning": "Source-backed comparable-company rows exist for the ticker.",
+            },
+            {
+                "Sub-State": "Peer valuation",
+                "Meaning": "Mapped peers have trusted valuation inputs.",
+            },
+        ]
+    )
+    lane_board = pd.DataFrame(
+        [
+            {
+                "Lane": "Peer valuation inputs proof path",
+                "Status": "review_only",
+                "Candidates": 4,
+                "What Proves It": "Mapped peers and trusted peer valuation inputs pass readiness.",
+            }
+        ]
+    )
+
+    frame = dashboard.data_health_peer_operator_console_frame(peer_v2, lane_board)
+    html = dashboard.data_health_peer_operator_console_html(summary, peer_v2, lane_board).lower()
+
+    assert "Peer mapping" in frame["Family"].tolist()
+    assert "Peer valuation" in frame["Family"].tolist()
+    assert "peers lane" in html
+    assert "map peers first, compare later" in html
+    assert "peer gap" in html
+    assert "no guessed peers or inferred peer valuation" in html
+    assert "make " not in html
+    assert "buy" not in html
+    assert "sell" not in html
+    assert "broker" not in html
+    assert "order" not in html
+    assert "trading" not in html
+
+
+def test_optional_context_operator_console_keeps_manual_lane_locked():
+    summary = {
+        "earnings_ready": 0,
+        "analyst_estimates_ready": 1,
+    }
+    worklist = pd.DataFrame({"ticker": ["NVDA", "META"]})
+
+    frame = dashboard.data_health_optional_operator_console_frame(summary, worklist)
+    html = dashboard.data_health_optional_operator_console_html(summary, worklist).lower()
+
+    assert frame["Family"].tolist() == ["Earnings context", "Analyst estimates", "Optional worklist"]
+    assert "optional context lane" in html
+    assert "optional means locked until trusted" in html
+    assert "manual/trusted-local only" in html
+    assert "empty optional rows must not become inferred conclusions" in html
+    assert "make " not in html
+    assert "buy" not in html
+    assert "sell" not in html
+    assert "broker" not in html
+    assert "order" not in html
+    assert "trading" not in html
+
+
+def test_proof_history_operator_console_keeps_outcomes_evidence_only():
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("before.csv"),
+        after_path=Path("after.csv"),
+        before_rows=10,
+        after_rows=10,
+        changed_readiness_counts="partial: 1 -> ready: 1",
+        changed_tickers=["NVDA", "MU"],
+        changed_count=2,
+        freshness_status="current",
+        freshness_message="current",
+        blocking_message="",
+    )
+    proof_timeline = pd.DataFrame({"Proof ID": ["p1"], "Final Outcome": ["supported"]})
+    batch_proof = pd.DataFrame({"Batch ID": ["b1"], "Final Outcome": ["still_blocked"]})
+
+    frame = dashboard.data_health_proof_history_operator_console_frame(proof_timeline, batch_proof, comparison)
+    html = dashboard.data_health_proof_history_operator_console_html(proof_timeline, batch_proof, comparison).lower()
+
+    assert frame["Family"].tolist() == ["Reviewed data proof", "Reviewed batch proof", "Before / after comparison"]
+    assert "proof history lane" in html
+    assert "record proof, not optimism" in html
+    assert "evidence for data readiness" in html
+    assert "not a performance or recommendation signal" in html
+    assert "generated csv churn is not proof" in html
+    assert "make " not in html
+    assert "buy" not in html
+    assert "sell" not in html
+    assert "broker" not in html
+    assert "order" not in html
+    assert "trading" not in html
+
+
+def test_proof_history_operator_console_hides_snapshot_commands_when_blocked():
+    comparison = dashboard.ReadinessComparison(
+        status="blocked",
+        before_path=Path("data/reports/readiness_snapshot.previous.csv"),
+        after_path=Path("data/reports/readiness_snapshot.csv"),
+        before_rows=0,
+        after_rows=10,
+        changed_readiness_counts="",
+        changed_tickers=[],
+        changed_count=0,
+        freshness_status="missing",
+        freshness_message="missing",
+        blocking_message="Missing prior readiness snapshot. Run make readiness-snapshot before a reviewed batch.",
+    )
+    proof_timeline = pd.DataFrame({"Proof ID": ["p1"], "Final Outcome": ["supported"]})
+    batch_proof = pd.DataFrame({"Batch ID": ["b1"], "Final Outcome": ["still_blocked"]})
+
+    frame = dashboard.data_health_proof_history_operator_console_frame(proof_timeline, batch_proof, comparison)
+    html = dashboard.data_health_proof_history_operator_console_html(proof_timeline, batch_proof, comparison).lower()
+
+    assert "snapshot comparison blocked" in html
+    assert "capture a prior readiness snapshot" in html
+    assert "make " not in html
+    assert not frame["Next Proof"].str.lower().str.contains("make ").any()
+
+
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -10265,15 +10498,21 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
     queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
-    price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', lane_selector_index)
+    price_console_index = source.index("render_data_health_price_operator_console(", lane_selector_index)
+    price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', price_console_index)
     fundamentals_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)', price_drawer_index)
-    peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)', fundamentals_drawer_index)
+    fundamentals_console_index = source.index("render_data_health_fundamentals_operator_console(", price_drawer_index)
+    peer_console_index = source.index("render_data_health_peer_operator_console(", fundamentals_drawer_index)
+    peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)', peer_console_index)
     metrics_drawer_index = source.index('st.expander("Metrics evidence drawer", expanded=False)', peer_drawer_index)
-    proof_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', metrics_drawer_index)
+    optional_console_index = source.index("render_data_health_optional_operator_console(", metrics_drawer_index)
+    optional_drawer_index = source.index('st.expander("Optional context evidence drawer", expanded=False)', optional_console_index)
+    proof_console_index = source.index("render_data_health_proof_history_operator_console(", optional_drawer_index)
+    proof_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', proof_console_index)
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < price_drawer_index < fundamentals_drawer_index < peer_drawer_index < metrics_drawer_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < proof_drawer_index < all_details_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = readiness_freshness_status(BASE_DIR)" in source
@@ -10281,7 +10520,16 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_operator_snapshot_cards(" in source
     assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
     assert "def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4)" in source
-    assert "render_operator_queue_preview(\n            data_health_coverage_frontier_cards(coverage_frontier, limit=2)" in source
+    assert "render_data_health_price_operator_console(" in source
+    assert "Price Queue Snapshot" in source
+    assert "render_data_health_fundamentals_operator_console(readiness_summary, pilot_preview, lane_board)" in source
+    assert "Fundamentals / DCF Queue Snapshot" in source
+    assert "render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)" in source
+    assert "Peer Queue Snapshot" in source
+    assert "render_data_health_optional_operator_console(readiness_summary, optional_context_worklist_frame)" in source
+    assert "Optional Context Queue Snapshot" in source
+    assert "render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)" in source
+    assert "Proof History Snapshot" in source
     assert "earnings_readiness_frame,\n            analyst_readiness_frame" in source
     assert "analyst_readiness_frame,\n            readiness_freshness" in source
     assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
@@ -18817,20 +19065,78 @@ def test_metric_readiness_queue_frame_covers_spy_and_qqq():
     }.issubset(frame.columns)
 
 
+def test_metric_operator_console_summarizes_first_view_without_command_noise():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Benchmark": "SPY",
+                "Overall State": "partial",
+                "Ready Metrics": 5,
+                "Partial Metrics": 4,
+                "Blocked Metrics": 0,
+                "Excluded Metrics": 0,
+                "Top Blocker": "benchmark_relative_return: at least 60 aligned ticker/SPY price rows",
+                "Blocker Family": "benchmark / risk",
+                "Next Check": "make focus-price TICKER=NVDA",
+                "Freshness": "current",
+            },
+            {
+                "Ticker": "QQQ",
+                "Benchmark": "SPY",
+                "Overall State": "excluded",
+                "Ready Metrics": 2,
+                "Partial Metrics": 0,
+                "Blocked Metrics": 0,
+                "Excluded Metrics": 3,
+                "Top Blocker": "none",
+                "Blocker Family": "none",
+                "Next Check": "make stock-report-md TICKER=QQQ",
+                "Freshness": "current",
+            },
+        ]
+    )
+
+    console_frame = dashboard.data_health_metric_operator_console_frame(frame)
+    html = dashboard.data_health_metric_operator_console_html(frame).lower()
+
+    assert list(console_frame.columns) == [
+        "Blocker Family",
+        "State",
+        "Rows",
+        "Blocked / Partial",
+        "Benchmarks",
+        "Next Proof",
+    ]
+    assert "metric-console" in html
+    assert "next readiness action" in html
+    assert "benchmark / risk" in html
+    assert "commands and row proof stay in the evidence drawer" in html
+    assert "make " not in html
+    assert "buy" not in html
+    assert "sell" not in html
+    assert "broker" not in html
+    assert "order" not in html
+    assert "trading" not in html
+
+
 def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
     risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", lane_selector_index)
-    metric_queue_index = source.index("data_health_metric_readiness_queue_cards(metric_queue_frame)", lane_selector_index)
-    metric_summary_index = source.index("data_health_metric_readiness_family_summary_cards(metric_queue_frame)", lane_selector_index)
+    metric_console_index = source.index("render_data_health_metric_operator_console(metric_queue_frame)", lane_selector_index)
+    metric_queue_index = source.index("data_health_metric_readiness_queue_cards(metric_queue_frame)", metric_console_index)
+    metric_summary_index = source.index("data_health_metric_readiness_family_summary_cards(metric_queue_frame)", metric_console_index)
     metric_cards_index = source.index("data_health_review_metric_readiness_cards()", lane_selector_index)
     metric_queue_expander_index = source.index('st.expander("Metrics evidence drawer", expanded=False)', lane_selector_index)
     metric_summary_table_index = source.index('render_section_header("Metric Blocker Family Summary"', metric_queue_expander_index)
     liquidity_expander_index = source.index('st.expander("Liquidity Context", expanded=False)')
     correlation_expander_index = source.index('st.expander("Correlation Concentration Context", expanded=False)')
 
-    assert risk_cards_index < metric_summary_index < metric_queue_index < metric_cards_index < metric_queue_expander_index < metric_summary_table_index < liquidity_expander_index < correlation_expander_index
+    assert metric_console_index < metric_queue_expander_index < metric_summary_index < metric_queue_index < metric_cards_index
+    assert risk_cards_index < liquidity_expander_index < correlation_expander_index
+    assert metric_summary_table_index < metric_summary_index
 
 
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
