@@ -153,7 +153,7 @@ The tracked `data/holdings.csv` file is a zero-position sample for portfolio-rev
 
 ## License
 
-Reuse terms are not specified yet because no `LICENSE` file has been selected. Visitors can review the project, but reuse rights are not granted until a license is added. See [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md) before promoting the repo broadly.
+This repository is shared as a public portfolio/demo project. No open-source license has been selected, so visitors may review the code and product design, but reuse, copying, redistribution, or adaptation rights are not granted unless a license is added later. See [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md) before describing the project as open source.
 
 ## Analysis Methodology
 

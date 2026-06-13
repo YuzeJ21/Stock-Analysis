@@ -53,6 +53,7 @@ Internal build-process notes are not part of the public product surface. Keep pr
 
 - Read `docs/LICENSE_DECISION_GUIDE.md`, then add a root-level `LICENSE` file before claiming the project is open source or granting reuse rights.
 - Until a `LICENSE` file exists, describe the repository as a portfolio/demo project rather than reusable open-source software.
+- If the goal is visibility only, keep the no-license state explicit in the README: visitors can review the project, but reuse, copying, redistribution, or adaptation rights are not granted.
 - If the repo includes copied third-party code, keep required attribution and license notices.
 - If the repo only uses normal package dependencies, dependency licenses are usually handled through package metadata, but do not hide or misrepresent them.
 - Public data sources should be described accurately as data sources, not as proprietary data you created.
