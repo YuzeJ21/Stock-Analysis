@@ -79,6 +79,26 @@ class MetricReadinessRow:
         return asdict(self)
 
 
+@dataclass
+class MetricReadinessBoardRow:
+    ticker: str
+    benchmark: str
+    overall_state: str
+    ready_metrics: int
+    partial_metrics: int
+    blocked_metrics: int
+    excluded_metrics: int
+    top_blocker: str
+    blocker_family: str
+    next_action: str
+    freshness: str
+    freshness_message: str
+    refresh_command: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 def _clean_price_history(history: pd.DataFrame) -> pd.Series:
     if history.empty or "date" not in history.columns or "close" not in history.columns:
         return pd.Series(dtype=float)
@@ -284,11 +304,12 @@ def _build_price_metrics(
 
     metrics: list[ReviewMetric] = []
     relative = benchmark_relative_return(stock_prices, benchmark_prices)
+    relative_ready = relative is not None and len(aligned) >= 60
     metrics.append(
         ReviewMetric(
             "benchmark_relative_return",
-            READY if relative is not None and len(aligned) >= 60 else _state_for_min_rows(len(aligned), 60),
-            relative,
+            READY if relative_ready else _state_for_min_rows(len(aligned), 60),
+            relative if relative_ready else None,
             "percent",
             benchmark,
             required,
@@ -299,11 +320,12 @@ def _build_price_metrics(
     )
 
     drawdown = max_drawdown(stock_prices)
+    drawdown_ready = drawdown is not None and len(stock_prices) >= 60
     metrics.append(
         ReviewMetric(
             "max_drawdown",
-            READY if drawdown is not None and len(stock_prices) >= 60 else _state_for_min_rows(len(stock_prices), 60),
-            drawdown,
+            READY if drawdown_ready else _state_for_min_rows(len(stock_prices), 60),
+            drawdown if drawdown_ready else None,
             "percent",
             None,
             ["ticker price history"],
@@ -314,11 +336,12 @@ def _build_price_metrics(
     )
 
     vol = rolling_volatility(stock_prices)
+    vol_ready = vol is not None
     metrics.append(
         ReviewMetric(
             "rolling_volatility",
-            READY if vol is not None else _state_for_min_rows(len(_returns(stock_prices)), 21),
-            vol,
+            READY if vol_ready else _state_for_min_rows(len(_returns(stock_prices)), 21),
+            vol if vol_ready else None,
             "percent",
             None,
             ["ticker daily returns", "21 return observations"],
@@ -329,11 +352,12 @@ def _build_price_metrics(
     )
 
     beta = beta_vs_benchmark(stock_prices, benchmark_prices)
+    beta_ready = beta is not None
     metrics.append(
         ReviewMetric(
             "beta_vs_benchmark",
-            READY if beta is not None else _state_for_min_rows(len(aligned), 60),
-            beta,
+            READY if beta_ready else _state_for_min_rows(len(aligned), 60),
+            beta if beta_ready else None,
             "ratio",
             benchmark,
             required,
@@ -344,11 +368,12 @@ def _build_price_metrics(
     )
 
     sharpe = sharpe_ratio(stock_prices, annual_risk_free_rate=annual_risk_free_rate)
+    sharpe_ready = sharpe is not None
     metrics.append(
         ReviewMetric(
             "sharpe_ratio",
-            READY if sharpe is not None else _state_for_min_rows(len(_returns(stock_prices)), 60),
-            sharpe,
+            READY if sharpe_ready else _state_for_min_rows(len(_returns(stock_prices)), 60),
+            sharpe if sharpe_ready else None,
             "ratio",
             None,
             ["ticker daily returns", "explicit risk-free-rate assumption"],
@@ -359,11 +384,12 @@ def _build_price_metrics(
     )
 
     sortino = sortino_ratio(stock_prices, annual_risk_free_rate=annual_risk_free_rate)
+    sortino_ready = sortino is not None
     metrics.append(
         ReviewMetric(
             "sortino_ratio",
-            READY if sortino is not None else _state_for_min_rows(len(_returns(stock_prices)), 60),
-            sortino,
+            READY if sortino_ready else _state_for_min_rows(len(_returns(stock_prices)), 60),
+            sortino if sortino_ready else None,
             "ratio",
             None,
             ["ticker daily returns", "downside return observations", "explicit risk-free-rate assumption"],
@@ -588,7 +614,7 @@ def _build_fundamentals_metrics(ticker: str, financials: FinancialSnapshot, prov
     missing.extend(item for item in trend_missing if item not in missing)
     state = READY if not missing else PARTIAL if has_revenue_growth or has_fcf_margin else BLOCKED
     metric_value = None
-    if has_revenue_growth and has_fcf_margin:
+    if state == READY and has_revenue_growth and has_fcf_margin:
         revenue_growth = financials.revenue_growth if financials.revenue_growth is not None else row_revenue_growth
         fcf_margin = financials.fcf_margin if financials.fcf_margin is not None else row_fcf_margin
         metric_value = float((float(revenue_growth) + float(fcf_margin)) / 2.0)
@@ -893,6 +919,86 @@ def build_metric_readiness_summary(
     }
 
 
+def metric_blocker_family(blocker: object) -> str:
+    text = str(blocker or "").strip().lower()
+    if not text or text == "none":
+        return "none"
+    if (
+        "benchmark" in text
+        or "aligned" in text
+        or "price" in text
+        or "drawdown" in text
+        or "volatility" in text
+        or "sharpe" in text
+        or "sortino" in text
+        or "beta" in text
+    ):
+        return "benchmark / risk"
+    if "fundamental" in text or "revenue" in text or "free cash flow" in text or "fcf" in text:
+        return "fundamentals trend"
+    if "market cap" in text or "shares outstanding" in text or "valuation" in text or "multiple" in text:
+        return "valuation multiples"
+    if "peer" in text:
+        return "peer dispersion"
+    return "other"
+
+
+def _split_benchmarks(value: str | None) -> list[str]:
+    if not value:
+        return ["SPY", "QQQ"]
+    allowed = {"SPY", "QQQ"}
+    benchmarks = [item.strip().upper() for item in value.split(",") if item.strip()]
+    invalid = [benchmark for benchmark in benchmarks if benchmark not in allowed]
+    if invalid:
+        raise ValueError(f"Unsupported benchmark(s): {', '.join(invalid)}. Use SPY, QQQ, or SPY,QQQ.")
+    return list(dict.fromkeys(benchmarks)) or ["SPY", "QQQ"]
+
+
+def build_metric_readiness_board(
+    root: Path,
+    provider: LocalCSVMarketDataProvider,
+    *,
+    benchmarks: list[str] | None = None,
+    annual_risk_free_rate: float = 0.0,
+    tickers: list[str] | None = None,
+    top_n: int = 10,
+) -> list[MetricReadinessBoardRow]:
+    rows: list[MetricReadinessBoardRow] = []
+    for benchmark in benchmarks or ["SPY", "QQQ"]:
+        summary_rows, freshness = build_metric_readiness_summary(
+            root,
+            provider,
+            benchmark=benchmark,
+            annual_risk_free_rate=annual_risk_free_rate,
+            tickers=tickers,
+            top_n=top_n,
+        )
+        for row in summary_rows:
+            rows.append(
+                MetricReadinessBoardRow(
+                    ticker=row.ticker,
+                    benchmark=row.benchmark,
+                    overall_state=row.overall_state,
+                    ready_metrics=row.ready_metrics,
+                    partial_metrics=row.partial_metrics,
+                    blocked_metrics=row.blocked_metrics,
+                    excluded_metrics=row.excluded_metrics,
+                    top_blocker=row.top_blocker,
+                    blocker_family=metric_blocker_family(row.top_blocker),
+                    next_action=row.next_action,
+                    freshness=freshness.get("status", "unknown"),
+                    freshness_message=freshness.get("message", ""),
+                    refresh_command=freshness.get("refresh_command", "make readiness"),
+                )
+            )
+    return rows
+
+
+def write_metric_readiness_board_csv(rows: list[MetricReadinessBoardRow], output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame([row.to_dict() for row in rows]).to_csv(output_path, index=False)
+
+
 def format_review_metrics_text(snapshot: ReviewMetricsSnapshot) -> str:
     lines = [
         f"Review metrics for {snapshot.ticker} vs {snapshot.benchmark}",
@@ -952,6 +1058,51 @@ def format_metric_readiness_summary_text(rows: list[MetricReadinessRow], freshne
     return "\n".join(lines)
 
 
+def format_metric_readiness_board_text(rows: list[MetricReadinessBoardRow]) -> str:
+    lines = [
+        "Metric readiness board",
+        "Research-only; this board summarizes SPY/QQQ review-metric readiness and is not a ranking or recommendation.",
+        "Partial and blocked metric rows withhold numeric values until their specific input gates are ready.",
+    ]
+    if not rows:
+        lines.append("No tickers were available for metric-readiness board review.")
+        return "\n".join(lines)
+
+    freshness_values = list(dict.fromkeys(row.freshness for row in rows if row.freshness))
+    freshness = ", ".join(freshness_values) or "unknown"
+    refresh_commands = list(dict.fromkeys(row.refresh_command for row in rows if row.refresh_command))
+    lines.append(f"Freshness: {freshness}")
+    if any(row.freshness in {"missing", "stale"} for row in rows):
+        lines.append(f"Refresh before relying on final counts: {refresh_commands[0] if refresh_commands else 'make readiness'}")
+
+    family_counts: dict[str, int] = {}
+    for row in rows:
+        family_counts[row.blocker_family] = family_counts.get(row.blocker_family, 0) + 1
+    family_text = ", ".join(f"{family}: {count}" for family, count in sorted(family_counts.items(), key=lambda item: (-item[1], item[0])))
+    lines.append(f"Blocker families: {family_text}")
+    lines.append("")
+    lines.append("Ticker | Benchmark | State | Ready | Partial | Blocked | Excluded | Blocker family | Top blocker | Next check")
+    lines.append("--- | --- | --- | ---: | ---: | ---: | ---: | --- | --- | ---")
+    for row in rows:
+        lines.append(
+            " | ".join(
+                [
+                    row.ticker,
+                    row.benchmark,
+                    row.overall_state,
+                    str(row.ready_metrics),
+                    str(row.partial_metrics),
+                    str(row.blocked_metrics),
+                    str(row.excluded_metrics),
+                    row.blocker_family,
+                    row.top_blocker,
+                    row.next_action,
+                ]
+            )
+        )
+    return "\n".join(lines)
+
+
 def _split_cli_tickers(value: str | None) -> list[str] | None:
     if not value:
         return None
@@ -968,6 +1119,9 @@ def main() -> None:
     parser.add_argument("--project-root")
     parser.add_argument("--data-dir")
     parser.add_argument("--summary", action="store_true", help="Print a capped multi-ticker metric-readiness summary.")
+    parser.add_argument("--board", action="store_true", help="Print a capped multi-benchmark metric-readiness board.")
+    parser.add_argument("--benchmarks", default="SPY,QQQ", help="Comma-separated benchmarks for board mode. Supported: SPY, QQQ.")
+    parser.add_argument("--output", help="Optional CSV output path for board mode.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -975,6 +1129,25 @@ def main() -> None:
     data_dir = resolve_data_dir(Path(args.data_dir) if args.data_dir else None, root)
     provider = LocalCSVMarketDataProvider(base_dir=root, data_dir=data_dir)
     risk_free_rate = args.risk_free_rate if args.risk_free_rate is not None else configured_risk_free_rate(root)
+    if args.board:
+        rows = build_metric_readiness_board(
+            root,
+            provider,
+            benchmarks=_split_benchmarks(args.benchmarks),
+            annual_risk_free_rate=risk_free_rate,
+            tickers=_split_cli_tickers(args.tickers or args.ticker),
+            top_n=args.top_n,
+        )
+        if args.output:
+            write_metric_readiness_board_csv(rows, Path(args.output))
+        if args.json:
+            print(json.dumps({"rows": [row.to_dict() for row in rows]}, indent=2))
+        else:
+            print(format_metric_readiness_board_text(rows))
+            if args.output:
+                print(f"\nWrote metric-readiness board CSV: {args.output}")
+        return
+
     if args.summary or not args.ticker:
         rows, freshness = build_metric_readiness_summary(
             root,

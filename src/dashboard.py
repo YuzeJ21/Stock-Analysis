@@ -30,6 +30,7 @@ from src.reviewed_batch_proof import (
     load_reviewed_batch_proofs,
 )
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
+from src.review_metrics import build_metric_readiness_summary, configured_risk_free_rate
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
@@ -1771,6 +1772,32 @@ def apply_dashboard_theme() -> None:
           border: 1px solid rgba(255, 255, 255, 0.30);
           box-shadow: 0 18px 42px rgba(15, 59, 54, 0.14);
         }
+        .app-hero.compact {
+          padding: 0.58rem 0.72rem;
+          margin: 0 0 0.46rem 0;
+          border-radius: 8px;
+          box-shadow: 0 8px 22px rgba(15, 59, 54, 0.10);
+        }
+        .app-hero.compact .hero-kicker {
+          font-size: 0.66rem;
+        }
+        .app-hero.compact .hero-title {
+          font-size: 1.12rem;
+          margin: 0.12rem 0 0.16rem 0;
+        }
+        .app-hero.compact .hero-subtitle {
+          font-size: 0.78rem;
+          line-height: 1.3;
+          max-width: 64rem;
+        }
+        .app-hero.compact .hero-pills {
+          margin-top: 0.36rem;
+          gap: 0.28rem;
+        }
+        .app-hero.compact .hero-pill {
+          font-size: 0.66rem;
+          padding: 0.16rem 0.36rem;
+        }
         .hero-kicker {
           color: #b8f5e8;
           font-size: 0.78rem;
@@ -1955,12 +1982,23 @@ def apply_dashboard_theme() -> None:
           gap: 0.72rem;
           margin: 0.7rem 0 0.86rem 0;
         }
+        .signal-grid.queue-grid {
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 0.46rem;
+          margin: 0.52rem 0 0.72rem 0;
+        }
         .signal-card {
           background: rgba(255,255,255,0.96);
           border: 1px solid var(--research-border);
           border-radius: 12px;
           padding: 0.88rem 0.92rem;
           box-shadow: 0 9px 24px rgba(17, 24, 39, 0.055);
+        }
+        .signal-grid.queue-grid .signal-card {
+          border-radius: 8px;
+          padding: 0.64rem 0.7rem;
+          box-shadow: 0 5px 14px rgba(15, 23, 42, 0.035);
+          border-color: rgba(148, 163, 184, 0.26);
         }
         .signal-kicker {
           color: #0f766e;
@@ -1975,6 +2013,10 @@ def apply_dashboard_theme() -> None:
           font-weight: 900;
           margin-top: 0.24rem;
         }
+        .signal-grid.queue-grid .signal-title {
+          font-size: 0.92rem;
+          margin-top: 0.14rem;
+        }
         .signal-body {
           color: #475467;
           font-size: 0.86rem;
@@ -1982,12 +2024,187 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.38rem;
           white-space: pre-line;
         }
+        .signal-grid.queue-grid .signal-body {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          font-size: 0.8rem;
+          line-height: 1.32;
+          margin-top: 0.26rem;
+        }
         .signal-footer {
           margin-top: 0.58rem;
           display: flex;
           flex-wrap: wrap;
           gap: 0.36rem;
           align-items: center;
+        }
+        .signal-grid.queue-grid .signal-footer {
+          margin-top: 0.42rem;
+          gap: 0.26rem;
+        }
+        .ops-hero {
+          margin: 0.35rem 0 0.9rem 0;
+          padding: 1rem;
+          border: 1px solid rgba(15, 118, 110, 0.18);
+          border-radius: 8px;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,250,248,0.96));
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
+        }
+        .ops-hero-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+          gap: 0.9rem;
+          align-items: stretch;
+        }
+        .ops-eyebrow {
+          color: #0f766e;
+          font-size: 0.68rem;
+          font-weight: 900;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .ops-title {
+          margin-top: 0.18rem;
+          color: #111827;
+          font-size: 1.45rem;
+          line-height: 1.12;
+          font-weight: 950;
+          letter-spacing: 0;
+        }
+        .ops-copy {
+          margin-top: 0.42rem;
+          color: #475467;
+          font-size: 0.92rem;
+          line-height: 1.46;
+          max-width: 60rem;
+        }
+        .ops-stat-strip {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+          margin-top: 0.72rem;
+        }
+        .ops-stat {
+          border: 1px solid rgba(148, 163, 184, 0.25);
+          border-radius: 8px;
+          background: #ffffff;
+          padding: 0.46rem 0.58rem;
+          min-width: 8.5rem;
+        }
+        .ops-stat-label {
+          color: #64748b;
+          font-size: 0.66rem;
+          font-weight: 850;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .ops-stat-value {
+          color: #111827;
+          font-size: 0.94rem;
+          font-weight: 900;
+          margin-top: 0.14rem;
+        }
+        .ops-next {
+          border-radius: 8px;
+          background: #0b3b36;
+          padding: 0.82rem 0.9rem;
+          min-height: 100%;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+        }
+        .ops-next .ops-eyebrow,
+        .ops-next .ops-stat-label {
+          color: #99f6e4;
+        }
+        .ops-next-title {
+          margin-top: 0.18rem;
+          color: #ffffff;
+          font-size: 1.02rem;
+          font-weight: 950;
+          letter-spacing: 0;
+        }
+        .ops-next-body {
+          margin-top: 0.38rem;
+          color: rgba(236, 253, 245, 0.84);
+          font-size: 0.84rem;
+          line-height: 1.44;
+        }
+        .ops-next-badges {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.35rem;
+          margin-top: 0.62rem;
+        }
+        .ops-next-badge {
+          color: #ecfdf5;
+          border: 1px solid rgba(153, 246, 228, 0.28);
+          background: rgba(255,255,255,0.08);
+          border-radius: 999px;
+          padding: 0.2rem 0.44rem;
+          font-size: 0.7rem;
+          font-weight: 800;
+        }
+        .ops-queue-header {
+          margin: 0.92rem 0 0.44rem 0;
+          padding: 0.08rem 0 0.08rem 0.68rem;
+          border-left: 4px solid #0f766e;
+        }
+        .ops-queue-title {
+          color: #111827;
+          font-size: 1.05rem;
+          line-height: 1.16;
+          font-weight: 950;
+          letter-spacing: 0;
+        }
+        .ops-queue-caption {
+          color: #526071;
+          font-size: 0.84rem;
+          line-height: 1.35;
+          margin-top: 0.18rem;
+          max-width: 50rem;
+        }
+        @media (max-width: 760px) {
+          .app-hero.compact .hero-subtitle {
+            display: none;
+          }
+          .app-hero.compact .hero-pills {
+            margin-top: 0.28rem;
+          }
+          .ops-hero {
+            padding: 0.74rem;
+            margin-top: 0.22rem;
+          }
+          .ops-hero-grid {
+            grid-template-columns: 1fr;
+            gap: 0.58rem;
+          }
+          .ops-title {
+            font-size: 1.18rem;
+          }
+          .ops-copy.secondary {
+            display: none;
+          }
+          .ops-stat-strip {
+            gap: 0.34rem;
+            margin-top: 0.52rem;
+          }
+          .ops-stat {
+            min-width: calc(50% - 0.45rem);
+            padding: 0.38rem 0.48rem;
+          }
+          .ops-stat.evidence-stat,
+          .ops-next-badges {
+            display: none;
+          }
+          .ops-next {
+            padding: 0.64rem 0.7rem;
+          }
+          .ops-queue-header {
+            margin-top: 0.72rem;
+            margin-bottom: 0.34rem;
+          }
         }
         .pick-grid {
           display: grid;
@@ -2497,14 +2714,112 @@ def apply_dashboard_theme() -> None:
           color: #111827 !important;
         }
         [data-testid="stExpander"] {
-          background: rgba(255, 254, 250, 0.96) !important;
-          border: 1px solid var(--research-border) !important;
-          border-radius: 10px !important;
+          background: rgba(255, 255, 255, 0.97) !important;
+          border: 1px solid rgba(148, 163, 184, 0.28) !important;
+          border-radius: 8px !important;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
+          margin-bottom: 0.54rem;
+        }
+        [data-testid="stExpander"] summary {
+          min-height: 2.35rem;
+          padding: 0.42rem 0.68rem !important;
+          font-weight: 850 !important;
+          letter-spacing: 0;
+          justify-content: flex-start !important;
+          text-align: left !important;
         }
         [data-testid="stExpander"] summary,
         [data-testid="stExpander"] p,
         [data-testid="stExpander"] span {
           color: #111827 !important;
+        }
+        [data-testid="stExpander"] summary p {
+          width: 100%;
+          text-align: left !important;
+          font-size: 0.88rem !important;
+          line-height: 1.25 !important;
+          margin: 0 !important;
+        }
+        [data-testid="stExpander"] summary svg {
+          margin-left: auto;
+        }
+        [data-testid="stTabs"] {
+          margin-top: 0.34rem;
+        }
+        [data-testid="stTabs"] [role="tablist"] {
+          gap: 0.35rem;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+          padding-bottom: 0.32rem;
+        }
+        [data-testid="stTabs"] [role="tab"] {
+          min-height: 2.2rem;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.88);
+          padding: 0.28rem 0.66rem;
+          box-shadow: 0 5px 14px rgba(15, 23, 42, 0.035);
+        }
+        [data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+          background: #0b3b36;
+          border-color: #0b3b36;
+        }
+        [data-testid="stTabs"] [role="tab"][aria-selected="true"] p,
+        [data-testid="stTabs"] [role="tab"][aria-selected="true"] span {
+          color: #ecfdf5 !important;
+          font-weight: 900;
+        }
+        [data-testid="stTabs"] [role="tabpanel"] {
+          padding-top: 0.55rem;
+        }
+        .ops-lane-nav {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.28rem;
+          margin: 0.08rem 0 0.72rem 0;
+          padding: 0.16rem;
+          border: 1px solid rgba(148, 163, 184, 0.26);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
+        }
+        .ops-lane-link {
+          flex: 1 1 8.4rem;
+          min-height: 2.05rem;
+          border-radius: 7px !important;
+          border: 1px solid rgba(148, 163, 184, 0.24) !important;
+          box-shadow: none !important;
+          font-size: 0.82rem;
+          font-weight: 850;
+          letter-spacing: 0;
+          background: #f8faf7 !important;
+          color: #334155 !important;
+          display: flex !important;
+          justify-content: center;
+          align-items: center;
+          padding: 0.28rem 0.48rem;
+          text-decoration: none !important;
+          text-align: center;
+        }
+        .ops-lane-link:hover {
+          background: #eef8f4 !important;
+          color: #0b3b36 !important;
+          border-color: rgba(15, 118, 110, 0.24) !important;
+        }
+        .ops-lane-link.active {
+          background: #0b3b36 !important;
+          color: #ecfdf5 !important;
+          border-color: #0b3b36 !important;
+        }
+        @media (max-width: 760px) {
+          .ops-lane-nav {
+            padding: 0.12rem;
+          }
+          .ops-lane-link {
+            flex-basis: calc(50% - 0.24rem);
+            min-height: 1.9rem;
+            font-size: 0.76rem;
+            padding-inline: 0.35rem;
+          }
         }
         input, textarea, [data-baseweb="select"] > div {
           background: #fffefa !important;
@@ -2797,6 +3112,12 @@ def normalize_operator_copy(text: object) -> str:
         "operating_company_dcf_excluded": "Operating-company DCF excluded",
         "insufficient_mapping": "Insufficient mapping",
         "missing_mapping": "Missing mapping",
+        "dry_run_first": "Dry-run first",
+        "safe_to_batch_dry_run": "Dry-run first",
+        "review_only": "Review only",
+        "locked_manual": "Locked manual",
+        "reviewed_apply": "Reviewed apply",
+        "preview_first_reviewed_apply": "Preview first, reviewed apply",
     }
     lowered = normalized.strip().lower()
     if lowered in display_labels:
@@ -2850,7 +3171,7 @@ def friendly_dashboard_card_copy(text: object) -> str:
     ]
     for pattern, replacement in friendly_replacements:
         normalized = re.sub(pattern, replacement, normalized)
-    return normalized
+    return normalized.replace("row(s)", "rows").replace("ticker(s)", "tickers").replace("lane(s)", "lanes")
 
 
 def review_path_fallback(dataset: object) -> str:
@@ -2925,6 +3246,53 @@ def section_header_html(title: str, caption: str = "") -> str:
 
 def render_section_header(title: str, caption: str = "") -> None:
     st.markdown(section_header_html(title, caption), unsafe_allow_html=True)
+
+
+def render_data_health_operator_queue_header() -> None:
+    st.markdown(
+        (
+            "<div class='ops-queue-header'>"
+            "<div class='ops-queue-title'>Operator Queue</div>"
+            "<div class='ops-queue-caption'>Choose one readiness lane. Evidence and commands stay collapsed until needed.</div>"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+DATA_HEALTH_OPERATOR_LANES = {
+    "prices": "Prices",
+    "fundamentals": "Fundamentals / DCF",
+    "peers": "Peers",
+    "metrics": "Metrics",
+    "optional": "Optional Context",
+    "proof": "Proof History",
+}
+
+
+def data_health_operator_lane_from_query(value: object) -> str:
+    raw = str(value or "prices").strip().lower().replace("_", "-")
+    aliases = {
+        "price": "prices",
+        "fundamentals-dcf": "fundamentals",
+        "dcf": "fundamentals",
+        "fundamentals / dcf": "fundamentals",
+        "optional-context": "optional",
+        "proof-history": "proof",
+        "history": "proof",
+    }
+    return aliases.get(raw, raw) if aliases.get(raw, raw) in DATA_HEALTH_OPERATOR_LANES else "prices"
+
+
+def render_data_health_operator_lane_nav(selected_lane_key: str) -> None:
+    links: list[str] = []
+    for lane_key, label in DATA_HEALTH_OPERATOR_LANES.items():
+        active_class = " active" if lane_key == selected_lane_key else ""
+        href = f"?mode=operator&page=data-health&lane={lane_key}"
+        links.append(
+            f"<a class='ops-lane-link{active_class}' href='{html.escape(href)}'>{html.escape(label)}</a>"
+        )
+    st.markdown("<div class='ops-lane-nav'>" + "".join(links) + "</div>", unsafe_allow_html=True)
 
 
 def metric_card_html(label: str, value: object, note: str = "") -> str:
@@ -3067,6 +3435,53 @@ def tiny_badge_html(label: str) -> str:
     return f"<span class='tiny-badge'>{html.escape(label)}</span>"
 
 
+def operator_queue_preview_copy(text: object) -> str:
+    """Make compact operator queue cards scan-friendly without changing source data."""
+
+    cleaned = friendly_dashboard_card_copy(text)
+    cleaned = re.sub(
+        r"\s*(Proof command|Next safe command|Command run):[^.]*\.",
+        " ",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    token_replacements = {
+        "benchmark_relative_return": "benchmark-relative return",
+        "peer_valuation_comparison": "peer valuation comparison",
+        "peer_valuation_inputs": "peer valuation inputs",
+        "peer_fundamentals": "peer fundamentals",
+        "peer_momentum": "peer momentum",
+        "peer_prices": "peer prices",
+        "peer_price": "peer price",
+        "peer_valuation": "peer valuation",
+        "fundamentals_ready": "fundamentals ready",
+        "dcf_ready": "DCF ready",
+        "fundamentals_dcf": "fundamentals / DCF",
+        "reviewed_data_proofs": "reviewed data proofs",
+        "optional_context": "optional context",
+        "still_blocked": "still blocked",
+        "missing_before": "missing before",
+    }
+    for raw, label in token_replacements.items():
+        cleaned = re.sub(rf"\b{re.escape(raw)}\b", label, cleaned)
+    cleaned = re.sub(
+        r"\bImpact:\s*(\d{4,})\b",
+        lambda match: f"Impact: {int(match.group(1)):,}",
+        cleaned,
+    )
+    cleaned = cleaned.replace(
+        "Guardrail: This rank is an operations queue, not a security recommendation or evidence that data is already available.",
+        "Guardrail: operations queue only; not a recommendation or proof that data is already available.",
+    )
+    cleaned = re.sub(
+        r"\bmake\s+[A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_./=-]+)*",
+        "open the evidence drawer",
+        cleaned,
+    )
+    cleaned = cleaned.replace("row(s)", "rows").replace("ticker(s)", "tickers")
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
 def signal_card_html(
     kicker: str,
     title: str,
@@ -3075,11 +3490,13 @@ def signal_card_html(
     command: str = "",
     *,
     show_command: bool = True,
+    queue_preview: bool = False,
 ) -> str:
-    display_kicker = friendly_dashboard_card_copy(kicker)
-    display_title = friendly_dashboard_card_copy(title)
-    display_body = friendly_dashboard_card_copy(body)
-    display_badges = [friendly_dashboard_card_copy(badge) for badge in (badges or [])]
+    copy_fn = operator_queue_preview_copy if queue_preview else friendly_dashboard_card_copy
+    display_kicker = copy_fn(kicker)
+    display_title = copy_fn(title)
+    display_body = copy_fn(body)
+    display_badges = [copy_fn(badge) for badge in (badges or [])]
     footer_parts = "".join(tiny_badge_html(badge) for badge in display_badges)
     if command and show_command:
         footer_parts += f"<span class='command-chip'>{html.escape(command)}</span>"
@@ -3093,9 +3510,10 @@ def signal_card_html(
     )
 
 
-def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool = True) -> None:
+def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool = True, variant: str = "") -> None:
+    grid_class = "signal-grid queue-grid" if variant == "queue" else "signal-grid"
     st.markdown(
-        "<div class='signal-grid'>"
+        f"<div class='{grid_class}'>"
         + "".join(
             signal_card_html(
                 str(card.get("kicker", "")),
@@ -3104,12 +3522,79 @@ def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool =
                 [str(item) for item in card.get("badges", [])],
                 str(card.get("command", "")),
                 show_command=show_commands,
+                queue_preview=variant == "queue",
             )
             for card in cards
         )
         + "</div>",
         unsafe_allow_html=True,
     )
+
+
+def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4) -> None:
+    render_signal_cards(cards[: max(limit, 0)], show_commands=False, variant="queue")
+
+
+def data_health_operator_hero_html(snapshot_cards: list[dict[str, object]]) -> str:
+    def card_at(index: int) -> dict[str, object]:
+        return snapshot_cards[index] if len(snapshot_cards) > index else {}
+
+    snapshot = card_at(0)
+    next_action = card_at(1)
+    mode = card_at(2)
+    snapshot_title = friendly_dashboard_card_copy(snapshot.get("title", "Readiness snapshot unavailable"))
+    snapshot_body = compact_card_fragment(
+        friendly_dashboard_card_copy(snapshot.get("body", "Refresh readiness before relying on exact counts.")),
+        max_chars=150,
+    )
+    next_title = friendly_dashboard_card_copy(next_action.get("title", "Choose a readiness lane"))
+    next_body = compact_card_fragment(
+        friendly_dashboard_card_copy(next_action.get("body", "Use the operator queue below; do not treat queue rank as a security ranking.")),
+        max_chars=135,
+    )
+    mode_title = friendly_dashboard_card_copy(mode.get("title", "Commands collapsed"))
+    mode_body = compact_card_fragment(
+        friendly_dashboard_card_copy(mode.get("body", "Proof rows and raw tables stay available in evidence drawers.")),
+        max_chars=145,
+    )
+    next_badges = [friendly_dashboard_card_copy(str(badge)) for badge in next_action.get("badges", [])]
+    badge_html = "".join(f"<span class='ops-next-badge'>{html.escape(badge)}</span>" for badge in next_badges)
+    return (
+        "<div class='ops-hero'>"
+        "<div class='ops-hero-grid'>"
+        "<div>"
+        "<div class='ops-eyebrow'>Executive Snapshot</div>"
+        "<div class='ops-title'>Data Health Command Center</div>"
+        f"<div class='ops-copy'>{html.escape(snapshot_body)}</div>"
+        "<div class='ops-stat-strip'>"
+        "<div class='ops-stat'>"
+        "<div class='ops-stat-label'>Ready Coverage</div>"
+        f"<div class='ops-stat-value'>{html.escape(snapshot_title)}</div>"
+        "</div>"
+        "<div class='ops-stat'>"
+        "<div class='ops-stat-label'>Operating Mode</div>"
+        f"<div class='ops-stat-value'>{html.escape(mode_title)}</div>"
+        "</div>"
+        "<div class='ops-stat evidence-stat'>"
+        "<div class='ops-stat-label'>Evidence</div>"
+        "<div class='ops-stat-value'>Collapsed by default</div>"
+        "</div>"
+        "</div>"
+        f"<div class='ops-copy secondary'>{html.escape(mode_body)}</div>"
+        "</div>"
+        "<div class='ops-next'>"
+        "<div class='ops-eyebrow'>Next Data-Readiness Action</div>"
+        f"<div class='ops-next-title'>{html.escape(next_title)}</div>"
+        f"<div class='ops-next-body'>{html.escape(next_body)}</div>"
+        f"<div class='ops-next-badges'>{badge_html}</div>"
+        "</div>"
+        "</div>"
+        "</div>"
+    )
+
+
+def render_data_health_operator_hero(snapshot_cards: list[dict[str, object]]) -> None:
+    st.markdown(data_health_operator_hero_html(snapshot_cards), unsafe_allow_html=True)
 
 
 def monthly_ideas_hero_label(monthly_count: int) -> str:
@@ -3120,7 +3605,12 @@ def monthly_ideas_hero_label(monthly_count: int) -> str:
     return f"{monthly_count} monthly ideas ready"
 
 
-def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]]) -> None:
+def render_app_header(
+    catalog: LocalDataCatalog,
+    output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
+    *,
+    compact: bool = False,
+) -> None:
     universe = catalog.load_dataframe("universe")
     tickers = 0 if universe is None or universe.empty else len(universe)
     final_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
@@ -3130,20 +3620,31 @@ def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[
     monthly_count = 0 if monthly_frame is None else len(monthly_frame)
     monthly_label = monthly_ideas_hero_label(monthly_count)
     latest_price = _latest_local_price_date(catalog)
+    hero_class = "app-hero compact" if compact else "app-hero"
+    subtitle = (
+        "Readiness-first local research. Data Health shows what is ready, blocked, or excluded before analysis."
+        if compact
+        else (
+            "A local, explainable research dashboard for market direction, momentum leadership, portfolio review, "
+            "valuation context, monthly research candidates, and data readiness. Research-only review; no external account actions."
+        )
+    )
+    pill_items = (
+        [f"{tickers} tickers tracked", f"Latest price: {latest_price}"]
+        if compact
+        else [f"{tickers} tickers tracked", f"{final_count} names checked", monthly_label, f"Latest price: {latest_price}"]
+    )
+    pill_html = "".join(f'<span class="hero-pill">{html.escape(str(item))}</span>' for item in pill_items)
     st.markdown(
         f"""
-        <div class="app-hero">
+        <div class="{hero_class}">
           <div class="hero-kicker">Local stock research dashboard</div>
           <div class="hero-title">Stock Research Command Center</div>
           <div class="hero-subtitle">
-            A local, explainable research dashboard for market direction, momentum leadership, portfolio review,
-            valuation context, monthly research candidates, and data readiness. Research-only review; no external account actions.
+            {html.escape(subtitle)}
           </div>
           <div class="hero-pills">
-            <span class="hero-pill">{tickers} tickers tracked</span>
-            <span class="hero-pill">{final_count} names checked</span>
-            <span class="hero-pill">{html.escape(monthly_label)}</span>
-            <span class="hero-pill">Latest price: {html.escape(latest_price)}</span>
+            {pill_html}
           </div>
         </div>
         """,
@@ -7229,7 +7730,7 @@ def data_health_coverage_frontier_cards(frontier_frame: pd.DataFrame | None, *, 
     for _, row in frontier_frame.head(max(limit, 0)).iterrows():
         lane = format_missing(row.get("Lane"), "Coverage lane")
         impact = format_missing(row.get("Unlock Impact"), "0")
-        move = compact_card_fragment(row.get("Possible State Move"), max_chars=180)
+        move = compact_card_fragment(row.get("Possible State Move"), max_chars=180).replace("->", "to")
         guardrail = compact_card_fragment(row.get("Guardrail"), max_chars=170)
         command = format_missing(row.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
         cards.append(
@@ -7237,8 +7738,8 @@ def data_health_coverage_frontier_cards(frontier_frame: pd.DataFrame | None, *, 
                 "kicker": f"FRONTIER #{format_missing(row.get('Rank'), '-')}",
                 "title": lane,
                 "body": (
-                    f"Unlock impact: {impact}. "
-                    f"{card_sentence('Possible state move', move)} "
+                    f"Impact: {impact} coverage rows. "
+                    f"{card_sentence('Path', move)} "
                     f"{card_sentence('Guardrail', guardrail)}"
                 ),
                 "badges": [format_missing(row.get("Workflow Mode"), "review"), "batch lane"],
@@ -7271,7 +7772,7 @@ def data_health_reviewed_batch_ladder_cards(
     lane = format_missing(top.get("Lane"), "Coverage lane")
     next_safe_command = format_missing(top.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
     proof_command = format_missing(top.get("Proof Command"), "make readiness")
-    workflow = format_missing(top.get("Workflow Mode"), "review")
+    workflow = normalize_operator_copy(format_missing(top.get("Workflow Mode"), "review"))
     reviewed_batch_command = "make reviewed-batch LANE=prices TOP_N=10"
     if "fundamental" in lane.lower() or "dcf" in lane.lower():
         reviewed_batch_command = "make reviewed-batch LANE=fundamentals TOP_N=10"
@@ -15598,6 +16099,180 @@ def data_health_review_metric_readiness_frame() -> pd.DataFrame:
     )
 
 
+def metric_readiness_blocker_family(blocker: object) -> str:
+    text = str(blocker or "").strip().lower()
+    if not text or text == "none":
+        return "none"
+    if "benchmark" in text or "aligned" in text or "price" in text or "drawdown" in text or "volatility" in text or "sharpe" in text or "sortino" in text or "beta" in text:
+        return "benchmark / risk"
+    if "fundamental" in text or "revenue" in text or "free cash flow" in text or "fcf" in text:
+        return "fundamentals trend"
+    if "market cap" in text or "shares outstanding" in text or "valuation" in text or "multiple" in text:
+        return "valuation multiples"
+    if "peer" in text:
+        return "peer dispersion"
+    return "other"
+
+
+def data_health_metric_readiness_queue_frame(top_n: int = 10, root: Path | None = None) -> pd.DataFrame:
+    """Build a compact SPY/QQQ metric-readiness queue without writing generated artifacts."""
+
+    root = root or BASE_DIR
+    provider = build_provider("local", base_dir=root)
+    risk_free_rate = configured_risk_free_rate(root)
+    rows: list[dict[str, object]] = []
+    for benchmark in ("SPY", "QQQ"):
+        summary_rows, freshness = build_metric_readiness_summary(
+            root,
+            provider,  # type: ignore[arg-type]
+            benchmark=benchmark,
+            annual_risk_free_rate=risk_free_rate,
+            top_n=top_n,
+        )
+        for row in summary_rows:
+            rows.append(
+                {
+                    "Ticker": row.ticker,
+                    "Benchmark": row.benchmark,
+                    "Overall State": row.overall_state,
+                    "Ready Metrics": row.ready_metrics,
+                    "Partial Metrics": row.partial_metrics,
+                    "Blocked Metrics": row.blocked_metrics,
+                    "Excluded Metrics": row.excluded_metrics,
+                    "Top Blocker": row.top_blocker,
+                    "Blocker Family": metric_readiness_blocker_family(row.top_blocker),
+                    "Next Check": row.next_action,
+                    "Freshness": freshness.get("status", "unknown"),
+                    "Freshness Message": freshness.get("message", ""),
+                    "Refresh Command": freshness.get("refresh_command", "make readiness"),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def data_health_metric_readiness_queue_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if frame is None or frame.empty:
+        return [
+            {
+                "kicker": "METRIC QUEUE",
+                "title": "No queue rows",
+                "body": "Run the capped metric-readiness queue after local provider data exists. This view is a readiness summary, not a security ranking.",
+                "badges": ["SPY", "QQQ", "readiness-only"],
+                "command": "make metric-readiness TOP_N=10 BENCHMARK=SPY",
+            }
+        ]
+
+    states = frame.get("Overall State", pd.Series(index=frame.index, dtype=object)).astype(str).str.lower()
+    partial_or_blocked = int(states.isin({"partial", "blocked"}).sum())
+    ready = int(states.eq("ready").sum())
+    excluded = int(states.eq("excluded").sum())
+    benchmarks = ", ".join(dict.fromkeys(frame.get("Benchmark", pd.Series(index=frame.index, dtype=object)).dropna().astype(str).tolist())) or "SPY, QQQ"
+    freshness_values = frame.get("Freshness", pd.Series(index=frame.index, dtype=object)).dropna().astype(str).str.lower()
+    freshness = "unknown" if freshness_values.empty else ", ".join(dict.fromkeys(freshness_values.tolist()))
+
+    family_counts = (
+        frame.get("Blocker Family", pd.Series(index=frame.index, dtype=object))
+        .fillna("none")
+        .astype(str)
+        .str.lower()
+        .value_counts()
+    )
+    top_family = "none" if family_counts.empty else str(family_counts.index[0])
+    top_family_count = 0 if family_counts.empty else int(family_counts.iloc[0])
+    top_blockers = frame.get("Top Blocker", pd.Series(index=frame.index, dtype=object)).fillna("").astype(str)
+    blocker_rows = frame.loc[top_blockers.str.lower().ne("none")]
+    first_blocker = "none"
+    first_next_check = "make metric-readiness TOP_N=10 BENCHMARK=SPY"
+    if not blocker_rows.empty:
+        first = blocker_rows.iloc[0]
+        first_blocker = compact_card_fragment(first.get("Top Blocker"), max_chars=150)
+        first_next_check = format_missing(first.get("Next Check"), first_next_check)
+
+    return [
+        {
+            "kicker": "SPY / QQQ METRIC QUEUE",
+            "title": f"{len(frame):,} rows across {benchmarks}",
+            "body": (
+                f"{ready:,} ready row(s), {partial_or_blocked:,} partial or blocked row(s), and {excluded:,} excluded row(s). "
+                "This summarizes review-metric coverage across benchmarks without opening single-stock reports."
+            ),
+            "badges": ["readiness queue", "not ranking", freshness],
+            "command": "make metric-readiness TOP_N=10 BENCHMARK=SPY",
+        },
+        {
+            "kicker": "TOP BLOCKER FAMILY",
+            "title": top_family.title(),
+            "body": (
+                f"{top_family_count:,} queue row(s) currently point to this blocker family. "
+                "Use the family as an operator triage cue; do not read it as relative attractiveness."
+            ),
+            "badges": ["family triage", "coverage work"],
+            "command": "make metric-readiness TOP_N=10 BENCHMARK=QQQ",
+        },
+        {
+            "kicker": "FIRST NEXT CHECK",
+            "title": "Exact blocker shown",
+            "body": f"{card_sentence('Blocker', first_blocker)} Next check: {first_next_check}. Partial metrics withhold values until their row gate is ready.",
+            "badges": ["blocked visible", "no inferred values"],
+            "command": first_next_check,
+        },
+    ]
+
+
+def data_health_operator_snapshot_cards(
+    readiness_summary: dict[str, object],
+    ops_frame: pd.DataFrame | None,
+    frontier_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus | None = None,
+) -> list[dict[str, object]]:
+    """Return the first-read operator snapshot without command-heavy detail."""
+
+    freshness = freshness or readiness_freshness_status(BASE_DIR)
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    blocked = int(readiness_summary.get("blocked_by_data") or readiness_summary.get("blocked") or 0)
+    top_lane = "No lane selected"
+    top_impact = "0"
+    top_move = "Run coverage frontier after readiness artifacts exist."
+    if frontier_frame is not None and not frontier_frame.empty:
+        top = frontier_frame.iloc[0]
+        top_lane = format_missing(top.get("Lane"), "Coverage frontier")
+        top_impact_value = pd.to_numeric(pd.Series([top.get("Unlock Impact")]), errors="coerce").iloc[0]
+        top_impact = "0" if pd.isna(top_impact_value) else f"{int(top_impact_value):,}"
+        top_move = compact_card_fragment(top.get("Possible State Move"), max_chars=150)
+
+    return [
+        {
+            "kicker": "EXECUTIVE SNAPSHOT",
+            "title": f"{price_ready:,} price / {dcf_ready:,} DCF / {peer_ready:,} peer-ready",
+            "body": (
+                f"{blocked:,} row(s) still show data blockers. "
+                "Readiness gates decide what analysis appears; locked inputs stay visible instead of becoming conclusions."
+            ),
+            "badges": ["readiness first", "blocked visible"],
+        },
+        {
+            "kicker": "NEXT DATA ACTION",
+            "title": top_lane,
+            "body": (
+                f"{top_impact} rows could move after reviewed proof. {card_sentence('Path', top_move)} "
+                "Use this as the first operator queue, not a security ranking."
+            ),
+            "badges": ["one next lane", "not ranking"],
+        },
+        {
+            "kicker": "OPERATING MODE",
+            "title": f"Freshness: {public_status_label(freshness.status).lower()}",
+            "body": (
+                f"{freshness.message} "
+                "Commands, proof rows, and raw tables are grouped below in evidence drawers so the first screen stays readable."
+            ),
+            "badges": ["commands collapsed", "proof available"],
+        },
+    ]
+
+
 def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, object]]:
     status_columns = ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "Classification"]
     if title == "Value / Re-rating":
@@ -22576,14 +23251,15 @@ def render_data_health(
     show_details: bool = False,
     public_mode: bool = True,
 ) -> None:
-    render_section_header(
-        "Data Health",
-        "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next.",
-    )
+    if public_mode:
+        render_section_header(
+            "Data Health",
+            "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next.",
+        )
     if provider is None:
         st.warning("Local provider could not be initialized.")
         return
-    if project_status_payload is None:
+    if public_mode and project_status_payload is None:
         with st.expander("Refresh status note", expanded=False):
             render_notice_card(
                 "Saved coverage view",
@@ -22638,29 +23314,28 @@ def render_data_health(
         ticker_readiness_frame,
     )
 
-    render_section_header(
-        "Data Quality / Readiness",
-        "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
-    )
-    render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=not public_mode)
+    ops_center = data_health_readiness_ops_center_frame()
+    coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
+    readiness_freshness = readiness_freshness_status(BASE_DIR)
     if public_mode:
+        render_section_header(
+            "Data Quality / Readiness",
+            "One-screen status for available, partial, blocked, and excluded analysis paths before any conclusions.",
+        )
+        render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
         render_context_note(
             "Public Data Health summary.",
             "This mode shows the current readiness story and latest proof evidence. Switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
             tone="success",
         )
-    render_context_note(
-        "Beginner view.",
-        "Read quick read, fix first, and trusted-data pilot first. Open refresh and command details only when you want the next copy-only proof steps.",
-    )
-    render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
-    render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=not public_mode)
-    render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
-    render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=not public_mode)
-    ops_center = data_health_readiness_ops_center_frame()
-    coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
-    readiness_freshness = readiness_freshness_status(BASE_DIR)
-    if public_mode:
+        render_context_note(
+            "Beginner view.",
+            "Read quick read, fix first, and trusted-data pilot first. Open refresh and command details only when you want the next copy-only proof steps.",
+        )
+        render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
+        render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
+        render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
+        render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)
         generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
         if generated_stale_warning:
             render_notice_card(
@@ -22690,194 +23365,141 @@ def render_data_health(
             "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
         )
         return
-    render_section_header("Operations Cockpit", "Compact lane, frontier, optional-context, and proof-hygiene controls before detailed boards.")
-    render_signal_cards(
-        data_health_operations_cockpit_cards(
-            readiness_summary,
-            ops_center,
-            coverage_frontier,
-            earnings_readiness_frame,
-            analyst_readiness_frame,
-            readiness_freshness,
-        )
+    operator_snapshot_cards = data_health_operator_snapshot_cards(
+        readiness_summary,
+        ops_center,
+        coverage_frontier,
+        readiness_freshness,
     )
-    render_section_header("Risk Context Readiness", "Liquidity, correlation, and proxy-risk context stay price-history gated and research-only.")
-    render_signal_cards(data_health_risk_context_cards(liquidity_frame, correlation_frame))
-    render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
-    render_signal_cards(data_health_review_metric_readiness_cards())
-    with st.expander("Review metric readiness gates", expanded=False):
-        st.dataframe(clean_display_frame(data_health_review_metric_readiness_frame()), width="stretch", hide_index=True)
-    render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
-    render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
-    render_section_header("Peer Readiness V2", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
-    render_signal_cards(data_health_peer_readiness_v2_cards(ops_center))
-    peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
-    with st.expander("Peer readiness sub-state matrix", expanded=False):
-        st.dataframe(clean_display_frame(peer_v2_frame), width="stretch", hide_index=True)
-    with st.expander("Lane operations board", expanded=False):
-        st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
-    render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
-    render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))
-    with st.expander("Coverage frontier table", expanded=False):
-        st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
-    render_section_header("Reviewed Batch Preflight", "Snapshot and freshness gates before any capped reviewed execution.")
+    render_data_health_operator_hero(operator_snapshot_cards)
     batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
-    render_signal_cards(data_health_reviewed_batch_preflight_cards(batch_preflight))
-    with st.expander("Reviewed batch preflight checklist", expanded=False):
-        st.dataframe(clean_display_frame(data_health_reviewed_batch_preflight_frame(batch_preflight)), width="stretch", hide_index=True)
-    render_section_header("Reviewed Batch Ladder", "Copy-only packet, dry-run, capped execution, and proof steps for the selected data lane.")
-    render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))
-    render_section_header("Reviewed Batch Proof Ledger", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
-    render_signal_cards(data_health_reviewed_batch_proof_cards())
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
-    with st.expander("Reviewed batch proof rows", expanded=False):
-        if batch_proof_frame.empty:
-            st.caption("No reviewed batch proof rows are recorded yet.")
-        else:
-            st.dataframe(clean_display_frame(batch_proof_frame), width="stretch", hide_index=True)
-    render_section_header("Before / After Batch Proof", "Readiness snapshot comparison for proof-ledger changed counts and changed tickers.")
     readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10)
-    render_signal_cards(data_health_readiness_comparison_cards(readiness_comparison))
-    with st.expander("Readiness comparison proof row", expanded=False):
-        st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
-    render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
-    render_action_cards(data_health_fix_first_cards(actions_frame))
-    render_section_header("Trusted Data Pilot", "Use a small company proof loop before trying to improve the whole universe.")
-    render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))
+    peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
     lane_board = data_health_trusted_pilot_lane_board_frame(
         fundamentals_peer_worklist_frame,
         peer_unlock_worklist_frame,
         ticker_readiness_frame,
         limit=10,
     )
-    render_section_header("Lane-Group Board", "Choose the proof lane first; prices stay dry-run-first and optional context stays locked/manual.")
-    render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))
-    with st.expander("Lane-group evidence summary", expanded=False):
-        st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
-    render_section_header("Reviewed Proof Timeline", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
-    render_signal_cards(data_health_reviewed_proof_cards())
     proof_timeline = data_health_reviewed_proof_timeline_frame()
-    with st.expander("Reviewed proof ledger", expanded=False):
-        if proof_timeline.empty:
-            st.caption("No reviewed proof rows are recorded yet.")
-        else:
-            st.dataframe(clean_display_frame(proof_timeline), width="stretch", hide_index=True)
-    with st.expander("Refresh and command details", expanded=False):
-        render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
-        render_signal_cards(data_health_freshness_routine_cards(readiness_summary))
-        render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
-        render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
-    with st.expander("Pilot selection details", expanded=False):
-        render_context_note(
-            "How to choose the pilot.",
-            data_health_trusted_pilot_selection_note(
-                fundamentals_peer_worklist_frame,
-                peer_unlock_worklist_frame,
-                ticker_readiness_frame,
-                limit=10,
-            ),
-        )
+    metric_queue_frame = data_health_metric_readiness_queue_frame(top_n=10)
     pilot_preview = data_health_trusted_pilot_preview_frame(
         fundamentals_peer_worklist_frame,
         peer_unlock_worklist_frame,
         ticker_readiness_frame,
         limit=5,
     )
-    if pilot_preview.empty:
-        render_context_note(
-            "Pilot preview unavailable.",
-            "Run `make trusted-data-pilot-candidates TOP_N=10` after rebuilding readiness outputs to rank current company blockers.",
+
+    render_data_health_operator_queue_header()
+    selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
+    render_data_health_operator_lane_nav(selected_lane_key)
+    selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
+    if selected_lane == "Prices":
+        render_operator_queue_preview(
+            data_health_coverage_frontier_cards(coverage_frontier, limit=2)
+            + data_health_risk_context_cards(liquidity_frame, correlation_frame)
         )
-    else:
-        render_context_note(
-            "Top ranked company blockers.",
-            "This read-only preview mirrors `make trusted-data-pilot-candidates TOP_N=10` and stays capped so Data Health does not become a broad universe dump.",
-        )
-        render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))
-        with st.expander("Capped pilot candidate table", expanded=False):
-            st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
-    with st.expander("Coverage proof planning cards", expanded=False):
-        render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
-        render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
-        render_section_header("Analysis Availability Map", "What each trusted data path makes available to review next.")
-        render_signal_cards(data_health_analysis_unlock_cards(readiness_summary))
-        render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
-        render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
-        render_section_header(
-            "Valuation Proof Snapshot",
-            "Plain-English valuation worklists before the broader market-wide tables.",
-        )
-        render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
-    if show_details:
-        with st.expander("Detailed market-wide review", expanded=False):
-            render_section_header(
-                "Detailed Proof Map",
-                "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context.",
+        with st.expander("Price evidence drawer", expanded=False):
+            render_section_header("Reviewed Batch Preflight", "Snapshot and freshness gates before any capped reviewed execution.")
+            render_signal_cards(data_health_reviewed_batch_preflight_cards(batch_preflight))
+            st.dataframe(clean_display_frame(data_health_reviewed_batch_preflight_frame(batch_preflight)), width="stretch", hide_index=True)
+            render_section_header("Reviewed Batch Ladder", "Copy-only packet, dry-run, capped execution, and proof steps for the selected data lane.")
+            render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))
+            render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
+            render_signal_cards(price_refresh_operator_plan_cards(readiness_summary))
+    elif selected_lane == "Fundamentals / DCF":
+        fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)
+        if pilot_preview.empty:
+            render_context_note(
+                "Pilot preview unavailable.",
+                "Run `make trusted-data-pilot-candidates TOP_N=10` after rebuilding readiness outputs to rank current company blockers.",
             )
-            render_signal_cards(
-                data_health_advanced_unlock_map_cards(
+        else:
+            fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)
+        render_operator_queue_preview(fundamentals_preview_cards)
+        with st.expander("Fundamentals / DCF evidence drawer", expanded=False):
+            render_context_note(
+                "Pilot selection rule.",
+                data_health_trusted_pilot_selection_note(
                     fundamentals_peer_worklist_frame,
                     peer_unlock_worklist_frame,
-                    optional_context_worklist_frame,
-                )
+                    ticker_readiness_frame,
+                    limit=10,
+                ),
             )
-            render_market_command_center(
-                ticker_readiness_frame,
-                coverage_frame,
-                decisions_frame,
-                action_queue_frame,
-                project_status_payload,
-                feature_summary_frame,
-                peer_readiness_frame,
-                peer_mapping_queue_frame,
-                peer_unlock_worklist_frame,
-                dcf_readiness_frame,
-                earnings_readiness_frame,
-                analyst_readiness_frame,
-                purpose_evaluation_summary_frame,
-                purpose_classification_frame,
-            )
-    if feature_summary_frame is None and feature_summary_message:
-        render_notice_card(
-            "Feature readiness summary not ready yet",
-            feature_summary_message,
-            "make readiness",
-            tone="warning",
+            render_section_header("Supported Analysis Ladder", "A simple ladder for setup review, DCF review, peer context, and optional context.")
+            render_signal_cards(data_health_supported_ladder_cards(readiness_summary))
+            render_section_header("Valuation Proof Snapshot", "Plain-English valuation worklists before the broader market-wide tables.")
+            render_signal_cards(data_health_valuation_unlock_snapshot_cards(ticker_readiness_frame, readiness_summary))
+            if not pilot_preview.empty:
+                st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
+    elif selected_lane == "Peers":
+        render_operator_queue_preview(
+            data_health_peer_readiness_v2_cards(ops_center) + data_health_trusted_pilot_lane_cards(lane_board)
         )
-    if peer_unlock_worklist_frame is None and peer_unlock_worklist_message:
-        render_notice_card(
-            "Peer unlock worklist not ready yet",
-            peer_unlock_worklist_message,
-            "make readiness",
-            tone="warning",
+        with st.expander("Peer evidence drawer", expanded=False):
+            render_section_header("Peer Readiness Sub-State Matrix", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
+            st.dataframe(clean_display_frame(peer_v2_frame), width="stretch", hide_index=True)
+            render_section_header("Lane-Group Evidence Summary", "Choose the proof lane first; prices stay dry-run-first and optional context stays locked/manual.")
+            render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))
+            st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
+    elif selected_lane == "Metrics":
+        render_operator_queue_preview(
+            data_health_metric_readiness_queue_cards(metric_queue_frame) + data_health_review_metric_readiness_cards()
         )
-    if peer_readiness_frame is None and peer_readiness_message:
-        render_notice_card(
-            "Peer readiness report not ready yet",
-            peer_readiness_message,
-            "make readiness",
-            tone="warning",
+        with st.expander("Metrics evidence drawer", expanded=False):
+            render_section_header("SPY / QQQ Metric-Readiness Queue", "Combined benchmark queue for blocker-family triage.")
+            st.dataframe(clean_display_frame(metric_queue_frame), width="stretch", hide_index=True)
+            render_section_header("Review Metric Readiness Gates", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
+            st.dataframe(clean_display_frame(data_health_review_metric_readiness_frame()), width="stretch", hide_index=True)
+    elif selected_lane == "Optional Context":
+        optional_cards = data_health_operations_cockpit_cards(
+            readiness_summary,
+            ops_center,
+            coverage_frontier,
+            earnings_readiness_frame,
+            analyst_readiness_frame,
+            readiness_freshness,
+        )[3:4]
+        render_operator_queue_preview(
+            optional_cards + data_health_advanced_unlock_map_cards(None, None, optional_context_worklist_frame)
         )
-    if decisions_frame is None and decisions_message:
-        render_notice_card(
-            "Research decisions not ready yet",
-            decisions_message,
-            "make pipeline",
-            tone="warning",
+        with st.expander("Optional context evidence drawer", expanded=False):
+            render_section_header("Freshness Routine", "How to keep data current without daily manual full-universe refreshes.")
+            render_signal_cards(data_health_freshness_routine_cards(readiness_summary))
+            render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
+            render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
+    elif selected_lane == "Proof History":
+        render_operator_queue_preview(
+            data_health_reviewed_proof_cards()
+            + data_health_reviewed_batch_proof_cards()
+            + data_health_readiness_comparison_cards(readiness_comparison)
         )
-    with st.expander("More readiness summaries and proof lists", expanded=False):
-        render_signal_cards(readiness_panel_cards(readiness_summary))
-        render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
-        render_section_header("Next Data Proof Steps", "What to prove next for Monthly Picks, track record, DCF, and peer-relative research.")
-        render_signal_cards(data_coverage_wizard_cards(wizard_frame))
-        if wizard_frame is None:
-            wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
-            render_notice_card(
-                "Coverage proof guide not ready yet",
-                wizard_notice_body,
-                wizard_notice_command,
-            )
-    with st.expander("Guided coverage plan details", expanded=False):
+        with st.expander("Proof history evidence drawer", expanded=False):
+            render_section_header("Reviewed Data Proof Ledger", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
+            render_signal_cards(data_health_reviewed_proof_cards())
+            if proof_timeline.empty:
+                st.caption("No reviewed proof rows are recorded yet.")
+            else:
+                st.dataframe(clean_display_frame(proof_timeline), width="stretch", hide_index=True)
+            render_section_header("Reviewed Batch Proof Rows", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
+            if batch_proof_frame.empty:
+                st.caption("No reviewed batch proof rows are recorded yet.")
+            else:
+                st.dataframe(clean_display_frame(batch_proof_frame), width="stretch", hide_index=True)
+            render_section_header("Before / After Batch Proof", "Readiness snapshot comparison for proof-ledger changed counts and changed tickers.")
+            st.dataframe(clean_display_frame(data_health_readiness_comparison_frame(readiness_comparison)), width="stretch", hide_index=True)
+
+    with st.expander("Additional operator evidence", expanded=False):
+        render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
+        render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
+        st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
+        render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")
+        render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))
+        st.dataframe(clean_display_frame(coverage_frontier), width="stretch", hide_index=True)
+        render_section_header("Fix First", "The shortest safe local path before deeper proof lists.")
+        render_action_cards(data_health_fix_first_cards(actions_frame))
         render_section_header("Guided Coverage Plans", "Holdings-first coverage plans for the next price, SEC fundamentals, and peer-mapping pass.")
         render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
         render_section_header("Guided Coverage Steps", "Ordered copy-only steps for each current coverage plan so the local follow-through stays explicit.")
@@ -22949,19 +23571,80 @@ def render_data_health(
                 runbook_notice_body,
                 runbook_notice_command,
             )
-
+        render_section_header("Readiness Summaries", "Compact status cards for coverage, validation, and source readiness.")
+        render_signal_cards(readiness_panel_cards(readiness_summary))
+        render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
+        render_section_header("Next Data Proof Steps", "What to prove next for Monthly Picks, track record, DCF, and peer-relative research.")
+        render_signal_cards(data_coverage_wizard_cards(wizard_frame))
+        if wizard_frame is None:
+            wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
+            render_notice_card(
+                "Coverage proof guide not ready yet",
+                wizard_notice_body,
+                wizard_notice_command,
+            )
+    if show_details:
+        with st.expander("Detailed market-wide review", expanded=False):
+            render_section_header(
+                "Detailed Proof Map",
+                "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context.",
+            )
+            render_signal_cards(
+                data_health_advanced_unlock_map_cards(
+                    fundamentals_peer_worklist_frame,
+                    peer_unlock_worklist_frame,
+                    optional_context_worklist_frame,
+                )
+            )
+            render_market_command_center(
+                ticker_readiness_frame,
+                coverage_frame,
+                decisions_frame,
+                action_queue_frame,
+                project_status_payload,
+                feature_summary_frame,
+                peer_readiness_frame,
+                peer_mapping_queue_frame,
+                peer_unlock_worklist_frame,
+                dcf_readiness_frame,
+                earnings_readiness_frame,
+                analyst_readiness_frame,
+                purpose_evaluation_summary_frame,
+                purpose_classification_frame,
+            )
+    if feature_summary_frame is None and feature_summary_message:
+        render_notice_card(
+            "Feature readiness summary not ready yet",
+            feature_summary_message,
+            "make readiness",
+            tone="warning",
+        )
+    if peer_unlock_worklist_frame is None and peer_unlock_worklist_message:
+        render_notice_card(
+            "Peer unlock worklist not ready yet",
+            peer_unlock_worklist_message,
+            "make readiness",
+            tone="warning",
+        )
+    if peer_readiness_frame is None and peer_readiness_message:
+        render_notice_card(
+            "Peer readiness report not ready yet",
+            peer_readiness_message,
+            "make readiness",
+            tone="warning",
+        )
+    if decisions_frame is None and decisions_message:
+        render_notice_card(
+            "Research decisions not ready yet",
+            decisions_message,
+            "make pipeline",
+            tone="warning",
+        )
     if not validation_rows.empty:
         missing_optional = validation_rows.loc[
             validation_rows.get("validation_status", pd.Series(dtype=str)).astype(str).eq("missing_file"),
             "name",
         ].astype(str).tolist()
-        if missing_optional:
-            missing_optional_labels = [public_dataset_name(name) for name in missing_optional]
-            st.info(
-                "Optional local datasets not configured: "
-                + ", ".join(missing_optional_labels)
-                + ". This is expected until you add those CSVs; reports will show partial coverage instead of fabricating data."
-            )
         validation_rows = validation_rows.copy()
         if "name" in validation_rows.columns:
             validation_rows["name"] = validation_rows["name"].map(public_dataset_name)
@@ -22971,6 +23654,13 @@ def render_data_health(
             )
         display_columns = local_dataset_check_columns(validation_rows)
         with st.expander("Local dataset checks", expanded=False):
+            if missing_optional:
+                missing_optional_labels = [public_dataset_name(name) for name in missing_optional]
+                st.info(
+                    "Optional local datasets not configured: "
+                    + ", ".join(missing_optional_labels)
+                    + ". This is expected until you add those CSVs; reports will show partial coverage instead of fabricating data."
+                )
             st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
         render_notice_card(
@@ -22983,7 +23673,7 @@ def render_data_health(
     if not show_details:
         render_context_note(
             "Detailed tables are hidden.",
-            "Turn on reader tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables.",
+            "Open the lane evidence drawer or Additional operator evidence above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow.",
         )
         return
 
@@ -23863,11 +24553,9 @@ def main() -> None:
     catalog = LocalDataCatalog(BASE_DIR)
     provider = get_local_provider()
     output_frames = load_pipeline_outputs()
-    render_app_header(catalog, output_frames)
 
     with st.sidebar:
         st.header("Explore")
-        render_sidebar_product_intro()
         initial_page = dashboard_page_from_query(st.query_params.get("page"))
         initial_mode = dashboard_mode_from_query(st.query_params.get("mode"), initial_page)
         public_demo_mode = st.toggle(
@@ -23886,7 +24574,10 @@ def main() -> None:
             help="Most visitors only need these paths: review one stock, improve data coverage, or explore ready names.",
         )
         selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection
-        if not public_demo_mode:
+        show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"
+        if public_demo_mode or selected_page != "Data Health":
+            render_sidebar_product_intro()
+        if not public_demo_mode and selected_page != "Data Health":
             with st.expander("Optional research views", expanded=initial_page in ADVANCED_PAGE_TITLES):
                 advanced_page = st.selectbox(
                     "Open an optional view",
@@ -23899,7 +24590,7 @@ def main() -> None:
                 if advanced_page != "Keep current path":
                     selected_page = advanced_page
         show_reason_details = False
-        if not public_demo_mode:
+        if not public_demo_mode and selected_page != "Data Health":
             show_reason_details = st.checkbox(
                 "Show reader tips",
                 value=False,
@@ -23913,21 +24604,28 @@ def main() -> None:
                 help="Adds extra data-source and missing-input checks under Sources & Gaps. Most users can leave this off.",
             )
         st.divider()
-        note_title, note_body = sidebar_navigation_note(selected_page)
-        render_context_note(note_title, note_body, tone="success")
-        if not public_demo_mode:
+        if not public_demo_mode and selected_page == "Data Health":
+            render_context_note(
+                "Data Health operator.",
+                "Use the command center and lane buttons on the page. Copy-only commands stay inside evidence drawers.",
+                tone="success",
+            )
+        else:
+            note_title, note_body = sidebar_navigation_note(selected_page)
+            render_context_note(note_title, note_body, tone="success")
+        if show_sidebar_operator_guides:
             with st.expander("Best beginner path", expanded=False):
                 render_context_note(
                     "Start simple.",
                     "Home -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
                 )
                 render_sidebar_route_steps(dashboard_navigation_cards())
-        else:
+        elif public_demo_mode:
             render_context_note(
                 "Clean visitor path.",
-                "Home -> Single-Stock Report -> Data Health. Operator mode restores detailed boards and copy-only command sections.",
+                "Home -> Single-Stock Report -> Data Health. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
             )
-        if not public_demo_mode:
+        if show_sidebar_operator_guides:
             with st.expander("Copy-only local commands", expanded=False):
                 render_context_note(
                     "Copy only.",
@@ -23937,6 +24635,8 @@ def main() -> None:
                     "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
                     language="bash",
                 )
+
+    render_app_header(catalog, output_frames, compact=selected_page == "Data Health" and not public_demo_mode)
 
     project_status_payload = None
 

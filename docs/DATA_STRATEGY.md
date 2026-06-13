@@ -193,6 +193,8 @@ Use `make coverage-frontier TOP_N=10` to rank broad batch opportunities by unloc
 
 Use `make readiness-ops-evidence` as the compact evidence checklist before packaging work. It restates the proof gate, locked optional lanes, excluded/not-applicable boundary, and broad CSV/JSON churn policy. Data Health surfaces the same operations-center and coverage-frontier views before the trusted-data pilot and detailed tables so the product starts from batch lanes rather than one-name manual loops.
 
+In Operator mode, Data Health is organized as a readiness operations command center rather than a long proof dump. Start with the Executive Snapshot, choose one lane in the Operator Queue, then open an evidence drawer only when you need copy-only commands, proof rows, or detailed tables. Public mode keeps the quick-read visitor path separate from the operator runbooks.
+
 ## Reviewed Batch Execution V1
 
 Use `make reviewed-batch LANE=prices TOP_N=10` to convert a frontier lane into a reviewed run packet. The packet is written to `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv`; it is copy-only and does not refresh, import, apply, or rewrite local data. Supported lane aliases are `prices`, `fundamentals`, `peers`, and `optional_context`, with optional `TICKERS=...` for a capped reviewed scope.
@@ -215,11 +217,15 @@ Use `make metric-readiness TOP_N=10 BENCHMARK=SPY` to inspect the capped metric-
 
 Price-derived metrics can become ready from trusted local price history: benchmark-relative return, max drawdown, rolling volatility, beta, Sharpe, and Sortino. Benchmark-relative return and beta require enough aligned ticker and benchmark rows; if SPY or QQQ history is missing or too short, those metrics remain partial or blocked.
 
-Fundamentals, valuation, and peer metrics keep stricter gates. Revenue growth and FCF margin can show current trusted-row context, and multi-period trend detail appears only when at least two period-labeled trusted fundamentals rows support row-derived revenue growth and FCF margin change. Valuation multiples require trusted fundamentals plus market-cap or trusted price/share-count context. Peer valuation dispersion requires mapped peers plus trusted peer valuation inputs. None of these metrics should be filled from placeholder rows.
+Fundamentals, valuation, and peer metrics keep stricter gates. Revenue growth and FCF margin can show current trusted-row source context, but numeric trend values stay withheld until at least two period-labeled trusted fundamentals rows support row-derived revenue growth and FCF margin change. Valuation multiples require trusted fundamentals plus market-cap or trusted price/share-count context. Peer valuation dispersion requires mapped peers plus trusted peer valuation inputs. None of these metrics should be filled from placeholder rows.
+
+Partial or blocked metrics intentionally withhold numeric values in reports and dashboard tables. The exact missing input remains visible so a reader sees the readiness gap instead of mistaking a partial calculation for a completed review metric.
 
 Sharpe and Sortino are historical review metrics only. Keep the risk-free-rate assumption explicit; the default lives in `config.yaml` under `risk_rules.annual_risk_free_rate_pct`, and command-line review can override it with `RISK_FREE_RATE=...`. Do not use benchmark or risk metrics as rankings, forecasts, allocation guidance, or account-action instructions.
 
 Data Health surfaces these review metric lanes as readiness gates, not calculations to trust blindly: benchmark/risk metrics require local price history, fundamentals trend requires trusted fundamentals rows, valuation multiples require market-cap or trusted price/share-count context, peer dispersion requires mapped peer valuation inputs, and ETF/index proxies exclude operating-company metrics.
+
+Operator mode also shows a compact SPY/QQQ metric-readiness queue in Data Health. Use it to find the dominant blocker family across benchmarks before opening single-stock reports one by one. The same view is available outside Streamlit with `make metric-readiness-board TOP_N=10`; add `OUTPUT=outputs/metric_readiness_board.csv` only when the CSV board is an intentional reviewed artifact.
 
 ## What Not To Automate Yet
 

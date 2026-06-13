@@ -15,9 +15,11 @@ from src.review_metrics import (
     PARTIAL,
     READY,
     beta_vs_benchmark,
+    build_metric_readiness_board,
     build_metric_readiness_summary,
     build_review_metrics,
     configured_risk_free_rate,
+    format_metric_readiness_board_text,
     format_metric_readiness_summary_text,
     format_review_metrics_text,
     max_drawdown,
@@ -121,8 +123,31 @@ def test_review_metrics_block_benchmark_beta_when_aligned_history_is_short():
 
     assert by_name["max_drawdown"].state == READY
     assert by_name["rolling_volatility"].state == READY
+    assert by_name["benchmark_relative_return"].state == PARTIAL
+    assert by_name["benchmark_relative_return"].value is None
     assert by_name["beta_vs_benchmark"].state == PARTIAL
+    assert by_name["beta_vs_benchmark"].value is None
     assert "at least 60 aligned ticker/SPY price rows" in by_name["beta_vs_benchmark"].missing_inputs
+
+
+def test_partial_price_metrics_withhold_values_until_row_gate_is_ready():
+    provider = FakeMetricsProvider(
+        prices={
+            "AAA": _price_frame("AAA", 25),
+            "SPY": _price_frame("SPY", 25),
+        },
+        fundamentals_rows=pd.DataFrame([{"ticker": "AAA", "revenue_growth": 0.2, "fcf_margin": 0.2}]),
+    )
+
+    snapshot = build_review_metrics("AAA", provider, benchmark="SPY")
+    by_name = {metric.name: metric for metric in snapshot.price_metrics}
+
+    assert by_name["benchmark_relative_return"].state == PARTIAL
+    assert by_name["benchmark_relative_return"].value is None
+    assert by_name["max_drawdown"].state == PARTIAL
+    assert by_name["max_drawdown"].value is None
+    assert by_name["rolling_volatility"].state == READY
+    assert by_name["rolling_volatility"].value is not None
 
 
 def test_fundamentals_trend_stays_partial_with_only_one_trusted_period():
@@ -135,6 +160,7 @@ def test_fundamentals_trend_stays_partial_with_only_one_trusted_period():
     metric = snapshot.fundamentals_metrics[0]
 
     assert metric.state == PARTIAL
+    assert metric.value is None
     assert "at least two dated trusted fundamentals rows for trend" in metric.missing_inputs
 
 
@@ -290,6 +316,87 @@ def test_metric_readiness_summary_uses_selected_tickers_and_freshness_context(tm
     assert "ranking or recommendation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_metric_readiness_board_combines_spy_and_qqq_without_recommendations(tmp_path):
+    data_dir = tmp_path / "data"
+    reports_dir = data_dir / "reports"
+    reports_dir.mkdir(parents=True)
+    (data_dir / "prices.csv").write_text("date,ticker,close\n2025-01-01,AAA,100\n", encoding="utf-8")
+    (data_dir / "fundamentals.csv").write_text("ticker,revenue\nAAA,100\n", encoding="utf-8")
+    (data_dir / "peers.csv").write_text("ticker,peer_ticker\n", encoding="utf-8")
+    (data_dir / "earnings.csv").write_text("ticker\n", encoding="utf-8")
+    (data_dir / "analyst_estimates.csv").write_text("ticker\n", encoding="utf-8")
+    (reports_dir / "ticker_readiness_report.csv").write_text("ticker\nAAA\n", encoding="utf-8")
+    (reports_dir / "feature_readiness_summary.csv").write_text("feature\nreview_metrics\n", encoding="utf-8")
+    provider = FakeMetricsProvider(
+        prices={
+            "AAA": _price_frame("AAA", 90),
+            "SPY": _price_frame("SPY", 25),
+            "QQQ": _price_frame("QQQ", 25),
+        },
+        fundamentals_rows=pd.DataFrame([{"ticker": "AAA", "revenue_growth": 0.2, "fcf_margin": 0.2}]),
+    )
+    provider.data_dir = data_dir
+
+    rows = build_metric_readiness_board(
+        tmp_path,
+        provider,  # type: ignore[arg-type]
+        benchmarks=["SPY", "QQQ"],
+        tickers=["AAA"],
+        top_n=10,
+    )
+    rendered = format_metric_readiness_board_text(rows).lower()
+
+    assert [row.benchmark for row in rows] == ["SPY", "QQQ"]
+    assert all(row.blocker_family == "benchmark / risk" for row in rows)
+    assert "metric readiness board" in rendered
+    assert "spy/qqq review-metric readiness" in rendered
+    assert "partial and blocked metric rows withhold numeric values" in rendered
+    assert "blocker families: benchmark / risk: 2" in rendered
+    assert "aaa | spy" in rendered
+    assert "aaa | qqq" in rendered
+    assert "ranking or recommendation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_metric_readiness_board_csv_export_writes_reviewed_shape(tmp_path):
+    from src.review_metrics import write_metric_readiness_board_csv
+
+    data_dir = tmp_path / "data"
+    reports_dir = data_dir / "reports"
+    reports_dir.mkdir(parents=True)
+    (data_dir / "prices.csv").write_text("date,ticker,close\n2025-01-01,AAA,100\n", encoding="utf-8")
+    (data_dir / "fundamentals.csv").write_text("ticker,revenue\nAAA,100\n", encoding="utf-8")
+    (data_dir / "peers.csv").write_text("ticker,peer_ticker\n", encoding="utf-8")
+    (data_dir / "earnings.csv").write_text("ticker\n", encoding="utf-8")
+    (data_dir / "analyst_estimates.csv").write_text("ticker\n", encoding="utf-8")
+    (reports_dir / "ticker_readiness_report.csv").write_text("ticker\nAAA\n", encoding="utf-8")
+    (reports_dir / "feature_readiness_summary.csv").write_text("feature\nreview_metrics\n", encoding="utf-8")
+    provider = FakeMetricsProvider(
+        prices={"AAA": _price_frame("AAA", 90), "SPY": _price_frame("SPY", 25)},
+        fundamentals_rows=pd.DataFrame([{"ticker": "AAA", "revenue_growth": 0.2, "fcf_margin": 0.2}]),
+    )
+    provider.data_dir = data_dir
+    rows = build_metric_readiness_board(
+        tmp_path,
+        provider,  # type: ignore[arg-type]
+        benchmarks=["SPY"],
+        tickers=["AAA"],
+        top_n=10,
+    )
+    output = tmp_path / "outputs" / "metric_readiness_board.csv"
+
+    write_metric_readiness_board_csv(rows, output)
+    exported = pd.read_csv(output)
+
+    assert output.exists()
+    assert exported.loc[0, "ticker"] == "AAA"
+    assert exported.loc[0, "benchmark"] == "SPY"
+    assert exported.loc[0, "blocker_family"] == "benchmark / risk"
+    assert "top_blocker" in exported.columns
+    assert "next_action" in exported.columns
 
 
 def test_configured_risk_free_rate_reads_project_config(tmp_path):

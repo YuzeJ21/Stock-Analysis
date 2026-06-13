@@ -65,6 +65,7 @@ def test_makefile_contains_convenience_targets():
         "coverage-frontier",
         "readiness-ops-evidence",
         "reviewed-batch",
+        "metric-readiness-board",
         "diff-hygiene-summary",
         "diff-hygiene-files",
         "staged-hygiene-check",
@@ -156,6 +157,7 @@ def test_makefile_help_documents_key_workflows():
         "Print the clean visitor walkthrough",
         "make status-check TOP_N=5",
         "make stock-report-md TICKER=NVDA",
+        "make metric-readiness-board TOP_N=10",
         "make dashboard-smoke",
         "make dashboard",
         "make trusted-data-pilot TOP_N=10",
@@ -188,6 +190,7 @@ def test_makefile_help_documents_key_workflows():
         "Print the broad lane operations evidence checklist",
         "make reviewed-batch",
         "Write a reviewed batch run packet for a selected lane",
+        "make metric-readiness-board [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARKS=SPY,QQQ] [OUTPUT=outputs/metric_readiness_board.csv]",
         "make public-check     Run before sharing the GitHub link",
         "make demo",
         "make trusted-data-pilot [TICKERS=NVDA,AVGO,AMD,MU,CRDO] [TOP_N=10] Print a read-only company-focused trusted-data pilot plan",
@@ -331,6 +334,14 @@ def test_make_help_output_stays_visitor_friendly():
     assert "Data onboarding:" not in output
     assert "Preview-first fundamentals and universe imports:" not in output
     assert len(output.splitlines()) <= 25
+
+
+def test_metric_readiness_board_make_target_preserves_comma_default():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "DEFAULT_METRIC_BENCHMARKS := SPY,QQQ" in makefile
+    assert '--benchmarks "$(if $(BENCHMARKS),$(BENCHMARKS),$(DEFAULT_METRIC_BENCHMARKS))"' in makefile
+    assert "--output \"$(OUTPUT)\"" in makefile
 
 
 def test_price_refresh_defaults_to_capped_broad_universe_batch():

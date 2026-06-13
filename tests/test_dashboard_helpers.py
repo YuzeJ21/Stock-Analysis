@@ -65,6 +65,49 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert "make dashboard-smoke" not in visitor_card_html
     assert "command-chip" not in visitor_card_html
 
+    queue_card_html = dashboard.signal_card_html(
+        "latest proof",
+        "Peer valuation: still_blocked",
+        "Proof command: make readiness && make peer-mapping-queue TOP_N=25. Impact: 3273 coverage rows. Guardrail: This rank is an operations queue, not a security recommendation or evidence that data is already available. Peer sub-states: peer_price=9; peer_valuation_inputs=0. Top blocker: benchmark_relative_return. Next check: make focus-price TICKER=NVDA.",
+        ["dry_run_first", "missing_before"],
+        "make readiness",
+        show_command=False,
+        queue_preview=True,
+    )
+    assert "Proof command" not in queue_card_html
+    assert "make readiness" not in queue_card_html
+    assert "still blocked" in queue_card_html
+    assert "peer price" in queue_card_html
+    assert "peer valuation inputs" in queue_card_html
+    assert "benchmark-relative return" in queue_card_html
+    assert "open the evidence drawer" in queue_card_html
+    assert "Impact: 3,273" in queue_card_html
+    assert "operations queue only" in queue_card_html
+    assert "This rank is an operations queue" not in queue_card_html
+    assert "Dry-run first" in queue_card_html
+    assert "missing before" in queue_card_html
+    assert "still_blocked" not in queue_card_html
+    assert "peer_valuation_inputs" not in queue_card_html
+    assert "benchmark_relative_return" not in queue_card_html
+    assert "make focus-price" not in queue_card_html
+
+    rendered_batches: list[list[dict[str, object]]] = []
+    original_render_signal_cards = dashboard.render_signal_cards
+
+    def capture_render(cards, *, show_commands=True, variant=""):
+        rendered_batches.append(list(cards))
+
+    dashboard.render_signal_cards = capture_render
+    try:
+        dashboard.render_operator_queue_preview(
+            [{"title": f"Card {index}"} for index in range(6)],
+            limit=4,
+        )
+    finally:
+        dashboard.render_signal_cards = original_render_signal_cards
+    assert len(rendered_batches) == 1
+    assert [card["title"] for card in rendered_batches[0]] == ["Card 0", "Card 1", "Card 2", "Card 3"]
+
     workflow_rows = dashboard.clean_display_frame(
         pd.DataFrame(
             {
@@ -286,6 +329,24 @@ def test_dashboard_page_query_supports_visitor_friendly_deep_links():
     assert dashboard.dashboard_page_from_query(None) == "Home"
 
 
+def test_data_health_operator_lane_query_supports_deep_links():
+    assert dashboard.data_health_operator_lane_from_query("prices") == "prices"
+    assert dashboard.data_health_operator_lane_from_query("price") == "prices"
+    assert dashboard.data_health_operator_lane_from_query("fundamentals-dcf") == "fundamentals"
+    assert dashboard.data_health_operator_lane_from_query("dcf") == "fundamentals"
+    assert dashboard.data_health_operator_lane_from_query("optional_context") == "optional"
+    assert dashboard.data_health_operator_lane_from_query("proof-history") == "proof"
+    assert dashboard.data_health_operator_lane_from_query("unknown") == "prices"
+    assert set(dashboard.DATA_HEALTH_OPERATOR_LANES) == {
+        "prices",
+        "fundamentals",
+        "peers",
+        "metrics",
+        "optional",
+        "proof",
+    }
+
+
 def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     pages = ["Home", "Single-Stock Report", "Value / Re-rating", "Data Health"]
     cards = [card for page in pages for card in dashboard.dashboard_page_reader_cards(page)]
@@ -453,6 +514,10 @@ def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
     assert '[data-testid="stAppViewContainer"]' in css
     assert '[data-testid="stDataFrame"]' in css
     assert '[data-testid="stExpander"]' in css
+    assert '[data-testid="stTabs"] [role="tablist"]' in css
+    assert '[data-testid="stTabs"] [role="tab"][aria-selected="true"]' in css
+    assert ".ops-copy.secondary" in css
+    assert ".ops-stat.evidence-stat" in css
     assert '[data-baseweb="popover"]' in css
     assert "#MainMenu" in css
     assert '[data-testid="stToolbar"]' in css
@@ -545,6 +610,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
     assert "Show reader tips" in source
+    assert 'if not public_demo_mode and selected_page != "Data Health":' in source
     assert "Show page tips" not in source
     assert "Adds extra explanation and review sections" in source
     assert "Most visitors can leave this off" in source
@@ -576,6 +642,7 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert '"Choose your path"' in source
     assert '"Choose a page"' not in source
     assert 'st.expander("Optional research views"' in source
+    assert 'if not public_demo_mode and selected_page != "Data Health":\n            with st.expander("Optional research views"' in source
     assert 'st.expander("More pages"' not in source
     assert 'st.expander("Advanced pages"' not in source
     assert '"Open an optional view"' in source
@@ -598,6 +665,21 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "sidebar_quick_help_lines()" in source
     assert "path_options = sidebar_path_options(\"Home\" if public_demo_mode else initial_page)" in source
     assert "selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection" in source
+    assert "render_app_header(catalog, output_frames, compact=selected_page == \"Data Health\" and not public_demo_mode)" in source
+    assert "hero_class = \"app-hero compact\" if compact else \"app-hero\"" in source
+    assert "Readiness-first local research. Data Health shows what is ready, blocked, or excluded before analysis." in source
+    assert 'if public_demo_mode or selected_page != "Data Health":' in source
+    assert source.index("selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection") < source.index(
+        'if public_demo_mode or selected_page != "Data Health":'
+    )
+    assert source.index("selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection") < source.index(
+        "render_app_header(catalog, output_frames, compact=selected_page == \"Data Health\" and not public_demo_mode)"
+    )
+    assert 'show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"' in source
+    assert "if show_sidebar_operator_guides:" in source
+    assert 'if not public_demo_mode and selected_page == "Data Health":' in source
+    assert '"Data Health operator."' in source
+    assert "Use the command center and lane buttons on the page. Copy-only commands stay inside evidence drawers." in source
     assert 'st.expander("Help for using the app"' not in source
     assert 'st.expander("Help, commands, and paths"' not in source
     assert 'st.expander("Quick help and safe commands"' not in source
@@ -697,36 +779,31 @@ def test_dashboard_not_ready_notices_avoid_generated_file_language():
 def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_details():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    beginner_note_index = source.index('render_context_note(\n        "Beginner view."')
-    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
-    fix_first_index = source.index('render_section_header("Fix First"')
-    pilot_index = source.index('render_section_header("Trusted Data Pilot"')
-    refresh_details_index = source.index('st.expander("Refresh and command details", expanded=False)')
-    freshness_index = source.index('render_section_header("Freshness Routine"', refresh_details_index)
-    action_paths_index = source.index('render_section_header("Copy-Only Next Steps"')
-    planning_expander_index = source.index('st.expander("Coverage proof planning cards"')
+    hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)")
+    queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
+    lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
+    price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', lane_selector_index)
+    details_drawer_index = source.index('st.expander("Additional operator evidence"', price_drawer_index)
     market_details_gate_index = source.index('if show_details:\n        with st.expander("Detailed market-wide review"')
     market_expander_index = source.index('st.expander("Detailed market-wide review"', market_details_gate_index)
     detailed_map_index = source.index('render_section_header(\n                "Detailed Proof Map"', market_expander_index)
     market_command_index = source.index("render_market_command_center(", market_expander_index)
-    summary_expander_index = source.index('st.expander("More readiness summaries and proof lists"')
-    bundle_expander_index = source.index('st.expander("Guided coverage plan details"')
+    next_proof_index = source.index('render_section_header("Next Data Proof Steps"', details_drawer_index)
     hidden_tables_note_index = source.index('render_context_note(\n            "Detailed tables are hidden."')
     tabs_index = source.index('health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Updates", "Import Checks"])')
 
-    assert beginner_note_index < quick_read_index < fix_first_index < pilot_index < refresh_details_index
-    assert refresh_details_index < freshness_index < action_paths_index < planning_expander_index
-    assert planning_expander_index < market_details_gate_index < market_expander_index < summary_expander_index < bundle_expander_index < hidden_tables_note_index < tabs_index
+    assert hero_index < queue_index < lane_selector_index < price_drawer_index < details_drawer_index
+    assert details_drawer_index < next_proof_index < market_details_gate_index < market_expander_index < hidden_tables_note_index < tabs_index
     assert market_expander_index < detailed_map_index < market_command_index
     assert "Choose the detailed lane to inspect first: fundamentals/DCF, peer mapping, or optional context." in source
-    assert "Read quick read, fix first, and trusted-data pilot first." in source
-    assert "Open refresh and command details only when you want the next copy-only proof steps." in source
-    assert "Turn on reader tips in the sidebar when you want the full Actions, Coverage, Sources, Price Updates, and Import Checks tables." in source
+    assert "Data Health Command Center" in source
+    assert "Choose one readiness lane. Evidence and commands stay collapsed until needed." in source
+    assert "Open the lane evidence drawer or Additional operator evidence above for proof tables. Full Actions, Coverage, Sources, Price Updates, and Import Checks remain outside the default operator flow." in source
     assert 'if show_details:\n        with st.expander("Detailed market-wide review", expanded=False)' in source
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
     assert 'render_section_header("Action Paths"' not in source
-    assert 'st.expander("Refresh and command details", expanded=False)' in source
-    assert 'st.expander("Coverage proof planning cards", expanded=False)' in source
+    assert 'st.expander("Optional context evidence drawer", expanded=False)' in source
+    assert 'st.expander("Additional operator evidence", expanded=False)' in source
     assert 'st.expander("Detailed market-wide review", expanded=False)' in source
     assert "Advanced Unlock Map" not in source
     assert "detailed market-wide workspace" not in source
@@ -734,9 +811,9 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'st.expander("Ticker Unlock Ladder", expanded=False)' not in source
     assert 'st.expander("Data Gap List", expanded=False)' in source
     assert 'st.expander("Data Gap Report", expanded=False)' not in source
-    assert 'st.expander("More readiness summaries and proof lists", expanded=False)' in source
-    assert 'st.expander("Guided coverage plan details", expanded=False)' in source
-    assert summary_expander_index < source.index('render_section_header("Next Data Proof Steps"', summary_expander_index)
+    assert 'st.expander("More readiness summaries and proof lists", expanded=False)' not in source
+    assert 'st.expander("Guided coverage plan details", expanded=False)' not in source
+    assert details_drawer_index < next_proof_index
     assert 'render_section_header("Priority Fixes"' not in source
 
 
@@ -9892,7 +9969,7 @@ def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps()
     assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
     assert cards[3]["command"] == "make readiness && make price-coverage TOP_N=100 && make diff-hygiene"
     assert "copy-only reviewed packet" in rendered
-    assert "workflow mode: dry_run_first" in rendered
+    assert "workflow mode: dry-run first" in rendered
     assert "dry-run before execution" in rendered
     assert "do not proceed if source proof, validation, or preview review is missing" in rendered
     assert "generated csv/json churn" in rendered
@@ -10181,46 +10258,42 @@ def test_data_health_trusted_pilot_preview_cards_summarize_top_candidates():
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
-    scope_legend_index = source.index('render_section_header("Universe Scope Legend"', quick_read_index)
-    cockpit_index = source.index('render_section_header("Operations Cockpit"')
-    risk_context_index = source.index('render_section_header("Risk Context Readiness"', cockpit_index)
-    pilot_index = source.index('render_section_header("Trusted Data Pilot"')
-    ops_index = source.index('render_section_header("Readiness Operations Center"')
-    frontier_index = source.index('render_section_header("Coverage Frontier"', ops_index)
-    batch_ladder_index = source.index('render_section_header("Reviewed Batch Ladder"', frontier_index)
-    fix_first_index = source.index('render_section_header("Fix First"', batch_ladder_index)
-    lane_board_index = source.index('render_section_header("Lane-Group Board"', pilot_index)
-    proof_timeline_index = source.index('render_section_header("Reviewed Proof Timeline"', lane_board_index)
-    pilot_preview_index = source.index("pilot_preview = data_health_trusted_pilot_preview_frame", pilot_index)
-    refresh_details_index = source.index('st.expander("Refresh and command details", expanded=False)', pilot_index)
-    next_steps_index = source.index('render_section_header("Copy-Only Next Steps"', refresh_details_index)
-    details_index = source.index("if show_details:", next_steps_index)
+    public_return_index = source.index("return", source.index("Operator details are hidden."))
+    hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
+    queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
+    lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
+    price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', lane_selector_index)
+    fundamentals_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)', price_drawer_index)
+    peer_drawer_index = source.index('st.expander("Peer evidence drawer", expanded=False)', fundamentals_drawer_index)
+    metrics_drawer_index = source.index('st.expander("Metrics evidence drawer", expanded=False)', peer_drawer_index)
+    proof_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', metrics_drawer_index)
+    all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
+    details_index = source.index("if show_details:", all_details_index)
 
-    assert quick_read_index < scope_legend_index < cockpit_index < risk_context_index < ops_index < frontier_index < batch_ladder_index < fix_first_index < pilot_index < lane_board_index < proof_timeline_index < refresh_details_index < next_steps_index < pilot_preview_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < price_drawer_index < fundamentals_drawer_index < peer_drawer_index < metrics_drawer_index < proof_drawer_index < all_details_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = readiness_freshness_status(BASE_DIR)" in source
-    assert "render_signal_cards(\n        data_health_operations_cockpit_cards(" in source
-    assert "render_signal_cards(data_health_risk_context_cards(liquidity_frame, correlation_frame))" in source
+    assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
+    assert "data_health_operator_snapshot_cards(" in source
+    assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
+    assert "def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4)" in source
+    assert "render_operator_queue_preview(\n            data_health_coverage_frontier_cards(coverage_frontier, limit=2)" in source
     assert "earnings_readiness_frame,\n            analyst_readiness_frame" in source
     assert "analyst_readiness_frame,\n            readiness_freshness" in source
     assert "render_signal_cards(data_health_readiness_ops_center_cards(ops_center))" in source
     assert "render_signal_cards(data_health_coverage_frontier_cards(coverage_frontier))" in source
     assert "render_signal_cards(data_health_reviewed_batch_ladder_cards(coverage_frontier, readiness_freshness))" in source
-    assert "render_signal_cards(data_health_trusted_pilot_cards(readiness_summary))" in source
+    assert "fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)" in source
     assert "lane_board = data_health_trusted_pilot_lane_board_frame" in source
     assert "render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))" in source
-    assert 'st.expander("Lane-group evidence summary", expanded=False)' in source
+    assert 'st.expander("Peer evidence drawer", expanded=False)' in source
     assert "render_signal_cards(data_health_reviewed_proof_cards())" in source
-    assert 'st.expander("Reviewed proof ledger", expanded=False)' in source
-    assert 'st.expander("Pilot selection details", expanded=False)' in source
-    assert '"How to choose the pilot."' in source
-    assert "render_signal_cards(data_health_trusted_pilot_preview_cards(pilot_preview))" in source
+    assert 'st.expander("Proof history evidence drawer", expanded=False)' in source
+    assert '"Pilot selection rule."' in source
+    assert "fundamentals_preview_cards += data_health_trusted_pilot_preview_cards(pilot_preview)" in source
     assert "`make trusted-data-pilot-candidates TOP_N=10`" in source
-    assert "broad universe dump" in source
     assert "broad raw table" not in source
-    assert 'st.expander("Capped pilot candidate table", expanded=False)' in source
     assert "st.dataframe(clean_display_frame(pilot_preview), width=\"stretch\", hide_index=True)" in source
 
 
@@ -10413,6 +10486,8 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     assert "See what trusted local inputs are ready, what analysis is still locked, and which proof path should be checked next." in source
+    assert "if public_mode:\n        render_section_header(" in source
+    assert "if public_mode and project_status_payload is None:" in source
     refresh_note_index = source.index('st.expander("Refresh status note"')
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     assert refresh_note_index < quick_read_index
@@ -13902,12 +13977,14 @@ def test_universe_layer_cards_separate_scope_from_analysis_readiness():
 def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    quick_read_index = source.index('render_section_header("Data Health Quick Read"')
+    public_index = source.index("if public_mode:", source.index("def render_data_health("))
+    quick_read_index = source.index('render_section_header("Data Health Quick Read"', public_index)
     scope_index = source.index('render_section_header("Universe Scope Legend"', quick_read_index)
-    ops_index = source.index('render_section_header("Operations Cockpit"', scope_index)
+    public_return_index = source.index("return", source.index("Operator details are hidden."))
+    ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
 
-    assert quick_read_index < scope_index < ops_index
-    assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=not public_mode)" in source
+    assert public_index < quick_read_index < scope_index < public_return_index < ops_index
+    assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)" in source
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
 
 
@@ -18605,15 +18682,83 @@ def test_data_health_review_metric_readiness_cards_gate_advanced_metrics():
     assert "trading" not in rendered
 
 
+def test_metric_readiness_queue_cards_summarize_benchmark_blockers_without_rankings():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Benchmark": "SPY",
+                "Overall State": "partial",
+                "Ready Metrics": 5,
+                "Partial Metrics": 4,
+                "Blocked Metrics": 0,
+                "Excluded Metrics": 0,
+                "Top Blocker": "benchmark_relative_return: at least 60 aligned ticker/SPY price rows",
+                "Blocker Family": "benchmark / risk",
+                "Next Check": "make focus-price TICKER=NVDA",
+                "Freshness": "current",
+            },
+            {
+                "Ticker": "NVDA",
+                "Benchmark": "QQQ",
+                "Overall State": "blocked",
+                "Ready Metrics": 3,
+                "Partial Metrics": 2,
+                "Blocked Metrics": 1,
+                "Excluded Metrics": 0,
+                "Top Blocker": "peer_valuation_dispersion: at least two peers with trusted valuation multiples",
+                "Blocker Family": "peer dispersion",
+                "Next Check": "make focus-peers TICKER=NVDA",
+                "Freshness": "current",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_metric_readiness_queue_cards(frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "SPY / QQQ METRIC QUEUE"
+    assert "2 rows across spy, qqq" in rendered
+    assert "partial or blocked" in rendered
+    assert "benchmark / risk" in rendered
+    assert "at least 60 aligned ticker/spy price rows" in rendered
+    assert "partial metrics withhold values" in rendered
+    assert "not ranking" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+
+
+def test_metric_readiness_queue_frame_covers_spy_and_qqq():
+    frame = dashboard.data_health_metric_readiness_queue_frame(top_n=1)
+
+    assert set(frame["Benchmark"]) == {"SPY", "QQQ"}
+    assert len(frame) == 2
+    assert {
+        "Ticker",
+        "Benchmark",
+        "Overall State",
+        "Blocker Family",
+        "Top Blocker",
+        "Next Check",
+        "Freshness",
+    }.issubset(frame.columns)
+
+
 def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    risk_cards_index = source.index("render_signal_cards(data_health_risk_context_cards(liquidity_frame, correlation_frame))")
-    metric_cards_index = source.index("render_signal_cards(data_health_review_metric_readiness_cards())")
+    lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
+    risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", lane_selector_index)
+    metric_queue_index = source.index("data_health_metric_readiness_queue_cards(metric_queue_frame)", lane_selector_index)
+    metric_cards_index = source.index("data_health_review_metric_readiness_cards()", lane_selector_index)
+    metric_queue_expander_index = source.index('st.expander("Metrics evidence drawer", expanded=False)', lane_selector_index)
     liquidity_expander_index = source.index('st.expander("Liquidity Context", expanded=False)')
     correlation_expander_index = source.index('st.expander("Correlation Concentration Context", expanded=False)')
 
-    assert risk_cards_index < metric_cards_index < liquidity_expander_index < correlation_expander_index
+    assert risk_cards_index < metric_queue_index < metric_cards_index < metric_queue_expander_index < liquidity_expander_index < correlation_expander_index
 
 
 def test_market_direction_chart_frame_keeps_supported_numeric_rows_only():
@@ -19132,10 +19277,13 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert "public_demo_mode = st.toggle" in source
     assert "path_options = sidebar_path_options(\"Home\" if public_demo_mode else initial_page)" in source
     assert "show_reason_details = False" in source
-    assert "if not public_demo_mode:" in source
+    assert 'if not public_demo_mode and selected_page != "Data Health":' in source
     assert 'st.expander("Optional research views"' in source
+    assert 'if not public_demo_mode and selected_page != "Data Health":\n            with st.expander("Optional research views"' in source
     assert 'st.expander("Copy-only local commands"' in source
-    assert "Operator mode restores detailed boards and copy-only command sections." in source
+    assert 'show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"' in source
+    assert "Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers." in source
+    assert '"Data Health operator."' in source
     assert 'if selected_page == "Single-Stock Report" and not public_demo_mode:' in source
     assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
@@ -19152,7 +19300,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     proof_index = source.index('render_section_header("Latest Reviewed Data Proof"', batch_index)
     hidden_index = source.index("Operator details are hidden.", proof_index)
     return_index = source.index("return", hidden_index)
-    ops_index = source.index('render_section_header("Operations Cockpit"', return_index)
+    ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", return_index)
 
     assert public_index < freshness_index < batch_index < proof_index < hidden_index < return_index < ops_index
     assert "Switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables." in source
@@ -21699,7 +21847,7 @@ def test_stock_report_review_metrics_frame_preserves_states_and_blockers():
                         {
                             "name": "revenue_growth_and_fcf_margin_trend",
                             "state": "partial",
-                            "value": 0.2,
+                            "value": None,
                             "unit": "percent",
                             "missing_inputs": ["at least two trusted fundamentals rows for trend"],
                         }
