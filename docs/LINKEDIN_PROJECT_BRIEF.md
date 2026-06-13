@@ -35,7 +35,11 @@ The most important design choice was refusing to present every ticker as complet
 
 GitHub: https://github.com/YuzeJ21/Stock-Analysis
 
-Featured thumbnail: use `docs/assets/public-demo-home-real.jpg`, a real public-mode screenshot from the local product. Use `docs/assets/operator-data-health-metrics-real.jpg` only when you want to show the deeper operator workflow.
+LinkedIn Featured title: `Stock Research Command Center - Readiness-First Research Dashboard`
+
+LinkedIn Featured description: `A public portfolio project built with Python and Streamlit that checks data readiness before showing stock research workflows. It separates ready, blocked, partial, and excluded states, keeps proof steps visible, and stays research-only with no broker integration or auto-trading.`
+
+Featured thumbnail: use `docs/assets/operator-data-health-metrics-real.jpg` when you want to show the current readiness operator workflow. Use `docs/assets/public-demo-home-real.jpg` when you want the simpler public visitor view.
 
 ## Resume Bullet Options
 
