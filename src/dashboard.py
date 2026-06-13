@@ -6937,6 +6937,54 @@ def data_health_readiness_ops_center_cards(ops_frame: pd.DataFrame | None, *, li
     return cards
 
 
+def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    """Summarize peer mapping, peer trend, and peer valuation gates before detailed tables."""
+
+    if ops_frame is None or ops_frame.empty:
+        return [
+            {
+                "kicker": "PEER READINESS V2",
+                "title": "Peer sub-states need readiness rows",
+                "body": "Run make readiness, then reopen Data Health to separate peer mapping, peer price, peer fundamentals, and peer valuation readiness.",
+                "badges": ["read-only", "peer gates"],
+                "command": "make readiness && make peer-mapping-queue TOP_N=25",
+            }
+        ]
+    peer_rows = ops_frame.loc[
+        ops_frame["Lane"].astype(str).str.lower().str.contains("peer", na=False)
+    ].copy()
+    if peer_rows.empty:
+        return [
+            {
+                "kicker": "PEER READINESS V2",
+                "title": "Peer lanes are not in this snapshot",
+                "body": "Run make readiness-ops-center after readiness reports exist. Peer valuation stays locked until mapped peer inputs are trusted.",
+                "badges": ["read-only", "blocked"],
+                "command": "make readiness-ops-center",
+            }
+        ]
+    cards: list[dict[str, object]] = []
+    for _, row in peer_rows.iterrows():
+        lane = format_missing(row.get("Lane"), "Peer readiness lane")
+        notes = compact_card_fragment(row.get("Notes"), max_sentences=2, max_chars=420)
+        command = format_missing(row.get("Next Safe Command"), "make peer-mapping-queue TOP_N=25")
+        proof = compact_card_fragment(row.get("Proof Command"), max_chars=150)
+        cards.append(
+            {
+                "kicker": "PEER READINESS V2",
+                "title": lane,
+                "body": (
+                    f"{card_sentence('Sub-state proof', notes)} "
+                    f"{card_sentence('Proof command', proof)} "
+                    "Peer trend can become usable before peer valuation; sector fallback is context, not trusted peer valuation."
+                ),
+                "badges": [public_status_label(row.get("State")), format_missing(row.get("Workflow Mode"), "review")],
+                "command": command,
+            }
+        )
+    return cards
+
+
 def data_health_coverage_frontier_cards(frontier_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
     if frontier_frame is None or frontier_frame.empty:
         return [
@@ -22071,6 +22119,8 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     render_signal_cards(data_health_risk_context_cards(liquidity_frame, correlation_frame))
     render_section_header("Readiness Operations Center", "Broad lane-level actions before single-ticker proof packets.")
     render_signal_cards(data_health_readiness_ops_center_cards(ops_center))
+    render_section_header("Peer Readiness V2", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
+    render_signal_cards(data_health_peer_readiness_v2_cards(ops_center))
     with st.expander("Lane operations board", expanded=False):
         st.dataframe(clean_display_frame(ops_center), width="stretch", hide_index=True)
     render_section_header("Coverage Frontier", "Batch opportunities ranked by data-readiness unlock impact, not security attractiveness.")

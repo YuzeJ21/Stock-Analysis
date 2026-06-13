@@ -187,6 +187,8 @@ Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.m
 
 Use `make readiness-ops-center` before drilling into individual tickers. It prints a read-only lane board for price coverage, fundamentals/DCF proof, peer mapping proof, peer valuation inputs, earnings locked context, analyst-estimates locked context, and excluded/not-applicable rows. Each lane keeps ready, partial, blocked, and excluded counts visible, shows the workflow mode, and names the next safe command without refreshing, importing, applying, or rewriting local files.
 
+Trusted Coverage Growth V2 keeps peer readiness split into sub-states before a lane can be called supported: peer mapping, peer price, peer momentum, peer fundamentals, peer valuation, and peer valuation comparison. Peer trend context can become usable before peer valuation is ready. Sector or industry fallback remains research context only; it is not trusted peer mapping or peer valuation proof.
+
 Use `make coverage-frontier TOP_N=10` to rank broad batch opportunities by unlock impact. This is an operations queue, not a security ranking: a high-impact lane means many feature states are blocked or partial, not that any ticker is attractive or that source data is already available. The command includes the source lane, workflow mode, possible state move, proof command, and generated-churn policy.
 
 Use `make readiness-ops-evidence` as the compact evidence checklist before packaging work. It restates the proof gate, locked optional lanes, excluded/not-applicable boundary, and broad CSV/JSON churn policy. Data Health surfaces the same operations-center and coverage-frontier views before the trusted-data pilot and detailed tables so the product starts from batch lanes rather than one-name manual loops.
@@ -198,6 +200,8 @@ Use `make reviewed-batch LANE=prices TOP_N=10` to convert a frontier lane into a
 The packet includes the pre-run readiness snapshot command, dry-run command, capped execution command, validate/preview/apply gates, post-run verification commands, expected artifacts, rollback notes, proof-row template, research-only guardrails, and "do not proceed if" blockers. If saved readiness artifacts are missing or stale because source CSVs changed after the reports, the packet says to run `make readiness` before relying on final counts.
 
 Use the reviewed batch packet after `make coverage-frontier TOP_N=10` identifies the best lane to inspect. A high-impact lane is still an operations queue, not a security ranking, and every mutating workflow remains validate -> preview -> apply before any supported outcome is recorded.
+
+For Trusted Coverage Growth V2, reviewed batches should leave a proof row rather than a vague note. Record the batch id, lane, scope, tickers, pre-run readiness snapshot, exact command, validation result, preview result, apply result, post-run readiness snapshot, changed readiness counts, changed tickers, reviewer, review date, source files, generated artifacts reviewed, final outcome, and notes. Valid final outcomes are `supported`, `still_blocked`, `skipped`, and `excluded`.
 
 ## Readiness-Gated Review Metrics
 

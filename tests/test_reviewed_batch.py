@@ -114,6 +114,24 @@ def test_reviewed_batch_supports_ticker_scope_and_optional_context(tmp_path: Pat
     assert "make optional-context-worklist TOP_N=5" in rendered
 
 
+def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane_steps(tmp_path: Path):
+    packet = build_reviewed_batch_packet(_sample_root(tmp_path), lane="peers", top_n=2)
+    rendered = render_packet_markdown(packet)
+    lowered = rendered.lower()
+
+    assert "changed_readiness_counts" in rendered
+    assert "changed_tickers" in rendered
+    assert "generated_artifacts_reviewed" in rendered
+    assert "final_outcome" in rendered
+    assert "supported, still_blocked, skipped, excluded" in rendered
+    assert "data/reviewed_batch_proofs.csv" in rendered
+    assert "record peer_mapping_ready, peer_price_ready, peer_momentum_ready" in lowered
+    assert "peer_valuation_comparison_ready" in rendered
+    assert "sector or industry fallback as context only" in lowered
+    assert "make metric-readiness" in rendered
+    assert "validate -> preview -> apply" in rendered
+
+
 def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     root = _sample_root(tmp_path)
     packet = build_reviewed_batch_packet(root, lane="peers", top_n=2)
@@ -132,3 +150,7 @@ def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     assert rows
     assert rows[0]["batch_id"] == packet.batch_id
     assert rows[0]["dry_run_command"] == "make peer-mapping-queue TOP_N=2"
+    assert rows[0]["pre_run_readiness_snapshot"].startswith("record saved counts")
+    assert rows[0]["changed_readiness_counts"] == "<before -> after counts, or none>"
+    assert rows[0]["generated_artifacts_reviewed"] == "<kept evidence or excluded local churn>"
+    assert rows[0]["final_outcome"] == "supported|still_blocked|skipped|excluded"

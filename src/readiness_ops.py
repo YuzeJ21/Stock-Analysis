@@ -56,6 +56,40 @@ class CoverageFrontierOpportunity:
     guardrail: str
 
 
+@dataclass(frozen=True)
+class PeerReadinessSummary:
+    total_count: int
+    peer_mapping_ready: int
+    peer_price_ready: int
+    peer_momentum_ready: int
+    peer_fundamentals_ready: int
+    peer_valuation_ready: int
+    peer_valuation_comparison_ready: int
+    missing_mapping: int
+    missing_peer_price: int
+    missing_peer_momentum: int
+    missing_peer_fundamentals: int
+    peer_valuation_blocked: int
+    source_context: str
+
+    @property
+    def trend_ready(self) -> int:
+        return self.peer_momentum_ready
+
+    @property
+    def summary_text(self) -> str:
+        return (
+            f"mapping={self.peer_mapping_ready}/{self.total_count}; "
+            f"peer_price={self.peer_price_ready}; peer_momentum={self.peer_momentum_ready}; "
+            f"peer_fundamentals={self.peer_fundamentals_ready}; "
+            f"peer_valuation={self.peer_valuation_ready}; "
+            f"peer_valuation_comparison={self.peer_valuation_comparison_ready}; "
+            f"blocked: mappings={self.missing_mapping}, peer_prices={self.missing_peer_price}, "
+            f"peer_momentum={self.missing_peer_momentum}, peer_fundamentals={self.missing_peer_fundamentals}, "
+            f"peer_valuation_inputs={self.peer_valuation_blocked}"
+        )
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -150,6 +184,43 @@ def _feature_counts(
     return total, ready, partial, blocked, excluded
 
 
+def build_peer_readiness_summary(root: Path | str = ".") -> PeerReadinessSummary:
+    root = Path(root)
+    rows = _read_csv(root / "data" / "reports" / "peer_readiness_report.csv")
+    total = len(rows)
+    if not rows:
+        return PeerReadinessSummary(
+            total_count=0,
+            peer_mapping_ready=0,
+            peer_price_ready=0,
+            peer_momentum_ready=0,
+            peer_fundamentals_ready=0,
+            peer_valuation_ready=0,
+            peer_valuation_comparison_ready=0,
+            missing_mapping=0,
+            missing_peer_price=0,
+            missing_peer_momentum=0,
+            missing_peer_fundamentals=0,
+            peer_valuation_blocked=0,
+            source_context="data/reports/peer_readiness_report.csv missing; run make readiness before using peer sub-state counts.",
+        )
+    return PeerReadinessSummary(
+        total_count=total,
+        peer_mapping_ready=sum(1 for row in rows if str(row.get("mapping_status") or "").strip().lower() == "mapped"),
+        peer_price_ready=_count_true(rows, "peer_price_ready"),
+        peer_momentum_ready=_count_true(rows, "peer_momentum_ready"),
+        peer_fundamentals_ready=_count_true(rows, "peer_fundamentals_ready"),
+        peer_valuation_ready=_count_true(rows, "peer_valuation_ready"),
+        peer_valuation_comparison_ready=_count_true(rows, "peer_valuation_comparison_ready"),
+        missing_mapping=sum(1 for row in rows if str(row.get("peer_blocker_type") or "").strip() == "missing_peer_mapping"),
+        missing_peer_price=sum(1 for row in rows if str(row.get("peer_blocker_type") or "").strip() == "peer_price_missing"),
+        missing_peer_momentum=sum(1 for row in rows if str(row.get("peer_blocker_type") or "").strip() == "peer_momentum_missing"),
+        missing_peer_fundamentals=sum(1 for row in rows if str(row.get("peer_blocker_type") or "").strip() == "peer_fundamentals_missing"),
+        peer_valuation_blocked=sum(1 for row in rows if str(row.get("peer_blocker_type") or "").strip() == "peer_valuation_blocked"),
+        source_context="data/reports/peer_readiness_report.csv; peer trend can be ready before peer valuation comparison is ready.",
+    )
+
+
 def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
     root = Path(root)
     data = root / "data"
@@ -157,6 +228,7 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
     readiness_rows = _read_csv(reports / "ticker_readiness_report.csv")
     feature_rows = _read_csv(reports / "feature_readiness_summary.csv")
     peer_unlock_rows = _read_csv(reports / "peer_unlock_worklist.csv")
+    peer_summary = build_peer_readiness_summary(root)
     stale_warning = build_stale_proof_warning(root)
 
     total = len(readiness_rows)
@@ -237,7 +309,10 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
             proof_command="make imports-validate && make imports-preview && make readiness && make peer-mapping-queue TOP_N=25",
             generated_churn_policy="Apply only reviewed peer rows; do not infer trusted peers from sector similarity.",
             stale_proof_warning=stale_warning,
-            notes="Source-backed peer mappings unlock peer trend checks, but peer valuation still waits for mapped-peer inputs.",
+            notes=(
+                "Source-backed peer mappings unlock peer trend checks, but peer valuation still waits for mapped-peer inputs. "
+                f"Peer sub-states: {peer_summary.summary_text}."
+            ),
         ),
         ReadinessLane(
             lane="peer_valuation_inputs",
@@ -256,7 +331,10 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
             proof_command="make readiness && make peer-mapping-queue TOP_N=25",
             generated_churn_policy="Keep mapped-peer data changes reviewed; broad readiness/report CSV churn is not staged by default.",
             stale_proof_warning=stale_warning,
-            notes="Peer trend can be partial while peer valuation remains blocked; keep those states separate.",
+            notes=(
+                "Peer trend can be partial while peer valuation remains blocked; keep those states separate. "
+                f"Peer sub-states: {peer_summary.summary_text}."
+            ),
         ),
         ReadinessLane(
             lane="earnings_locked",

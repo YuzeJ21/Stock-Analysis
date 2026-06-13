@@ -98,6 +98,15 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Warn when saved readiness artifacts are missing or stale before relying on counts.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
+### Trusted Coverage Growth V2
+
+Goal: make coverage growth proof-backed at the lane level before any ticker-level analysis changes.
+
+- [x] Surface peer sub-state readiness in operations views: peer mapping, peer price, peer momentum, peer fundamentals, peer valuation, and peer valuation comparison.
+- [x] Expand reviewed-batch packets with before/after proof fields for changed readiness counts, changed tickers, reviewed artifacts, and final outcome.
+- [x] Add Data Health peer-readiness cards so peer trend and peer valuation gates stay visibly separate.
+- Keep proof-ledger rows local and reviewable; do not claim a supported lane until source proof, validation, preview, rejected-row review, post-run readiness, and artifact hygiene are complete.
+
 ### Readiness-Gated Review Metrics V1
 
 Goal: add useful benchmark, risk, fundamentals, valuation, and peer context without turning missing inputs into conclusions.

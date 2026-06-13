@@ -2,9 +2,9 @@
 
 Research-only: this packet plans data-readiness work. It is not investment advice, does not connect to brokers, does not route orders, and does not provide direct buy/sell instructions.
 
-- Batch ID: `RB-20260612T031422Z`
-- Selected lane: `prices`
-- Lane scope: `price_coverage`
+- Batch ID: `RB-20260613T005616Z`
+- Selected lane: `peers`
+- Lane scope: `peer_mapping, peer_valuation_inputs`
 - Ticker scope: `top 3`
 - Freshness status: `current`
 - Freshness note: Readiness artifacts are current relative to watched source files.
@@ -19,47 +19,125 @@ Research-only: this packet plans data-readiness work. It is not investment advic
 
 ## Proposed Actions
 
-### Price Coverage: ARCT
+### Peer Mapping Proof: AAPL
 
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=3 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=3 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=3 && make status-check TOP_N=5`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
+- Workflow mode: `reviewed_apply`
+- Source/freshness context: Peer relationships must be source-backed or clearly labeled fallback context only. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make peer-mapping-queue TOP_N=3`
+- Capped execution command: `make focus-peers TICKER=AAPL or add reviewed peer rows/mapped-peer inputs`
+- Validate: `make imports-validate`
+- Preview: `make imports-preview`
+- Apply gate: `make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed`
+- Post-run verification: `make readiness && make peer-mapping-queue TOP_N=3 && make metric-readiness TICKERS=AAPL,MSFT,CRDO BENCHMARK=SPY`
+- Expected artifacts: data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv
+- Rollback checklist: If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.
 - Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
 
-### Price Coverage: ARDX
+Peer/sub-lane proof instructions:
+- Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.
+- Inspect the peer sub-lane with make peer-mapping-queue TOP_N=3 and make focus-peers TICKER=<ticker>.
+- Treat sector or industry fallback as context only; it is not trusted peer mapping proof.
+- After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.
 
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=3 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=3 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=3 && make status-check TOP_N=5`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
+### Peer Mapping Proof: MSFT
+
+- Workflow mode: `reviewed_apply`
+- Source/freshness context: Peer relationships must be source-backed or clearly labeled fallback context only. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make peer-mapping-queue TOP_N=3`
+- Capped execution command: `make focus-peers TICKER=AAPL or add reviewed peer rows/mapped-peer inputs`
+- Validate: `make imports-validate`
+- Preview: `make imports-preview`
+- Apply gate: `make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed`
+- Post-run verification: `make readiness && make peer-mapping-queue TOP_N=3 && make metric-readiness TICKERS=AAPL,MSFT,CRDO BENCHMARK=SPY`
+- Expected artifacts: data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv
+- Rollback checklist: If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.
 - Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
 
-### Price Coverage: ARE
+Peer/sub-lane proof instructions:
+- Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.
+- Inspect the peer sub-lane with make peer-mapping-queue TOP_N=3 and make focus-peers TICKER=<ticker>.
+- Treat sector or industry fallback as context only; it is not trusted peer mapping proof.
+- After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.
 
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=3 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=3 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=3 && make status-check TOP_N=5`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
+### Peer Mapping Proof: CRDO
+
+- Workflow mode: `reviewed_apply`
+- Source/freshness context: Peer relationships must be source-backed or clearly labeled fallback context only. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make peer-mapping-queue TOP_N=3`
+- Capped execution command: `make focus-peers TICKER=AAPL or add reviewed peer rows/mapped-peer inputs`
+- Validate: `make imports-validate`
+- Preview: `make imports-preview`
+- Apply gate: `make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed`
+- Post-run verification: `make readiness && make peer-mapping-queue TOP_N=3 && make metric-readiness TICKERS=AAPL,MSFT,CRDO BENCHMARK=SPY`
+- Expected artifacts: data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv
+- Rollback checklist: If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.
 - Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+
+Peer/sub-lane proof instructions:
+- Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.
+- Inspect the peer sub-lane with make peer-mapping-queue TOP_N=3 and make focus-peers TICKER=<ticker>.
+- Treat sector or industry fallback as context only; it is not trusted peer mapping proof.
+- After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.
+
+### Peer Valuation Inputs Proof: AAPL
+
+- Workflow mode: `preview_first_reviewed_apply`
+- Source/freshness context: Mapped peers need trusted price, fundamentals, market-cap, or valuation inputs before peer valuation appears. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make peer-mapping-queue TOP_N=3`
+- Capped execution command: `make focus-peers TICKER=AAPL or add reviewed peer rows/mapped-peer inputs`
+- Validate: `make imports-validate`
+- Preview: `make imports-preview`
+- Apply gate: `make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed`
+- Post-run verification: `make readiness && make peer-mapping-queue TOP_N=3 && make metric-readiness TICKERS=AAPL,MSFT,CRDO BENCHMARK=SPY`
+- Expected artifacts: data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv
+- Rollback checklist: If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+
+Peer/sub-lane proof instructions:
+- Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.
+- Inspect the peer sub-lane with make peer-mapping-queue TOP_N=3 and make focus-peers TICKER=<ticker>.
+- Treat sector or industry fallback as context only; it is not trusted peer mapping proof.
+- After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.
+
+### Peer Valuation Inputs Proof: MSFT
+
+- Workflow mode: `preview_first_reviewed_apply`
+- Source/freshness context: Mapped peers need trusted price, fundamentals, market-cap, or valuation inputs before peer valuation appears. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make peer-mapping-queue TOP_N=3`
+- Capped execution command: `make focus-peers TICKER=AAPL or add reviewed peer rows/mapped-peer inputs`
+- Validate: `make imports-validate`
+- Preview: `make imports-preview`
+- Apply gate: `make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed`
+- Post-run verification: `make readiness && make peer-mapping-queue TOP_N=3 && make metric-readiness TICKERS=AAPL,MSFT,CRDO BENCHMARK=SPY`
+- Expected artifacts: data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv
+- Rollback checklist: If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+
+Peer/sub-lane proof instructions:
+- Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.
+- Inspect the peer sub-lane with make peer-mapping-queue TOP_N=3 and make focus-peers TICKER=<ticker>.
+- Treat sector or industry fallback as context only; it is not trusted peer mapping proof.
+- After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.
+
+### Peer Valuation Inputs Proof: CRDO
+
+- Workflow mode: `preview_first_reviewed_apply`
+- Source/freshness context: Mapped peers need trusted price, fundamentals, market-cap, or valuation inputs before peer valuation appears. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make peer-mapping-queue TOP_N=3`
+- Capped execution command: `make focus-peers TICKER=AAPL or add reviewed peer rows/mapped-peer inputs`
+- Validate: `make imports-validate`
+- Preview: `make imports-preview`
+- Apply gate: `make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed`
+- Post-run verification: `make readiness && make peer-mapping-queue TOP_N=3 && make metric-readiness TICKERS=AAPL,MSFT,CRDO BENCHMARK=SPY`
+- Expected artifacts: data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv
+- Rollback checklist: If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+
+Peer/sub-lane proof instructions:
+- Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.
+- Inspect the peer sub-lane with make peer-mapping-queue TOP_N=3 and make focus-peers TICKER=<ticker>.
+- Treat sector or industry fallback as context only; it is not trusted peer mapping proof.
+- After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.
 
 ## Review Checklist
 
@@ -69,11 +147,17 @@ Research-only: this packet plans data-readiness work. It is not investment advic
 - For mutating workflows, run validate -> preview -> apply only after review.
 - Check rejected-row reports before treating any lane as supported.
 - Run post-run readiness verification and record supported, still_blocked, skipped, or excluded honestly.
+- Record changed readiness counts and changed tickers only when the before/after proof supports them.
+- Classify generated CSV/JSON artifacts as kept evidence or excluded local churn before staging.
 
 ## Proof Row Template
 
+Ledger path suggestion: `data/reviewed_batch_proofs.csv` or the existing reviewed data proof ledger.
+Final outcome options: supported, still_blocked, skipped, excluded.
+
 - batch_id:
 - lane:
+- scope:
 - tickers:
 - pre_run_readiness_snapshot:
 - command_run:
@@ -81,10 +165,18 @@ Research-only: this packet plans data-readiness work. It is not investment advic
 - preview_result:
 - apply_result:
 - post_run_readiness_snapshot:
+- changed_readiness_counts:
+- changed_tickers:
 - reviewer:
 - review_date:
 - source_files:
+- generated_artifacts_reviewed:
+- final_outcome:
 - notes:
+
+CSV template row:
+
+`RB-20260613T005616Z,peer_mapping, peer_valuation_inputs,peers,top 3,make readiness-snapshot or saved readiness counts before command,<copy exact command>,<pass/fail/not_applicable>,<reviewed rows / no unexpected rows / not_applicable>,<not_run/applied/skipped>,make readiness && lane proof command,<before -> after counts, or none>,<tickers changed, or none>,<name>,<YYYY-MM-DD>,<trusted local source files reviewed>,<CSV/JSON artifacts kept/excluded>,supported|still_blocked|skipped|excluded,<source proof, blockers, rollback notes>`
 
 ## Guardrails
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from src.readiness_ops import (
+    build_peer_readiness_summary,
     build_coverage_frontier,
     build_readiness_ops_lanes,
     render_coverage_frontier,
@@ -43,6 +44,18 @@ def _sample_root(tmp_path: Path) -> Path:
         root / "data" / "reports" / "peer_unlock_worklist.csv",
         "priority,ticker,workflow_group,missing_peer_reason\n1,AAA,peer_valuation_unlock,peer valuation still requires inputs\n",
     )
+    _write(
+        root / "data" / "reports" / "peer_readiness_report.csv",
+        "\n".join(
+            [
+                "ticker,peer_count,mapping_status,peer_blocker_type,peer_price_ready,peer_momentum_ready,peer_fundamentals_ready,peer_valuation_ready,peer_valuation_comparison_ready",
+                "AAA,2,mapped,peer_fundamentals_missing,true,true,false,false,false",
+                "BBB,0,missing_mapping,missing_peer_mapping,false,false,false,false,false",
+                "QQQ,2,mapped,peer_valuation_blocked,true,true,true,false,false",
+            ]
+        )
+        + "\n",
+    )
     _write(root / "data" / "reviewed_data_proofs.csv", "proof_id,proof_date,lane\nRDP-1,2026-06-12,peer\n")
     return root
 
@@ -55,10 +68,27 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["price_coverage"].workflow_mode == "dry_run_first"
     assert by_lane["fundamentals_dcf"].workflow_mode == "preview_first_reviewed_apply"
     assert by_lane["peer_mapping"].blocked_count == 2
+    assert "Peer sub-states:" in by_lane["peer_mapping"].notes
+    assert "peer_valuation_comparison=0" in by_lane["peer_valuation_inputs"].notes
     assert by_lane["earnings_locked"].workflow_mode == "locked_manual"
     assert by_lane["analyst_estimates_locked"].workflow_mode == "locked_manual"
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
     assert "trusted local rows" in by_lane["earnings_locked"].notes
+
+
+def test_peer_readiness_summary_separates_mapping_trend_and_valuation_inputs(tmp_path: Path):
+    summary = build_peer_readiness_summary(_sample_root(tmp_path))
+
+    assert summary.peer_mapping_ready == 2
+    assert summary.peer_price_ready == 2
+    assert summary.peer_momentum_ready == 2
+    assert summary.peer_fundamentals_ready == 1
+    assert summary.peer_valuation_ready == 0
+    assert summary.peer_valuation_comparison_ready == 0
+    assert summary.missing_mapping == 1
+    assert summary.missing_peer_fundamentals == 1
+    assert summary.peer_valuation_blocked == 1
+    assert "peer trend can be ready before peer valuation comparison is ready" in summary.source_context
 
 
 def test_coverage_frontier_ranks_batch_lanes_without_implying_data_available(tmp_path: Path):

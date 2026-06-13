@@ -32,6 +32,7 @@ SOURCE_FILES_FOR_FRESHNESS = (
 PROOF_TEMPLATE_FIELDS = (
     "batch_id",
     "lane",
+    "scope",
     "tickers",
     "pre_run_readiness_snapshot",
     "command_run",
@@ -39,11 +40,16 @@ PROOF_TEMPLATE_FIELDS = (
     "preview_result",
     "apply_result",
     "post_run_readiness_snapshot",
+    "changed_readiness_counts",
+    "changed_tickers",
     "reviewer",
     "review_date",
     "source_files",
+    "generated_artifacts_reviewed",
+    "final_outcome",
     "notes",
 )
+FINAL_OUTCOME_OPTIONS = ("supported", "still_blocked", "skipped", "excluded")
 ACTION_COLUMNS = (
     "batch_id",
     "lane",
@@ -62,6 +68,20 @@ ACTION_COLUMNS = (
     "expected_artifacts",
     "rollback",
     "do_not_proceed_if",
+    "pre_run_readiness_snapshot",
+    "command_run",
+    "validation_result",
+    "preview_result",
+    "apply_result",
+    "post_run_readiness_snapshot",
+    "changed_readiness_counts",
+    "changed_tickers",
+    "reviewer",
+    "review_date",
+    "source_files",
+    "generated_artifacts_reviewed",
+    "final_outcome",
+    "notes",
 )
 
 
@@ -91,6 +111,20 @@ class ReviewedBatchAction:
     expected_artifacts: str
     rollback: str
     do_not_proceed_if: str
+    pre_run_readiness_snapshot: str
+    command_run: str
+    validation_result: str
+    preview_result: str
+    apply_result: str
+    post_run_readiness_snapshot: str
+    changed_readiness_counts: str
+    changed_tickers: str
+    reviewer: str
+    review_date: str
+    source_files: str
+    generated_artifacts_reviewed: str
+    final_outcome: str
+    notes: str
 
 
 @dataclass(frozen=True)
@@ -135,7 +169,7 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
 def _write_csv(path: Path, rows: Iterable[ReviewedBatchAction]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=ACTION_COLUMNS)
+        writer = csv.DictWriter(handle, fieldnames=ACTION_COLUMNS, lineterminator="\n")
         writer.writeheader()
         for action in rows:
             writer.writerow({column: getattr(action, column) for column in ACTION_COLUMNS})
@@ -279,7 +313,7 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed",
-            "post": f"make readiness && make peer-mapping-queue TOP_N={top_n}",
+            "post": f"make readiness && make peer-mapping-queue TOP_N={top_n} && make metric-readiness TICKERS={ticker_arg} BENCHMARK=SPY",
             "artifacts": "data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
             "rollback": "If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.",
         }
@@ -309,6 +343,57 @@ def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
     if freshness.status in {"missing", "stale"}:
         blockers.insert(0, f"{freshness.status}: run {freshness.refresh_command}")
     return "; ".join(blockers)
+
+
+def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
+    if lane == "price_coverage":
+        return [
+            "Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.",
+            "Use dry-run output to cap scope; do not treat provider availability as reviewed data.",
+            "After execution, rerun readiness and compare changed readiness counts before keeping artifacts.",
+        ]
+    if lane == "fundamentals_dcf":
+        return [
+            "Record pre-run fundamentals-ready and DCF-ready counts plus the exact missing fields.",
+            "Review SEC/manual source rows before imports-apply; rejected-row reports must be clear or explained.",
+            "After apply, rerun make readiness and make dcf-readiness before calling any ticker supported.",
+        ]
+    if lane in {"peer_mapping", "peer_valuation_inputs"}:
+        return [
+            "Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.",
+            f"Inspect the peer sub-lane with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
+            "Treat sector or industry fallback as context only; it is not trusted peer mapping proof.",
+            "After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.",
+        ]
+    return [
+        "Record pre-run optional context readiness counts.",
+        "Apply only trusted local earnings or analyst-estimate rows after validate and preview.",
+        "After apply, rerun optional-context readiness and keep unsupported optional context locked where rows are absent.",
+    ]
+
+
+def _proof_template_csv_row(packet: ReviewedBatchPacket) -> str:
+    values = {
+        "batch_id": packet.batch_id,
+        "lane": packet.selected_scope,
+        "scope": packet.selected_lane,
+        "tickers": ",".join(packet.tickers) if packet.tickers else f"top {packet.top_n}",
+        "pre_run_readiness_snapshot": "make readiness-snapshot or saved readiness counts before command",
+        "command_run": "<copy exact command>",
+        "validation_result": "<pass/fail/not_applicable>",
+        "preview_result": "<reviewed rows / no unexpected rows / not_applicable>",
+        "apply_result": "<not_run/applied/skipped>",
+        "post_run_readiness_snapshot": "make readiness && lane proof command",
+        "changed_readiness_counts": "<before -> after counts, or none>",
+        "changed_tickers": "<tickers changed, or none>",
+        "reviewer": "<name>",
+        "review_date": "<YYYY-MM-DD>",
+        "source_files": "<trusted local source files reviewed>",
+        "generated_artifacts_reviewed": "<CSV/JSON artifacts kept/excluded>",
+        "final_outcome": "supported|still_blocked|skipped|excluded",
+        "notes": "<source proof, blockers, rollback notes>",
+    }
+    return ",".join(values[field] for field in PROOF_TEMPLATE_FIELDS)
 
 
 def build_reviewed_batch_packet(
@@ -353,6 +438,20 @@ def build_reviewed_batch_packet(
                     expected_artifacts=commands["artifacts"],
                     rollback=commands["rollback"],
                     do_not_proceed_if=_do_not_proceed(lane_row, freshness),
+                    pre_run_readiness_snapshot="record saved counts before command; run make readiness-snapshot if needed",
+                    command_run="<copy exact command actually run>",
+                    validation_result="<pass/fail/not_applicable>",
+                    preview_result="<reviewed rows / no unexpected rows / not_applicable>",
+                    apply_result="<not_run/applied/skipped>",
+                    post_run_readiness_snapshot=commands["post"],
+                    changed_readiness_counts="<before -> after counts, or none>",
+                    changed_tickers="<tickers changed, or none>",
+                    reviewer="<reviewer>",
+                    review_date="<YYYY-MM-DD>",
+                    source_files=commands["artifacts"],
+                    generated_artifacts_reviewed="<kept evidence or excluded local churn>",
+                    final_outcome="supported|still_blocked|skipped|excluded",
+                    notes="<source proof, blockers, rollback notes>",
                 )
             )
     return ReviewedBatchPacket(
@@ -416,6 +515,9 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
                 f"- Rollback checklist: {action.rollback}",
                 f"- Do not proceed if: {action.do_not_proceed_if}",
                 "",
+                "Peer/sub-lane proof instructions:" if action.lane in {"peer_mapping", "peer_valuation_inputs"} else "Lane proof instructions:",
+                *[f"- {instruction}" for instruction in _lane_proof_instructions(action.lane, packet.top_n)],
+                "",
             ]
         )
     lines.extend(
@@ -428,8 +530,13 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
             "- For mutating workflows, run validate -> preview -> apply only after review.",
             "- Check rejected-row reports before treating any lane as supported.",
             "- Run post-run readiness verification and record supported, still_blocked, skipped, or excluded honestly.",
+            "- Record changed readiness counts and changed tickers only when the before/after proof supports them.",
+            "- Classify generated CSV/JSON artifacts as kept evidence or excluded local churn before staging.",
             "",
             "## Proof Row Template",
+            "",
+            "Ledger path suggestion: `data/reviewed_batch_proofs.csv` or the existing reviewed data proof ledger.",
+            f"Final outcome options: {', '.join(FINAL_OUTCOME_OPTIONS)}.",
             "",
         ]
     )
@@ -437,6 +544,10 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
         lines.append(f"- {field}:")
     lines.extend(
         [
+            "",
+            "CSV template row:",
+            "",
+            f"`{_proof_template_csv_row(packet)}`",
             "",
             "## Guardrails",
             "",

@@ -9786,6 +9786,40 @@ def test_data_health_coverage_frontier_cards_rank_operations_not_securities():
     assert "batch lane" in rendered
 
 
+def test_data_health_peer_readiness_v2_cards_separate_trend_and_valuation_gates():
+    ops_frame = pd.DataFrame(
+        [
+            {
+                "Lane": "Peer Mapping Proof",
+                "State": "partial",
+                "Workflow Mode": "reviewed_apply",
+                "Notes": "Source-backed peer mappings unlock peer trend checks. Peer sub-states: mapping=2/3; peer_price=2; peer_momentum=2; peer_fundamentals=1; peer_valuation=0; peer_valuation_comparison=0.",
+                "Next Safe Command": "make peer-mapping-queue TOP_N=25",
+                "Proof Command": "make imports-validate && make imports-preview && make readiness && make peer-mapping-queue TOP_N=25",
+            },
+            {
+                "Lane": "Peer Valuation Inputs Proof",
+                "State": "blocked",
+                "Workflow Mode": "preview_first_reviewed_apply",
+                "Notes": "Peer trend can be partial while peer valuation remains blocked.",
+                "Next Safe Command": "make peer-mapping-queue TOP_N=25",
+                "Proof Command": "make readiness && make peer-mapping-queue TOP_N=25",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_peer_readiness_v2_cards(ops_frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 2
+    assert cards[0]["kicker"] == "PEER READINESS V2"
+    assert "peer trend can become usable before peer valuation" in rendered
+    assert "sector fallback is context, not trusted peer valuation" in rendered
+    assert "peer_valuation_comparison=0" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps():
     frontier = pd.DataFrame(
         [
