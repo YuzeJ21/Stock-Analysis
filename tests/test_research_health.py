@@ -14,6 +14,7 @@ from src.research_health import (
     build_correlation_risk,
     build_data_quality_wizard,
     build_liquidity_risk,
+    build_research_health_outputs,
     main,
     research_health_outputs_current,
     run,
@@ -492,6 +493,63 @@ def test_correlation_risk_skips_flat_return_pairs_without_runtime_warnings():
     assert flat["MissingDataFields"] == "non-flat overlapping return series"
     assert "lacks enough variance" in flat["Reason"]
     assert not [warning for warning in caught if issubclass(warning.category, RuntimeWarning)]
+
+
+def test_correlation_risk_defers_rows_beyond_bounded_compute_limit():
+    dates = pd.date_range("2026-01-01", periods=30, freq="D")
+    tickers = ["AAA", "BBB", "CCC", "DDD", "EEE"]
+    prices = pd.DataFrame(
+        [
+            {"date": date, "ticker": ticker, "close": 100 + index * (ticker_index + 1), "volume": 1_000_000}
+            for index, date in enumerate(dates)
+            for ticker_index, ticker in enumerate(tickers)
+        ]
+    )
+
+    frame = build_correlation_risk(prices, tickers=tickers, min_overlap_days=20, max_pairwise_tickers=2)
+
+    assert len(frame) == 5
+    assert set(frame.loc[frame["CorrelationStatus"] == "Deferred - Bounded Queue", "Ticker"]) == {"CCC", "DDD", "EEE"}
+    assert frame.loc[frame["Ticker"] == "CCC", "MissingDataFields"].iloc[0] == "bounded correlation compute limit (2 tickers)"
+    assert "not an allocation instruction" in " ".join(frame["Reason"].fillna("").tolist())
+
+
+def test_research_health_outputs_respect_requested_ticker_slice_before_heavy_context():
+    coverage = [
+        {
+            "ticker": "NVDA",
+            "has_prices": True,
+            "price_history_days": 30,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": False,
+        },
+        {
+            "ticker": "MSFT",
+            "has_prices": True,
+            "price_history_days": 30,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": False,
+        },
+    ]
+    universe = pd.DataFrame({"ticker": ["NVDA", "MSFT"]})
+
+    outputs = build_research_health_outputs(_price_frame(), universe, pd.DataFrame(), coverage, tickers=["NVDA"])
+
+    assert list(outputs["data_quality_wizard"]["Ticker"]) == ["NVDA"]
+    assert list(outputs["liquidity_risk"]["Ticker"]) == ["NVDA"]
+    assert list(outputs["correlation_risk"]["Ticker"]) == ["NVDA"]
 
 
 def test_research_health_run_writes_csv_outputs(tmp_path: Path):

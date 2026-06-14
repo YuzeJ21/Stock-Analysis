@@ -51,6 +51,7 @@ RESEARCH_HEALTH_SOURCE_FILES = (
     "analyst_estimates.csv",
 )
 
+DEFAULT_CORRELATION_COMPUTE_LIMIT = 750
 MISSING_OHLCV_PREFIX = "Missing OHLCV data for "
 PRICE_REFRESH_GUIDANCE = (
     "; start with make price-refresh-loop DRY_RUN=1, then inspect "
@@ -268,6 +269,24 @@ def _to_float(value: object) -> float:
 
 def _missing_join(items: list[str]) -> str:
     return ", ".join(dict.fromkeys(item for item in items if item))
+
+
+def _normalize_tickers(tickers: list[str] | None) -> list[str]:
+    return sorted({str(ticker).upper().strip() for ticker in (tickers or []) if str(ticker).strip()})
+
+
+def _filter_coverage_rows(
+    coverage_rows: list[dict[str, Any]] | pd.DataFrame,
+    tickers: list[str] | None,
+) -> list[dict[str, Any]] | pd.DataFrame:
+    selected = set(_normalize_tickers(tickers))
+    if not selected:
+        return coverage_rows
+    if isinstance(coverage_rows, pd.DataFrame):
+        if coverage_rows.empty or "ticker" not in coverage_rows.columns:
+            return coverage_rows
+        return coverage_rows.loc[coverage_rows["ticker"].astype(str).str.upper().str.strip().isin(selected)].copy()
+    return [row for row in coverage_rows if str(row.get("ticker", "")).upper().strip() in selected]
 
 
 DCF_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
@@ -552,9 +571,10 @@ def build_correlation_risk(
     tickers: list[str] | None = None,
     *,
     min_overlap_days: int = 20,
+    max_pairwise_tickers: int | None = DEFAULT_CORRELATION_COMPUTE_LIMIT,
 ) -> pd.DataFrame:
     normalized = _normalize_prices(prices)
-    target_tickers = sorted({ticker.upper().strip() for ticker in (tickers or normalized.get("ticker", pd.Series(dtype=str)).unique()) if ticker})
+    target_tickers = _normalize_tickers(tickers or normalized.get("ticker", pd.Series(dtype=str)).unique().tolist())
     if normalized.empty or not target_tickers:
         return pd.DataFrame(
             [
@@ -582,7 +602,14 @@ def build_correlation_risk(
         for ticker in target_tickers
         if ticker in returns.columns and returns[ticker].dropna().nunique() >= 2
     }
-    comparable_returns = returns[sorted(non_flat_return_tickers)] if non_flat_return_tickers else pd.DataFrame(index=returns.index)
+    pairwise_tickers = sorted(non_flat_return_tickers)
+    if max_pairwise_tickers is not None and len(pairwise_tickers) > max_pairwise_tickers:
+        pairwise_tickers = sorted(
+            pairwise_tickers,
+            key=lambda ticker: (-int(return_counts.get(ticker, 0)), ticker),
+        )[:max_pairwise_tickers]
+    pairwise_ticker_set = set(pairwise_tickers)
+    comparable_returns = returns[pairwise_tickers] if pairwise_tickers else pd.DataFrame(index=returns.index)
     correlation_matrix = comparable_returns.corr(min_periods=min_overlap_days) if not comparable_returns.empty else pd.DataFrame()
     overlap_counts = (
         comparable_returns.notna().astype("int16").T.dot(comparable_returns.notna().astype("int16"))
@@ -612,6 +639,7 @@ def build_correlation_risk(
         best_corr = float("nan")
         best_overlap = 0
         comparable_missing = ticker not in non_flat_return_tickers
+        deferred_by_cap = ticker in non_flat_return_tickers and ticker not in pairwise_ticker_set
         if not comparable_missing and ticker in correlation_matrix.index:
             correlations = correlation_matrix.loc[ticker].drop(labels=[ticker], errors="ignore").dropna()
             if not correlations.empty:
@@ -625,7 +653,18 @@ def build_correlation_risk(
                     best_overlap = int(peer_overlaps.max())
 
         if not best_peer:
-            status = "Insufficient Overlap"
+            if deferred_by_cap:
+                status = "Deferred - Bounded Queue"
+                best_overlap = int(return_counts.get(ticker, 0))
+                limit = max_pairwise_tickers if max_pairwise_tickers is not None else len(pairwise_tickers)
+                missing = f"bounded correlation compute limit ({limit} tickers)"
+                reason = (
+                    f"{ticker} has local return coverage, but broad correlation context is deferred because this "
+                    f"refresh caps pairwise correlation at {limit} tickers to keep status responsive. Run a focused "
+                    f"research-health check for {ticker} and selected peers when this context is needed."
+                )
+            else:
+                status = "Insufficient Overlap"
             if comparable_missing:
                 best_overlap = int(return_counts.get(ticker, 0))
                 missing = "non-flat overlapping return series"
@@ -633,13 +672,13 @@ def build_correlation_risk(
                     f"{ticker} has {best_overlap} local return days, but the return series is flat or otherwise lacks "
                     "enough variance for Pearson correlation."
                 )
-            elif best_overlap >= min_overlap_days:
+            elif not deferred_by_cap and best_overlap >= min_overlap_days:
                 missing = "non-flat overlapping return series"
                 reason = (
                     f"{ticker} has at least {best_overlap} overlapping local return days, but the comparable return "
                     "series are flat or otherwise lack enough variance for Pearson correlation."
                 )
-            else:
+            elif not deferred_by_cap:
                 missing = f"{min_overlap_days} overlapping return days"
                 reason = f"{ticker} does not have at least {min_overlap_days} overlapping local return days with another ticker."
         else:
@@ -677,12 +716,20 @@ def build_research_health_outputs(
     universe: pd.DataFrame,
     holdings: pd.DataFrame,
     coverage_rows: list[dict[str, Any]] | pd.DataFrame,
+    *,
+    tickers: list[str] | None = None,
+    max_correlation_tickers: int | None = DEFAULT_CORRELATION_COMPUTE_LIMIT,
 ) -> dict[str, pd.DataFrame]:
-    tickers = _universe_tickers(universe, holdings)
+    selected_tickers = _normalize_tickers(tickers) or _universe_tickers(universe, holdings)
+    selected_coverage = _filter_coverage_rows(coverage_rows, selected_tickers)
     return {
-        "data_quality_wizard": build_data_quality_wizard(coverage_rows),
-        "liquidity_risk": build_liquidity_risk(prices, tickers=tickers),
-        "correlation_risk": build_correlation_risk(prices, tickers=tickers),
+        "data_quality_wizard": build_data_quality_wizard(selected_coverage),
+        "liquidity_risk": build_liquidity_risk(prices, tickers=selected_tickers),
+        "correlation_risk": build_correlation_risk(
+            prices,
+            tickers=selected_tickers,
+            max_pairwise_tickers=max_correlation_tickers,
+        ),
     }
 
 
@@ -749,7 +796,13 @@ def run(
     fetcher = CSVDataFetcher(data_path / "prices.csv")
     loaded = load_inputs(root, fetcher, data_dir=data_path)
     coverage_rows = [row.to_dict() for row in build_ticker_coverage(root, data_dir=data_path, output_dir=output_path)]
-    outputs = build_research_health_outputs(loaded.prices, loaded.universe, loaded.holdings, coverage_rows)
+    outputs = build_research_health_outputs(
+        loaded.prices,
+        loaded.universe,
+        loaded.holdings,
+        coverage_rows,
+        tickers=tickers,
+    )
     files = {
         "data_quality_wizard": output_path / "data_quality_wizard.csv",
         "liquidity_risk": output_path / "liquidity_risk.csv",
