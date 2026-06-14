@@ -1,4 +1,4 @@
-.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run public-demo-readiness-pack readiness-ops-center coverage-frontier readiness-ops-evidence reviewed-batch metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
+.PHONY: help help-full demo trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight lane-outcome-history price-reviewed-run public-demo-readiness-pack readiness-ops-center coverage-frontier readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -63,6 +63,8 @@ help-full:
 	@echo "                        Print the broad lane operations evidence checklist"
 	@echo "  make reviewed-batch"
 	@echo "                        Write a reviewed batch run packet for a selected lane"
+	@echo "  make decision-proof-queue"
+	@echo "                        Write the compact decision proof queue from current readiness outputs"
 	@echo "  make status-check TOP_N=5"
 	@echo "  make stock-report-md TICKER=NVDA"
 	@echo "  make dashboard-smoke"
@@ -90,6 +92,7 @@ help-full:
 	@echo "  make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command"
 	@echo "  make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations"
 	@echo "  make reviewed-batch [LANE=prices|fundamentals|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv"
+	@echo "  make decision-proof-queue [TOP_N=12] [OUTPUT=outputs/decision_proof_queue.csv] [MD_OUTPUT=outputs/decision_proof_queue.md] Write a copy-only proof queue from current decision/readiness outputs"
 	@echo "  make benchmark-risk-review TICKER=NVDA [BENCHMARK=SPY] [RISK_FREE_RATE=0.04] Print one ticker's readiness-gated benchmark, risk, fundamentals, valuation, and peer review metrics"
 	@echo "  make metric-readiness [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARK=SPY] [RISK_FREE_RATE=0.04] Print the capped metric-readiness queue with freshness context"
 	@echo "  make metric-readiness-board [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARKS=SPY,QQQ] [OUTPUT=outputs/metric_readiness_board.csv] Print or optionally export the combined benchmark metric-readiness board"
@@ -755,6 +758,9 @@ readiness-snapshot:
 
 research-decisions:
 	python3 -m src.research_decisions
+
+decision-proof-queue:
+	python3 -m src.decision_proof_queue --top-n $(or $(TOP_N),12) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--md-output $(MD_OUTPUT),)
 
 universe-preview:
 	python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50

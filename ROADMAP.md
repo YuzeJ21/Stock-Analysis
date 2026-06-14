@@ -207,11 +207,12 @@ Baseline issue: the system previously produced generic `Monitor` decisions when 
 
 Add reason codes or sub-buckets:
 
-- `Monitor - Price/Momentum Ready`
-- `Monitor - ETF Market Proxy`
-- `Blocked by Data - Missing Fundamentals`
-- `Blocked by Data - Missing Peer Mapping`
-- `Excluded - DCF Not Applicable`
+- [x] `Monitor - Price/Momentum Ready`
+- [x] `Monitor - ETF Market Proxy`
+- [x] `Blocked by Data - Missing Fundamentals`
+- [x] `Blocked by Data - Missing Peer Mapping`
+- [x] `Excluded - DCF Not Applicable`
+- [x] Add `make decision-proof-queue` so refined decision rows become a compact, freshness-gated proof queue with what can be reviewed now, what stays locked, copy-only local commands, and post-unlock proof steps.
 
 Rules:
 

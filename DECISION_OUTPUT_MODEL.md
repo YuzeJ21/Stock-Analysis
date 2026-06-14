@@ -95,6 +95,23 @@ detail for each broad bucket without turning it into a recommendation.
 
 Subtypes are review-queue labels, not action instructions.
 
+## Decision Proof Queue
+
+Use `make decision-proof-queue` after `make readiness` and
+`make research-decisions` to write a compact proof queue from the current local
+artifacts. The queue translates each selected row into:
+
+- what can be reviewed now;
+- what stays locked or excluded;
+- the copy-only local command to inspect the blocker;
+- the proof command to run after any reviewed data change.
+
+The command refuses to treat missing or stale readiness artifacts as current
+truth. It writes `outputs/decision_proof_queue.csv` and
+`outputs/decision_proof_queue.md` only when the local readiness and decision
+artifacts are current. These files are generated operator evidence and should be
+reviewed before they are selected for a commit.
+
 ## Confidence And Scores
 
 Decision scores are data-quality and triage aids.
