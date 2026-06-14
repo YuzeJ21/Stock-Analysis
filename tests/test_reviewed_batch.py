@@ -95,13 +95,20 @@ def test_reviewed_batch_reports_stale_readiness_artifacts(tmp_path: Path):
 
 def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
     packet = build_reviewed_batch_packet(_sample_root(tmp_path), lane="fundamentals", top_n=1)
+    rendered = render_packet_markdown(packet)
 
     assert packet.selected_scope == "fundamentals_dcf"
     assert len(packet.actions) == 1
     assert packet.actions[0].proposed_ticker == "AAA"
+    assert "SEC_USER_AGENT is configured" in packet.actions[0].capped_execution_command
     assert packet.actions[0].validation_command == "make imports-validate"
     assert packet.actions[0].preview_command == "make imports-preview"
     assert "make imports-apply only after reviewed trusted fundamentals rows pass preview" == packet.actions[0].apply_command
+    assert "data/rejected/fundamentals_import_rejected.csv" in packet.actions[0].expected_artifacts
+    assert "SEC_USER_AGENT is not configured" in packet.actions[0].do_not_proceed_if
+    assert "make fundamentals-batch-proof TOP_N=<n>" in rendered
+    assert "make sec-stage TICKERS=<scope> only when SEC_USER_AGENT is configured" in rendered
+    assert "rejected-row reports must be clear or explained" in rendered
 
 
 def test_reviewed_batch_supports_ticker_scope_and_optional_context(tmp_path: Path):

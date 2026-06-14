@@ -313,13 +313,13 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
     if lane == "fundamentals_dcf":
         return {
             "dry_run": f"make sec-stage-queue TOP_N={top_n}",
-            "execute": f"make sec-stage TICKERS={ticker_arg} or place trusted rows in data/imports/fundamentals.csv",
+            "execute": f"make sec-stage TICKERS={ticker_arg} only if SEC_USER_AGENT is configured, or place reviewed trusted rows in data/imports/fundamentals.csv",
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed trusted fundamentals rows pass preview",
-            "post": "make readiness && make dcf-readiness",
+            "post": "make readiness && make dcf-readiness && make status-check TOP_N=5",
             "compare": "make reviewed-batch-compare LANE=fundamentals BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
-            "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/reports/dcf_readiness_report.csv",
+            "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/rejected/fundamentals_import_rejected.csv; data/reports/dcf_readiness_report.csv",
             "rollback": "If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun make readiness.",
         }
     if lane in {"peer_mapping", "peer_valuation_inputs"}:
@@ -370,6 +370,14 @@ def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
     ]
     if lane.workflow_mode == "locked_manual":
         blockers.append("trusted local optional-context rows do not exist")
+    if lane.lane == "fundamentals_dcf":
+        blockers.extend(
+            [
+                "SEC_USER_AGENT is not configured and no reviewed manual fundamentals rows exist",
+                "staged/manual rows do not include required DCF fields such as revenue, free cash flow, shares, cash, or debt when needed",
+                "data/rejected/fundamentals_import_rejected.csv has unresolved rows",
+            ]
+        )
     if lane.lane == "metric_readiness_review":
         blockers.append("the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof")
     if freshness.status in {"missing", "stale"}:
@@ -388,7 +396,10 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
     if lane == "fundamentals_dcf":
         return [
             "Record pre-run fundamentals-ready and DCF-ready counts plus the exact missing fields.",
-            "Review SEC/manual source rows before imports-apply; rejected-row reports must be clear or explained.",
+            "Start from the first-class packet command: make fundamentals-batch-proof TOP_N=<n> or make fundamentals-batch-proof TICKERS=<scope>.",
+            "Use make sec-stage-queue TOP_N=<n> for a dry-run queue; run make sec-stage TICKERS=<scope> only when SEC_USER_AGENT is configured.",
+            "If SEC staging is unavailable, place only reviewed trusted manual rows in data/imports/fundamentals.csv.",
+            "Run make imports-validate and make imports-preview before imports-apply; rejected-row reports must be clear or explained.",
             "After apply, rerun make readiness and make dcf-readiness before calling any ticker supported.",
         ]
     if lane in {"peer_mapping", "peer_valuation_inputs"}:
