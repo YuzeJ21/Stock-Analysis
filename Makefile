@@ -220,7 +220,7 @@ demo:
 	@echo ""
 	@echo "2. Open the clean dashboard path:"
 	@echo "   make dashboard"
-	@echo "   Proves: the product journey starts with Review one stock, Improve data coverage, and Explore ready names."
+	@echo "   Proves: the product journey starts with Review one stock, Improve data coverage, and Inspect proof."
 	@echo ""
 	@echo "3. Generate the minimum proof reports:"
 	@echo "   Each report shows a data-confidence cue, valuation boundary, next proof step, and stop rule."

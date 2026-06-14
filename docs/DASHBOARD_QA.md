@@ -25,7 +25,7 @@ Boundary checked:
 
 Checked pages:
 
-- Home: confirmed the visitor route shows `Review one stock`, `Improve data coverage`, and `Explore ready names`, plus a trusted-data pilot path for improving 5-10 companies first.
+- Home: confirmed the visitor route shows `Review one stock`, `Improve data coverage`, and `Inspect proof`, plus a trusted-data pilot path for improving 5-10 companies first.
 - Single-Stock Report: confirmed a local `NVDA` preview renders the visitor scan cue, `At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, then `Best Review Path` before detailed tabs.
 
 Boundary checked:
@@ -54,7 +54,7 @@ Boundary checked:
 
 Checked pages and docs:
 
-- Sidebar: confirmed the main navigation control reads `Choose your path` and exposes `Review one stock`, `Improve data coverage`, and `Explore ready names` before the `More pages` section.
+- Sidebar: confirmed the main navigation control reads `Choose your path` and exposes the public paths before the `More pages` section.
 - Sidebar: confirmed detailed pages remain available under `More pages`, so deep research views are not removed.
 - Home: confirmed the demo walkthrough shows copyable commands for the dashboard, NVDA ready proof, META blocked proof, QQQ excluded proof, MU peer-limited proof, CRDO fundamentals-gated proof, and the trusted-data pilot.
 - Data Strategy: confirmed the Automation Boundary table separates repeatable checks from human-reviewed source judgment.
@@ -82,8 +82,8 @@ Boundary checked:
 
 Checked pages and assets:
 
-- README: confirmed the Product Tour routes `Explore ready names` directly to `Monthly Picks`.
-- Dashboard preview asset: confirmed the visual route copy now says `Explore ready names: Monthly Picks and sample reports`.
+- README: confirmed the Product Tour routes `Inspect proof` to the Data Health proof drawers.
+- Dashboard preview asset: confirmed the visual route copy now says `Inspect proof: readiness snapshots and proof ledger`.
 - Public checks: confirmed `make public-check` passes after the route and preview alignment.
 
 Boundary checked:

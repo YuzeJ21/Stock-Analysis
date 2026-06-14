@@ -86,7 +86,7 @@ Start with the three paths the dashboard is built around:
 | --- | --- | --- |
 | Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
 | Improve data coverage | You want to understand what trusted input is missing and how to add it safely. | `Data Health` |
-| Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |
+| Inspect proof | You want to see the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields. | `Data Health` |
 
 The dashboard starts in public demo mode so visitors can read the product first. Use `http://localhost:8501/?mode=public` for the clean GitHub/LinkedIn path, and switch off Public demo mode in the sidebar when you want the internal operator views, detailed boards, and copy-only local commands. Focused pages cover Monthly Picks, Market Direction, Momentum Leaders, Portfolio Review, Value / Re-rating, Final Watchlist as readiness-state output, not an action list, Single-Stock Report, and Data Health.
 

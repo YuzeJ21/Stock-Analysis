@@ -67,9 +67,9 @@
     <text x="510" y="506" fill="#172820" font-size="11" font-weight="700">proof</text>
 
     <rect x="136" y="537" width="454" height="44" rx="12" fill="#f5f1e8"/>
-    <text x="156" y="565" fill="#172820" font-size="13">Explore ready names: Monthly Picks and sample reports</text>
+    <text x="156" y="565" fill="#172820" font-size="13">Inspect proof: readiness snapshots and proof ledger</text>
     <rect x="495" y="549" width="67" height="20" rx="10" fill="#cfdcae"/>
-    <text x="510" y="564" fill="#172820" font-size="11" font-weight="700">ready</text>
+    <text x="510" y="564" fill="#172820" font-size="11" font-weight="700">proof</text>
 
     <rect x="648" y="326" width="508" height="264" rx="22" fill="#ffffff" stroke="#d8dfd2"/>
     <text x="672" y="363" fill="#172820" font-size="21" font-weight="700">Single-Stock Report</text>

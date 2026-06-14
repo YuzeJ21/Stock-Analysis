@@ -100,9 +100,9 @@ def test_dashboard_preview_asset_uses_three_public_paths_in_order():
 
     review_index = svg.index("Review one stock: make stock-report-md TICKER=NVDA")
     improve_index = svg.index("Improve data coverage: trusted-data candidate list")
-    explore_index = svg.index("Explore ready names: Monthly Picks and sample reports")
+    proof_index = svg.index("Inspect proof: readiness snapshots and proof ledger")
 
-    assert review_index < improve_index < explore_index
+    assert review_index < improve_index < proof_index
     assert "Stock Research Command Center dashboard preview" in svg
     assert "Public Demo" in svg
     assert "MU peer-input and CRDO fundamentals-gated proof paths" in svg

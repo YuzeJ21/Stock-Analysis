@@ -670,8 +670,8 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert "Copy only." in source
     assert "Start with Home for the coverage snapshot." in source
     assert "Review one stock when you want a ticker-level report." in source
-    assert "Explore ready names only after local coverage is sufficient." in source
     assert "Improve data coverage when you want proof commands." in source
+    assert "Inspect proof before treating a changed readiness state as supported." in source
     assert "Open Single-Stock Report to review one ticker." not in source
     assert "Open Data Health only when you want proof commands." not in source
     assert "Commands are copy-only; the dashboard never runs refreshes or imports." in source
@@ -679,15 +679,15 @@ def test_single_stock_source_json_label_uses_visitor_friendly_language():
     assert '"make status-check TOP_N=5\\nmake stock-report-md TICKER=NVDA\\nmake dashboard-smoke"' not in source
     assert "sidebar_quick_help_lines()" in source
     assert "path_options = sidebar_path_options(\"Home\" if public_demo_mode else initial_page)" in source
-    assert "selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection" in source
+    assert 'elif path_selection == PROOF_HISTORY_PATH_TITLE:\n            selected_page = "Data Health"' in source
     assert "render_app_header(catalog, output_frames, compact=selected_page == \"Data Health\" and not public_demo_mode)" in source
     assert "hero_class = \"app-hero compact\" if compact else \"app-hero\"" in source
     assert "Readiness-first local research. Data Health shows what is ready, blocked, or excluded before analysis." in source
     assert 'if public_demo_mode or selected_page != "Data Health":' in source
-    assert source.index("selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection") < source.index(
+    assert source.index('elif path_selection == PROOF_HISTORY_PATH_TITLE:\n            selected_page = "Data Health"') < source.index(
         'if public_demo_mode or selected_page != "Data Health":'
     )
-    assert source.index("selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection") < source.index(
+    assert source.index('elif path_selection == PROOF_HISTORY_PATH_TITLE:\n            selected_page = "Data Health"') < source.index(
         "render_app_header(catalog, output_frames, compact=selected_page == \"Data Health\" and not public_demo_mode)"
     )
     assert 'show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"' in source
@@ -1201,8 +1201,8 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     )
     rendered = " ".join(str(value) for card in cards for value in card).lower()
 
-    assert [card[0] for card in cards] == ["Review one stock", "Improve data coverage", "Explore ready names"]
-    assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Monthly Picks"]
+    assert [card[0] for card in cards] == ["Review one stock", "Improve data coverage", "Inspect proof"]
+    assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Data Health"]
     assert cards[1][3] == "warning"
     assert "23 ticker(s) have dcf-ready local inputs" in rendered
     assert "use nvda first for valuation proof" in rendered
@@ -1214,7 +1214,7 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     assert "3,273 ticker(s) still need price coverage" in rendered
     assert "open data health for the trusted-data pilot path" in rendered
     assert "fundamentals, source-backed peers, earnings, and estimates remain gated" in rendered
-    assert "readiness protection, not failure" in rendered
+    assert "proof history" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -1242,7 +1242,7 @@ def test_home_route_choice_cards_warn_when_candidate_pages_should_stay_empty():
     assert "meta blocked" in rendered
     assert "qqq excluded" in rendered
     assert "mu peer-limited" in rendered
-    assert "skip this until price coverage exists" in rendered
+    assert "open proof history first" in rendered
     assert "candidate pages should stay empty when local data cannot support them" in rendered
     assert "25 ticker(s) still need price coverage" in rendered
     assert "broker" not in rendered
@@ -1274,7 +1274,7 @@ def test_home_page_renders_evaluation_workflow_before_next_steps():
     assert examples_index < learn_more_index < commands_index
     assert learn_more_index < methodology_index
     assert '"Review one stock"' in source
-    assert '"Explore ready names"' in source
+    assert '"Inspect proof"' in source
     assert '"Improve data coverage"' in source
     assert "render_action_cards(_plain_home_route_choice_cards(summary))" in source
     assert '"Review current ideas"' not in source
@@ -20349,8 +20349,8 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert len(navigation_cards) == 3
     assert "review one stock" in nav_rendered
     assert "ready, blocked, excluded, or monitor-only" in nav_rendered
-    assert "explore ready names" in nav_rendered
-    assert "candidate lists only after the data behind them has enough trusted local coverage" in nav_rendered
+    assert "inspect proof" in nav_rendered
+    assert "readiness snapshots, reviewed batch packets, proof ledgers, and still-blocked fields" in nav_rendered
     assert "improve data coverage" in nav_rendered
     assert "blocking analysis" in nav_rendered
     assert "make status-check top_n=5" in rendered
@@ -20573,20 +20573,20 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.DASHBOARD_TAB_TITLES[7] == "Single-Stock Report"
     assert dashboard.DASHBOARD_TAB_TITLES[8] == "Data Health"
     assert dashboard.USER_PAGE_TITLES[0] == "Home"
-    assert dashboard.PUBLIC_PATH_PAGE_TITLES == ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
-    assert dashboard.sidebar_path_options("Home") == ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
+    assert dashboard.PUBLIC_PATH_PAGE_TITLES == ["Home", "Single-Stock Report", "Data Health", "Proof History"]
+    assert dashboard.sidebar_path_options("Home") == ["Home", "Single-Stock Report", "Data Health", "Proof History"]
     assert dashboard.sidebar_path_options("Value / Re-rating") == [
         "Home",
         "Single-Stock Report",
         "Data Health",
-        "Monthly Picks",
+        "Proof History",
         "More research views",
     ]
     assert dashboard.sidebar_path_index("Value / Re-rating", dashboard.sidebar_path_options("Value / Re-rating")) == 4
     assert dashboard.sidebar_path_index("Single-Stock Report", dashboard.sidebar_path_options("Single-Stock Report")) == 1
     assert dashboard.public_path_label("Single-Stock Report") == "Review one stock"
     assert dashboard.public_path_label("Data Health") == "Improve data coverage"
-    assert dashboard.public_path_label("Monthly Picks") == "Explore ready names"
+    assert dashboard.public_path_label("Proof History") == "Inspect proof"
     assert dashboard.public_path_label("More research views") == "More research views"
     assert "Overview" in dashboard.ADVANCED_PAGE_TITLES
     assert "Portfolio Review" in dashboard.ADVANCED_PAGE_TITLES
@@ -20594,12 +20594,12 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert [card[0] for card in dashboard.dashboard_navigation_cards()] == [
         "Review one stock",
         "Improve data coverage",
-        "Explore ready names",
+        "Inspect proof",
     ]
     assert [card[2] for card in dashboard.dashboard_navigation_cards()] == [
         "Single-Stock Report",
         "Data Health",
-        "Monthly Picks",
+        "Data Health",
     ]
     assert "Single-Stock Report" not in dashboard.ADVANCED_PAGE_TITLES
 
@@ -20607,7 +20607,7 @@ def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.public_path_label("Home") == "Start at Home"
     assert "Start at Home" not in navigation
     assert "Review one stock" in navigation
-    assert "Explore ready names" in navigation
+    assert "Inspect proof" in navigation
     assert "Improve data coverage" in navigation
     assert "Single-Stock Report" in navigation
     assert "Data Health" in navigation

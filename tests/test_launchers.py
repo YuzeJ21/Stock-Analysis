@@ -472,7 +472,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "Evaluation Snapshot",
         "Best Review Path",
         "At A Glance + Proof Checklist before tables",
-        "Explore ready names: Monthly Picks and sample reports",
+        "Inspect proof: readiness snapshots and proof ledger",
         "Mode + decision",
         "DCF + peers",
         "What not to infer",
@@ -512,7 +512,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## Try This Demo Path" in readme
     assert "Optional extra report states:" in readme
     assert "| Review one stock | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
-    assert "| Explore ready names | You want to browse what the current local data can already support. | `Monthly Picks` |" in readme
+    assert "| Inspect proof | You want to see the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields. | `Data Health` |" in readme
     assert "`Home`, then focused review pages" not in readme
     assert "The shortest public walkthrough is: Home -> NVDA proof report -> META blocked example -> QQQ excluded example -> MU peer-limited example -> CRDO fundamentals-gated example -> trusted-data pilot." in readme
     assert "[Public Demo Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
@@ -1303,7 +1303,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
 
     for phrase in (
         "2026-06-07 Public Product Flow Pass",
-        "`Review one stock`, `Improve data coverage`, and `Explore ready names`",
+        "`Review one stock`, `Improve data coverage`, and `Inspect proof`",
         "trusted-data pilot path for improving 5-10 companies first",
         "`At A Glance`, `Reader Guide`, `Evaluation Snapshot`, `Proof Checklist`, then `Best Review Path`",
         "routes the DCF/peer-ready `NVDA` example to review DCF, peers, and source readiness",
@@ -1312,7 +1312,7 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "2026-06-10 Trusted Pilot Candidate UX Pass",
         "2026-06-11 Public Route Alignment Pass",
         "main navigation control reads `Choose your path`",
-        "`Review one stock`, `Improve data coverage`, and `Explore ready names`",
+        "`Review one stock`, `Improve data coverage`, and `Inspect proof`",
         "detailed pages remain available under `More pages`",
         "Automation Boundary table separates repeatable checks from human-reviewed source judgment",
         "demo walkthrough now points visitors to `make trusted-data-pilot-candidates TOP_N=10`",
@@ -1323,8 +1323,8 @@ def test_dashboard_qa_records_latest_public_flow_browser_check():
         "`next-step context` instead of internal-tool operational wording",
         "prints a company starter set and separates `QQQ` / `SMH` as ETF/index monitor examples",
         "standalone DCF peer wording no longer repeats `DCF assumptions and sensitivity`",
-        "Product Tour routes `Explore ready names` directly to `Monthly Picks`",
-        "Explore ready names: Monthly Picks and sample reports",
+        "Product Tour routes `Inspect proof` to the Data Health proof drawers",
+        "Inspect proof: readiness snapshots and proof ledger",
         "generated Monthly Picks CSV remains local working output",
         "2026-06-11 Visitor Guide Browser Pass",
         "Monthly Picks: confirmed the page renders the new `Reader Guide`",
@@ -1931,7 +1931,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"Data-confidence note: data confidence describes readiness and review routing, not investment conviction.\"" in makefile
     assert "@echo \"2. Open the clean dashboard path:\"" in makefile
     assert "@echo \"   Proves: current readiness counts and top blockers without changing local files.\"" in makefile
-    assert "@echo \"   Proves: the product journey starts with Review one stock, Improve data coverage, and Explore ready names.\"" in makefile
+    assert "@echo \"   Proves: the product journey starts with Review one stock, Improve data coverage, and Inspect proof.\"" in makefile
     assert "@echo \"3. Generate the minimum proof reports:\"" in makefile
     assert "@echo \"   Each report shows a data-confidence cue, valuation boundary, next proof step, and stop rule.\"" in makefile
     assert "@echo \"      Shows: DCF-ready company review with assumptions and source readiness.\"" in makefile

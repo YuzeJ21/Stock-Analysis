@@ -100,14 +100,15 @@ DASHBOARD_TAB_TITLES = [
     "Universe Manager",
 ]
 USER_PAGE_TITLES = ["Home"] + DASHBOARD_TAB_TITLES
-PUBLIC_PATH_PAGE_TITLES = ["Home", "Single-Stock Report", "Data Health", "Monthly Picks"]
-ADVANCED_PAGE_TITLES = [title for title in USER_PAGE_TITLES if title not in PUBLIC_PATH_PAGE_TITLES]
 DETAILED_PAGE_PATH_TITLE = "More research views"
+PROOF_HISTORY_PATH_TITLE = "Proof History"
+PUBLIC_PATH_PAGE_TITLES = ["Home", "Single-Stock Report", "Data Health", PROOF_HISTORY_PATH_TITLE]
+ADVANCED_PAGE_TITLES = [title for title in USER_PAGE_TITLES if title not in PUBLIC_PATH_PAGE_TITLES]
 PUBLIC_PATH_LABELS = {
     "Home": "Start at Home",
     "Single-Stock Report": "Review one stock",
     "Data Health": "Improve data coverage",
-    "Monthly Picks": "Explore ready names",
+    PROOF_HISTORY_PATH_TITLE: "Inspect proof",
     DETAILED_PAGE_PATH_TITLE: "More research views",
 }
 PUBLIC_DEMO_MODE = "public"
@@ -18608,9 +18609,9 @@ def dashboard_navigation_cards() -> list[tuple[str, str, str, str]]:
             "warning",
         ),
         (
-            "Explore ready names",
-            "Open candidate lists only after the data behind them has enough trusted local coverage.",
-            "Monthly Picks",
+            "Inspect proof",
+            "Open readiness snapshots, reviewed batch packets, proof ledgers, and still-blocked fields before trusting a result.",
+            "Data Health",
             "neutral",
         ),
     ]
@@ -18624,8 +18625,8 @@ def sidebar_quick_help_lines() -> list[str]:
     return [
         "Start with Home for the coverage snapshot.",
         "Review one stock when you want a ticker-level report.",
-        "Explore ready names only after local coverage is sufficient.",
         "Improve data coverage when you want proof commands.",
+        "Inspect proof before treating a changed readiness state as supported.",
         "Commands are copy-only; the dashboard never runs refreshes or imports.",
     ]
 
@@ -23326,14 +23327,6 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
             f"Start here for ticker-level proof: {price_ready} ticker(s) can support setup review; use META or APLD to see valuation stay gated."
         )
 
-    explore_body = (
-        "Use this after Home when you want to browse names the current local data can already support. Treat empty lists as readiness protection, not failure."
-    )
-    if price_ready <= 0:
-        explore_body = "Skip this until price coverage exists; candidate pages should stay empty when local data cannot support them."
-    elif dcf_ready <= 0:
-        explore_body = "Use this for price/setup-ready names only; valuation-style lists should stay locked until trusted company inputs exist."
-
     improve_body = (
         "Use this when a section is locked. It shows the next trusted input, copy-only command, validation path, and proof step."
     )
@@ -23344,6 +23337,14 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
         improve_body = (
             f"Best next for coverage: {gap_note}Open Data Health for the trusted-data pilot path; fundamentals, source-backed peers, earnings, and estimates remain gated until local rows exist."
         )
+
+    proof_body = (
+        "Open the proof drawers to inspect the latest readiness snapshot, reviewed batch packet, proof ledger, and still-blocked fields before trusting a result."
+    )
+    if price_ready <= 0:
+        proof_body = "Open proof history first; candidate pages should stay empty when local data cannot support them."
+    elif has_depth_gap:
+        proof_body = "Use proof history to see why available price coverage does not automatically unlock fundamentals, peer valuation, earnings, or estimates."
 
     return [
         (
@@ -23359,9 +23360,9 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
             improve_tone,
         ),
         (
-            "Explore ready names",
-            explore_body,
-            "Monthly Picks",
+            "Inspect proof",
+            proof_body,
+            "Data Health",
             "neutral",
         ),
     ]
@@ -26519,9 +26520,14 @@ def main() -> None:
             path_options,
             index=sidebar_path_index("Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page, path_options),
             format_func=public_path_label,
-            help="Most visitors only need these paths: review one stock, improve data coverage, or explore ready names.",
+            help="Most visitors only need these paths: review one stock, improve data coverage, or inspect proof.",
         )
-        selected_page = initial_page if path_selection == DETAILED_PAGE_PATH_TITLE else path_selection
+        if path_selection == DETAILED_PAGE_PATH_TITLE:
+            selected_page = initial_page
+        elif path_selection == PROOF_HISTORY_PATH_TITLE:
+            selected_page = "Data Health"
+        else:
+            selected_page = path_selection
         show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"
         if public_demo_mode or selected_page != "Data Health":
             render_sidebar_product_intro()
