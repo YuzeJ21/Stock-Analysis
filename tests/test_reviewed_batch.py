@@ -4,8 +4,11 @@ from pathlib import Path
 
 from src.reviewed_batch import (
     build_reviewed_batch_packet,
+    main,
     readiness_freshness_status,
     render_packet_markdown,
+    reviewed_batch_next_safe_action,
+    reviewed_batch_packet_status,
     write_reviewed_batch_packet,
 )
 
@@ -69,6 +72,14 @@ def _sample_root(tmp_path: Path) -> Path:
     return root
 
 
+def _mark_readiness_current(root: Path) -> None:
+    for path in [
+        root / "data" / "reports" / "ticker_readiness_report.csv",
+        root / "data" / "reports" / "feature_readiness_summary.csv",
+    ]:
+        os.utime(path, (path.stat().st_atime + 2000, path.stat().st_mtime + 2000))
+
+
 def test_reviewed_batch_reports_missing_readiness_artifacts(tmp_path: Path):
     status = readiness_freshness_status(tmp_path)
     packet = build_reviewed_batch_packet(tmp_path, lane="prices", top_n=2)
@@ -89,15 +100,27 @@ def test_reviewed_batch_reports_stale_readiness_artifacts(tmp_path: Path):
     rendered = render_packet_markdown(packet)
 
     assert packet.freshness.status == "stale"
+    assert reviewed_batch_packet_status(packet) == "blocked_by_freshness"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness"
     assert "Readiness artifacts may be stale" in rendered
     assert "make readiness before relying on final counts" in rendered
+    assert "Packet status: `blocked_by_freshness`" in rendered
+    assert "Next safe action: `make readiness`" in rendered
+    assert "## Blocked Preflight" in rendered
+    assert "Treat this packet as a stale-readiness scaffold, not execution approval." in rendered
 
 
 def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
-    packet = build_reviewed_batch_packet(_sample_root(tmp_path), lane="fundamentals", top_n=1)
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+
+    packet = build_reviewed_batch_packet(root, lane="fundamentals", top_n=1)
     rendered = render_packet_markdown(packet)
 
     assert packet.selected_scope == "fundamentals_dcf"
+    assert reviewed_batch_packet_status(packet) == "ready_for_review"
+    assert reviewed_batch_next_safe_action(packet) == "make sec-stage-queue TOP_N=1"
+    assert "Packet status: `ready_for_review`" in rendered
     assert len(packet.actions) == 1
     assert packet.actions[0].proposed_ticker == "AAA"
     assert "SEC_USER_AGENT is configured" in packet.actions[0].capped_execution_command
@@ -197,3 +220,29 @@ def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     assert rows[0]["changed_readiness_counts"] == "<before -> after counts, or none>"
     assert rows[0]["generated_artifacts_reviewed"] == "<kept evidence or excluded local churn>"
     assert rows[0]["final_outcome"] == "supported|still_blocked|skipped|excluded"
+
+
+def test_reviewed_batch_cli_prints_packet_status_and_next_safe_action(tmp_path: Path, capsys):
+    root = _sample_root(tmp_path)
+    source = root / "data" / "prices.csv"
+    os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
+
+    rc = main(
+        [
+            "--root",
+            str(root),
+            "--lane",
+            "fundamentals",
+            "--top-n",
+            "1",
+            "--md-output",
+            str(tmp_path / "outputs" / "packet.md"),
+            "--csv-output",
+            str(tmp_path / "outputs" / "packet.csv"),
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert rc == 0
+    assert "Packet status: blocked_by_freshness" in output
+    assert "Next safe action: make readiness" in output

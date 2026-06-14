@@ -296,6 +296,26 @@ def _join_ticker_arg(tickers: tuple[str, ...]) -> str:
     return ",".join(tickers) if tickers else "<reviewed_scope>"
 
 
+def reviewed_batch_packet_status(packet: ReviewedBatchPacket) -> str:
+    if packet.freshness.status in {"missing", "stale"}:
+        return "blocked_by_freshness"
+    if not packet.actions:
+        return "blocked_no_actions"
+    return "ready_for_review"
+
+
+def reviewed_batch_next_safe_action(packet: ReviewedBatchPacket) -> str:
+    status = reviewed_batch_packet_status(packet)
+    if status == "blocked_by_freshness":
+        return packet.freshness.refresh_command
+    if status == "blocked_no_actions":
+        return "make readiness"
+    first_action = packet.actions[0] if packet.actions else None
+    if first_action is None:
+        return "make readiness"
+    return first_action.dry_run_command
+
+
 def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str, str]:
     ticker_arg = _join_ticker_arg(tickers)
     if lane == "price_coverage":
@@ -599,6 +619,8 @@ def build_reviewed_batch_packet(
 
 def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
     tickers = ", ".join(packet.tickers) if packet.tickers else f"top {packet.top_n}"
+    packet_status = reviewed_batch_packet_status(packet)
+    next_safe_action = reviewed_batch_next_safe_action(packet)
     lines = [
         "# Reviewed Batch Run Packet",
         "",
@@ -611,6 +633,8 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
         f"- Freshness status: `{packet.freshness.status}`",
         f"- Freshness note: {packet.freshness.message}",
         f"- Refresh command if blocked: `{packet.freshness.refresh_command}`",
+        f"- Packet status: `{packet_status}`",
+        f"- Next safe action: `{next_safe_action}`",
         "",
         "## Readiness Snapshot",
         "",
@@ -626,6 +650,17 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
         lines.extend(
             [
                 "No proposed actions were created. Run `make readiness` and choose one of `prices`, `fundamentals`, `peers`, `metrics`, or `optional_context`.",
+                "",
+            ]
+        )
+    if packet_status == "blocked_by_freshness":
+        lines.extend(
+            [
+                "## Blocked Preflight",
+                "",
+                f"- Stop before dry-run, capped execution, validate, preview, or apply steps until `{packet.freshness.refresh_command}` is complete.",
+                "- Treat this packet as a stale-readiness scaffold, not execution approval.",
+                "- Rebuild the packet after freshness is current so changed counts and proof fields are not based on stale artifacts.",
                 "",
             ]
         )
@@ -731,6 +766,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Wrote {args.md_output}")
         print(f"Wrote {args.csv_output}")
         print(f"Freshness status: {packet.freshness.status} - {packet.freshness.message}")
+        print(f"Packet status: {reviewed_batch_packet_status(packet)}")
+        print(f"Next safe action: {reviewed_batch_next_safe_action(packet)}")
     return 0
 
 
