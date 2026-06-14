@@ -769,6 +769,63 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_packet_preview(packet: ReviewedBatchPacket) -> str:
+    packet_status = reviewed_batch_packet_status(packet)
+    next_safe_action = reviewed_batch_next_safe_action(packet)
+    lines = [
+        "Reviewed batch packet preview",
+        "Research-only: preview data-readiness work only; no broker integration, no auto-trading, no account execution, and no direct transaction instructions.",
+        f"status: preview",
+        f"batch_id: {packet.batch_id}",
+        f"selected_lane: {packet.selected_lane}",
+        f"lane_scope: {packet.selected_scope}",
+        f"freshness_status: {packet.freshness.status}",
+        f"packet_status: {packet_status}",
+        f"next_safe_action: {next_safe_action}",
+        f"actions: {len(packet.actions)}",
+        "message: Previewed reviewed batch packet; no Markdown or CSV artifacts were written.",
+    ]
+    if packet.freshness.status in {"missing", "stale"}:
+        lines.extend(
+            [
+                "blocked_preflight:",
+                f"- {packet.freshness.message}",
+                f"- Run {packet.freshness.refresh_command} before relying on final counts.",
+            ]
+        )
+    if packet.actions:
+        action = packet.actions[0]
+        lines.extend(
+            [
+                "top_action:",
+                f"- lane: {action.lane_label}",
+                f"- proposed_ticker: {action.proposed_ticker}",
+                f"- dry_run_command: {action.dry_run_command}",
+                f"- capped_execution_command: {action.capped_execution_command}",
+                f"- validation_command: {action.validation_command}",
+                f"- preview_command: {action.preview_command}",
+                f"- apply_gate: {action.apply_command}",
+                f"- post_run_verification: {action.post_run_verification}",
+                f"- readiness_comparison: {action.readiness_comparison_command}",
+                f"- proof_record_command: {action.proof_record_command}",
+                f"- do_not_proceed_if: {action.do_not_proceed_if}",
+            ]
+        )
+        remaining = len(packet.actions) - 1
+        if remaining > 0:
+            lines.append(f"additional_actions: {remaining}")
+    else:
+        lines.append("top_action: none; run make readiness and choose a supported lane.")
+    lines.extend(
+        [
+            "guardrails:",
+            "- Do not fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations.",
+            "- Write reviewed batch artifacts only when the packet itself is intentionally reviewed evidence.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def write_reviewed_batch_packet(
     packet: ReviewedBatchPacket,
     *,
@@ -781,13 +838,14 @@ def write_reviewed_batch_packet(
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Write a reviewed batch run packet.")
+    parser = argparse.ArgumentParser(description="Preview or write a reviewed batch run packet.")
     parser.add_argument("--root", default=".", help="Project root.")
     parser.add_argument("--lane", default="prices", help="prices, fundamentals, share_count, peers, metrics, optional_context.")
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--tickers", default="", help="Optional comma-separated ticker scope.")
     parser.add_argument("--md-output", default=str(DEFAULT_PACKET_MD))
     parser.add_argument("--csv-output", default=str(DEFAULT_PACKET_CSV))
+    parser.add_argument("--dry-run", action="store_true", help="Preview the packet without writing Markdown or CSV artifacts.")
     parser.add_argument("--print", action="store_true", help="Print packet markdown after writing outputs.")
     return parser.parse_args(argv)
 
@@ -800,6 +858,9 @@ def main(argv: list[str] | None = None) -> int:
         top_n=args.top_n,
         tickers=args.tickers,
     )
+    if args.dry_run:
+        print(render_packet_markdown(packet) if args.print else render_packet_preview(packet))
+        return 0
     write_reviewed_batch_packet(packet, md_output=Path(args.md_output), csv_output=Path(args.csv_output))
     if args.print:
         print(render_packet_markdown(packet))

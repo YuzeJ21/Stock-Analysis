@@ -7,6 +7,7 @@ from src.reviewed_batch import (
     main,
     readiness_freshness_status,
     render_packet_markdown,
+    render_packet_preview,
     reviewed_batch_next_safe_action,
     reviewed_batch_packet_status,
     write_reviewed_batch_packet,
@@ -268,6 +269,27 @@ def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     assert rows[0]["final_outcome"] == "supported|still_blocked|skipped|excluded"
 
 
+def test_reviewed_batch_preview_shows_next_action_without_writing_outputs(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+    packet = build_reviewed_batch_packet(root, lane="peers", top_n=2)
+
+    rendered = render_packet_preview(packet)
+    lowered = rendered.lower()
+
+    assert "status: preview" in rendered
+    assert "no Markdown or CSV artifacts were written" in rendered
+    assert "top_action:" in rendered
+    assert "dry_run_command: make peer-mapping-queue TOP_N=2" in rendered
+    assert "validation_command: make imports-validate" in rendered
+    assert "preview_command: make imports-preview" in rendered
+    assert "proof_record_command: make reviewed-batch-proof-record" in rendered
+    assert "do_not_proceed_if:" in rendered
+    assert "not investment advice" not in lowered
+    assert "buy" not in lowered
+    assert "sell" not in lowered
+
+
 def test_reviewed_batch_cli_prints_packet_status_and_next_safe_action(tmp_path: Path, capsys):
     root = _sample_root(tmp_path)
     source = root / "data" / "prices.csv"
@@ -292,3 +314,37 @@ def test_reviewed_batch_cli_prints_packet_status_and_next_safe_action(tmp_path: 
     assert rc == 0
     assert "Packet status: blocked_by_freshness" in output
     assert "Next safe action: make readiness" in output
+
+
+def test_reviewed_batch_cli_dry_run_does_not_write_packet_artifacts(tmp_path: Path, capsys):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+    md_output = tmp_path / "outputs" / "packet.md"
+    csv_output = tmp_path / "outputs" / "packet.csv"
+
+    rc = main(
+        [
+            "--root",
+            str(root),
+            "--lane",
+            "peers",
+            "--top-n",
+            "2",
+            "--md-output",
+            str(md_output),
+            "--csv-output",
+            str(csv_output),
+            "--dry-run",
+        ]
+    )
+    output = capsys.readouterr().out
+    lowered = output.lower()
+
+    assert rc == 0
+    assert "Reviewed batch packet preview" in output
+    assert "status: preview" in output
+    assert "dry_run_command: make peer-mapping-queue TOP_N=2" in output
+    assert not md_output.exists()
+    assert not csv_output.exists()
+    assert "buy" not in lowered
+    assert "sell" not in lowered

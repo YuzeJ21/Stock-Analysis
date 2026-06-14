@@ -100,7 +100,7 @@ Goal: choose broad data-readiness lanes before drilling into individual tickers.
 
 Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 
-- [x] Add `make reviewed-batch LANE=prices TOP_N=10`.
+- [x] Add `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` for packet preview before intentionally writing reviewed batch artifacts.
 - [x] Write `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv`.
 - [x] Include snapshot, dry-run, capped execution, validate/preview/apply gates, post-run proof, expected artifacts, rollback, and proof-row template.
 - [x] Warn when saved readiness artifacts are missing or stale before relying on counts.

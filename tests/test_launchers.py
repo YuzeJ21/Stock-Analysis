@@ -196,7 +196,7 @@ def test_makefile_help_documents_key_workflows():
         "make readiness-ops-evidence",
         "Print the broad lane operations evidence checklist",
         "make reviewed-batch",
-        "Write a reviewed batch run packet for a selected lane",
+        "Preview or write a reviewed batch run packet for a selected lane",
         "make decision-proof-queue",
         "Preview or write the compact decision proof queue from current readiness outputs",
         "make metric-readiness-board [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARKS=SPY,QQQ] [OUTPUT=outputs/metric_readiness_board.csv]",
@@ -220,7 +220,7 @@ def test_makefile_help_documents_key_workflows():
         "make data-coverage-planner [TOP_N=10] Print repeatable coverage expansion lanes with dry-run, proof, stop, and churn gates",
         "make coverage-expansion-loop [LANE=auto] [TOP_N=10] Print one copy-only planner -> preflight -> packet -> proof loop",
         "make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations",
-        "make reviewed-batch [LANE=prices|fundamentals|share_count|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv",
+        "make reviewed-batch [DRY_RUN=1] [LANE=prices|fundamentals|share_count|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write outputs/reviewed_batch_packet.md and .csv",
         "make decision-proof-queue [DRY_RUN=1] [TOP_N=12] [OUTPUT=outputs/decision_proof_queue.csv] [MD_OUTPUT=outputs/decision_proof_queue.md] Preview or write a copy-only proof queue from current decision/readiness outputs",
         "make diff-hygiene",
         "Print a read-only staging guide that separates product files from local data changes",
@@ -1678,7 +1678,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.md`" in data_strategy
     assert "Data Health also surfaces the latest reviewed proof timeline" in data_strategy
     assert "Reviewed Batch Execution V1" in data_strategy
-    assert "Use `make reviewed-batch LANE=prices TOP_N=10` to convert a frontier lane into a reviewed run packet." in data_strategy
+    assert "Use `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` to preview a frontier lane as a reviewed run packet without writing packet artifacts." in data_strategy
     assert "The packet includes the pre-run readiness snapshot command, dry-run command, capped execution command, validate/preview/apply gates" in data_strategy
     assert "the packet says to run `make readiness` before relying on final counts." in data_strategy
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy

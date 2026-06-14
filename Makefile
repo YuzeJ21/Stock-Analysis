@@ -70,7 +70,7 @@ help-full:
 	@echo "  make readiness-ops-evidence"
 	@echo "                        Print the broad lane operations evidence checklist"
 	@echo "  make reviewed-batch"
-	@echo "                        Write a reviewed batch run packet for a selected lane"
+	@echo "                        Preview or write a reviewed batch run packet for a selected lane"
 	@echo "  make decision-proof-queue"
 	@echo "                        Preview or write the compact decision proof queue from current readiness outputs"
 	@echo "  make status-check TOP_N=5"
@@ -94,9 +94,9 @@ help-full:
 	@echo "  make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|still_blocked|skipped|excluded> Record a reviewed batch outcome"
 	@echo "  make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields"
 	@echo "  make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates"
-	@echo "  make fundamentals-batch-proof [TOP_N=10] [TICKERS=NVDA,MSFT] Write the SEC/manual fundamentals proof packet with validate, preview, rejected-row, compare, and proof-record gates"
+	@echo "  make fundamentals-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the SEC/manual fundamentals proof packet with validate, preview, rejected-row, compare, and proof-record gates"
 	@echo "  make share-count-proof-queue [TOP_N=10] [TICKERS=HOOD,ABNB] Show read-only DCF share-count proof blockers without applying data"
-	@echo "  make peer-batch-proof [TOP_N=10] [TICKERS=NVDA,MSFT] Write the peer mapping and mapped-peer valuation-input proof packet without inferring peers"
+	@echo "  make peer-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the peer mapping and mapped-peer valuation-input proof packet without inferring peers"
 	@echo "  make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=yahoo] Print reviewed capped price-run execution, diff, and rollback plan"
 	@echo "  make public-demo-readiness-pack Print the small shareable public demo proof set"
 	@echo "  make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data"
@@ -104,7 +104,7 @@ help-full:
 	@echo "  make data-coverage-planner [TOP_N=10] Print repeatable coverage expansion lanes with dry-run, proof, stop, and churn gates"
 	@echo "  make coverage-expansion-loop [LANE=auto] [TOP_N=10] Print one copy-only planner -> preflight -> packet -> proof loop"
 	@echo "  make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations"
-	@echo "  make reviewed-batch [LANE=prices|fundamentals|share_count|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv"
+	@echo "  make reviewed-batch [DRY_RUN=1] [LANE=prices|fundamentals|share_count|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write outputs/reviewed_batch_packet.md and .csv"
 	@echo "  make decision-proof-queue [DRY_RUN=1] [TOP_N=12] [OUTPUT=outputs/decision_proof_queue.csv] [MD_OUTPUT=outputs/decision_proof_queue.md] Preview or write a copy-only proof queue from current decision/readiness outputs"
 	@echo "  make benchmark-risk-review TICKER=NVDA [BENCHMARK=SPY] [RISK_FREE_RATE=0.04] Print one ticker's readiness-gated benchmark, risk, fundamentals, valuation, and peer review metrics"
 	@echo "  make metric-readiness [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARK=SPY] [RISK_FREE_RATE=0.04] Print the capped metric-readiness queue with freshness context"
@@ -393,13 +393,13 @@ readiness-ops-evidence:
 	@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)
 
 reviewed-batch:
-	@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/reviewed_batch_packet.md) --csv-output $(or $(CSV_OUTPUT),outputs/reviewed_batch_packet.csv)
+	@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/reviewed_batch_packet.md) --csv-output $(or $(CSV_OUTPUT),outputs/reviewed_batch_packet.csv) $(if $(DRY_RUN),--dry-run,)
 
 fundamentals-batch-proof:
-	@python3 -m src.reviewed_batch --root . --lane fundamentals --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/fundamentals_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/fundamentals_batch_proof.csv)
+	@python3 -m src.reviewed_batch --root . --lane fundamentals --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/fundamentals_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/fundamentals_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
 
 peer-batch-proof:
-	@python3 -m src.reviewed_batch --root . --lane peers --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_batch_proof.csv)
+	@python3 -m src.reviewed_batch --root . --lane peers --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
 
 reviewed-batch-proof:
 	@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv)
