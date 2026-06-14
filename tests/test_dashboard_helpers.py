@@ -10245,6 +10245,8 @@ def test_data_health_reviewed_batch_execution_frame_keeps_mutating_gates_explici
     assert "validate" in rendered
     assert "preview" in rendered
     assert "make imports-apply only for reviewed trusted rows" in rendered
+    assert "classify generated csv/json churn before any public commit" in rendered
+    assert "make diff-hygiene && make diff-hygiene-files" in rendered
     assert "rollback" in rendered
     assert "restore reviewed standard local csvs" in rendered
     assert "supported, still_blocked, skipped, or excluded" in rendered
@@ -11012,6 +11014,7 @@ def test_data_health_reviewed_batch_preflight_cards_warn_before_dry_run_when_sna
     assert "prior readiness snapshot is missing" in rendered
     assert frame.iloc[0]["Prior Snapshot Exists"] == "No"
     assert "make readiness-snapshot" in frame.iloc[0]["Snapshot Command"]
+    assert "make diff-hygiene" in frame.iloc[0]["Post-run Hygiene"]
 
 
 def test_data_health_reviewed_batch_preflight_cards_ready_state():

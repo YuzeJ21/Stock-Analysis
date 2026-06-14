@@ -8879,6 +8879,7 @@ def data_health_reviewed_batch_preflight_frame(preflight: ReviewedBatchPreflight
                 "Dry Run Command": preflight.dry_run_command,
                 "Comparison Command": preflight.comparison_command,
                 "Proof Record Command": preflight.proof_record_command,
+                "Post-run Hygiene": "; ".join(preflight.post_run_hygiene),
                 "Do Not Proceed If": "; ".join(preflight.do_not_proceed_if),
             }
         ]
@@ -9138,6 +9139,7 @@ def data_health_reviewed_batch_execution_frame(preflight: ReviewedBatchPreflight
             {"Step": "7. Apply", "Command": "make imports-apply only for reviewed trusted rows", "Gate": "Manual reviewed step; not a dashboard action."},
             {"Step": "8. Proof", "Command": preflight.comparison_command, "Gate": "Record supported, still_blocked, skipped, or excluded only after proof."},
             {"Step": "9. Ledger", "Command": preflight.proof_record_command, "Gate": "Durable record after source files and generated churn are classified."},
+            {"Step": "10. Hygiene", "Command": " && ".join(preflight.post_run_hygiene[:2]), "Gate": "Classify generated CSV/JSON churn before any public commit."},
             {"Step": "Rollback", "Command": "restore reviewed standard local CSVs from git/backups, then rerun make readiness", "Gate": "Use if applied local rows are wrong or source proof fails."},
         ]
     )

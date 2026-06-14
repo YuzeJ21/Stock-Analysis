@@ -45,6 +45,11 @@ class ReviewedBatchPreflight:
     proof_record_command: str
     do_not_proceed_if: tuple[str, ...]
     expected_artifacts: tuple[str, ...]
+    post_run_hygiene: tuple[str, ...] = (
+        "make diff-hygiene",
+        "make diff-hygiene-files",
+        "make staged-hygiene-check after staging product/docs/tests only",
+    )
 
 
 def _today_utc() -> str:
@@ -162,6 +167,11 @@ def build_reviewed_batch_preflight(
         ),
         do_not_proceed_if=tuple(blockers),
         expected_artifacts=artifacts,
+        post_run_hygiene=(
+            "make diff-hygiene",
+            "make diff-hygiene-files",
+            "make staged-hygiene-check after staging product/docs/tests only",
+        ),
     )
 
 
@@ -190,6 +200,10 @@ def render_reviewed_batch_preflight(preflight: ReviewedBatchPreflight) -> str:
         "",
         "Expected artifacts to review:",
         *[f"- {artifact}" for artifact in preflight.expected_artifacts],
+        "",
+        "Post-run hygiene before any public commit:",
+        *[f"- {command}" for command in preflight.post_run_hygiene],
+        "- Keep broad generated CSV/JSON churn unstaged unless that exact artifact is intentionally reviewed evidence.",
         "",
         "Do not proceed if:",
         *[f"- {blocker}" for blocker in preflight.do_not_proceed_if],
