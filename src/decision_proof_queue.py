@@ -393,6 +393,103 @@ def build_decision_proof_queue_drawer_cards(
     return cards
 
 
+def build_decision_proof_queue_operator_flow_cards(
+    queue_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus,
+) -> list[dict[str, object]]:
+    """Return the compact V2 operator flow shown before detailed proof controls."""
+    stale_or_missing = freshness.status in {"missing", "stale"}
+    refresh_command = freshness.refresh_command if stale_or_missing else "make decision-proof-queue TOP_N=12"
+    if stale_or_missing:
+        return [
+            {
+                "kicker": "FRESHNESS GATE",
+                "title": "Proof queue blocked",
+                "body": (
+                    f"{_compact_reason(freshness.message, max_sentences=1, max_chars=170)} "
+                    "Refresh the artifact before reading any decision row."
+                ),
+                "badges": [freshness.status, "refresh first"],
+                "command": refresh_command,
+            },
+            {
+                "kicker": "NEXT REVIEW",
+                "title": "No current top row",
+                "body": "The top proof row stays hidden until research decisions and readiness are from the same snapshot.",
+                "badges": ["no stale rows", "readiness first"],
+                "command": refresh_command,
+            },
+            {
+                "kicker": "PROOF BOUNDARY",
+                "title": "Rebuild before interpretation",
+                "body": (
+                    "After refresh, run the proof queue command and use rows only as review routing, "
+                    "not recommendations, rankings, or execution instructions."
+                ),
+                "badges": ["copy-only", "research-only"],
+                "command": "make decision-proof-queue TOP_N=12",
+            },
+        ]
+
+    if queue_frame is None or queue_frame.empty:
+        return [
+            {
+                "kicker": "FRESHNESS GATE",
+                "title": "Snapshot current",
+                "body": _compact_reason(freshness.message, max_sentences=1, max_chars=170),
+                "badges": [freshness.status, "counts usable"],
+                "command": "make decision-proof-queue TOP_N=12",
+            },
+            {
+                "kicker": "NEXT REVIEW",
+                "title": "Build research decisions",
+                "body": "No current proof rows are available. Rebuild research decisions, then regenerate the queue.",
+                "badges": ["no rows", "queue empty"],
+                "command": "make research-decisions",
+            },
+            {
+                "kicker": "PROOF BOUNDARY",
+                "title": "Rows must be regenerated",
+                "body": "Keep raw decision tables closed until the proof queue has current rows and source notes.",
+                "badges": ["raw rows collapsed", "copy-only"],
+                "command": "make decision-proof-queue TOP_N=12",
+            },
+        ]
+
+    top = queue_frame.iloc[0]
+    ticker = _format_missing(top.get("ticker"), "Ticker")
+    copy_command = _format_missing(top.get("copy_only_command"), "make project-status")
+    proof_command = _compact_reason(top.get("proof_after_unlock"), max_sentences=1, max_chars=180)
+    reviewable = _compact_reason(top.get("what_can_be_reviewed_now"), max_sentences=1, max_chars=135)
+    locked = _compact_reason(top.get("what_stays_locked"), max_sentences=1, max_chars=135)
+    return [
+        {
+            "kicker": "FRESHNESS GATE",
+            "title": "Queue current",
+            "body": f"{_compact_reason(freshness.message, max_sentences=1, max_chars=140)} Use this as proof routing only.",
+            "badges": [freshness.status, "not advice"],
+            "command": "make decision-proof-queue TOP_N=12",
+        },
+        {
+            "kicker": "NEXT REVIEW",
+            "title": f"{ticker}: {_format_missing(top.get('primary_blocker'), 'blocker')}",
+            "body": f"Review now: {reviewable} Locked: {locked}",
+            "badges": [
+                _format_missing(top.get("decision_bucket"), "review state"),
+                _format_missing(top.get("data_confidence"), "confidence"),
+            ],
+            "command": copy_command,
+        },
+        {
+            "kicker": "PROOF BOUNDARY",
+            "title": "Prove before reading deeper",
+            "body": proof_command,
+            "badges": ["post-unlock proof", "raw rows collapsed"],
+            "command": copy_command,
+        },
+    ]
+
+
 def build_decision_proof_queue_drawer_summary_frame(
     queue_frame: pd.DataFrame | None,
     freshness: FreshnessStatus,

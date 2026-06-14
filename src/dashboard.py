@@ -17,6 +17,7 @@ from src.data_sources import write_data_source_outputs
 from src.decision_proof_queue import (
     build_decision_proof_queue_drawer_cards as _build_decision_proof_queue_drawer_cards,
     build_decision_proof_queue_drawer_summary_frame as _build_decision_proof_queue_drawer_summary_frame,
+    build_decision_proof_queue_operator_flow_cards as _build_decision_proof_queue_operator_flow_cards,
     build_decision_proof_queue_cards as _build_decision_proof_queue_cards,
     build_decision_proof_queue_frame as _build_decision_proof_queue_frame,
     decision_proof_queue_artifact_status,
@@ -13652,6 +13653,13 @@ def decision_proof_queue_drawer_summary_frame(
     return _build_decision_proof_queue_drawer_summary_frame(queue_frame, freshness)
 
 
+def decision_proof_queue_operator_flow_cards(
+    queue_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus,
+) -> list[dict[str, object]]:
+    return _build_decision_proof_queue_operator_flow_cards(queue_frame, freshness)
+
+
 def purpose_family_label(asset_type: object, purpose_text: object = "", alignment_text: object = "") -> str:
     asset_kind = format_missing(asset_type, "").lower()
     if asset_kind in {"etf", "index_proxy", "fund"}:
@@ -25460,10 +25468,19 @@ def render_data_health(
         if decision_queue_freshness.status == "current"
         else pd.DataFrame()
     )
-    with st.expander("Decision proof queue drawer", expanded=False):
+    decision_queue_drawer_expanded = selected_lane_key == "proof" or decision_queue_freshness.status in {"missing", "stale"}
+    with st.expander("Decision proof queue drawer", expanded=decision_queue_drawer_expanded):
         render_section_header(
             "Decision Proof Queue",
             "Freshness status, top proof row, copy-only command, and post-unlock proof before raw decision tables.",
+        )
+        render_signal_cards(
+            decision_proof_queue_operator_flow_cards(decision_queue_frame, decision_queue_freshness),
+            show_commands=True,
+        )
+        render_section_header(
+            "Decision Proof Detail",
+            "Detailed status cards stay below the compact operator flow; raw queue rows remain collapsed.",
         )
         render_signal_cards(
             decision_proof_queue_drawer_cards(decision_queue_frame, decision_queue_freshness),
