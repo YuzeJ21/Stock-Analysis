@@ -3,6 +3,7 @@ from pathlib import Path
 from src.coverage_expansion_loop import (
     build_coverage_expansion_lane_board,
     build_coverage_expansion_loop,
+    build_source_proof_gate,
     render_coverage_expansion_loop,
 )
 from src.readiness_ops import build_readiness_ops_lanes
@@ -87,9 +88,14 @@ def test_coverage_expansion_loop_prints_ready_copy_only_sequence(tmp_path: Path)
     assert loop.selected_lane == "fundamentals_dcf"
     assert loop.reviewed_batch_lane == "fundamentals"
     assert any(row.selected and row.lane == "fundamentals_dcf" for row in loop.lane_board)
+    assert loop.source_proof_gate is not None
+    assert loop.source_proof_gate.lane == "fundamentals_dcf"
     assert "make reviewed-batch LANE=fundamentals TOP_N=5" in rendered
     assert "make sec-stage-queue TOP_N=5" in rendered
     assert "make imports-validate && make imports-preview" in rendered
+    assert "Source proof intake" in rendered
+    assert "trusted revenue/free-cash-flow/free-cash-flow margin rows" in rendered
+    assert "placeholder fundamentals" in rendered
     assert "source proof, validate, preview, rejected-row review, explicit apply decision, rebuilt readiness" in rendered
     assert "DRY_RUN=1 make reviewed-batch-proof-record" in rendered
     assert "generated-artifact" in rendered
@@ -122,3 +128,42 @@ def test_coverage_expansion_lane_board_keeps_locked_and_excluded_boundaries_visi
     assert "buy" not in rendered.lower()
     assert "sell" not in rendered.lower()
     assert "broker" not in rendered.lower()
+
+
+def test_source_proof_gate_for_peer_valuation_rejects_sector_shortcuts():
+    gate = build_source_proof_gate("peer_valuation_inputs", top_n=7)
+    rendered = " ".join(gate.evidence_to_collect + gate.accepted_sources + gate.rejected_shortcuts + gate.review_commands).lower()
+
+    assert gate.status == "source_required"
+    assert gate.lane == "peer_valuation_inputs"
+    assert "mapped-peer price/fundamental/market-cap or valuation input rows" in rendered
+    assert "sector or industry similarity treated as trusted peer data" in rendered
+    assert "make peer-mapping-queue top_n=7" in rendered
+    assert "peer valuation remains blocked if inputs are still missing" in gate.proof_ready_when
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+
+
+def test_source_proof_gate_for_share_count_blocks_inference_shortcuts():
+    gate = build_source_proof_gate("share_count", top_n=4)
+    rendered = " ".join(gate.evidence_to_collect + gate.accepted_sources + gate.rejected_shortcuts + gate.review_commands).lower()
+
+    assert gate.status == "source_required"
+    assert gate.lane == "share_count_proof"
+    assert "trusted shares_outstanding row" in rendered
+    assert "shares inferred from price, market cap, or peers" in rendered
+    assert "make share-count-proof-queue top_n=4" in rendered
+    assert "stock report proves the lane changed" in gate.proof_ready_when
+
+
+def test_source_proof_gate_for_optional_context_keeps_locked_outcome_valid():
+    gate = build_source_proof_gate("optional_context", top_n=6)
+    rendered = " ".join(gate.evidence_to_collect + gate.accepted_sources + gate.rejected_shortcuts + gate.review_commands).lower()
+
+    assert gate.status == "locked_or_excluded"
+    assert gate.lane == "earnings_locked"
+    assert "trusted local optional rows" in rendered
+    assert "empty optional rows treated as analysis" in rendered
+    assert "make optional-context-worklist top_n=6" in rendered
+    assert "locked/skipped/excluded" in gate.proof_ready_when

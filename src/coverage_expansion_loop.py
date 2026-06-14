@@ -46,6 +46,17 @@ class CoverageExpansionLaneStatus:
 
 
 @dataclass(frozen=True)
+class CoverageExpansionSourceProofGate:
+    lane: str
+    status: str
+    evidence_to_collect: tuple[str, ...]
+    accepted_sources: tuple[str, ...]
+    rejected_shortcuts: tuple[str, ...]
+    review_commands: tuple[str, ...]
+    proof_ready_when: str
+
+
+@dataclass(frozen=True)
 class CoverageExpansionLoop:
     status: str
     selected_lane: str
@@ -57,6 +68,7 @@ class CoverageExpansionLoop:
     copy_only_sequence: tuple[str, ...]
     do_not_proceed_if: tuple[str, ...]
     lane_board: tuple[CoverageExpansionLaneStatus, ...] = ()
+    source_proof_gate: CoverageExpansionSourceProofGate | None = None
 
 
 def _normalize_planner_lane(value: str) -> str:
@@ -150,6 +162,120 @@ def build_coverage_expansion_lane_board(
     return tuple(board)
 
 
+def build_source_proof_gate(lane: str, *, top_n: int = 10) -> CoverageExpansionSourceProofGate:
+    normalized = _normalize_planner_lane(lane)
+    if normalized == "price_coverage":
+        return CoverageExpansionSourceProofGate(
+            lane=normalized,
+            status="dry_run_first",
+            evidence_to_collect=(
+                "reviewed dry-run ticker scope",
+                "provider/source notes for refreshed rows",
+                "before and after readiness counts",
+            ),
+            accepted_sources=(
+                "reviewed free-provider price rows",
+                "normalized manual OHLCV files with source label",
+                "local import rows that pass validation and preview",
+            ),
+            rejected_shortcuts=(
+                "unreviewed full-universe refresh",
+                "price rows without source/date/close validation",
+                "committing broad generated CSV churn by default",
+            ),
+            review_commands=(
+                f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=yahoo",
+                "make price-validate && make price-preview",
+                "make readiness && make status-check TOP_N=5",
+            ),
+            proof_ready_when="dry-run scope is reviewed, local price rows validate, readiness is rebuilt, and changed artifacts are classified.",
+        )
+    if normalized in {"fundamentals_dcf", "share_count_proof"}:
+        required = (
+            "trusted revenue/free-cash-flow/free-cash-flow margin rows"
+            if normalized == "fundamentals_dcf"
+            else "trusted shares_outstanding row"
+        )
+        return CoverageExpansionSourceProofGate(
+            lane=normalized,
+            status="source_required",
+            evidence_to_collect=(
+                required,
+                "source file or SEC staging evidence",
+                "validate/preview result and rejected-row status",
+                "before and after DCF readiness output",
+            ),
+            accepted_sources=(
+                "SEC company facts staging reviewed by the operator",
+                "trusted manual fundamentals import rows with source",
+                "existing trusted local fundamentals rows",
+            ),
+            rejected_shortcuts=(
+                "placeholder fundamentals",
+                "shares inferred from price, market cap, or peers",
+                "DCF unlock claimed before rebuilt readiness and report proof",
+            ),
+            review_commands=(
+                f"make {'share-count-proof-queue' if normalized == 'share_count_proof' else 'sec-stage-queue'} TOP_N={top_n}",
+                "make imports-validate && make imports-preview",
+                "make dcf-readiness && make readiness",
+            ),
+            proof_ready_when="source-backed rows pass validation and preview, rejected rows are reviewed, readiness is rebuilt, and the stock report proves the lane changed.",
+        )
+    if normalized in {"peer_mapping", "peer_valuation_inputs"}:
+        return CoverageExpansionSourceProofGate(
+            lane=normalized,
+            status="source_required",
+            evidence_to_collect=(
+                "source-backed peer relationship or mapped-peer input evidence",
+                "mapped-peer price/fundamental/market-cap or valuation input rows",
+                "validate/preview result and rejected-row status when rows change",
+                "before and after peer readiness output",
+            ),
+            accepted_sources=(
+                "reviewed peer mapping rows with source",
+                "trusted mapped-peer fundamentals or market-cap context",
+                "verified mapped-peer price history when peer trend is the target",
+            ),
+            rejected_shortcuts=(
+                "sector or industry similarity treated as trusted peer data",
+                "self-peers or undocumented peer relationships",
+                "peer valuation shown before mapped-peer inputs pass readiness",
+            ),
+            review_commands=(
+                f"make peer-mapping-queue TOP_N={top_n}",
+                "make imports-validate && make imports-preview",
+                "make readiness && make peer-mapping-queue TOP_N=25",
+            ),
+            proof_ready_when="peer mappings and mapped-peer inputs are source-backed, validation/preview passes, readiness is rebuilt, and peer valuation remains blocked if inputs are still missing.",
+        )
+    return CoverageExpansionSourceProofGate(
+        lane=normalized,
+        status="locked_or_excluded",
+        evidence_to_collect=(
+            "trusted local optional rows if the lane is earnings or estimates",
+            "asset-type evidence if the lane is excluded/not applicable",
+            "reviewer note when the correct outcome is skipped or excluded",
+        ),
+        accepted_sources=(
+            "trusted local earnings rows with source",
+            "trusted local analyst-estimate rows with source",
+            "readiness/report output showing excluded/not applicable state",
+        ),
+        rejected_shortcuts=(
+            "empty optional rows treated as analysis",
+            "third-party estimates copied without trusted local source review",
+            "forcing operating-company valuation onto ETF/index/fund rows",
+        ),
+        review_commands=(
+            f"make optional-context-worklist TOP_N={top_n}",
+            "make imports-validate && make imports-preview",
+            "make optional-context-readiness",
+        ),
+        proof_ready_when="trusted optional rows exist and pass review, or the lane remains locked/skipped/excluded with that state recorded honestly.",
+    )
+
+
 def build_coverage_expansion_loop(
     root: Path | str = ".",
     *,
@@ -164,6 +290,7 @@ def build_coverage_expansion_loop(
     selected = _select_step(steps, lane)
     selected_lane = selected.lane if selected is not None else _normalize_planner_lane(lane)
     lane_board = build_coverage_expansion_lane_board(lanes, selected_lane=selected_lane, top_n=top_n)
+    source_gate = build_source_proof_gate(selected_lane, top_n=top_n)
     if selected is None:
         return CoverageExpansionLoop(
             status="blocked_missing_lane",
@@ -176,6 +303,7 @@ def build_coverage_expansion_loop(
             lane_board=lane_board,
             copy_only_sequence=("make readiness", f"make data-coverage-planner TOP_N={top_n}", "make coverage-frontier TOP_N=10"),
             do_not_proceed_if=("no planner lane exists for the requested scope",),
+            source_proof_gate=source_gate,
         )
 
     reviewed_lane = LANE_TO_REVIEWED_BATCH.get(selected.lane, selected.lane)
@@ -218,6 +346,7 @@ def build_coverage_expansion_loop(
         lane_board=lane_board,
         copy_only_sequence=sequence,
         do_not_proceed_if=preflight.do_not_proceed_if,
+        source_proof_gate=source_gate,
     )
 
 
@@ -267,6 +396,25 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
                 f"- current_readiness_report: {'yes' if loop.preflight.current_report_exists else 'no'}",
                 f"- prior_readiness_snapshot: {'yes' if loop.preflight.prior_snapshot_exists else 'no'}",
                 f"- freshness: {loop.preflight.freshness_status} - {loop.preflight.freshness_message}",
+                "",
+            ]
+        )
+    if loop.source_proof_gate is not None:
+        gate = loop.source_proof_gate
+        lines.extend(
+            [
+                "Source proof intake:",
+                f"- lane: {gate.lane}",
+                f"- status: {gate.status}",
+                "- evidence_to_collect:",
+                *[f"  - {item}" for item in gate.evidence_to_collect],
+                "- accepted_sources:",
+                *[f"  - {item}" for item in gate.accepted_sources],
+                "- rejected_shortcuts:",
+                *[f"  - {item}" for item in gate.rejected_shortcuts],
+                "- review_commands:",
+                *[f"  - {command}" for command in gate.review_commands],
+                f"- proof_ready_when: {gate.proof_ready_when}",
                 "",
             ]
         )
