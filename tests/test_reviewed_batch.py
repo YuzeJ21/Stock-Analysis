@@ -125,6 +125,7 @@ def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane
     packet = build_reviewed_batch_packet(_sample_root(tmp_path), lane="peers", top_n=2)
     rendered = render_packet_markdown(packet)
     lowered = rendered.lower()
+    actions_by_lane = {action.lane: action for action in packet.actions}
 
     assert "changed_readiness_counts" in rendered
     assert "changed_tickers" in rendered
@@ -139,6 +140,15 @@ def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane
     assert "record peer_mapping_ready, peer_price_ready, peer_momentum_ready" in lowered
     assert "peer_valuation_comparison_ready" in rendered
     assert "sector or industry fallback as context only" in lowered
+    assert "make peer-batch-proof TOP_N=<n>" in rendered
+    assert set(actions_by_lane) == {"peer_mapping", "peer_valuation_inputs"}
+    assert "source-backed peer mapping rows" in actions_by_lane["peer_mapping"].apply_command
+    assert "reviewed mapped-peer fundamentals, price, market-cap, or valuation-input rows" in actions_by_lane["peer_valuation_inputs"].apply_command
+    assert "data/rejected/peers_import_rejected.csv" in actions_by_lane["peer_mapping"].expected_artifacts
+    assert "data/rejected/fundamentals_import_rejected.csv" in actions_by_lane["peer_valuation_inputs"].expected_artifacts
+    assert "peer relationship proof is unavailable" in actions_by_lane["peer_mapping"].do_not_proceed_if
+    assert "mapped peers lack trusted fundamentals" in actions_by_lane["peer_valuation_inputs"].do_not_proceed_if
+    assert "Follow the printed mapped-peer dependency" in rendered
     assert "make metric-readiness" in rendered
     assert "validate -> preview -> apply" in rendered
 

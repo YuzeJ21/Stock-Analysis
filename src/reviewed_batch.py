@@ -322,17 +322,29 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/rejected/fundamentals_import_rejected.csv; data/reports/dcf_readiness_report.csv",
             "rollback": "If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun make readiness.",
         }
-    if lane in {"peer_mapping", "peer_valuation_inputs"}:
+    if lane == "peer_mapping":
         return {
             "dry_run": f"make peer-mapping-queue TOP_N={top_n}",
-            "execute": f"make focus-peers TICKER={tickers[0] if tickers else '<ticker>'} or add reviewed peer rows/mapped-peer inputs",
+            "execute": f"make focus-peers TICKER={tickers[0] if tickers else '<ticker>'}, then add only reviewed source-backed peer mappings to data/imports/peers.csv",
             "validate": "make imports-validate",
             "preview": "make imports-preview",
-            "apply": "make imports-apply only after source-backed peer rows or mapped-peer inputs are reviewed",
+            "apply": "make imports-apply only after source-backed peer mapping rows are reviewed",
+            "post": f"make readiness && make peer-mapping-queue TOP_N={top_n} && make status-check TOP_N=5",
+            "compare": "make reviewed-batch-compare LANE=peers BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "artifacts": "data/imports/peers.csv; data/peers.csv; data/rejected/peers_import_rejected.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
+            "rollback": "If peer mapping rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv from git/backups and rerun readiness.",
+        }
+    if lane == "peer_valuation_inputs":
+        return {
+            "dry_run": f"make peer-mapping-queue TOP_N={top_n}",
+            "execute": f"make focus-peers TICKER={tickers[0] if tickers else '<ticker>'}, then follow mapped-peer dependencies with make focus-fundamentals TICKER=<peer> or verified peer price/market-cap context",
+            "validate": "make imports-validate",
+            "preview": "make imports-preview",
+            "apply": "make imports-apply only after reviewed mapped-peer fundamentals, price, market-cap, or valuation-input rows pass preview",
             "post": f"make readiness && make peer-mapping-queue TOP_N={top_n} && make metric-readiness TICKERS={ticker_arg} BENCHMARK=SPY",
             "compare": "make reviewed-batch-compare LANE=peers BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
-            "artifacts": "data/imports/peers.csv; data/peers.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
-            "rollback": "If peer rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv and any reviewed mapped-peer input files, then rerun readiness.",
+            "artifacts": "data/imports/fundamentals.csv; data/imports/prices.csv; data/imports/peers.csv if mappings change; data/rejected/fundamentals_import_rejected.csv; data/rejected/price_import_rejected.csv; data/rejected/peers_import_rejected.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
+            "rollback": "If mapped-peer input rows are wrong, do not apply. If applied rows are wrong, restore the touched canonical fundamentals, prices, or peers CSVs, then rerun readiness.",
         }
     if lane == "metric_readiness_review":
         return {
@@ -378,6 +390,20 @@ def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
                 "data/rejected/fundamentals_import_rejected.csv has unresolved rows",
             ]
         )
+    if lane.lane == "peer_mapping":
+        blockers.extend(
+            [
+                "peer relationship proof is unavailable or only sector/industry similarity exists",
+                "data/rejected/peers_import_rejected.csv has unresolved rows",
+            ]
+        )
+    if lane.lane == "peer_valuation_inputs":
+        blockers.extend(
+            [
+                "mapped peers lack trusted fundamentals, price history, market-cap context, or valuation inputs",
+                "mapped-peer input rows have not passed validate, preview, and rejected-row review",
+            ]
+        )
     if lane.lane == "metric_readiness_review":
         blockers.append("the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof")
     if freshness.status in {"missing", "stale"}:
@@ -402,12 +428,23 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
             "Run make imports-validate and make imports-preview before imports-apply; rejected-row reports must be clear or explained.",
             "After apply, rerun make readiness and make dcf-readiness before calling any ticker supported.",
         ]
-    if lane in {"peer_mapping", "peer_valuation_inputs"}:
+    if lane == "peer_mapping":
         return [
             "Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.",
-            f"Inspect the peer sub-lane with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
+            "Start from the first-class packet command: make peer-batch-proof TOP_N=<n> or make peer-batch-proof TICKERS=<scope>.",
+            f"Inspect missing peer relationships with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
             "Treat sector or industry fallback as context only; it is not trusted peer mapping proof.",
-            "After reviewed rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.",
+            "Run make imports-validate and make imports-preview before imports-apply; data/rejected/peers_import_rejected.csv must be clear or explained.",
+            "After reviewed mapping rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.",
+        ]
+    if lane == "peer_valuation_inputs":
+        return [
+            "Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.",
+            "Start from the first-class packet command: make peer-batch-proof TOP_N=<n> or make peer-batch-proof TICKERS=<scope>.",
+            f"Inspect the peer valuation sub-lane with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
+            "Follow the printed mapped-peer dependency with make focus-fundamentals TICKER=<peer> or verified peer price/market-cap proof.",
+            "Do not treat mapped peers as valuation-ready until mapped-peer inputs pass validate, preview, rejected-row review, and rebuilt readiness.",
+            "After reviewed mapped-peer inputs, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.",
         ]
     if lane == "metric_readiness_review":
         return [
