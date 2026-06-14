@@ -705,6 +705,7 @@ def write_decision_proof_queue(
     output_csv: Path | str | None = None,
     output_md: Path | str | None = None,
     limit: int = 12,
+    dry_run: bool = False,
 ) -> DecisionProofQueueWriteResult:
     root = resolve_project_root(base_dir)
     freshness, refresh_command = _artifact_gate(root)
@@ -723,6 +724,16 @@ def write_decision_proof_queue(
     decisions = _read_frame(root / RESEARCH_DECISIONS_CSV)
     readiness = _read_frame(root / TICKER_READINESS_CSV)
     queue = build_decision_proof_queue_frame(decisions, readiness, limit=limit)
+    if dry_run:
+        return DecisionProofQueueWriteResult(
+            status="preview",
+            message=f"Previewed {len(queue)} decision proof queue row(s); no CSV or Markdown artifacts were written.",
+            freshness=freshness,
+            rows=len(queue),
+            output_csv=csv_path,
+            output_md=md_path,
+            refresh_command=refresh_command,
+        )
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     queue.to_csv(csv_path, index=False)
     _write_markdown(md_path, queue, freshness)
@@ -738,17 +749,24 @@ def write_decision_proof_queue(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Write a compact read-only decision proof queue.")
+    parser = argparse.ArgumentParser(description="Write or preview a compact read-only decision proof queue.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
-    parser.add_argument("--top-n", type=int, default=12, help="Maximum queue rows to write.")
+    parser.add_argument("--top-n", type=int, default=12, help="Maximum queue rows to preview or write.")
     parser.add_argument("--output", default=str(DEFAULT_QUEUE_CSV), help="CSV output path relative to the project root.")
     parser.add_argument("--md-output", default=str(DEFAULT_QUEUE_MD), help="Markdown output path relative to the project root.")
+    parser.add_argument("--dry-run", action="store_true", help="Preview the queue and guidance without writing CSV or Markdown artifacts.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable status.")
     args = parser.parse_args()
 
     root = resolve_project_root(args.project_root)
     output_dir = resolve_outputs_dir(None, root)
-    result = write_decision_proof_queue(root, output_csv=args.output, output_md=args.md_output, limit=args.top_n)
+    result = write_decision_proof_queue(
+        root,
+        output_csv=args.output,
+        output_md=args.md_output,
+        limit=args.top_n,
+        dry_run=args.dry_run,
+    )
     payload = {
         "status": result.status,
         "message": result.message,
@@ -764,10 +782,16 @@ def main() -> None:
         print(format_path_context(root, root / "data", output_dir))
         for key, value in payload.items():
             print(f"{key}: {value}")
-        if result.status != "written":
+        if result.status == "preview":
+            decisions = _read_frame(root / RESEARCH_DECISIONS_CSV)
+            readiness = _read_frame(root / TICKER_READINESS_CSV)
+            queue = build_decision_proof_queue_frame(decisions, readiness, limit=args.top_n)
+            cards = build_decision_proof_queue_drawer_cards(queue, result.freshness)
+            print(render_decision_proof_queue_guidance(cards))
+        elif result.status != "written":
             cards = build_decision_proof_queue_drawer_cards(pd.DataFrame(), result.freshness)
             print(render_decision_proof_queue_guidance(cards))
-    if result.status != "written":
+    if result.status not in {"written", "preview"}:
         raise SystemExit(1)
 
 

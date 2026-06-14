@@ -72,7 +72,7 @@ help-full:
 	@echo "  make reviewed-batch"
 	@echo "                        Write a reviewed batch run packet for a selected lane"
 	@echo "  make decision-proof-queue"
-	@echo "                        Write the compact decision proof queue from current readiness outputs"
+	@echo "                        Preview or write the compact decision proof queue from current readiness outputs"
 	@echo "  make status-check TOP_N=5"
 	@echo "  make stock-report-md TICKER=NVDA"
 	@echo "  make dashboard-smoke"
@@ -105,7 +105,7 @@ help-full:
 	@echo "  make coverage-expansion-loop [LANE=auto] [TOP_N=10] Print one copy-only planner -> preflight -> packet -> proof loop"
 	@echo "  make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations"
 	@echo "  make reviewed-batch [LANE=prices|fundamentals|share_count|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv"
-	@echo "  make decision-proof-queue [TOP_N=12] [OUTPUT=outputs/decision_proof_queue.csv] [MD_OUTPUT=outputs/decision_proof_queue.md] Write a copy-only proof queue from current decision/readiness outputs"
+	@echo "  make decision-proof-queue [DRY_RUN=1] [TOP_N=12] [OUTPUT=outputs/decision_proof_queue.csv] [MD_OUTPUT=outputs/decision_proof_queue.md] Preview or write a copy-only proof queue from current decision/readiness outputs"
 	@echo "  make benchmark-risk-review TICKER=NVDA [BENCHMARK=SPY] [RISK_FREE_RATE=0.04] Print one ticker's readiness-gated benchmark, risk, fundamentals, valuation, and peer review metrics"
 	@echo "  make metric-readiness [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARK=SPY] [RISK_FREE_RATE=0.04] Print the capped metric-readiness queue with freshness context"
 	@echo "  make metric-readiness-board [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARKS=SPY,QQQ] [OUTPUT=outputs/metric_readiness_board.csv] Print or optionally export the combined benchmark metric-readiness board"
@@ -788,7 +788,7 @@ research-decisions:
 	python3 -m src.research_decisions
 
 decision-proof-queue:
-	python3 -m src.decision_proof_queue --top-n $(or $(TOP_N),12) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--md-output $(MD_OUTPUT),)
+	python3 -m src.decision_proof_queue --top-n $(or $(TOP_N),12) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--md-output $(MD_OUTPUT),) $(if $(DRY_RUN),--dry-run,)
 
 universe-preview:
 	python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50

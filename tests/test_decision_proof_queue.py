@@ -382,10 +382,10 @@ def test_decision_proof_queue_cli_prints_blocked_guidance(tmp_path, capsys):
     assert "sell" not in output
 
 
-def test_decision_proof_queue_writer_writes_current_artifacts(tmp_path):
-    data = tmp_path / "data"
+def _write_current_decision_artifacts(root: Path) -> None:
+    data = root / "data"
     reports = data / "reports"
-    outputs = tmp_path / "outputs"
+    outputs = root / "outputs"
     reports.mkdir(parents=True)
     outputs.mkdir()
     for path in [
@@ -415,6 +415,10 @@ def test_decision_proof_queue_writer_writes_current_artifacts(tmp_path):
     _touch(reports / "feature_readiness_summary.csv", 2000)
     _touch(outputs / "research_decisions.csv", 3000)
 
+
+def test_decision_proof_queue_writer_writes_current_artifacts(tmp_path):
+    _write_current_decision_artifacts(tmp_path)
+
     result = write_decision_proof_queue(tmp_path)
 
     assert result.status == "written"
@@ -427,3 +431,39 @@ def test_decision_proof_queue_writer_writes_current_artifacts(tmp_path):
     assert "no broker integration" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_decision_proof_queue_dry_run_previews_without_writing_artifacts(tmp_path):
+    _write_current_decision_artifacts(tmp_path)
+
+    result = write_decision_proof_queue(tmp_path, dry_run=True)
+
+    assert result.status == "preview"
+    assert result.rows == 1
+    assert "no CSV or Markdown artifacts were written" in result.message
+    assert not (tmp_path / DEFAULT_QUEUE_CSV).exists()
+    assert not (tmp_path / DEFAULT_QUEUE_MD).exists()
+
+
+def test_decision_proof_queue_cli_dry_run_prints_guidance_without_outputs(tmp_path, capsys):
+    _write_current_decision_artifacts(tmp_path)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--top-n", "5", "--dry-run"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert "status: preview" in output
+    assert "decision proof queue guidance" in output
+    assert "top proof row" in output
+    assert "what can be reviewed" in output
+    assert "what stays locked" in output
+    assert "proof after unlock" in output
+    assert "make focus-peers ticker=meta" in output
+    assert not (tmp_path / DEFAULT_QUEUE_CSV).exists()
+    assert not (tmp_path / DEFAULT_QUEUE_MD).exists()
+    assert "buy" not in output
+    assert "sell" not in output
