@@ -822,6 +822,79 @@ def test_project_status_refresh_artifacts_writes_supporting_operator_outputs(tmp
     assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=NVDA"
 
 
+def test_project_status_refresh_reuses_current_research_health_outputs(tmp_path: Path, monkeypatch):
+    _write_minimal_local_data(tmp_path)
+    output_dir = tmp_path / "outputs"
+    for filename in ["data_quality_wizard.csv", "liquidity_risk.csv", "correlation_risk.csv"]:
+        (output_dir / filename).write_text("Ticker,Reason\nNVDA,current\n", encoding="utf-8")
+        os.utime(output_dir / filename, (300, 300))
+    for path in (tmp_path / "data").glob("*.csv"):
+        os.utime(path, (200, 200))
+
+    def fail_research_health(*_args, **_kwargs):
+        raise AssertionError("current research-health outputs should be reused during status refresh")
+
+    monkeypatch.setattr(project_status, "run_research_health", fail_research_health)
+
+    payload = write_project_status_output(tmp_path, top_n=2, refresh_supporting_outputs=True)
+
+    assert payload["summary"]["tickers_total"] == 1
+    assert (output_dir / "research_action_queue.csv").exists()
+
+
+def test_project_status_refresh_reuses_fresh_onboarding_payload(tmp_path: Path, monkeypatch):
+    _write_minimal_local_data(tmp_path)
+    output_dir = tmp_path / "outputs"
+    for filename in ["data_quality_wizard.csv", "liquidity_risk.csv", "correlation_risk.csv"]:
+        (output_dir / filename).write_text("Ticker,Reason\nNVDA,current\n", encoding="utf-8")
+        os.utime(output_dir / filename, (300, 300))
+    for path in (tmp_path / "data").glob("*.csv"):
+        os.utime(path, (200, 200))
+    original_write_onboarding_outputs = project_status.write_onboarding_outputs
+    original_build_onboarding_payload = project_status.build_onboarding_payload
+
+    def write_then_block_recompute(*args, **kwargs):
+        payload = original_write_onboarding_outputs(*args, **kwargs)
+
+        def fail_full_recompute(*_args, **_kwargs):
+            raise AssertionError("status refresh should reuse the onboarding payload it just wrote")
+
+        monkeypatch.setattr(project_status, "build_onboarding_payload", fail_full_recompute)
+        return payload
+
+    monkeypatch.setattr(project_status, "write_onboarding_outputs", write_then_block_recompute)
+
+    payload = write_project_status_output(tmp_path, top_n=2, refresh_supporting_outputs=True)
+
+    assert payload["summary"]["tickers_total"] == 1
+    monkeypatch.setattr(project_status, "build_onboarding_payload", original_build_onboarding_payload)
+
+
+def test_project_status_refresh_rebuilds_stale_research_health_outputs(tmp_path: Path, monkeypatch):
+    _write_minimal_local_data(tmp_path)
+    output_dir = tmp_path / "outputs"
+    for filename in ["data_quality_wizard.csv", "liquidity_risk.csv", "correlation_risk.csv"]:
+        (output_dir / filename).write_text("Ticker,Reason\nNVDA,stale\n", encoding="utf-8")
+        os.utime(output_dir / filename, (100, 100))
+    for path in (tmp_path / "data").glob("*.csv"):
+        os.utime(path, (200, 200))
+    calls: list[str] = []
+
+    def fake_research_health(_root, *, data_dir=None, output_dir=None):
+        calls.append("research_health")
+        target = Path(output_dir)
+        for filename in ["data_quality_wizard.csv", "liquidity_risk.csv", "correlation_risk.csv"]:
+            (target / filename).write_text("Ticker,Reason\nNVDA,rebuild\n", encoding="utf-8")
+        return {"files": {}, "row_counts": {}, "warnings": []}
+
+    monkeypatch.setattr(project_status, "run_research_health", fake_research_health)
+
+    payload = write_project_status_output(tmp_path, top_n=2, refresh_supporting_outputs=True)
+
+    assert calls == ["research_health"]
+    assert payload["summary"]["tickers_total"] == 1
+
+
 def test_project_status_human_refresh_artifacts_keeps_cli_clean(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     _write_minimal_local_data(tmp_path)
 

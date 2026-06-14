@@ -37,6 +37,8 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Data Health freshness routine promoted into the beginner flow with read-only checks, capped price dry-run guidance, and review-required lanes.
 - [x] Blocked single-stock reports hold peer-relative valuation behind fundamentals/DCF readiness so peer rows cannot bypass core company gates.
 - [x] Readiness-gated benchmark and risk review metrics for single-stock reports and dashboard review.
+- [x] Metrics lane operator queue shows page-level freshness, metric source/freshness, and proof-gate context before evidence tables or copy-only commands.
+- [x] Status refresh path reuses current research-health, source, and onboarding payloads so operator status checks stay fast without weakening stale-artifact detection.
 
 ## 2. Current Product State
 
@@ -96,6 +98,15 @@ Goal: turn a selected coverage-frontier lane into a safe reviewed run packet.
 - [x] Write `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv`.
 - [x] Include snapshot, dry-run, capped execution, validate/preview/apply gates, post-run proof, expected artifacts, rollback, and proof-row template.
 - [x] Warn when saved readiness artifacts are missing or stale before relying on counts.
+- [x] Add Reviewed Batch Execution UX V2 in Data Health so operators choose one lane, see source/freshness gates, and open the full copy-only sequence without inspecting raw CSV tables first.
+- [x] Add Readiness Batch Proof Ledger UX V1 in Data Health so Proof History starts with latest packet, comparison status, and proof-record scaffold before raw ledgers.
+- [x] Add Reviewed Batch Snapshot Gate V1 in Data Health so missing baseline snapshots block packet/dry-run/proof work with a copy-only `make readiness-snapshot` step.
+- [x] Add Reviewed Batch Apply Guard V1 in Data Health so mutating lanes stop at validate, preview, rejected-row review, and apply decision before any supported outcome.
+- [x] Add Reviewed Batch Outcome Recorder V1 in Data Health so the proof drawer shows missing validation, preview, apply, changed-readiness, source-file, and artifact-review fields before recording an outcome.
+- [x] Add Reviewed Batch Proof Record Command UX V1 so the proof drawer builds a copy-ready `make reviewed-batch-proof-record ...` command with reviewed values filled and unresolved fields left visible.
+- [x] Extract reviewed-batch proof command-builder rules from the Streamlit dashboard into a focused module with direct tests.
+- [x] Add Reviewed Batch Proof Record Validation V1 so proof commands show ready, needs-field-fills, snapshot-blocked, or invalid-outcome status before recording.
+- [x] Add Reviewed Batch Ledger Record Safety V1 so `reviewed-batch-proof-record` can dry-run the exact ledger row and validation status before appending.
 - Keep generated packet artifacts reviewed separately; do not commit broad data refresh churn by default.
 
 ### Trusted Coverage Growth V2

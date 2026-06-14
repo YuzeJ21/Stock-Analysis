@@ -764,6 +764,20 @@ def test_price_worklist_prioritizes_sparse_price_history(tmp_path: Path):
     assert worklist["NVDA"]["next_target_history_rows"] == 63
 
 
+def test_price_date_bounds_lookup_normalizes_tickers_and_ignores_invalid_dates():
+    prices = pd.DataFrame(
+        {
+            "ticker": [" nvda ", "NVDA", "amd", "AMD"],
+            "date": ["2026-01-03", "not-a-date", "2026-01-01", "2026-01-05"],
+        }
+    )
+
+    bounds = data_onboarding._price_date_bounds_lookup(prices)
+
+    assert bounds["NVDA"] == ("2026-01-03", "2026-01-03")
+    assert bounds["AMD"] == ("2026-01-01", "2026-01-05")
+
+
 def test_data_onboarding_cli_fundamentals_peer_worklist_json(tmp_path: Path, capsys):
     _write_fixture(tmp_path)
     previous_argv = sys.argv[:]

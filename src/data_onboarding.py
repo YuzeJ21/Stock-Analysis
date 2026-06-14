@@ -789,19 +789,26 @@ def _price_history_days(prices: pd.DataFrame, ticker: str) -> int:
 
 
 def _price_date_bounds(prices: pd.DataFrame, ticker: str) -> tuple[str, str]:
+    return _price_date_bounds_lookup(prices).get(str(ticker or "").strip().upper(), ("", ""))
+
+
+def _price_date_bounds_lookup(prices: pd.DataFrame) -> dict[str, tuple[str, str]]:
     if prices.empty or "ticker" not in prices.columns or "date" not in prices.columns:
-        return "", ""
-    ticker_rows = prices.loc[prices["ticker"].astype(str).str.upper().str.strip() == ticker].copy()
-    if ticker_rows.empty:
-        return "", ""
-    ticker_rows["date"] = pd.to_datetime(ticker_rows["date"], errors="coerce")
-    ticker_rows = ticker_rows.loc[ticker_rows["date"].notna()]
-    if ticker_rows.empty:
-        return "", ""
-    return (
-        ticker_rows["date"].min().date().isoformat(),
-        ticker_rows["date"].max().date().isoformat(),
-    )
+        return {}
+    frame = prices.loc[:, ["ticker", "date"]].copy()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    frame = frame.loc[frame["ticker"].ne("") & frame["date"].notna()]
+    if frame.empty:
+        return {}
+    grouped = frame.groupby("ticker", sort=False)["date"].agg(["min", "max"])
+    return {
+        str(ticker): (
+            row["min"].date().isoformat(),
+            row["max"].date().isoformat(),
+        )
+        for ticker, row in grouped.iterrows()
+    }
 
 
 def _discover_tickers(catalog: LocalDataCatalog, requested: list[str] | None = None) -> list[str]:
@@ -1622,10 +1629,11 @@ def build_price_import_worklist(
     output_path = resolve_outputs_dir(output_dir, root)
     catalog = LocalDataCatalog(root, data_dir=data_path, outputs_dir=output_path)
     prices = _load_frame(catalog, "prices")
+    price_date_bounds = _price_date_bounds_lookup(prices)
 
     rows: list[PriceWorklistRow] = []
     for coverage in coverage_rows:
-        first_local_date, latest_local_date = _price_date_bounds(prices, coverage.ticker)
+        first_local_date, latest_local_date = price_date_bounds.get(str(coverage.ticker or "").strip().upper(), ("", ""))
         momentum_ready = coverage.price_history_days >= 21
         track_record_ready = coverage.price_history_days >= 63
         preferred_history_ready = coverage.price_history_days >= 252
@@ -2260,11 +2268,14 @@ def build_command_bundles(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    price_worklist: list[PriceWorklistRow] | None = None,
+    sec_stage_queue: list[SecStageQueueRow] | None = None,
+    peer_mapping_queue: list[PeerMappingQueueRow] | None = None,
 ) -> list[CommandBundleRow]:
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
-    price_worklist = build_price_import_worklist(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
-    sec_queue = build_sec_stage_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
-    peer_queue = build_peer_mapping_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    price_worklist = price_worklist or build_price_import_worklist(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    sec_queue = sec_stage_queue or build_sec_stage_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    peer_queue = peer_mapping_queue or build_peer_mapping_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
 
     holdings_first_prices: list[PriceWorklistRow] = []
     broader_price_queue: list[PriceWorklistRow] = []
@@ -2423,14 +2434,17 @@ def build_command_bundle_details(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    command_bundles: list[CommandBundleRow] | None = None,
+    ticker_unlock_ladder: list[TickerUnlockLadderRow] | None = None,
+    price_worklist: list[PriceWorklistRow] | None = None,
 ) -> list[CommandBundleDetailRow]:
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
     coverage_map = {row.ticker: row for row in coverage_rows}
-    bundles = build_command_bundles(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
-    ladder_map = {row.ticker: row for row in build_ticker_unlock_ladder(coverage_rows)}
+    bundles = command_bundles or build_command_bundles(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    ladder_map = {row.ticker: row for row in (ticker_unlock_ladder or build_ticker_unlock_ladder(coverage_rows))}
     price_worklist_map = {
         row.ticker: row
-        for row in build_price_import_worklist(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+        for row in (price_worklist or build_price_import_worklist(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir))
     }
 
     details: list[CommandBundleDetailRow] = []
@@ -2516,10 +2530,13 @@ def build_command_bundle_runbook(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    command_bundles: list[CommandBundleRow] | None = None,
+    command_bundle_details: list[CommandBundleDetailRow] | None = None,
 ) -> list[CommandBundleRunbookRow]:
-    bundles = build_command_bundles(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    bundles = command_bundles or build_command_bundles(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
     detail_map = {}
-    for detail in build_command_bundle_details(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir):
+    details = command_bundle_details or build_command_bundle_details(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    for detail in details:
         detail_map.setdefault(detail.bundle_name, []).append(detail)
     runbook: list[CommandBundleRunbookRow] = []
 
@@ -2685,9 +2702,32 @@ def build_onboarding_payload(
         data_dir=data_dir,
         output_dir=output_dir,
     )
-    command_bundles = build_command_bundles(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
-    command_bundle_details = build_command_bundle_details(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
-    command_bundle_runbook = build_command_bundle_runbook(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
+    command_bundles = build_command_bundles(
+        coverage,
+        project_root,
+        data_dir=data_dir,
+        output_dir=output_dir,
+        price_worklist=price_worklist,
+        sec_stage_queue=sec_stage_queue,
+        peer_mapping_queue=peer_mapping_queue,
+    )
+    command_bundle_details = build_command_bundle_details(
+        coverage,
+        project_root,
+        data_dir=data_dir,
+        output_dir=output_dir,
+        command_bundles=command_bundles,
+        ticker_unlock_ladder=ticker_unlock_ladder,
+        price_worklist=price_worklist,
+    )
+    command_bundle_runbook = build_command_bundle_runbook(
+        coverage,
+        project_root,
+        data_dir=data_dir,
+        output_dir=output_dir,
+        command_bundles=command_bundles,
+        command_bundle_details=command_bundle_details,
+    )
     return {
         "ticker_coverage": [row.to_dict() for row in coverage],
         "onboarding_actions": [row.to_dict() for row in actions],

@@ -31,6 +31,15 @@ from src.reviewed_batch_proof import (
 )
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.review_metrics import build_metric_readiness_summary, configured_risk_free_rate
+from src.reviewed_batch_command_builder import (
+    build_proof_completion_rows,
+    build_proof_ledger_preview_rows,
+    build_proof_ledger_preview_summary,
+    build_outcome_recorder_rows,
+    build_proof_record_command_parts,
+    build_proof_record_command_summary,
+    validate_proof_record_command_parts,
+)
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
@@ -203,6 +212,14 @@ def dashboard_generated_artifact_stale_warning(root: Path = BASE_DIR) -> str:
         "Generated status artifacts may be stale because source CSVs changed after the last generated report "
         f"({sample}). Run make readiness or make status to refresh before relying on exact counts."
     )
+
+
+def data_health_freshness_status(root: Path = BASE_DIR) -> FreshnessStatus:
+    freshness = readiness_freshness_status(root)
+    generated_stale_warning = dashboard_generated_artifact_stale_warning(root)
+    if generated_stale_warning and freshness.status == "current":
+        return FreshnessStatus("stale", generated_stale_warning, "make readiness")
+    return freshness
 
 
 def sidebar_path_options(initial_page: str) -> list[str]:
@@ -2924,7 +2941,7 @@ def apply_dashboard_theme() -> None:
         }
         .metric-console {
           display: grid;
-          grid-template-columns: minmax(300px, 0.92fr) minmax(360px, 1.42fr);
+          grid-template-columns: minmax(0, 1fr);
           gap: 0.72rem;
           margin: 0.52rem 0 0.72rem 0;
         }
@@ -3012,31 +3029,27 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.22rem;
         }
         .metric-console-board {
-          overflow: hidden;
+          padding: 0.42rem;
         }
         .metric-board-header {
-          display: grid;
-          grid-template-columns: minmax(120px, 1fr) 74px 78px minmax(155px, 1.15fr);
-          gap: 0.42rem;
-          padding: 0.44rem 0.58rem;
-          background: #f8faf7;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.20);
-          color: #64748b;
-          font-size: 0.64rem;
-          font-weight: 950;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          display: none;
         }
         .metric-board-row {
           display: grid;
-          grid-template-columns: minmax(120px, 1fr) 74px 78px minmax(155px, 1.15fr);
-          gap: 0.42rem;
-          align-items: center;
-          padding: 0.46rem 0.58rem;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+          grid-template-columns: minmax(10rem, 1.1fr) minmax(4.6rem, 0.36fr) minmax(4.8rem, 0.38fr);
+          gap: 0.42rem 0.72rem;
+          align-items: start;
+          padding: 0.68rem 0.72rem;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          border-radius: var(--research-radius-sm);
+          background: #ffffff;
+          margin-bottom: 0.42rem;
         }
         .metric-board-row:last-child {
-          border-bottom: 0;
+          margin-bottom: 0;
+        }
+        .metric-board-row > div:nth-child(n+4) {
+          grid-column: 1 / -1;
         }
         .metric-family-name {
           color: #111827;
@@ -3054,6 +3067,7 @@ def apply_dashboard_theme() -> None:
           color: #475569;
           font-size: 0.78rem;
           line-height: 1.28;
+          overflow-wrap: anywhere;
         }
         .state-pill {
           display: inline-flex;
@@ -3106,9 +3120,6 @@ def apply_dashboard_theme() -> None:
           }
           .metric-console-stats {
             grid-template-columns: 1fr;
-          }
-          .metric-board-header {
-            display: none;
           }
           .metric-board-row {
             grid-template-columns: 1fr;
@@ -3561,6 +3572,14 @@ DATA_HEALTH_OPERATOR_LANES = {
     "metrics": "Metrics",
     "optional": "Optional Context",
     "proof": "Proof History",
+}
+
+DATA_HEALTH_BATCH_LANES = {
+    "prices": "prices",
+    "fundamentals": "fundamentals",
+    "peers": "peers",
+    "metrics": "metrics",
+    "optional": "optional_context",
 }
 
 
@@ -8269,6 +8288,496 @@ def data_health_reviewed_batch_proof_cards(ledger_path: Path | None = None) -> l
     ]
 
 
+def data_health_latest_reviewed_batch_packet_frame(packet_csv_path: Path | None = None, *, limit: int = 10) -> pd.DataFrame:
+    """Return the latest reviewed batch packet rows for the proof-loop drawer."""
+
+    packet_path = packet_csv_path or BASE_DIR / "outputs/reviewed_batch_packet.csv"
+    if not packet_path.exists():
+        return pd.DataFrame()
+    try:
+        packet = pd.read_csv(packet_path, dtype=str).fillna("")
+    except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError):
+        return pd.DataFrame()
+    if packet.empty:
+        return pd.DataFrame()
+    columns = [
+        ("batch_id", "Batch ID"),
+        ("lane_label", "Lane"),
+        ("ticker_scope", "Scope"),
+        ("proposed_ticker", "Proposed Ticker"),
+        ("workflow_mode", "Workflow"),
+        ("freshness_status", "Freshness"),
+        ("dry_run_command", "Dry Run Command"),
+        ("readiness_comparison_command", "Comparison Command"),
+        ("proof_record_command", "Proof Record Scaffold"),
+        ("validation_result", "Validation Result"),
+        ("preview_result", "Preview Result"),
+        ("apply_result", "Apply Result"),
+        ("changed_readiness_counts", "Changed Readiness Counts"),
+        ("changed_tickers", "Changed Tickers"),
+        ("source_files", "Source Files"),
+        ("generated_artifacts_reviewed", "Generated Artifacts Review"),
+        ("final_outcome", "Allowed Outcome"),
+    ]
+    available = [source for source, _ in columns if source in packet.columns]
+    renamed = {source: target for source, target in columns if source in available}
+    return packet.loc[:, available].rename(columns=renamed).head(max(limit, 0))
+
+
+def _data_health_packet_values(packet_frame: pd.DataFrame | None) -> dict[str, str]:
+    if packet_frame is None or packet_frame.empty:
+        return {}
+    first = packet_frame.iloc[0]
+    return {str(column): str(first.get(column, "") or "").strip() for column in packet_frame.columns}
+
+
+def _data_health_packet_tickers(packet_frame: pd.DataFrame | None) -> list[str]:
+    if packet_frame is None or packet_frame.empty or "Proposed Ticker" not in packet_frame.columns:
+        return []
+    proposed = packet_frame.get("Proposed Ticker", pd.Series(dtype=object)).fillna("").astype(str)
+    return [ticker for ticker in dict.fromkeys(proposed.str.strip()) if ticker]
+
+
+def data_health_reviewed_batch_outcome_recorder_frame(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> pd.DataFrame:
+    """Show which proof-row fields are still missing before a batch outcome can be recorded."""
+
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    rows = build_outcome_recorder_rows(
+        _data_health_packet_values(packet_frame),
+        packet_missing=packet_frame is None or packet_frame.empty,
+        comparison_status=comparison.status,
+        comparison_changed_counts=comparison.changed_readiness_counts,
+        comparison_changed_tickers=comparison.changed_tickers,
+        comparison_blocking_message=comparison.blocking_message,
+    )
+    for row in rows:
+        row["Current Value"] = compact_card_fragment(row["Current Value"], max_chars=190)
+        row["Copy From"] = compact_card_fragment(row["Copy From"], max_chars=190)
+    return pd.DataFrame(rows)
+
+
+def data_health_reviewed_batch_outcome_recorder_cards(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> list[dict[str, object]]:
+    """Compact card for missing proof-row fields before outcome recording."""
+
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    frame = data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+    missing_frame = frame[frame["Status"].astype(str).str.contains("missing|blocked", case=False, na=False)]
+    missing_fields = [str(field) for field in missing_frame["Field"].tolist() if field != "reviewed_batch_packet"]
+    summary = _data_health_latest_batch_packet_summary(packet_frame)
+    if packet_frame is None or packet_frame.empty:
+        return [
+            {
+                "kicker": "OUTCOME RECORDER",
+                "title": "Proof row blocked: packet missing",
+                "body": "Generate or review the latest batch packet before recording supported, still_blocked, skipped, or excluded.",
+                "badges": ["blocked", "packet first"],
+                "command": summary["dry_run_command"],
+            }
+        ]
+    if missing_fields:
+        visible_missing = ", ".join(missing_fields[:5])
+        overflow = f" +{len(missing_fields) - 5} more" if len(missing_fields) > 5 else ""
+        return [
+            {
+                "kicker": "OUTCOME RECORDER",
+                "title": f"{len(missing_fields)} proof field(s) still missing",
+                "body": (
+                    f"Missing before proof row record: {visible_missing}{overflow}. "
+                    "Keep the outcome open until validation, preview, apply decision, changed readiness proof, source files, and generated-artifact review are recorded."
+                ),
+                "badges": ["review required", "no implicit outcome"],
+                "command": summary["proof_record_command"],
+            }
+        ]
+    return [
+        {
+            "kicker": "OUTCOME RECORDER",
+            "title": "Proof row fields ready to record",
+            "body": (
+                "Required proof-row fields have reviewed values. Record only supported, still_blocked, skipped, or excluded; this remains data-readiness proof, not a research recommendation."
+            ),
+            "badges": ["ready_to_record", "research-only"],
+            "command": summary["proof_record_command"],
+        }
+    ]
+
+
+def _data_health_proof_record_command_parts(
+    packet_frame: pd.DataFrame | None,
+    comparison: ReadinessComparison,
+    outcome_frame: pd.DataFrame,
+) -> list[dict[str, str]]:
+    return build_proof_record_command_parts(
+        _data_health_packet_values(packet_frame),
+        proposed_tickers=_data_health_packet_tickers(packet_frame),
+        comparison_status=comparison.status,
+        comparison_before_path=comparison.before_path,
+        comparison_after_path=comparison.after_path,
+        comparison_changed_counts=comparison.changed_readiness_counts,
+        comparison_changed_tickers=comparison.changed_tickers,
+        outcome_rows=outcome_frame.to_dict(orient="records"),
+    )
+
+
+def data_health_reviewed_batch_proof_record_command_frame(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> pd.DataFrame:
+    """Return copy-ready proof-record command arguments with missing fields visible."""
+
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    outcome_frame = data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+    rows = _data_health_proof_record_command_parts(packet_frame, comparison, outcome_frame)
+    summary = build_proof_record_command_summary(rows)
+    return pd.DataFrame(
+        [
+            {
+                "Command Status": summary["Command Status"],
+                "Copy Command": summary["Copy Command"],
+                "Fields To Fill": summary["Fields To Fill"],
+                "Manual Fields": summary["Manual Fields"],
+                "Research Guardrail": summary["Research Guardrail"],
+            }
+        ]
+    )
+
+
+def data_health_reviewed_batch_proof_record_command_arguments_frame(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> pd.DataFrame:
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    outcome_frame = data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+    return pd.DataFrame(_data_health_proof_record_command_parts(packet_frame, comparison, outcome_frame))
+
+
+def data_health_reviewed_batch_proof_record_validation_frame(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> pd.DataFrame:
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    outcome_frame = data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+    command_parts = _data_health_proof_record_command_parts(packet_frame, comparison, outcome_frame)
+    return pd.DataFrame(validate_proof_record_command_parts(command_parts))
+
+
+def data_health_reviewed_batch_proof_completion_frame(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> pd.DataFrame:
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    command_frame = data_health_reviewed_batch_proof_record_command_frame(packet_frame, comparison)
+    validation_frame = data_health_reviewed_batch_proof_record_validation_frame(packet_frame, comparison)
+    status = (
+        str(command_frame.iloc[0].get("Command Status", "needs_field_fills"))
+        if not command_frame.empty
+        else "needs_field_fills"
+    )
+    rows = build_proof_completion_rows(validation_frame.to_dict(orient="records"), command_status=status)
+    for row in rows:
+        row["Current Value"] = compact_card_fragment(row["Current Value"], max_chars=180)
+        row["Next Safest Action"] = compact_card_fragment(row["Next Safest Action"], max_chars=220)
+    return pd.DataFrame(rows)
+
+
+def data_health_reviewed_batch_proof_ledger_preview_frame(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> pd.DataFrame:
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    outcome_frame = data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+    command_parts = _data_health_proof_record_command_parts(packet_frame, comparison, outcome_frame)
+    validation_rows = validate_proof_record_command_parts(command_parts)
+    summary = build_proof_record_command_summary(command_parts)
+    rows = build_proof_ledger_preview_rows(
+        command_parts,
+        validation_rows,
+        command_status=summary["Command Status"],
+    )
+    for row in rows:
+        row["Preview Value"] = compact_card_fragment(row["Preview Value"], max_chars=180)
+        row["Copy Boundary"] = compact_card_fragment(row["Copy Boundary"], max_chars=180)
+    return pd.DataFrame(rows)
+
+
+def data_health_reviewed_batch_proof_ledger_preview_cards(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> list[dict[str, object]]:
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    outcome_frame = data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+    command_parts = _data_health_proof_record_command_parts(packet_frame, comparison, outcome_frame)
+    validation_rows = validate_proof_record_command_parts(command_parts)
+    command_summary = build_proof_record_command_summary(command_parts)
+    ledger_summary = build_proof_ledger_preview_summary(command_parts, validation_rows)
+    if ledger_summary["Command Status"] == "ready_to_record":
+        title = "Ledger row preview ready after final review"
+        body = (
+            f"{ledger_summary['Column Count']} ledger columns are populated for "
+            f"{ledger_summary['Batch ID']} / {ledger_summary['Lane']}. "
+            "Copy the command only after source files and generated artifacts are reviewed."
+        )
+        badges = ["preview", "final review"]
+    else:
+        title = "Ledger row preview is not record-ready"
+        fields = _data_health_humanize_proof_fields(ledger_summary["Fields To Resolve"])
+        body = (
+            f"Preview shows the exact row shape, but still needs: {compact_card_fragment(fields, max_chars=170)}. "
+            "Do not record until these fields are resolved."
+        )
+        badges = [ledger_summary["Command Status"].replace("_", " "), "preview only"]
+    return [
+        {
+            "kicker": "LEDGER ROW PREVIEW",
+            "title": title,
+            "body": body,
+            "badges": badges,
+            "command": command_summary["Copy Command"],
+        }
+    ]
+
+
+def _data_health_humanize_proof_fields(fields_to_fill: str) -> str:
+    fields = [field.strip().replace("_", " ") for field in str(fields_to_fill or "").split(",") if field.strip()]
+    if not fields:
+        return "no required fields"
+    return ", ".join(fields[:8]) + (f" +{len(fields) - 8} more" if len(fields) > 8 else "")
+
+
+def data_health_reviewed_batch_proof_record_command_cards(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> list[dict[str, object]]:
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    command_frame = data_health_reviewed_batch_proof_record_command_frame(packet_frame, comparison)
+    first = command_frame.iloc[0] if not command_frame.empty else pd.Series(dtype=object)
+    status = str(first.get("Command Status", "needs_field_fills"))
+    fields_to_fill = str(first.get("Fields To Fill", "") or "").strip()
+    manual_fields = str(first.get("Manual Fields", "") or "").strip()
+    manual_copy = _data_health_humanize_proof_fields(manual_fields)
+    if status == "ready_to_record":
+        title = "Proof-record command ready"
+        body = (
+            f"Required proof fields are valid. Manual fields still visible: {manual_copy}. "
+            "Record only the reviewed data-readiness outcome."
+        )
+        badges = ["ready to record", "reviewed values"]
+    elif status == "blocked_by_snapshot_gate":
+        title = "Proof-record command blocked by snapshot gate"
+        body = (
+            "Run the required readiness snapshot and comparison before recording changed readiness proof. "
+            f"Still blocked: {compact_card_fragment(_data_health_humanize_proof_fields(fields_to_fill), max_chars=190)}."
+        )
+        badges = ["snapshot gate", "blocked"]
+    elif status == "invalid_outcome":
+        title = "Proof-record command has invalid outcome"
+        body = (
+            "Set final outcome to exactly supported, still_blocked, skipped, or excluded before recording proof. "
+            f"Also check: {compact_card_fragment(_data_health_humanize_proof_fields(fields_to_fill), max_chars=190)}."
+        )
+        badges = ["invalid outcome", "review required"]
+    else:
+        title = "Proof-record command needs field fills"
+        body = (
+            f"Fill or confirm: {compact_card_fragment(_data_health_humanize_proof_fields(fields_to_fill), max_chars=190)}. "
+            f"Manual fields visible: {manual_copy}. "
+            "The command keeps unresolved values as placeholders so no proof row is recorded by accident."
+        )
+        badges = ["needs fields", "placeholders visible"]
+    return [
+        {
+            "kicker": "PROOF COMMAND BUILDER",
+            "title": title,
+            "body": body,
+            "badges": badges,
+            "command": str(first.get("Copy Command", "make reviewed-batch-proof-record")),
+        }
+    ]
+
+
+def data_health_reviewed_batch_proof_completion_cards(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> list[dict[str, object]]:
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    command_frame = data_health_reviewed_batch_proof_record_command_frame(packet_frame, comparison)
+    completion_frame = data_health_reviewed_batch_proof_completion_frame(packet_frame, comparison)
+    first = command_frame.iloc[0] if not command_frame.empty else pd.Series(dtype=object)
+    status = str(first.get("Command Status", "needs_field_fills"))
+    command = str(first.get("Copy Command", "make reviewed-batch-proof-record"))
+    if status == "ready_to_record":
+        title = "Proof can be recorded after final review"
+        body = "Required proof fields are ready. Check source files and generated-artifact classification, then copy the reviewed command."
+        badges = ["ready to record", "final review"]
+    else:
+        blocked_count = len(completion_frame)
+        next_action = (
+            str(completion_frame.iloc[0].get("Next Safest Action", "Fill the missing reviewed proof fields."))
+            if not completion_frame.empty
+            else "Fill the missing reviewed proof fields."
+        )
+        title = f"{blocked_count} proof item(s) to finish"
+        body = f"Start here: {next_action} Details stay below so the operator does not need to read the full validation table first."
+        badges = [status.replace("_", " "), "finish checklist"]
+    return [
+        {
+            "kicker": "FINISH THIS PROOF",
+            "title": title,
+            "body": body,
+            "badges": badges,
+            "command": command,
+        }
+    ]
+
+
+def _data_health_latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, str]:
+    if packet_frame is None or packet_frame.empty:
+        return {
+            "state": "missing",
+            "batch_id": "No packet",
+            "lane": "No reviewed batch packet",
+            "scope": "Run a reviewed batch packet before recording proof.",
+            "freshness": "unknown",
+            "row_count": "0",
+            "dry_run_command": "make reviewed-batch LANE=prices TOP_N=10",
+            "comparison_command": "make reviewed-batch-compare LANE=prices",
+            "proof_record_command": "make reviewed-batch-proof-record",
+            "source_files": "not available",
+            "generated_artifacts_reviewed": "not available",
+            "allowed_outcome": "supported|still_blocked|skipped|excluded",
+        }
+    first = packet_frame.iloc[0]
+    proposed = packet_frame.get("Proposed Ticker", pd.Series(dtype=object)).fillna("").astype(str)
+    unique_tickers = [ticker for ticker in dict.fromkeys(proposed.str.strip()) if ticker]
+    return {
+        "state": "present",
+        "batch_id": format_missing(first.get("Batch ID"), "latest packet"),
+        "lane": format_missing(first.get("Lane"), "Reviewed batch"),
+        "scope": compact_card_fragment(format_missing(first.get("Scope"), "reviewed scope"), max_chars=180),
+        "freshness": compact_card_fragment(format_missing(first.get("Freshness"), "freshness unknown"), max_chars=150),
+        "row_count": str(len(packet_frame)),
+        "ticker_count": str(len(unique_tickers)),
+        "dry_run_command": format_missing(first.get("Dry Run Command"), "make reviewed-batch LANE=prices TOP_N=10"),
+        "comparison_command": format_missing(first.get("Comparison Command"), "make reviewed-batch-compare LANE=prices"),
+        "proof_record_command": format_missing(first.get("Proof Record Scaffold"), "make reviewed-batch-proof-record"),
+        "source_files": compact_card_fragment(format_missing(first.get("Source Files"), "review source files"), max_chars=170),
+        "generated_artifacts_reviewed": compact_card_fragment(
+            format_missing(first.get("Generated Artifacts Review"), "classify generated artifacts before staging"),
+            max_chars=170,
+        ),
+        "allowed_outcome": format_missing(first.get("Allowed Outcome"), "supported|still_blocked|skipped|excluded"),
+    }
+
+
+def data_health_reviewed_batch_proof_loop_cards(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> list[dict[str, object]]:
+    """Compact proof drawer cards that connect packet, comparison, and ledger scaffold."""
+
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    summary = _data_health_latest_batch_packet_summary(packet_frame)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    if comparison.status == "ok":
+        comparison_title = f"{comparison.changed_count:,} changed ticker(s)"
+        comparison_body = (
+            f"{card_sentence('Changed counts', compact_card_fragment(comparison.changed_readiness_counts, max_chars=190))} "
+            "Use this as readiness proof only after source review and generated-artifact classification."
+        )
+        comparison_command = summary["comparison_command"]
+        comparison_badges = [comparison.freshness_status, "read-only compare"]
+    else:
+        comparison_title = "Comparison blocked"
+        comparison_body = (
+            f"{comparison.blocking_message} Keep the proof row open until saved before/after readiness snapshots exist."
+        )
+        comparison_command = "make readiness-snapshot"
+        comparison_badges = [comparison.status, "snapshot first"]
+    return [
+        {
+            "kicker": "LATEST PACKET",
+            "title": f"{summary['lane']}: {summary['batch_id']}",
+            "body": (
+                f"Scope: {summary['scope']}. Rows: {summary['row_count']}; tickers: {summary.get('ticker_count', '0')}. "
+                f"Freshness: {summary['freshness']}. The packet is copy-only evidence, not an analysis result."
+            ),
+            "badges": [summary["state"], "packet"],
+            "command": summary["dry_run_command"],
+        },
+        {
+            "kicker": "COMPARISON STATUS",
+            "title": comparison_title,
+            "body": comparison_body,
+            "badges": comparison_badges,
+            "command": comparison_command,
+        },
+        {
+            "kicker": "PROOF RECORD",
+            "title": "Outcome scaffold ready",
+            "body": (
+                "Record supported, still_blocked, skipped, or excluded only after validation, preview/apply decision, "
+                f"readiness comparison, source files ({summary['source_files']}), and artifact review ({summary['generated_artifacts_reviewed']})."
+            ),
+            "badges": ["review required", "durable ledger"],
+            "command": summary["proof_record_command"],
+        },
+    ]
+
+
+def data_health_reviewed_batch_proof_loop_frame(
+    packet_frame: pd.DataFrame | None = None,
+    comparison: ReadinessComparison | None = None,
+) -> pd.DataFrame:
+    packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
+    summary = _data_health_latest_batch_packet_summary(packet_frame)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    return pd.DataFrame(
+        [
+            {
+                "Loop Step": "1. Latest packet",
+                "Status": summary["state"],
+                "What To Review": f"{summary['lane']} / {summary['scope']}",
+                "Copy Command": summary["dry_run_command"],
+                "Stop If": "packet is missing, stale, or scope is not reviewed",
+            },
+            {
+                "Loop Step": "2. Before/after comparison",
+                "Status": comparison.status,
+                "What To Review": (
+                    comparison.changed_readiness_counts
+                    if comparison.status == "ok"
+                    else comparison.blocking_message
+                ),
+                "Copy Command": summary["comparison_command"] if comparison.status == "ok" else "make readiness-snapshot",
+                "Stop If": "saved readiness snapshots are missing or source files changed without refresh",
+            },
+            {
+                "Loop Step": "3. Proof record scaffold",
+                "Status": "review_required",
+                "What To Review": f"source files: {summary['source_files']}; artifacts: {summary['generated_artifacts_reviewed']}",
+                "Copy Command": summary["proof_record_command"],
+                "Stop If": "source proof, validation, preview/apply decision, or generated-artifact classification is incomplete",
+            },
+        ]
+    )
+
+
 def data_health_readiness_comparison_frame(comparison: ReadinessComparison | None = None) -> pd.DataFrame:
     comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
     return pd.DataFrame(
@@ -8322,6 +8831,8 @@ def data_health_readiness_comparison_cards(comparison: ReadinessComparison | Non
 
 def data_health_reviewed_batch_preflight_cards(preflight: ReviewedBatchPreflight | None = None) -> list[dict[str, object]]:
     preflight = preflight or build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
+    top_n_match = re.search(r"\bTOP_N=(\d+)", str(preflight.packet_command or ""))
+    top_n = top_n_match.group(1) if top_n_match else "10"
     if preflight.status != "ready_for_dry_run":
         body = (
             "Preflight found a missing gate before a reviewed batch. "
@@ -8341,7 +8852,7 @@ def data_health_reviewed_batch_preflight_cards(preflight: ReviewedBatchPreflight
             "title": "Snapshot and freshness gate",
             "body": body,
             "badges": badges,
-            "command": "make reviewed-batch-preflight LANE=prices TOP_N=100",
+            "command": f"make reviewed-batch-preflight LANE={preflight.lane} TOP_N={top_n}",
         }
     ]
 
@@ -8366,6 +8877,297 @@ def data_health_reviewed_batch_preflight_frame(preflight: ReviewedBatchPreflight
             }
         ]
     )
+
+
+def data_health_reviewed_batch_snapshot_gate_cards(preflight: ReviewedBatchPreflight) -> list[dict[str, object]]:
+    if not preflight.current_report_exists:
+        return [
+            {
+                "kicker": "SNAPSHOT GATE",
+                "title": "Build current readiness first",
+                "body": (
+                    "The current readiness report is missing, so a baseline snapshot would not prove anything yet. "
+                    "Run readiness before packet, dry-run, capped execution, comparison, or proof-record work."
+                ),
+                "badges": ["missing current", "stop"],
+                "command": "make readiness",
+            }
+        ]
+    if not preflight.prior_snapshot_exists:
+        return [
+            {
+                "kicker": "SNAPSHOT GATE",
+                "title": "Save baseline snapshot first",
+                "body": (
+                    "Prior readiness snapshot is missing. Run this copy-only snapshot before the reviewed packet or dry run "
+                    "so later comparison can prove changed readiness counts instead of guessing."
+                ),
+                "badges": ["missing baseline", "snapshot first"],
+                "command": preflight.snapshot_command,
+            }
+        ]
+    return [
+        {
+            "kicker": "SNAPSHOT GATE",
+            "title": "Baseline snapshot ready",
+            "body": (
+                "Prior and current readiness artifacts are present. Keep source proof, validation, preview/apply decision, "
+                "and artifact classification visible before recording a supported outcome."
+            ),
+            "badges": ["ready", "compare later"],
+            "command": preflight.comparison_command,
+        }
+    ]
+
+
+def data_health_reviewed_batch_snapshot_gate_frame(preflight: ReviewedBatchPreflight) -> pd.DataFrame:
+    if not preflight.current_report_exists:
+        status = "missing_current_report"
+        next_step = "Run make readiness before saving a baseline snapshot."
+        command = "make readiness"
+        stop_if = "current readiness report is unavailable"
+    elif not preflight.prior_snapshot_exists:
+        status = "missing_prior_snapshot"
+        next_step = "Run make readiness-snapshot before the packet or dry-run command."
+        command = preflight.snapshot_command
+        stop_if = "baseline snapshot is missing"
+    else:
+        status = "snapshot_ready"
+        next_step = "Continue to reviewed packet and dry-run, then compare before recording proof."
+        command = preflight.comparison_command
+        stop_if = "source proof or reviewed artifact classification is incomplete"
+    return pd.DataFrame(
+        [
+            {
+                "Gate": "Baseline readiness snapshot",
+                "Status": status,
+                "Current Report": "Yes" if preflight.current_report_exists else "No",
+                "Prior Snapshot": "Yes" if preflight.prior_snapshot_exists else "No",
+                "Next Step": next_step,
+                "Copy Command": command,
+                "Stop If": stop_if,
+            }
+        ]
+    )
+
+
+def data_health_reviewed_batch_apply_guard_steps(preflight: ReviewedBatchPreflight) -> dict[str, str]:
+    lane = str(preflight.lane or "").strip().lower()
+    if lane == "metrics":
+        return {
+            "mode": "read_only",
+            "validate": "not_applicable_read_only_metric_review",
+            "preview": "review metric blocker families and missing source lanes",
+            "apply": "not_applicable; route fixes back to prices, fundamentals, market cap, or peer-input lanes",
+            "rejected": "not_applicable_read_only_metric_review",
+            "proof": "supported is not available from metric review alone",
+        }
+    if lane == "prices":
+        return {
+            "mode": "mutating_price_lane",
+            "validate": "make price-validate",
+            "preview": "make price-preview",
+            "apply": "make price-apply only for reviewed trusted rows",
+            "rejected": "data/rejected/price_import_rejected.csv",
+            "proof": "supported only after price validation, preview, rejected-row review, apply decision, and rebuilt readiness",
+        }
+    return {
+        "mode": "mutating_import_lane",
+        "validate": "make imports-validate",
+        "preview": "make imports-preview",
+        "apply": "make imports-apply only for reviewed trusted rows",
+        "rejected": "data/rejected/fundamentals_import_rejected.csv or data/rejected/peers_import_rejected.csv",
+        "proof": "supported only after source proof, validation, preview, rejected-row review, apply decision, and rebuilt readiness",
+    }
+
+
+def data_health_reviewed_batch_apply_guard_cards(preflight: ReviewedBatchPreflight) -> list[dict[str, object]]:
+    steps = data_health_reviewed_batch_apply_guard_steps(preflight)
+    if steps["mode"] == "read_only":
+        return [
+            {
+                "kicker": "APPLY GUARD",
+                "title": "Read-only lane: no apply step",
+                "body": (
+                    "Metric readiness review does not apply rows. It can only point to blocked source lanes; any fix must go through that lane's validate, preview, rejected-row review, apply decision, and proof path."
+                ),
+                "badges": ["read-only", "route to source lane"],
+                "command": preflight.dry_run_command,
+            }
+        ]
+    return [
+        {
+            "kicker": "APPLY GUARD",
+            "title": "Validate and preview before apply",
+            "body": (
+                f"Stop at {steps['validate']} and {steps['preview']} until source proof and rejected-row reports are reviewed. "
+                f"{steps['proof']}; otherwise record still_blocked, skipped, or excluded."
+            ),
+            "badges": ["validate", "preview", "rejected rows", "manual apply"],
+            "command": f"{steps['validate']} && {steps['preview']}",
+        }
+    ]
+
+
+def data_health_reviewed_batch_apply_guard_frame(preflight: ReviewedBatchPreflight) -> pd.DataFrame:
+    steps = data_health_reviewed_batch_apply_guard_steps(preflight)
+    rows = [
+        {
+            "Gate": "Validate",
+            "Status": "required" if steps["mode"] != "read_only" else "not_applicable_read_only",
+            "Copy Command": steps["validate"],
+            "Stop If": "validation fails or source proof is missing",
+        },
+        {
+            "Gate": "Preview",
+            "Status": "required" if steps["mode"] != "read_only" else "source_lane_review",
+            "Copy Command": steps["preview"],
+            "Stop If": "preview shows unexpected rows",
+        },
+        {
+            "Gate": "Rejected-row review",
+            "Status": "required" if steps["mode"] != "read_only" else "not_applicable_read_only",
+            "Copy Command": steps["rejected"],
+            "Stop If": "rejected rows are unresolved or unexplained",
+        },
+        {
+            "Gate": "Apply decision",
+            "Status": "manual_review" if steps["mode"] != "read_only" else "not_applicable_read_only",
+            "Copy Command": steps["apply"],
+            "Stop If": "reviewer cannot identify changed source files and rollback path",
+        },
+        {
+            "Gate": "Supported outcome",
+            "Status": "blocked_until_proven",
+            "Copy Command": preflight.proof_record_command,
+            "Stop If": steps["proof"],
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def data_health_batch_lane_for_operator(selected_lane_key: str) -> str:
+    return DATA_HEALTH_BATCH_LANES.get(str(selected_lane_key or "").strip().lower(), "prices")
+
+
+def data_health_batch_source_requirement(lane: str) -> str:
+    lane = str(lane or "").strip().lower()
+    if lane == "prices":
+        return "Requires local price files or reviewed free-provider rows; start with a dry-run and keep price imports validate -> preview -> apply."
+    if lane == "fundamentals":
+        return "Requires trusted SEC-stageable or manually reviewed fundamentals rows; DCF stays blocked until required rows pass validate -> preview -> apply."
+    if lane == "peers":
+        return "Requires source-backed peer mappings plus trusted peer price, fundamentals, or market-context inputs; sector fallback is context only."
+    if lane == "metrics":
+        return "Read-only metric triage; missing SPY/QQQ, price, fundamentals, market-cap, or peer inputs must route back to the source lane."
+    if lane == "optional_context":
+        return "Manual/trusted-local only; earnings and analyst-estimate context stays locked until reviewed local rows exist."
+    return "Requires current readiness artifacts and reviewed local source proof before any supported outcome."
+
+
+def data_health_batch_gate_summary(preflight: ReviewedBatchPreflight) -> str:
+    blockers = [item for item in preflight.do_not_proceed_if if "dry-run scope is not reviewed" not in str(item)]
+    if preflight.status == "ready_for_dry_run":
+        return "Snapshot and freshness gates are ready. Generate the packet, review the dry-run scope, then keep validate and preview ahead of any apply step."
+    first_blocker = blockers[0] if blockers else "preflight gate is not ready"
+    return f"Preflight is blocked: {first_blocker}. Fix this before treating changed readiness counts as proof."
+
+
+def data_health_reviewed_batch_execution_cards(
+    selected_lane_key: str,
+    preflight: ReviewedBatchPreflight,
+    freshness: FreshnessStatus,
+) -> list[dict[str, object]]:
+    batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
+    lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, preflight.lane_scope)
+    next_command = preflight.packet_command if preflight.status == "ready_for_dry_run" else preflight.snapshot_command
+    if freshness.status in {"missing", "stale"}:
+        next_command = freshness.refresh_command
+    next_title = "Generate reviewed packet" if preflight.status == "ready_for_dry_run" else "Fix preflight gate"
+    return [
+        {
+            "kicker": "BATCH LANE",
+            "title": lane_label,
+            "body": (
+                f"Selected reviewed-batch lane: {batch_lane}. Scope is capped by TOP_N and optional ticker filters; "
+                "this is a data-readiness queue, not a security ranking."
+            ),
+            "badges": [batch_lane, "capped scope"],
+            "command": "",
+        },
+        data_health_reviewed_batch_snapshot_gate_cards(preflight)[0],
+        data_health_reviewed_batch_apply_guard_cards(preflight)[0],
+        {
+            "kicker": "SOURCE GATE",
+            "title": "Freshness before commands",
+            "body": (
+                f"{freshness.status}: {freshness.message} "
+                f"{data_health_batch_source_requirement(batch_lane)}"
+            ),
+            "badges": [freshness.status, "source proof first"],
+            "command": freshness.refresh_command if freshness.status in {"missing", "stale"} else "",
+        },
+        {
+            "kicker": "NEXT BATCH ACTION",
+            "title": next_title,
+            "body": (
+                f"{data_health_batch_gate_summary(preflight)} "
+                "Full dry-run, capped execution, proof, rollback, and artifact hygiene details stay in the review drawer."
+            ),
+            "badges": [preflight.status, "copy-only"],
+            "command": next_command,
+        },
+    ]
+
+
+def data_health_reviewed_batch_execution_frame(preflight: ReviewedBatchPreflight) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {"Step": "1. Reviewed packet", "Command": preflight.packet_command, "Gate": "Copy-only packet before any lane work."},
+            {"Step": "2. Snapshot", "Command": preflight.snapshot_command, "Gate": "Required before changed readiness counts can be trusted."},
+            {"Step": "3. Dry run", "Command": preflight.dry_run_command, "Gate": "Review scope, source notes, and expected artifacts first."},
+            {"Step": "4. Capped execution", "Command": preflight.capped_execution_command, "Gate": "Run only after dry-run review; mutating lanes still require validate -> preview -> apply."},
+            {"Step": "5. Validate", "Command": "make imports-validate or lane-specific validator", "Gate": "Stop when validation fails."},
+            {"Step": "6. Preview", "Command": "make imports-preview or lane-specific preview", "Gate": "Stop when preview or rejected-row reports are unresolved."},
+            {"Step": "7. Apply", "Command": "make imports-apply only for reviewed trusted rows", "Gate": "Manual reviewed step; not a dashboard action."},
+            {"Step": "8. Proof", "Command": preflight.comparison_command, "Gate": "Record supported, still_blocked, skipped, or excluded only after proof."},
+            {"Step": "9. Ledger", "Command": preflight.proof_record_command, "Gate": "Durable record after source files and generated churn are classified."},
+            {"Step": "Rollback", "Command": "restore reviewed standard local CSVs from git/backups, then rerun make readiness", "Gate": "Use if applied local rows are wrong or source proof fails."},
+        ]
+    )
+
+
+def data_health_reviewed_batch_sequence_cards(preflight: ReviewedBatchPreflight) -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "PACKET",
+            "title": "Create reviewed proof packet",
+            "body": "Copy-only packet with lane, scope, source/freshness status, proof fields, do-not-proceed conditions, rollback, and generated-artifact hygiene.",
+            "badges": ["packet first", "no data change"],
+            "command": preflight.packet_command,
+        },
+        {
+            "kicker": "DRY RUN",
+            "title": "Preview capped scope",
+            "body": "Review planned rows, source notes, expected artifacts, and stale-readiness warnings before any execution command.",
+            "badges": ["dry-run first", "capped"],
+            "command": preflight.dry_run_command,
+        },
+        {
+            "kicker": "MUTATION GATE",
+            "title": "Validate -> preview -> apply",
+            "body": "Mutating source lanes must pass validation, preview, rejected-row review, and explicit apply. Metrics remain read-only and route back to source lanes.",
+            "badges": ["review required", "manual apply"],
+            "command": "make imports-validate && make imports-preview",
+        },
+        {
+            "kicker": "PROOF",
+            "title": "Compare, record, rollback if needed",
+            "body": "After reviewed work, rebuild readiness, compare before/after counts, record supported/still_blocked/skipped/excluded, and restore standard local CSVs if source proof fails.",
+            "badges": ["proof ledger", "rollback ready"],
+            "command": preflight.comparison_command,
+        },
+    ]
 
 
 def data_health_trusted_pilot_selection_note(
@@ -17188,7 +17990,45 @@ def metric_console_next_action(frame: pd.DataFrame | None) -> dict[str, str]:
     }
 
 
-def data_health_metric_operator_console_frame(frame: pd.DataFrame | None, *, limit: int = 5) -> pd.DataFrame:
+def metric_console_source_lane(family: object) -> str:
+    family_text = str(family or "").strip().lower()
+    if family_text == "benchmark / risk":
+        return "Local ticker prices plus SPY/QQQ benchmark prices"
+    if family_text == "fundamentals trend":
+        return "Trusted local fundamentals rows"
+    if family_text == "valuation multiples":
+        return "Trusted fundamentals plus market-cap context"
+    if family_text == "peer dispersion":
+        return "Source-backed peer mappings plus trusted peer inputs"
+    if family_text == "none":
+        return "No source blocker recorded"
+    return "Metric source lane depends on the row-level blocker"
+
+
+def metric_console_proof_gate(family: object, freshness: object) -> str:
+    freshness_text = str(freshness or "").strip().lower()
+    if freshness_text in {"missing", "stale"}:
+        return "Refresh readiness artifacts before relying on exact counts"
+    family_text = str(family or "").strip().lower()
+    if family_text == "benchmark / risk":
+        return "Enough aligned local ticker and benchmark price rows"
+    if family_text == "fundamentals trend":
+        return "At least two dated trusted fundamentals rows"
+    if family_text == "valuation multiples":
+        return "Trusted fundamentals plus market cap or price/share count"
+    if family_text == "peer dispersion":
+        return "Mapped peers with trusted valuation inputs"
+    if family_text == "none":
+        return "No metric blocker recorded; keep research-only wording"
+    return "Open evidence drawer for row-level proof"
+
+
+def data_health_metric_operator_console_frame(
+    frame: pd.DataFrame | None,
+    *,
+    limit: int = 5,
+    freshness_status: FreshnessStatus | None = None,
+) -> pd.DataFrame:
     summary = data_health_metric_readiness_family_summary_frame(frame)
     if summary.empty:
         return pd.DataFrame(
@@ -17199,6 +18039,8 @@ def data_health_metric_operator_console_frame(frame: pd.DataFrame | None, *, lim
                     "Rows": 0,
                     "Blocked / Partial": 0,
                     "Benchmarks": "SPY, QQQ",
+                    "Source / Freshness": "Metric source lane unavailable / freshness unknown",
+                    "Proof Gate": "Refresh readiness artifacts before relying on exact counts",
                     "Next Proof": "Open the evidence drawer after local readiness artifacts exist.",
                 }
             ]
@@ -17209,6 +18051,19 @@ def data_health_metric_operator_console_frame(frame: pd.DataFrame | None, *, lim
         next_check = operator_queue_preview_copy(row.get("First Next Check"))
         if not next_check or next_check == "open the evidence drawer":
             next_check = "Open evidence drawer for copy-only check."
+        if freshness_status is not None and freshness_status.status in {"missing", "stale"}:
+            freshness = freshness_status.status
+        else:
+            freshness_values = (
+                frame.loc[
+                    frame.get("Blocker Family", pd.Series(index=frame.index, dtype=object)).astype(str).eq(str(row.get("Blocker Family"))),
+                    "Freshness",
+                ]
+                if frame is not None and not frame.empty and "Freshness" in frame.columns and "Blocker Family" in frame.columns
+                else pd.Series(dtype=object)
+            )
+            freshness = "unknown" if freshness_values.empty else ", ".join(dict.fromkeys(freshness_values.dropna().astype(str).str.lower().tolist())) or "unknown"
+        source_lane = metric_console_source_lane(row.get("Blocker Family"))
         rows.append(
             {
                 "Blocker Family": str(row.get("Blocker Family", "none")),
@@ -17216,13 +18071,15 @@ def data_health_metric_operator_console_frame(frame: pd.DataFrame | None, *, lim
                 "Rows": int(row.get("Queue Rows", 0) or 0),
                 "Blocked / Partial": blocked_partial,
                 "Benchmarks": format_missing(row.get("Benchmarks"), "SPY, QQQ"),
+                "Source / Freshness": f"{source_lane} / {freshness}",
+                "Proof Gate": metric_console_proof_gate(row.get("Blocker Family"), freshness),
                 "Next Proof": next_check,
             }
         )
     return pd.DataFrame(rows)
 
 
-def data_health_metric_operator_console_html(frame: pd.DataFrame | None) -> str:
+def data_health_metric_operator_console_html(frame: pd.DataFrame | None, freshness_status: FreshnessStatus | None = None) -> str:
     rows = 0 if frame is None else len(frame)
     states = (
         pd.Series(dtype=object)
@@ -17235,11 +18092,14 @@ def data_health_metric_operator_console_html(frame: pd.DataFrame | None) -> str:
     freshness = "unknown"
     if frame is not None and not frame.empty:
         benchmarks = ", ".join(dict.fromkeys(frame.get("Benchmark", pd.Series(index=frame.index, dtype=object)).dropna().astype(str).tolist())) or benchmarks
-        freshness_values = frame.get("Freshness", pd.Series(index=frame.index, dtype=object)).dropna().astype(str).str.lower()
-        if not freshness_values.empty:
-            freshness = ", ".join(dict.fromkeys(freshness_values.tolist()))
+        if freshness_status is not None and freshness_status.status in {"missing", "stale"}:
+            freshness = freshness_status.status
+        else:
+            freshness_values = frame.get("Freshness", pd.Series(index=frame.index, dtype=object)).dropna().astype(str).str.lower()
+            if not freshness_values.empty:
+                freshness = ", ".join(dict.fromkeys(freshness_values.tolist()))
     next_action = metric_console_next_action(frame)
-    console_frame = data_health_metric_operator_console_frame(frame)
+    console_frame = data_health_metric_operator_console_frame(frame, freshness_status=freshness_status)
     row_html = ""
     for _, row in console_frame.iterrows():
         state = str(row.get("State", "neutral")).lower()
@@ -17253,7 +18113,9 @@ def data_health_metric_operator_console_html(frame: pd.DataFrame | None) -> str:
             "</div>"
             f"<div><span class='state-pill {state}'>{html.escape(state)}</span></div>"
             f"<div class='metric-board-cell'>{html.escape(str(row.get('Blocked / Partial', 0)))} / {html.escape(str(row.get('Rows', 0)))}</div>"
-            f"<div class='metric-board-cell'>{html.escape(format_missing(row.get('Next Proof'), 'Open evidence drawer.'))}</div>"
+            f"<div class='metric-board-cell'>Source/freshness: {html.escape(format_missing(row.get('Source / Freshness'), 'Source unavailable.'))}</div>"
+            f"<div class='metric-board-cell'>Proof gate: {html.escape(format_missing(row.get('Proof Gate'), 'Open evidence drawer.'))}</div>"
+            f"<div class='metric-board-cell'>Next proof: {html.escape(format_missing(row.get('Next Proof'), 'Open evidence drawer.'))}</div>"
             "</div>"
         )
     return (
@@ -17288,7 +18150,7 @@ def data_health_metric_operator_console_html(frame: pd.DataFrame | None) -> str:
         "</div>"
         "<div class='metric-console-board'>"
         "<div class='metric-board-header'>"
-        "<div>Family</div><div>State</div><div>Blocked</div><div>Next Proof</div>"
+        "<div>Family</div><div>State</div><div>Blocked</div><div>Source / Freshness</div><div>Proof Gate</div><div>Next Proof</div>"
         "</div>"
         f"{row_html}"
         "</div>"
@@ -17296,8 +18158,8 @@ def data_health_metric_operator_console_html(frame: pd.DataFrame | None) -> str:
     )
 
 
-def render_data_health_metric_operator_console(frame: pd.DataFrame | None) -> None:
-    st.markdown(data_health_metric_operator_console_html(frame), unsafe_allow_html=True)
+def render_data_health_metric_operator_console(frame: pd.DataFrame | None, freshness_status: FreshnessStatus | None = None) -> None:
+    st.markdown(data_health_metric_operator_console_html(frame, freshness_status=freshness_status), unsafe_allow_html=True)
 
 
 def data_health_operator_snapshot_cards(
@@ -24397,7 +25259,7 @@ def render_data_health(
 
     ops_center = data_health_readiness_ops_center_frame()
     coverage_frontier = data_health_coverage_frontier_frame(top_n=10)
-    readiness_freshness = readiness_freshness_status(BASE_DIR)
+    readiness_freshness = data_health_freshness_status(BASE_DIR)
     if public_mode:
         render_section_header(
             "Data Quality / Readiness",
@@ -24453,8 +25315,8 @@ def render_data_health(
         readiness_freshness,
     )
     render_data_health_operator_hero(operator_snapshot_cards)
-    batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
+    batch_packet_frame = data_health_latest_reviewed_batch_packet_frame()
     readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10)
     peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
     lane_board = data_health_trusted_pilot_lane_board_frame(
@@ -24476,6 +25338,27 @@ def render_data_health(
     selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
     render_data_health_operator_lane_nav(selected_lane_key)
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
+    batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
+    batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
+    if selected_lane_key != "proof":
+        render_section_header("Readiness Batch Execution", "Choose the lane, confirm source/freshness gates, then generate a reviewed proof packet before row-level evidence.")
+        render_signal_cards(
+            data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness),
+            show_commands=True,
+        )
+        with st.expander("Reviewed batch review drawer", expanded=False):
+            render_section_header("Snapshot Gate", "Save the baseline readiness snapshot before packet, dry-run, comparison, or proof-record work.")
+            render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight))
+            st.dataframe(clean_display_frame(data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)), width="stretch", hide_index=True)
+            render_section_header("Apply Guard", "Validate, preview, rejected-row review, and apply decision before any supported proof outcome.")
+            render_signal_cards(data_health_reviewed_batch_apply_guard_cards(batch_preflight))
+            st.dataframe(clean_display_frame(data_health_reviewed_batch_apply_guard_frame(batch_preflight)), width="stretch", hide_index=True)
+            render_section_header("Copy-Only Batch Sequence", "Full packet, dry-run, validate, preview, apply, proof, rollback, and artifact-hygiene steps.")
+            render_signal_cards(data_health_reviewed_batch_sequence_cards(batch_preflight))
+            st.dataframe(clean_display_frame(data_health_reviewed_batch_execution_frame(batch_preflight)), width="stretch", hide_index=True)
+            render_section_header("Preflight Details", "Snapshot and freshness gates before any capped reviewed execution.")
+            render_signal_cards(data_health_reviewed_batch_preflight_cards(batch_preflight))
+            st.dataframe(clean_display_frame(data_health_reviewed_batch_preflight_frame(batch_preflight)), width="stretch", hide_index=True)
     if selected_lane == "Prices":
         render_data_health_price_operator_console(
             readiness_summary,
@@ -24539,7 +25422,7 @@ def render_data_health(
             render_signal_cards(data_health_trusted_pilot_lane_cards(lane_board))
             st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
     elif selected_lane == "Metrics":
-        render_data_health_metric_operator_console(metric_queue_frame)
+        render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)
         with st.expander("Metrics evidence drawer", expanded=False):
             render_section_header("Metric Blocker Family Summary", "Compact SPY / QQQ blocker-family triage before row-level proof.")
             st.dataframe(
@@ -24580,6 +25463,72 @@ def render_data_health(
             render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     elif selected_lane == "Proof History":
         render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)
+        with st.expander("Reviewed batch proof drawer", expanded=True):
+            render_section_header("Snapshot Gate", "Confirm the saved baseline before recording changed readiness counts.")
+            render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight))
+            st.dataframe(clean_display_frame(data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)), width="stretch", hide_index=True)
+            render_section_header("Apply Guard", "Supported batch outcomes require reviewed validation, preview, rejected-row status, and apply decision.")
+            render_signal_cards(data_health_reviewed_batch_apply_guard_cards(batch_preflight))
+            st.dataframe(clean_display_frame(data_health_reviewed_batch_apply_guard_frame(batch_preflight)), width="stretch", hide_index=True)
+            render_section_header("Outcome Recorder", "Required proof-row fields before recording supported, still_blocked, skipped, or excluded.")
+            render_signal_cards(
+                data_health_reviewed_batch_outcome_recorder_cards(batch_packet_frame, readiness_comparison),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_reviewed_batch_outcome_recorder_frame(batch_packet_frame, readiness_comparison)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_section_header("Proof Record Command Builder", "Copy-ready command with reviewed values filled and unresolved fields kept visible.")
+            render_signal_cards(
+                data_health_reviewed_batch_proof_record_command_cards(batch_packet_frame, readiness_comparison),
+                show_commands=True,
+            )
+            render_signal_cards(
+                data_health_reviewed_batch_proof_completion_cards(batch_packet_frame, readiness_comparison),
+                show_commands=False,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_reviewed_batch_proof_completion_frame(batch_packet_frame, readiness_comparison)),
+                width="stretch",
+                hide_index=True,
+            )
+            render_signal_cards(
+                data_health_reviewed_batch_proof_ledger_preview_cards(batch_packet_frame, readiness_comparison),
+                show_commands=False,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_reviewed_batch_proof_ledger_preview_frame(batch_packet_frame, readiness_comparison)),
+                width="stretch",
+                hide_index=True,
+            )
+            with st.expander("Detailed proof command fields", expanded=False):
+                st.dataframe(
+                    clean_display_frame(data_health_reviewed_batch_proof_record_command_frame(batch_packet_frame, readiness_comparison)),
+                    width="stretch",
+                    hide_index=True,
+                )
+                st.dataframe(
+                    clean_display_frame(data_health_reviewed_batch_proof_record_validation_frame(batch_packet_frame, readiness_comparison)),
+                    width="stretch",
+                    hide_index=True,
+                )
+                st.dataframe(
+                    clean_display_frame(data_health_reviewed_batch_proof_record_command_arguments_frame(batch_packet_frame, readiness_comparison)),
+                    width="stretch",
+                    hide_index=True,
+                )
+            render_section_header("Reviewed Batch Proof Loop", "Latest packet, comparison status, and proof-record scaffold in one compact completion view.")
+            render_signal_cards(
+                data_health_reviewed_batch_proof_loop_cards(batch_packet_frame, readiness_comparison),
+                show_commands=True,
+            )
+            st.dataframe(
+                clean_display_frame(data_health_reviewed_batch_proof_loop_frame(batch_packet_frame, readiness_comparison)),
+                width="stretch",
+                hide_index=True,
+            )
         with st.expander("Proof history evidence drawer", expanded=False):
             render_section_header("Proof History Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
             render_signal_cards(

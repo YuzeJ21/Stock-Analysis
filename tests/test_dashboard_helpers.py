@@ -10027,6 +10027,264 @@ def test_data_health_reviewed_batch_ladder_cards_warn_when_frontier_missing():
     assert "operations queues, not security rankings" in rendered
 
 
+def test_data_health_reviewed_batch_execution_cards_show_lane_source_and_next_action():
+    preflight = dashboard.ReviewedBatchPreflight(
+        lane="peers",
+        lane_scope="Peer Mapping, Peer Valuation Inputs",
+        batch_id="RB-TEST",
+        review_date="2026-06-12",
+        status="needs_preflight_fix",
+        current_report_exists=True,
+        prior_snapshot_exists=False,
+        freshness_status="stale",
+        freshness_message="Readiness artifacts may be stale.",
+        packet_command="make reviewed-batch LANE=peers TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make peer-mapping-queue TOP_N=10",
+        capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after source-backed peer rows",
+        comparison_command="make reviewed-batch-compare LANE=peers BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=10",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
+        do_not_proceed_if=("prior readiness snapshot is missing; run make readiness-snapshot before a reviewed batch",),
+        expected_artifacts=("data/imports/peers.csv", "data/reports/peer_unlock_worklist.csv"),
+    )
+    cards = dashboard.data_health_reviewed_batch_execution_cards(
+        "peers",
+        preflight,
+        dashboard.FreshnessStatus("stale", "Readiness artifacts may be stale.", "make readiness"),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["BATCH LANE", "SNAPSHOT GATE", "APPLY GUARD", "SOURCE GATE", "NEXT BATCH ACTION"]
+    assert cards[1]["command"] == "make readiness-snapshot"
+    assert cards[2]["command"] == "make imports-validate && make imports-preview"
+    assert cards[4]["command"] == "make readiness"
+    assert "selected reviewed-batch lane: peers" in rendered
+    assert "save baseline snapshot first" in rendered
+    assert "before the reviewed packet or dry run" in rendered
+    assert "validate and preview before apply" in rendered
+    assert "rejected-row reports are reviewed" in rendered
+    assert "source-backed peer mappings" in rendered
+    assert "sector fallback is context only" in rendered
+    assert "preflight is blocked" in rendered
+    assert "data-readiness queue, not a security ranking" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_snapshot_gate_cards_cover_missing_and_ready_states():
+    missing_current = dashboard.ReviewedBatchPreflight(
+        lane="prices",
+        lane_scope="Price Coverage",
+        batch_id="RB-MISSING-CURRENT",
+        review_date="2026-06-12",
+        status="needs_preflight_fix",
+        current_report_exists=False,
+        prior_snapshot_exists=False,
+        freshness_status="missing",
+        freshness_message="Readiness artifacts are missing.",
+        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
+        capped_execution_command="make price-refresh-loop TOP_N=10",
+        comparison_command="make reviewed-batch-compare LANE=prices",
+        proof_record_command="make reviewed-batch-proof-record",
+        do_not_proceed_if=("current readiness report is missing; run make readiness",),
+        expected_artifacts=("data/reports/ticker_readiness_report.csv",),
+    )
+    missing_snapshot = dashboard.ReviewedBatchPreflight(
+        lane="prices",
+        lane_scope="Price Coverage",
+        batch_id="RB-MISSING-SNAPSHOT",
+        review_date="2026-06-12",
+        status="needs_preflight_fix",
+        current_report_exists=True,
+        prior_snapshot_exists=False,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
+        capped_execution_command="make price-refresh-loop TOP_N=10",
+        comparison_command="make reviewed-batch-compare LANE=prices",
+        proof_record_command="make reviewed-batch-proof-record",
+        do_not_proceed_if=("prior readiness snapshot is missing",),
+        expected_artifacts=("data/reports/ticker_readiness_report.previous.csv",),
+    )
+    ready = dashboard.ReviewedBatchPreflight(
+        lane="prices",
+        lane_scope="Price Coverage",
+        batch_id="RB-READY",
+        review_date="2026-06-12",
+        status="ready_for_dry_run",
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
+        capped_execution_command="make price-refresh-loop TOP_N=10",
+        comparison_command="make reviewed-batch-compare LANE=prices",
+        proof_record_command="make reviewed-batch-proof-record",
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+        expected_artifacts=("data/reports/ticker_readiness_report.previous.csv",),
+    )
+
+    missing_current_cards = dashboard.data_health_reviewed_batch_snapshot_gate_cards(missing_current)
+    missing_snapshot_cards = dashboard.data_health_reviewed_batch_snapshot_gate_cards(missing_snapshot)
+    ready_cards = dashboard.data_health_reviewed_batch_snapshot_gate_cards(ready)
+    missing_snapshot_frame = dashboard.data_health_reviewed_batch_snapshot_gate_frame(missing_snapshot)
+
+    assert missing_current_cards[0]["title"] == "Build current readiness first"
+    assert missing_current_cards[0]["command"] == "make readiness"
+    assert "missing current" in missing_current_cards[0]["badges"]
+    assert missing_snapshot_cards[0]["title"] == "Save baseline snapshot first"
+    assert missing_snapshot_cards[0]["command"] == "make readiness-snapshot"
+    assert "snapshot first" in missing_snapshot_cards[0]["badges"]
+    assert ready_cards[0]["title"] == "Baseline snapshot ready"
+    assert ready_cards[0]["command"] == "make reviewed-batch-compare LANE=prices"
+    assert missing_snapshot_frame.iloc[0]["Status"] == "missing_prior_snapshot"
+    assert missing_snapshot_frame.iloc[0]["Copy Command"] == "make readiness-snapshot"
+
+
+def test_data_health_reviewed_batch_apply_guard_cards_block_supported_until_reviewed():
+    fundamentals = dashboard.ReviewedBatchPreflight(
+        lane="fundamentals",
+        lane_scope="Fundamentals / DCF",
+        batch_id="RB-FUND",
+        review_date="2026-06-12",
+        status="ready_for_dry_run",
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=fundamentals TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make sec-stage-queue TOP_N=10",
+        capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
+        comparison_command="make reviewed-batch-compare LANE=fundamentals BATCH_ID=RB-FUND REVIEW_DATE=2026-06-12 TOP_N=10",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-FUND"',
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+        expected_artifacts=("data/imports/fundamentals.csv",),
+    )
+
+    cards = dashboard.data_health_reviewed_batch_apply_guard_cards(fundamentals)
+    frame = dashboard.data_health_reviewed_batch_apply_guard_frame(fundamentals)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    frame_rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert cards[0]["kicker"] == "APPLY GUARD"
+    assert cards[0]["command"] == "make imports-validate && make imports-preview"
+    assert "validate and preview before apply" in rendered
+    assert "rejected-row reports are reviewed" in rendered
+    assert "otherwise record still_blocked, skipped, or excluded" in rendered
+    assert "Rejected-row review" in frame["Gate"].tolist()
+    assert "make imports-apply only for reviewed trusted rows" in frame_rendered
+    assert "blocked_until_proven" in frame_rendered
+
+
+def test_data_health_reviewed_batch_apply_guard_keeps_metrics_read_only():
+    metrics = dashboard.ReviewedBatchPreflight(
+        lane="metrics",
+        lane_scope="Metric Readiness Review",
+        batch_id="RB-METRIC",
+        review_date="2026-06-12",
+        status="ready_for_dry_run",
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=metrics TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope>",
+        capped_execution_command="make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope> BENCHMARKS=SPY,QQQ",
+        comparison_command="make reviewed-batch-compare LANE=metrics BATCH_ID=RB-METRIC REVIEW_DATE=2026-06-12 TOP_N=10",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-METRIC"',
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+        expected_artifacts=("metric-readiness console output",),
+    )
+
+    cards = dashboard.data_health_reviewed_batch_apply_guard_cards(metrics)
+    frame = dashboard.data_health_reviewed_batch_apply_guard_frame(metrics)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    frame_rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert cards[0]["title"] == "Read-only lane: no apply step"
+    assert cards[0]["command"] == "make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope>"
+    assert "does not apply rows" in rendered
+    assert "route to source lane" in rendered
+    assert "not_applicable_read_only" in frame_rendered
+    assert "supported is not available from metric review alone" in frame_rendered
+
+
+def test_data_health_reviewed_batch_execution_frame_keeps_mutating_gates_explicit():
+    preflight = dashboard.ReviewedBatchPreflight(
+        lane="fundamentals",
+        lane_scope="Fundamentals / DCF",
+        batch_id="RB-FUND",
+        review_date="2026-06-12",
+        status="ready_for_dry_run",
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=fundamentals TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make sec-stage-queue TOP_N=10",
+        capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
+        comparison_command="make reviewed-batch-compare LANE=fundamentals BATCH_ID=RB-FUND REVIEW_DATE=2026-06-12 TOP_N=10",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-FUND"',
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+        expected_artifacts=("data/imports/fundamentals.csv",),
+    )
+
+    frame = dashboard.data_health_reviewed_batch_execution_frame(preflight)
+    rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert "make reviewed-batch lane=fundamentals top_n=10" in rendered
+    assert "validate" in rendered
+    assert "preview" in rendered
+    assert "make imports-apply only for reviewed trusted rows" in rendered
+    assert "rollback" in rendered
+    assert "restore reviewed standard local csvs" in rendered
+    assert "supported, still_blocked, skipped, or excluded" in rendered
+
+
+def test_data_health_reviewed_batch_sequence_cards_make_commands_copyable_but_review_gated():
+    preflight = dashboard.ReviewedBatchPreflight(
+        lane="metrics",
+        lane_scope="Metric Readiness Review",
+        batch_id="RB-METRIC",
+        review_date="2026-06-12",
+        status="needs_preflight_fix",
+        current_report_exists=True,
+        prior_snapshot_exists=False,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=metrics TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope>",
+        capped_execution_command="make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope> BENCHMARKS=SPY,QQQ",
+        comparison_command="make reviewed-batch-compare LANE=metrics BATCH_ID=RB-METRIC REVIEW_DATE=2026-06-12 TOP_N=10",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-METRIC"',
+        do_not_proceed_if=("prior readiness snapshot is missing",),
+        expected_artifacts=("metric-readiness console output",),
+    )
+
+    cards = dashboard.data_health_reviewed_batch_sequence_cards(preflight)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["PACKET", "DRY RUN", "MUTATION GATE", "PROOF"]
+    assert cards[0]["command"] == "make reviewed-batch LANE=metrics TOP_N=10"
+    assert cards[1]["command"] == "make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope>"
+    assert cards[2]["command"] == "make imports-validate && make imports-preview"
+    assert "metrics remain read-only" in rendered
+    assert "restore standard local csvs" in rendered
+    assert "supported/still_blocked/skipped/excluded" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_reviewed_batch_proof_frame_and_cards_read_batch_ledger(tmp_path):
     ledger = tmp_path / "reviewed_batch_proofs.csv"
     ledger.write_text(
@@ -10046,6 +10304,631 @@ def test_data_health_reviewed_batch_proof_frame_and_cards_read_batch_ledger(tmp_
     assert "command run: make reviewed-batch lane=peers top_n=10" in rendered
     assert "changed tickers: no changed tickers" in rendered
     assert "no source proof applied" in rendered
+
+
+def test_data_health_latest_reviewed_batch_packet_frame_reads_packet_scaffold(tmp_path):
+    packet = tmp_path / "reviewed_batch_packet.csv"
+    packet.write_text(
+        "batch_id,lane,lane_label,ticker_scope,proposed_ticker,workflow_mode,freshness_status,dry_run_command,readiness_comparison_command,proof_record_command,validation_result,preview_result,apply_result,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome\n"
+        "RB-2,metric_readiness_review,Metric Readiness Review,AAA;BBB,AAA,read_only_review,current,make metric-readiness-board TOP_N=2,make reviewed-batch-compare LANE=metrics,make reviewed-batch-proof-record BATCH_ID=RB-2,,,,,AAA,metric queue output,exclude broad churn,supported|still_blocked|skipped|excluded\n",
+        encoding="utf-8",
+    )
+
+    frame = dashboard.data_health_latest_reviewed_batch_packet_frame(packet)
+
+    assert frame.iloc[0]["Batch ID"] == "RB-2"
+    assert frame.iloc[0]["Lane"] == "Metric Readiness Review"
+    assert frame.iloc[0]["Proof Record Scaffold"] == "make reviewed-batch-proof-record BATCH_ID=RB-2"
+    assert frame.iloc[0]["Validation Result"] == ""
+    assert frame.iloc[0]["Generated Artifacts Review"] == "exclude broad churn"
+
+
+def test_data_health_reviewed_batch_proof_loop_cards_connect_packet_comparison_and_scaffold():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-2",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA,BBB",
+                "Proposed Ticker": "AAA",
+                "Workflow": "read_only_review",
+                "Freshness": "current",
+                "Dry Run Command": "make metric-readiness-board TOP_N=2",
+                "Comparison Command": "make reviewed-batch-compare LANE=metrics",
+                "Proof Record Scaffold": "make reviewed-batch-proof-record BATCH_ID=RB-2",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "exclude broad churn",
+                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+            },
+            {
+                "Batch ID": "RB-2",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA,BBB",
+                "Proposed Ticker": "BBB",
+                "Workflow": "read_only_review",
+                "Freshness": "current",
+                "Dry Run Command": "make metric-readiness-board TOP_N=2",
+                "Comparison Command": "make reviewed-batch-compare LANE=metrics",
+                "Proof Record Scaffold": "make reviewed-batch-proof-record BATCH_ID=RB-2",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "exclude broad churn",
+                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+            },
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=("AAA",),
+        changed_count=1,
+        changed_readiness_counts="metric_state (blocked: 2->1)",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_loop_cards(packet_frame, comparison)
+    frame = dashboard.data_health_reviewed_batch_proof_loop_frame(packet_frame, comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    frame_rendered = " ".join(frame.astype(str).to_numpy().flatten()).lower()
+
+    assert [card["kicker"] for card in cards] == ["LATEST PACKET", "COMPARISON STATUS", "PROOF RECORD"]
+    assert cards[0]["command"] == "make metric-readiness-board TOP_N=2"
+    assert cards[1]["command"] == "make reviewed-batch-compare LANE=metrics"
+    assert cards[2]["command"] == "make reviewed-batch-proof-record BATCH_ID=RB-2"
+    assert "rows: 2; tickers: 2" in rendered
+    assert "metric_state" in rendered
+    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "source files (metric queue output)" in rendered
+    assert "exclude broad churn" in rendered
+    assert "copy command" in " ".join(frame.columns).lower()
+    assert "saved readiness snapshots" in frame_rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_proof_loop_cards_warn_when_packet_or_snapshot_missing():
+    comparison = dashboard.ReadinessComparison(
+        status="missing_before",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=0,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="not available",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        blocking_message="Missing prior readiness snapshot. Run make readiness-snapshot before a reviewed batch.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_loop_cards(pd.DataFrame(), comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "No reviewed batch packet: No packet"
+    assert cards[0]["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert cards[1]["title"] == "Comparison blocked"
+    assert cards[1]["command"] == "make readiness-snapshot"
+    assert "keep the proof row open" in rendered
+    assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_outcome_recorder_flags_missing_proof_fields():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-2",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA,BBB",
+                "Proposed Ticker": "AAA",
+                "Proof Record Scaffold": "make reviewed-batch-proof-record BATCH_ID=RB-2",
+                "Validation Result": "<pass/fail/not_applicable>",
+                "Preview Result": "<reviewed rows / no unexpected rows / not_applicable>",
+                "Apply Result": "<not_run/applied/skipped>",
+                "Changed Readiness Counts": "<before -> after counts, or none>",
+                "Changed Tickers": "<tickers changed, or none>",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "<kept evidence or excluded local churn>",
+                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=("AAA",),
+        changed_count=1,
+        changed_readiness_counts="metric_state (blocked: 2->1)",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_outcome_recorder_cards(packet_frame, comparison)
+    frame = dashboard.data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "OUTCOME RECORDER"
+    assert cards[0]["title"] == "6 proof field(s) still missing"
+    assert cards[0]["command"] == "make reviewed-batch-proof-record BATCH_ID=RB-2"
+    assert "validation_result" in rendered
+    assert "preview_result" in rendered
+    assert "apply_result" in rendered
+    assert "generated-artifact review" in rendered
+    assert set(frame.loc[frame["Status"] == "missing_from_record", "Field"]) == {
+        "validation_result",
+        "preview_result",
+        "apply_result",
+        "changed_readiness_counts",
+        "changed_tickers",
+        "generated_artifacts_reviewed",
+    }
+    changed_counts = frame.loc[frame["Field"] == "changed_readiness_counts"].iloc[0]
+    assert changed_counts["Copy From"] == "metric_state (blocked: 2->1)"
+    source_files = frame.loc[frame["Field"] == "source_files"].iloc[0]
+    assert source_files["Status"] == "ready"
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_outcome_recorder_allows_reviewed_read_only_results():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-3",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA,BBB",
+                "Proposed Ticker": "AAA",
+                "Proof Record Scaffold": "make reviewed-batch-proof-record BATCH_ID=RB-3",
+                "Validation Result": "not_applicable_read_only_metric_review",
+                "Preview Result": "reviewed metric blocker families; no row apply",
+                "Apply Result": "not_applicable_read_only_metric_review",
+                "Changed Readiness Counts": "none; no readiness counts changed",
+                "Changed Tickers": "none",
+                "Source Files": "metric-readiness console output",
+                "Generated Artifacts Review": "excluded generated CSV churn",
+                "Allowed Outcome": "still_blocked",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="none",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_outcome_recorder_cards(packet_frame, comparison)
+    frame = dashboard.data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Proof row fields ready to record"
+    assert cards[0]["command"] == "make reviewed-batch-proof-record BATCH_ID=RB-3"
+    assert set(frame["Status"]) == {"ready"}
+    assert "research recommendation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_outcome_recorder_blocks_changed_counts_without_snapshot():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-4",
+                "Lane": "Prices",
+                "Scope": "AAA",
+                "Proof Record Scaffold": "make reviewed-batch-proof-record BATCH_ID=RB-4",
+                "Validation Result": "passed",
+                "Preview Result": "reviewed 1 row",
+                "Apply Result": "skipped",
+                "Changed Readiness Counts": "none",
+                "Changed Tickers": "none",
+                "Source Files": "data/imports/prices.csv",
+                "Generated Artifacts Review": "excluded generated CSV churn",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="missing_before",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=0,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="not available",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        blocking_message="Missing prior readiness snapshot. Run make readiness-snapshot before a reviewed batch.",
+    )
+
+    frame = dashboard.data_health_reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
+
+    blocked = frame.loc[frame["Status"] == "blocked_by_snapshot_gate", "Field"].tolist()
+    assert blocked == ["changed_readiness_counts", "changed_tickers"]
+    assert "make readiness-snapshot" in frame.loc[frame["Field"] == "changed_tickers"].iloc[0]["Copy From"]
+
+
+def test_data_health_reviewed_batch_proof_record_command_builder_fills_reviewed_values():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-3",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA,BBB",
+                "Proposed Ticker": "AAA",
+                "Dry Run Command": "make metric-readiness-board TOP_N=2",
+                "Validation Result": "not_applicable_read_only_metric_review",
+                "Preview Result": "reviewed metric blocker families; no row apply",
+                "Apply Result": "not_applicable_read_only_metric_review",
+                "Changed Readiness Counts": "none; no readiness counts changed",
+                "Changed Tickers": "none",
+                "Source Files": "metric-readiness console output",
+                "Generated Artifacts Review": "excluded generated CSV churn",
+                "Allowed Outcome": "still_blocked",
+            },
+            {
+                "Batch ID": "RB-3",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA,BBB",
+                "Proposed Ticker": "BBB",
+                "Dry Run Command": "make metric-readiness-board TOP_N=2",
+                "Validation Result": "not_applicable_read_only_metric_review",
+                "Preview Result": "reviewed metric blocker families; no row apply",
+                "Apply Result": "not_applicable_read_only_metric_review",
+                "Changed Readiness Counts": "none; no readiness counts changed",
+                "Changed Tickers": "none",
+                "Source Files": "metric-readiness console output",
+                "Generated Artifacts Review": "excluded generated CSV churn",
+                "Allowed Outcome": "still_blocked",
+            },
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="none",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_record_command_cards(packet_frame, comparison)
+    command_frame = dashboard.data_health_reviewed_batch_proof_record_command_frame(packet_frame, comparison)
+    validation_frame = dashboard.data_health_reviewed_batch_proof_record_validation_frame(packet_frame, comparison)
+    arguments_frame = dashboard.data_health_reviewed_batch_proof_record_command_arguments_frame(packet_frame, comparison)
+    command = command_frame.iloc[0]["Copy Command"]
+    rendered = " ".join(str(value) for value in command_frame.astype(str).to_numpy().flatten()).lower()
+
+    assert cards[0]["kicker"] == "PROOF COMMAND BUILDER"
+    assert cards[0]["command"] == command
+    assert "review date" in cards[0]["body"]
+    assert "review_date" not in cards[0]["body"]
+    assert "make reviewed-batch-proof-record" in command
+    assert "BATCH_ID=RB-3" in command
+    assert "TICKERS=AAA,BBB" in command
+    assert "VALIDATION_RESULT=not_applicable_read_only_metric_review" in command
+    assert "CHANGED_READINESS_COUNTS='none; no readiness counts changed'" in command
+    assert "PRE_RUN_READINESS_SNAPSHOT=data/reports/ticker_readiness_report.previous.csv" in command
+    assert "FINAL_OUTCOME=still_blocked" in command
+    assert "REVIEW_DATE='<yyyy-mm-dd>'" in command
+    assert "NOTES='<review notes>'" in command
+    assert command_frame.iloc[0]["Command Status"] == "needs_field_fills"
+    assert "review_date" in command_frame.iloc[0]["Fields To Fill"]
+    assert "notes" not in command_frame.iloc[0]["Fields To Fill"]
+    assert command_frame.iloc[0]["Manual Fields"] == "reviewer, notes"
+    assert set(validation_frame["Validation Status"]) == {"ready", "missing_required"}
+    assert validation_frame.loc[validation_frame["Field"] == "review_date"].iloc[0]["Validation Status"] == "missing_required"
+    assert set(arguments_frame.loc[arguments_frame["Field"].isin(["validation_result", "preview_result", "apply_result"]), "Status"]) == {
+        "filled_from_review"
+    }
+    assert "recommendation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_proof_record_command_builder_keeps_missing_fields_visible():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-2",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA",
+                "Proposed Ticker": "AAA",
+                "Dry Run Command": "make metric-readiness-board TOP_N=1",
+                "Validation Result": "<pass/fail/not_applicable>",
+                "Preview Result": "<reviewed rows / no unexpected rows / not_applicable>",
+                "Apply Result": "<not_run/applied/skipped>",
+                "Changed Readiness Counts": "<before -> after counts, or none>",
+                "Changed Tickers": "<tickers changed, or none>",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "<kept evidence or excluded local churn>",
+                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="missing_before",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=0,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="not available",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        blocking_message="Missing prior readiness snapshot. Run make readiness-snapshot before a reviewed batch.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_record_command_cards(packet_frame, comparison)
+    command_frame = dashboard.data_health_reviewed_batch_proof_record_command_frame(packet_frame, comparison)
+    arguments_frame = dashboard.data_health_reviewed_batch_proof_record_command_arguments_frame(packet_frame, comparison)
+    command = command_frame.iloc[0]["Copy Command"]
+
+    assert cards[0]["title"] == "Proof-record command blocked by snapshot gate"
+    assert "VALIDATION_RESULT='<pass/fail/not_applicable>'" in command
+    assert "CHANGED_READINESS_COUNTS='<before -> after counts, or none>'" in command
+    assert "PRE_RUN_READINESS_SNAPSHOT='not recorded'" in command
+    assert "validation_result" in command_frame.iloc[0]["Fields To Fill"]
+    assert "changed_tickers" in command_frame.iloc[0]["Fields To Fill"]
+    assert "generated_artifacts_reviewed" in command_frame.iloc[0]["Fields To Fill"]
+    assert set(arguments_frame.loc[arguments_frame["Field"].isin(["changed_readiness_counts", "changed_tickers"]), "Status"]) == {
+        "blocked_by_snapshot_gate"
+    }
+
+
+def test_data_health_reviewed_batch_proof_record_validation_flags_invalid_outcome():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-5",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA",
+                "Proposed Ticker": "AAA",
+                "Dry Run Command": "make metric-readiness-board TOP_N=1",
+                "Review Date": "2026-06-14",
+                "Validation Result": "not_applicable_read_only_metric_review",
+                "Preview Result": "reviewed metric blocker families",
+                "Apply Result": "not_applicable_read_only_metric_review",
+                "Changed Readiness Counts": "none",
+                "Changed Tickers": "none",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "excluded generated CSV churn",
+                "Allowed Outcome": "maybe_supported",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="none",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_record_command_cards(packet_frame, comparison)
+    command_frame = dashboard.data_health_reviewed_batch_proof_record_command_frame(packet_frame, comparison)
+    validation_frame = dashboard.data_health_reviewed_batch_proof_record_validation_frame(packet_frame, comparison)
+
+    assert cards[0]["title"] == "Proof-record command has invalid outcome"
+    assert command_frame.iloc[0]["Command Status"] == "invalid_outcome"
+    assert validation_frame.loc[validation_frame["Field"] == "final_outcome"].iloc[0]["Validation Status"] == "invalid_outcome"
+
+
+def test_data_health_reviewed_batch_proof_completion_cards_show_next_missing_action():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-6",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA",
+                "Proposed Ticker": "AAA",
+                "Dry Run Command": "make metric-readiness-board TOP_N=1",
+                "Validation Result": "<pass/fail/not_applicable>",
+                "Preview Result": "<reviewed rows / no unexpected rows / not_applicable>",
+                "Apply Result": "<not_run/applied/skipped>",
+                "Changed Readiness Counts": "<before -> after counts, or none>",
+                "Changed Tickers": "<tickers changed, or none>",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "<kept evidence or excluded local churn>",
+                "Allowed Outcome": "still_blocked",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=("AAA",),
+        changed_count=1,
+        changed_readiness_counts="metric_state (blocked: 2->1)",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_completion_cards(packet_frame, comparison)
+    frame = dashboard.data_health_reviewed_batch_proof_completion_frame(packet_frame, comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "FINISH THIS PROOF"
+    assert cards[0]["title"] == "7 proof item(s) to finish"
+    assert "start here:" in cards[0]["body"].lower()
+    assert frame.iloc[0]["Field"] == "review_date"
+    assert "yyyy-mm-dd" in frame.iloc[0]["Next Safest Action"]
+    assert "validation_result" in set(frame["Field"])
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_proof_completion_cards_ready_state_is_final_review_only():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-7",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA",
+                "Proposed Ticker": "AAA",
+                "Dry Run Command": "make metric-readiness-board TOP_N=1",
+                "Review Date": "2026-06-14",
+                "Validation Result": "not_applicable_read_only_metric_review",
+                "Preview Result": "reviewed metric blocker families",
+                "Apply Result": "not_applicable_read_only_metric_review",
+                "Changed Readiness Counts": "none",
+                "Changed Tickers": "none",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "excluded generated CSV churn",
+                "Allowed Outcome": "still_blocked",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="none",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_completion_cards(packet_frame, comparison)
+    frame = dashboard.data_health_reviewed_batch_proof_completion_frame(packet_frame, comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Proof can be recorded after final review"
+    assert cards[0]["command"].startswith("make reviewed-batch-proof-record")
+    assert frame.iloc[0]["Field"] == "proof_record_command"
+    assert frame.iloc[0]["Status"] == "ready_to_record"
+    assert "generated-artifact classification" in frame.iloc[0]["Next Safest Action"]
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_proof_ledger_preview_blocks_unready_rows():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-8",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA",
+                "Proposed Ticker": "AAA",
+                "Dry Run Command": "make metric-readiness-board TOP_N=1",
+                "Validation Result": "<pass/fail/not_applicable>",
+                "Preview Result": "<reviewed rows / no unexpected rows / not_applicable>",
+                "Apply Result": "<not_run/applied/skipped>",
+                "Changed Readiness Counts": "<before -> after counts, or none>",
+                "Changed Tickers": "<tickers changed, or none>",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "<kept evidence or excluded local churn>",
+                "Allowed Outcome": "supported|still_blocked|skipped|excluded",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="missing_before",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=0,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="not available",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        blocking_message="Missing prior readiness snapshot. Run make readiness-snapshot before a reviewed batch.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_ledger_preview_cards(packet_frame, comparison)
+    frame = dashboard.data_health_reviewed_batch_proof_ledger_preview_frame(packet_frame, comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "LEDGER ROW PREVIEW"
+    assert cards[0]["title"] == "Ledger row preview is not record-ready"
+    assert "do not record" in cards[0]["body"].lower()
+    assert "preview only" in cards[0]["badges"]
+    assert "batch_id" in set(frame["Ledger Column"])
+    assert frame.loc[frame["Ledger Column"] == "final_outcome"].iloc[0]["Record Readiness"] == "invalid_outcome"
+    assert frame.loc[frame["Ledger Column"] == "changed_tickers"].iloc[0]["Record Readiness"] == "blocked_by_snapshot_gate"
+    assert "do not record" in frame.iloc[0]["Copy Boundary"].lower()
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_proof_ledger_preview_ready_after_final_review():
+    packet_frame = pd.DataFrame(
+        [
+            {
+                "Batch ID": "RB-9",
+                "Lane": "Metric Readiness Review",
+                "Scope": "AAA",
+                "Proposed Ticker": "AAA",
+                "Dry Run Command": "make metric-readiness-board TOP_N=1",
+                "Review Date": "2026-06-14",
+                "Validation Result": "not_applicable_read_only_metric_review",
+                "Preview Result": "reviewed metric blocker families",
+                "Apply Result": "not_applicable_read_only_metric_review",
+                "Changed Readiness Counts": "none",
+                "Changed Tickers": "none",
+                "Source Files": "metric queue output",
+                "Generated Artifacts Review": "excluded generated CSV churn",
+                "Allowed Outcome": "still_blocked",
+            }
+        ]
+    )
+    comparison = dashboard.ReadinessComparison(
+        status="ok",
+        before_path=Path("data/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/reports/ticker_readiness_report.csv"),
+        before_rows=2,
+        after_rows=2,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="none",
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+    )
+
+    cards = dashboard.data_health_reviewed_batch_proof_ledger_preview_cards(packet_frame, comparison)
+    frame = dashboard.data_health_reviewed_batch_proof_ledger_preview_frame(packet_frame, comparison)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Ledger row preview ready after final review"
+    assert "copy the command only after source files" in cards[0]["body"].lower()
+    assert frame.loc[frame["Ledger Column"] == "batch_id"].iloc[0]["Preview Value"] == "RB-9"
+    assert frame.loc[frame["Ledger Column"] == "final_outcome"].iloc[0]["Preview Value"] == "still_blocked"
+    assert set(frame["Copy Boundary"]) == {
+        "Preview only; copy command only after final source/artifact review"
+    }
+    assert "recommendation" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_data_health_readiness_comparison_cards_and_frame_show_proof_inputs():
@@ -10498,7 +11381,13 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
     queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
-    price_console_index = source.index("render_data_health_price_operator_console(", lane_selector_index)
+    batch_header_index = source.index('render_section_header("Readiness Batch Execution"', lane_selector_index)
+    batch_cards_index = source.index("data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness)", batch_header_index)
+    batch_drawer_index = source.index('st.expander("Reviewed batch review drawer", expanded=False)', batch_cards_index)
+    batch_snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', batch_drawer_index)
+    batch_apply_gate_index = source.index('render_section_header("Apply Guard"', batch_snapshot_gate_index)
+    batch_sequence_index = source.index('render_section_header("Copy-Only Batch Sequence"', batch_apply_gate_index)
+    price_console_index = source.index("render_data_health_price_operator_console(", batch_sequence_index)
     price_drawer_index = source.index('st.expander("Price evidence drawer", expanded=False)', price_console_index)
     fundamentals_drawer_index = source.index('st.expander("Fundamentals / DCF evidence drawer", expanded=False)', price_drawer_index)
     fundamentals_console_index = source.index("render_data_health_fundamentals_operator_console(", price_drawer_index)
@@ -10508,17 +11397,41 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     optional_console_index = source.index("render_data_health_optional_operator_console(", metrics_drawer_index)
     optional_drawer_index = source.index('st.expander("Optional context evidence drawer", expanded=False)', optional_console_index)
     proof_console_index = source.index("render_data_health_proof_history_operator_console(", optional_drawer_index)
-    proof_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', proof_console_index)
+    batch_proof_drawer_index = source.index('st.expander("Reviewed batch proof drawer", expanded=True)', proof_console_index)
+    proof_snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', batch_proof_drawer_index)
+    proof_apply_gate_index = source.index('render_section_header("Apply Guard"', proof_snapshot_gate_index)
+    proof_outcome_recorder_index = source.index('render_section_header("Outcome Recorder"', proof_apply_gate_index)
+    proof_command_builder_index = source.index('render_section_header("Proof Record Command Builder"', proof_outcome_recorder_index)
+    proof_loop_index = source.index('render_section_header("Reviewed Batch Proof Loop"', proof_command_builder_index)
+    proof_drawer_index = source.index('st.expander("Proof history evidence drawer", expanded=False)', proof_loop_index)
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < batch_header_index < batch_cards_index < batch_drawer_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
-    assert "readiness_freshness = readiness_freshness_status(BASE_DIR)" in source
+    assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
     assert "render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)" in source
     assert "data_health_operator_snapshot_cards(" in source
     assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
+    assert "data_health_batch_lane_for_operator(selected_lane_key)" in source
+    assert "data_health_reviewed_batch_snapshot_gate_cards(batch_preflight)" in source
+    assert "data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)" in source
+    assert "data_health_reviewed_batch_apply_guard_cards(batch_preflight)" in source
+    assert "data_health_reviewed_batch_apply_guard_frame(batch_preflight)" in source
+    assert "data_health_reviewed_batch_outcome_recorder_cards(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_outcome_recorder_frame(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_record_command_cards(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_completion_cards(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_completion_frame(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_ledger_preview_cards(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_ledger_preview_frame(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_record_command_frame(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_record_validation_frame(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_record_command_arguments_frame(batch_packet_frame, readiness_comparison)" in source
+    assert "Detailed proof command fields" in source
+    assert "data_health_reviewed_batch_execution_frame(batch_preflight)" in source
+    assert "Full packet, dry-run, validate, preview, apply, proof, rollback, and artifact-hygiene steps." in source
     assert "def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4)" in source
     assert "render_data_health_price_operator_console(" in source
     assert "Price Queue Snapshot" in source
@@ -10529,6 +11442,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "render_data_health_optional_operator_console(readiness_summary, optional_context_worklist_frame)" in source
     assert "Optional Context Queue Snapshot" in source
     assert "render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)" in source
+    assert "Outcome Recorder" in source
+    assert "data_health_reviewed_batch_proof_loop_cards(batch_packet_frame, readiness_comparison)" in source
+    assert "data_health_reviewed_batch_proof_loop_frame(batch_packet_frame, readiness_comparison)" in source
     assert "Proof History Snapshot" in source
     assert "earnings_readiness_frame,\n            analyst_readiness_frame" in source
     assert "analyst_readiness_frame,\n            readiness_freshness" in source
@@ -19079,7 +19995,7 @@ def test_metric_operator_console_summarizes_first_view_without_command_noise():
                 "Top Blocker": "benchmark_relative_return: at least 60 aligned ticker/SPY price rows",
                 "Blocker Family": "benchmark / risk",
                 "Next Check": "make focus-price TICKER=NVDA",
-                "Freshness": "current",
+                "Freshness": "stale",
             },
             {
                 "Ticker": "QQQ",
@@ -19106,11 +20022,21 @@ def test_metric_operator_console_summarizes_first_view_without_command_noise():
         "Rows",
         "Blocked / Partial",
         "Benchmarks",
+        "Source / Freshness",
+        "Proof Gate",
         "Next Proof",
     ]
+    assert "Local ticker prices plus SPY/QQQ benchmark prices / stale" in console_frame["Source / Freshness"].tolist()
+    assert "Refresh readiness artifacts before relying on exact counts" in console_frame["Proof Gate"].tolist()
     assert "metric-console" in html
     assert "next readiness action" in html
     assert "benchmark / risk" in html
+    assert "source / freshness" in html
+    assert "proof gate" in html
+    assert "source/freshness:" in html
+    assert "next proof:" in html
+    assert "local ticker prices plus spy/qqq benchmark prices / stale" in html
+    assert "refresh readiness artifacts before relying on exact counts" in html
     assert "commands and row proof stay in the evidence drawer" in html
     assert "make " not in html
     assert "buy" not in html
@@ -19120,12 +20046,41 @@ def test_metric_operator_console_summarizes_first_view_without_command_noise():
     assert "trading" not in html
 
 
+def test_metric_operator_console_uses_page_freshness_when_status_artifacts_are_stale():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Benchmark": "SPY",
+                "Overall State": "partial",
+                "Ready Metrics": 5,
+                "Partial Metrics": 4,
+                "Blocked Metrics": 0,
+                "Excluded Metrics": 0,
+                "Top Blocker": "benchmark_relative_return: at least 60 aligned ticker/SPY price rows",
+                "Blocker Family": "benchmark / risk",
+                "Next Check": "make focus-price TICKER=NVDA",
+                "Freshness": "current",
+            }
+        ]
+    )
+    freshness = dashboard.FreshnessStatus("stale", "Generated status artifacts may be stale.", "make readiness")
+
+    console_frame = dashboard.data_health_metric_operator_console_frame(frame, freshness_status=freshness)
+    html = dashboard.data_health_metric_operator_console_html(frame, freshness_status=freshness).lower()
+
+    assert "Local ticker prices plus SPY/QQQ benchmark prices / stale" in console_frame["Source / Freshness"].tolist()
+    assert "Refresh readiness artifacts before relying on exact counts" in console_frame["Proof Gate"].tolist()
+    assert "freshness: stale" in html
+    assert "source/freshness: local ticker prices plus spy/qqq benchmark prices / stale" in html
+
+
 def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
     risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", lane_selector_index)
-    metric_console_index = source.index("render_data_health_metric_operator_console(metric_queue_frame)", lane_selector_index)
+    metric_console_index = source.index("render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)", lane_selector_index)
     metric_queue_index = source.index("data_health_metric_readiness_queue_cards(metric_queue_frame)", metric_console_index)
     metric_summary_index = source.index("data_health_metric_readiness_family_summary_cards(metric_queue_frame)", metric_console_index)
     metric_cards_index = source.index("data_health_review_metric_readiness_cards()", lane_selector_index)
@@ -19648,6 +20603,30 @@ def test_dashboard_generated_artifact_stale_warning_uses_broad_status_sources(tm
     assert "make readiness or make status" in warning
 
 
+def test_data_health_freshness_status_marks_current_readiness_stale_when_status_artifacts_lag(tmp_path):
+    data_dir = tmp_path / "data"
+    reports_dir = data_dir / "reports"
+    outputs_dir = tmp_path / "outputs"
+    reports_dir.mkdir(parents=True)
+    outputs_dir.mkdir()
+    (reports_dir / "ticker_readiness_report.csv").write_text("ticker\nNVDA\n", encoding="utf-8")
+    (reports_dir / "feature_readiness_summary.csv").write_text("metric\nprice\n", encoding="utf-8")
+    (outputs_dir / dashboard.PROJECT_STATUS_NEXT_STEPS_CSV).write_text("Step\nReview\n", encoding="utf-8")
+    source = data_dir / "prices.csv"
+    source.write_text("ticker,date,close\nNVDA,2026-01-01,1\n", encoding="utf-8")
+
+    os.utime(reports_dir / "ticker_readiness_report.csv", (200, 200))
+    os.utime(reports_dir / "feature_readiness_summary.csv", (200, 200))
+    os.utime(outputs_dir / dashboard.PROJECT_STATUS_NEXT_STEPS_CSV, (100, 100))
+    os.utime(source, (150, 150))
+
+    freshness = dashboard.data_health_freshness_status(tmp_path)
+
+    assert freshness.status == "stale"
+    assert "Generated status artifacts may be stale" in freshness.message
+    assert freshness.refresh_command == "make readiness"
+
+
 def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -19665,6 +20644,7 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert 'if selected_page == "Single-Stock Report" and not public_demo_mode:' in source
     assert "render_home_page(catalog, output_frames, show_details=show_reason_details, public_mode=public_demo_mode)" in source
     assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)" in source
+    assert "data_health_freshness_status(BASE_DIR)" in source
     assert "dashboard_generated_artifact_stale_warning(BASE_DIR)" in source
     assert '"Generated status may be stale"' in source
 
@@ -19679,10 +20659,12 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     hidden_index = source.index("Operator details are hidden.", proof_index)
     return_index = source.index("return", hidden_index)
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", return_index)
+    batch_execution_index = source.index('render_section_header("Readiness Batch Execution"', ops_index)
 
-    assert public_index < freshness_index < batch_index < proof_index < hidden_index < return_index < ops_index
+    assert public_index < freshness_index < batch_index < proof_index < hidden_index < return_index < ops_index < batch_execution_index
     assert "Switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables." in source
     assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode." in source
+    assert "Operator details are hidden." in source
     assert "Research-only boundary." in source
 
 

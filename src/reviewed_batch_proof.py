@@ -37,6 +37,21 @@ BATCH_PROOF_COLUMNS = (
     "notes",
 )
 
+REQUIRED_BATCH_PROOF_FIELDS = (
+    "batch_id",
+    "review_date",
+    "lane",
+    "command_run",
+    "validation_result",
+    "preview_result",
+    "apply_result",
+    "changed_readiness_counts",
+    "changed_tickers",
+    "source_files",
+    "generated_artifacts_reviewed",
+    "final_outcome",
+)
+
 
 @dataclass(frozen=True)
 class ReviewedBatchProof:
@@ -63,6 +78,22 @@ class ReviewedBatchProof:
 def _clean(value: object, fallback: str = "-") -> str:
     text = str(value or "").strip()
     return text if text else fallback
+
+
+def _is_placeholder(value: object) -> bool:
+    text = str(value or "").strip()
+    lowered = text.lower()
+    if not text or lowered in {"-", "na", "n/a", "not available", "unknown"}:
+        return True
+    if lowered.startswith("<") and lowered.endswith(">"):
+        return True
+    if "<" in lowered and ">" in lowered:
+        return True
+    return "|" in lowered and any(token in lowered for token in BATCH_OUTCOMES)
+
+
+def _is_reviewed_no_change(field: str, value: object) -> bool:
+    return field in {"changed_readiness_counts", "changed_tickers"} and str(value or "").strip().lower().startswith("none")
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -110,6 +141,57 @@ def latest_reviewed_batch_proof(rows: list[ReviewedBatchProof]) -> ReviewedBatch
     return sorted(rows, key=lambda row: (row.review_date, row.batch_id))[-1]
 
 
+def reviewed_batch_proof_validation_rows(row: ReviewedBatchProof) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for field in REQUIRED_BATCH_PROOF_FIELDS:
+        value = getattr(row, field)
+        status = "ready"
+        reason = "Reviewed value is present."
+        if field == "final_outcome" and row.final_outcome not in BATCH_OUTCOMES:
+            status = "invalid_outcome"
+            reason = "FINAL_OUTCOME must be one of supported, still_blocked, skipped, excluded."
+        elif _is_placeholder(value) and not _is_reviewed_no_change(field, value):
+            status = "missing_required"
+            reason = "Required ledger field still contains a placeholder or missing value."
+        rows.append(
+            {
+                "field": field,
+                "status": status,
+                "value": value,
+                "reason": reason,
+            }
+        )
+    return rows
+
+
+def reviewed_batch_proof_validation_status(rows: Iterable[dict[str, str]]) -> str:
+    statuses = {row["status"] for row in rows}
+    if "invalid_outcome" in statuses:
+        return "invalid_outcome"
+    if "missing_required" in statuses:
+        return "needs_field_fills"
+    return "ready_to_record"
+
+
+def render_reviewed_batch_proof_row(row: ReviewedBatchProof) -> str:
+    return "\n".join(f"{column}: {getattr(row, column)}" for column in BATCH_PROOF_COLUMNS)
+
+
+def render_reviewed_batch_proof_validation(row: ReviewedBatchProof) -> str:
+    rows = reviewed_batch_proof_validation_rows(row)
+    status = reviewed_batch_proof_validation_status(rows)
+    lines = [
+        f"Validation status: {status}",
+        "Copy boundary: dry-run preview only; record only after source files and generated artifacts are reviewed.",
+    ]
+    for item in rows:
+        if item["status"] != "ready":
+            lines.append(f"- {item['field']}: {item['status']} ({item['reason']})")
+    if status == "ready_to_record":
+        lines.append("All required ledger fields are ready after final review.")
+    return "\n".join(lines)
+
+
 def render_reviewed_batch_proofs(rows: list[ReviewedBatchProof]) -> str:
     lines = [
         "Reviewed Batch Proof Ledger",
@@ -145,9 +227,9 @@ def render_reviewed_batch_proofs(rows: list[ReviewedBatchProof]) -> str:
     return "\n".join(lines).rstrip()
 
 
-def build_batch_proof_from_args(args: argparse.Namespace) -> ReviewedBatchProof:
+def build_batch_proof_from_args(args: argparse.Namespace, *, strict_outcome: bool = True) -> ReviewedBatchProof:
     final_outcome = _clean(args.final_outcome).lower()
-    if final_outcome not in BATCH_OUTCOMES:
+    if strict_outcome and final_outcome not in BATCH_OUTCOMES:
         raise SystemExit("FINAL_OUTCOME must be one of supported, still_blocked, skipped, excluded.")
     return ReviewedBatchProof(
         batch_id=_clean(args.batch_id),
@@ -175,6 +257,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Reviewed batch proof ledger tools.")
     parser.add_argument("--ledger", default=str(DEFAULT_BATCH_PROOF_LEDGER))
     parser.add_argument("--record", action="store_true")
+    parser.add_argument("--dry-run", action="store_true", help="Preview and validate the ledger row without appending it.")
     for column in BATCH_PROOF_COLUMNS:
         parser.add_argument(f"--{column.replace('_', '-')}", default="")
     return parser.parse_args(argv)
@@ -183,8 +266,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     ledger_path = Path(args.ledger)
-    if args.record:
-        row = build_batch_proof_from_args(args)
+    if args.record or args.dry_run:
+        row = build_batch_proof_from_args(args, strict_outcome=False)
+        validation_rows = reviewed_batch_proof_validation_rows(row)
+        validation_status = reviewed_batch_proof_validation_status(validation_rows)
+        if args.dry_run:
+            print("Reviewed Batch Proof Dry Run")
+            print(f"Ledger: {ledger_path}")
+            print("Preview row:")
+            print(render_reviewed_batch_proof_row(row))
+            print(render_reviewed_batch_proof_validation(row))
+            if validation_status != "ready_to_record":
+                return 2
+            return 0
+        if validation_status != "ready_to_record":
+            print("Reviewed Batch Proof Record blocked")
+            print(render_reviewed_batch_proof_validation(row))
+            return 2
         written = append_reviewed_batch_proof(row, ledger_path)
         print("Reviewed Batch Proof Record")
         print(f"Wrote: {written}")

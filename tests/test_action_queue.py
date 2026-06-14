@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+import src.action_queue as action_queue
 from src.action_queue import (
     _filter_action_queue_payload,
     _data_quality_needs_refresh,
@@ -489,6 +490,76 @@ def test_action_queue_payload_refreshes_stale_price_actions_from_data_quality(tm
     assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
     assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in amd_row["recommended_action"]
     assert amd_row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+
+
+def test_action_queue_payload_reuses_supplied_source_and_onboarding_payloads(tmp_path: Path, monkeypatch):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(columns=["ticker", "status"]).to_csv(outputs_dir / "price_update_status.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "ReadinessStatus": "Partial Coverage",
+                "NextBestAction": "Run make focus-fundamentals TICKER=NVDA.",
+                "FocusCommand": "make focus-fundamentals TICKER=NVDA",
+                "ExampleCommand": "make sec-stage TICKERS=NVDA",
+                "MissingDataFields": "fundamentals",
+                "Reason": "Needs trusted fundamentals.",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_quality_wizard.csv", index=False)
+    source_payload = {
+        "data_gaps": [
+            {
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "status": "partial",
+                "recommended_action": "Run make focus-fundamentals TICKER=NVDA.",
+                "focus_command": "make focus-fundamentals TICKER=NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
+                "local_file": "data/fundamentals.csv",
+            }
+        ]
+    }
+    onboarding_payload = {
+        "onboarding_actions": [
+            {
+                "priority": 2,
+                "ticker": "NVDA",
+                "dataset": "fundamentals",
+                "status": "missing",
+                "reason": "Missing trusted fundamentals.",
+                "recommended_action": "Run make focus-fundamentals TICKER=NVDA.",
+                "focus_command": "make focus-fundamentals TICKER=NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ],
+        "price_import_worklist": [],
+        "command_bundles": [],
+    }
+
+    def fail_rebuild(*_args, **_kwargs):
+        raise AssertionError("supplied payloads should avoid fallback rebuilds")
+
+    monkeypatch.setattr(action_queue, "build_onboarding_payload", fail_rebuild)
+    monkeypatch.setattr(action_queue, "build_data_source_payload", fail_rebuild)
+    monkeypatch.setattr(action_queue, "run_research_health", fail_rebuild)
+
+    payload = action_queue.build_action_queue_payload(
+        tmp_path,
+        data_dir=data_dir,
+        output_dir=outputs_dir,
+        refresh_research_health=False,
+        source_payload=source_payload,
+        onboarding_payload=onboarding_payload,
+    )
+
+    assert payload["action_count"] >= 1
+    assert any(row["ticker"] == "NVDA" for row in payload["action_queue"])
 
 
 def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp_path: Path):

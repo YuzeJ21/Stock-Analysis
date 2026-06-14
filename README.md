@@ -70,7 +70,7 @@ The product separates refreshable data from judgment-required data:
 | Peers | Use the ranked pilot packet first when a peer-input lane leads, such as `make trusted-data-pilot-packet TICKER=MU`, then add source-backed mappings or mapped-peer price/fundamental inputs only when source proof exists. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
-For batch planning, start with `make readiness-ops-center` and `make coverage-frontier TOP_N=10`. Before any capped execution, `make reviewed-batch-preflight LANE=prices TOP_N=100` checks snapshot and freshness gates. When a lane is worth reviewing, `make reviewed-batch LANE=prices TOP_N=10` writes a copy-only packet with snapshot, dry-run, capped execution, validate/preview/apply gates, rollback notes, and proof fields. After the reviewed scope is finished or intentionally skipped, `make reviewed-batch-compare LANE=prices BATCH_ID=<id> REVIEW_DATE=<date>` compares prior/current readiness snapshots for changed counts and tickers, then `make reviewed-batch-proof-record ... FINAL_OUTCOME=<supported|still_blocked|skipped|excluded>` records the durable batch outcome in `data/reviewed_batch_proofs.csv`.
+For batch planning, start with `make readiness-ops-center` and `make coverage-frontier TOP_N=10`. Before any capped execution, `make reviewed-batch-preflight LANE=prices TOP_N=100` checks snapshot and freshness gates. When a lane is worth reviewing, `make reviewed-batch LANE=prices TOP_N=10` writes a copy-only packet with snapshot, dry-run, capped execution, validate/preview/apply gates, rollback notes, and proof fields. After the reviewed scope is finished or intentionally skipped, `make reviewed-batch-compare LANE=prices BATCH_ID=<id> REVIEW_DATE=<date>` compares prior/current readiness snapshots for changed counts and tickers, then `DRY_RUN=1 make reviewed-batch-proof-record ... FINAL_OUTCOME=<supported|still_blocked|skipped|excluded>` previews the exact ledger row before `make reviewed-batch-proof-record ...` records the durable batch outcome in `data/reviewed_batch_proofs.csv`.
 
 ## What Works Today
 
@@ -153,7 +153,7 @@ The tracked `data/holdings.csv` file is a zero-position sample for portfolio-rev
 
 ## License
 
-This repository is shared as a public portfolio/demo project. No open-source license has been selected, so visitors may review the code and product design, but reuse, copying, redistribution, or adaptation rights are not granted unless a license is added later. See [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md) before describing the project as open source.
+This repository is shared as a public portfolio/demo project. Reuse terms are not specified yet: no open-source license has been selected, so visitors may review the code and product design, but reuse rights are not granted until a license is added. See [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md) before describing the project as open source.
 
 ## Analysis Methodology
 

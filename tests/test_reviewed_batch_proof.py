@@ -7,7 +7,10 @@ from src.reviewed_batch_proof import (
     append_reviewed_batch_proof,
     build_batch_proof_from_args,
     load_reviewed_batch_proofs,
+    main,
     render_reviewed_batch_proofs,
+    reviewed_batch_proof_validation_rows,
+    reviewed_batch_proof_validation_status,
 )
 
 
@@ -78,3 +81,151 @@ def test_reviewed_batch_proof_rejects_unknown_outcome():
 
     with pytest.raises(SystemExit):
         build_batch_proof_from_args(Args())
+
+
+def test_reviewed_batch_proof_validation_accepts_reviewed_no_change_values():
+    row = _proof(final_outcome="still_blocked", changed_readiness_counts="none", changed_tickers="none")
+
+    validation_rows = reviewed_batch_proof_validation_rows(row)
+
+    assert reviewed_batch_proof_validation_status(validation_rows) == "ready_to_record"
+
+
+def test_reviewed_batch_proof_dry_run_prints_preview_without_writing(tmp_path: Path, capsys):
+    ledger = tmp_path / "reviewed_batch_proofs.csv"
+
+    result = main(
+        [
+            "--ledger",
+            str(ledger),
+            "--dry-run",
+            "--batch-id",
+            "RB-DRY-001",
+            "--review-date",
+            "2026-06-14",
+            "--reviewer",
+            "local reviewer",
+            "--lane",
+            "metrics",
+            "--scope",
+            "AAA",
+            "--tickers",
+            "AAA",
+            "--command-run",
+            "make metric-readiness-board TOP_N=1",
+            "--validation-result",
+            "not_applicable_read_only_metric_review",
+            "--preview-result",
+            "reviewed metric blocker families",
+            "--apply-result",
+            "not_applicable_read_only_metric_review",
+            "--pre-run-readiness-snapshot",
+            "data/reports/ticker_readiness_report.previous.csv",
+            "--post-run-readiness-snapshot",
+            "data/reports/ticker_readiness_report.csv",
+            "--changed-readiness-counts",
+            "none",
+            "--changed-tickers",
+            "none",
+            "--source-files",
+            "metric queue output",
+            "--generated-artifacts-reviewed",
+            "excluded generated CSV churn",
+            "--final-outcome",
+            "still_blocked",
+            "--notes",
+            "read-only metrics remained blocked",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert result == 0
+    assert not ledger.exists()
+    assert "Reviewed Batch Proof Dry Run" in output
+    assert "batch_id: RB-DRY-001" in output
+    assert "Validation status: ready_to_record" in output
+    assert "dry-run preview only" in output
+
+
+def test_reviewed_batch_proof_dry_run_reports_invalid_without_writing(tmp_path: Path, capsys):
+    ledger = tmp_path / "reviewed_batch_proofs.csv"
+
+    result = main(
+        [
+            "--ledger",
+            str(ledger),
+            "--dry-run",
+            "--batch-id",
+            "RB-DRY-002",
+            "--review-date",
+            "2026-06-14",
+            "--lane",
+            "metrics",
+            "--command-run",
+            "make metric-readiness-board TOP_N=1",
+            "--validation-result",
+            "not_applicable_read_only_metric_review",
+            "--preview-result",
+            "reviewed",
+            "--apply-result",
+            "not_applicable_read_only_metric_review",
+            "--changed-readiness-counts",
+            "none",
+            "--changed-tickers",
+            "none",
+            "--source-files",
+            "metric queue output",
+            "--generated-artifacts-reviewed",
+            "excluded generated CSV churn",
+            "--final-outcome",
+            "maybe_supported",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert result == 2
+    assert not ledger.exists()
+    assert "Validation status: invalid_outcome" in output
+    assert "final_outcome: invalid_outcome" in output
+
+
+def test_reviewed_batch_proof_record_blocks_placeholder_fields(tmp_path: Path, capsys):
+    ledger = tmp_path / "reviewed_batch_proofs.csv"
+
+    result = main(
+        [
+            "--ledger",
+            str(ledger),
+            "--record",
+            "--batch-id",
+            "RB-BLOCKED-001",
+            "--review-date",
+            "2026-06-14",
+            "--lane",
+            "metrics",
+            "--command-run",
+            "make metric-readiness-board TOP_N=1",
+            "--validation-result",
+            "<pass/fail/not_applicable>",
+            "--preview-result",
+            "reviewed",
+            "--apply-result",
+            "not_applicable_read_only_metric_review",
+            "--changed-readiness-counts",
+            "none",
+            "--changed-tickers",
+            "none",
+            "--source-files",
+            "metric queue output",
+            "--generated-artifacts-reviewed",
+            "excluded generated CSV churn",
+            "--final-outcome",
+            "still_blocked",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert result == 2
+    assert not ledger.exists()
+    assert "Reviewed Batch Proof Record blocked" in output
+    assert "validation_result: missing_required" in output

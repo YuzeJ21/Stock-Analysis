@@ -35,6 +35,22 @@ DATA_QUALITY_COLUMNS = [
     "Reason",
 ]
 
+RESEARCH_HEALTH_OUTPUT_FILES = {
+    "data_quality_wizard": "data_quality_wizard.csv",
+    "liquidity_risk": "liquidity_risk.csv",
+    "correlation_risk": "correlation_risk.csv",
+}
+
+RESEARCH_HEALTH_SOURCE_FILES = (
+    "prices.csv",
+    "universe.csv",
+    "holdings.csv",
+    "fundamentals.csv",
+    "peers.csv",
+    "earnings.csv",
+    "analyst_estimates.csv",
+)
+
 MISSING_OHLCV_PREFIX = "Missing OHLCV data for "
 PRICE_REFRESH_GUIDANCE = (
     "; start with make price-refresh-loop DRY_RUN=1, then inspect "
@@ -643,6 +659,26 @@ def build_research_health_outputs(
         "liquidity_risk": build_liquidity_risk(prices, tickers=tickers),
         "correlation_risk": build_correlation_risk(prices, tickers=tickers),
     }
+
+
+def research_health_outputs_current(
+    base_dir: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+) -> bool:
+    """Return True when saved research-health outputs are newer than canonical local CSVs."""
+    root = resolve_project_root(base_dir)
+    data_path = resolve_data_dir(data_dir, root)
+    output_path = resolve_outputs_dir(output_dir, root)
+    output_files = [output_path / filename for filename in RESEARCH_HEALTH_OUTPUT_FILES.values()]
+    if any(not path.exists() for path in output_files):
+        return False
+    generated_mtime = min(path.stat().st_mtime for path in output_files)
+    source_files = [data_path / filename for filename in RESEARCH_HEALTH_SOURCE_FILES if (data_path / filename).exists()]
+    if not source_files:
+        return True
+    return max(path.stat().st_mtime for path in source_files) <= generated_mtime
 
 
 def _filter_research_health_outputs(

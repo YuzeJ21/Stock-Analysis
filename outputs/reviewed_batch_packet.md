@@ -2,9 +2,9 @@
 
 Research-only: this packet plans data-readiness work. It is not investment advice, does not connect to brokers, does not route orders, and does not provide direct buy/sell instructions.
 
-- Batch ID: `RB-20260613T014434Z`
-- Selected lane: `prices`
-- Lane scope: `price_coverage`
+- Batch ID: `RB-20260614T035812Z`
+- Selected lane: `metrics`
+- Lane scope: `metric_readiness_review`
 - Ticker scope: `top 10`
 - Freshness status: `current`
 - Freshness note: Readiness artifacts are current relative to watched source files.
@@ -19,225 +19,225 @@ Research-only: this packet plans data-readiness work. It is not investment advic
 
 ## Proposed Actions
 
-### Price Coverage: ARCT
+### Metric Readiness Review: A
 
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
-
-Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
-
-### Price Coverage: ARDX
-
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
 
 Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
 
-### Price Coverage: ARE
+### Metric Readiness Review: AACB
 
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
-
-Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
-
-### Price Coverage: AREC
-
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
 
 Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
 
-### Price Coverage: ARES
+### Metric Readiness Review: AACI
 
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
-
-Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
-
-### Price Coverage: ARHS
-
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
 
 Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
 
-### Price Coverage: ARKO
+### Metric Readiness Review: AACO
 
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
-
-Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
-
-### Price Coverage: ARKR
-
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
 
 Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
 
-### Price Coverage: AROW
+### Metric Readiness Review: AAL
 
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
-
-Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
-
-### Price Coverage: ARQ
-
-- Workflow mode: `dry_run_first`
-- Source/freshness context: Provider-assisted price rows can be planned at scale; dry-run and capped review come first. Freshness: current: Readiness artifacts are current relative to watched source files.
-- Dry-run command: `make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo`
-- Capped execution command: `make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30`
-- Validate: `make price-validate`
-- Preview: `make price-preview`
-- Apply gate: `make price-apply only for reviewed trusted rows`
-- Post-run verification: `make readiness && make price-coverage TOP_N=10 && make status-check TOP_N=5`
-- Readiness comparison: `make reviewed-batch-compare LANE=prices BATCH_ID=RB-20260613T014434Z REVIEW_DATE=<yyyy-mm-dd>`
-- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260613T014434Z" LANE="price_coverage" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
-- Expected artifacts: data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv
-- Rollback checklist: If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.
-- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
 
 Lane proof instructions:
-- Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.
-- Use dry-run output to cap scope; do not treat provider availability as reviewed data.
-- After execution, rerun readiness and compare changed readiness counts before keeping artifacts.
-- Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
+
+### Metric Readiness Review: AAME
+
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
+
+Lane proof instructions:
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
+
+### Metric Readiness Review: AAOI
+
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
+
+Lane proof instructions:
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
+
+### Metric Readiness Review: AAON
+
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
+
+Lane proof instructions:
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
+
+### Metric Readiness Review: AAPG
+
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
+
+Lane proof instructions:
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
+
+### Metric Readiness Review: AAPL
+
+- Workflow mode: `read_only_review`
+- Source/freshness context: Requires trusted local prices, benchmark rows, fundamentals, market context, and peer inputs depending on blocker family. Freshness: current: Readiness artifacts are current relative to watched source files.
+- Dry-run command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL`
+- Capped execution command: `make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Validate: `not_applicable_read_only_metric_review`
+- Preview: `review metric blocker families, source gates, and row-level missing inputs before any data work`
+- Apply gate: `not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane`
+- Post-run verification: `make readiness && make metric-readiness-board TOP_N=10 TICKERS=A,AACB,AACI,AACO,AAL,AAME,AAOI,AAON,AAPG,AAPL BENCHMARKS=SPY,QQQ`
+- Readiness comparison: `make reviewed-batch-compare LANE=metrics BATCH_ID=RB-20260614T035812Z REVIEW_DATE=<yyyy-mm-dd>`
+- Proof ledger record: `make reviewed-batch-proof-record BATCH_ID="RB-20260614T035812Z" LANE="metric_readiness_review" REVIEW_DATE="<yyyy-mm-dd>" FINAL_OUTCOME="<supported|still_blocked|skipped|excluded>" COMMAND_RUN="<exact reviewed command>" VALIDATION_RESULT="<pass/fail/not_run>" PREVIEW_RESULT="<reviewed/not_run>" APPLY_RESULT="<applied/not_run/skipped>" CHANGED_READINESS_COUNTS="<from reviewed-batch-compare>" CHANGED_TICKERS="<from reviewed-batch-compare>"`
+- Expected artifacts: metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv
+- Rollback checklist: No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.
+- Do not proceed if: readiness artifacts are missing or stale; source proof is unavailable; validation fails; preview shows unexpected rows; rejected-row reports contain unresolved rows; the operator cannot identify changed source files; the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof
+
+Lane proof instructions:
+- Record the SPY/QQQ blocker-family summary before opening row-level proof.
+- Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.
+- Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.
+- After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.
 
 ## Review Checklist
 
@@ -276,7 +276,7 @@ Final outcome options: supported, still_blocked, skipped, excluded.
 
 CSV template row:
 
-`RB-20260613T014434Z,price_coverage,prices,top 10,make readiness-snapshot or saved readiness counts before command,<copy exact command>,<pass/fail/not_applicable>,<reviewed rows / no unexpected rows / not_applicable>,<not_run/applied/skipped>,make readiness && lane proof command,<before -> after counts, or none>,<tickers changed, or none>,<name>,<YYYY-MM-DD>,<trusted local source files reviewed>,<CSV/JSON artifacts kept/excluded>,supported|still_blocked|skipped|excluded,<source proof, blockers, rollback notes>`
+`RB-20260614T035812Z,metric_readiness_review,metrics,top 10,make readiness-snapshot or saved readiness counts before command,<copy exact command>,<pass/fail/not_applicable>,<reviewed rows / no unexpected rows / not_applicable>,<not_run/applied/skipped>,make readiness && lane proof command,<before -> after counts, or none>,<tickers changed, or none>,<name>,<YYYY-MM-DD>,<trusted local source files reviewed>,<CSV/JSON artifacts kept/excluded>,supported|still_blocked|skipped|excluded,<source proof, blockers, rollback notes>`
 
 ## Guardrails
 

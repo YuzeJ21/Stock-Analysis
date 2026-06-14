@@ -869,27 +869,47 @@ def build_action_queue_payload(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    refresh_research_health: bool = True,
+    source_payload: dict[str, Any] | None = None,
+    onboarding_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = resolve_project_root(project_root)
     data_path = resolve_data_dir(data_dir, root)
     output_path = resolve_outputs_dir(output_dir, root)
 
     price_status = enrich_price_update_status_frame(_load_csv(output_path / "price_update_status.csv"))
-    price_worklist = _load_csv(output_path / "price_import_worklist.csv")
-    onboarding_actions = _load_csv(output_path / "data_onboarding_actions.csv")
-    data_gaps = _load_csv(output_path / "data_gap_report.csv")
+    price_worklist = (
+        pd.DataFrame(onboarding_payload["price_import_worklist"])
+        if onboarding_payload
+        else _load_csv(output_path / "price_import_worklist.csv")
+    )
+    onboarding_actions = (
+        pd.DataFrame(onboarding_payload["onboarding_actions"])
+        if onboarding_payload
+        else _load_csv(output_path / "data_onboarding_actions.csv")
+    )
+    data_gaps = (
+        pd.DataFrame(source_payload["data_gaps"])
+        if source_payload
+        else _load_csv(output_path / "data_gap_report.csv")
+    )
     data_quality = _load_csv(output_path / "data_quality_wizard.csv")
-    command_bundles = _load_csv(output_path / "command_bundles.csv")
+    command_bundles = (
+        pd.DataFrame(onboarding_payload["command_bundles"])
+        if onboarding_payload
+        else _load_csv(output_path / "command_bundles.csv")
+    )
 
-    onboarding_payload: dict[str, Any] | None = None
-    if _onboarding_actions_need_refresh(onboarding_actions) or price_worklist.empty or command_bundles.empty:
+    if onboarding_payload is None and (
+        _onboarding_actions_need_refresh(onboarding_actions) or price_worklist.empty or command_bundles.empty
+    ):
         onboarding_payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path)
         onboarding_actions = pd.DataFrame(onboarding_payload["onboarding_actions"])
         price_worklist = pd.DataFrame(onboarding_payload["price_import_worklist"])
         command_bundles = pd.DataFrame(onboarding_payload["command_bundles"])
-    if _data_gaps_need_refresh(data_gaps):
+    if source_payload is None and _data_gaps_need_refresh(data_gaps):
         data_gaps = pd.DataFrame(build_data_source_payload(root, data_dir=data_path, output_dir=output_path)["data_gaps"])
-    if _data_quality_needs_refresh(data_quality):
+    if refresh_research_health and _data_quality_needs_refresh(data_quality):
         run_research_health(root, data_dir=data_path, output_dir=output_path)
         data_quality = _load_csv(output_path / "data_quality_wizard.csv")
 
@@ -912,10 +932,20 @@ def write_action_queue_output(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    refresh_research_health: bool = True,
+    source_payload: dict[str, Any] | None = None,
+    onboarding_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = resolve_project_root(project_root)
     output_path = resolve_outputs_dir(output_dir, root)
-    payload = build_action_queue_payload(root, data_dir=data_dir, output_dir=output_path)
+    payload = build_action_queue_payload(
+        root,
+        data_dir=data_dir,
+        output_dir=output_path,
+        refresh_research_health=refresh_research_health,
+        source_payload=source_payload,
+        onboarding_payload=onboarding_payload,
+    )
     output_path.mkdir(parents=True, exist_ok=True)
     queue_path = output_path / "research_action_queue.csv"
     pd.DataFrame(payload["action_queue"], columns=ACTION_QUEUE_COLUMNS).to_csv(queue_path, index=False)

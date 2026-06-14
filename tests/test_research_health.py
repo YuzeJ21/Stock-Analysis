@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import sys
 
@@ -13,6 +14,7 @@ from src.research_health import (
     build_data_quality_wizard,
     build_liquidity_risk,
     main,
+    research_health_outputs_current,
     run,
 )
 
@@ -498,6 +500,28 @@ def test_research_health_run_writes_csv_outputs(tmp_path: Path):
         frame = pd.read_csv(path)
         assert "Reason" in frame.columns
         assert frame["Reason"].fillna("").str.len().gt(0).all()
+
+
+def test_research_health_outputs_current_uses_canonical_csv_mtimes(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    output_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    output_dir.mkdir()
+    for filename in ["prices.csv", "universe.csv", "holdings.csv"]:
+        (data_dir / filename).write_text("ticker\nNVDA\n", encoding="utf-8")
+    for filename in ["data_quality_wizard.csv", "liquidity_risk.csv", "correlation_risk.csv"]:
+        (output_dir / filename).write_text("Ticker\nNVDA\n", encoding="utf-8")
+
+    for path in data_dir.glob("*.csv"):
+        os.utime(path, (100, 100))
+    for path in output_dir.glob("*.csv"):
+        os.utime(path, (200, 200))
+
+    assert research_health_outputs_current(tmp_path, data_dir=data_dir, output_dir=output_dir) is True
+
+    os.utime(data_dir / "prices.csv", (300, 300))
+
+    assert research_health_outputs_current(tmp_path, data_dir=data_dir, output_dir=output_dir) is False
 
 
 def test_filter_research_health_outputs_respects_ticker_slice():

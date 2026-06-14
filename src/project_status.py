@@ -16,6 +16,7 @@ from src.data_sources import build_data_source_payload, write_data_source_output
 from src.action_queue import write_action_queue_output
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
+from src.research_health import research_health_outputs_current
 from src.research_health import run as run_research_health
 
 
@@ -817,12 +818,14 @@ def build_project_status_payload(
     output_dir: Path | str | None = None,
     top_n: int = 10,
     tickers: list[str] | None = None,
+    source_payload: dict[str, Any] | None = None,
+    onboarding_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = resolve_project_root(project_root)
     data_path = resolve_data_dir(data_dir, root)
     output_path = resolve_outputs_dir(output_dir, root)
-    source_payload = build_data_source_payload(root, data_dir=data_path, output_dir=output_path)
-    onboarding_payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path)
+    source_payload = source_payload or build_data_source_payload(root, data_dir=data_path, output_dir=output_path)
+    onboarding_payload = onboarding_payload or build_onboarding_payload(root, data_dir=data_path, output_dir=output_path)
     price_status_lookup = _load_price_status_lookup(output_path)
     sources = source_payload["data_sources"]
     gaps = source_payload["data_gaps"]
@@ -890,15 +893,32 @@ def write_project_status_output(
     root = resolve_project_root(project_root)
     data_path = resolve_data_dir(data_dir, root)
     output_path = resolve_outputs_dir(output_dir, root)
+    source_payload = None
+    onboarding_payload = None
     if refresh_supporting_outputs:
         refresh_price_update_status_output(root, output_dir=output_path)
-        write_data_source_outputs(root, data_dir=data_path, output_dir=output_path)
-        write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path)
-        run_research_health(root, data_dir=data_path, output_dir=output_path)
-        write_action_queue_output(root, data_dir=data_path, output_dir=output_path)
+        source_payload = write_data_source_outputs(root, data_dir=data_path, output_dir=output_path)
+        onboarding_payload = write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path)
+        if not research_health_outputs_current(root, data_dir=data_path, output_dir=output_path):
+            run_research_health(root, data_dir=data_path, output_dir=output_path)
+        write_action_queue_output(
+            root,
+            data_dir=data_path,
+            output_dir=output_path,
+            refresh_research_health=False,
+            source_payload=source_payload,
+            onboarding_payload=onboarding_payload,
+        )
     output_path.mkdir(parents=True, exist_ok=True)
     write_purpose_evaluation_summary(root, data_dir=data_path, output_dir=output_path)
-    payload = build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=top_n)
+    payload = build_project_status_payload(
+        root,
+        data_dir=data_path,
+        output_dir=output_path,
+        top_n=top_n,
+        source_payload=source_payload,
+        onboarding_payload=onboarding_payload,
+    )
 
     json_path = output_path / PROJECT_STATUS_JSON
     summary_path = output_path / PROJECT_STATUS_SUMMARY_CSV
