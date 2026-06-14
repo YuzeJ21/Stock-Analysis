@@ -20,6 +20,41 @@ def _write(path: Path, text: str) -> None:
 def _sample_root(tmp_path: Path) -> Path:
     root = tmp_path
     _write(
+        root / "data" / "universe.csv",
+        "\n".join(
+            [
+                "ticker,default_purpose,market_cap_bucket",
+                "AAA,Momentum Leader,Large",
+                "BBB,Core Compounder,Mid",
+                "QQQ,ETF / Defensive / Hedge,ETF",
+            ]
+        )
+        + "\n",
+    )
+    _write(
+        root / "data" / "fundamentals.csv",
+        "\n".join(
+            [
+                "ticker,revenue,free_cash_flow,fcf_margin,shares_outstanding",
+                "AAA,100,20,0.20,10",
+                "BBB,80,10,0.125,",
+            ]
+        )
+        + "\n",
+    )
+    _write(
+        root / "data" / "prices.csv",
+        "\n".join(
+            [
+                "ticker,date,close",
+                "AAA,2026-01-01,100",
+                "BBB,2026-01-01,50",
+                "QQQ,2026-01-01,500",
+            ]
+        )
+        + "\n",
+    )
+    _write(
         root / "data" / "reports" / "ticker_readiness_report.csv",
         "\n".join(
             [
@@ -69,6 +104,10 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["price_coverage"].readiness_state == "partial"
     assert by_lane["price_coverage"].workflow_mode == "dry_run_first"
     assert by_lane["fundamentals_dcf"].workflow_mode == "preview_first_reviewed_apply"
+    assert by_lane["share_count_proof"].workflow_mode == "preview_first_reviewed_apply"
+    assert by_lane["share_count_proof"].blocked_count == 1
+    assert by_lane["share_count_proof"].partial_count == 1
+    assert "shares_outstanding proof" in by_lane["share_count_proof"].source_readiness
     assert by_lane["peer_mapping"].blocked_count == 2
     assert "Peer sub-states:" in by_lane["peer_mapping"].notes
     assert "peer_valuation_comparison=0" in by_lane["peer_valuation_inputs"].notes
@@ -118,10 +157,17 @@ def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tm
     assert "dry-run first" in by_lane["price_coverage"].batch_scope
     assert "save readiness snapshot" in by_lane["price_coverage"].review_gate
     assert by_lane["fundamentals_dcf"].next_safe_command == "make fundamentals-batch-proof TOP_N=10"
+    assert by_lane["share_count_proof"].next_safe_command == "make share-count-proof-queue TOP_N=10"
+    assert "shares_outstanding is the gating input" in by_lane["share_count_proof"].batch_scope
+    assert "do not infer" not in by_lane["share_count_proof"].review_gate.lower()
+    assert "price, market cap, peers, or placeholders" in by_lane["share_count_proof"].stop_condition
+    assert "does not create valuation by itself" in by_lane["share_count_proof"].outcome_boundary
     assert by_lane["peer_mapping"].next_safe_command == "make peer-batch-proof TOP_N=10"
     assert "not ticker-by-ticker" in rendered
     assert "does not refresh, import, apply, or rewrite local data" in rendered
     assert "no placeholder revenue" in rendered
+    assert "make share-count-proof-queue TOP_N=10" in rendered
+    assert "shares_outstanding" in rendered
     assert "sector fallback remains context only" in rendered
     assert "trusted local rows" in rendered
     assert "investment advice" in rendered

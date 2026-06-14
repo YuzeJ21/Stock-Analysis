@@ -22,6 +22,7 @@ from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_
 LANE_TO_REVIEWED_BATCH = {
     "price_coverage": "prices",
     "fundamentals_dcf": "fundamentals",
+    "share_count_proof": "fundamentals",
     "peer_mapping": "peers",
     "peer_valuation_inputs": "peers",
     "earnings_locked": "optional_context",
@@ -51,6 +52,9 @@ def _normalize_planner_lane(value: str) -> str:
         "fundamental": "fundamentals_dcf",
         "fundamentals": "fundamentals_dcf",
         "dcf": "fundamentals_dcf",
+        "share_count": "share_count_proof",
+        "shares": "share_count_proof",
+        "shares_outstanding": "share_count_proof",
         "peer": "peer_mapping",
         "peers": "peer_mapping",
         "peer_valuation": "peer_valuation_inputs",
@@ -115,7 +119,7 @@ def build_coverage_expansion_loop(
         next_safe_action = f"Run {preflight.packet_command}, review the packet, then run {preflight.dry_run_command}."
 
     sequence = (
-        f"make coverage-expansion-loop LANE={reviewed_lane} TOP_N={top_n}",
+        f"make coverage-expansion-loop LANE={selected.lane} TOP_N={top_n}",
         preflight.packet_command,
         preflight.snapshot_command,
         preflight.dry_run_command,

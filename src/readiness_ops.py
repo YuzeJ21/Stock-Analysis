@@ -8,10 +8,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.share_count_proof_queue import build_share_count_proof_queue_from_files
+
 
 LANE_ORDER = (
     "price_coverage",
     "fundamentals_dcf",
+    "share_count_proof",
     "peer_mapping",
     "peer_valuation_inputs",
     "earnings_locked",
@@ -244,9 +247,12 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
     feature_rows = _read_csv(reports / "feature_readiness_summary.csv")
     peer_unlock_rows = _read_csv(reports / "peer_unlock_worklist.csv")
     peer_summary = build_peer_readiness_summary(root)
+    share_count_rows = build_share_count_proof_queue_from_files(root, top_n=100000)
+    share_count_only_blockers = sum(1 for row in share_count_rows if row.dcf_input_status.startswith("share-count-only"))
     stale_warning = build_stale_proof_warning(root)
 
     total = len(readiness_rows)
+    share_count_ready = max(total - len(share_count_rows), 0)
     price_total, price_ready, price_partial, price_blocked, price_excluded = _feature_counts(
         feature_rows, "price", readiness_rows, "price_ready"
     )
@@ -306,6 +312,33 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
             generated_churn_policy="Stage/apply only reviewed trusted fundamentals rows; avoid broad generated report churn by default.",
             stale_proof_warning=stale_warning,
             notes="Missing fundamentals keep DCF withheld; no placeholder revenue, cash flow, margin, or shares rows.",
+        ),
+        ReadinessLane(
+            lane="share_count_proof",
+            label="Share Count Proof",
+            readiness_state=_lane_state(ready=share_count_ready, partial=share_count_only_blockers, blocked=len(share_count_rows)),
+            workflow_mode="preview_first_reviewed_apply",
+            total_count=total,
+            ready_count=share_count_ready,
+            partial_count=share_count_only_blockers,
+            blocked_count=len(share_count_rows),
+            excluded_count=0,
+            unlock_impact=len(share_count_rows),
+            source_lane="shares_outstanding",
+            source_readiness=(
+                "shares_outstanding proof must come from SEC/manual source proof or trusted local fundamentals rows; "
+                "do not infer it from price, market cap, or peers."
+            ),
+            next_safe_command="make share-count-proof-queue TOP_N=10",
+            proof_command="make imports-validate && make imports-preview && make dcf-readiness && make readiness",
+            generated_churn_policy=(
+                "Apply only reviewed trusted share-count rows; broad readiness/report CSV churn stays local unless intentionally reviewed."
+            ),
+            stale_proof_warning=stale_warning,
+            notes=(
+                f"{len(share_count_rows)} DCF blocker(s) need shares_outstanding proof; "
+                f"{share_count_only_blockers} have price, revenue, free cash flow, and FCF margin already present."
+            ),
         ),
         ReadinessLane(
             lane="peer_mapping",
@@ -455,6 +488,8 @@ def _expansion_batch_scope(lane: ReadinessLane) -> str:
         return "broad capped missing-price batches; dry-run first; no ticker-by-ticker loop by default"
     if lane.lane == "fundamentals_dcf":
         return "SEC-stageable or trusted-manual fundamentals rows for a capped reviewed company set"
+    if lane.lane == "share_count_proof":
+        return "capped DCF blockers where shares_outstanding is the gating input; source proof first"
     if lane.lane == "peer_mapping":
         return "source-backed peer relationships for capped peer blockers; mapping before valuation inputs"
     if lane.lane == "peer_valuation_inputs":
@@ -467,6 +502,8 @@ def _expansion_batch_scope(lane: ReadinessLane) -> str:
 def _expansion_next_command(lane: ReadinessLane) -> str:
     if lane.lane == "fundamentals_dcf":
         return "make fundamentals-batch-proof TOP_N=10"
+    if lane.lane == "share_count_proof":
+        return "make share-count-proof-queue TOP_N=10"
     if lane.lane in {"peer_mapping", "peer_valuation_inputs"}:
         return "make peer-batch-proof TOP_N=10"
     return lane.next_safe_command
@@ -477,6 +514,8 @@ def _expansion_review_gate(lane: ReadinessLane) -> str:
         return "review dry-run tickers, provider/source notes, expected artifacts, and save readiness snapshot before any real capped refresh"
     if lane.lane == "fundamentals_dcf":
         return "verify SEC_USER_AGENT or trusted manual source proof, then require imports-validate, imports-preview, rejected-row review, and reviewed apply decision"
+    if lane.lane == "share_count_proof":
+        return "verify SEC/manual source proof for shares_outstanding, then require imports-validate, imports-preview, rejected-row review, and reviewed apply decision"
     if lane.lane == "peer_mapping":
         return "verify source-backed peer relationships; sector or industry similarity stays fallback context, not trusted peer mapping"
     if lane.lane == "peer_valuation_inputs":
@@ -491,6 +530,8 @@ def _expansion_stop_condition(lane: ReadinessLane) -> str:
         return "stop if the dry run has unexpected scope, provider failures, or source rows that cannot be reviewed"
     if lane.lane == "fundamentals_dcf":
         return "stop if SEC staging is not configured, source proof is missing, validation fails, or preview/rejected rows are unresolved"
+    if lane.lane == "share_count_proof":
+        return "stop if shares_outstanding is unavailable from SEC/manual proof or would be inferred from price, market cap, peers, or placeholders"
     if lane.lane == "peer_mapping":
         return "stop if peer relationships are guessed, undocumented, self-peers only, or not source-backed"
     if lane.lane == "peer_valuation_inputs":
@@ -505,6 +546,8 @@ def _expansion_outcome_boundary(lane: ReadinessLane) -> str:
         return "price readiness can unlock setup, risk, liquidity, and benchmark review; it does not unlock fundamentals or valuation by itself"
     if lane.lane == "fundamentals_dcf":
         return "fundamentals can unlock DCF only after required trusted fields are present; no placeholder revenue, FCF, margin, shares, or market context"
+    if lane.lane == "share_count_proof":
+        return "share-count proof can unlock DCF only when all other required DCF inputs are ready; it does not create valuation by itself"
     if lane.lane == "peer_mapping":
         return "peer mappings can unlock peer trend setup, but peer valuation remains blocked until mapped-peer inputs exist"
     if lane.lane == "peer_valuation_inputs":
