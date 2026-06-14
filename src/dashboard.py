@@ -9280,6 +9280,80 @@ def data_health_reviewed_batch_execution_cards(
     ]
 
 
+def data_health_reviewed_batch_operator_flow_cards(
+    selected_lane_key: str,
+    preflight: ReviewedBatchPreflight,
+    freshness: FreshnessStatus,
+    loop: CoverageExpansionLoop | None = None,
+) -> list[dict[str, object]]:
+    batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
+    lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, preflight.lane_scope)
+    apply_steps = data_health_reviewed_batch_apply_guard_steps(preflight)
+    loop_status = loop.status if loop is not None else preflight.status
+    loop_badge = preflight.status if loop_status == "blocked_missing_lane" else loop_status
+    freshness_blocked = freshness.status in {"missing", "stale"}
+    snapshot_blocked = not preflight.current_report_exists or not preflight.prior_snapshot_exists
+    if freshness_blocked:
+        next_title = "Refresh readiness artifacts"
+        next_command = freshness.refresh_command
+        next_body = f"{freshness.status}: {compact_card_fragment(freshness.message, max_chars=150)}"
+        next_badges = [freshness.status, "refresh first"]
+    elif snapshot_blocked:
+        next_title = "Capture snapshot gate"
+        next_command = preflight.snapshot_command if preflight.current_report_exists else "make readiness"
+        next_body = data_health_batch_gate_summary(preflight)
+        next_badges = [preflight.status, "snapshot first"]
+    else:
+        next_title = "Packet, then dry run"
+        next_command = preflight.packet_command
+        next_body = (
+            "Generate the reviewed packet, then inspect the capped dry-run scope before any lane work. "
+            f"Dry-run command: {preflight.dry_run_command}"
+        )
+        next_badges = [preflight.status, "dry-run first"]
+    apply_body = (
+        "Read-only metric lane routes blockers back to prices, fundamentals, market cap, or peers."
+        if apply_steps["mode"] == "read_only"
+        else "Mutating lanes stay validate -> preview -> explicit apply; rejected-row reports must be reviewed first."
+    )
+    return [
+        {
+            "kicker": "LANE",
+            "title": lane_label,
+            "body": (
+                f"Selected lane: {batch_lane}. Keep scope capped by TOP_N or explicit tickers; "
+                "treat this as readiness operations, not a security ranking."
+            ),
+            "badges": [batch_lane, "capped"],
+            "command": f"make coverage-expansion-loop LANE={batch_lane} TOP_N=10",
+        },
+        {
+            "kicker": "SOURCE GATE",
+            "title": "Freshness and source proof first",
+            "body": f"{data_health_batch_source_requirement(batch_lane)} {compact_card_fragment(freshness.message, max_chars=150)}",
+            "badges": [freshness.status, loop_badge],
+            "command": freshness.refresh_command if freshness_blocked else "",
+        },
+        {
+            "kicker": "NEXT STEP",
+            "title": next_title,
+            "body": next_body,
+            "badges": next_badges,
+            "command": next_command,
+        },
+        {
+            "kicker": "PROOF BOUNDARY",
+            "title": "Compare before recording",
+            "body": (
+                f"{apply_body} After reviewed work, compare before/after readiness and dry-run the proof record "
+                "before writing supported, still_blocked, skipped, or excluded."
+            ),
+            "badges": [apply_steps["mode"], "ledger proof"],
+            "command": preflight.comparison_command,
+        },
+    ]
+
+
 def data_health_reviewed_batch_execution_frame(preflight: ReviewedBatchPreflight) -> pd.DataFrame:
     return pd.DataFrame(
         [
@@ -25499,14 +25573,21 @@ def render_data_health(
     if selected_lane_key != "proof":
         render_section_header("Readiness Batch Execution", "Choose the lane, confirm source/freshness gates, then generate a reviewed proof packet before row-level evidence.")
         render_signal_cards(
-            data_health_coverage_expansion_loop_cards(coverage_loop),
-            show_commands=True,
-        )
-        render_signal_cards(
-            data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness),
+            data_health_reviewed_batch_operator_flow_cards(
+                selected_lane_key,
+                batch_preflight,
+                readiness_freshness,
+                coverage_loop,
+            ),
             show_commands=True,
         )
         with st.expander("Reviewed batch review drawer", expanded=False):
+            render_section_header("Batch Execution Detail", "Detailed planner and preflight cards stay here after the compact lane-to-proof flow.")
+            render_signal_cards(data_health_coverage_expansion_loop_cards(coverage_loop), show_commands=True)
+            render_signal_cards(
+                data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness),
+                show_commands=True,
+            )
             render_section_header("Batch Execution Checklist", "Lane choice, capped preview, stale/source warnings, packet, proof outcome, comparison, and hygiene in one reviewable loop.")
             st.table(
                 clean_display_frame(
