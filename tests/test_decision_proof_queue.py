@@ -102,10 +102,14 @@ def test_decision_proof_queue_drawer_cards_gate_stale_artifacts():
     cards = build_decision_proof_queue_drawer_cards(pd.DataFrame(), freshness)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["QUEUE STATUS", "NEXT SAFE ACTION"]
+    assert [card["kicker"] for card in cards] == ["QUEUE STATUS", "NEXT SAFE ACTION", "FINISH THIS QUEUE"]
     assert cards[0]["command"] == "make research-decisions"
+    assert cards[2]["command"] == "make research-decisions"
     assert "refresh before queue" in rendered
     assert "do not read old decision rows as current proof" in rendered
+    assert "three-step proof refresh" in rendered
+    assert "make decision-proof-queue top_n=12" in rendered
+    assert "stale decision rows stay blocked proof" in rendered
     assert "recommendations" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered

@@ -327,6 +327,19 @@ def build_decision_proof_queue_drawer_cards(
                 "command": status_command,
             }
         )
+        cards.append(
+            {
+                "kicker": "FINISH THIS QUEUE",
+                "title": "Three-step proof refresh",
+                "body": (
+                    f"1. Run `{status_command}`. 2. Run `make decision-proof-queue TOP_N=12`. "
+                    "3. Reopen Data Health and read the top proof row only after freshness is current. "
+                    "Until then, stale decision rows stay blocked proof, not weak research conclusions."
+                ),
+                "badges": ["checklist", "stale rows blocked"],
+                "command": status_command,
+            }
+        )
         return cards
     if queue_frame is None or queue_frame.empty:
         cards.append(
