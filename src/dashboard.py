@@ -9297,6 +9297,88 @@ def data_health_reviewed_batch_execution_frame(preflight: ReviewedBatchPreflight
     )
 
 
+def data_health_reviewed_batch_execution_checklist_frame(
+    selected_lane_key: str,
+    preflight: ReviewedBatchPreflight,
+    freshness: FreshnessStatus,
+    loop: CoverageExpansionLoop | None = None,
+) -> pd.DataFrame:
+    batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
+    lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, preflight.lane_scope)
+    freshness_ready = freshness.status == "current"
+    preflight_ready = preflight.status == "ready_for_dry_run"
+    snapshot_ready = preflight.prior_snapshot_exists and preflight.current_report_exists
+    source_warning = data_health_batch_source_requirement(batch_lane)
+    loop_status = loop.status if loop is not None else preflight.status
+    apply_steps = data_health_reviewed_batch_apply_guard_steps(preflight)
+    validation_command = (
+        f"{apply_steps['validate']} && {apply_steps['preview']}"
+        if apply_steps["mode"] != "read_only"
+        else apply_steps["preview"]
+    )
+    first_blocker = preflight.do_not_proceed_if[0] if preflight.do_not_proceed_if else "source proof, validation, preview, and artifact review are required"
+    return pd.DataFrame(
+        [
+            {
+                "Step": "1. Choose lane",
+                "Status": f"selected: {lane_label}",
+                "Operator Decision": f"Scope is {batch_lane}; keep it capped and readiness-first.",
+                "Copy-Only Command": f"make coverage-expansion-loop LANE={batch_lane} TOP_N=10",
+                "Stop If": "selected lane is not in the coverage planner",
+            },
+            {
+                "Step": "2. Source and freshness warnings",
+                "Status": freshness.status,
+                "Operator Decision": f"{freshness.message} {source_warning}",
+                "Copy-Only Command": freshness.refresh_command if not freshness_ready else "",
+                "Stop If": "readiness artifacts are missing or stale",
+            },
+            {
+                "Step": "3. Reviewed packet",
+                "Status": "ready" if preflight.current_report_exists and freshness_ready else "blocked",
+                "Operator Decision": "Generate the packet before dry-run or source-row review.",
+                "Copy-Only Command": preflight.packet_command,
+                "Stop If": "current readiness report is missing or stale",
+            },
+            {
+                "Step": "4. Preview capped batch",
+                "Status": "ready after packet review" if preflight_ready else "waiting on preflight",
+                "Operator Decision": "Review planned scope, source notes, and expected artifacts before any execution command.",
+                "Copy-Only Command": preflight.dry_run_command,
+                "Stop If": first_blocker,
+            },
+            {
+                "Step": "5. Validate / preview / apply gate",
+                "Status": apply_steps["mode"],
+                "Operator Decision": "Mutating lanes stay validate -> preview -> explicit apply; metrics remain read-only.",
+                "Copy-Only Command": validation_command,
+                "Stop If": apply_steps["proof"],
+            },
+            {
+                "Step": "6. Compare before / after",
+                "Status": "ready after reviewed run" if snapshot_ready else "blocked until snapshot exists",
+                "Operator Decision": "Use changed readiness counts and changed tickers as proof, not intuition.",
+                "Copy-Only Command": preflight.comparison_command,
+                "Stop If": "prior snapshot or current readiness report is missing",
+            },
+            {
+                "Step": "7. Record proof outcome",
+                "Status": "dry-run first",
+                "Operator Decision": "Record supported, still_blocked, skipped, or excluded only after reviewed source and comparison proof.",
+                "Copy-Only Command": f"DRY_RUN=1 {preflight.proof_record_command}",
+                "Stop If": "required proof fields still contain placeholders",
+            },
+            {
+                "Step": "8. Artifact hygiene",
+                "Status": loop_status,
+                "Operator Decision": "Classify generated CSV/JSON churn before staging; keep broad refresh artifacts local by default.",
+                "Copy-Only Command": "make diff-hygiene",
+                "Stop If": "generated artifacts are dirty and not intentionally reviewed evidence",
+            },
+        ]
+    )
+
+
 def data_health_reviewed_batch_sequence_cards(preflight: ReviewedBatchPreflight) -> list[dict[str, object]]:
     return [
         {
@@ -25408,6 +25490,17 @@ def render_data_health(
             show_commands=True,
         )
         with st.expander("Reviewed batch review drawer", expanded=False):
+            render_section_header("Batch Execution Checklist", "Lane choice, capped preview, stale/source warnings, packet, proof outcome, comparison, and hygiene in one reviewable loop.")
+            st.table(
+                clean_display_frame(
+                    data_health_reviewed_batch_execution_checklist_frame(
+                        selected_lane_key,
+                        batch_preflight,
+                        readiness_freshness,
+                        coverage_loop,
+                    )
+                )
+            )
             render_section_header("Coverage Expansion Loop", "Planner, preflight, packet, proof-record preview, and hygiene in one compact review path.")
             render_signal_cards(data_health_coverage_expansion_loop_cards(coverage_loop))
             st.dataframe(clean_display_frame(data_health_coverage_expansion_loop_frame(coverage_loop)), width="stretch", hide_index=True)

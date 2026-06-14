@@ -11518,6 +11518,110 @@ def test_proof_history_operator_console_hides_snapshot_commands_when_blocked():
     assert not frame["Next Proof"].str.lower().str.contains("make ").any()
 
 
+def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():
+    preflight = dashboard.ReviewedBatchPreflight(
+        lane="prices",
+        lane_scope="Price Coverage",
+        batch_id="RB-TEST",
+        review_date="2026-06-14",
+        status="needs_preflight_fix",
+        current_report_exists=True,
+        prior_snapshot_exists=False,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo",
+        capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30",
+        comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-14 TOP_N=10",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST" LANE="prices" REVIEW_DATE="2026-06-14"',
+        do_not_proceed_if=(
+            "prior readiness snapshot is missing; run make readiness-snapshot before a reviewed batch",
+            "dry-run scope is not reviewed",
+            "source proof is unavailable",
+        ),
+        expected_artifacts=("data/prices.csv",),
+    )
+    loop = dashboard.CoverageExpansionLoop(
+        status="blocked_by_preflight",
+        selected_lane="price_coverage",
+        selected_label="Price Coverage",
+        reviewed_batch_lane="prices",
+        planner_step=None,
+        preflight=preflight,
+        next_safe_action="Fix the preflight gate before running the lane packet.",
+        copy_only_sequence=("make coverage-expansion-loop LANE=prices TOP_N=10",),
+        do_not_proceed_if=preflight.do_not_proceed_if,
+    )
+    frame = dashboard.data_health_reviewed_batch_execution_checklist_frame(
+        "prices",
+        preflight,
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current relative to watched source files."),
+        loop,
+    )
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert list(frame["Step"]) == [
+        "1. Choose lane",
+        "2. Source and freshness warnings",
+        "3. Reviewed packet",
+        "4. Preview capped batch",
+        "5. Validate / preview / apply gate",
+        "6. Compare before / after",
+        "7. Record proof outcome",
+        "8. Artifact hygiene",
+    ]
+    assert "make reviewed-batch lane=prices top_n=10" in rendered
+    assert "make price-refresh-loop dry_run=1" in rendered
+    assert "make price-validate && make price-preview" in rendered
+    assert "make reviewed-batch-compare lane=prices" in rendered
+    assert "dry_run=1 make reviewed-batch-proof-record" in rendered
+    assert "make diff-hygiene" in rendered
+    assert "blocked until snapshot exists" in rendered
+    assert "security ranking" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+
+
+def test_reviewed_batch_execution_checklist_keeps_metrics_read_only():
+    preflight = dashboard.ReviewedBatchPreflight(
+        lane="metrics",
+        lane_scope="Metrics",
+        batch_id="RB-METRICS",
+        review_date="2026-06-14",
+        status="ready_for_dry_run",
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=metrics TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make metric-readiness-board TOP_N=10",
+        capped_execution_command="not_applicable_read_only_metric_review",
+        comparison_command="make reviewed-batch-compare LANE=metrics BATCH_ID=RB-METRICS REVIEW_DATE=2026-06-14 TOP_N=10",
+        proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-METRICS" LANE="metrics" REVIEW_DATE="2026-06-14"',
+        do_not_proceed_if=("source proof is unavailable",),
+        expected_artifacts=("metric-readiness console output",),
+    )
+
+    frame = dashboard.data_health_reviewed_batch_execution_checklist_frame(
+        "metrics",
+        preflight,
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current relative to watched source files."),
+    )
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert "read_only" in rendered
+    assert "review metric blocker families and missing source lanes" in rendered
+    assert "metrics remain read-only" in rendered
+    assert "make imports-apply" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
@@ -11535,7 +11639,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     coverage_loop_cards_index = source.index("data_health_coverage_expansion_loop_cards(coverage_loop)", batch_header_index)
     batch_cards_index = source.index("data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness)", coverage_loop_cards_index)
     batch_drawer_index = source.index('st.expander("Reviewed batch review drawer", expanded=False)', batch_cards_index)
-    coverage_loop_drawer_index = source.index('render_section_header("Coverage Expansion Loop"', batch_drawer_index)
+    batch_execution_checklist_index = source.index('render_section_header("Batch Execution Checklist"', batch_drawer_index)
+    batch_execution_checklist_frame_index = source.index("data_health_reviewed_batch_execution_checklist_frame(", batch_execution_checklist_index)
+    coverage_loop_drawer_index = source.index('render_section_header("Coverage Expansion Loop"', batch_execution_checklist_frame_index)
     coverage_loop_frame_index = source.index("data_health_coverage_expansion_loop_frame(coverage_loop)", coverage_loop_drawer_index)
     batch_snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', coverage_loop_frame_index)
     batch_apply_gate_index = source.index('render_section_header("Apply Guard"', batch_snapshot_gate_index)
@@ -11560,7 +11666,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_drawer_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < coverage_loop_cards_index < batch_cards_index < batch_drawer_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_drawer_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < coverage_loop_cards_index < batch_cards_index < batch_drawer_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
@@ -11576,6 +11682,8 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)" in source
     assert "data_health_reviewed_batch_apply_guard_cards(batch_preflight)" in source
     assert "data_health_reviewed_batch_apply_guard_frame(batch_preflight)" in source
+    assert "Batch Execution Checklist" in source
+    assert "data_health_reviewed_batch_execution_checklist_frame(" in source
     assert "data_health_reviewed_batch_outcome_recorder_cards(batch_packet_frame, readiness_comparison)" in source
     assert "data_health_reviewed_batch_outcome_recorder_frame(batch_packet_frame, readiness_comparison)" in source
     assert "data_health_reviewed_batch_proof_record_command_cards(batch_packet_frame, readiness_comparison)" in source
