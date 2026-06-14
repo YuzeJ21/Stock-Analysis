@@ -999,6 +999,29 @@ def write_metric_readiness_board_csv(rows: list[MetricReadinessBoardRow], output
     pd.DataFrame([row.to_dict() for row in rows]).to_csv(output_path, index=False)
 
 
+def metric_readiness_board_status(rows: list[MetricReadinessBoardRow]) -> str:
+    if not rows:
+        return "blocked_no_rows"
+    if any(row.freshness in {"missing", "stale"} for row in rows):
+        return "blocked_by_freshness"
+    return "ready_for_review"
+
+
+def metric_readiness_board_next_safe_action(rows: list[MetricReadinessBoardRow]) -> str:
+    status = metric_readiness_board_status(rows)
+    if status == "blocked_by_freshness":
+        for row in rows:
+            if row.freshness in {"missing", "stale"} and row.refresh_command:
+                return row.refresh_command
+        return "make readiness"
+    if status == "blocked_no_rows":
+        return "make metric-readiness-board TOP_N=10 BENCHMARKS=SPY,QQQ"
+    for row in rows:
+        if row.next_action:
+            return row.next_action
+    return "make metric-readiness-board TOP_N=10 BENCHMARKS=SPY,QQQ"
+
+
 def format_review_metrics_text(snapshot: ReviewMetricsSnapshot) -> str:
     lines = [
         f"Review metrics for {snapshot.ticker} vs {snapshot.benchmark}",
@@ -1059,10 +1082,14 @@ def format_metric_readiness_summary_text(rows: list[MetricReadinessRow], freshne
 
 
 def format_metric_readiness_board_text(rows: list[MetricReadinessBoardRow]) -> str:
+    board_status = metric_readiness_board_status(rows)
+    next_safe_action = metric_readiness_board_next_safe_action(rows)
     lines = [
         "Metric readiness board",
         "Research-only; this board summarizes SPY/QQQ review-metric readiness and is not a ranking or recommendation.",
         "Partial and blocked metric rows withhold numeric values until their specific input gates are ready.",
+        f"Board status: {board_status}",
+        f"Next safe action: {next_safe_action}",
     ]
     if not rows:
         lines.append("No tickers were available for metric-readiness board review.")
@@ -1074,6 +1101,7 @@ def format_metric_readiness_board_text(rows: list[MetricReadinessBoardRow]) -> s
     lines.append(f"Freshness: {freshness}")
     if any(row.freshness in {"missing", "stale"} for row in rows):
         lines.append(f"Refresh before relying on final counts: {refresh_commands[0] if refresh_commands else 'make readiness'}")
+        lines.append("Blocked preflight: refresh readiness before treating metric-readiness rows as current coverage proof.")
 
     family_counts: dict[str, int] = {}
     for row in rows:

@@ -14,6 +14,7 @@ from src.review_metrics import (
     BLOCKED,
     PARTIAL,
     READY,
+    MetricReadinessBoardRow,
     beta_vs_benchmark,
     build_metric_readiness_board,
     build_metric_readiness_summary,
@@ -23,6 +24,8 @@ from src.review_metrics import (
     format_metric_readiness_summary_text,
     format_review_metrics_text,
     max_drawdown,
+    metric_readiness_board_next_safe_action,
+    metric_readiness_board_status,
     rolling_volatility,
     sharpe_ratio,
     sortino_ratio,
@@ -353,10 +356,85 @@ def test_metric_readiness_board_combines_spy_and_qqq_without_recommendations(tmp
     assert "metric readiness board" in rendered
     assert "spy/qqq review-metric readiness" in rendered
     assert "partial and blocked metric rows withhold numeric values" in rendered
+    assert "board status:" in rendered
+    assert "next safe action:" in rendered
     assert "blocker families: benchmark / risk: 2" in rendered
     assert "aaa | spy" in rendered
     assert "aaa | qqq" in rendered
     assert "ranking or recommendation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_metric_readiness_board_blocks_stale_rows_before_current_proof():
+    rows = [
+        MetricReadinessBoardRow(
+            ticker="AAA",
+            benchmark="SPY",
+            overall_state="partial",
+            ready_metrics=5,
+            partial_metrics=4,
+            blocked_metrics=0,
+            excluded_metrics=0,
+            top_blocker="benchmark_relative_return: at least 60 aligned ticker/SPY price rows",
+            blocker_family="benchmark / risk",
+            next_action="make focus-price TICKER=AAA",
+            freshness="stale",
+            freshness_message="source CSV changed after report",
+            refresh_command="make readiness",
+        )
+    ]
+
+    rendered = format_metric_readiness_board_text(rows).lower()
+
+    assert metric_readiness_board_status(rows) == "blocked_by_freshness"
+    assert metric_readiness_board_next_safe_action(rows) == "make readiness"
+    assert "board status: blocked_by_freshness" in rendered
+    assert "next safe action: make readiness" in rendered
+    assert "blocked preflight" in rendered
+    assert "current coverage proof" in rendered
+    assert "ranking or recommendation" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_metric_readiness_board_ready_state_uses_first_safe_next_check():
+    rows = [
+        MetricReadinessBoardRow(
+            ticker="AAA",
+            benchmark="QQQ",
+            overall_state="partial",
+            ready_metrics=5,
+            partial_metrics=4,
+            blocked_metrics=0,
+            excluded_metrics=0,
+            top_blocker="benchmark_relative_return: at least 60 aligned ticker/QQQ price rows",
+            blocker_family="benchmark / risk",
+            next_action="make focus-price TICKER=AAA",
+            freshness="current",
+            freshness_message="ready",
+            refresh_command="make readiness",
+        )
+    ]
+
+    rendered = format_metric_readiness_board_text(rows).lower()
+
+    assert metric_readiness_board_status(rows) == "ready_for_review"
+    assert metric_readiness_board_next_safe_action(rows) == "make focus-price TICKER=AAA"
+    assert "board status: ready_for_review" in rendered
+    assert "next safe action: make focus-price ticker=aaa" in rendered
+    assert "blocked preflight" not in rendered
+
+
+def test_metric_readiness_board_no_rows_stays_copy_only_and_non_recommending():
+    rendered = format_metric_readiness_board_text([]).lower()
+
+    assert metric_readiness_board_status([]) == "blocked_no_rows"
+    assert metric_readiness_board_next_safe_action([]) == "make metric-readiness-board TOP_N=10 BENCHMARKS=SPY,QQQ"
+    assert "board status: blocked_no_rows" in rendered
+    assert "next safe action: make metric-readiness-board top_n=10 benchmarks=spy,qqq" in rendered
+    assert "no tickers were available" in rendered
+    assert "recommendation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
