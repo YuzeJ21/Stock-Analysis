@@ -206,7 +206,7 @@ def build_outcome_recorder_rows(
                 "Status": "blocked_missing_packet",
                 "Current Value": "not available",
                 "Required Before Record": "Generate or review a packet before opening a proof row.",
-                "Copy From": "make reviewed-batch LANE=prices TOP_N=10",
+                "Copy From": "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
             },
         )
     return rows

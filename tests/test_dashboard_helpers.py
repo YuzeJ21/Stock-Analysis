@@ -10024,7 +10024,7 @@ def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps()
 
     assert [card["kicker"] for card in cards] == ["BATCH STEP 1", "BATCH STEP 2", "BATCH STEP 3", "BATCH STEP 4"]
     assert cards[0]["command"] == "make readiness"
-    assert cards[1]["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert cards[1]["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
     assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
     assert cards[3]["command"] == "make readiness && make price-coverage TOP_N=100 && make diff-hygiene"
     assert "copy-only reviewed packet" in rendered
@@ -10064,7 +10064,7 @@ def test_data_health_reviewed_batch_execution_cards_show_lane_source_and_next_ac
         prior_snapshot_exists=False,
         freshness_status="stale",
         freshness_message="Readiness artifacts may be stale.",
-        packet_command="make reviewed-batch LANE=peers TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make peer-mapping-queue TOP_N=10",
         capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after source-backed peer rows",
@@ -10118,7 +10118,7 @@ def test_data_health_reviewed_batch_operator_flow_cards_make_lane_to_proof_compa
         prior_snapshot_exists=False,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=peers TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make peer-mapping-queue TOP_N=10",
         capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after source-backed peer rows",
@@ -10175,7 +10175,7 @@ def test_data_health_reviewed_batch_operator_flow_uses_preflight_badge_when_plan
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo",
         capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30",
@@ -10205,7 +10205,7 @@ def test_data_health_reviewed_batch_operator_flow_uses_preflight_badge_when_plan
 
     assert cards[1]["badges"] == ["current", "ready_for_dry_run"]
     assert cards[2]["title"] == "Packet, then dry run"
-    assert cards[2]["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert cards[2]["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
 
 
 def test_data_health_reviewed_batch_loop_card_moves_from_snapshot_to_packet_when_ready():
@@ -10219,7 +10219,7 @@ def test_data_health_reviewed_batch_loop_card_moves_from_snapshot_to_packet_when
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
         capped_execution_command="make price-refresh-loop TOP_N=10",
@@ -10236,7 +10236,7 @@ def test_data_health_reviewed_batch_loop_card_moves_from_snapshot_to_packet_when
     rendered = " ".join(str(value) for value in card.values()).lower()
 
     assert card["title"] == "Run the reviewed batch loop"
-    assert card["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert card["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
     assert "snapshot -> reviewed packet/dry run -> validate/preview/apply gate -> proof-record command -> before/after comparison" in rendered
     assert "commands are copy-only from the dashboard" in rendered
     assert "buy" not in rendered
@@ -10254,7 +10254,7 @@ def test_data_health_coverage_expansion_loop_cards_surface_compact_next_action()
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
         capped_execution_command="make price-refresh-loop TOP_N=10",
@@ -10270,7 +10270,7 @@ def test_data_health_coverage_expansion_loop_cards_surface_compact_next_action()
         reviewed_batch_lane="prices",
         planner_step=None,
         preflight=preflight,
-        next_safe_action="Run make reviewed-batch LANE=prices TOP_N=10, review the packet, then run the dry run.",
+        next_safe_action="Run DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10, review the packet, then run the dry run.",
         copy_only_sequence=("make coverage-expansion-loop LANE=prices TOP_N=10",),
         do_not_proceed_if=("dry-run scope is not reviewed",),
     )
@@ -10281,7 +10281,7 @@ def test_data_health_coverage_expansion_loop_cards_surface_compact_next_action()
 
     assert cards[0]["kicker"] == "EXPANSION LOOP"
     assert cards[0]["title"] == "Coverage loop ready"
-    assert cards[0]["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert cards[0]["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
     assert "planner -> preflight -> packet -> proof path" in rendered
     assert frame["Step"].tolist() == ["Status", "Planner gate", "Preflight gate", "Proof boundary"]
     assert frame.iloc[3]["Command"] == "DRY_RUN=1 make reviewed-batch-proof-record"
@@ -10324,7 +10324,7 @@ def test_data_health_reviewed_batch_snapshot_gate_cards_cover_missing_and_ready_
         prior_snapshot_exists=False,
         freshness_status="missing",
         freshness_message="Readiness artifacts are missing.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
         capped_execution_command="make price-refresh-loop TOP_N=10",
@@ -10343,7 +10343,7 @@ def test_data_health_reviewed_batch_snapshot_gate_cards_cover_missing_and_ready_
         prior_snapshot_exists=False,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
         capped_execution_command="make price-refresh-loop TOP_N=10",
@@ -10362,7 +10362,7 @@ def test_data_health_reviewed_batch_snapshot_gate_cards_cover_missing_and_ready_
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
         capped_execution_command="make price-refresh-loop TOP_N=10",
@@ -10400,7 +10400,7 @@ def test_data_health_reviewed_batch_apply_guard_cards_block_supported_until_revi
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=fundamentals TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make sec-stage-queue TOP_N=10",
         capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
@@ -10436,7 +10436,7 @@ def test_data_health_reviewed_batch_apply_guard_keeps_metrics_read_only():
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=metrics TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope>",
         capped_execution_command="make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope> BENCHMARKS=SPY,QQQ",
@@ -10470,7 +10470,7 @@ def test_data_health_reviewed_batch_execution_frame_keeps_mutating_gates_explici
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=fundamentals TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make sec-stage-queue TOP_N=10",
         capped_execution_command="make imports-validate && make imports-preview && make imports-apply only after reviewed trusted fundamentals rows",
@@ -10505,7 +10505,7 @@ def test_data_health_reviewed_batch_sequence_cards_make_commands_copyable_but_re
         prior_snapshot_exists=False,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=metrics TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope>",
         capped_execution_command="make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope> BENCHMARKS=SPY,QQQ",
@@ -10519,7 +10519,7 @@ def test_data_health_reviewed_batch_sequence_cards_make_commands_copyable_but_re
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["PACKET", "DRY RUN", "MUTATION GATE", "PROOF"]
-    assert cards[0]["command"] == "make reviewed-batch LANE=metrics TOP_N=10"
+    assert cards[0]["command"] == "DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10"
     assert cards[1]["command"] == "make metric-readiness-board TOP_N=10 TICKERS=<reviewed_scope>"
     assert cards[2]["command"] == "make imports-validate && make imports-preview"
     assert "metrics remain read-only" in rendered
@@ -10533,7 +10533,7 @@ def test_data_health_reviewed_batch_proof_frame_and_cards_read_batch_ledger(tmp_
     ledger = tmp_path / "reviewed_batch_proofs.csv"
     ledger.write_text(
         "batch_id,review_date,reviewer,lane,scope,tickers,command_run,validation_result,preview_result,apply_result,pre_run_readiness_snapshot,post_run_readiness_snapshot,changed_readiness_counts,changed_tickers,source_files,generated_artifacts_reviewed,final_outcome,notes\n"
-        "RB-1,2026-06-12,local reviewer,peers,top 10,AAA;BBB,make reviewed-batch LANE=peers TOP_N=10,not_run,not_run,not_run,peer-ready 9/3538,peer-ready 9/3538,none,none,outputs/reviewed_batch_packet.md,broad churn excluded,skipped,no source proof applied\n",
+        "RB-1,2026-06-12,local reviewer,peers,top 10,AAA;BBB,DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10,not_run,not_run,not_run,peer-ready 9/3538,peer-ready 9/3538,none,none,outputs/reviewed_batch_packet.md,broad churn excluded,skipped,no source proof applied\n",
         encoding="utf-8",
     )
 
@@ -10545,7 +10545,7 @@ def test_data_health_reviewed_batch_proof_frame_and_cards_read_batch_ledger(tmp_
     assert frame.iloc[0]["Final Outcome"] == "skipped"
     assert cards[0]["kicker"] == "LATEST BATCH PROOF"
     assert cards[0]["command"] == "make reviewed-batch-proof"
-    assert "command run: make reviewed-batch lane=peers top_n=10" in rendered
+    assert "command run: dry_run=1 make reviewed-batch lane=peers top_n=10" in rendered
     assert "changed tickers: no changed tickers" in rendered
     assert "no source proof applied" in rendered
 
@@ -10652,7 +10652,7 @@ def test_data_health_reviewed_batch_proof_loop_cards_warn_when_packet_or_snapsho
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "No reviewed batch packet: No packet"
-    assert cards[0]["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert cards[0]["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
     assert cards[1]["title"] == "Comparison blocked"
     assert cards[1]["command"] == "make readiness-snapshot"
     assert "keep the proof row open" in rendered
@@ -11236,7 +11236,7 @@ def test_data_health_reviewed_batch_preflight_cards_warn_before_dry_run_when_sna
         prior_snapshot_exists=False,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=100",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=100",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
         capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
@@ -11270,7 +11270,7 @@ def test_data_health_reviewed_batch_preflight_cards_ready_state():
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=100",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=100",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo",
         capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo SLEEP_SECONDS=30",
@@ -11630,7 +11630,7 @@ def test_reviewed_batch_execution_checklist_covers_lane_to_ledger_loop():
         prior_snapshot_exists=False,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo",
         capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=yahoo SLEEP_SECONDS=30",
@@ -11698,7 +11698,7 @@ def test_reviewed_batch_execution_checklist_keeps_metrics_read_only():
         prior_snapshot_exists=True,
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
-        packet_command="make reviewed-batch LANE=metrics TOP_N=10",
+        packet_command="DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10",
         snapshot_command="make readiness-snapshot",
         dry_run_command="make metric-readiness-board TOP_N=10",
         capped_execution_command="not_applicable_read_only_metric_review",
@@ -15626,7 +15626,7 @@ def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
     assert "reviewed-batch packet path" in rendered
     assert "counts should improve only after SEC staging workflow or trusted manual CSV imports" in rendered
     assert "empty optional context is intentional" in rendered
-    assert "make reviewed-batch LANE=prices TOP_N=10" in rendered
+    assert "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10" in rendered
     assert "make optional-context-summary TOP_N=10" in rendered
     assert "make sec-stage-queue TOP_N=25" in rendered
     assert "make peer-mapping-queue TOP_N=25" in rendered
@@ -15649,7 +15649,7 @@ def test_roadmap_milestone_status_cards_surface_safe_commands():
 
     assert len(cards) == 7
     assert cards[0]["command"] == "make dashboard-smoke"
-    assert any(card["command"] == "make reviewed-batch LANE=prices TOP_N=10" for card in cards)
+    assert any(card["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10" for card in cards)
     assert any(card["command"] == "make optional-context-summary TOP_N=10" for card in cards)
     assert any(card["command"] == "make verify" for card in cards)
     assert "data-honest" in rendered

@@ -8132,13 +8132,13 @@ def data_health_reviewed_batch_ladder_cards(
     next_safe_command = format_missing(top.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
     proof_command = format_missing(top.get("Proof Command"), "make readiness")
     workflow = normalize_operator_copy(format_missing(top.get("Workflow Mode"), "review"))
-    reviewed_batch_command = "make reviewed-batch LANE=prices TOP_N=10"
+    reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
     if "fundamental" in lane.lower() or "dcf" in lane.lower():
-        reviewed_batch_command = "make reviewed-batch LANE=fundamentals TOP_N=10"
+        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10"
     elif "peer" in lane.lower():
-        reviewed_batch_command = "make reviewed-batch LANE=peers TOP_N=10"
+        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10"
     elif "earning" in lane.lower() or "estimate" in lane.lower() or "optional" in lane.lower():
-        reviewed_batch_command = "make reviewed-batch LANE=optional_context TOP_N=10"
+        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=optional_context TOP_N=10"
 
     freshness_badges = [freshness.status, "stop if stale"] if freshness.status in {"missing", "stale"} else [freshness.status, "snapshot checked"]
     return [
@@ -8685,7 +8685,7 @@ def _data_health_latest_batch_packet_summary(packet_frame: pd.DataFrame | None) 
             "scope": "Run a reviewed batch packet before recording proof.",
             "freshness": "unknown",
             "row_count": "0",
-            "dry_run_command": "make reviewed-batch LANE=prices TOP_N=10",
+            "dry_run_command": "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
             "comparison_command": "make reviewed-batch-compare LANE=prices",
             "proof_record_command": "make reviewed-batch-proof-record",
             "source_files": "not available",
@@ -8703,7 +8703,7 @@ def _data_health_latest_batch_packet_summary(packet_frame: pd.DataFrame | None) 
         "freshness": compact_card_fragment(format_missing(first.get("Freshness"), "freshness unknown"), max_chars=150),
         "row_count": str(len(packet_frame)),
         "ticker_count": str(len(unique_tickers)),
-        "dry_run_command": format_missing(first.get("Dry Run Command"), "make reviewed-batch LANE=prices TOP_N=10"),
+        "dry_run_command": format_missing(first.get("Dry Run Command"), "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"),
         "comparison_command": format_missing(first.get("Comparison Command"), "make reviewed-batch-compare LANE=prices"),
         "proof_record_command": format_missing(first.get("Proof Record Scaffold"), "make reviewed-batch-proof-record"),
         "source_files": compact_card_fragment(format_missing(first.get("Source Files"), "review source files"), max_chars=170),
@@ -23918,7 +23918,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
                 "Current Status": "Implemented, proof-first",
                 "Evidence": "Data Health now opens with an operations cockpit, lane operations board, coverage frontier, reviewed proof timeline, and reviewed-batch packet path.",
                 "Next Safe Step": "Inspect the lane frontier, then create a copy-only reviewed batch packet before any capped execution.",
-                "Copy Command": "make reviewed-batch LANE=prices TOP_N=10",
+                "Copy Command": "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
             },
             {
                 "Roadmap Area": "Fundamentals / DCF data proof",

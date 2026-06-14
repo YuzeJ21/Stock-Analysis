@@ -167,7 +167,7 @@ def build_reviewed_batch_preflight(
         prior_snapshot_exists=prior_snapshot_exists,
         freshness_status=freshness.status,
         freshness_message=freshness.message,
-        packet_command=f"make reviewed-batch LANE={lane} TOP_N={top_n}",
+        packet_command=f"DRY_RUN=1 make reviewed-batch LANE={lane} TOP_N={top_n}",
         snapshot_command="make readiness-snapshot",
         dry_run_command=dry_run,
         capped_execution_command=capped_execution,

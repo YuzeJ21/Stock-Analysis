@@ -90,7 +90,7 @@ def test_coverage_expansion_loop_prints_ready_copy_only_sequence(tmp_path: Path)
     assert any(row.selected and row.lane == "fundamentals_dcf" for row in loop.lane_board)
     assert loop.source_proof_gate is not None
     assert loop.source_proof_gate.lane == "fundamentals_dcf"
-    assert "make reviewed-batch LANE=fundamentals TOP_N=5" in rendered
+    assert "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=5" in rendered
     assert "make sec-stage-queue TOP_N=5" in rendered
     assert "make imports-validate && make imports-preview" in rendered
     assert "Source proof intake" in rendered

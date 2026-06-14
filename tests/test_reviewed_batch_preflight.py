@@ -88,7 +88,7 @@ def test_reviewed_batch_preflight_handles_share_count_lane_scope(tmp_path: Path)
     assert preflight.dry_run_command == "make share-count-proof-queue TOP_N=10"
     assert "reviewed trusted shares_outstanding rows" in preflight.capped_execution_command
     assert "data/rejected/fundamentals_import_rejected.csv" in preflight.expected_artifacts
-    assert "make reviewed-batch LANE=share_count TOP_N=10" in rendered
+    assert "DRY_RUN=1 make reviewed-batch LANE=share_count TOP_N=10" in rendered
     assert "make reviewed-batch-compare LANE=share_count" in rendered
 
 
