@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 
 import pandas as pd
@@ -733,6 +734,50 @@ def test_project_status_fast_check_warns_when_source_csv_is_newer(tmp_path: Path
     assert payload is not None
     assert payload["warnings"]
     assert "make readiness" in payload["warnings"][0]
+    assert "data/peers.csv" in payload["warnings"][0]
+
+
+def test_project_status_fast_check_ignores_clean_git_mtime_after_restore(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    readiness_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
+    source_path = tmp_path / "data" / "peers.csv"
+    source_path.write_text("ticker,peer_ticker,source\nNVDA,AMD,fixture\n", encoding="utf-8")
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "baseline"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    old_time = 1_700_000_000
+    new_time = old_time + 60
+    os.utime(readiness_path, (old_time, old_time))
+    os.utime(source_path, (new_time, new_time))
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    assert payload["warnings"] == []
+
+
+def test_project_status_fast_check_warns_when_git_source_content_changes(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    readiness_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
+    source_path = tmp_path / "data" / "peers.csv"
+    source_path.write_text("ticker,peer_ticker,source\nNVDA,AMD,fixture\n", encoding="utf-8")
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "baseline"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    source_path.write_text("ticker,peer_ticker,source\nNVDA,AMD,updated fixture\n", encoding="utf-8")
+    old_time = 1_700_000_000
+    new_time = old_time + 60
+    os.utime(readiness_path, (old_time, old_time))
+    os.utime(source_path, (new_time, new_time))
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    assert payload["warnings"]
     assert "data/peers.csv" in payload["warnings"][0]
 
 

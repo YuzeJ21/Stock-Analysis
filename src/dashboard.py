@@ -10,6 +10,7 @@ from urllib.parse import unquote
 import pandas as pd
 import streamlit as st
 
+from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame
@@ -194,10 +195,6 @@ def dashboard_generated_artifact_stale_warning(root: Path = BASE_DIR) -> str:
         output_path / "data_onboarding_actions.csv",
         output_path / PROJECT_STATUS_NEXT_STEPS_CSV,
     ]
-    existing_generated = [path for path in generated_paths if path.exists()]
-    if not existing_generated:
-        return ""
-    oldest_generated_mtime = min(path.stat().st_mtime for path in existing_generated)
     source_paths = [
         data_path / "prices.csv",
         data_path / "fundamentals.csv",
@@ -208,19 +205,12 @@ def dashboard_generated_artifact_stale_warning(root: Path = BASE_DIR) -> str:
         data_path / "universe_active.csv",
         data_path / "holdings.csv",
     ]
-    newer_sources = [
-        path.relative_to(root).as_posix()
-        for path in source_paths
-        if path.exists() and path.stat().st_mtime > oldest_generated_mtime
-    ]
-    if not newer_sources:
-        return ""
-    sample = ", ".join(newer_sources[:4])
-    if len(newer_sources) > 4:
-        sample = f"{sample}, +{len(newer_sources) - 4} more"
-    return (
-        "Generated status artifacts may be stale because source CSVs changed after the last generated report "
-        f"({sample}). Run make readiness or make status to refresh before relying on exact counts."
+    return generated_artifact_stale_warning(
+        root=root,
+        generated_paths=generated_paths,
+        source_paths=source_paths,
+        display_root=root,
+        refresh_command="make readiness or make status",
     )
 
 

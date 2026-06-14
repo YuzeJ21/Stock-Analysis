@@ -9,6 +9,7 @@ from typing import Any
 
 import pandas as pd
 
+from src.artifact_freshness import generated_artifact_stale_warning
 from src.data_onboarding import build_onboarding_payload
 from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame, refresh_price_update_status_output
@@ -263,15 +264,12 @@ def _truthy_series(values: pd.Series) -> pd.Series:
 
 
 def _stale_generated_artifact_warnings(data_path: Path, output_path: Path) -> list[str]:
+    root = data_path.parent
     generated_paths = [
         data_path / "reports" / "ticker_readiness_report.csv",
         output_path / "data_onboarding_actions.csv",
         output_path / PROJECT_STATUS_NEXT_STEPS_CSV,
     ]
-    existing_generated = [path for path in generated_paths if path.exists()]
-    if not existing_generated:
-        return []
-    oldest_generated_mtime = min(path.stat().st_mtime for path in existing_generated)
     source_paths = [
         data_path / "prices.csv",
         data_path / "fundamentals.csv",
@@ -282,22 +280,16 @@ def _stale_generated_artifact_warnings(data_path: Path, output_path: Path) -> li
         data_path / "universe_active.csv",
         data_path / "holdings.csv",
     ]
-    newer_sources = [
-        path.relative_to(data_path.parent).as_posix()
-        for path in source_paths
-        if path.exists() and path.stat().st_mtime > oldest_generated_mtime
-    ]
-    if not newer_sources:
+    warning = generated_artifact_stale_warning(
+        root=root,
+        generated_paths=generated_paths,
+        source_paths=source_paths,
+        display_root=root,
+        refresh_command="make readiness or make status",
+    )
+    if not warning:
         return []
-    sample = ", ".join(newer_sources[:4])
-    if len(newer_sources) > 4:
-        sample = f"{sample}, +{len(newer_sources) - 4} more"
-    return [
-        (
-            "Generated status artifacts may be stale because source CSVs changed after the last generated report "
-            f"({sample}). Run make readiness or make status to refresh before relying on exact counts."
-        )
-    ]
+    return [warning]
 
 
 def _fast_status_payload_from_outputs(
