@@ -144,6 +144,7 @@ Goal: add useful benchmark, risk, fundamentals, valuation, and peer context with
 Next improvements:
 
 - [x] Add richer multi-period fundamentals trend only when trusted historical rows are available.
+- [x] Add a read-only share-count proof queue for DCF blockers where `shares_outstanding` is the gating input.
 
 ## 4. Trusted Data Proof Roadmap
 
@@ -166,6 +167,7 @@ Acceptance notes:
 
 - SEC staging should remain preview-first and reviewable.
 - Manual imports must be source-backed.
+- Shares outstanding should stay blocked unless SEC/manual source proof or a trusted local row verifies it; do not infer it from price, market cap, or peers.
 - Invalid rows must be rejected into CSV reports instead of silently dropped.
 
 ### B. DCF Readiness Proof

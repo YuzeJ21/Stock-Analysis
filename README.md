@@ -67,6 +67,7 @@ The product separates refreshable data from judgment-required data:
 | --- | --- | --- |
 | Prices | Use `make price-refresh-loop DRY_RUN=1` before capped refreshes. | Price coverage can scale safely, but refreshed CSVs should be reviewed before commit. |
 | Fundamentals / DCF | Use `make fundamentals-batch-proof TOP_N=10` for a reviewed SEC/manual proof packet, or inspect one company with `make trusted-data-pilot-packet TICKER=CRDO` before staging rows. | Company valuation only appears after required fields, validation, preview, rejected-row review, and readiness proof pass. |
+| Shares outstanding proof | Use `make share-count-proof-queue TOP_N=10` when DCF is blocked specifically by `shares_outstanding`. | Share count must come from SEC/manual source proof or trusted local rows; the product does not infer it from price, market cap, or peers. |
 | Peers | Use `make peer-batch-proof TOP_N=10` to separate source-backed peer mappings from mapped-peer valuation inputs; use the ranked pilot packet first when a peer-input lane leads, such as `make trusted-data-pilot-packet TICKER=MU`. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation. |
 | Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
 
