@@ -121,6 +121,46 @@ def test_yahoo_chart_source_normalizes_daily_rows():
     assert "unofficial Yahoo chart endpoint" in warnings[0]
 
 
+def test_yahoo_chart_source_uses_provider_symbol_alias_but_preserves_local_ticker():
+    seen: dict[str, str] = {}
+
+    def opener(request, timeout: int):
+        assert timeout == 20
+        seen["url"] = request.full_url
+        return FakeHTTPResponse(
+            json.dumps(
+                {
+                    "chart": {
+                        "result": [
+                            {
+                                "timestamp": [1767312000],
+                                "indicators": {
+                                    "quote": [
+                                        {
+                                            "open": [500.0],
+                                            "high": [505.0],
+                                            "low": [499.0],
+                                            "close": [503.0],
+                                            "volume": [12345],
+                                        }
+                                    ],
+                                    "adjclose": [{"adjclose": [503.0]}],
+                                },
+                            }
+                        ],
+                        "error": None,
+                    }
+                }
+            )
+        )
+
+    frame, warnings = YahooChartDailyPriceSource(opener=opener).fetch_history("BRK.B")
+
+    assert "/BRK-B?" in seen["url"]
+    assert frame.iloc[0]["ticker"] == "BRK.B"
+    assert "provider symbol BRK-B" in warnings[0]
+
+
 def test_load_update_tickers_collects_universe_holdings_themes_and_benchmarks(tmp_path: Path):
     (tmp_path / "data").mkdir()
     (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")

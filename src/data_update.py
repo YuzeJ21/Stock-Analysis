@@ -75,6 +75,10 @@ def _stooq_symbol(ticker: str) -> str:
     return f"{ticker.lower()}.us"
 
 
+def _yahoo_chart_symbol(ticker: str) -> str:
+    return str(ticker or "").upper().strip().replace(".", "-")
+
+
 class PriceHistorySource(Protocol):
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
         ...
@@ -170,6 +174,7 @@ class YahooChartDailyPriceSource:
 
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
         ticker = ticker.upper().strip()
+        symbol = _yahoo_chart_symbol(ticker)
         period2 = int(time.time())
         period1 = period2 - max(self.range_days, 1) * 86_400
         params = {
@@ -179,13 +184,14 @@ class YahooChartDailyPriceSource:
             "events": "history",
             "includeAdjustedClose": "true",
         }
-        url = f"{self.base_url}/{ticker}?{urlencode(params)}"
+        url = f"{self.base_url}/{symbol}?{urlencode(params)}"
         request = Request(url, headers={"User-Agent": "stock-research-command-center/1.0"})
         try:
             with self.opener(request, timeout=20) as response:
                 payload = response.read().decode("utf-8")
         except (HTTPError, URLError) as exc:
-            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: update failed from Yahoo chart endpoint ({exc})"]
+            suffix = f" for {symbol}" if symbol != ticker else ""
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: update failed from Yahoo chart endpoint{suffix} ({exc})"]
 
         try:
             parsed = json.loads(payload)
@@ -196,17 +202,20 @@ class YahooChartDailyPriceSource:
         error = chart.get("error")
         if error:
             description = error.get("description") if isinstance(error, dict) else str(error)
-            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned an error ({description})"]
+            suffix = f" for {symbol}" if symbol != ticker else ""
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned an error{suffix} ({description})"]
         results = chart.get("result") or []
         if not results:
-            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned no rows."]
+            suffix = f" for {symbol}" if symbol != ticker else ""
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned no rows{suffix}."]
 
         result = results[0]
         timestamps = result.get("timestamp") or []
         indicators = result.get("indicators", {}) or {}
         quotes = indicators.get("quote") or []
         if not timestamps or not quotes:
-            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned no OHLCV rows."]
+            suffix = f" for {symbol}" if symbol != ticker else ""
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned no OHLCV rows{suffix}."]
         quote = quotes[0]
         adjclose_rows = indicators.get("adjclose") or []
         adjclose = adjclose_rows[0].get("adjclose", []) if adjclose_rows else []
@@ -234,8 +243,9 @@ class YahooChartDailyPriceSource:
         ].copy()
         if frame.empty:
             return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart rows were invalid after normalization."]
+        alias_note = f" via provider symbol {symbol}" if symbol != ticker else ""
         return frame[PRICE_COLUMNS].copy(), [
-            f"{ticker}: prices refreshed from unofficial Yahoo chart endpoint; treat as research-grade and verify if used for decisions."
+            f"{ticker}: prices refreshed from unofficial Yahoo chart endpoint{alias_note}; treat as research-grade and verify if used for decisions."
         ]
 
 
