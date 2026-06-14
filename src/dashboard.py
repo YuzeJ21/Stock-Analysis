@@ -25461,47 +25461,44 @@ def render_data_health(
         render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
         render_context_note(
             "Public Data Health summary.",
-            "This mode shows the current readiness story and latest proof evidence. Switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
+            "Start with the three visitor paths. Open the proof drawer only when you want readiness evidence; switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables.",
             tone="success",
-        )
-        render_context_note(
-            "Beginner view.",
-            "Read quick read, fix first, and trusted-data pilot first. Open refresh and command details only when you want the next copy-only proof steps.",
         )
         render_section_header("Visitor Paths", "Choose the clean public path before opening proof or operator details.")
         render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
-        render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
-        render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
-        render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
-        render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)
-        generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
-        if generated_stale_warning:
-            render_notice_card(
-                "Generated status may be stale",
-                generated_stale_warning,
-                "make readiness",
-                tone="warning",
+        with st.expander("Public proof drawer", expanded=False):
+            render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
+            render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
+            render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
+            render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)
+            generated_stale_warning = dashboard_generated_artifact_stale_warning(BASE_DIR)
+            if generated_stale_warning:
+                render_notice_card(
+                    "Generated status may be stale",
+                    generated_stale_warning,
+                    "make readiness",
+                    tone="warning",
+                )
+            render_section_header("Readiness Freshness", "Refresh stale or missing readiness artifacts before relying on exact counts.")
+            freshness_cards = data_health_operations_cockpit_cards(
+                readiness_summary,
+                ops_center,
+                coverage_frontier,
+                earnings_readiness_frame,
+                analyst_readiness_frame,
+                readiness_freshness,
+            )[:1]
+            render_signal_cards(freshness_cards, show_commands=False)
+            render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
+            render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
+            render_section_header("Latest Reviewed Batch Evidence", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
+            render_signal_cards(data_health_reviewed_batch_proof_cards(), show_commands=False)
+            render_section_header("Latest Reviewed Data Proof", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
+            render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)
+            render_context_note(
+                "Operator details are hidden.",
+                "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
             )
-        render_section_header("Readiness Freshness", "Refresh stale or missing readiness artifacts before relying on exact counts.")
-        freshness_cards = data_health_operations_cockpit_cards(
-            readiness_summary,
-            ops_center,
-            coverage_frontier,
-            earnings_readiness_frame,
-            analyst_readiness_frame,
-            readiness_freshness,
-        )[:1]
-        render_signal_cards(freshness_cards, show_commands=False)
-        render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
-        render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
-        render_section_header("Latest Reviewed Batch Evidence", "Durable supported, still-blocked, skipped, and excluded outcomes for reviewed batch runs.")
-        render_signal_cards(data_health_reviewed_batch_proof_cards(), show_commands=False)
-        render_section_header("Latest Reviewed Data Proof", "Most recent reviewed lane proof from the durable ledger, not generated CSV churn.")
-        render_signal_cards(data_health_reviewed_proof_cards(), show_commands=False)
-        render_context_note(
-            "Operator details are hidden.",
-            "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
-        )
         return
     operator_snapshot_cards = data_health_operator_snapshot_cards(
         readiness_summary,

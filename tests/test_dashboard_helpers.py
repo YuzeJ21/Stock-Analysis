@@ -12040,9 +12040,9 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     quick_read_index = source.index('render_section_header("Data Health Quick Read"')
     assert refresh_note_index < quick_read_index
     assert 'st.expander("Refresh status note", expanded=False)' in source
-    assert "Beginner view." in source
+    assert 'st.expander("Public proof drawer", expanded=False)' in source
+    assert "Start with the three visitor paths. Open the proof drawer only when you want readiness evidence" in source
     assert "Data Health Quick Read" in source
-    assert "Read quick read, fix first, and trusted-data pilot first." in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
     assert "The shortest safe local path before deeper proof lists." in source
     assert "before opening detailed tables" not in source
@@ -21147,7 +21147,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    freshness_index = source.index('render_section_header("Readiness Freshness"', public_index)
+    drawer_index = source.index('st.expander("Public proof drawer", expanded=False)', public_index)
+    freshness_index = source.index('render_section_header("Readiness Freshness"', drawer_index)
     batch_index = source.index('render_section_header("Latest Reviewed Batch Evidence"', freshness_index)
     proof_index = source.index('render_section_header("Latest Reviewed Data Proof"', batch_index)
     hidden_index = source.index("Operator details are hidden.", proof_index)
@@ -21155,8 +21156,8 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", return_index)
     batch_execution_index = source.index('render_section_header("Readiness Batch Execution"', ops_index)
 
-    assert public_index < freshness_index < batch_index < proof_index < hidden_index < return_index < ops_index < batch_execution_index
-    assert "Switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables." in source
+    assert public_index < drawer_index < freshness_index < batch_index < proof_index < hidden_index < return_index < ops_index < batch_execution_index
+    assert "switch to Operator mode for detailed boards, runbooks, and validate / preview / apply workflow tables." in source
     assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode." in source
     assert "Operator details are hidden." in source
     assert "Research-only boundary." in source
