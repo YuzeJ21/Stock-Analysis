@@ -10116,6 +10116,76 @@ def test_data_health_reviewed_batch_loop_card_moves_from_snapshot_to_packet_when
     assert "sell" not in rendered
 
 
+def test_data_health_coverage_expansion_loop_cards_surface_compact_next_action():
+    preflight = dashboard.ReviewedBatchPreflight(
+        lane="prices",
+        lane_scope="Price Coverage",
+        batch_id="RB-READY",
+        review_date="2026-06-12",
+        status="ready_for_dry_run",
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
+        capped_execution_command="make price-refresh-loop TOP_N=10",
+        comparison_command="make reviewed-batch-compare LANE=prices",
+        proof_record_command="make reviewed-batch-proof-record",
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+        expected_artifacts=("data/prices.csv",),
+    )
+    loop = dashboard.CoverageExpansionLoop(
+        status="ready_for_reviewed_dry_run",
+        selected_lane="price_coverage",
+        selected_label="Price Coverage",
+        reviewed_batch_lane="prices",
+        planner_step=None,
+        preflight=preflight,
+        next_safe_action="Run make reviewed-batch LANE=prices TOP_N=10, review the packet, then run the dry run.",
+        copy_only_sequence=("make coverage-expansion-loop LANE=prices TOP_N=10",),
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+    )
+
+    cards = dashboard.data_health_coverage_expansion_loop_cards(loop)
+    frame = dashboard.data_health_coverage_expansion_loop_frame(loop)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "EXPANSION LOOP"
+    assert cards[0]["title"] == "Coverage loop ready"
+    assert cards[0]["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert "planner -> preflight -> packet -> proof path" in rendered
+    assert frame["Step"].tolist() == ["Status", "Planner gate", "Preflight gate", "Proof boundary"]
+    assert frame.iloc[3]["Command"] == "DRY_RUN=1 make reviewed-batch-proof-record"
+    assert "source proof, validation, preview/apply decision" in frame.iloc[3]["Value"]
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_coverage_expansion_loop_cards_block_missing_lane_without_fake_plan():
+    loop = dashboard.CoverageExpansionLoop(
+        status="blocked_missing_lane",
+        selected_lane="not_a_lane",
+        selected_label="No matching planner lane",
+        reviewed_batch_lane="-",
+        planner_step=None,
+        preflight=None,
+        next_safe_action="Run make readiness and make data-coverage-planner TOP_N=10.",
+        copy_only_sequence=("make readiness", "make data-coverage-planner TOP_N=10"),
+        do_not_proceed_if=("no planner lane exists for the requested scope",),
+    )
+
+    cards = dashboard.data_health_coverage_expansion_loop_cards(loop)
+    frame = dashboard.data_health_coverage_expansion_loop_frame(loop)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Pick a planner lane first"
+    assert cards[0]["command"] == "make data-coverage-planner TOP_N=10"
+    assert "did not return a matching lane" in rendered
+    assert frame.iloc[1]["Command"] == "make data-coverage-planner TOP_N=10"
+
+
 def test_data_health_reviewed_batch_snapshot_gate_cards_cover_missing_and_ready_states():
     missing_current = dashboard.ReviewedBatchPreflight(
         lane="prices",
@@ -11434,9 +11504,12 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     decision_queue_cards_index = source.index("decision_proof_queue_drawer_cards(decision_queue_frame, decision_queue_freshness)", decision_queue_drawer_index)
     decision_queue_rows_index = source.index('st.expander("Decision proof queue rows", expanded=False)', decision_queue_cards_index)
     batch_header_index = source.index('render_section_header("Readiness Batch Execution"', decision_queue_rows_index)
-    batch_cards_index = source.index("data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness)", batch_header_index)
+    coverage_loop_cards_index = source.index("data_health_coverage_expansion_loop_cards(coverage_loop)", batch_header_index)
+    batch_cards_index = source.index("data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness)", coverage_loop_cards_index)
     batch_drawer_index = source.index('st.expander("Reviewed batch review drawer", expanded=False)', batch_cards_index)
-    batch_snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', batch_drawer_index)
+    coverage_loop_drawer_index = source.index('render_section_header("Coverage Expansion Loop"', batch_drawer_index)
+    coverage_loop_frame_index = source.index("data_health_coverage_expansion_loop_frame(coverage_loop)", coverage_loop_drawer_index)
+    batch_snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', coverage_loop_frame_index)
     batch_apply_gate_index = source.index('render_section_header("Apply Guard"', batch_snapshot_gate_index)
     batch_sequence_index = source.index('render_section_header("Copy-Only Batch Sequence"', batch_apply_gate_index)
     price_console_index = source.index("render_data_health_price_operator_console(", batch_sequence_index)
@@ -11459,7 +11532,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_drawer_index < decision_queue_cards_index < decision_queue_rows_index < batch_header_index < batch_cards_index < batch_drawer_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_drawer_index < decision_queue_cards_index < decision_queue_rows_index < batch_header_index < coverage_loop_cards_index < batch_cards_index < batch_drawer_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
@@ -11467,6 +11540,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_operator_snapshot_cards(" in source
     assert "render_data_health_operator_hero(operator_snapshot_cards)" in source
     assert "data_health_batch_lane_for_operator(selected_lane_key)" in source
+    assert "coverage_loop = build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)" in source
+    assert "data_health_coverage_expansion_loop_cards(coverage_loop)" in source
+    assert "data_health_coverage_expansion_loop_frame(coverage_loop)" in source
+    assert "Coverage Expansion Loop" in source
     assert "data_health_reviewed_batch_snapshot_gate_cards(batch_preflight)" in source
     assert "data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)" in source
     assert "data_health_reviewed_batch_apply_guard_cards(batch_preflight)" in source

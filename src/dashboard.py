@@ -20,6 +20,7 @@ from src.decision_proof_queue import (
     build_decision_proof_queue_frame as _build_decision_proof_queue_frame,
     decision_proof_queue_artifact_status,
 )
+from src.coverage_expansion_loop import CoverageExpansionLoop, build_coverage_expansion_loop
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
 from src.providers.local_data_catalog import LocalDataCatalog
@@ -9116,6 +9117,87 @@ def data_health_reviewed_batch_loop_card(
         "badges": badges,
         "command": command,
     }
+
+
+def data_health_coverage_expansion_loop_cards(
+    loop: CoverageExpansionLoop | None = None,
+) -> list[dict[str, object]]:
+    loop = loop or build_coverage_expansion_loop(BASE_DIR, lane="auto", top_n=10)
+    if loop.status == "blocked_missing_lane":
+        return [
+            {
+                "kicker": "EXPANSION LOOP",
+                "title": "Pick a planner lane first",
+                "body": (
+                    "The coverage planner did not return a matching lane. Rebuild readiness, open the planner, "
+                    "then choose a listed lane before packet or dry-run work."
+                ),
+                "badges": ["planner first", "blocked"],
+                "command": "make data-coverage-planner TOP_N=10",
+            }
+        ]
+    if loop.status == "ready_for_reviewed_dry_run":
+        title = "Coverage loop ready"
+        badges = ["ready", "dry-run first"]
+        command = loop.preflight.packet_command if loop.preflight is not None else "make coverage-expansion-loop TOP_N=10"
+    else:
+        title = "Coverage loop blocked by preflight"
+        badges = ["preflight", "fix first"]
+        command = (
+            loop.preflight.snapshot_command
+            if loop.preflight is not None and not loop.preflight.prior_snapshot_exists
+            else "make coverage-expansion-loop TOP_N=10"
+        )
+    return [
+        {
+            "kicker": "EXPANSION LOOP",
+            "title": title,
+            "body": (
+                f"{loop.selected_label}: {compact_card_fragment(loop.next_safe_action, max_chars=210)} "
+                "This is the compact planner -> preflight -> packet -> proof path; full copy-only steps stay in the review drawer."
+            ),
+            "badges": badges + [loop.reviewed_batch_lane],
+            "command": command,
+        }
+    ]
+
+
+def data_health_coverage_expansion_loop_frame(loop: CoverageExpansionLoop | None = None) -> pd.DataFrame:
+    loop = loop or build_coverage_expansion_loop(BASE_DIR, lane="auto", top_n=10)
+    planner_step = loop.planner_step
+    preflight = loop.preflight
+    return pd.DataFrame(
+        [
+            {
+                "Step": "Status",
+                "Value": loop.status,
+                "Command": loop.copy_only_sequence[0] if loop.copy_only_sequence else "make coverage-expansion-loop TOP_N=10",
+                "Stop If": "; ".join(loop.do_not_proceed_if[:3]),
+            },
+            {
+                "Step": "Planner gate",
+                "Value": planner_step.review_gate if planner_step is not None else "No matching planner lane",
+                "Command": planner_step.next_safe_command if planner_step is not None else "make data-coverage-planner TOP_N=10",
+                "Stop If": planner_step.stop_condition if planner_step is not None else "planner lane is missing",
+            },
+            {
+                "Step": "Preflight gate",
+                "Value": preflight.status if preflight is not None else "missing",
+                "Command": preflight.packet_command if preflight is not None else "make reviewed-batch-preflight",
+                "Stop If": preflight.do_not_proceed_if[0] if preflight is not None and preflight.do_not_proceed_if else "preflight unavailable",
+            },
+            {
+                "Step": "Proof boundary",
+                "Value": "Record supported only after source proof, validation, preview/apply decision, rebuilt readiness, comparison, and artifact review.",
+                "Command": (
+                    f"DRY_RUN=1 {preflight.proof_record_command}"
+                    if preflight is not None
+                    else "DRY_RUN=1 make reviewed-batch-proof-record"
+                ),
+                "Stop If": "generated CSV/JSON churn is not classified or source proof is missing",
+            },
+        ]
+    )
 
 
 def data_health_reviewed_batch_execution_cards(
@@ -25249,6 +25331,7 @@ def render_data_health(
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
     batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
+    coverage_loop = build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)
     decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)
     decision_queue_frame = (
         decision_proof_queue_frame(decisions_frame, ticker_readiness_frame, limit=8)
@@ -25270,10 +25353,17 @@ def render_data_health(
     if selected_lane_key != "proof":
         render_section_header("Readiness Batch Execution", "Choose the lane, confirm source/freshness gates, then generate a reviewed proof packet before row-level evidence.")
         render_signal_cards(
+            data_health_coverage_expansion_loop_cards(coverage_loop),
+            show_commands=True,
+        )
+        render_signal_cards(
             data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness),
             show_commands=True,
         )
         with st.expander("Reviewed batch review drawer", expanded=False):
+            render_section_header("Coverage Expansion Loop", "Planner, preflight, packet, proof-record preview, and hygiene in one compact review path.")
+            render_signal_cards(data_health_coverage_expansion_loop_cards(coverage_loop))
+            st.dataframe(clean_display_frame(data_health_coverage_expansion_loop_frame(coverage_loop)), width="stretch", hide_index=True)
             render_section_header("Snapshot Gate", "Save the baseline readiness snapshot before packet, dry-run, comparison, or proof-record work.")
             render_signal_cards(data_health_reviewed_batch_snapshot_gate_cards(batch_preflight))
             st.dataframe(clean_display_frame(data_health_reviewed_batch_snapshot_gate_frame(batch_preflight)), width="stretch", hide_index=True)
