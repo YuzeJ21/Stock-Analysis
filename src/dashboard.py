@@ -16,6 +16,7 @@ from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.decision_proof_queue import (
     build_decision_proof_queue_drawer_cards as _build_decision_proof_queue_drawer_cards,
+    build_decision_proof_queue_drawer_summary_frame as _build_decision_proof_queue_drawer_summary_frame,
     build_decision_proof_queue_cards as _build_decision_proof_queue_cards,
     build_decision_proof_queue_frame as _build_decision_proof_queue_frame,
     decision_proof_queue_artifact_status,
@@ -13562,6 +13563,13 @@ def decision_proof_queue_drawer_cards(
     return _build_decision_proof_queue_drawer_cards(queue_frame, freshness)
 
 
+def decision_proof_queue_drawer_summary_frame(
+    queue_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus,
+) -> pd.DataFrame:
+    return _build_decision_proof_queue_drawer_summary_frame(queue_frame, freshness)
+
+
 def purpose_family_label(asset_type: object, purpose_text: object = "", alignment_text: object = "") -> str:
     asset_kind = format_missing(asset_type, "").lower()
     if asset_kind in {"etf", "index_proxy", "fund"}:
@@ -25378,6 +25386,13 @@ def render_data_health(
         render_signal_cards(
             decision_proof_queue_drawer_cards(decision_queue_frame, decision_queue_freshness),
             show_commands=True,
+        )
+        render_section_header(
+            "Decision Proof Checklist",
+            "One compact status table before raw queue rows: freshness, top row, reviewable inputs, locked context, and proof command.",
+        )
+        st.table(
+            clean_display_frame(decision_proof_queue_drawer_summary_frame(decision_queue_frame, decision_queue_freshness)),
         )
         if decision_queue_freshness.status == "current" and not decision_queue_frame.empty:
             with st.expander("Decision proof queue rows", expanded=False):

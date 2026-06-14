@@ -393,6 +393,123 @@ def build_decision_proof_queue_drawer_cards(
     return cards
 
 
+def build_decision_proof_queue_drawer_summary_frame(
+    queue_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus,
+) -> pd.DataFrame:
+    """Return the compact operator checklist shown before raw queue rows."""
+    status_command = freshness.refresh_command if freshness.status in {"missing", "stale"} else "make decision-proof-queue TOP_N=12"
+    rows: list[dict[str, str]] = [
+        {
+            "step": "Freshness status",
+            "status": freshness.status,
+            "detail": _compact_reason(
+                f"{freshness.message} Decision labels are review states, not recommendations or execution instructions.",
+                max_sentences=2,
+                max_chars=300,
+            ),
+            "copy_only_command": status_command,
+            "post_unlock_proof": "Reopen Data Health after the refresh, then rebuild the proof queue.",
+        }
+    ]
+    if freshness.status in {"missing", "stale"}:
+        rows.extend(
+            [
+                {
+                    "step": "Top proof row",
+                    "status": "blocked by freshness gate",
+                    "detail": "Do not read stale decision rows as current proof.",
+                    "copy_only_command": status_command,
+                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                },
+                {
+                    "step": "What can be reviewed now",
+                    "status": "blocked",
+                    "detail": "Wait for current decision rows before reading review states.",
+                    "copy_only_command": "",
+                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                },
+                {
+                    "step": "What stays locked",
+                    "status": "locked",
+                    "detail": "All decision proof interpretation stays locked until freshness is current.",
+                    "copy_only_command": "",
+                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                },
+            ]
+        )
+        return pd.DataFrame(rows)
+
+    if queue_frame is None or queue_frame.empty:
+        rows.extend(
+            [
+                {
+                    "step": "Top proof row",
+                    "status": "no queue rows",
+                    "detail": "Readiness is current, but no decision proof rows are available yet.",
+                    "copy_only_command": "make research-decisions",
+                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                },
+                {
+                    "step": "What can be reviewed now",
+                    "status": "not available",
+                    "detail": "Rebuild research decisions before reading decision proof output.",
+                    "copy_only_command": "make research-decisions",
+                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                },
+            ]
+        )
+        return pd.DataFrame(rows)
+
+    top = queue_frame.iloc[0]
+    copy_command = _format_missing(top.get("copy_only_command"), "make project-status")
+    proof_command = _compact_reason(top.get("proof_after_unlock"), max_sentences=2, max_chars=260)
+    rows.extend(
+        [
+            {
+                "step": "Top proof row",
+                "status": _format_missing(top.get("decision_bucket"), "review state"),
+                "detail": (
+                    f"{_format_missing(top.get('ticker'), 'Ticker')}: "
+                    f"{_format_missing(top.get('decision_subtype'), 'Decision')}. "
+                    f"Main blocker: {_format_missing(top.get('primary_blocker'), 'none')}."
+                ),
+                "copy_only_command": copy_command,
+                "post_unlock_proof": proof_command,
+            },
+            {
+                "step": "What can be reviewed now",
+                "status": "reviewable",
+                "detail": _compact_reason(top.get("what_can_be_reviewed_now"), max_sentences=2, max_chars=260),
+                "copy_only_command": "",
+                "post_unlock_proof": proof_command,
+            },
+            {
+                "step": "What stays locked",
+                "status": "locked until proof",
+                "detail": _compact_reason(top.get("what_stays_locked"), max_sentences=2, max_chars=260),
+                "copy_only_command": "",
+                "post_unlock_proof": proof_command,
+            },
+            {
+                "step": "Copy-only command",
+                "status": "ready to copy",
+                "detail": "Use this only as a local research proof command; it does not change account or execution state.",
+                "copy_only_command": copy_command,
+                "post_unlock_proof": proof_command,
+            },
+            {
+                "step": "Post-unlock proof command",
+                "status": "required before interpretation",
+                "detail": proof_command,
+                "copy_only_command": "",
+                "post_unlock_proof": proof_command,
+            },
+        ]
+    )
+    return pd.DataFrame(rows)
+
+
 def render_decision_proof_queue_guidance(cards: list[dict[str, object]]) -> str:
     lines = ["Decision proof queue guidance:"]
     for card in cards:

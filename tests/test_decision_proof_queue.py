@@ -8,6 +8,7 @@ import pytest
 from src.decision_proof_queue import (
     DEFAULT_QUEUE_CSV,
     DEFAULT_QUEUE_MD,
+    build_decision_proof_queue_drawer_summary_frame,
     build_decision_proof_queue_drawer_cards,
     build_decision_proof_queue_cards,
     build_decision_proof_queue_frame,
@@ -171,6 +172,71 @@ def test_decision_proof_queue_drawer_cards_show_top_row_before_table():
     assert "not advice" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_decision_proof_queue_drawer_summary_frame_blocks_stale_artifacts():
+    freshness = FreshnessStatus(
+        "stale",
+        "Research decision output is older than the current ticker readiness report. Run make research-decisions before building the proof queue.",
+        "make research-decisions",
+    )
+
+    frame = build_decision_proof_queue_drawer_summary_frame(pd.DataFrame(), freshness)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert list(frame["step"]) == [
+        "Freshness status",
+        "Top proof row",
+        "What can be reviewed now",
+        "What stays locked",
+    ]
+    assert frame.iloc[1]["status"] == "blocked by freshness gate"
+    assert frame.iloc[1]["copy_only_command"] == "make research-decisions"
+    assert "do not read stale decision rows as current proof" in rendered
+    assert "make decision-proof-queue top_n=12" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_decision_proof_queue_drawer_summary_frame_shows_current_operator_loop():
+    queue = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "data_confidence": "medium",
+                "what_can_be_reviewed_now": "Standalone DCF scenario analysis can be reviewed.",
+                "what_stays_locked": "Peer-relative valuation stays locked until source-backed peers exist.",
+                "copy_only_command": "make focus-peers TICKER=META",
+                "proof_after_unlock": "Proof after data changes: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `make stock-report-md TICKER=META`.",
+            }
+        ]
+    )
+    freshness = FreshnessStatus("current", "Readiness artifacts are current relative to watched source files.")
+
+    frame = build_decision_proof_queue_drawer_summary_frame(queue, freshness)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert list(frame["step"]) == [
+        "Freshness status",
+        "Top proof row",
+        "What can be reviewed now",
+        "What stays locked",
+        "Copy-only command",
+        "Post-unlock proof command",
+    ]
+    assert frame.iloc[1]["copy_only_command"] == "make focus-peers TICKER=META"
+    assert "standalone dcf scenario analysis can be reviewed" in rendered
+    assert "peer-relative valuation stays locked" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "does not change account or execution state" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trade" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
