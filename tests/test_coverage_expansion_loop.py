@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from src.coverage_expansion_loop import build_coverage_expansion_loop, render_coverage_expansion_loop
+from src.coverage_expansion_loop import (
+    build_coverage_expansion_lane_board,
+    build_coverage_expansion_loop,
+    render_coverage_expansion_loop,
+)
+from src.readiness_ops import build_readiness_ops_lanes
 
 
 def _write(path: Path, text: str) -> None:
@@ -59,8 +64,12 @@ def test_coverage_expansion_loop_blocks_until_preflight_snapshot_exists(tmp_path
 
     assert loop.status == "blocked_by_preflight"
     assert loop.selected_lane == "price_coverage"
+    assert loop.lane_board[0].selected is True
     assert "prior readiness snapshot is missing" in rendered
     assert "make readiness-snapshot" in rendered
+    assert "Lane readiness board" in rendered
+    assert "Price Coverage | selected=yes" in rendered
+    assert "dry-run and reviewed scope before any capped provider refresh" in rendered
     assert "does not refresh data, stage imports, apply rows" in rendered
     assert "investment advice" in rendered
     assert "buy/sell" not in rendered.lower()
@@ -77,9 +86,11 @@ def test_coverage_expansion_loop_prints_ready_copy_only_sequence(tmp_path: Path)
     assert loop.status == "ready_for_reviewed_dry_run"
     assert loop.selected_lane == "fundamentals_dcf"
     assert loop.reviewed_batch_lane == "fundamentals"
+    assert any(row.selected and row.lane == "fundamentals_dcf" for row in loop.lane_board)
     assert "make reviewed-batch LANE=fundamentals TOP_N=5" in rendered
     assert "make sec-stage-queue TOP_N=5" in rendered
     assert "make imports-validate && make imports-preview" in rendered
+    assert "source proof, validate, preview, rejected-row review, explicit apply decision, rebuilt readiness" in rendered
     assert "DRY_RUN=1 make reviewed-batch-proof-record" in rendered
     assert "generated-artifact" in rendered
 
@@ -90,5 +101,24 @@ def test_coverage_expansion_loop_reports_unknown_lane_without_fake_plan(tmp_path
 
     assert loop.status == "blocked_missing_lane"
     assert loop.planner_step is None
+    assert loop.lane_board
+    assert not any(row.selected for row in loop.lane_board)
     assert "No matching planner lane" in rendered
     assert "Run make readiness and make data-coverage-planner TOP_N=10" in rendered
+
+
+def test_coverage_expansion_lane_board_keeps_locked_and_excluded_boundaries_visible(tmp_path: Path):
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
+    board = build_coverage_expansion_lane_board(lanes, selected_lane="earnings_locked", top_n=10)
+    rendered = "\n".join(
+        f"{row.label} {row.selected} {row.workflow_mode} {row.proceed_boundary} {row.next_safe_command}"
+        for row in board
+    )
+
+    assert any(row.selected and row.lane == "earnings_locked" for row in board)
+    assert "locked until trusted local rows exist" in rendered
+    assert "excluded/not applicable stays visible" in rendered
+    assert "make optional-context-worklist TOP_N=25" in rendered
+    assert "buy" not in rendered.lower()
+    assert "sell" not in rendered.lower()
+    assert "broker" not in rendered.lower()

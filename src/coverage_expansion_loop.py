@@ -13,6 +13,7 @@ from pathlib import Path
 
 from src.readiness_ops import (
     DataCoverageExpansionStep,
+    ReadinessLane,
     build_data_coverage_expansion_plan,
     build_readiness_ops_lanes,
 )
@@ -31,6 +32,20 @@ LANE_TO_REVIEWED_BATCH = {
 
 
 @dataclass(frozen=True)
+class CoverageExpansionLaneStatus:
+    lane: str
+    label: str
+    selected: bool
+    readiness_state: str
+    workflow_mode: str
+    unlock_impact: int
+    readiness_snapshot: str
+    next_safe_command: str
+    proof_command: str
+    proceed_boundary: str
+
+
+@dataclass(frozen=True)
 class CoverageExpansionLoop:
     status: str
     selected_lane: str
@@ -41,6 +56,7 @@ class CoverageExpansionLoop:
     next_safe_action: str
     copy_only_sequence: tuple[str, ...]
     do_not_proceed_if: tuple[str, ...]
+    lane_board: tuple[CoverageExpansionLaneStatus, ...] = ()
 
 
 def _normalize_planner_lane(value: str) -> str:
@@ -76,6 +92,64 @@ def _select_step(steps: list[DataCoverageExpansionStep], lane: str) -> DataCover
     return None
 
 
+def _lane_proceed_boundary(lane: ReadinessLane) -> str:
+    if lane.workflow_mode == "dry_run_first":
+        return "dry-run and reviewed scope before any capped provider refresh"
+    if lane.workflow_mode == "preview_first_reviewed_apply":
+        return "source proof, validate, preview, rejected-row review, explicit apply decision, rebuilt readiness"
+    if lane.workflow_mode == "reviewed_apply":
+        return "source-backed rows only; fallback context does not become trusted data"
+    if lane.workflow_mode == "locked_manual":
+        return "locked until trusted local rows exist; skipped is valid when source proof is unavailable"
+    if lane.workflow_mode == "excluded":
+        return "excluded/not applicable stays visible; do not force an analysis lane"
+    return "review source proof and rebuilt readiness before recording supported"
+
+
+def build_coverage_expansion_lane_board(
+    lanes: list[ReadinessLane],
+    *,
+    selected_lane: str,
+    top_n: int = 10,
+) -> tuple[CoverageExpansionLaneStatus, ...]:
+    normalized_selected = _normalize_planner_lane(selected_lane)
+    workflow_rank = {
+        "dry_run_first": 0,
+        "preview_first_reviewed_apply": 1,
+        "reviewed_apply": 2,
+        "locked_manual": 3,
+        "excluded": 4,
+    }
+    ranked = sorted(
+        lanes,
+        key=lambda lane: (
+            workflow_rank.get(lane.workflow_mode, 9),
+            -lane.unlock_impact,
+            lane.label,
+        ),
+    )
+    board: list[CoverageExpansionLaneStatus] = []
+    for lane in ranked[: max(top_n, 0)]:
+        board.append(
+            CoverageExpansionLaneStatus(
+                lane=lane.lane,
+                label=lane.label,
+                selected=lane.lane == normalized_selected,
+                readiness_state=lane.readiness_state,
+                workflow_mode=lane.workflow_mode,
+                unlock_impact=lane.unlock_impact,
+                readiness_snapshot=(
+                    f"ready={lane.ready_count}; partial={lane.partial_count}; "
+                    f"blocked={lane.blocked_count}; excluded={lane.excluded_count}; total={lane.total_count}"
+                ),
+                next_safe_command=lane.next_safe_command,
+                proof_command=lane.proof_command,
+                proceed_boundary=_lane_proceed_boundary(lane),
+            )
+        )
+    return tuple(board)
+
+
 def build_coverage_expansion_loop(
     root: Path | str = ".",
     *,
@@ -88,15 +162,18 @@ def build_coverage_expansion_loop(
     lanes = build_readiness_ops_lanes(root)
     steps = build_data_coverage_expansion_plan(lanes, top_n=top_n)
     selected = _select_step(steps, lane)
+    selected_lane = selected.lane if selected is not None else _normalize_planner_lane(lane)
+    lane_board = build_coverage_expansion_lane_board(lanes, selected_lane=selected_lane, top_n=top_n)
     if selected is None:
         return CoverageExpansionLoop(
             status="blocked_missing_lane",
-            selected_lane=_normalize_planner_lane(lane),
+            selected_lane=selected_lane,
             selected_label="No matching planner lane",
             reviewed_batch_lane="-",
             planner_step=None,
             preflight=None,
             next_safe_action="Run make readiness and make data-coverage-planner TOP_N=10, then choose a listed lane.",
+            lane_board=lane_board,
             copy_only_sequence=("make readiness", f"make data-coverage-planner TOP_N={top_n}", "make coverage-frontier TOP_N=10"),
             do_not_proceed_if=("no planner lane exists for the requested scope",),
         )
@@ -138,6 +215,7 @@ def build_coverage_expansion_loop(
         planner_step=selected,
         preflight=preflight,
         next_safe_action=next_safe_action,
+        lane_board=lane_board,
         copy_only_sequence=sequence,
         do_not_proceed_if=preflight.do_not_proceed_if,
     )
@@ -155,6 +233,20 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
         f"Next safe action: {loop.next_safe_action}",
         "",
     ]
+    if loop.lane_board:
+        lines.append("Lane readiness board:")
+        for index, row in enumerate(loop.lane_board, start=1):
+            selected = "yes" if row.selected else "no"
+            lines.extend(
+                [
+                    f"{index}. {row.label} | selected={selected} | {row.readiness_state} | {row.workflow_mode} | unlock_impact={row.unlock_impact}",
+                    f"   readiness: {row.readiness_snapshot}",
+                    f"   proceed_boundary: {row.proceed_boundary}",
+                    f"   next_safe_command: {row.next_safe_command}",
+                    f"   proof_command: {row.proof_command}",
+                ]
+            )
+        lines.append("")
     if loop.planner_step is not None:
         lines.extend(
             [
