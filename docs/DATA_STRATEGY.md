@@ -195,7 +195,7 @@ Use `make data-coverage-planner TOP_N=10` after the frontier check to convert th
 
 Use `make coverage-expansion-loop TOP_N=10` when the operator is ready to turn the planner into one reviewed loop. It keeps the flow copy-only: selected lane, preflight gate, reviewed packet, readiness snapshot, dry run, capped command boundary, validate/preview/apply gate, rebuilt readiness, before/after comparison, proof-record dry run, and diff hygiene. If the current report, prior snapshot, or freshness gate is not ready, the loop stops at the preflight fix instead of treating stale counts as proof.
 
-In Data Health, the same coverage expansion loop appears as a compact operator card before the detailed batch tables. The full loop rows stay inside the reviewed-batch drawer so the page starts with the next safe action instead of raw command sprawl.
+In public Data Health, visitors see the three simple paths first: review one stock, improve data coverage, and inspect proof. The same coverage expansion loop appears only as a compact operator card before the detailed batch tables. The full loop rows stay inside the reviewed-batch drawer so the page starts with the next safe action instead of raw command sprawl.
 
 Use `make readiness-ops-evidence` as the compact evidence checklist before packaging work. It restates the proof gate, locked optional lanes, excluded/not-applicable boundary, and broad CSV/JSON churn policy. Data Health surfaces the same operations-center and coverage-frontier views before the trusted-data pilot and detailed tables so the product starts from batch lanes rather than one-name manual loops.
 

@@ -7176,6 +7176,36 @@ def data_health_quick_read_cards(readiness_summary: dict[str, object]) -> list[d
     ]
 
 
+def data_health_public_visitor_path_cards(readiness_summary: dict[str, object]) -> list[tuple[str, str, str, str]]:
+    price_ready = int(readiness_summary.get("price_ready") or 0)
+    dcf_ready = int(readiness_summary.get("dcf_ready") or 0)
+    peer_ready = int(readiness_summary.get("peer_ready") or 0)
+    review_body = (
+        f"Open a ticker report to see exactly which sections are supported. Current proof: {price_ready:,} price-ready, "
+        f"{dcf_ready:,} DCF-ready, and {peer_ready:,} peer-ready."
+    )
+    return [
+        (
+            "Review one stock",
+            review_body,
+            "Single-Stock Report",
+            "neutral",
+        ),
+        (
+            "Improve data coverage",
+            "You are here. Read Quick Read first; the public page shows what is ready, what is blocked, and which lane needs proof next.",
+            "Data Health",
+            "warning",
+        ),
+        (
+            "Inspect proof",
+            "Use the latest reviewed evidence below before treating a changed readiness state as supported. Operator commands stay hidden by default.",
+            "Proof History",
+            "neutral",
+        ),
+    ]
+
+
 def _trusted_ready_count(frame: pd.DataFrame | None, column: str) -> int:
     if frame is None or frame.empty or column not in frame.columns:
         return 0
@@ -25266,6 +25296,8 @@ def render_data_health(
             "Beginner view.",
             "Read quick read, fix first, and trusted-data pilot first. Open refresh and command details only when you want the next copy-only proof steps.",
         )
+        render_section_header("Visitor Paths", "Choose the clean public path before opening proof or operator details.")
+        render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
         render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
         render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
         render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")

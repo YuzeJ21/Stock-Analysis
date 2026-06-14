@@ -33,6 +33,7 @@ The following milestones are completed or mostly completed across the active-uni
 - [x] Public-facing methodology documentation that explains readiness gates, fundamentals review, DCF formula path, peer boundaries, score limits, and report explanation.
 - [x] Public README/dashboard polish for visitor-friendly demo paths, screenshot preview, generated-data hygiene, deep links, and research-only guardrails.
 - [x] Visitor-first dashboard navigation with three main paths: review one stock, improve data coverage, and explore ready names, while detailed pages remain available under `More pages`.
+- [x] Public Data Health polish with the three visitor paths before quick-read proof cards, while operator commands stay behind drawers.
 - [x] Public data-strategy guidance that separates safe automation from human-reviewed source judgment.
 - [x] Data Health freshness routine promoted into the beginner flow with read-only checks, capped price dry-run guidance, and review-required lanes.
 - [x] Blocked single-stock reports hold peer-relative valuation behind fundamentals/DCF readiness so peer rows cannot bypass core company gates.

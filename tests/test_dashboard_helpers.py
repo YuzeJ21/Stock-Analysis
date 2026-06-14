@@ -9519,6 +9519,32 @@ def test_data_health_quick_read_cards_keep_optional_context_locked_after_core_la
     assert "data/rejected/earnings_import_rejected.csv" not in rendered
 
 
+def test_data_health_public_visitor_path_cards_are_plain_language_without_commands():
+    cards = dashboard.data_health_public_visitor_path_cards(
+        {
+            "price_ready": 3536,
+            "dcf_ready": 27,
+            "peer_ready": 26,
+        }
+    )
+    rendered = " ".join(str(value) for card in cards for value in card).lower()
+
+    assert [card[0] for card in cards] == ["Review one stock", "Improve data coverage", "Inspect proof"]
+    assert [card[2] for card in cards] == ["Single-Stock Report", "Data Health", "Proof History"]
+    assert cards[1][3] == "warning"
+    assert "3,536 price-ready" in rendered
+    assert "27 dcf-ready" in rendered
+    assert "26 peer-ready" in rendered
+    assert "you are here" in rendered
+    assert "operator commands stay hidden by default" in rendered
+    assert "make " not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overclaiming():
     ops = pd.DataFrame(
         [
@@ -15277,13 +15303,16 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    quick_read_index = source.index('render_section_header("Data Health Quick Read"', public_index)
+    visitor_paths_index = source.index('render_section_header("Visitor Paths"', public_index)
+    visitor_cards_index = source.index("render_action_cards(data_health_public_visitor_path_cards(readiness_summary))", visitor_paths_index)
+    quick_read_index = source.index('render_section_header("Data Health Quick Read"', visitor_cards_index)
     scope_index = source.index('render_section_header("Universe Scope Legend"', quick_read_index)
     public_return_index = source.index("return", source.index("Operator details are hidden."))
     ops_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
 
-    assert public_index < quick_read_index < scope_index < public_return_index < ops_index
+    assert public_index < visitor_paths_index < visitor_cards_index < quick_read_index < scope_index < public_return_index < ops_index
     assert "render_signal_cards(universe_layer_cards(readiness_summary, decisions_frame), show_commands=False)" in source
+    assert "Choose the clean public path before opening proof or operator details." in source
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
 
 
