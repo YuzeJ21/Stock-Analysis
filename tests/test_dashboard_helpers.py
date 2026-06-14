@@ -10054,11 +10054,21 @@ def test_data_health_reviewed_batch_execution_cards_show_lane_source_and_next_ac
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["BATCH LANE", "SNAPSHOT GATE", "APPLY GUARD", "SOURCE GATE", "NEXT BATCH ACTION"]
-    assert cards[1]["command"] == "make readiness-snapshot"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview"
-    assert cards[4]["command"] == "make readiness"
+    assert [card["kicker"] for card in cards] == [
+        "BATCH LANE",
+        "BATCH LOOP",
+        "SNAPSHOT GATE",
+        "APPLY GUARD",
+        "SOURCE GATE",
+        "NEXT BATCH ACTION",
+    ]
+    assert cards[1]["command"] == "make readiness"
+    assert cards[2]["command"] == "make readiness-snapshot"
+    assert cards[3]["command"] == "make imports-validate && make imports-preview"
+    assert cards[5]["command"] == "make readiness"
     assert "selected reviewed-batch lane: peers" in rendered
+    assert "operator sequence: snapshot -> reviewed packet/dry run -> validate/preview/apply gate -> proof-record command -> before/after comparison" in rendered
+    assert "supported outcomes require reviewed source files and generated-artifact classification" in rendered
     assert "save baseline snapshot first" in rendered
     assert "before the reviewed packet or dry run" in rendered
     assert "validate and preview before apply" in rendered
@@ -10067,6 +10077,41 @@ def test_data_health_reviewed_batch_execution_cards_show_lane_source_and_next_ac
     assert "sector fallback is context only" in rendered
     assert "preflight is blocked" in rendered
     assert "data-readiness queue, not a security ranking" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_reviewed_batch_loop_card_moves_from_snapshot_to_packet_when_ready():
+    ready = dashboard.ReviewedBatchPreflight(
+        lane="prices",
+        lane_scope="Price Coverage",
+        batch_id="RB-READY",
+        review_date="2026-06-12",
+        status="ready_for_dry_run",
+        current_report_exists=True,
+        prior_snapshot_exists=True,
+        freshness_status="current",
+        freshness_message="Readiness artifacts are current.",
+        packet_command="make reviewed-batch LANE=prices TOP_N=10",
+        snapshot_command="make readiness-snapshot",
+        dry_run_command="make price-refresh-loop DRY_RUN=1 TOP_N=10",
+        capped_execution_command="make price-refresh-loop TOP_N=10",
+        comparison_command="make reviewed-batch-compare LANE=prices",
+        proof_record_command="make reviewed-batch-proof-record",
+        do_not_proceed_if=("dry-run scope is not reviewed",),
+        expected_artifacts=("data/reports/ticker_readiness_report.previous.csv",),
+    )
+
+    card = dashboard.data_health_reviewed_batch_loop_card(
+        ready,
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness"),
+    )
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert card["title"] == "Run the reviewed batch loop"
+    assert card["command"] == "make reviewed-batch LANE=prices TOP_N=10"
+    assert "snapshot -> reviewed packet/dry run -> validate/preview/apply gate -> proof-record command -> before/after comparison" in rendered
+    assert "commands are copy-only from the dashboard" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

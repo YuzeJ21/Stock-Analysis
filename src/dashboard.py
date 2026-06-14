@@ -9081,6 +9081,43 @@ def data_health_batch_gate_summary(preflight: ReviewedBatchPreflight) -> str:
     return f"Preflight is blocked: {first_blocker}. Fix this before treating changed readiness counts as proof."
 
 
+def data_health_reviewed_batch_loop_card(
+    preflight: ReviewedBatchPreflight,
+    freshness: FreshnessStatus,
+) -> dict[str, object]:
+    if freshness.status in {"missing", "stale"}:
+        title = "Refresh source artifacts first"
+        command = freshness.refresh_command
+        gate_note = f"Freshness gate is {freshness.status}: {freshness.message}"
+        badges = [freshness.status, "refresh first"]
+    elif not preflight.current_report_exists:
+        title = "Build current readiness first"
+        command = "make readiness"
+        gate_note = "Current readiness report is missing, so changed-count proof cannot start yet."
+        badges = ["missing current", "stop"]
+    elif not preflight.prior_snapshot_exists:
+        title = "Save the baseline snapshot first"
+        command = preflight.snapshot_command
+        gate_note = "Prior readiness snapshot is missing, so before/after comparison would be current-only."
+        badges = ["snapshot first", "compare later"]
+    else:
+        title = "Run the reviewed batch loop"
+        command = preflight.packet_command
+        gate_note = "Snapshot and freshness gates are ready; begin with the reviewed packet and dry-run scope."
+        badges = ["ready", "dry-run first"]
+    return {
+        "kicker": "BATCH LOOP",
+        "title": title,
+        "body": (
+            "Operator sequence: snapshot -> reviewed packet/dry run -> validate/preview/apply gate -> "
+            "proof-record command -> before/after comparison. "
+            f"{gate_note} Commands are copy-only from the dashboard; supported outcomes require reviewed source files and generated-artifact classification."
+        ),
+        "badges": badges,
+        "command": command,
+    }
+
+
 def data_health_reviewed_batch_execution_cards(
     selected_lane_key: str,
     preflight: ReviewedBatchPreflight,
@@ -9103,6 +9140,7 @@ def data_health_reviewed_batch_execution_cards(
             "badges": [batch_lane, "capped scope"],
             "command": "",
         },
+        data_health_reviewed_batch_loop_card(preflight, freshness),
         data_health_reviewed_batch_snapshot_gate_cards(preflight)[0],
         data_health_reviewed_batch_apply_guard_cards(preflight)[0],
         {
