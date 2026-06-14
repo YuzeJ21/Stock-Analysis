@@ -57,6 +57,21 @@ class CoverageFrontierOpportunity:
 
 
 @dataclass(frozen=True)
+class DataCoverageExpansionStep:
+    step: int
+    lane: str
+    label: str
+    workflow_mode: str
+    batch_scope: str
+    next_safe_command: str
+    review_gate: str
+    proof_command: str
+    stop_condition: str
+    generated_churn_policy: str
+    outcome_boundary: str
+
+
+@dataclass(frozen=True)
 class PeerReadinessSummary:
     total_count: int
     peer_mapping_ready: int
@@ -435,6 +450,126 @@ def build_coverage_frontier(lanes: list[ReadinessLane], *, top_n: int = 10) -> l
     return rows
 
 
+def _expansion_batch_scope(lane: ReadinessLane) -> str:
+    if lane.lane == "price_coverage":
+        return "broad capped missing-price batches; dry-run first; no ticker-by-ticker loop by default"
+    if lane.lane == "fundamentals_dcf":
+        return "SEC-stageable or trusted-manual fundamentals rows for a capped reviewed company set"
+    if lane.lane == "peer_mapping":
+        return "source-backed peer relationships for capped peer blockers; mapping before valuation inputs"
+    if lane.lane == "peer_valuation_inputs":
+        return "mapped-peer price, fundamentals, market-cap, or valuation-input proof after mappings exist"
+    if lane.workflow_mode == "locked_manual":
+        return "optional trusted-local rows only; keep locked until reviewed files exist"
+    return "readiness lane review only"
+
+
+def _expansion_next_command(lane: ReadinessLane) -> str:
+    if lane.lane == "fundamentals_dcf":
+        return "make fundamentals-batch-proof TOP_N=10"
+    if lane.lane in {"peer_mapping", "peer_valuation_inputs"}:
+        return "make peer-batch-proof TOP_N=10"
+    return lane.next_safe_command
+
+
+def _expansion_review_gate(lane: ReadinessLane) -> str:
+    if lane.lane == "price_coverage":
+        return "review dry-run tickers, provider/source notes, expected artifacts, and save readiness snapshot before any real capped refresh"
+    if lane.lane == "fundamentals_dcf":
+        return "verify SEC_USER_AGENT or trusted manual source proof, then require imports-validate, imports-preview, rejected-row review, and reviewed apply decision"
+    if lane.lane == "peer_mapping":
+        return "verify source-backed peer relationships; sector or industry similarity stays fallback context, not trusted peer mapping"
+    if lane.lane == "peer_valuation_inputs":
+        return "verify mapped peers have trusted price, fundamentals, market-cap, or valuation inputs before peer valuation appears"
+    if lane.workflow_mode == "locked_manual":
+        return "do not unlock optional context unless trusted local earnings or analyst-estimate rows exist"
+    return "review readiness state and proof notes before changing local files"
+
+
+def _expansion_stop_condition(lane: ReadinessLane) -> str:
+    if lane.lane == "price_coverage":
+        return "stop if the dry run has unexpected scope, provider failures, or source rows that cannot be reviewed"
+    if lane.lane == "fundamentals_dcf":
+        return "stop if SEC staging is not configured, source proof is missing, validation fails, or preview/rejected rows are unresolved"
+    if lane.lane == "peer_mapping":
+        return "stop if peer relationships are guessed, undocumented, self-peers only, or not source-backed"
+    if lane.lane == "peer_valuation_inputs":
+        return "stop if mapped peers lack trusted fundamentals, market-cap, price, or valuation-input rows"
+    if lane.workflow_mode == "locked_manual":
+        return "stop if no trusted local rows exist; locked optional context is the correct state"
+    return "stop if proof would rely on inferred or stale data"
+
+
+def _expansion_outcome_boundary(lane: ReadinessLane) -> str:
+    if lane.lane == "price_coverage":
+        return "price readiness can unlock setup, risk, liquidity, and benchmark review; it does not unlock fundamentals or valuation by itself"
+    if lane.lane == "fundamentals_dcf":
+        return "fundamentals can unlock DCF only after required trusted fields are present; no placeholder revenue, FCF, margin, shares, or market context"
+    if lane.lane == "peer_mapping":
+        return "peer mappings can unlock peer trend setup, but peer valuation remains blocked until mapped-peer inputs exist"
+    if lane.lane == "peer_valuation_inputs":
+        return "peer valuation dispersion appears only when peer input readiness passes; sector fallback remains context only"
+    if lane.workflow_mode == "locked_manual":
+        return "earnings and analyst estimates are optional review context, not required analysis inputs or auto-unlocks"
+    return "excluded or unsupported states remain visible"
+
+
+def build_data_coverage_expansion_plan(
+    lanes: list[ReadinessLane],
+    *,
+    top_n: int = 10,
+) -> list[DataCoverageExpansionStep]:
+    frontier = build_coverage_frontier(lanes, top_n=top_n)
+    lane_by_name = {lane.lane: lane for lane in lanes}
+    steps: list[DataCoverageExpansionStep] = []
+    for row in frontier:
+        lane = lane_by_name.get(row.lane)
+        if lane is None:
+            continue
+        steps.append(
+            DataCoverageExpansionStep(
+                step=len(steps) + 1,
+                lane=lane.lane,
+                label=lane.label,
+                workflow_mode=lane.workflow_mode,
+                batch_scope=_expansion_batch_scope(lane),
+                next_safe_command=_expansion_next_command(lane),
+                review_gate=_expansion_review_gate(lane),
+                proof_command=lane.proof_command,
+                stop_condition=_expansion_stop_condition(lane),
+                generated_churn_policy=lane.generated_churn_policy,
+                outcome_boundary=_expansion_outcome_boundary(lane),
+            )
+        )
+    return steps
+
+
+def render_data_coverage_expansion_plan(steps: list[DataCoverageExpansionStep]) -> str:
+    lines = [
+        "Data Coverage Expansion Planner",
+        "Read-only: repeatable lane batches, not ticker-by-ticker work. This command does not refresh, import, apply, or rewrite local data.",
+        "Research-only: planning data readiness coverage does not create security rankings, investment advice, or trade instructions.",
+        "",
+    ]
+    if not steps:
+        lines.append("No expansion steps are available. Run make readiness before using the planner if saved reports are missing.")
+        return "\n".join(lines)
+    for step in steps:
+        lines.extend(
+            [
+                f"{step.step}. {step.label} | {step.workflow_mode}",
+                f"   batch_scope: {step.batch_scope}",
+                f"   next_safe_command: {step.next_safe_command}",
+                f"   review_gate: {step.review_gate}",
+                f"   proof_command: {step.proof_command}",
+                f"   stop_condition: {step.stop_condition}",
+                f"   generated_churn_policy: {step.generated_churn_policy}",
+                f"   outcome_boundary: {step.outcome_boundary}",
+            ]
+        )
+    return "\n".join(lines)
+
+
 def render_readiness_ops_center(lanes: list[ReadinessLane]) -> str:
     lines = [
         "Data Readiness Operations Center",
@@ -506,6 +641,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Print read-only readiness operations views.")
     parser.add_argument("--root", default=".", help="Project root.")
     parser.add_argument("--coverage-frontier", action="store_true", help="Print coverage frontier planner.")
+    parser.add_argument("--expansion-plan", action="store_true", help="Print repeatable data coverage expansion plan.")
     parser.add_argument("--evidence", action="store_true", help="Print readiness ops evidence checklist.")
     parser.add_argument("--top-n", type=int, default=10)
     return parser.parse_args(argv)
@@ -518,6 +654,8 @@ def main(argv: list[str] | None = None) -> int:
     frontier = build_coverage_frontier(lanes, top_n=args.top_n)
     if args.evidence:
         print(render_readiness_ops_evidence(lanes, frontier))
+    elif args.expansion_plan:
+        print(render_data_coverage_expansion_plan(build_data_coverage_expansion_plan(lanes, top_n=args.top_n)))
     elif args.coverage_frontier:
         print(render_coverage_frontier(frontier))
     else:

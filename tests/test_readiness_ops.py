@@ -1,9 +1,11 @@
 from pathlib import Path
 
 from src.readiness_ops import (
+    build_data_coverage_expansion_plan,
     build_peer_readiness_summary,
     build_coverage_frontier,
     build_readiness_ops_lanes,
+    render_data_coverage_expansion_plan,
     render_coverage_frontier,
     render_readiness_ops_center,
     render_readiness_ops_evidence,
@@ -101,6 +103,29 @@ def test_coverage_frontier_ranks_batch_lanes_without_implying_data_available(tmp
     assert "does not imply data is available" in rendered
     assert "make price-refresh-loop DRY_RUN=1" in rendered
     assert "make optional-context-worklist TOP_N=25" in rendered
+
+
+def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tmp_path: Path):
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
+    steps = build_data_coverage_expansion_plan(lanes, top_n=10)
+    rendered = render_data_coverage_expansion_plan(steps)
+    by_lane = {step.lane: step for step in steps}
+
+    assert steps[0].lane == "price_coverage"
+    assert by_lane["price_coverage"].next_safe_command == (
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=yahoo"
+    )
+    assert "dry-run first" in by_lane["price_coverage"].batch_scope
+    assert "save readiness snapshot" in by_lane["price_coverage"].review_gate
+    assert by_lane["fundamentals_dcf"].next_safe_command == "make fundamentals-batch-proof TOP_N=10"
+    assert by_lane["peer_mapping"].next_safe_command == "make peer-batch-proof TOP_N=10"
+    assert "not ticker-by-ticker" in rendered
+    assert "does not refresh, import, apply, or rewrite local data" in rendered
+    assert "no placeholder revenue" in rendered
+    assert "sector fallback remains context only" in rendered
+    assert "trusted local rows" in rendered
+    assert "investment advice" in rendered
+    assert "buy/sell" not in rendered.lower()
 
 
 def test_readiness_ops_rendering_keeps_research_only_and_churn_boundaries(tmp_path: Path):

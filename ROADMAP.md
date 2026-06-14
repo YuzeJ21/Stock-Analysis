@@ -85,6 +85,7 @@ Goal: choose broad data-readiness lanes before drilling into individual tickers.
 
 - [x] Add a read-only lane operations command with `make readiness-ops-center`.
 - [x] Add a coverage frontier command with `make coverage-frontier TOP_N=10`.
+- [x] Add a data coverage expansion planner with `make data-coverage-planner TOP_N=10` so frontier lanes become repeatable dry-run, proof, stop-condition, and churn gates without changing data.
 - [x] Keep price coverage, fundamentals/DCF, peer mapping, peer valuation inputs, locked earnings, locked analyst estimates, and excluded/not-applicable states separate.
 - [x] Show batch next actions and generated-churn policies in Data Health before detailed ticker tables.
 - [x] Add a reviewed-batch ladder in Data Health so frontier lanes become packet, dry-run, proof, and hygiene steps.

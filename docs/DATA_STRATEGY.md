@@ -191,6 +191,8 @@ Trusted Coverage Growth V2 keeps peer readiness split into sub-states before a l
 
 Use `make coverage-frontier TOP_N=10` to rank broad batch opportunities by unlock impact. This is an operations queue, not a security ranking: a high-impact lane means many feature states are blocked or partial, not that any ticker is attractive or that source data is already available. The command includes the source lane, workflow mode, possible state move, proof command, and generated-churn policy.
 
+Use `make data-coverage-planner TOP_N=10` after the frontier check to convert those lanes into a repeatable expansion plan. The planner is read-only: it names the capped or proof-first command, review gate, stop condition, proof command, outcome boundary, and generated-churn policy for each lane without refreshing prices, staging fundamentals, applying imports, inferring peers, or rewriting readiness outputs.
+
 Use `make readiness-ops-evidence` as the compact evidence checklist before packaging work. It restates the proof gate, locked optional lanes, excluded/not-applicable boundary, and broad CSV/JSON churn policy. Data Health surfaces the same operations-center and coverage-frontier views before the trusted-data pilot and detailed tables so the product starts from batch lanes rather than one-name manual loops.
 
 In Operator mode, Data Health is organized as a readiness operations command center rather than a long proof dump. Start with the Executive Snapshot, choose one lane in the Operator Queue, then open an evidence drawer only when you need copy-only commands, proof rows, or detailed tables. Public mode keeps the quick-read visitor path separate from the operator runbooks.
