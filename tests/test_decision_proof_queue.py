@@ -1,7 +1,9 @@
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.decision_proof_queue import (
     DEFAULT_QUEUE_CSV,
@@ -9,6 +11,8 @@ from src.decision_proof_queue import (
     build_decision_proof_queue_drawer_cards,
     build_decision_proof_queue_cards,
     build_decision_proof_queue_frame,
+    main,
+    render_decision_proof_queue_guidance,
     write_decision_proof_queue,
 )
 from src.reviewed_batch import FreshnessStatus
@@ -117,6 +121,27 @@ def test_decision_proof_queue_drawer_cards_gate_stale_artifacts():
     assert "sell" not in rendered
 
 
+def test_decision_proof_queue_guidance_renders_blocked_cards_without_advice():
+    freshness = FreshnessStatus(
+        "stale",
+        "Readiness artifacts may be stale. Run make readiness before relying on final counts.",
+        "make readiness",
+    )
+    cards = build_decision_proof_queue_drawer_cards(pd.DataFrame(), freshness)
+
+    rendered = render_decision_proof_queue_guidance(cards).lower()
+
+    assert "decision proof queue guidance" in rendered
+    assert "refresh before queue" in rendered
+    assert "three-step proof refresh" in rendered
+    assert "copy-only command: make readiness" in rendered
+    assert "make decision-proof-queue top_n=12" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_decision_proof_queue_drawer_cards_show_top_row_before_table():
     queue = pd.DataFrame(
         [
@@ -180,6 +205,49 @@ def test_decision_proof_queue_writer_blocks_stale_readiness(tmp_path):
     assert "Run make readiness" in result.message
     assert result.refresh_command == "make readiness"
     assert not (tmp_path / DEFAULT_QUEUE_CSV).exists()
+
+
+def test_decision_proof_queue_cli_prints_blocked_guidance(tmp_path, capsys):
+    data = tmp_path / "data"
+    reports = data / "reports"
+    outputs = tmp_path / "outputs"
+    reports.mkdir(parents=True)
+    outputs.mkdir()
+    (outputs / "research_decisions.csv").write_text("ticker,decision_bucket\nA,Research Now\n", encoding="utf-8")
+    (reports / "ticker_readiness_report.csv").write_text("ticker,updated_at\nA,2026-06-01\n", encoding="utf-8")
+    (reports / "feature_readiness_summary.csv").write_text("feature,status\nprice,ready\n", encoding="utf-8")
+    source = data / "prices.csv"
+    source.write_text("ticker,date,close\nA,2026-01-01,1\n", encoding="utf-8")
+    for path in [
+        data / "fundamentals.csv",
+        data / "peers.csv",
+        data / "earnings.csv",
+        data / "analyst_estimates.csv",
+    ]:
+        path.write_text("", encoding="utf-8")
+        _touch(path, 1000)
+    _touch(outputs / "research_decisions.csv", 3000)
+    _touch(reports / "ticker_readiness_report.csv", 2000)
+    _touch(reports / "feature_readiness_summary.csv", 2000)
+    _touch(source, 4000)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--top-n", "5"]
+    try:
+        with pytest.raises(SystemExit) as exc:
+            main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert exc.value.code == 1
+    assert "status: stale" in output
+    assert "decision proof queue guidance" in output
+    assert "rebuild the stale artifact first" in output
+    assert "three-step proof refresh" in output
+    assert "copy-only command: make readiness" in output
+    assert "buy" not in output
+    assert "sell" not in output
 
 
 def test_decision_proof_queue_writer_writes_current_artifacts(tmp_path):

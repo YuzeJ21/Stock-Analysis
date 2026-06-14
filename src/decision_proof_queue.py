@@ -393,6 +393,24 @@ def build_decision_proof_queue_drawer_cards(
     return cards
 
 
+def render_decision_proof_queue_guidance(cards: list[dict[str, object]]) -> str:
+    lines = ["Decision proof queue guidance:"]
+    for card in cards:
+        kicker = _format_missing(card.get("kicker"), "QUEUE")
+        title = _format_missing(card.get("title"), "Next step")
+        body = _format_missing(card.get("body"), "")
+        body = " ".join(body.replace("`", "").split())
+        if len(body) > 420:
+            body = body[:419].rstrip() + "..."
+        command = _format_missing(card.get("command"), "")
+        lines.append(f"- {kicker}: {title}")
+        if body:
+            lines.append(f"  {body}")
+        if command:
+            lines.append(f"  Copy-only command: {command}")
+    return "\n".join(lines)
+
+
 def _read_frame(path: Path) -> pd.DataFrame:
     frame = pd.read_csv(path)
     frame.columns = normalize_columns(list(frame.columns))
@@ -532,6 +550,9 @@ def main() -> None:
         print(format_path_context(root, root / "data", output_dir))
         for key, value in payload.items():
             print(f"{key}: {value}")
+        if result.status != "written":
+            cards = build_decision_proof_queue_drawer_cards(pd.DataFrame(), result.freshness)
+            print(render_decision_proof_queue_guidance(cards))
     if result.status != "written":
         raise SystemExit(1)
 
