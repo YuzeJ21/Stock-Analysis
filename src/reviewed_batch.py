@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Iterable
 
 from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
+from src.share_count_proof_queue import build_share_count_proof_queue_from_files
 
 
 DEFAULT_PACKET_MD = Path("outputs/reviewed_batch_packet.md")
@@ -151,6 +152,10 @@ LANE_ALIASES = {
     "fundamentals": ("fundamentals_dcf",),
     "dcf": ("fundamentals_dcf",),
     "fundamentals_dcf": ("fundamentals_dcf",),
+    "share_count": ("share_count_proof",),
+    "shares": ("share_count_proof",),
+    "shares_outstanding": ("share_count_proof",),
+    "share_count_proof": ("share_count_proof",),
     "peer": ("peer_mapping", "peer_valuation_inputs"),
     "peers": ("peer_mapping", "peer_valuation_inputs"),
     "peer_mapping": ("peer_mapping",),
@@ -208,7 +213,7 @@ def normalize_batch_lane(value: str) -> tuple[str, ...]:
     key = str(value or "").strip().lower().replace("-", "_")
     if key in LANE_ALIASES:
         return LANE_ALIASES[key]
-    raise ValueError("Unknown reviewed batch lane. Use prices, fundamentals, peers, metrics, or optional_context.")
+    raise ValueError("Unknown reviewed batch lane. Use prices, fundamentals, share_count, peers, metrics, or optional_context.")
 
 
 def _mtime(path: Path) -> float:
@@ -265,6 +270,14 @@ def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tupl
             for row in _read_csv(reports / "fundamentals_coverage_report.csv")
             if not _truthy(row.get("fundamentals_ready"))
         ]
+    elif lane == "share_count_proof":
+        return tuple(
+            row.ticker
+            for row in build_share_count_proof_queue_from_files(
+                root,
+                top_n=max(top_n, 0),
+            )
+        )
     elif lane in {"peer_mapping", "peer_valuation_inputs"}:
         rows = _read_csv(reports / "peer_unlock_worklist.csv")
     elif lane == "earnings_locked":
@@ -342,6 +355,18 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int) -> dict[str,
             "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/rejected/fundamentals_import_rejected.csv; data/reports/dcf_readiness_report.csv",
             "rollback": "If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun make readiness.",
         }
+    if lane == "share_count_proof":
+        return {
+            "dry_run": f"make share-count-proof-queue TOP_N={top_n}",
+            "execute": f"make sec-stage TICKERS={ticker_arg} only if SEC/manual source proof includes shares_outstanding, or place reviewed trusted share-count rows in data/imports/fundamentals.csv",
+            "validate": "make imports-validate",
+            "preview": "make imports-preview",
+            "apply": "make imports-apply only after reviewed trusted shares_outstanding rows pass preview",
+            "post": "make dcf-readiness && make readiness && make status-check TOP_N=5",
+            "compare": "make reviewed-batch-compare LANE=share_count BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/rejected/fundamentals_import_rejected.csv; data/reports/dcf_readiness_report.csv; outputs/reviewed_batch_packet.csv",
+            "rollback": "If share-count rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun dcf-readiness plus readiness.",
+        }
     if lane == "peer_mapping":
         return {
             "dry_run": f"make peer-mapping-queue TOP_N={top_n}",
@@ -410,6 +435,14 @@ def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
                 "data/rejected/fundamentals_import_rejected.csv has unresolved rows",
             ]
         )
+    if lane.lane == "share_count_proof":
+        blockers.extend(
+            [
+                "SEC/manual source proof does not explicitly verify shares_outstanding",
+                "share count would be inferred from price, market cap, peers, or placeholders",
+                "data/rejected/fundamentals_import_rejected.csv has unresolved rows",
+            ]
+        )
     if lane.lane == "peer_mapping":
         blockers.extend(
             [
@@ -447,6 +480,14 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
             "If SEC staging is unavailable, place only reviewed trusted manual rows in data/imports/fundamentals.csv.",
             "Run make imports-validate and make imports-preview before imports-apply; rejected-row reports must be clear or explained.",
             "After apply, rerun make readiness and make dcf-readiness before calling any ticker supported.",
+        ]
+    if lane == "share_count_proof":
+        return [
+            "Record pre-run DCF-ready counts and the exact tickers blocked by shares_outstanding.",
+            f"Start from the first-class queue command: make share-count-proof-queue TOP_N={top_n}.",
+            "Use SEC/manual source documents only when they explicitly verify shares_outstanding; do not infer it from market cap, price, peers, or placeholders.",
+            "Run make imports-validate and make imports-preview before imports-apply; rejected-row reports must be clear or explained.",
+            "After apply, rerun make dcf-readiness, make readiness, and the relevant stock report before calling the lane supported.",
         ]
     if lane == "peer_mapping":
         return [
@@ -649,7 +690,7 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
     if not packet.actions:
         lines.extend(
             [
-                "No proposed actions were created. Run `make readiness` and choose one of `prices`, `fundamentals`, `peers`, `metrics`, or `optional_context`.",
+                "No proposed actions were created. Run `make readiness` and choose one of `prices`, `fundamentals`, `share_count`, `peers`, `metrics`, or `optional_context`.",
                 "",
             ]
         )
@@ -742,7 +783,7 @@ def write_reviewed_batch_packet(
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Write a reviewed batch run packet.")
     parser.add_argument("--root", default=".", help="Project root.")
-    parser.add_argument("--lane", default="prices", help="prices, fundamentals, peers, metrics, optional_context.")
+    parser.add_argument("--lane", default="prices", help="prices, fundamentals, share_count, peers, metrics, optional_context.")
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--tickers", default="", help="Optional comma-separated ticker scope.")
     parser.add_argument("--md-output", default=str(DEFAULT_PACKET_MD))

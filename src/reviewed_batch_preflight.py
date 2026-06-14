@@ -19,6 +19,7 @@ from src.reviewed_batch import normalize_batch_lane, readiness_freshness_status
 LANE_LABELS = {
     "price_coverage": "Price Coverage",
     "fundamentals_dcf": "Fundamentals / DCF",
+    "share_count_proof": "Share Count Proof",
     "peer_mapping": "Peer Mapping",
     "peer_valuation_inputs": "Peer Valuation Inputs",
     "earnings_locked": "Earnings Locked Context",
@@ -78,6 +79,17 @@ def _lane_plan(lane: str, *, top_n: int, max_candidates: int, provider: str) -> 
             (
                 "data/imports/fundamentals.csv",
                 "data/fundamentals.csv",
+                "data/reports/dcf_readiness_report.csv",
+            ),
+        )
+    if lane == "share_count_proof":
+        return (
+            f"make share-count-proof-queue TOP_N={top_n}",
+            "make imports-validate && make imports-preview && make imports-apply only after reviewed trusted shares_outstanding rows",
+            (
+                "data/imports/fundamentals.csv",
+                "data/fundamentals.csv",
+                "data/rejected/fundamentals_import_rejected.csv",
                 "data/reports/dcf_readiness_report.csv",
             ),
         )

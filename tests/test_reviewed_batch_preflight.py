@@ -67,6 +67,31 @@ def test_reviewed_batch_preflight_ready_when_snapshot_and_freshness_exist(tmp_pa
     assert preflight.proof_record_command.startswith('make reviewed-batch-proof-record BATCH_ID="RB-FUND"')
 
 
+def test_reviewed_batch_preflight_handles_share_count_lane_scope(tmp_path: Path):
+    _write_current_reports(tmp_path)
+    _write(
+        tmp_path / "data" / "reports" / "ticker_readiness_report.previous.csv",
+        "ticker,overall_readiness_state\nAAA,blocked\n",
+    )
+
+    preflight = build_reviewed_batch_preflight(
+        tmp_path,
+        lane="share_count",
+        top_n=10,
+        batch_id="RB-SHARES",
+        review_date="2026-06-12",
+    )
+    rendered = render_reviewed_batch_preflight(preflight)
+
+    assert preflight.status == "ready_for_dry_run"
+    assert preflight.lane_scope == "Share Count Proof"
+    assert preflight.dry_run_command == "make share-count-proof-queue TOP_N=10"
+    assert "reviewed trusted shares_outstanding rows" in preflight.capped_execution_command
+    assert "data/rejected/fundamentals_import_rejected.csv" in preflight.expected_artifacts
+    assert "make reviewed-batch LANE=share_count TOP_N=10" in rendered
+    assert "make reviewed-batch-compare LANE=share_count" in rendered
+
+
 def test_reviewed_batch_preflight_handles_peer_lane_scope(tmp_path: Path):
     _write_current_reports(tmp_path)
     _write(

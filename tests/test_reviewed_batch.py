@@ -17,9 +17,21 @@ def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
-
 def _sample_root(tmp_path: Path) -> Path:
     root = tmp_path
+    _write(
+        root / "data" / "universe.csv",
+        "\n".join(
+            [
+                "ticker,asset_type,default_purpose,market_cap_bucket",
+                "AAA,company,Momentum Leader,Large",
+                "BBB,company,Core Compounder,Mid",
+                "CCC,company,Core Compounder,Mid",
+                "QQQ,etf,ETF / Defensive / Hedge,ETF",
+            ]
+        )
+        + "\n",
+    )
     _write(
         root / "data" / "reports" / "ticker_readiness_report.csv",
         "\n".join(
@@ -64,8 +76,18 @@ def _sample_root(tmp_path: Path) -> Path:
         root / "data" / "reports" / "analyst_estimates_readiness_report.csv",
         "ticker,has_trusted_analyst_estimates,row_count\nAAA,false,0\nBBB,false,0\n",
     )
-    _write(root / "data" / "prices.csv", "ticker,date,close\nAAA,2026-01-01,1\n")
-    _write(root / "data" / "fundamentals.csv", "ticker,source\nAAA,manual\n")
+    _write(root / "data" / "prices.csv", "ticker,date,close\nAAA,2026-01-01,1\nBBB,2026-01-01,2\n")
+    _write(
+        root / "data" / "fundamentals.csv",
+        "\n".join(
+            [
+                "ticker,source,revenue,free_cash_flow,fcf_margin,shares_outstanding",
+                "AAA,manual,100,20,0.20,",
+                "BBB,manual,80,10,0.125,",
+            ]
+        )
+        + "\n",
+    )
     _write(root / "data" / "peers.csv", "ticker,peer_ticker,source\nAAA,BBB,manual\n")
     _write(root / "data" / "earnings.csv", "ticker,source\n")
     _write(root / "data" / "analyst_estimates.csv", "ticker,source\n")
@@ -132,6 +154,30 @@ def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
     assert "make fundamentals-batch-proof TOP_N=<n>" in rendered
     assert "make sec-stage TICKERS=<scope> only when SEC_USER_AGENT is configured" in rendered
     assert "rejected-row reports must be clear or explained" in rendered
+
+
+def test_reviewed_batch_share_count_lane_uses_first_class_proof_queue(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+
+    packet = build_reviewed_batch_packet(root, lane="share_count", top_n=1)
+    rendered = render_packet_markdown(packet)
+
+    assert packet.selected_scope == "share_count_proof"
+    assert reviewed_batch_packet_status(packet) == "ready_for_review"
+    assert reviewed_batch_next_safe_action(packet) == "make share-count-proof-queue TOP_N=1"
+    assert len(packet.actions) == 1
+    action = packet.actions[0]
+    assert action.lane == "share_count_proof"
+    assert action.lane_label == "Share Count Proof"
+    assert action.proposed_ticker == "AAA"
+    assert action.dry_run_command == "make share-count-proof-queue TOP_N=1"
+    assert "shares_outstanding rows pass preview" in action.apply_command
+    assert "make reviewed-batch-compare LANE=share_count" in action.readiness_comparison_command
+    assert "SEC/manual source proof does not explicitly verify shares_outstanding" in action.do_not_proceed_if
+    assert "do not infer it from market cap, price, peers, or placeholders" in rendered
+    assert "make dcf-readiness" in rendered
+    assert "does not provide direct buy/sell instructions" in rendered
 
 
 def test_reviewed_batch_supports_ticker_scope_and_optional_context(tmp_path: Path):

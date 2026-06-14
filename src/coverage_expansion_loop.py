@@ -22,7 +22,7 @@ from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_
 LANE_TO_REVIEWED_BATCH = {
     "price_coverage": "prices",
     "fundamentals_dcf": "fundamentals",
-    "share_count_proof": "fundamentals",
+    "share_count_proof": "share_count",
     "peer_mapping": "peers",
     "peer_valuation_inputs": "peers",
     "earnings_locked": "optional_context",

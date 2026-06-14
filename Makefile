@@ -104,7 +104,7 @@ help-full:
 	@echo "  make data-coverage-planner [TOP_N=10] Print repeatable coverage expansion lanes with dry-run, proof, stop, and churn gates"
 	@echo "  make coverage-expansion-loop [LANE=auto] [TOP_N=10] Print one copy-only planner -> preflight -> packet -> proof loop"
 	@echo "  make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations"
-	@echo "  make reviewed-batch [LANE=prices|fundamentals|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv"
+	@echo "  make reviewed-batch [LANE=prices|fundamentals|share_count|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv"
 	@echo "  make decision-proof-queue [TOP_N=12] [OUTPUT=outputs/decision_proof_queue.csv] [MD_OUTPUT=outputs/decision_proof_queue.md] Write a copy-only proof queue from current decision/readiness outputs"
 	@echo "  make benchmark-risk-review TICKER=NVDA [BENCHMARK=SPY] [RISK_FREE_RATE=0.04] Print one ticker's readiness-gated benchmark, risk, fundamentals, valuation, and peer review metrics"
 	@echo "  make metric-readiness [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARK=SPY] [RISK_FREE_RATE=0.04] Print the capped metric-readiness queue with freshness context"
