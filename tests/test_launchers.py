@@ -64,6 +64,7 @@ def test_makefile_contains_convenience_targets():
         "readiness-ops-center",
         "coverage-frontier",
         "data-coverage-planner",
+        "coverage-expansion-loop",
         "readiness-ops-evidence",
         "reviewed-batch",
         "decision-proof-queue",
@@ -190,6 +191,8 @@ def test_makefile_help_documents_key_workflows():
         "Rank batch coverage opportunities by unlock impact",
         "make data-coverage-planner",
         "Print repeatable coverage expansion lanes without changing local data",
+        "make coverage-expansion-loop",
+        "Print the next reviewed coverage loop from planner to proof",
         "make readiness-ops-evidence",
         "Print the broad lane operations evidence checklist",
         "make reviewed-batch",
@@ -215,6 +218,7 @@ def test_makefile_help_documents_key_workflows():
         "make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data",
         "make coverage-frontier [TOP_N=10] Rank broad batch opportunities by unlock impact and safe command",
         "make data-coverage-planner [TOP_N=10] Print repeatable coverage expansion lanes with dry-run, proof, stop, and churn gates",
+        "make coverage-expansion-loop [LANE=auto] [TOP_N=10] Print one copy-only planner -> preflight -> packet -> proof loop",
         "make readiness-ops-evidence [TOP_N=10] Print proof, churn, locked-lane, and exclusion evidence for readiness operations",
         "make reviewed-batch [LANE=prices|fundamentals|peers|metrics|optional_context] [TOP_N=10] [TICKERS=NVDA,MSFT] Write outputs/reviewed_batch_packet.md and .csv",
         "make decision-proof-queue [TOP_N=12] [OUTPUT=outputs/decision_proof_queue.csv] [MD_OUTPUT=outputs/decision_proof_queue.md] Write a copy-only proof queue from current decision/readiness outputs",
@@ -1875,6 +1879,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "readiness-ops-center:\n\t@python3 -m src.readiness_ops --root ." in makefile
     assert "coverage-frontier:\n\t@python3 -m src.readiness_ops --root . --coverage-frontier --top-n $(or $(TOP_N),10)" in makefile
     assert "data-coverage-planner:\n\t@python3 -m src.readiness_ops --root . --expansion-plan --top-n $(or $(TOP_N),10)" in makefile
+    assert "coverage-expansion-loop:\n\t@python3 -m src.coverage_expansion_loop --root . --lane $(or $(LANE),auto) --top-n $(or $(TOP_N),10)" in makefile
     assert "readiness-ops-evidence:\n\t@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)" in makefile
     assert "reviewed-batch:\n\t@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10)" in makefile
     assert "reviewed-batch-proof:\n\t@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv)" in makefile
