@@ -576,6 +576,19 @@ def build_correlation_risk(
 
     pivot = normalized.loc[normalized["ticker"].isin(target_tickers)].pivot(index="date", columns="ticker", values="close").sort_index()
     returns = pivot.pct_change().dropna(how="all")
+    return_counts = returns.count()
+    non_flat_return_tickers = {
+        ticker
+        for ticker in target_tickers
+        if ticker in returns.columns and returns[ticker].dropna().nunique() >= 2
+    }
+    comparable_returns = returns[sorted(non_flat_return_tickers)] if non_flat_return_tickers else pd.DataFrame(index=returns.index)
+    correlation_matrix = comparable_returns.corr(min_periods=min_overlap_days) if not comparable_returns.empty else pd.DataFrame()
+    overlap_counts = (
+        comparable_returns.notna().astype("int16").T.dot(comparable_returns.notna().astype("int16"))
+        if not comparable_returns.empty
+        else pd.DataFrame()
+    )
     rows: list[dict[str, object]] = []
 
     for ticker in target_tickers:
@@ -598,25 +611,37 @@ def build_correlation_risk(
         best_peer = ""
         best_corr = float("nan")
         best_overlap = 0
-        for peer in target_tickers:
-            if peer == ticker or peer not in returns.columns:
-                continue
-            aligned = returns[[ticker, peer]].dropna()
-            overlap = len(aligned)
-            if overlap < min_overlap_days:
-                continue
-            corr = float(aligned[ticker].corr(aligned[peer]))
-            if pd.isna(corr):
-                continue
-            if pd.isna(best_corr) or abs(corr) > abs(best_corr):
-                best_peer = peer
-                best_corr = corr
-                best_overlap = overlap
+        comparable_missing = ticker not in non_flat_return_tickers
+        if not comparable_missing and ticker in correlation_matrix.index:
+            correlations = correlation_matrix.loc[ticker].drop(labels=[ticker], errors="ignore").dropna()
+            if not correlations.empty:
+                best_peer = str(correlations.abs().idxmax())
+                best_corr = float(correlations.loc[best_peer])
+                if ticker in overlap_counts.index and best_peer in overlap_counts.columns:
+                    best_overlap = int(overlap_counts.loc[ticker, best_peer])
+            elif ticker in overlap_counts.index:
+                peer_overlaps = overlap_counts.loc[ticker].drop(labels=[ticker], errors="ignore")
+                if not peer_overlaps.empty:
+                    best_overlap = int(peer_overlaps.max())
 
         if not best_peer:
             status = "Insufficient Overlap"
-            missing = f"{min_overlap_days} overlapping return days"
-            reason = f"{ticker} does not have at least {min_overlap_days} overlapping local return days with another ticker."
+            if comparable_missing:
+                best_overlap = int(return_counts.get(ticker, 0))
+                missing = "non-flat overlapping return series"
+                reason = (
+                    f"{ticker} has {best_overlap} local return days, but the return series is flat or otherwise lacks "
+                    "enough variance for Pearson correlation."
+                )
+            elif best_overlap >= min_overlap_days:
+                missing = "non-flat overlapping return series"
+                reason = (
+                    f"{ticker} has at least {best_overlap} overlapping local return days, but the comparable return "
+                    "series are flat or otherwise lack enough variance for Pearson correlation."
+                )
+            else:
+                missing = f"{min_overlap_days} overlapping return days"
+                reason = f"{ticker} does not have at least {min_overlap_days} overlapping local return days with another ticker."
         else:
             abs_corr = abs(best_corr)
             if abs_corr >= 0.8:

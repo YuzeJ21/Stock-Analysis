@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import sys
+import warnings
 
 import pandas as pd
 
@@ -470,6 +471,27 @@ def test_correlation_risk_reports_high_comovement_and_insufficient_overlap():
     assert missing["CorrelationStatus"] == "Insufficient Data"
     assert "concentration context only" in nvda["Reason"]
     assert "trade instruction" not in nvda["Reason"].lower()
+
+
+def test_correlation_risk_skips_flat_return_pairs_without_runtime_warnings():
+    dates = pd.date_range("2026-01-01", periods=30, freq="D")
+    prices = pd.DataFrame(
+        [
+            {"date": date, "ticker": ticker, "close": close, "volume": 1_000_000}
+            for index, date in enumerate(dates)
+            for ticker, close in [("FLAT", 100), ("MOVE", 100 + index)]
+        ]
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        frame = build_correlation_risk(prices, tickers=["FLAT", "MOVE"], min_overlap_days=20)
+
+    flat = frame.loc[frame["Ticker"] == "FLAT"].iloc[0]
+    assert flat["CorrelationStatus"] == "Insufficient Overlap"
+    assert flat["MissingDataFields"] == "non-flat overlapping return series"
+    assert "lacks enough variance" in flat["Reason"]
+    assert not [warning for warning in caught if issubclass(warning.category, RuntimeWarning)]
 
 
 def test_research_health_run_writes_csv_outputs(tmp_path: Path):
