@@ -293,6 +293,93 @@ def build_decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[d
     ]
 
 
+def build_decision_proof_queue_drawer_cards(
+    queue_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus,
+) -> list[dict[str, object]]:
+    status_command = freshness.refresh_command if freshness.status in {"missing", "stale"} else "make decision-proof-queue TOP_N=12"
+    status_badges = (
+        [freshness.status, "refresh first"]
+        if freshness.status in {"missing", "stale"}
+        else [freshness.status, "review state only"]
+    )
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "QUEUE STATUS",
+            "title": "Refresh before queue" if freshness.status in {"missing", "stale"} else "Decision proof queue ready",
+            "body": (
+                f"{freshness.message} "
+                "Decision labels are review states for readiness work; they are not recommendations, rankings, or execution instructions."
+            ),
+            "badges": status_badges,
+            "command": status_command,
+        }
+    ]
+    if freshness.status in {"missing", "stale"}:
+        cards.append(
+            {
+                "kicker": "NEXT SAFE ACTION",
+                "title": "Rebuild the stale artifact first",
+                "body": (
+                    "Do not read old decision rows as current proof. Rebuild the named artifact, then reopen Data Health before copying queue commands."
+                ),
+                "badges": ["stale gate", "copy-only"],
+                "command": status_command,
+            }
+        )
+        return cards
+    if queue_frame is None or queue_frame.empty:
+        cards.append(
+            {
+                "kicker": "TOP PROOF ROW",
+                "title": "No queue rows available",
+                "body": "Run make research-decisions after readiness is current, then rebuild the proof queue.",
+                "badges": ["no rows", "refresh first"],
+                "command": "make research-decisions",
+            }
+        )
+        return cards
+
+    top = queue_frame.iloc[0]
+    ticker = _format_missing(top.get("ticker"), "Ticker")
+    cards.extend(
+        [
+            {
+                "kicker": "TOP PROOF ROW",
+                "title": f"{ticker}: {_format_missing(top.get('decision_subtype'), 'Decision')}",
+                "body": (
+                    f"Main blocker: {_format_missing(top.get('primary_blocker'), 'none')}. "
+                    f"Data confidence: {_format_missing(top.get('data_confidence'), 'not available')}."
+                ),
+                "badges": [_format_missing(top.get("decision_bucket"), "review state"), "not advice"],
+                "command": _format_missing(top.get("copy_only_command"), "make project-status"),
+            },
+            {
+                "kicker": "REVIEW NOW",
+                "title": "What can be reviewed",
+                "body": _compact_reason(top.get("what_can_be_reviewed_now"), max_sentences=2, max_chars=240),
+                "badges": ["ready inputs only", "no inference"],
+                "command": "",
+            },
+            {
+                "kicker": "LOCKED",
+                "title": "What stays locked",
+                "body": _compact_reason(top.get("what_stays_locked"), max_sentences=2, max_chars=240),
+                "badges": ["blocked visible", "no fabrication"],
+                "command": "",
+            },
+            {
+                "kicker": "PROOF AFTER UNLOCK",
+                "title": "Verify before interpreting",
+                "body": _compact_reason(top.get("proof_after_unlock"), max_sentences=2, max_chars=260),
+                "badges": ["prove after", "copy-only"],
+                "command": _format_missing(top.get("copy_only_command"), "make project-status"),
+            },
+        ]
+    )
+    return cards
+
+
 def _read_frame(path: Path) -> pd.DataFrame:
     frame = pd.read_csv(path)
     frame.columns = normalize_columns(list(frame.columns))
@@ -321,6 +408,12 @@ def _artifact_gate(root: Path) -> tuple[FreshnessStatus, str]:
             "make research-decisions",
         )
     return freshness, "make decision-proof-queue"
+
+
+def decision_proof_queue_artifact_status(base_dir: Path | str | None = None) -> FreshnessStatus:
+    root = resolve_project_root(base_dir)
+    freshness, _refresh_command = _artifact_gate(root)
+    return freshness
 
 
 def _write_markdown(path: Path, queue: pd.DataFrame, freshness: FreshnessStatus) -> None:

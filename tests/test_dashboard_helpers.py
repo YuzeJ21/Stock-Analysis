@@ -11381,7 +11381,11 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     hero_index = source.index("render_data_health_operator_hero(operator_snapshot_cards)", public_return_index)
     queue_index = source.index("render_data_health_operator_queue_header()", hero_index)
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)", queue_index)
-    batch_header_index = source.index('render_section_header("Readiness Batch Execution"', lane_selector_index)
+    decision_queue_status_index = source.index("decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)", lane_selector_index)
+    decision_queue_drawer_index = source.index('st.expander("Decision proof queue drawer", expanded=False)', decision_queue_status_index)
+    decision_queue_cards_index = source.index("decision_proof_queue_drawer_cards(decision_queue_frame, decision_queue_freshness)", decision_queue_drawer_index)
+    decision_queue_rows_index = source.index('st.expander("Decision proof queue rows", expanded=False)', decision_queue_cards_index)
+    batch_header_index = source.index('render_section_header("Readiness Batch Execution"', decision_queue_rows_index)
     batch_cards_index = source.index("data_health_reviewed_batch_execution_cards(selected_lane_key, batch_preflight, readiness_freshness)", batch_header_index)
     batch_drawer_index = source.index('st.expander("Reviewed batch review drawer", expanded=False)', batch_cards_index)
     batch_snapshot_gate_index = source.index('render_section_header("Snapshot Gate"', batch_drawer_index)
@@ -11407,7 +11411,7 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     all_details_index = source.index('st.expander("Additional operator evidence", expanded=False)', proof_drawer_index)
     details_index = source.index("if show_details:", all_details_index)
 
-    assert public_return_index < hero_index < queue_index < lane_selector_index < batch_header_index < batch_cards_index < batch_drawer_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
+    assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_drawer_index < decision_queue_cards_index < decision_queue_rows_index < batch_header_index < batch_cards_index < batch_drawer_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
     assert "ops_center = data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = data_health_coverage_frontier_frame(top_n=10)" in source
     assert "readiness_freshness = data_health_freshness_status(BASE_DIR)" in source
@@ -11430,6 +11434,9 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     assert "data_health_reviewed_batch_proof_record_validation_frame(batch_packet_frame, readiness_comparison)" in source
     assert "data_health_reviewed_batch_proof_record_command_arguments_frame(batch_packet_frame, readiness_comparison)" in source
     assert "Detailed proof command fields" in source
+    assert "decision_proof_queue_artifact_status(BASE_DIR)" in source
+    assert "Decision proof queue drawer" in source
+    assert "decision_proof_queue_drawer_cards(decision_queue_frame, decision_queue_freshness)" in source
     assert "data_health_reviewed_batch_execution_frame(batch_preflight)" in source
     assert "Full packet, dry-run, validate, preview, apply, proof, rollback, and artifact-hygiene steps." in source
     assert "def render_operator_queue_preview(cards: list[dict[str, object]], *, limit: int = 4)" in source
@@ -18388,6 +18395,41 @@ def test_decision_proof_queue_translates_rows_without_overclaiming():
     assert "trading" not in rendered_cards
     assert "buy" not in rendered_cards
     assert "sell" not in rendered_cards
+
+
+def test_decision_proof_queue_drawer_cards_keep_operator_summary_compact():
+    queue = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "data_confidence": "medium",
+                "what_can_be_reviewed_now": "Standalone DCF scenario analysis can be reviewed.",
+                "what_stays_locked": "Peer-relative valuation stays locked until source-backed peers exist.",
+                "copy_only_command": "make focus-peers TICKER=META",
+                "proof_after_unlock": "Proof after data changes: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `make stock-report-md TICKER=META`.",
+            }
+        ]
+    )
+    cards = dashboard.decision_proof_queue_drawer_cards(
+        queue,
+        dashboard.FreshnessStatus("current", "Readiness artifacts are current relative to watched source files."),
+    )
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert [card["kicker"] for card in cards] == ["QUEUE STATUS", "TOP PROOF ROW", "REVIEW NOW", "LOCKED", "PROOF AFTER UNLOCK"]
+    assert cards[0]["command"] == "make decision-proof-queue TOP_N=12"
+    assert cards[1]["command"] == "make focus-peers TICKER=META"
+    assert "what can be reviewed" in rendered
+    assert "what stays locked" in rendered
+    assert "verify before interpreting" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_decision_workflow_summary_cards_use_plain_missing_output_language():

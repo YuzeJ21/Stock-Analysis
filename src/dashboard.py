@@ -15,8 +15,10 @@ from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.decision_proof_queue import (
+    build_decision_proof_queue_drawer_cards as _build_decision_proof_queue_drawer_cards,
     build_decision_proof_queue_cards as _build_decision_proof_queue_cards,
     build_decision_proof_queue_frame as _build_decision_proof_queue_frame,
+    decision_proof_queue_artifact_status,
 )
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
@@ -13400,6 +13402,13 @@ def decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict[st
     return _build_decision_proof_queue_cards(queue_frame)
 
 
+def decision_proof_queue_drawer_cards(
+    queue_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus,
+) -> list[dict[str, object]]:
+    return _build_decision_proof_queue_drawer_cards(queue_frame, freshness)
+
+
 def purpose_family_label(asset_type: object, purpose_text: object = "", alignment_text: object = "") -> str:
     asset_kind = format_missing(asset_type, "").lower()
     if asset_kind in {"etf", "index_proxy", "fund"}:
@@ -25199,6 +25208,24 @@ def render_data_health(
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
     batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
+    decision_queue_freshness = decision_proof_queue_artifact_status(BASE_DIR)
+    decision_queue_frame = (
+        decision_proof_queue_frame(decisions_frame, ticker_readiness_frame, limit=8)
+        if decision_queue_freshness.status == "current"
+        else pd.DataFrame()
+    )
+    with st.expander("Decision proof queue drawer", expanded=False):
+        render_section_header(
+            "Decision Proof Queue",
+            "Freshness status, top proof row, copy-only command, and post-unlock proof before raw decision tables.",
+        )
+        render_signal_cards(
+            decision_proof_queue_drawer_cards(decision_queue_frame, decision_queue_freshness),
+            show_commands=True,
+        )
+        if decision_queue_freshness.status == "current" and not decision_queue_frame.empty:
+            with st.expander("Decision proof queue rows", expanded=False):
+                st.dataframe(clean_display_frame(decision_queue_frame), width="stretch", hide_index=True)
     if selected_lane_key != "proof":
         render_section_header("Readiness Batch Execution", "Choose the lane, confirm source/freshness gates, then generate a reviewed proof packet before row-level evidence.")
         render_signal_cards(

@@ -213,6 +213,7 @@ Add reason codes or sub-buckets:
 - [x] `Blocked by Data - Missing Peer Mapping`
 - [x] `Excluded - DCF Not Applicable`
 - [x] Add `make decision-proof-queue` so refined decision rows become a compact, freshness-gated proof queue with what can be reviewed now, what stays locked, copy-only local commands, and post-unlock proof steps.
+- [x] Surface the Decision Proof Queue in Data Health as a compact operator drawer with freshness status, top proof row, what can be reviewed now, what stays locked, copy-only command, and post-unlock proof step before raw rows.
 
 Rules:
 
