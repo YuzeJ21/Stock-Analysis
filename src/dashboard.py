@@ -39,7 +39,11 @@ from src.reviewed_batch_proof import (
     latest_reviewed_batch_proof,
     load_reviewed_batch_proofs,
 )
-from src.peer_mapping_source_review import PeerMappingSourceReviewPacket, build_peer_mapping_source_review_packet
+from src.peer_mapping_source_review import (
+    PeerMappingSourceReviewPacket,
+    build_peer_mapping_source_review_packet,
+    peer_mapping_source_review_completion,
+)
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.review_metrics import build_metric_readiness_summary, configured_risk_free_rate
 from src.reviewed_batch_command_builder import (
@@ -12653,9 +12657,12 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
         "Review Gate",
         "Ticker",
         "Mapping Slot",
+        "Completion Status",
+        "Missing Fields",
         "Required Fills",
         "Target File",
         "Next Safe Action",
+        "Import Row Scaffold",
         "Validation Path",
         "Do Not Proceed If",
         "Freshness Context",
@@ -12669,16 +12676,18 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
     )
     rows: list[dict[str, object]] = []
     for row in packet.rows[: max(limit, 0)]:
+        completion = peer_mapping_source_review_completion(row, packet.freshness)
         rows.append(
             {
                 "Review Gate": review_gate,
                 "Ticker": row.ticker,
                 "Mapping Slot": row.mapping_slot,
+                "Completion Status": completion.status.replace("_", " "),
+                "Missing Fields": ", ".join(completion.missing_fields) if completion.missing_fields else "none",
                 "Required Fills": required_fills,
                 "Target File": row.target_file,
-                "Next Safe Action": (
-                    f"Inspect `{row.focus_command}`, then fill reviewed peer rows only after a durable source proves the relationship."
-                ),
+                "Next Safe Action": completion.next_safe_action,
+                "Import Row Scaffold": completion.import_row_scaffold,
                 "Validation Path": row.validation_sequence,
                 "Do Not Proceed If": row.do_not_proceed_if,
                 "Freshness Context": f"{freshness_status}: {packet.freshness.message}",
@@ -12723,6 +12732,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
         ]
 
     first = packet.rows[0]
+    first_completion = peer_mapping_source_review_completion(first, packet.freshness)
     tickers = ", ".join(packet.tickers[:3])
     if len(packet.tickers) > 3:
         tickers += ", ..."
@@ -12742,11 +12752,22 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             "kicker": "TOP PROOF SLOT",
             "title": f"{first.ticker} / {first.mapping_slot}",
             "body": (
+                f"Status: {first_completion.status.replace('_', ' ')}. Missing fields: "
+                f"{', '.join(first_completion.missing_fields) if first_completion.missing_fields else 'none'}. "
                 f"Required fills: {required_fills}. Accepted proof must name the peer relationship or comparable business context; "
                 "sector/theme similarity alone stays fallback context."
             ),
             "badges": ["source-backed", "not a valuation input yet"],
             "command": first.focus_command,
+        },
+        {
+            "kicker": "IMPORT ROW BOUNDARY",
+            "title": "Scaffold appears only after review",
+            "body": (
+                f"{first_completion.next_safe_action} Copy the import-row scaffold only when the status is ready for import row scaffold."
+            ),
+            "badges": ["no hand-edit shortcut", "validate before apply"],
+            "command": "make imports-validate && make imports-preview",
         },
         {
             "kicker": "VALIDATE BEFORE APPLY",

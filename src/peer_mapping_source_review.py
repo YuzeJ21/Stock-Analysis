@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import csv
 from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
 from typing import Iterable
 
@@ -38,6 +39,18 @@ SOURCE_REVIEW_COLUMNS = (
     "validation_sequence",
     "do_not_proceed_if",
 )
+REQUIRED_REVIEW_FIELDS = (
+    "proposed_peer_ticker",
+    "peer_group",
+    "source",
+    "as_of_date",
+    "relationship_rationale",
+    "reviewer",
+    "review_date",
+)
+IMPORT_ROW_COLUMNS = ("ticker", "peer_ticker", "peer_group", "sector", "industry", "source", "as_of_date")
+READY_SOURCE_PROOF_STATUSES = {"reviewed", "supported", "source_backed", "source-backed"}
+READY_IMPORT_VALUES = {"yes", "true", "ready", "1"}
 
 
 @dataclass(frozen=True)
@@ -69,6 +82,14 @@ class PeerMappingSourceReviewPacket:
     rows: tuple[PeerMappingReviewRow, ...]
 
 
+@dataclass(frozen=True)
+class PeerMappingReviewCompletion:
+    status: str
+    missing_fields: tuple[str, ...]
+    next_safe_action: str
+    import_row_scaffold: str
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -88,6 +109,70 @@ def _missing_mapping(row: dict[str, str]) -> bool:
     status = str(row.get("mapping_status") or "").strip().lower()
     reason = str(row.get("missing_peer_reason") or "").strip().lower()
     return blocker == "missing_peer_mapping" or status == "missing_mapping" or "source-backed peer mappings" in reason
+
+
+def _is_placeholder(value: object) -> bool:
+    text = str(value or "").strip()
+    return not text or (text.startswith("<") and text.endswith(">"))
+
+
+def _csv_row(values: Iterable[object]) -> str:
+    buffer = StringIO()
+    writer = csv.writer(buffer, lineterminator="")
+    writer.writerow([str(value or "").strip() for value in values])
+    return buffer.getvalue()
+
+
+def peer_mapping_source_review_missing_fields(row: PeerMappingReviewRow) -> tuple[str, ...]:
+    missing = [field for field in REQUIRED_REVIEW_FIELDS if _is_placeholder(getattr(row, field))]
+    proof_status = str(row.source_proof_status or "").strip().lower()
+    if proof_status not in READY_SOURCE_PROOF_STATUSES:
+        missing.append("source_proof_status")
+    import_ready = str(row.import_row_ready or "").strip().lower()
+    if import_ready not in READY_IMPORT_VALUES:
+        missing.append("import_row_ready")
+    return tuple(missing)
+
+
+def peer_mapping_import_row_scaffold(row: PeerMappingReviewRow) -> str:
+    missing = peer_mapping_source_review_missing_fields(row)
+    if missing:
+        return f"blocked until reviewed fields are filled: {', '.join(missing)}"
+    return _csv_row(
+        (
+            row.ticker,
+            row.proposed_peer_ticker,
+            row.peer_group,
+            "" if _is_placeholder(row.sector) else row.sector,
+            "" if _is_placeholder(row.industry) else row.industry,
+            row.source,
+            row.as_of_date,
+        )
+    )
+
+
+def peer_mapping_source_review_completion(row: PeerMappingReviewRow, freshness: FreshnessStatus) -> PeerMappingReviewCompletion:
+    if freshness.status in {"missing", "stale"}:
+        return PeerMappingReviewCompletion(
+            status="blocked_by_freshness",
+            missing_fields=("freshness",),
+            next_safe_action=f"Run `{freshness.refresh_command}` before using this peer source-review row.",
+            import_row_scaffold="blocked until readiness artifacts are current",
+        )
+    missing = peer_mapping_source_review_missing_fields(row)
+    if missing:
+        return PeerMappingReviewCompletion(
+            status="needs_field_fills",
+            missing_fields=missing,
+            next_safe_action=f"Fill {', '.join(missing)} for {row.ticker} / {row.mapping_slot}; keep peer valuation locked.",
+            import_row_scaffold=peer_mapping_import_row_scaffold(row),
+        )
+    return PeerMappingReviewCompletion(
+        status="ready_for_import_row_scaffold",
+        missing_fields=(),
+        next_safe_action="Review the scaffolded import row, then run validate and preview before any apply step.",
+        import_row_scaffold=peer_mapping_import_row_scaffold(row),
+    )
 
 
 def _candidate_tickers(root: Path, top_n: int, tickers: tuple[str, ...]) -> tuple[str, ...]:
@@ -172,6 +257,7 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         "- Rejected shortcuts: memory, popularity, sector/theme similarity alone, row-count convenience, or placeholders.",
         "- Validation path: `make imports-validate -> make imports-preview -> make imports-apply` only after source review.",
         "- Post-run proof: `make readiness -> make peer-mapping-queue TOP_N=25 -> make reviewed-batch-compare LANE=peers ...`.",
+        "- Import row scaffold appears only after source proof status and required review fields are filled.",
         "",
         "## Review Rows",
         "",
@@ -184,10 +270,15 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
             ]
         )
     for row in packet.rows:
+        completion = peer_mapping_source_review_completion(row, packet.freshness)
         lines.extend(
             [
                 f"### {row.ticker} / {row.mapping_slot}",
                 "",
+                f"- Completion status: `{completion.status}`",
+                f"- Missing fields: `{', '.join(completion.missing_fields) if completion.missing_fields else 'none'}`",
+                f"- Next safe action: {completion.next_safe_action}",
+                f"- Import row scaffold: `{completion.import_row_scaffold}`",
                 f"- Proposed peer ticker: `{row.proposed_peer_ticker}`",
                 f"- Peer group: `{row.peer_group}`",
                 f"- Source: `{row.source}`",
@@ -226,11 +317,14 @@ def render_peer_mapping_source_review_preview(packet: PeerMappingSourceReviewPac
     ]
     if packet.rows:
         row = packet.rows[0]
+        completion = peer_mapping_source_review_completion(row, packet.freshness)
         lines.extend(
             [
                 "top_review_row:",
                 f"- ticker: {row.ticker}",
                 f"- mapping_slot: {row.mapping_slot}",
+                f"- completion_status: {completion.status}",
+                f"- missing_fields: {','.join(completion.missing_fields) if completion.missing_fields else '-'}",
                 f"- target_file: {row.target_file}",
                 f"- focus_command: {row.focus_command}",
                 f"- do_not_proceed_if: {row.do_not_proceed_if}",

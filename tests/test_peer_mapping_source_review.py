@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import csv
 import os
+from dataclasses import replace
 from pathlib import Path
 
 from src.peer_mapping_source_review import (
     build_peer_mapping_source_review_packet,
     main,
+    peer_mapping_import_row_scaffold,
+    peer_mapping_source_review_completion,
+    peer_mapping_source_review_missing_fields,
     render_peer_mapping_source_review_markdown,
     render_peer_mapping_source_review_preview,
     write_peer_mapping_source_review_packet,
@@ -49,6 +53,8 @@ def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate
     assert "Import schema: `ticker, peer_ticker, peer_group, sector, industry, source, as_of_date`" in rendered
     assert "relationship rationale" in rendered
     assert "memory, popularity, sector/theme similarity alone" in rendered
+    assert "Completion status: `needs_field_fills`" in rendered
+    assert "Import row scaffold: `blocked until reviewed fields are filled" in rendered
     assert "Do not fabricate peer mappings" in rendered
     assert "does not provide direct buy/sell instructions" in rendered
 
@@ -89,6 +95,42 @@ def test_peer_mapping_source_review_writes_markdown_and_csv(tmp_path: Path):
     assert rows[0]["import_row_ready"] == "no"
 
 
+def test_peer_mapping_source_review_completion_detects_placeholders(tmp_path: Path):
+    packet = build_peer_mapping_source_review_packet(_sample_root(tmp_path), top_n=1)
+    completion = peer_mapping_source_review_completion(packet.rows[0], packet.freshness)
+
+    assert completion.status == "needs_field_fills"
+    assert "proposed_peer_ticker" in completion.missing_fields
+    assert "source_proof_status" in completion.missing_fields
+    assert "import_row_ready" in completion.missing_fields
+    assert "keep peer valuation locked" in completion.next_safe_action
+    assert peer_mapping_import_row_scaffold(packet.rows[0]).startswith("blocked until reviewed fields are filled")
+
+
+def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(tmp_path: Path):
+    packet = build_peer_mapping_source_review_packet(_sample_root(tmp_path), top_n=1)
+    reviewed_row = replace(
+        packet.rows[0],
+        proposed_peer_ticker="MSFT",
+        peer_group="large-cap software",
+        sector="Technology",
+        industry="Software",
+        source="https://example.com/peer-proof",
+        as_of_date="2026-06-14",
+        relationship_rationale="Source names comparable enterprise software exposure.",
+        reviewer="local reviewer",
+        review_date="2026-06-14",
+        source_proof_status="reviewed",
+        import_row_ready="yes",
+    )
+    completion = peer_mapping_source_review_completion(reviewed_row, packet.freshness)
+
+    assert peer_mapping_source_review_missing_fields(reviewed_row) == ()
+    assert completion.status == "ready_for_import_row_scaffold"
+    assert completion.import_row_scaffold == "AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14"
+    assert "validate and preview" in completion.next_safe_action
+
+
 def test_peer_mapping_source_review_blocks_on_stale_readiness(tmp_path: Path):
     root = _sample_root(tmp_path)
     source = root / "data" / "peers.csv"
@@ -99,6 +141,7 @@ def test_peer_mapping_source_review_blocks_on_stale_readiness(tmp_path: Path):
 
     assert packet.freshness.status == "stale"
     assert "Packet status: `blocked_by_freshness`" in rendered
+    assert "Completion status: `blocked_by_freshness`" in rendered
     assert "make readiness" in rendered
 
 

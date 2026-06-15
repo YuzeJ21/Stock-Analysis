@@ -127,6 +127,7 @@ Goal: make coverage growth proof-backed at the lane level before any ticker-leve
 - [x] Expand reviewed-batch packets with before/after proof fields for changed readiness counts, changed tickers, reviewed artifacts, and final outcome.
 - [x] Add Data Health peer-readiness cards so peer trend and peer valuation gates stay visibly separate.
 - [x] Add Peer Source-Review Intake in Data Health so operators see fillable source-proof fields before editing peer import rows.
+- [x] Add Peer Source-Review Completion UX so placeholder fields, stale readiness, and import-row scaffold boundaries stay visible before peer CSV edits.
 - Keep proof-ledger rows local and reviewable; do not claim a supported lane until source proof, validation, preview, rejected-row review, post-run readiness, and artifact hygiene are complete.
 
 ### Readiness-Gated Review Metrics V1

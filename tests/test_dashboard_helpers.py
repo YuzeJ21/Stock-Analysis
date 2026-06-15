@@ -17880,17 +17880,27 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
         + [str(value) for card in cards for value in card.values()]
     ).lower()
 
-    assert [card["kicker"] for card in cards] == ["PEER SOURCE REVIEW", "TOP PROOF SLOT", "VALIDATE BEFORE APPLY"]
+    assert [card["kicker"] for card in cards] == [
+        "PEER SOURCE REVIEW",
+        "TOP PROOF SLOT",
+        "IMPORT ROW BOUNDARY",
+        "VALIDATE BEFORE APPLY",
+    ]
     assert cards[0]["command"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
     assert cards[1]["command"] == "make focus-peers TICKER=META"
-    assert cards[2]["command"] == "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make imports-validate && make imports-preview"
+    assert cards[3]["command"] == "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"
     assert frame.iloc[0]["Review Gate"] == "source proof required"
+    assert frame.iloc[0]["Completion Status"] == "needs field fills"
+    assert "proposed_peer_ticker" in frame.iloc[0]["Missing Fields"]
+    assert frame.iloc[0]["Import Row Scaffold"].startswith("blocked until reviewed fields are filled")
     assert frame.iloc[0]["Ticker"] == "META"
     assert "proposed_peer_ticker, peer_group, source, as_of_date" in rendered
-    assert "fill reviewed peer rows only after a durable source proves the relationship" in rendered
+    assert "fill proposed_peer_ticker" in rendered
     assert "source does not name the peer relationship" in rendered
     assert "sector/theme similarity alone stays fallback context" in rendered
     assert "does not infer peer relationships or unlock peer valuation" in rendered
+    assert "scaffold appears only after review" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -17912,6 +17922,7 @@ def test_data_health_peer_source_review_blocks_stale_readiness(tmp_path: Path):
     assert cards[0]["title"] == "Refresh readiness before peer review"
     assert cards[0]["command"] == "make readiness"
     assert frame.iloc[0]["Review Gate"] == "blocked by freshness"
+    assert frame.iloc[0]["Completion Status"] == "blocked by freshness"
     assert "do not use stale peer rows as proof" in rendered
 
 
