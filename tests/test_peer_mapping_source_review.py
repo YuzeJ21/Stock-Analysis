@@ -6,6 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from src.peer_mapping_source_review import (
+    build_peer_mapping_writeback_guard,
     build_peer_mapping_source_review_packet,
     main,
     peer_mapping_import_csv_header,
@@ -13,6 +14,7 @@ from src.peer_mapping_source_review import (
     peer_mapping_import_row_scaffold,
     peer_mapping_source_review_completion,
     peer_mapping_source_review_missing_fields,
+    render_peer_mapping_writeback_guard,
     render_peer_mapping_source_review_markdown,
     render_peer_mapping_source_review_preview,
     write_peer_mapping_source_review_packet,
@@ -145,6 +147,113 @@ def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(
     assert preview.validation_command == "make imports-validate && make imports-preview"
     assert "make imports-apply only after imports-preview" in preview.apply_boundary
     assert "make readiness" in preview.post_apply_proof
+
+
+def test_peer_mapping_writeback_guard_allows_ready_non_duplicate_row(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    packet = build_peer_mapping_source_review_packet(root, top_n=1)
+    reviewed_row = replace(
+        packet.rows[0],
+        proposed_peer_ticker="MSFT",
+        peer_group="large-cap software",
+        sector="Technology",
+        industry="Software",
+        source="https://example.com/peer-proof",
+        as_of_date="2026-06-14",
+        relationship_rationale="Source names comparable enterprise software exposure.",
+        reviewer="local reviewer",
+        review_date="2026-06-14",
+        source_proof_status="reviewed",
+        import_row_ready="yes",
+    )
+
+    guard = build_peer_mapping_writeback_guard(root, reviewed_row)
+    rendered = render_peer_mapping_writeback_guard(guard, reviewed_row)
+
+    assert guard.status == "ready_for_validate_preview"
+    assert guard.blocking_reasons == ()
+    assert guard.duplicate_sources == ()
+    assert guard.csv_header == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
+    assert guard.csv_row == "AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14"
+    assert "status: ready_for_validate_preview" in rendered
+    assert "validation_command: make imports-validate && make imports-preview" in rendered
+    assert "does not edit files" in rendered
+    assert "direct buy/sell instructions" in rendered
+
+
+def test_peer_mapping_writeback_guard_blocks_duplicate_and_self_peer(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    (root / "data" / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date\n"
+        "AAA,MSFT,large-cap software,Technology,Software,https://example.com/old,2026-06-01\n",
+        encoding="utf-8",
+    )
+    packet = build_peer_mapping_source_review_packet(root, top_n=1)
+    duplicate_row = replace(
+        packet.rows[0],
+        proposed_peer_ticker="MSFT",
+        peer_group="large-cap software",
+        source="https://example.com/peer-proof",
+        as_of_date="2026-06-14",
+        relationship_rationale="Source names comparable enterprise software exposure.",
+        reviewer="local reviewer",
+        review_date="2026-06-14",
+        source_proof_status="reviewed",
+        import_row_ready="yes",
+    )
+    self_peer_row = replace(duplicate_row, proposed_peer_ticker="AAA")
+
+    duplicate_guard = build_peer_mapping_writeback_guard(root, duplicate_row)
+    self_peer_guard = build_peer_mapping_writeback_guard(root, self_peer_row)
+
+    assert duplicate_guard.status == "blocked"
+    assert "duplicate_peer_pair" in duplicate_guard.blocking_reasons
+    assert duplicate_guard.duplicate_sources == ("data/peers.csv",)
+    assert duplicate_guard.csv_row == ""
+    assert self_peer_guard.status == "blocked"
+    assert "self_peer" in self_peer_guard.blocking_reasons
+
+
+def test_peer_mapping_writeback_guard_cli_is_copy_only(tmp_path: Path, capsys):
+    root = _sample_root(tmp_path)
+    rc = main(
+        [
+            "--root",
+            str(root),
+            "--guard-writeback",
+            "--ticker",
+            "AAA",
+            "--peer-ticker",
+            "MSFT",
+            "--peer-group",
+            "large-cap software",
+            "--sector",
+            "Technology",
+            "--industry",
+            "Software",
+            "--source",
+            "https://example.com/peer-proof",
+            "--as-of-date",
+            "2026-06-14",
+            "--relationship-rationale",
+            "Source names comparable enterprise software exposure.",
+            "--reviewer",
+            "local reviewer",
+            "--review-date",
+            "2026-06-14",
+            "--source-proof-status",
+            "reviewed",
+            "--import-row-ready",
+            "yes",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert rc == 0
+    assert "Peer mapping write-back guard" in output
+    assert "status: ready_for_validate_preview" in output
+    assert "csv_row: AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14" in output
+    assert "does not edit files" in output
 
 
 def test_peer_mapping_source_review_blocks_on_stale_readiness(tmp_path: Path):

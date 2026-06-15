@@ -19,6 +19,8 @@ from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
 DEFAULT_MD_OUTPUT = Path("outputs/peer_mapping_source_review.md")
 DEFAULT_CSV_OUTPUT = Path("outputs/peer_mapping_source_review.csv")
 PEER_READINESS_PATH = Path("data/reports/peer_readiness_report.csv")
+CANONICAL_PEERS_PATH = Path("data/peers.csv")
+IMPORT_PEERS_PATH = Path("data/imports/peers.csv")
 DEFAULT_MIN_PEERS = 2
 SOURCE_REVIEW_COLUMNS = (
     "ticker",
@@ -93,6 +95,19 @@ class PeerMappingReviewCompletion:
 @dataclass(frozen=True)
 class PeerMappingImportPreview:
     status: str
+    csv_header: str
+    csv_row: str
+    target_file: str
+    validation_command: str
+    apply_boundary: str
+    post_apply_proof: str
+
+
+@dataclass(frozen=True)
+class PeerMappingWriteBackGuard:
+    status: str
+    blocking_reasons: tuple[str, ...]
+    duplicate_sources: tuple[str, ...]
     csv_header: str
     csv_row: str
     target_file: str
@@ -209,6 +224,79 @@ def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessS
         apply_boundary=apply_boundary,
         post_apply_proof="make readiness && make peer-mapping-queue TOP_N=25 && make reviewed-batch-compare LANE=peers ...",
     )
+
+
+def _peer_pair_exists(root: Path, ticker: str, peer_ticker: str) -> tuple[str, ...]:
+    matches: list[str] = []
+    ticker_key = str(ticker or "").strip().upper()
+    peer_key = str(peer_ticker or "").strip().upper()
+    for relative_path in (CANONICAL_PEERS_PATH, IMPORT_PEERS_PATH):
+        path = root / relative_path
+        for row in _read_csv(path):
+            existing_ticker = str(row.get("ticker") or "").strip().upper()
+            existing_peer = str(row.get("peer_ticker") or "").strip().upper()
+            if existing_ticker == ticker_key and existing_peer == peer_key:
+                matches.append(str(relative_path))
+                break
+    return tuple(matches)
+
+
+def build_peer_mapping_writeback_guard(root: Path | str, row: PeerMappingReviewRow) -> PeerMappingWriteBackGuard:
+    root = Path(root)
+    freshness = readiness_freshness_status(root)
+    preview = peer_mapping_import_preview(row, freshness)
+    blocking_reasons: list[str] = []
+    if preview.status != "ready_for_validate_preview":
+        completion = peer_mapping_source_review_completion(row, freshness)
+        blocking_reasons.extend(completion.missing_fields)
+    ticker = str(row.ticker or "").strip().upper()
+    peer_ticker = str(row.proposed_peer_ticker or "").strip().upper()
+    if ticker and peer_ticker and ticker == peer_ticker:
+        blocking_reasons.append("self_peer")
+    duplicate_sources = _peer_pair_exists(root, ticker, peer_ticker)
+    if duplicate_sources:
+        blocking_reasons.append("duplicate_peer_pair")
+    status = "ready_for_validate_preview" if not blocking_reasons else "blocked"
+    csv_row = preview.csv_row if status == "ready_for_validate_preview" else ""
+    apply_boundary = (
+        preview.apply_boundary
+        if status == "ready_for_validate_preview"
+        else "Do not copy or apply this peer row until blocking reasons are resolved."
+    )
+    return PeerMappingWriteBackGuard(
+        status=status,
+        blocking_reasons=tuple(dict.fromkeys(blocking_reasons)),
+        duplicate_sources=duplicate_sources,
+        csv_header=preview.csv_header,
+        csv_row=csv_row,
+        target_file=row.target_file,
+        validation_command=preview.validation_command,
+        apply_boundary=apply_boundary,
+        post_apply_proof=preview.post_apply_proof,
+    )
+
+
+def render_peer_mapping_writeback_guard(guard: PeerMappingWriteBackGuard, row: PeerMappingReviewRow) -> str:
+    blocking = ",".join(guard.blocking_reasons) if guard.blocking_reasons else "-"
+    duplicates = ",".join(guard.duplicate_sources) if guard.duplicate_sources else "-"
+    csv_row = guard.csv_row or "-"
+    lines = [
+        "Peer mapping write-back guard",
+        "Research-only: this guard prints a reviewed peer import row only when source proof, duplicate checks, and freshness gates pass.",
+        "It does not edit files, apply imports, connect to brokers, route orders, or provide direct buy/sell instructions.",
+        f"status: {guard.status}",
+        f"blocking_reasons: {blocking}",
+        f"duplicate_sources: {duplicates}",
+        f"target_file: {guard.target_file}",
+        f"ticker: {row.ticker}",
+        f"peer_ticker: {row.proposed_peer_ticker}",
+        f"csv_header: {guard.csv_header}",
+        f"csv_row: {csv_row}",
+        f"validation_command: {guard.validation_command}",
+        f"apply_boundary: {guard.apply_boundary}",
+        f"post_apply_proof: {guard.post_apply_proof}",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def _candidate_tickers(root: Path, top_n: int, tickers: tuple[str, ...]) -> tuple[str, ...]:
@@ -405,11 +493,50 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--csv-output", default=str(DEFAULT_CSV_OUTPUT))
     parser.add_argument("--dry-run", action="store_true", help="Preview without writing Markdown or CSV artifacts.")
     parser.add_argument("--print", action="store_true", help="Print packet Markdown after writing outputs, or during dry run.")
+    parser.add_argument("--guard-writeback", action="store_true", help="Preview one reviewed peer import row and block unsafe write-back.")
+    parser.add_argument("--ticker", default="<ticker>")
+    parser.add_argument("--peer-ticker", default="<source-backed peer ticker>")
+    parser.add_argument("--peer-group", default="<reviewed peer group>")
+    parser.add_argument("--sector", default="<reviewed sector>")
+    parser.add_argument("--industry", default="<reviewed industry>")
+    parser.add_argument("--source", default="<durable URL or local document reference>")
+    parser.add_argument("--as-of-date", default="<YYYY-MM-DD>")
+    parser.add_argument("--relationship-rationale", default="<why this source supports the peer relationship>")
+    parser.add_argument("--reviewer", default="<reviewer>")
+    parser.add_argument("--review-date", default="<YYYY-MM-DD>")
+    parser.add_argument("--source-proof-status", default="needs_review")
+    parser.add_argument("--import-row-ready", default="no")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.guard_writeback:
+        row = PeerMappingReviewRow(
+            ticker=str(args.ticker).strip().upper(),
+            mapping_slot="peer_1",
+            proposed_peer_ticker=str(args.peer_ticker).strip().upper(),
+            peer_group=args.peer_group,
+            sector=args.sector,
+            industry=args.industry,
+            source=args.source,
+            as_of_date=args.as_of_date,
+            relationship_rationale=args.relationship_rationale,
+            reviewer=args.reviewer,
+            review_date=args.review_date,
+            source_proof_status=args.source_proof_status,
+            import_row_ready=args.import_row_ready,
+            target_file=str(IMPORT_PEERS_PATH),
+            focus_command=f"make focus-peers TICKER={str(args.ticker).strip().upper()}",
+            validation_sequence="make imports-validate -> make imports-preview -> make imports-apply -> make readiness -> make peer-mapping-queue TOP_N=25",
+            do_not_proceed_if=(
+                "source does not name the peer relationship or comparable business context; "
+                "source is only sector/theme similarity; duplicate or self-peer row is detected; "
+                "review date or reviewer is missing; proposed peer ticker is not verified"
+            ),
+        )
+        print(render_peer_mapping_writeback_guard(build_peer_mapping_writeback_guard(args.root, row), row))
+        return 0
     packet = build_peer_mapping_source_review_packet(args.root, top_n=args.top_n, tickers=args.tickers)
     if args.dry_run:
         print(render_peer_mapping_source_review_markdown(packet) if args.print else render_peer_mapping_source_review_preview(packet))

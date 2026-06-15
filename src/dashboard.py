@@ -12784,6 +12784,19 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             "command": first_import_preview.validation_command,
         },
         {
+            "kicker": "WRITE-BACK GUARD",
+            "title": "Check duplicates before editing imports",
+            "body": (
+                "After source fields are reviewed, run the guard with the reviewed values. It blocks placeholders, stale readiness, self-peers, and duplicate peer pairs before any CSV edit."
+            ),
+            "badges": ["copy-only", "duplicate check", "self-peer block"],
+            "command": (
+                "make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> "
+                'PEER_GROUP="<group>" SOURCE="<url>" AS_OF_DATE=<yyyy-mm-dd> '
+                'REVIEWER="<name>" REVIEW_DATE=<yyyy-mm-dd> SOURCE_PROOF_STATUS=reviewed IMPORT_ROW_READY=yes'
+            ),
+        },
+        {
             "kicker": "VALIDATE BEFORE APPLY",
             "title": "Reviewed rows still need import gates",
             "body": (
