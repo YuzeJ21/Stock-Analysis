@@ -1801,6 +1801,44 @@ def test_stock_report_cli_sec_stage_json_surfaces_make_based_follow_up(monkeypat
         os.chdir(previous_cwd)
 
 
+def test_stock_report_cli_sec_stage_failure_shows_safe_manual_fallback(monkeypatch, tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    def fake_build(*_args, **_kwargs):
+        raise RuntimeError("SEC request failed for https://www.sec.gov/files/company_tickers.json: DNS unavailable")
+
+    monkeypatch.setattr("src.stock_report.build_sec_fundamentals_rows", fake_build)
+
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--sec-stage-fundamentals",
+        "--tickers",
+        "NVDA",
+        "--sec-user-agent",
+        "Test test@example.com",
+    ]
+    try:
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+    message = str(exc_info.value)
+    assert "SEC staging workflow failed before any fundamentals rows were applied" in message
+    assert "verify network access and SEC_USER_AGENT" in message
+    assert "make focus-fundamentals TICKER=<ticker>" in message
+    assert "make imports-validate" in message
+    assert "make imports-preview" in message
+    assert "do not infer or fabricate revenue" in message
+    assert "recommendations" in message
+
+
 def test_stock_report_from_rich_local_fixture_is_serializable_and_includes_validation(tmp_path: Path):
     payload = create_stock_report_payload("ALFA", provider_name="local", base_dir=_copy_rich_fixture(tmp_path))
 

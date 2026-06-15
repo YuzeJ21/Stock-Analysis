@@ -3649,6 +3649,18 @@ def _resolve_sec_tickers(args: argparse.Namespace, base_dir: Path, data_dir: Pat
     return sorted(ticker for ticker in tickers if ticker)
 
 
+def _sec_staging_failure_message(exc: Exception) -> str:
+    return (
+        "SEC staging workflow failed before any fundamentals rows were applied. "
+        f"Reason: {exc}. "
+        "Next safe action: verify network access and SEC_USER_AGENT, then rerun the capped SEC stage command; "
+        "if SEC is unavailable, inspect the blocker with make focus-fundamentals TICKER=<ticker>, prepare only "
+        "source-backed rows in data/imports/fundamentals.csv, and run make imports-validate followed by "
+        "make imports-preview before any apply. Research-only guardrail: do not infer or fabricate revenue, "
+        "free cash flow, shares outstanding, market cap, valuation inputs, or recommendations."
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a readable local single-stock research report.")
     parser.add_argument("--ticker", help="Ticker symbol to analyze")
@@ -3818,7 +3830,7 @@ def main() -> None:
                 overwrite=args.overwrite,
             )
         except (RuntimeError, ValueError) as exc:
-            raise SystemExit(f"SEC staging workflow failed: {exc}") from exc
+            raise SystemExit(_sec_staging_failure_message(exc)) from exc
         payload = {
             **result,
             **write_result,

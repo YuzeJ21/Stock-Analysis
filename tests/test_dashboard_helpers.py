@@ -10155,15 +10155,18 @@ def test_data_health_reviewed_batch_operator_flow_cards_make_lane_to_proof_compa
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert [card["kicker"] for card in cards] == ["LANE", "SOURCE GATE", "NEXT STEP", "PROOF BOUNDARY"]
+    assert [card["kicker"] for card in cards] == ["LANE", "SOURCE GATE", "NEXT STEP", "PROOF BOUNDARY", "OUTCOME RECORD"]
     assert cards[0]["command"] == "make coverage-expansion-loop LANE=peers TOP_N=10"
     assert cards[2]["command"] == "make readiness-snapshot"
     assert cards[3]["command"] == "make reviewed-batch-compare LANE=peers BATCH_ID=RB-TEST REVIEW_DATE=2026-06-14 TOP_N=10"
+    assert cards[4]["command"] == 'DRY_RUN=1 make reviewed-batch-proof-record BATCH_ID="RB-TEST"'
     assert "selected lane: peers" in rendered
     assert "source-backed peer mappings" in rendered
     assert "capture snapshot gate" in rendered
     assert "compare before recording" in rendered
     assert "supported, still_blocked, skipped, or excluded" in rendered
+    assert "dry-run proof row last" in rendered
+    assert "placeholders" in rendered
     assert "security ranking" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -10214,6 +10217,8 @@ def test_data_health_reviewed_batch_operator_flow_uses_preflight_badge_when_plan
     assert cards[1]["badges"] == ["current", "ready_for_dry_run"]
     assert cards[2]["title"] == "Packet, then dry run"
     assert cards[2]["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
+    assert cards[4]["title"] == "Dry-run proof row last"
+    assert cards[4]["command"] == 'DRY_RUN=1 make reviewed-batch-proof-record BATCH_ID="RB-READY"'
 
 
 def test_data_health_reviewed_batch_loop_card_moves_from_snapshot_to_packet_when_ready():

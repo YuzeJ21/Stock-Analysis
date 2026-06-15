@@ -9312,6 +9312,7 @@ def data_health_reviewed_batch_operator_flow_cards(
         if apply_steps["mode"] == "read_only"
         else "Mutating lanes stay validate -> preview -> explicit apply; rejected-row reports must be reviewed first."
     )
+    proof_record_command = f"DRY_RUN=1 {preflight.proof_record_command}"
     return [
         {
             "kicker": "LANE",
@@ -9341,11 +9342,22 @@ def data_health_reviewed_batch_operator_flow_cards(
             "kicker": "PROOF BOUNDARY",
             "title": "Compare before recording",
             "body": (
-                f"{apply_body} After reviewed work, compare before/after readiness and dry-run the proof record "
-                "before writing supported, still_blocked, skipped, or excluded."
+                f"{apply_body} After reviewed work, compare before/after readiness before claiming supported, "
+                "still_blocked, skipped, or excluded."
             ),
             "badges": [apply_steps["mode"], "ledger proof"],
             "command": preflight.comparison_command,
+        },
+        {
+            "kicker": "OUTCOME RECORD",
+            "title": "Dry-run proof row last",
+            "body": (
+                "Use the proof-record dry run only after packet review, capped preview, source review, validation or "
+                "read-only metric review, and before/after comparison are complete. If required fields still contain "
+                "placeholders, keep the outcome unfinished."
+            ),
+            "badges": ["dry-run proof", "manual review"],
+            "command": proof_record_command,
         },
     ]
 
