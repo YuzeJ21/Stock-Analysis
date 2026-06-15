@@ -23,6 +23,7 @@ def test_diff_hygiene_classifies_generated_csv_churn_separately():
     assert module.classify_path("data/fundamentals.csv") == "generated_csv_churn"
     assert module.classify_path("data/outputs/research_decisions.csv") == "generated_csv_churn"
     assert module.classify_path("outputs/research_decisions.csv") == "generated_csv_churn"
+    assert module.classify_path("outputs/decision_proof_queue.md") == "generated_csv_churn"
 
 
 def test_diff_hygiene_keeps_markdown_reports_as_reviewable_examples():

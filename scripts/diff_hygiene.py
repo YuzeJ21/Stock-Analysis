@@ -33,6 +33,10 @@ ROOT_PRODUCT_FILES = {
     "outputs/reviewed_batch_packet.md",
 }
 
+GENERATED_MARKDOWN_ARTIFACTS = {
+    "outputs/decision_proof_queue.md",
+}
+
 
 @dataclass(frozen=True)
 class StatusEntry:
@@ -56,6 +60,8 @@ def parse_name_status_line(line: str) -> StatusEntry:
 def is_generated_churn(path: str) -> bool:
     if path.startswith("outputs/stock_reports/") and path.endswith(".md"):
         return False
+    if path in GENERATED_MARKDOWN_ARTIFACTS:
+        return True
     if path in {
         "data/reviewed_data_proofs.csv",
         "data/reviewed_batch_proofs.csv",
