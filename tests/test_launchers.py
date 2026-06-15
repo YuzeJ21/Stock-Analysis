@@ -478,7 +478,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
 
     assert len(readme.splitlines()) < 180
     assert "![Dashboard preview](docs/assets/public-demo-home-real.jpg)" in readme
-    assert "docs/assets/operator-data-health-metrics-real.jpg" in readme
+    assert "docs/assets/linkedin-public-dashboard.png" in readme
+    assert "make status-check TOP_N=5` remains the source for current local counts" in readme
     for preview_phrase in (
         "plain-language stock analysis modes",
         "At A Glance single-stock status",

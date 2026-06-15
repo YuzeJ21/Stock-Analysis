@@ -37,9 +37,9 @@ GitHub: https://github.com/YuzeJ21/Stock-Analysis
 
 LinkedIn Featured title: `Stock Research Command Center - Readiness-First Research Dashboard`
 
-LinkedIn Featured description: `A public portfolio project built with Python and Streamlit that checks data readiness before showing stock research workflows. It separates ready, blocked, partial, and excluded states, keeps proof steps visible, and stays research-only with no broker integration or auto-trading.`
+LinkedIn Featured description: `A Python and Streamlit portfolio project that checks data readiness before showing stock research workflows. It separates ready, blocked, partial, and excluded states, keeps proof steps visible, and stays research-only with no broker integration or auto-trading.`
 
-Featured thumbnail: use `docs/assets/operator-data-health-metrics-real.jpg` when you want to show the current readiness operator workflow. Use `docs/assets/public-demo-home-real.jpg` when you want the simpler public visitor view.
+Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a real product screenshot of the public visitor path; use `make status-check TOP_N=5` for current local readiness counts because screenshot counts can become stale after local refresh/import work. Keep `docs/assets/operator-data-health-metrics-real.jpg` only for deeper operator-mode discussion.
 
 ## Resume Bullet Options
 
