@@ -271,7 +271,7 @@ def build_decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[d
             "body": ", ".join(f"{bucket}: {int(count)}" for bucket, count in bucket_counts.head(3).items())
             + ". Each row states what can be reviewed now, what stays locked, and what proves an unlock.",
             "badges": ["plain English", "row-limited"],
-            "command": "make decision-proof-queue TOP_N=12",
+            "command": "DRY_RUN=1 make decision-proof-queue TOP_N=12",
         },
         {
             "kicker": "TOP PROOF ROW",
@@ -297,7 +297,8 @@ def build_decision_proof_queue_drawer_cards(
     queue_frame: pd.DataFrame | None,
     freshness: FreshnessStatus,
 ) -> list[dict[str, object]]:
-    status_command = freshness.refresh_command if freshness.status in {"missing", "stale"} else "make decision-proof-queue TOP_N=12"
+    preview_command = "DRY_RUN=1 make decision-proof-queue TOP_N=12"
+    status_command = freshness.refresh_command if freshness.status in {"missing", "stale"} else preview_command
     status_badges = (
         [freshness.status, "refresh first"]
         if freshness.status in {"missing", "stale"}
@@ -332,7 +333,7 @@ def build_decision_proof_queue_drawer_cards(
                 "kicker": "FINISH THIS QUEUE",
                 "title": "Three-step proof refresh",
                 "body": (
-                    f"1. Run `{status_command}`. 2. Run `make decision-proof-queue TOP_N=12`. "
+                    f"1. Run `{status_command}`. 2. Run `{preview_command}`. "
                     "3. Reopen Data Health and read the top proof row only after freshness is current. "
                     "Until then, stale decision rows stay blocked proof, not weak research conclusions."
                 ),
@@ -399,7 +400,8 @@ def build_decision_proof_queue_operator_flow_cards(
 ) -> list[dict[str, object]]:
     """Return the compact V2 operator flow shown before detailed proof controls."""
     stale_or_missing = freshness.status in {"missing", "stale"}
-    refresh_command = freshness.refresh_command if stale_or_missing else "make decision-proof-queue TOP_N=12"
+    preview_command = "DRY_RUN=1 make decision-proof-queue TOP_N=12"
+    refresh_command = freshness.refresh_command if stale_or_missing else preview_command
     if stale_or_missing:
         return [
             {
@@ -427,7 +429,7 @@ def build_decision_proof_queue_operator_flow_cards(
                     "not recommendations, rankings, or execution instructions."
                 ),
                 "badges": ["copy-only", "research-only"],
-                "command": "make decision-proof-queue TOP_N=12",
+                "command": preview_command,
             },
         ]
 
@@ -438,7 +440,7 @@ def build_decision_proof_queue_operator_flow_cards(
                 "title": "Snapshot current",
                 "body": _compact_reason(freshness.message, max_sentences=1, max_chars=170),
                 "badges": [freshness.status, "counts usable"],
-                "command": "make decision-proof-queue TOP_N=12",
+                "command": preview_command,
             },
             {
                 "kicker": "NEXT REVIEW",
@@ -452,7 +454,7 @@ def build_decision_proof_queue_operator_flow_cards(
                 "title": "Rows must be regenerated",
                 "body": "Keep raw decision tables closed until the proof queue has current rows and source notes.",
                 "badges": ["raw rows collapsed", "copy-only"],
-                "command": "make decision-proof-queue TOP_N=12",
+                "command": preview_command,
             },
         ]
 
@@ -468,7 +470,7 @@ def build_decision_proof_queue_operator_flow_cards(
             "title": "Queue current",
             "body": f"{_compact_reason(freshness.message, max_sentences=1, max_chars=140)} Use this as proof routing only.",
             "badges": [freshness.status, "not advice"],
-            "command": "make decision-proof-queue TOP_N=12",
+            "command": preview_command,
         },
         {
             "kicker": "NEXT REVIEW",
@@ -495,7 +497,8 @@ def build_decision_proof_queue_drawer_summary_frame(
     freshness: FreshnessStatus,
 ) -> pd.DataFrame:
     """Return the compact operator checklist shown before raw queue rows."""
-    status_command = freshness.refresh_command if freshness.status in {"missing", "stale"} else "make decision-proof-queue TOP_N=12"
+    preview_command = "DRY_RUN=1 make decision-proof-queue TOP_N=12"
+    status_command = freshness.refresh_command if freshness.status in {"missing", "stale"} else preview_command
     rows: list[dict[str, str]] = [
         {
             "step": "Freshness status",
@@ -517,21 +520,21 @@ def build_decision_proof_queue_drawer_summary_frame(
                     "status": "blocked by freshness gate",
                     "detail": "Do not read stale decision rows as current proof.",
                     "copy_only_command": status_command,
-                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                    "post_unlock_proof": preview_command,
                 },
                 {
                     "step": "What can be reviewed now",
                     "status": "blocked",
                     "detail": "Wait for current decision rows before reading review states.",
                     "copy_only_command": "",
-                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                    "post_unlock_proof": preview_command,
                 },
                 {
                     "step": "What stays locked",
                     "status": "locked",
                     "detail": "All decision proof interpretation stays locked until freshness is current.",
                     "copy_only_command": "",
-                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                    "post_unlock_proof": preview_command,
                 },
             ]
         )
@@ -545,14 +548,14 @@ def build_decision_proof_queue_drawer_summary_frame(
                     "status": "no queue rows",
                     "detail": "Readiness is current, but no decision proof rows are available yet.",
                     "copy_only_command": "make research-decisions",
-                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                    "post_unlock_proof": preview_command,
                 },
                 {
                     "step": "What can be reviewed now",
                     "status": "not available",
                     "detail": "Rebuild research decisions before reading decision proof output.",
                     "copy_only_command": "make research-decisions",
-                    "post_unlock_proof": "make decision-proof-queue TOP_N=12",
+                    "post_unlock_proof": preview_command,
                 },
             ]
         )

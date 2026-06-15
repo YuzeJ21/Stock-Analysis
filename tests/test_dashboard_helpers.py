@@ -18797,7 +18797,7 @@ def test_decision_proof_queue_drawer_cards_keep_operator_summary_compact():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["QUEUE STATUS", "TOP PROOF ROW", "REVIEW NOW", "LOCKED", "PROOF AFTER UNLOCK"]
-    assert cards[0]["command"] == "make decision-proof-queue TOP_N=12"
+    assert cards[0]["command"] == "DRY_RUN=1 make decision-proof-queue TOP_N=12"
     assert cards[1]["command"] == "make focus-peers TICKER=META"
     assert "what can be reviewed" in rendered
     assert "what stays locked" in rendered

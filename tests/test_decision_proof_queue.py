@@ -78,7 +78,7 @@ def test_decision_proof_queue_translates_decisions_without_recommendations():
     assert "make peer-mapping-queue top_n=25" in queue.iloc[0]["proof_after_unlock"].lower()
     assert queue.iloc[1]["copy_only_command"] == "make focus-price TICKER=APLD"
     assert queue.iloc[2]["copy_only_command"] == "make stock-report-md TICKER=QQQ"
-    assert cards[0]["command"] == "make decision-proof-queue TOP_N=12"
+    assert cards[0]["command"] == "DRY_RUN=1 make decision-proof-queue TOP_N=12"
     assert "what can be reviewed now" in rendered_cards
     assert "what proves an unlock" in rendered_cards
     assert "broker" not in rendered
@@ -189,7 +189,7 @@ def test_decision_proof_queue_operator_flow_blocks_stale_rows():
 
     assert [card["kicker"] for card in cards] == ["FRESHNESS GATE", "NEXT REVIEW", "PROOF BOUNDARY"]
     assert cards[0]["command"] == "make research-decisions"
-    assert cards[2]["command"] == "make decision-proof-queue TOP_N=12"
+    assert cards[2]["command"] == "DRY_RUN=1 make decision-proof-queue TOP_N=12"
     assert "proof queue blocked" in rendered
     assert "no current top row" in rendered
     assert "not recommendations" in rendered
