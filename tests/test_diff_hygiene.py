@@ -169,6 +169,46 @@ def test_diff_hygiene_summary_is_concise_but_preserves_guardrails():
     assert "Research-only guardrail" in report
 
 
+def test_data_release_decision_reports_clean_public_state():
+    module = load_diff_hygiene_module()
+
+    report = module.build_data_release_decision_report([])
+
+    assert "Data Release Decision" in report
+    assert "Read-only: this command does not stage, delete, reset, refresh, rewrite files, or publish data." in report
+    assert "Working tree is clean." in report
+    assert "public code/docs/tests are ready to share" in report
+    assert "make coverage-expansion-loop TOP_N=10" in report
+    assert "investment advice" in report
+
+
+def test_data_release_decision_keeps_generated_churn_local_by_default():
+    module = load_diff_hygiene_module()
+    entries = [
+        module.StatusEntry("M", "data/prices.csv"),
+        module.StatusEntry("M", "data/reports/ticker_readiness_report.csv"),
+        module.StatusEntry("M", "data/reviewed_batch_proofs.csv"),
+        module.StatusEntry("??", "data/reports/ticker_readiness_report.previous.csv"),
+        module.StatusEntry("M", "src/dashboard.py"),
+    ]
+
+    report = module.build_data_release_decision_report(entries)
+
+    assert "Reviewed proof artifacts: 1 (1 changed, 0 new)" in report
+    assert "Generated CSV/JSON churn: 3 (2 changed, 1 new)" in report
+    assert "Keep generated CSV/JSON churn local by default" in report
+    assert "Option A - public code/docs release" in report
+    assert "git restore -- data/prices.csv data/reports/ticker_readiness_report.csv data/reviewed_batch_proofs.csv" in report
+    assert "rm -f data/reports/ticker_readiness_report.previous.csv" in report
+    assert "Option B - reviewed data snapshot release" in report
+    assert "git add -- data/reviewed_batch_proofs.csv" in report
+    assert "Review generated churn individually; do not use git add -A." in report
+    assert "Option C - keep local evidence only" in report
+    assert "changed readiness counts or changed tickers are not documented" in report
+    assert "broker" in report
+    assert "direct buy/sell" in report
+
+
 def test_staged_hygiene_check_passes_clean_product_and_sample_report_stage():
     module = load_diff_hygiene_module()
     entries = [

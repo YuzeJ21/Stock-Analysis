@@ -71,6 +71,7 @@ def test_makefile_contains_convenience_targets():
         "metric-readiness-board",
         "diff-hygiene-summary",
         "diff-hygiene-files",
+        "data-release-decision",
         "staged-hygiene-check",
         "public-wording-check",
         "public-check",
@@ -183,6 +184,8 @@ def test_makefile_help_documents_key_workflows():
         "Summarize lane outcomes from the durable proof ledger",
         "make price-reviewed-run",
         "Print the controlled reviewed capped price run workflow",
+        "make data-release-decision",
+        "Print keep-local, reviewed-data-release, and cleanup choices after local data-output changes",
         "make public-demo-readiness-pack",
         "Print the small shareable public demo proof set",
         "make readiness-ops-center",
@@ -228,6 +231,8 @@ def test_makefile_help_documents_key_workflows():
         "Print a short read-only staging summary for public checks",
         "make diff-hygiene-files",
         "Write local pathspec files under outputs/staging for safer reviewed staging",
+        "make data-release-decision",
+        "Print read-only post-batch keep-local, reviewed-data-release, and cleanup guidance",
         "make staged-hygiene-check",
         "Fail if staged files include unreviewed local data/report changes",
         "make public-wording-check",
@@ -1681,6 +1686,8 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Use `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` to preview a frontier lane as a reviewed run packet without writing packet artifacts." in data_strategy
     assert "The packet includes the pre-run readiness snapshot command, dry-run command, capped execution command, validate/preview/apply gates" in data_strategy
     assert "the packet says to run `make readiness` before relying on final counts." in data_strategy
+    assert "Use `make data-release-decision` after any reviewed batch or local refresh creates dirty CSV/report artifacts." in data_strategy
+    assert "It separates three choices: keep generated artifacts local for working evidence, publish a reviewed data snapshot only when those exact artifacts are the deliverable, or clean back to a public code/docs release state." in data_strategy
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy
     assert "Applying SEC/manual fundamentals rows without validation and preview" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
@@ -1978,6 +1985,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert 'This target only prints a visitor path. If you later run stock-report-md commands, they write local Markdown reports under outputs/stock_reports/.' in makefile
     assert "Share-safe story: show NVDA as ready, META as blocked, QQQ as excluded, MU as peer-limited, CRDO as fundamentals-gated, then the trusted-data pilot as the honest proof path." in makefile
     assert "diff-hygiene-files:\n\t@python3 scripts/diff_hygiene.py --write-files" in makefile
+    assert "data-release-decision:\n\t@python3 scripts/diff_hygiene.py --data-release-decision" in makefile
     assert "staged-hygiene-check:\n\t@python3 scripts/diff_hygiene.py --staged-check" in makefile
     assert "public-check:" in makefile
     for phrase in (

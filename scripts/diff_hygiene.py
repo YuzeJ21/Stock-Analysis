@@ -277,6 +277,162 @@ def staged_hygiene_has_blockers(entries: list[StatusEntry]) -> bool:
     return bool(groups["generated_csv_churn"] or groups["review_manually"])
 
 
+def tracked_entries(entries: list[StatusEntry]) -> list[StatusEntry]:
+    return [entry for entry in entries if entry.status != "??"]
+
+
+def untracked_entries(entries: list[StatusEntry]) -> list[StatusEntry]:
+    return [entry for entry in entries if entry.status == "??"]
+
+
+def format_shell_command(
+    prefix: str,
+    entries: list[StatusEntry],
+    *,
+    max_paths: int = 60,
+    empty_message: str = "# no matching paths",
+) -> list[str]:
+    if not entries:
+        return [f"  {empty_message}"]
+    paths = " ".join(quote(entry.path) for entry in entries[:max_paths])
+    rows = [f"  {prefix} {paths}"]
+    if len(entries) > max_paths:
+        rows.append(f"  # Review {len(entries) - max_paths} additional path(s) manually before extending this command.")
+    return rows
+
+
+def build_data_release_decision_report(entries: list[StatusEntry]) -> str:
+    groups = group_entries(entries)
+    product = groups["product_candidate"]
+    generated = groups["generated_csv_churn"]
+    manual = groups["review_manually"]
+    sample_reports = groups["sample_report_candidate"]
+    proof_artifacts = [
+        entry
+        for entry in product
+        if entry.path
+        in {
+            "data/reviewed_data_proofs.csv",
+            "data/reviewed_batch_proofs.csv",
+            "outputs/reviewed_batch_packet.csv",
+            "outputs/reviewed_batch_packet.md",
+        }
+    ]
+    product_without_proofs = [entry for entry in product if entry not in proof_artifacts]
+    cleanup_tracked = tracked_entries(generated + proof_artifacts)
+    cleanup_untracked = untracked_entries(generated + proof_artifacts)
+
+    lines = [
+        "Data Release Decision",
+        "Read-only: this command does not stage, delete, reset, refresh, rewrite files, or publish data.",
+        "Research-only: data release choices are evidence-packaging decisions, not investment advice or execution instructions.",
+        "",
+    ]
+    if not entries:
+        lines.extend(
+            [
+                "Working tree is clean.",
+                "Recommendation: public code/docs/tests are ready to share; no local data release package is pending.",
+                "",
+                "Next safe data step:",
+                "  make coverage-expansion-loop TOP_N=10",
+            ]
+        )
+        return "\n".join(lines)
+
+    lines.extend(
+        [
+            format_count_line("Product/code/docs/test candidates", product_without_proofs),
+            format_count_line("Reviewed proof artifacts", proof_artifacts),
+            format_count_line("Generated CSV/JSON churn", generated),
+            format_count_line("Markdown sample report candidates", sample_reports),
+            format_count_line("Manual-review paths", manual),
+            "",
+        ]
+    )
+
+    if manual:
+        lines.extend(
+            [
+                "Stop first: manual-review paths are present.",
+                "Inspect these before choosing a public-code cleanup or reviewed data release:",
+                *format_paths(manual, limit=30),
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "Recommended decision:",
+        ]
+    )
+    if generated:
+        lines.append(
+            "  Keep generated CSV/JSON churn local by default. Publish a data snapshot only when the exact refreshed artifacts are the deliverable."
+        )
+    elif proof_artifacts:
+        lines.append(
+            "  Proof ledger artifacts changed without generated churn; stage them only if they describe an intentionally reviewed outcome."
+        )
+    elif product_without_proofs or sample_reports:
+        lines.append("  Stage product/docs/tests or reviewed Markdown samples with the normal diff-hygiene path.")
+    else:
+        lines.append("  No generated data release decision is pending.")
+
+    lines.extend(
+        [
+            "",
+            "Option A - public code/docs release",
+            "Use when refreshed data was only local working evidence and should not become the public snapshot.",
+            "Copy only after confirming the local batch evidence can be discarded:",
+        ]
+    )
+    lines.extend(format_shell_command("git restore --", cleanup_tracked, empty_message="# no tracked generated/proof paths to restore"))
+    lines.extend(format_shell_command("rm -f", cleanup_untracked, empty_message="# no untracked generated/proof paths to remove"))
+    lines.extend(
+        [
+            "  make diff-hygiene-summary",
+            "",
+            "Option B - reviewed data snapshot release",
+            "Use only when the refreshed CSVs and proof artifacts are intentionally part of the deliverable.",
+        ]
+    )
+    if proof_artifacts:
+        lines.extend(format_git_add_command(proof_artifacts, label="Stage reviewed proof artifacts"))
+    else:
+        lines.append("  # No reviewed proof artifact changed; record or review the proof row before publishing data churn.")
+    if generated:
+        lines.extend(
+            [
+                "  # Review generated churn individually; do not use git add -A.",
+                "  make diff-hygiene-files",
+                "  # Inspect outputs/staging/generated_churn.txt, then stage only the exact reviewed artifacts.",
+            ]
+        )
+    else:
+        lines.append("  # No generated CSV/JSON churn is present.")
+    lines.extend(
+        [
+            "  make staged-hygiene-check",
+            "  make public-check",
+            "",
+            "Option C - keep local evidence only",
+            "Use when the batch result matters locally but should not be committed yet.",
+            "  # Do nothing to git; keep the dirty tree local and rerun make diff-hygiene before any commit.",
+            "",
+            "Do not proceed if:",
+            "- source proof is unavailable",
+            "- validation, preview, rejected-row review, or apply decision is missing for a mutating workflow",
+            "- changed readiness counts or changed tickers are not documented",
+            "- generated artifacts cannot be classified before staging",
+            "",
+            "Research-only guardrail: never stage broker, order execution, auto-trading,",
+            "options recommendation, or direct buy/sell instruction language.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def build_staged_check_report(entries: list[StatusEntry]) -> str:
     groups = group_entries(entries)
     lines = [
@@ -403,6 +559,11 @@ def main() -> int:
         action="store_true",
         help="Fail if the staged diff includes generated CSV/JSON churn or manual-review paths.",
     )
+    parser.add_argument(
+        "--data-release-decision",
+        action="store_true",
+        help="Print read-only keep-local vs reviewed-data-release vs cleanup guidance for dirty generated artifacts.",
+    )
     args = parser.parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     if args.staged_check:
@@ -410,6 +571,9 @@ def main() -> int:
         print(build_staged_check_report(entries))
         return 1 if staged_hygiene_has_blockers(entries) else 0
     entries = load_status(repo_root)
+    if args.data_release_decision:
+        print(build_data_release_decision_report(entries))
+        return 0
     if args.write_files:
         files = write_staging_files(entries, repo_root / "outputs" / "staging")
         print(build_file_report(files, repo_root))
