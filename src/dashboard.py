@@ -7191,7 +7191,7 @@ def data_health_public_visitor_path_cards(readiness_summary: dict[str, object]) 
         ),
         (
             "Inspect proof",
-            "Use the latest reviewed evidence below before treating a changed readiness state as supported. Operator commands stay hidden by default.",
+            "Use the latest reviewed evidence below before treating a changed readiness state as supported. Operator evidence stays behind deeper drawers by default.",
             "Proof History",
             "neutral",
         ),
@@ -23481,7 +23481,7 @@ def _plain_home_first_run_path_cards() -> list[dict[str, object]]:
             "kicker": "VISITOR STEP 1",
             "title": "Print the demo walkthrough",
             "body": (
-                "Use the demo command when sharing the repo: it prints the exact Home -> NVDA -> META -> QQQ -> MU -> CRDO -> trusted-data pilot walkthrough without changing local files."
+                "Use the share walkthrough when presenting the repo: it follows Home -> NVDA -> META -> QQQ -> MU -> CRDO -> trusted-data pilot without changing local files."
             ),
             "badges": ["share path", "read-only"],
             "command": "make demo",
@@ -23640,7 +23640,7 @@ def _plain_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
         )
 
     improve_body = (
-        "Use this when a section is locked. It shows the next trusted input, copy-only command, validation path, and proof step."
+        "Use this when a section is locked. It shows the next trusted input, review path, validation boundary, and proof step."
     )
     improve_tone = "neutral"
     if has_price_gap or has_depth_gap:

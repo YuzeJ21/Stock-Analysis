@@ -1009,6 +1009,10 @@ def test_home_evaluation_workflow_cards_show_product_sequence_without_overclaimi
 def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
     cards = dashboard._plain_home_first_run_path_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    visible_rendered = " ".join(
+        " ".join(str(card.get(key, "")) for key in ["kicker", "title", "body", "badges"])
+        for card in cards
+    ).lower()
 
     assert [card["kicker"] for card in cards] == [
         "VISITOR STEP 1",
@@ -1018,8 +1022,11 @@ def test_home_demo_walkthrough_cards_make_visitor_path_explicit():
         "VISITOR STEP 5",
     ]
     assert "print the demo walkthrough" in rendered
-    assert "home -> nvda -> meta -> qqq -> mu -> crdo -> trusted-data pilot walkthrough" in rendered
+    assert "share walkthrough" in rendered
+    assert "follows home -> nvda -> meta -> qqq -> mu -> crdo -> trusted-data pilot" in rendered
     assert "without changing local files" in rendered
+    assert "demo command" not in visible_rendered
+    assert "make " not in visible_rendered
     assert "open the clean product view" in rendered
     assert "three clear paths" in rendered
     assert "read the nvda proof report" in rendered
@@ -1214,6 +1221,7 @@ def test_home_route_choice_cards_adapt_to_current_readiness_without_tables():
     assert "3,273 ticker(s) still need price coverage" in rendered
     assert "open data health for the trusted-data pilot path" in rendered
     assert "fundamentals, source-backed peers, earnings, and estimates remain gated" in rendered
+    assert "copy-only command" not in rendered
     assert "proof history" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -9536,7 +9544,7 @@ def test_data_health_public_visitor_path_cards_are_plain_language_without_comman
     assert "27 dcf-ready" in rendered
     assert "26 peer-ready" in rendered
     assert "you are here" in rendered
-    assert "operator commands stay hidden by default" in rendered
+    assert "operator evidence stays behind deeper drawers by default" in rendered
     assert "make " not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
