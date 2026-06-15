@@ -95,6 +95,10 @@ class PeerReadinessSummary:
         return self.peer_momentum_ready
 
     @property
+    def valuation_input_blockers(self) -> int:
+        return self.missing_peer_price + self.missing_peer_fundamentals + self.peer_valuation_blocked
+
+    @property
     def summary_text(self) -> str:
         return (
             f"mapping={self.peer_mapping_ready}/{self.total_count}; "
@@ -104,7 +108,7 @@ class PeerReadinessSummary:
             f"peer_valuation_comparison={self.peer_valuation_comparison_ready}; "
             f"blocked: mappings={self.missing_mapping}, peer_prices={self.missing_peer_price}, "
             f"peer_momentum={self.missing_peer_momentum}, peer_fundamentals={self.missing_peer_fundamentals}, "
-            f"peer_valuation_inputs={self.peer_valuation_blocked}"
+            f"mapped_peer_inputs={self.valuation_input_blockers}"
         )
 
 
@@ -262,7 +266,16 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
     dcf_ready = _count_true(readiness_rows, "dcf_ready")
     peer_ready = _count_true(readiness_rows, "peer_ready")
     peer_mapping_blocked = _count_contains(readiness_rows, "missing_data", "source-backed peer mappings")
-    peer_valuation_blocked = len(peer_unlock_rows) or _count_contains(readiness_rows, "missing_data", "peer")
+    peer_valuation_worklist_blocked = sum(
+        1 for row in peer_unlock_rows if str(row.get("workflow_group") or "").strip() == "peer_valuation_unlock"
+    )
+    peer_valuation_blocked = (
+        peer_summary.valuation_input_blockers
+        if peer_summary.total_count
+        else peer_valuation_worklist_blocked or _count_contains(readiness_rows, "missing_data", "peer")
+    )
+    peer_valuation_ready = peer_summary.peer_valuation_comparison_ready if peer_summary.total_count else peer_ready
+    peer_valuation_partial = max(peer_summary.peer_mapping_ready - peer_valuation_ready - peer_valuation_blocked, 0)
     earnings_ready = _count_true(readiness_rows, "earnings_ready")
     analyst_ready = _count_true(readiness_rows, "analyst_estimates_ready")
     earnings_blocked = max(total - earnings_ready, 0)
@@ -344,7 +357,7 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
             lane="peer_mapping",
             label="Peer Mapping Proof",
             readiness_state=_lane_state(ready=peer_ready, blocked=peer_mapping_blocked),
-            workflow_mode="reviewed_apply",
+            workflow_mode="preview_first_reviewed_apply",
             total_count=total,
             ready_count=peer_ready,
             partial_count=max(peer_valuation_blocked - peer_mapping_blocked, 0),
@@ -365,11 +378,15 @@ def build_readiness_ops_lanes(root: Path | str = ".") -> list[ReadinessLane]:
         ReadinessLane(
             lane="peer_valuation_inputs",
             label="Peer Valuation Inputs Proof",
-            readiness_state=_lane_state(ready=peer_ready, partial=max(peer_valuation_blocked - peer_mapping_blocked, 0), blocked=peer_valuation_blocked),
+            readiness_state=_lane_state(
+                ready=peer_valuation_ready,
+                partial=peer_valuation_partial,
+                blocked=peer_valuation_blocked,
+            ),
             workflow_mode="preview_first_reviewed_apply",
             total_count=total,
-            ready_count=peer_ready,
-            partial_count=max(peer_valuation_blocked - peer_mapping_blocked, 0),
+            ready_count=peer_valuation_ready,
+            partial_count=peer_valuation_partial,
             blocked_count=peer_valuation_blocked,
             excluded_count=0,
             unlock_impact=peer_valuation_blocked,

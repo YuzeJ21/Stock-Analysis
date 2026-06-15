@@ -129,7 +129,75 @@ def test_peer_readiness_summary_separates_mapping_trend_and_valuation_inputs(tmp
     assert summary.missing_mapping == 1
     assert summary.missing_peer_fundamentals == 1
     assert summary.peer_valuation_blocked == 1
+    assert summary.valuation_input_blockers == 2
     assert "peer trend can be ready before peer valuation comparison is ready" in summary.source_context
+
+
+def test_peer_frontier_ranks_mapping_before_mapped_peer_inputs_when_mapping_is_prerequisite(tmp_path: Path):
+    root = tmp_path
+    _write(
+        root / "data" / "reports" / "ticker_readiness_report.csv",
+        "\n".join(
+            [
+                "ticker,asset_type,price_ready,fundamentals_ready,dcf_ready,peer_ready,earnings_ready,analyst_estimates_ready,overall_readiness_state,blocked_features,excluded_features,missing_data",
+                "AAA,company,true,true,true,false,false,false,partial,peer,,peers: needs at least 2 source-backed peer mappings",
+                "BBB,company,true,true,true,false,false,false,partial,peer,,peers: needs at least 2 source-backed peer mappings",
+                "CCC,company,true,true,true,false,false,false,partial,peer,,peers: peer trend comparison ready; peer valuation still requires peer_valuation_ready",
+                "DDD,company,true,true,true,true,false,false,partial,earnings analyst_estimates,,earnings: trusted local CSV input",
+            ]
+        )
+        + "\n",
+    )
+    _write(
+        root / "data" / "reports" / "feature_readiness_summary.csv",
+        "\n".join(
+            [
+                "feature,ready_count,partial_count,blocked_count,excluded_count,total_count,top_blocker,next_action,unlock_command",
+                "price,4,0,0,0,4,-,-,-",
+                "fundamentals,4,0,0,0,4,-,-,-",
+            ]
+        )
+        + "\n",
+    )
+    _write(
+        root / "data" / "reports" / "peer_unlock_worklist.csv",
+        "\n".join(
+            [
+                "priority,ticker,workflow_group,missing_peer_reason",
+                "1,AAA,dcf_ready_peer_mapping,needs at least 2 source-backed peer mappings",
+                "1,BBB,dcf_ready_peer_mapping,needs at least 2 source-backed peer mappings",
+                "1,CCC,peer_valuation_unlock,peer valuation still requires inputs",
+            ]
+        )
+        + "\n",
+    )
+    _write(
+        root / "data" / "reports" / "peer_readiness_report.csv",
+        "\n".join(
+            [
+                "ticker,peer_count,mapping_status,peer_blocker_type,peer_price_ready,peer_momentum_ready,peer_fundamentals_ready,peer_valuation_ready,peer_valuation_comparison_ready",
+                "AAA,0,missing_mapping,missing_peer_mapping,false,false,false,false,false",
+                "BBB,0,missing_mapping,missing_peer_mapping,false,false,false,false,false",
+                "CCC,2,mapped,peer_fundamentals_missing,true,true,false,false,false",
+                "DDD,2,mapped,ready,true,true,true,true,true",
+            ]
+        )
+        + "\n",
+    )
+
+    lanes = build_readiness_ops_lanes(root)
+    by_lane = {lane.lane: lane for lane in lanes}
+    peer_frontier = build_coverage_frontier(
+        [by_lane["peer_mapping"], by_lane["peer_valuation_inputs"]],
+        top_n=2,
+    )
+
+    assert by_lane["peer_mapping"].unlock_impact == 2
+    assert by_lane["peer_mapping"].workflow_mode == "preview_first_reviewed_apply"
+    assert by_lane["peer_valuation_inputs"].unlock_impact == 1
+    assert by_lane["peer_valuation_inputs"].ready_count == 1
+    assert "mapped_peer_inputs=1" in by_lane["peer_valuation_inputs"].notes
+    assert [row.lane for row in peer_frontier] == ["peer_mapping", "peer_valuation_inputs"]
 
 
 def test_coverage_frontier_ranks_batch_lanes_without_implying_data_available(tmp_path: Path):
