@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from src.decision_proof_queue import (
+    build_decision_proof_queue_completion_frame,
     DEFAULT_QUEUE_CSV,
     DEFAULT_QUEUE_MD,
     build_decision_proof_queue_drawer_summary_frame,
@@ -281,6 +282,80 @@ def test_decision_proof_queue_operator_flow_handles_current_empty_queue():
     assert cards[1]["command"] == "make research-decisions"
     assert "no current proof rows are available" in rendered
     assert "raw decision tables closed" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_decision_proof_queue_completion_frame_blocks_stale_before_top_row():
+    freshness = FreshnessStatus(
+        "stale",
+        "Research decision output is older than the current ticker readiness report. Run make research-decisions before building the proof queue.",
+        "make research-decisions",
+    )
+
+    frame = build_decision_proof_queue_completion_frame(pd.DataFrame(), freshness)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert list(frame["check"]) == ["Freshness gate", "Top proof row", "Proof queue artifact"]
+    assert frame.iloc[0]["state"] == "blocked"
+    assert frame.iloc[1]["state"] == "hidden"
+    assert frame.iloc[0]["copy_only_command"] == "make research-decisions"
+    assert frame.iloc[2]["copy_only_command"] == "DRY_RUN=1 make decision-proof-queue TOP_N=12"
+    assert "stale rows stay blocked proof" in rendered
+    assert "weak conclusions" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_decision_proof_queue_completion_frame_handles_current_empty_queue():
+    freshness = FreshnessStatus("current", "Readiness artifacts are current relative to watched source files.")
+
+    frame = build_decision_proof_queue_completion_frame(pd.DataFrame(), freshness)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert list(frame["check"]) == ["Freshness gate", "Top proof row", "Raw decision rows"]
+    assert frame.iloc[0]["state"] == "ready"
+    assert frame.iloc[1]["state"] == "missing"
+    assert frame.iloc[1]["copy_only_command"] == "make research-decisions"
+    assert "raw tables should stay collapsed" in rendered
+    assert "proof queue preview first" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_decision_proof_queue_completion_frame_summarizes_current_top_row():
+    queue = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "data_confidence": "medium",
+                "what_can_be_reviewed_now": "Standalone DCF scenario analysis can be reviewed.",
+                "what_stays_locked": "Peer-relative valuation stays locked until source-backed peers exist.",
+                "copy_only_command": "make focus-peers TICKER=META",
+                "proof_after_unlock": "Proof after data changes: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `make stock-report-md TICKER=META`.",
+            }
+        ]
+    )
+    freshness = FreshnessStatus("current", "Readiness artifacts are current relative to watched source files.")
+
+    frame = build_decision_proof_queue_completion_frame(queue, freshness)
+    rendered = " ".join(str(value) for value in frame.to_numpy().ravel()).lower()
+
+    assert list(frame["check"]) == [
+        "Freshness gate",
+        "Top proof row",
+        "Reviewable now",
+        "Locked context",
+        "Post-unlock proof",
+    ]
+    assert frame.iloc[1]["copy_only_command"] == "make focus-peers TICKER=META"
+    assert "review this row before opening the full queue table" in rendered
+    assert "standalone dcf scenario analysis can be reviewed" in rendered
+    assert "peer-relative valuation stays locked" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

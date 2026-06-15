@@ -526,6 +526,112 @@ def build_decision_proof_queue_operator_flow_cards(
     ]
 
 
+def build_decision_proof_queue_completion_frame(
+    queue_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus,
+) -> pd.DataFrame:
+    """Return a compact finish-state checklist before cards or raw queue rows."""
+    columns = ["check", "state", "detail", "next_safe_action", "copy_only_command"]
+    preview_command = "DRY_RUN=1 make decision-proof-queue TOP_N=12"
+    stale_or_missing = freshness.status in {"missing", "stale"}
+    refresh_command = freshness.refresh_command if stale_or_missing else preview_command
+    rows: list[dict[str, str]] = [
+        {
+            "check": "Freshness gate",
+            "state": "blocked" if stale_or_missing else "ready",
+            "detail": _compact_reason(freshness.message, max_sentences=1, max_chars=180),
+            "next_safe_action": (
+                "Refresh the named artifact before reading decision rows."
+                if stale_or_missing
+                else "Preview the proof queue before opening raw decision tables."
+            ),
+            "copy_only_command": refresh_command,
+        }
+    ]
+    if stale_or_missing:
+        rows.extend(
+            [
+                {
+                    "check": "Top proof row",
+                    "state": "hidden",
+                    "detail": "No top row is shown while decision outputs and readiness are out of sync.",
+                    "next_safe_action": "Rebuild freshness first, then rerun the dry-run proof queue.",
+                    "copy_only_command": refresh_command,
+                },
+                {
+                    "check": "Proof queue artifact",
+                    "state": "not record-ready",
+                    "detail": "Stale rows stay blocked proof; they are not weak conclusions.",
+                    "next_safe_action": "Run the refresh command, then preview the proof queue.",
+                    "copy_only_command": preview_command,
+                },
+            ]
+        )
+        return pd.DataFrame(rows, columns=columns)
+
+    if queue_frame is None or queue_frame.empty:
+        rows.extend(
+            [
+                {
+                    "check": "Top proof row",
+                    "state": "missing",
+                    "detail": "Readiness is current, but no proof rows are available yet.",
+                    "next_safe_action": "Rebuild research decisions, then preview the proof queue.",
+                    "copy_only_command": "make research-decisions",
+                },
+                {
+                    "check": "Raw decision rows",
+                    "state": "keep closed",
+                    "detail": "Raw tables should stay collapsed until the proof queue has current rows.",
+                    "next_safe_action": "Generate the copy-only proof queue preview first.",
+                    "copy_only_command": preview_command,
+                },
+            ]
+        )
+        return pd.DataFrame(rows, columns=columns)
+
+    top = queue_frame.iloc[0]
+    ticker = _format_missing(top.get("ticker"), "Ticker")
+    copy_command = _format_missing(top.get("copy_only_command"), "make project-status")
+    proof_command = _compact_reason(top.get("proof_after_unlock"), max_sentences=1, max_chars=220)
+    rows.extend(
+        [
+            {
+                "check": "Top proof row",
+                "state": "ready",
+                "detail": (
+                    f"{ticker}: {_format_missing(top.get('decision_subtype'), 'Decision')}. "
+                    f"Main blocker: {_format_missing(top.get('primary_blocker'), 'none')}."
+                ),
+                "next_safe_action": "Review this row before opening the full queue table.",
+                "copy_only_command": copy_command,
+            },
+            {
+                "check": "Reviewable now",
+                "state": "ready inputs only",
+                "detail": _compact_reason(top.get("what_can_be_reviewed_now"), max_sentences=1, max_chars=220),
+                "next_safe_action": "Read only the supported sections named here.",
+                "copy_only_command": copy_command,
+            },
+            {
+                "check": "Locked context",
+                "state": "visible",
+                "detail": _compact_reason(top.get("what_stays_locked"), max_sentences=1, max_chars=220),
+                "next_safe_action": "Keep locked sections withheld until source proof changes readiness.",
+                "copy_only_command": "",
+            },
+            {
+                "check": "Post-unlock proof",
+                "state": "required",
+                "detail": proof_command,
+                "next_safe_action": "Run this proof after any reviewed data change before interpreting the row.",
+                "copy_only_command": copy_command,
+            },
+        ]
+    )
+    return pd.DataFrame(rows, columns=columns)
+
+
 def build_decision_proof_queue_drawer_summary_frame(
     queue_frame: pd.DataFrame | None,
     freshness: FreshnessStatus,

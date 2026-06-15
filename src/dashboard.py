@@ -16,6 +16,7 @@ from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.decision_proof_queue import (
+    build_decision_proof_queue_completion_frame as _build_decision_proof_queue_completion_frame,
     build_decision_proof_queue_drawer_cards as _build_decision_proof_queue_drawer_cards,
     build_decision_proof_queue_drawer_summary_frame as _build_decision_proof_queue_drawer_summary_frame,
     build_decision_proof_queue_operator_flow_cards as _build_decision_proof_queue_operator_flow_cards,
@@ -13890,6 +13891,13 @@ def decision_proof_queue_drawer_summary_frame(
     return _build_decision_proof_queue_drawer_summary_frame(queue_frame, freshness)
 
 
+def decision_proof_queue_completion_frame(
+    queue_frame: pd.DataFrame | None,
+    freshness: FreshnessStatus,
+) -> pd.DataFrame:
+    return _build_decision_proof_queue_completion_frame(queue_frame, freshness)
+
+
 def decision_proof_queue_operator_flow_cards(
     queue_frame: pd.DataFrame | None,
     freshness: FreshnessStatus,
@@ -25707,6 +25715,9 @@ def render_data_health(
         render_section_header(
             "Decision Proof Queue",
             "Freshness status, top proof row, copy-only command, and post-unlock proof before raw decision tables.",
+        )
+        st.table(
+            clean_display_frame(decision_proof_queue_completion_frame(decision_queue_frame, decision_queue_freshness)),
         )
         render_signal_cards(
             decision_proof_queue_operator_flow_cards(decision_queue_frame, decision_queue_freshness),
