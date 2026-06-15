@@ -253,6 +253,26 @@ def _ticker_from_rows(rows: list[dict[str, str]], field: str = "ticker") -> list
     return values
 
 
+def _peer_worklist_rows_for_lane(rows: list[dict[str, str]], lane: str) -> list[dict[str, str]]:
+    if lane == "peer_mapping":
+        return [
+            row
+            for row in rows
+            if str(row.get("peer_blocker_type") or "").strip().lower() == "missing_peer_mapping"
+            or str(row.get("workflow_group") or "").strip().lower()
+            in {"dcf_ready_peer_mapping", "price_ready_peer_mapping", "peer_mapping_after_price", "peer_mapping"}
+        ]
+    if lane == "peer_valuation_inputs":
+        return [
+            row
+            for row in rows
+            if str(row.get("workflow_group") or "").strip().lower() == "peer_valuation_unlock"
+            or str(row.get("peer_blocker_type") or "").strip().lower()
+            in {"peer_fundamentals_missing", "peer_valuation_blocked", "peer_valuation_inputs"}
+        ]
+    return rows
+
+
 def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tuple[str, ...]) -> tuple[str, ...]:
     if selected_tickers:
         return selected_tickers[: max(top_n, 0)]
@@ -279,7 +299,7 @@ def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tupl
             )
         )
     elif lane in {"peer_mapping", "peer_valuation_inputs"}:
-        rows = _read_csv(reports / "peer_unlock_worklist.csv")
+        rows = _peer_worklist_rows_for_lane(_read_csv(reports / "peer_unlock_worklist.csv"), lane)
     elif lane == "earnings_locked":
         rows = [
             row

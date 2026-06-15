@@ -226,6 +226,22 @@ def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane
     assert "validate -> preview -> apply" in rendered
 
 
+def test_reviewed_batch_peer_lane_keeps_missing_mapping_and_valuation_input_queues_separate(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+
+    packet = build_reviewed_batch_packet(root, lane="peers", top_n=2)
+
+    by_lane: dict[str, list[str]] = {}
+    for action in packet.actions:
+        by_lane.setdefault(action.lane, []).append(action.proposed_ticker)
+
+    assert by_lane["peer_mapping"] == ["BBB"]
+    assert by_lane["peer_valuation_inputs"] == ["AAA"]
+    assert packet.actions[0].lane == "peer_mapping"
+    assert packet.actions[0].proposed_ticker == "BBB"
+
+
 def test_reviewed_batch_metrics_lane_is_read_only_and_source_gated(tmp_path: Path):
     packet = build_reviewed_batch_packet(_sample_root(tmp_path), lane="metrics", top_n=2)
     rendered = render_packet_markdown(packet)
