@@ -88,6 +88,49 @@ def test_decision_proof_queue_translates_decisions_without_recommendations():
     assert "sell" not in rendered
 
 
+def test_decision_proof_queue_moves_peer_valuation_to_locked_when_peer_blocked():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "CRDO",
+                "asset_type": "company",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "data_confidence": "medium",
+                "supported_analysis": (
+                    "Supported analysis: price history, fundamental context, standalone DCF scenario analysis, "
+                    "peer-relative comparison."
+                ),
+                "unsupported_analysis": "Currently withheld: earnings timing or surprise context.",
+                "missing_data": "peers: peer trend comparison ready; peer valuation still requires peer_valuation_ready",
+                "next_best_action": "Add source-backed peer mappings for CRDO.",
+            }
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "CRDO",
+                "in_active_universe": True,
+                "dcf_ready": True,
+                "peer_ready": True,
+                "updated_at": "2026-06-01T00:00:00Z",
+            }
+        ]
+    )
+
+    queue = build_decision_proof_queue_frame(decisions, readiness, limit=10)
+    reviewable = queue.iloc[0]["what_can_be_reviewed_now"].lower()
+    locked = queue.iloc[0]["what_stays_locked"].lower()
+
+    assert "standalone dcf scenario analysis" in reviewable
+    assert "peer trend context" in reviewable
+    assert "peer-relative comparison" not in reviewable
+    assert "peer-relative valuation stays locked" in locked
+    assert "trusted valuation inputs" in locked
+
+
 def test_decision_proof_queue_writer_reports_missing_artifacts(tmp_path):
     result = write_decision_proof_queue(tmp_path)
 

@@ -153,6 +153,46 @@ def _decision_next_action_proof(row: pd.Series) -> str:
     return f"Proof before interpretation: run `make readiness`, then `{report_command}`."
 
 
+def _peer_valuation_blocked(row: pd.Series) -> bool:
+    blocker = _format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
+    missing = _format_missing(row.get("missing_data"), "").lower()
+    unsupported = _format_missing(row.get("unsupported_analysis"), "").lower()
+    if blocker in {"peer", "peers"}:
+        return True
+    return "peer valuation" in missing or "peer-relative valuation" in unsupported
+
+
+def _reviewable_analysis(row: pd.Series, supported: object) -> str:
+    text = _format_missing(
+        supported,
+        "Review only the sections whose readiness gates are already marked ready.",
+    )
+    if not _peer_valuation_blocked(row):
+        return text
+    replacements = {
+        "peer-relative valuation": "peer trend context",
+        "peer-relative comparison": "peer trend context",
+    }
+    scrubbed = text
+    for phrase, replacement in replacements.items():
+        scrubbed = scrubbed.replace(phrase, replacement)
+        scrubbed = scrubbed.replace(phrase.title(), replacement)
+    return scrubbed
+
+
+def _locked_analysis(row: pd.Series, locked: object) -> str:
+    text = _format_missing(
+        locked,
+        "No blocked section is listed, but conclusions still depend on source readiness and assumptions.",
+    )
+    if _peer_valuation_blocked(row) and "peer-relative valuation" not in text.lower():
+        text = text.rstrip()
+        if text and not text.endswith("."):
+            text += "."
+        text += " Peer-relative valuation stays locked until mapped peers have trusted valuation inputs."
+    return text
+
+
 def build_decision_proof_queue_frame(
     decisions_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
@@ -212,14 +252,8 @@ def build_decision_proof_queue_frame(
             supported = "Monitor market, theme, liquidity, risk, or correlation context when local price data is ready."
             locked = "Operating-company DCF and peer-relative company valuation are excluded, not failed."
         else:
-            supported = _format_missing(
-                row.get("supported_analysis") or row.get("supporting_features"),
-                "Review only the sections whose readiness gates are already marked ready.",
-            )
-            locked = _format_missing(
-                row.get("unsupported_analysis") or row.get("blocked_features") or row.get("missing_data"),
-                "No blocked section is listed, but conclusions still depend on source readiness and assumptions.",
-            )
+            supported = _reviewable_analysis(row, row.get("supported_analysis") or row.get("supporting_features"))
+            locked = _locked_analysis(row, row.get("unsupported_analysis") or row.get("blocked_features") or row.get("missing_data"))
         action = _decision_next_action_summary(row)
         command = (
             _stock_report_md_command(ticker)
