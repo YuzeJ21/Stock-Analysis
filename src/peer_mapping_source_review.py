@@ -90,6 +90,17 @@ class PeerMappingReviewCompletion:
     import_row_scaffold: str
 
 
+@dataclass(frozen=True)
+class PeerMappingImportPreview:
+    status: str
+    csv_header: str
+    csv_row: str
+    target_file: str
+    validation_command: str
+    apply_boundary: str
+    post_apply_proof: str
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -121,6 +132,10 @@ def _csv_row(values: Iterable[object]) -> str:
     writer = csv.writer(buffer, lineterminator="")
     writer.writerow([str(value or "").strip() for value in values])
     return buffer.getvalue()
+
+
+def peer_mapping_import_csv_header() -> str:
+    return _csv_row(IMPORT_ROW_COLUMNS)
 
 
 def peer_mapping_source_review_missing_fields(row: PeerMappingReviewRow) -> tuple[str, ...]:
@@ -172,6 +187,27 @@ def peer_mapping_source_review_completion(row: PeerMappingReviewRow, freshness: 
         missing_fields=(),
         next_safe_action="Review the scaffolded import row, then run validate and preview before any apply step.",
         import_row_scaffold=peer_mapping_import_row_scaffold(row),
+    )
+
+
+def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessStatus) -> PeerMappingImportPreview:
+    completion = peer_mapping_source_review_completion(row, freshness)
+    ready = completion.status == "ready_for_import_row_scaffold"
+    csv_row = completion.import_row_scaffold if ready else ""
+    status = "ready_for_validate_preview" if ready else completion.status
+    apply_boundary = (
+        "Run make imports-apply only after imports-preview and rejected-row reports are reviewed."
+        if ready
+        else "Do not edit or apply data/imports/peers.csv until the source-review row is completion-ready."
+    )
+    return PeerMappingImportPreview(
+        status=status,
+        csv_header=peer_mapping_import_csv_header(),
+        csv_row=csv_row,
+        target_file=row.target_file,
+        validation_command="make imports-validate && make imports-preview",
+        apply_boundary=apply_boundary,
+        post_apply_proof="make readiness && make peer-mapping-queue TOP_N=25 && make reviewed-batch-compare LANE=peers ...",
     )
 
 
@@ -271,6 +307,7 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         )
     for row in packet.rows:
         completion = peer_mapping_source_review_completion(row, packet.freshness)
+        import_preview = peer_mapping_import_preview(row, packet.freshness)
         lines.extend(
             [
                 f"### {row.ticker} / {row.mapping_slot}",
@@ -279,6 +316,12 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
                 f"- Missing fields: `{', '.join(completion.missing_fields) if completion.missing_fields else 'none'}`",
                 f"- Next safe action: {completion.next_safe_action}",
                 f"- Import row scaffold: `{completion.import_row_scaffold}`",
+                f"- Import preview status: `{import_preview.status}`",
+                f"- CSV header: `{import_preview.csv_header}`",
+                f"- CSV row: `{import_preview.csv_row or 'blocked until completion-ready'}`",
+                f"- Validate / preview command: `{import_preview.validation_command}`",
+                f"- Apply boundary: {import_preview.apply_boundary}",
+                f"- Post-apply proof: `{import_preview.post_apply_proof}`",
                 f"- Proposed peer ticker: `{row.proposed_peer_ticker}`",
                 f"- Peer group: `{row.peer_group}`",
                 f"- Source: `{row.source}`",
@@ -318,6 +361,7 @@ def render_peer_mapping_source_review_preview(packet: PeerMappingSourceReviewPac
     if packet.rows:
         row = packet.rows[0]
         completion = peer_mapping_source_review_completion(row, packet.freshness)
+        import_preview = peer_mapping_import_preview(row, packet.freshness)
         lines.extend(
             [
                 "top_review_row:",
@@ -325,6 +369,9 @@ def render_peer_mapping_source_review_preview(packet: PeerMappingSourceReviewPac
                 f"- mapping_slot: {row.mapping_slot}",
                 f"- completion_status: {completion.status}",
                 f"- missing_fields: {','.join(completion.missing_fields) if completion.missing_fields else '-'}",
+                f"- import_preview_status: {import_preview.status}",
+                f"- csv_header: {import_preview.csv_header}",
+                f"- csv_row: {import_preview.csv_row or '-'}",
                 f"- target_file: {row.target_file}",
                 f"- focus_command: {row.focus_command}",
                 f"- do_not_proceed_if: {row.do_not_proceed_if}",

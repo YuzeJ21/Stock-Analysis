@@ -8,6 +8,8 @@ from pathlib import Path
 from src.peer_mapping_source_review import (
     build_peer_mapping_source_review_packet,
     main,
+    peer_mapping_import_csv_header,
+    peer_mapping_import_preview,
     peer_mapping_import_row_scaffold,
     peer_mapping_source_review_completion,
     peer_mapping_source_review_missing_fields,
@@ -55,6 +57,8 @@ def test_peer_mapping_source_review_packet_builds_two_review_slots_per_candidate
     assert "memory, popularity, sector/theme similarity alone" in rendered
     assert "Completion status: `needs_field_fills`" in rendered
     assert "Import row scaffold: `blocked until reviewed fields are filled" in rendered
+    assert "Import preview status: `needs_field_fills`" in rendered
+    assert "CSV row: `blocked until completion-ready`" in rendered
     assert "Do not fabricate peer mappings" in rendered
     assert "does not provide direct buy/sell instructions" in rendered
 
@@ -98,6 +102,7 @@ def test_peer_mapping_source_review_writes_markdown_and_csv(tmp_path: Path):
 def test_peer_mapping_source_review_completion_detects_placeholders(tmp_path: Path):
     packet = build_peer_mapping_source_review_packet(_sample_root(tmp_path), top_n=1)
     completion = peer_mapping_source_review_completion(packet.rows[0], packet.freshness)
+    preview = peer_mapping_import_preview(packet.rows[0], packet.freshness)
 
     assert completion.status == "needs_field_fills"
     assert "proposed_peer_ticker" in completion.missing_fields
@@ -105,6 +110,10 @@ def test_peer_mapping_source_review_completion_detects_placeholders(tmp_path: Pa
     assert "import_row_ready" in completion.missing_fields
     assert "keep peer valuation locked" in completion.next_safe_action
     assert peer_mapping_import_row_scaffold(packet.rows[0]).startswith("blocked until reviewed fields are filled")
+    assert preview.status == "needs_field_fills"
+    assert preview.csv_header == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
+    assert preview.csv_row == ""
+    assert "Do not edit or apply" in preview.apply_boundary
 
 
 def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(tmp_path: Path):
@@ -124,11 +133,18 @@ def test_peer_mapping_source_review_completion_builds_ready_import_row_scaffold(
         import_row_ready="yes",
     )
     completion = peer_mapping_source_review_completion(reviewed_row, packet.freshness)
+    preview = peer_mapping_import_preview(reviewed_row, packet.freshness)
 
     assert peer_mapping_source_review_missing_fields(reviewed_row) == ()
     assert completion.status == "ready_for_import_row_scaffold"
     assert completion.import_row_scaffold == "AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14"
     assert "validate and preview" in completion.next_safe_action
+    assert peer_mapping_import_csv_header() == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
+    assert preview.status == "ready_for_validate_preview"
+    assert preview.csv_row == completion.import_row_scaffold
+    assert preview.validation_command == "make imports-validate && make imports-preview"
+    assert "make imports-apply only after imports-preview" in preview.apply_boundary
+    assert "make readiness" in preview.post_apply_proof
 
 
 def test_peer_mapping_source_review_blocks_on_stale_readiness(tmp_path: Path):
@@ -142,6 +158,7 @@ def test_peer_mapping_source_review_blocks_on_stale_readiness(tmp_path: Path):
     assert packet.freshness.status == "stale"
     assert "Packet status: `blocked_by_freshness`" in rendered
     assert "Completion status: `blocked_by_freshness`" in rendered
+    assert "Import preview status: `blocked_by_freshness`" in rendered
     assert "make readiness" in rendered
 
 

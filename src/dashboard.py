@@ -42,6 +42,7 @@ from src.reviewed_batch_proof import (
 from src.peer_mapping_source_review import (
     PeerMappingSourceReviewPacket,
     build_peer_mapping_source_review_packet,
+    peer_mapping_import_preview,
     peer_mapping_source_review_completion,
 )
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
@@ -12659,10 +12660,15 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
         "Mapping Slot",
         "Completion Status",
         "Missing Fields",
+        "Import Preview Status",
         "Required Fills",
         "Target File",
+        "CSV Header",
+        "CSV Row",
         "Next Safe Action",
         "Import Row Scaffold",
+        "Apply Boundary",
+        "Post-Apply Proof",
         "Validation Path",
         "Do Not Proceed If",
         "Freshness Context",
@@ -12677,6 +12683,7 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
     rows: list[dict[str, object]] = []
     for row in packet.rows[: max(limit, 0)]:
         completion = peer_mapping_source_review_completion(row, packet.freshness)
+        import_preview = peer_mapping_import_preview(row, packet.freshness)
         rows.append(
             {
                 "Review Gate": review_gate,
@@ -12684,10 +12691,15 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
                 "Mapping Slot": row.mapping_slot,
                 "Completion Status": completion.status.replace("_", " "),
                 "Missing Fields": ", ".join(completion.missing_fields) if completion.missing_fields else "none",
+                "Import Preview Status": import_preview.status.replace("_", " "),
                 "Required Fills": required_fills,
                 "Target File": row.target_file,
+                "CSV Header": import_preview.csv_header,
+                "CSV Row": import_preview.csv_row or "blocked until completion-ready",
                 "Next Safe Action": completion.next_safe_action,
                 "Import Row Scaffold": completion.import_row_scaffold,
+                "Apply Boundary": import_preview.apply_boundary,
+                "Post-Apply Proof": import_preview.post_apply_proof,
                 "Validation Path": row.validation_sequence,
                 "Do Not Proceed If": row.do_not_proceed_if,
                 "Freshness Context": f"{freshness_status}: {packet.freshness.message}",
@@ -12733,6 +12745,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
 
     first = packet.rows[0]
     first_completion = peer_mapping_source_review_completion(first, packet.freshness)
+    first_import_preview = peer_mapping_import_preview(first, packet.freshness)
     tickers = ", ".join(packet.tickers[:3])
     if len(packet.tickers) > 3:
         tickers += ", ..."
@@ -12762,12 +12775,13 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
         },
         {
             "kicker": "IMPORT ROW BOUNDARY",
-            "title": "Scaffold appears only after review",
+            "title": first_import_preview.status.replace("_", " "),
             "body": (
-                f"{first_completion.next_safe_action} Copy the import-row scaffold only when the status is ready for import row scaffold."
+                f"Header: {first_import_preview.csv_header}. Row: {first_import_preview.csv_row or 'blocked until completion-ready'}. "
+                f"{first_import_preview.apply_boundary}"
             ),
             "badges": ["no hand-edit shortcut", "validate before apply"],
-            "command": "make imports-validate && make imports-preview",
+            "command": first_import_preview.validation_command,
         },
         {
             "kicker": "VALIDATE BEFORE APPLY",

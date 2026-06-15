@@ -17892,15 +17892,22 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert cards[3]["command"] == "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25"
     assert frame.iloc[0]["Review Gate"] == "source proof required"
     assert frame.iloc[0]["Completion Status"] == "needs field fills"
+    assert frame.iloc[0]["Import Preview Status"] == "needs field fills"
     assert "proposed_peer_ticker" in frame.iloc[0]["Missing Fields"]
+    assert frame.iloc[0]["CSV Header"] == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
+    assert frame.iloc[0]["CSV Row"] == "blocked until completion-ready"
     assert frame.iloc[0]["Import Row Scaffold"].startswith("blocked until reviewed fields are filled")
+    assert "Do not edit or apply data/imports/peers.csv until the source-review row is completion-ready." in frame.iloc[0]["Apply Boundary"]
+    assert "make readiness" in frame.iloc[0]["Post-Apply Proof"]
     assert frame.iloc[0]["Ticker"] == "META"
     assert "proposed_peer_ticker, peer_group, source, as_of_date" in rendered
     assert "fill proposed_peer_ticker" in rendered
     assert "source does not name the peer relationship" in rendered
     assert "sector/theme similarity alone stays fallback context" in rendered
     assert "does not infer peer relationships or unlock peer valuation" in rendered
-    assert "scaffold appears only after review" in rendered
+    assert "header: ticker,peer_ticker,peer_group,sector,industry,source,as_of_date" in rendered
+    assert "row: blocked until completion-ready" in rendered
+    assert "no hand-edit shortcut" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
@@ -17923,6 +17930,7 @@ def test_data_health_peer_source_review_blocks_stale_readiness(tmp_path: Path):
     assert cards[0]["command"] == "make readiness"
     assert frame.iloc[0]["Review Gate"] == "blocked by freshness"
     assert frame.iloc[0]["Completion Status"] == "blocked by freshness"
+    assert frame.iloc[0]["Import Preview Status"] == "blocked by freshness"
     assert "do not use stale peer rows as proof" in rendered
 
 
