@@ -12785,11 +12785,11 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
         },
         {
             "kicker": "WRITE-BACK GUARD",
-            "title": "Check duplicates before editing imports",
+            "title": "Check duplicates, then prepare proof",
             "body": (
-                "After source fields are reviewed, run the guard with the reviewed values. It blocks placeholders, stale readiness, self-peers, and duplicate peer pairs before any CSV edit."
+                "After source fields are reviewed, run the guard with the reviewed values. It blocks placeholders, stale readiness, self-peers, and duplicate peer pairs before any CSV edit, then prints the dry-run proof-record scaffold."
             ),
-            "badges": ["copy-only", "duplicate check", "self-peer block"],
+            "badges": ["copy-only", "duplicate check", "proof scaffold"],
             "command": (
                 "make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> "
                 'PEER_GROUP="<group>" SOURCE="<url>" AS_OF_DATE=<yyyy-mm-dd> '

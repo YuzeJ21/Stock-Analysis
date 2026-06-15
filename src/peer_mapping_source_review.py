@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import shlex
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
@@ -108,12 +109,16 @@ class PeerMappingWriteBackGuard:
     status: str
     blocking_reasons: tuple[str, ...]
     duplicate_sources: tuple[str, ...]
+    proof_record_status: str
+    proof_record_missing_fields: tuple[str, ...]
     csv_header: str
     csv_row: str
     target_file: str
     validation_command: str
     apply_boundary: str
     post_apply_proof: str
+    proof_record_command: str
+    proof_record_boundary: str
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -147,6 +152,10 @@ def _csv_row(values: Iterable[object]) -> str:
     writer = csv.writer(buffer, lineterminator="")
     writer.writerow([str(value or "").strip() for value in values])
     return buffer.getvalue()
+
+
+def _shell_assignment(name: str, value: object) -> str:
+    return f"{name}={shlex.quote(str(value or '').strip())}"
 
 
 def peer_mapping_import_csv_header() -> str:
@@ -241,6 +250,54 @@ def _peer_pair_exists(root: Path, ticker: str, peer_ticker: str) -> tuple[str, .
     return tuple(matches)
 
 
+def peer_mapping_proof_record_missing_fields(guard_status: str) -> tuple[str, ...]:
+    if guard_status != "ready_for_validate_preview":
+        return ("guard_blocking_reasons",)
+    return (
+        "validation_result",
+        "preview_result",
+        "apply_result",
+        "changed_readiness_counts",
+        "changed_tickers",
+        "generated_artifacts_reviewed",
+        "final_outcome",
+    )
+
+
+def peer_mapping_proof_record_command(row: PeerMappingReviewRow, guard_status: str) -> str:
+    ticker = str(row.ticker or "").strip().upper()
+    peer_ticker = str(row.proposed_peer_ticker or "").strip().upper()
+    review_date = str(row.review_date or "").strip()
+    batch_date = review_date.replace("-", "") if review_date and not _is_placeholder(review_date) else "YYYYMMDD"
+    batch_id = f"RB-PEER-{ticker}-{peer_ticker}-{batch_date}" if ticker and peer_ticker else "RB-PEER-<ticker>-<peer>-<yyyymmdd>"
+    source_files = f"{IMPORT_PEERS_PATH}; {row.source}" if row.source and not _is_placeholder(row.source) else str(IMPORT_PEERS_PATH)
+    command_run = (
+        "make peer-mapping-writeback-guard ... && make imports-validate && make imports-preview"
+        if guard_status == "ready_for_validate_preview"
+        else "make peer-mapping-writeback-guard ..."
+    )
+    values = {
+        "BATCH_ID": batch_id,
+        "LANE": "peers",
+        "REVIEW_DATE": review_date if review_date and not _is_placeholder(review_date) else "<yyyy-mm-dd>",
+        "REVIEWER": row.reviewer if row.reviewer and not _is_placeholder(row.reviewer) else "<reviewer>",
+        "SCOPE": "source-backed peer mapping",
+        "TICKERS": ticker or "<ticker>",
+        "COMMAND_RUN": command_run,
+        "VALIDATION_RESULT": "<imports-validate result>",
+        "PREVIEW_RESULT": "<imports-preview and rejected-row review>",
+        "APPLY_RESULT": "<not_run|applied|skipped after review>",
+        "CHANGED_READINESS_COUNTS": "<from reviewed-batch-compare LANE=peers>",
+        "CHANGED_TICKERS": "<from reviewed-batch-compare LANE=peers>",
+        "SOURCE_FILES": source_files,
+        "GENERATED_ARTIFACTS_REVIEWED": "<kept peer evidence or excluded generated churn>",
+        "FINAL_OUTCOME": "<supported|still_blocked|skipped|excluded>",
+        "NOTES": "peer row remains research-only until validate, preview, apply decision, readiness, and proof review pass",
+    }
+    assignments = " ".join(_shell_assignment(name, value) for name, value in values.items())
+    return f"DRY_RUN=1 make reviewed-batch-proof-record {assignments}"
+
+
 def build_peer_mapping_writeback_guard(root: Path | str, row: PeerMappingReviewRow) -> PeerMappingWriteBackGuard:
     root = Path(root)
     freshness = readiness_freshness_status(root)
@@ -263,16 +320,25 @@ def build_peer_mapping_writeback_guard(root: Path | str, row: PeerMappingReviewR
         if status == "ready_for_validate_preview"
         else "Do not copy or apply this peer row until blocking reasons are resolved."
     )
+    proof_record_status = "ready_for_review_fields" if status == "ready_for_validate_preview" else "blocked_by_guard"
     return PeerMappingWriteBackGuard(
         status=status,
         blocking_reasons=tuple(dict.fromkeys(blocking_reasons)),
         duplicate_sources=duplicate_sources,
+        proof_record_status=proof_record_status,
+        proof_record_missing_fields=peer_mapping_proof_record_missing_fields(status),
         csv_header=preview.csv_header,
         csv_row=csv_row,
         target_file=row.target_file,
         validation_command=preview.validation_command,
         apply_boundary=apply_boundary,
         post_apply_proof=preview.post_apply_proof,
+        proof_record_command=peer_mapping_proof_record_command(row, status),
+        proof_record_boundary=(
+            "Copy this dry-run proof-record command only after the peer row is reviewed, validate/preview outputs are checked, any apply decision is made, readiness is rebuilt, and generated artifacts are classified."
+            if status == "ready_for_validate_preview"
+            else "Do not record a supported peer outcome while the write-back guard is blocked; resolve the guard or record a reviewed still_blocked outcome separately."
+        ),
     )
 
 
@@ -280,6 +346,7 @@ def render_peer_mapping_writeback_guard(guard: PeerMappingWriteBackGuard, row: P
     blocking = ",".join(guard.blocking_reasons) if guard.blocking_reasons else "-"
     duplicates = ",".join(guard.duplicate_sources) if guard.duplicate_sources else "-"
     csv_row = guard.csv_row or "-"
+    proof_missing = ",".join(guard.proof_record_missing_fields) if guard.proof_record_missing_fields else "-"
     lines = [
         "Peer mapping write-back guard",
         "Research-only: this guard prints a reviewed peer import row only when source proof, duplicate checks, and freshness gates pass.",
@@ -287,6 +354,8 @@ def render_peer_mapping_writeback_guard(guard: PeerMappingWriteBackGuard, row: P
         f"status: {guard.status}",
         f"blocking_reasons: {blocking}",
         f"duplicate_sources: {duplicates}",
+        f"proof_record_status: {guard.proof_record_status}",
+        f"proof_record_missing_fields: {proof_missing}",
         f"target_file: {guard.target_file}",
         f"ticker: {row.ticker}",
         f"peer_ticker: {row.proposed_peer_ticker}",
@@ -295,6 +364,8 @@ def render_peer_mapping_writeback_guard(guard: PeerMappingWriteBackGuard, row: P
         f"validation_command: {guard.validation_command}",
         f"apply_boundary: {guard.apply_boundary}",
         f"post_apply_proof: {guard.post_apply_proof}",
+        f"proof_record_command: {guard.proof_record_command}",
+        f"proof_record_boundary: {guard.proof_record_boundary}",
     ]
     return "\n".join(lines) + "\n"
 

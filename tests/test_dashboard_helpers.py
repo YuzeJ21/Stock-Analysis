@@ -17910,8 +17910,8 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert "header: ticker,peer_ticker,peer_group,sector,industry,source,as_of_date" in rendered
     assert "row: blocked until completion-ready" in rendered
     assert "no hand-edit shortcut" in rendered
-    assert "check duplicates before editing imports" in rendered
-    assert "self-peer block" in rendered
+    assert "check duplicates, then prepare proof" in rendered
+    assert "proof scaffold" in rendered
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered

@@ -130,6 +130,7 @@ Goal: make coverage growth proof-backed at the lane level before any ticker-leve
 - [x] Add Peer Source-Review Completion UX so placeholder fields, stale readiness, and import-row scaffold boundaries stay visible before peer CSV edits.
 - [x] Add Peer Source-Review Import Preview UX so completion-ready rows show the exact import CSV header/row, validate-preview command, apply boundary, and post-apply proof.
 - [x] Add Peer Source-Review Write-Back Guard V1 so reviewed peer rows are checked for placeholders, stale readiness, self-peers, and duplicate pairs before any copy/paste into the peer import file.
+- [x] Add Peer Source-Review Ledger Handoff V1 so the write-back guard prints a dry-run reviewed-batch proof-record scaffold and the still-missing review fields before any supported outcome can be recorded.
 - Keep proof-ledger rows local and reviewable; do not claim a supported lane until source proof, validation, preview, rejected-row review, post-run readiness, and artifact hygiene are complete.
 
 ### Readiness-Gated Review Metrics V1

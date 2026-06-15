@@ -175,8 +175,19 @@ def test_peer_mapping_writeback_guard_allows_ready_non_duplicate_row(tmp_path: P
     assert guard.duplicate_sources == ()
     assert guard.csv_header == "ticker,peer_ticker,peer_group,sector,industry,source,as_of_date"
     assert guard.csv_row == "AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14"
+    assert guard.proof_record_status == "ready_for_review_fields"
+    assert "validation_result" in guard.proof_record_missing_fields
+    assert "final_outcome" in guard.proof_record_missing_fields
+    assert guard.proof_record_command.startswith("DRY_RUN=1 make reviewed-batch-proof-record")
+    assert "LANE=peers" in guard.proof_record_command
+    assert "BATCH_ID=RB-PEER-AAA-MSFT-20260614" in guard.proof_record_command
+    assert "SOURCE_FILES='data/imports/peers.csv; https://example.com/peer-proof'" in guard.proof_record_command
     assert "status: ready_for_validate_preview" in rendered
+    assert "proof_record_status: ready_for_review_fields" in rendered
+    assert "proof_record_missing_fields: validation_result" in rendered
     assert "validation_command: make imports-validate && make imports-preview" in rendered
+    assert "proof_record_command: DRY_RUN=1 make reviewed-batch-proof-record" in rendered
+    assert "Copy this dry-run proof-record command only after" in rendered
     assert "does not edit files" in rendered
     assert "direct buy/sell instructions" in rendered
 
@@ -210,6 +221,10 @@ def test_peer_mapping_writeback_guard_blocks_duplicate_and_self_peer(tmp_path: P
     assert "duplicate_peer_pair" in duplicate_guard.blocking_reasons
     assert duplicate_guard.duplicate_sources == ("data/peers.csv",)
     assert duplicate_guard.csv_row == ""
+    assert duplicate_guard.proof_record_status == "blocked_by_guard"
+    assert duplicate_guard.proof_record_missing_fields == ("guard_blocking_reasons",)
+    assert "FINAL_OUTCOME='<supported|still_blocked|skipped|excluded>'" in duplicate_guard.proof_record_command
+    assert "Do not record a supported peer outcome" in duplicate_guard.proof_record_boundary
     assert self_peer_guard.status == "blocked"
     assert "self_peer" in self_peer_guard.blocking_reasons
 
@@ -253,6 +268,7 @@ def test_peer_mapping_writeback_guard_cli_is_copy_only(tmp_path: Path, capsys):
     assert "Peer mapping write-back guard" in output
     assert "status: ready_for_validate_preview" in output
     assert "csv_row: AAA,MSFT,large-cap software,Technology,Software,https://example.com/peer-proof,2026-06-14" in output
+    assert "proof_record_command: DRY_RUN=1 make reviewed-batch-proof-record" in output
     assert "does not edit files" in output
 
 
