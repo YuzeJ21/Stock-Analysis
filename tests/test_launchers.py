@@ -1821,6 +1821,11 @@ def test_dashboard_smoke_launcher_checks_streamlit_health_safely():
     assert "_stcore/health" in script
     assert "SERVER_PID" in script
     assert "trap cleanup EXIT" in script
+    assert "Operation not permitted" in script
+    assert "Couldn't connect to server" in script
+    assert "Uvicorn server started" in script
+    assert "_bind_socket" in script
+    assert "environment-limited pass" in script
 
 
 def test_validate_all_reuses_current_verification_targets():
