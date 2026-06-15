@@ -296,6 +296,29 @@ def test_project_status_normalizes_legacy_raw_price_action_text(tmp_path: Path):
     assert "python3 -m src.data_update --tickers NVDA" not in top_action["recommended_action"]
 
 
+def test_project_status_full_price_coverage_uses_short_history_next_step():
+    rows = project_status._recommended_next_command_rows(
+        [
+            {
+                "dataset": "prices",
+                "ticker": "AIAI",
+                "reason": "This ticker has only 9 verified local price rows.",
+                "focus_command": "make focus-price TICKER=AIAI",
+                "example_command": "make price-refresh TICKERS=AIAI",
+            }
+        ],
+        [],
+        [],
+        price_coverage_complete=True,
+    )
+
+    commands = [row["Command"] for row in rows]
+    assert "make price-refresh-loop DRY_RUN=1" not in commands
+    assert rows[0]["Step"] == "Review short price-history blocker (AIAI)"
+    assert rows[0]["Command"] == "make focus-price TICKER=AIAI"
+    assert rows[1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
+
+
 def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_steps(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
     imports_dir = tmp_path / "data" / "imports"
@@ -546,7 +569,7 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "trusted import/fallback: make sec-stage tickers=nvda" in output
     assert "guidance: use make" in output
     assert "command: make price-normalize" not in output
-    assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
+    assert "review short price-history blocker (nvda): make focus-price ticker=nvda" in output
     assert (
         "no verified local price history is present for this ticker yet." in output
         or "this ticker has only" in output
@@ -705,6 +728,38 @@ def test_project_status_fast_check_normalizes_stale_generated_next_steps(tmp_pat
     assert "import files" in import_row["Reason"]
     assert "import drafts" not in import_row["Reason"]
     assert import_row["FreshnessContext"] == "local import files present; preview before apply"
+
+
+def test_project_status_fast_check_drops_missing_price_batch_when_coverage_is_complete(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "price_ready": True, "momentum_ready": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "AMD", "price_ready": True, "momentum_ready": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    ).to_csv(tmp_path / "data" / "reports" / "ticker_readiness_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Step": "Preview next capped missing-price batch",
+                "Command": "make price-refresh-loop DRY_RUN=1",
+                "Reason": "Preview the broad-universe price frontier first.",
+            },
+            {
+                "Step": "Fix top prices blocker (AMD)",
+                "Command": "make focus-price TICKER=AMD",
+                "Reason": "This ticker has only 9 verified local price rows.",
+            },
+        ]
+    ).to_csv(tmp_path / "outputs" / "project_status_next_steps.csv", index=False)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+
+    assert payload is not None
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert "make price-refresh-loop DRY_RUN=1" not in commands
+    assert commands[0] == "make focus-price TICKER=AMD"
+    assert commands[1] == "make trusted-data-pilot-candidates TOP_N=10"
 
 
 def test_project_status_fast_check_respects_ticker_filter(tmp_path: Path):
@@ -952,7 +1007,7 @@ def test_project_status_human_refresh_artifacts_keeps_cli_clean(tmp_path: Path, 
         sys.argv = argv_before
 
     assert "project status summary" in output
-    assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
+    assert "review short price-history blocker (nvda): make focus-price ticker=nvda" in output
     assert "wrote:" not in output
     assert (tmp_path / "outputs" / "project_status.json").exists()
 

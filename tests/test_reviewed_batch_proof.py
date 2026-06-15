@@ -58,6 +58,61 @@ def test_reviewed_batch_proof_round_trips_and_renders_guardrails(tmp_path: Path)
     assert "direct buy/sell instructions" in rendered
 
 
+def test_reviewed_batch_proof_record_blocks_duplicate_batch_id(tmp_path: Path, capsys):
+    ledger = tmp_path / "reviewed_batch_proofs.csv"
+    append_reviewed_batch_proof(_proof(batch_id="RB-DUP-001"), ledger)
+
+    result = main(
+        [
+            "--ledger",
+            str(ledger),
+            "--record",
+            "--batch-id",
+            "RB-DUP-001",
+            "--review-date",
+            "2026-06-14",
+            "--reviewer",
+            "local reviewer",
+            "--lane",
+            "metrics",
+            "--scope",
+            "AAA",
+            "--tickers",
+            "AAA",
+            "--command-run",
+            "make metric-readiness TOP_N=1",
+            "--validation-result",
+            "not_applicable_read_only_metric_review",
+            "--preview-result",
+            "reviewed metric blocker families",
+            "--apply-result",
+            "not_applicable_read_only_metric_review",
+            "--pre-run-readiness-snapshot",
+            "data/reports/ticker_readiness_report.previous.csv",
+            "--post-run-readiness-snapshot",
+            "data/reports/ticker_readiness_report.csv",
+            "--changed-readiness-counts",
+            "none",
+            "--changed-tickers",
+            "none",
+            "--source-files",
+            "metric queue output",
+            "--generated-artifacts-reviewed",
+            "excluded generated CSV churn",
+            "--final-outcome",
+            "still_blocked",
+            "--notes",
+            "duplicate should be blocked",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert result == 2
+    assert len(load_reviewed_batch_proofs(ledger)) == 1
+    assert "Reviewed Batch Proof Record blocked" in output
+    assert "batch_id RB-DUP-001 already exists" in output
+
+
 def test_reviewed_batch_proof_rejects_unknown_outcome():
     class Args:
         batch_id = "RB-TEST-001"

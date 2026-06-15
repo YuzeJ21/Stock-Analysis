@@ -371,10 +371,25 @@ def _fast_status_payload_from_outputs(
         ),
     }
     command_rows = [_normalize_command_row(dict(row)) for row in _read_csv_records(output_path / PROJECT_STATUS_NEXT_STEPS_CSV)]
+    price_complete = _price_coverage_complete(summary)
+    command_rows = _drop_stale_missing_price_batch_rows(
+        command_rows,
+        price_coverage_complete=price_complete,
+    )
     if allowed:
-        command_rows = _recommended_next_command_rows(sorted_actions, bundles, [])
+        command_rows = _recommended_next_command_rows(
+            sorted_actions,
+            bundles,
+            [],
+            price_coverage_complete=price_complete,
+        )
     if not command_rows:
-        command_rows = _recommended_next_command_rows(sorted_actions, bundles, [] if allowed else problem_sources)
+        command_rows = _recommended_next_command_rows(
+            sorted_actions,
+            bundles,
+            [] if allowed else problem_sources,
+            price_coverage_complete=price_complete,
+        )
     elif not allowed and not any(
         str(row.get("Command") or "").strip() == TRUSTED_DATA_PILOT_CANDIDATES_COMMAND
         for row in command_rows
@@ -665,6 +680,26 @@ def _trusted_data_pilot_command_row() -> dict[str, str]:
     )
 
 
+def _price_coverage_complete(summary: dict[str, Any]) -> bool:
+    total = int(summary.get("tickers_total") or 0)
+    with_prices = int(summary.get("tickers_with_prices") or 0)
+    return total > 0 and with_prices >= total
+
+
+def _drop_stale_missing_price_batch_rows(
+    rows: list[dict[str, str]],
+    *,
+    price_coverage_complete: bool,
+) -> list[dict[str, str]]:
+    if not price_coverage_complete:
+        return rows
+    return [
+        row
+        for row in rows
+        if str(row.get("Command") or "").strip() != "make price-refresh-loop DRY_RUN=1"
+    ]
+
+
 def _prioritize_public_command_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     """Keep the public next-step order aligned with the product roadmap."""
     deduped: list[dict[str, str]] = []
@@ -695,13 +730,15 @@ def _recommended_next_command_rows(
     actions: list[dict[str, Any]],
     bundles: list[dict[str, Any]],
     problem_sources: list[dict[str, Any]],
+    *,
+    price_coverage_complete: bool = False,
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
     if actions:
         top_action = actions[0]
         dataset_key = str(top_action.get("dataset") or "").strip().lower()
-        if dataset_key == "prices" and not bool(top_action.get("is_holding")):
+        if dataset_key == "prices" and not bool(top_action.get("is_holding")) and not price_coverage_complete:
             rows.append(
                 _command_row(
                     "Preview next capped missing-price batch",
@@ -718,7 +755,10 @@ def _recommended_next_command_rows(
         if command:
             dataset = str(top_action.get("dataset") or "data").replace("_", " ")
             ticker = _first_non_empty(top_action.get("ticker"))
-            step = f"Fix top {dataset} blocker" + (f" ({ticker})" if ticker else "")
+            if dataset_key == "prices" and price_coverage_complete:
+                step = "Review short price-history blocker" + (f" ({ticker})" if ticker else "")
+            else:
+                step = f"Fix top {dataset} blocker" + (f" ({ticker})" if ticker else "")
             reason = _first_non_empty(top_action.get("reason"), top_action.get("recommended_action"))
             rows.append(
                 _command_row(
@@ -858,6 +898,7 @@ def build_project_status_payload(
         actions,
         onboarding_payload.get("command_bundles", []),
         command_problem_sources,
+        price_coverage_complete=_price_coverage_complete(summary),
     )
     return {
         "project_root": str(root),
@@ -976,15 +1017,25 @@ def _print_human(payload: dict[str, Any]) -> None:
         "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
         "stay locked where source-backed rows are missing."
     )
-    print(
-        f"- Best next proof: {TRUSTED_DATA_PILOT_CANDIDATES_COMMAND} for company-depth work, "
-        "or make price-refresh-loop DRY_RUN=1 for price coverage planning."
-    )
+    if _price_coverage_complete(summary):
+        print(
+            f"- Best next proof: {TRUSTED_DATA_PILOT_CANDIDATES_COMMAND} for company-depth work; "
+            "price coverage is complete, so remaining price work is short-history review, not missing-price batch planning."
+        )
+    else:
+        print(
+            f"- Best next proof: {TRUSTED_DATA_PILOT_CANDIDATES_COMMAND} for company-depth work, "
+            "or make price-refresh-loop DRY_RUN=1 for price coverage planning."
+        )
     print("- Details below are capped and copy-only.")
     print("Top locked inputs to review:")
+    price_complete = _price_coverage_complete(summary)
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
-        print(f"- P{row['priority']} {row['dataset']}{ticker}")
+        dataset_label = str(row.get("dataset") or "data")
+        if dataset_label == "prices" and price_complete:
+            dataset_label = "price history"
+        print(f"- P{row['priority']} {dataset_label}{ticker}")
         if row.get("focus_command"):
             print(f"  suggested check: {row['focus_command']}")
         if row.get("recommended_action"):

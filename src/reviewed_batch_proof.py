@@ -75,6 +75,10 @@ class ReviewedBatchProof:
     notes: str
 
 
+class DuplicateBatchProofError(ValueError):
+    """Raised when a ledger append would create an ambiguous batch id."""
+
+
 def _clean(value: object, fallback: str = "-") -> str:
     text = str(value or "").strip()
     return text if text else fallback
@@ -131,6 +135,11 @@ def append_reviewed_batch_proof(
     path: Path = DEFAULT_BATCH_PROOF_LEDGER,
 ) -> Path:
     existing = load_reviewed_batch_proofs(path)
+    duplicate = next((item for item in existing if item.batch_id == row.batch_id), None)
+    if duplicate is not None:
+        raise DuplicateBatchProofError(
+            f"batch_id {row.batch_id} already exists in {path}; use a unique batch id before recording."
+        )
     existing.append(row)
     return write_reviewed_batch_proofs(existing, path)
 
@@ -283,7 +292,12 @@ def main(argv: list[str] | None = None) -> int:
             print("Reviewed Batch Proof Record blocked")
             print(render_reviewed_batch_proof_validation(row))
             return 2
-        written = append_reviewed_batch_proof(row, ledger_path)
+        try:
+            written = append_reviewed_batch_proof(row, ledger_path)
+        except DuplicateBatchProofError as exc:
+            print("Reviewed Batch Proof Record blocked")
+            print(str(exc))
+            return 2
         print("Reviewed Batch Proof Record")
         print(f"Wrote: {written}")
         print(f"Batch: {row.batch_id} | {row.lane} | {row.final_outcome}")
