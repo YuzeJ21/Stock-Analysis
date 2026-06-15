@@ -39,6 +39,7 @@ from src.reviewed_batch_proof import (
     latest_reviewed_batch_proof,
     load_reviewed_batch_proofs,
 )
+from src.peer_mapping_source_review import PeerMappingSourceReviewPacket, build_peer_mapping_source_review_packet
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.review_metrics import build_metric_readiness_summary, configured_risk_free_rate
 from src.reviewed_batch_command_builder import (
@@ -12643,6 +12644,118 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             ),
             "badges": ["validate", "preview before apply", "proof before valuation"],
             "command": "make templates && make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
+        },
+    ]
+
+
+def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket | None, limit: int = 10) -> pd.DataFrame:
+    columns = [
+        "Review Gate",
+        "Ticker",
+        "Mapping Slot",
+        "Required Fills",
+        "Target File",
+        "Next Safe Action",
+        "Validation Path",
+        "Do Not Proceed If",
+        "Freshness Context",
+    ]
+    if packet is None or not packet.rows:
+        return pd.DataFrame(columns=columns)
+    freshness_status = format_missing(packet.freshness.status, "unknown").replace("_", " ")
+    review_gate = "blocked by freshness" if packet.freshness.status in {"missing", "stale"} else "source proof required"
+    required_fills = (
+        "proposed_peer_ticker, peer_group, source, as_of_date, relationship_rationale, reviewer, review_date"
+    )
+    rows: list[dict[str, object]] = []
+    for row in packet.rows[: max(limit, 0)]:
+        rows.append(
+            {
+                "Review Gate": review_gate,
+                "Ticker": row.ticker,
+                "Mapping Slot": row.mapping_slot,
+                "Required Fills": required_fills,
+                "Target File": row.target_file,
+                "Next Safe Action": (
+                    f"Inspect `{row.focus_command}`, then fill reviewed peer rows only after a durable source proves the relationship."
+                ),
+                "Validation Path": row.validation_sequence,
+                "Do Not Proceed If": row.do_not_proceed_if,
+                "Freshness Context": f"{freshness_status}: {packet.freshness.message}",
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket | None) -> list[dict[str, object]]:
+    if packet is None:
+        return [
+            {
+                "kicker": "PEER SOURCE REVIEW",
+                "title": "Build peer readiness first",
+                "body": "No peer source-review packet is loaded. Rebuild readiness and the peer queue before editing peer import rows.",
+                "badges": ["readiness first", "no guessed peers"],
+                "command": "make readiness && make peer-mapping-queue TOP_N=25",
+            }
+        ]
+    if packet.freshness.status in {"missing", "stale"}:
+        return [
+            {
+                "kicker": "PEER SOURCE REVIEW",
+                "title": "Refresh readiness before peer review",
+                "body": (
+                    f"Freshness status is {packet.freshness.status}. Do not use stale peer rows as proof; refresh readiness, "
+                    "then regenerate the peer mapping source-review packet."
+                ),
+                "badges": ["freshness gate", "blocked"],
+                "command": packet.freshness.refresh_command,
+            }
+        ]
+    if not packet.rows:
+        return [
+            {
+                "kicker": "PEER SOURCE REVIEW",
+                "title": "No source-review rows",
+                "body": "No missing peer-mapping rows are visible in the current peer readiness report. Rebuild the peer queue before assuming peer valuation is available.",
+                "badges": ["current output", "no inferred peers"],
+                "command": "make peer-mapping-queue TOP_N=25",
+            }
+        ]
+
+    first = packet.rows[0]
+    tickers = ", ".join(packet.tickers[:3])
+    if len(packet.tickers) > 3:
+        tickers += ", ..."
+    required_fills = "peer ticker, peer group, source, as-of date, rationale, reviewer, review date"
+    return [
+        {
+            "kicker": "PEER SOURCE REVIEW",
+            "title": f"{len(packet.rows)} fillable source-proof slot(s)",
+            "body": (
+                f"Scope: {tickers}. Use this before editing data/imports/peers.csv. "
+                "The packet scaffolds proof fields; it does not infer peer relationships or unlock peer valuation."
+            ),
+            "badges": ["manual source proof", "copy-only"],
+            "command": f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}",
+        },
+        {
+            "kicker": "TOP PROOF SLOT",
+            "title": f"{first.ticker} / {first.mapping_slot}",
+            "body": (
+                f"Required fills: {required_fills}. Accepted proof must name the peer relationship or comparable business context; "
+                "sector/theme similarity alone stays fallback context."
+            ),
+            "badges": ["source-backed", "not a valuation input yet"],
+            "command": first.focus_command,
+        },
+        {
+            "kicker": "VALIDATE BEFORE APPLY",
+            "title": "Reviewed rows still need import gates",
+            "body": (
+                "After source review, run validate and preview first. Apply only reviewed rows, then rebuild readiness and the peer queue before reading peer-relative context."
+            ),
+            "badges": ["validate", "preview", "proof after apply"],
+            "command": "make imports-validate && make imports-preview && make imports-apply && make readiness && make peer-mapping-queue TOP_N=25",
         },
     ]
 
@@ -25652,12 +25765,16 @@ def render_data_health(
                 st.dataframe(clean_display_frame(pilot_preview), width="stretch", hide_index=True)
     elif selected_lane == "Peers":
         render_data_health_peer_operator_console(readiness_summary, peer_v2_frame, lane_board)
+        peer_source_review_packet = build_peer_mapping_source_review_packet(BASE_DIR, top_n=10)
         with st.expander("Peer evidence drawer", expanded=False):
             render_section_header("Peer Queue Snapshot", "Diagnostic cards stay here so the first screen remains an operator console, not a report wall.")
             render_signal_cards(
                 data_health_peer_readiness_v2_cards(ops_center) + data_health_trusted_pilot_lane_cards(lane_board),
                 show_commands=False,
             )
+            render_section_header("Peer Source-Review Intake", "Fill source proof before editing peer import rows; peer valuation stays locked until rebuilt readiness proves inputs.")
+            render_signal_cards(data_health_peer_source_review_cards(peer_source_review_packet))
+            st.dataframe(clean_display_frame(data_health_peer_source_review_frame(peer_source_review_packet)), width="stretch", hide_index=True)
             render_section_header("Peer Readiness Sub-State Matrix", "Peer mapping, peer trend, peer fundamentals, and peer valuation stay separated.")
             st.dataframe(clean_display_frame(peer_v2_frame), width="stretch", hide_index=True)
             render_section_header("Lane-Group Evidence Summary", "Choose the proof lane first; prices stay dry-run-first and optional context stays locked/manual.")

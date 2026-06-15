@@ -23,7 +23,7 @@ Use this guide before changing local data:
 | Missing or stale prices | Run `make price-refresh-loop DRY_RUN=1`, then snapshot readiness before any capped refresh. | Do not refresh the full universe blindly or commit broad CSV churn by default. |
 | Missing fundamentals or DCF fields | Run `make trusted-data-pilot-candidates TOP_N=10`, then use SEC staging or trusted manual imports for 5-10 reviewed companies. | Do not fill placeholder fundamentals to make valuation appear ready. |
 | Missing `shares_outstanding` | Run `make share-count-proof-queue TOP_N=10`, then review SEC/manual source proof for the named tickers. | Do not infer share count from price, market cap, peers, or placeholder rows. |
-| Missing peers | Run `make peer-mapping-queue TOP_N=25`, then add source-backed mappings or mapped-peer price/fundamental inputs only. | Do not turn sector or industry similarity into trusted peer valuation. |
+| Missing peers | Run `make peer-mapping-queue TOP_N=25`, then `DRY_RUN=1 make peer-mapping-source-review TOP_N=10` before adding source-backed mappings or mapped-peer price/fundamental inputs. | Do not turn sector or industry similarity, memory, popularity, or row-count convenience into trusted peer valuation. |
 | Missing earnings or estimates | Keep the section locked until trusted local rows pass validate, preview, and apply. | Do not render empty optional context as analysis. |
 
 ## Data Lanes
@@ -191,6 +191,8 @@ Use `make public-demo-readiness-pack` or open `docs/PUBLIC_DEMO_READINESS_PACK.m
 Use `make readiness-ops-center` before drilling into individual tickers. It prints a read-only lane board for price coverage, fundamentals/DCF proof, peer mapping proof, peer valuation inputs, earnings locked context, analyst-estimates locked context, and excluded/not-applicable rows. Each lane keeps ready, partial, blocked, and excluded counts visible, shows the workflow mode, and names the next safe command without refreshing, importing, applying, or rewriting local files.
 
 Trusted Coverage Growth V2 keeps peer readiness split into sub-states before a lane can be called supported: peer mapping, peer price, peer momentum, peer fundamentals, peer valuation, and peer valuation comparison. Peer trend context can become usable before peer valuation is ready. Sector or industry fallback remains research context only; it is not trusted peer mapping or peer valuation proof.
+
+In Operator mode, Data Health now shows Peer Source-Review Intake before the peer sub-state matrix. Use it to generate fillable proof slots for missing peer mappings, including proposed peer ticker, peer group, source, as-of date, relationship rationale, reviewer, and review date. This intake layer does not create trusted peer rows by itself; it keeps peer valuation locked until reviewed rows pass validation, preview, apply, rebuilt readiness, and the reviewed-batch proof loop.
 
 Use `make coverage-frontier TOP_N=10` to rank broad batch opportunities by unlock impact. This is an operations queue, not a security ranking: a high-impact lane means many feature states are blocked or partial, not that any ticker is attractive or that source data is already available. The command includes the source lane, workflow mode, possible state move, proof command, and generated-churn policy.
 

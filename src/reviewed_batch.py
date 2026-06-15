@@ -494,6 +494,8 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
             "Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.",
             "Start from the first-class packet command: make peer-batch-proof TOP_N=<n> or make peer-batch-proof TICKERS=<scope>.",
             f"Inspect missing peer relationships with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
+            "Peer mapping import schema: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date.",
+            "Source proof checklist: source must name the peer relationship or comparable business context, include a durable URL or local document reference, and have a review date; do not use memory, popularity, or row-count convenience as proof.",
             "Treat sector or industry fallback as context only; it is not trusted peer mapping proof.",
             "Run make imports-validate and make imports-preview before imports-apply; data/rejected/peers_import_rejected.csv must be clear or explained.",
             "After reviewed mapping rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.",
