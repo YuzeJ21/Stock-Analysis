@@ -12054,9 +12054,10 @@ def test_data_health_page_surfaces_trusted_pilot_before_detailed_tables():
     details_index = source.index("if show_details:", all_details_index)
 
     assert public_return_index < hero_index < queue_index < lane_selector_index < decision_queue_status_index < decision_queue_expand_state_index < decision_queue_drawer_index < decision_queue_completion_index < decision_queue_flow_index < decision_queue_detail_index < decision_queue_cards_index < decision_queue_checklist_index < decision_queue_summary_index < decision_queue_rows_index < batch_header_index < batch_operator_flow_index < batch_drawer_index < batch_detail_index < coverage_loop_cards_index < batch_cards_index < batch_execution_checklist_index < batch_execution_checklist_frame_index < coverage_loop_drawer_index < coverage_loop_frame_index < batch_snapshot_gate_index < batch_apply_gate_index < batch_sequence_index < price_console_index < price_drawer_index < fundamentals_console_index < fundamentals_drawer_index < peer_console_index < peer_drawer_index < metrics_drawer_index < optional_console_index < optional_drawer_index < proof_console_index < batch_proof_drawer_index < proof_snapshot_gate_index < proof_apply_gate_index < proof_outcome_recorder_index < proof_command_builder_index < proof_loop_index < proof_drawer_index < all_details_index < details_index
-    assert "queue_details_requested = data_health_progressive_details_requested(" in source
-    assert "batch_details_requested = data_health_progressive_details_requested(" in source
-    assert "proof_details_requested = data_health_progressive_details_requested(" in source
+    assert "queue_details_requested = data_health_detail_selector_requested(" in source
+    assert "batch_details_requested = data_health_detail_selector_requested(" in source
+    assert "proof_details_requested = data_health_detail_selector_requested(" in source
+    assert "render_data_health_detail_selector(" in source
     assert "defer_broad_queue = public_mode or not queue_details_requested" in source
     assert "ops_center = pd.DataFrame() if defer_broad_queue else data_health_readiness_ops_center_frame()" in source
     assert "coverage_frontier = pd.DataFrame() if defer_broad_queue else data_health_coverage_frontier_frame(top_n=10)" in source
@@ -20915,6 +20916,14 @@ def test_metric_details_requested_accepts_query_or_session_state():
     assert dashboard.data_health_metric_details_requested(None) is False
 
 
+def test_data_health_detail_selector_requested_accepts_query_session_or_segment():
+    assert dashboard.data_health_detail_selector_requested("1") is True
+    assert dashboard.data_health_detail_selector_requested(None, session_loaded=True) is True
+    assert dashboard.data_health_detail_selector_requested(None, selector_value="Review details") is True
+    assert dashboard.data_health_detail_selector_requested(None, selector_value="Fast view") is False
+    assert dashboard.data_health_detail_selector_requested("0", selector_value="Fast view") is False
+
+
 def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated():
     current = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
     stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
@@ -20943,7 +20952,7 @@ def test_metric_detail_load_cards_keep_research_only_and_stale_counts_hidden():
         "status": "needs_request",
         "title": "Metric details are not loaded yet",
         "body": "The first metrics view is intentionally lightweight.",
-        "next_action": "Use the load control on this lane.",
+        "next_action": "Switch Metric detail level to Review details.",
     }
     loaded = {
         "status": "ready_to_load",
@@ -21072,8 +21081,8 @@ def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     lane_selector_index = source.index("render_data_health_operator_lane_nav(selected_lane_key)")
     risk_cards_index = source.index("data_health_risk_context_cards(liquidity_frame, correlation_frame)", lane_selector_index)
     metric_console_index = source.index("render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)", lane_selector_index)
+    metric_selector_index = source.index('label="Metric detail level"', metric_console_index)
     metric_load_cards_index = source.index("data_health_metric_detail_load_cards(metric_detail_status)", metric_console_index)
-    metric_load_button_index = source.index('st.button("Load SPY / QQQ metric details"', metric_console_index)
     metric_queue_index = source.index("data_health_metric_readiness_queue_cards(metric_queue_frame)", metric_console_index)
     metric_summary_index = source.index("data_health_metric_readiness_family_summary_cards(metric_queue_frame)", metric_console_index)
     metric_cards_index = source.index("data_health_review_metric_readiness_cards()", lane_selector_index)
@@ -21083,8 +21092,8 @@ def test_data_health_page_surfaces_risk_context_cards_before_detailed_tables():
     correlation_expander_index = source.index('st.expander("Correlation Concentration Context", expanded=False)')
 
     assert selected_lane_index < metric_load_status_index < metric_queue_gate_index < metric_queue_build_index < metric_console_index
+    assert metric_console_index < metric_selector_index < metric_load_cards_index
     assert metric_load_cards_index < metric_queue_expander_index
-    assert metric_load_button_index < metric_queue_expander_index
     assert metric_console_index < metric_queue_expander_index < metric_summary_index < metric_queue_index < metric_cards_index
     assert risk_cards_index < liquidity_expander_index < correlation_expander_index
     assert metric_summary_table_index < metric_summary_index

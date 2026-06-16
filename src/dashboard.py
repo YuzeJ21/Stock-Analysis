@@ -17943,6 +17943,31 @@ def data_health_progressive_details_requested(query_value: object, session_loade
     return raw in {"1", "true", "yes", "load", "loaded", "details", "open"}
 
 
+def data_health_detail_selector_requested(query_value: object, session_loaded: object = False, selector_value: object = None) -> bool:
+    if data_health_progressive_details_requested(query_value, session_loaded):
+        return True
+    return str(selector_value or "").strip().lower() == "review details"
+
+
+def render_data_health_detail_selector(
+    *,
+    label: str,
+    key: str,
+    loaded: bool,
+    help_text: str,
+) -> bool:
+    options = ["Fast view", "Review details"]
+    default = "Review details" if loaded else "Fast view"
+    selection = st.segmented_control(
+        label,
+        options,
+        default=default,
+        key=key,
+        help=help_text,
+    )
+    return str(selection or default) == "Review details"
+
+
 def data_health_deferred_detail_cards(
     *,
     title: str,
@@ -17952,11 +17977,11 @@ def data_health_deferred_detail_cards(
 ) -> list[dict[str, object]]:
     return [
         {
-            "kicker": "DEFERRED DETAIL",
+            "kicker": "DETAIL MODE",
             "title": title,
             "body": (
                 f"{body} This keeps the first viewport focused on readiness status and next action; "
-                "open details only when you need row-level proof."
+                "switch to Review details when you need row-level proof."
             ),
             "badges": badges or ["progressive loading", "collapsed proof"],
             "command": command,
@@ -17992,7 +18017,7 @@ def data_health_metric_detail_load_status(
                 "The first metrics view is intentionally lightweight. Load SPY/QQQ row-level details only when "
                 "you need blocker-family proof."
             ),
-            "next_action": "Use the load control on this lane.",
+            "next_action": "Switch Metric detail level to Review details.",
         }
     return {
         "status": "ready_to_load",
@@ -26039,17 +26064,20 @@ def render_data_health(
         ticker_readiness_frame,
     )
     selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
-    queue_details_requested = data_health_progressive_details_requested(
+    queue_details_requested = data_health_detail_selector_requested(
         st.query_params.get("queue_details"),
         st.session_state.get("data_health_queue_details_loaded", False),
+        st.session_state.get("data-health-queue-detail-level"),
     )
-    batch_details_requested = data_health_progressive_details_requested(
+    batch_details_requested = data_health_detail_selector_requested(
         st.query_params.get("batch_details"),
         st.session_state.get("data_health_batch_details_loaded", False),
+        st.session_state.get("data-health-batch-detail-level"),
     )
-    proof_details_requested = data_health_progressive_details_requested(
+    proof_details_requested = data_health_detail_selector_requested(
         st.query_params.get("proof_details"),
         st.session_state.get("data_health_proof_details_loaded", False),
+        st.session_state.get("data-health-proof-detail-level"),
     )
 
     defer_broad_queue = public_mode or not queue_details_requested
@@ -26128,7 +26156,8 @@ def render_data_health(
     proof_timeline = data_health_reviewed_proof_timeline_frame() if should_load_proof_details else pd.DataFrame()
     metric_details_requested = data_health_metric_details_requested(
         st.query_params.get("metric_details"),
-        st.session_state.get("data_health_metric_details_loaded", False),
+        st.session_state.get("data_health_metric_details_loaded", False)
+        or st.session_state.get("data-health-metric-detail-level") == "Review details",
     )
     metric_detail_status = data_health_metric_detail_load_status(
         selected_lane_key,
@@ -26174,20 +26203,23 @@ def render_data_health(
         "Post-price bottlenecks before single-stock reports or raw proof tables.",
     )
     render_signal_cards(data_health_fundamentals_peer_metrics_queue_cards(readiness_queue), show_commands=False, variant="queue")
+    render_data_health_detail_selector(
+        label="Readiness queue detail level",
+        key="data-health-queue-detail-level",
+        loaded=queue_details_requested,
+        help_text="Fast view keeps the first viewport light. Review details loads queue rows, lane drilldowns, and proof examples.",
+    )
     if not queue_details_requested:
         render_signal_cards(
             data_health_deferred_detail_cards(
                 title="Queue details are not loaded yet",
                 body="Broad readiness ops, lane drilldowns, and row-level proof tables are deferred.",
-                command="Use the load control below or add queue_details=1 to the Data Health URL.",
+                command="Switch Readiness queue detail level to Review details.",
                 badges=["fast first view", "row proof deferred"],
             ),
             show_commands=False,
             variant="queue",
         )
-        if st.button("Load readiness queue details", key="data-health-load-queue-details"):
-            st.session_state["data_health_queue_details_loaded"] = True
-            st.rerun()
     with st.expander("Queue outcome ledger summary", expanded=False):
         st.dataframe(clean_display_frame(queue_outcome_summary), width="stretch", hide_index=True)
     with st.expander("Readiness queue evidence", expanded=False):
@@ -26243,14 +26275,11 @@ def render_data_health(
                 data_health_deferred_detail_cards(
                     title="Proof details are not loaded yet",
                     body="Reviewed proof rows and snapshot comparison stay behind an explicit load gate.",
-                    command="Use the proof-detail load control on this page.",
+                    command="Switch Proof detail level to Review details.",
                     badges=["proof deferred", "snapshot gate"],
                 ),
                 show_commands=False,
             )
-            if st.button("Load proof details", key="data-health-load-proof-details-top"):
-                st.session_state["data_health_proof_details_loaded"] = True
-                st.rerun()
         else:
             render_section_header(
                 "Decision Proof Queue",
@@ -26292,26 +26321,29 @@ def render_data_health(
             ),
             show_commands=True,
         )
+        render_data_health_detail_selector(
+            label="Batch execution detail level",
+            key="data-health-batch-detail-level",
+            loaded=batch_details_requested,
+            help_text="Fast view shows the lane-to-proof path. Review details loads planner, guard, sequence, and proof tables.",
+        )
         if not batch_details_requested:
             render_signal_cards(
                 data_health_deferred_detail_cards(
                     title="Batch execution detail is not loaded yet",
                     body="Reviewed batch planner, coverage loop, guard tables, and sequence rows are deferred.",
-                    command="Use the load control below or add batch_details=1 to the Data Health URL.",
+                    command="Switch Batch execution detail level to Review details.",
                     badges=["batch detail deferred", "dry-run first"],
                 ),
                 show_commands=False,
             )
-            if st.button("Load batch execution details", key="data-health-load-batch-details"):
-                st.session_state["data_health_batch_details_loaded"] = True
-                st.rerun()
         with st.expander("Reviewed batch review drawer", expanded=False):
             if not batch_details_requested:
                 render_signal_cards(
                     data_health_deferred_detail_cards(
                         title="Batch review drawer is waiting",
                         body="Open the load gate above before building detailed planner and proof tables.",
-                        command="Use Load batch execution details.",
+                        command="Switch Batch execution detail level to Review details.",
                         badges=["not loaded", "copy-only"],
                     )
                 )
@@ -26416,15 +26448,17 @@ def render_data_health(
             st.dataframe(clean_display_frame(lane_board), width="stretch", hide_index=True)
     elif selected_lane == "Metrics":
         render_data_health_metric_operator_console(metric_queue_frame, readiness_freshness)
+        render_data_health_detail_selector(
+            label="Metric detail level",
+            key="data-health-metric-detail-level",
+            loaded=metric_details_requested,
+            help_text="Fast view keeps metric readiness summarized. Review details loads SPY / QQQ blocker-family rows when freshness allows it.",
+        )
         render_signal_cards(data_health_metric_detail_load_cards(metric_detail_status), show_commands=False)
         render_context_note(
             "Metrics are read-only.",
             "This lane summarizes benchmark, risk, fundamentals trend, valuation, and peer-dispersion readiness only. Source fixes route back to prices, fundamentals, market cap, or peers before any metric value is shown.",
         )
-        if metric_detail_status["status"] == "needs_request":
-            if st.button("Load SPY / QQQ metric details", key="data-health-load-metric-details"):
-                st.session_state["data_health_metric_details_loaded"] = True
-                st.rerun()
         with st.expander("Metrics evidence drawer", expanded=False):
             render_section_header("Metric Detail Load State", "Row-level metric readiness is progressive so the first viewport stays fast.")
             render_signal_cards(data_health_metric_detail_load_cards(metric_detail_status), show_commands=True)
@@ -26466,19 +26500,22 @@ def render_data_health(
             render_section_header("Copy-Only Next Steps", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers paths.")
             render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     elif selected_lane == "Proof History":
+        render_data_health_detail_selector(
+            label="Proof detail level",
+            key="data-health-proof-detail-level",
+            loaded=proof_details_requested,
+            help_text="Fast view keeps proof history light. Review details loads proof ledgers, packet scaffolds, and snapshot comparison.",
+        )
         if not proof_details_requested:
             render_signal_cards(
                 data_health_deferred_detail_cards(
                     title="Proof history details are not loaded yet",
                     body="Reviewed proof rows, batch proof rows, packet scaffolds, and snapshot comparison are deferred.",
-                    command="Use the load control below or add proof_details=1 to the Data Health URL.",
+                    command="Switch Proof detail level to Review details.",
                     badges=["proof deferred", "snapshot gate"],
                 ),
                 show_commands=False,
             )
-            if st.button("Load proof history details", key="data-health-load-proof-details"):
-                st.session_state["data_health_proof_details_loaded"] = True
-                st.rerun()
         else:
             render_data_health_proof_history_operator_console(proof_timeline, batch_proof_frame, readiness_comparison)
             with st.expander("Reviewed batch proof drawer", expanded=True):
